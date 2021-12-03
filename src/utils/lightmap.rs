@@ -33,9 +33,9 @@ use crate::{
     },
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
+use fxhash::FxHashMap;
 use rayon::prelude::*;
 use std::{
-    collections::HashMap,
     ops::Deref,
     path::Path,
     sync::{
@@ -75,11 +75,11 @@ impl Visit for LightmapEntry {
 pub struct Lightmap {
     /// Node handle to lightmap mapping. It is used to quickly get information about
     /// lightmaps for any node in scene.
-    pub map: HashMap<Handle<Node>, Vec<LightmapEntry>>,
+    pub map: FxHashMap<Handle<Node>, Vec<LightmapEntry>>,
 
     /// List of surface data patches. Each patch will be applied to corresponding
     /// surface data on resolve stage.
-    pub patches: HashMap<u64, SurfaceDataPatch>,
+    pub patches: FxHashMap<u64, SurfaceDataPatch>,
 }
 
 impl Visit for Lightmap {
@@ -317,7 +317,7 @@ impl Lightmap {
         }
 
         let mut instances = Vec::new();
-        let mut data_set = HashMap::new();
+        let mut data_set = FxHashMap::default();
 
         for (handle, node) in scene.graph.pair_iter() {
             if let Node::Mesh(mesh) = node {
@@ -356,7 +356,7 @@ impl Lightmap {
                     Ok((patch.data_id, patch))
                 }
             })
-            .collect::<Result<HashMap<_, _>, LightmapGenerationError>>()?;
+            .collect::<Result<FxHashMap<_, _>, LightmapGenerationError>>()?;
 
         progress_indicator.set_stage(ProgressStage::GeometryCaching, instances.len() as u32);
 
@@ -426,7 +426,7 @@ impl Lightmap {
 
         progress_indicator.set_stage(ProgressStage::CalculatingLight, instances.len() as u32);
 
-        let mut map: HashMap<Handle<Node>, Vec<LightmapEntry>> = HashMap::new();
+        let mut map: FxHashMap<Handle<Node>, Vec<LightmapEntry>> = FxHashMap::default();
         for instance in instances.iter() {
             if cancellation_token.is_cancelled() {
                 return Err(LightmapGenerationError::Cancelled);

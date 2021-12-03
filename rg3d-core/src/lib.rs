@@ -19,10 +19,12 @@ pub use rand;
 pub use uuid;
 
 use crate::visitor::{Visit, VisitResult, Visitor};
-use std::borrow::Borrow;
-use std::collections::HashMap;
-use std::hash::Hash;
-use std::path::{Path, PathBuf};
+use fxhash::FxHashMap;
+use std::{
+    borrow::Borrow,
+    hash::Hash,
+    path::{Path, PathBuf},
+};
 
 pub mod color;
 pub mod color_gradient;
@@ -117,8 +119,8 @@ pub fn replace_slashes<P: AsRef<Path>>(path: P) -> PathBuf {
 
 #[derive(Clone, Debug)]
 pub struct BiDirHashMap<K, V> {
-    forward_map: HashMap<K, V>,
-    backward_map: HashMap<V, K>,
+    forward_map: FxHashMap<K, V>,
+    backward_map: FxHashMap<V, K>,
 }
 
 impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> BiDirHashMap<K, V> {
@@ -183,15 +185,15 @@ impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> BiDirHashMap<K, V> {
         self.backward_map.clear();
     }
 
-    pub fn forward_map(&self) -> &HashMap<K, V> {
+    pub fn forward_map(&self) -> &FxHashMap<K, V> {
         &self.forward_map
     }
 
-    pub fn backward_map(&self) -> &HashMap<V, K> {
+    pub fn backward_map(&self) -> &FxHashMap<V, K> {
         &self.backward_map
     }
 
-    pub fn into_inner(self) -> (HashMap<K, V>, HashMap<V, K>) {
+    pub fn into_inner(self) -> (FxHashMap<K, V>, FxHashMap<V, K>) {
         (self.forward_map, self.backward_map)
     }
 }
@@ -205,9 +207,9 @@ impl<K, V> Default for BiDirHashMap<K, V> {
     }
 }
 
-impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> From<HashMap<K, V>> for BiDirHashMap<K, V> {
-    fn from(forward_map: HashMap<K, V>) -> Self {
-        let mut backward_map = HashMap::default();
+impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> From<FxHashMap<K, V>> for BiDirHashMap<K, V> {
+    fn from(forward_map: FxHashMap<K, V>) -> Self {
+        let mut backward_map = FxHashMap::default();
         for (k, v) in forward_map.iter() {
             backward_map.insert(v.clone(), k.clone());
         }

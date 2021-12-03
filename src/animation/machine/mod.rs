@@ -85,10 +85,11 @@
 //! locomotion and other is for combat. This means that locomotion machine will take control over
 //! lower body and combat machine will control upper body.
 
-use crate::animation::machine::blend_nodes::IndexedBlendInput;
 use crate::{
     animation::{
-        machine::blend_nodes::{BlendAnimations, BlendAnimationsByIndex, BlendPose},
+        machine::blend_nodes::{
+            BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput,
+        },
         Animation, AnimationContainer, AnimationPose,
     },
     core::{
@@ -97,9 +98,10 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
+use fxhash::FxHashMap;
 use std::{
     cell::{Ref, RefCell},
-    collections::{HashMap, VecDeque},
+    collections::VecDeque,
 };
 
 pub mod blend_nodes;
@@ -340,7 +342,7 @@ pub struct State {
     pose: AnimationPose,
 }
 
-type ParameterContainer = HashMap<String, Parameter>;
+type ParameterContainer = FxHashMap<String, Parameter>;
 
 trait EvaluatePose {
     fn eval_pose(

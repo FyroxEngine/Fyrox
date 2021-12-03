@@ -6,10 +6,8 @@ use crate::{
     },
     scene2d::{node::Node, transform::TransformBuilder},
 };
-use std::{
-    collections::HashMap,
-    ops::{Index, IndexMut},
-};
+use fxhash::FxHashMap;
+use std::ops::{Index, IndexMut};
 
 #[derive(Default, Visit)]
 pub struct Graph {
@@ -339,11 +337,11 @@ impl Graph {
         node_handle: Handle<Node>,
         dest_graph: &mut Graph,
         filter: &mut F,
-    ) -> (Handle<Node>, HashMap<Handle<Node>, Handle<Node>>)
+    ) -> (Handle<Node>, FxHashMap<Handle<Node>, Handle<Node>>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
-        let mut old_new_mapping = HashMap::new();
+        let mut old_new_mapping = FxHashMap::default();
         let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping, filter);
         (root_handle, old_new_mapping)
     }
@@ -366,11 +364,11 @@ impl Graph {
         &mut self,
         node_handle: Handle<Node>,
         filter: &mut F,
-    ) -> (Handle<Node>, HashMap<Handle<Node>, Handle<Node>>)
+    ) -> (Handle<Node>, FxHashMap<Handle<Node>, Handle<Node>>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
-        let mut old_new_mapping = HashMap::new();
+        let mut old_new_mapping = FxHashMap::default();
 
         let to_copy = self
             .traverse_handle_iter(node_handle)
@@ -416,7 +414,7 @@ impl Graph {
         &self,
         root_handle: Handle<Node>,
         dest_graph: &mut Graph,
-        old_new_mapping: &mut HashMap<Handle<Node>, Handle<Node>>,
+        old_new_mapping: &mut FxHashMap<Handle<Node>, Handle<Node>>,
         filter: &mut F,
     ) -> Handle<Node>
     where
@@ -440,7 +438,7 @@ impl Graph {
 
     /// Creates deep copy of graph. Allows filtering while copying, returns copy and
     /// old-to-new node mapping.
-    pub fn clone<F>(&self, filter: &mut F) -> (Self, HashMap<Handle<Node>, Handle<Node>>)
+    pub fn clone<F>(&self, filter: &mut F) -> (Self, FxHashMap<Handle<Node>, Handle<Node>>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {

@@ -8,10 +8,8 @@ use crate::{
     core::{algebra::Vector3, math::TriangleDefinition},
     utils::hash_as_bytes,
 };
-use std::{
-    collections::HashSet,
-    hash::{Hash, Hasher},
-};
+use fxhash::{FxBuildHasher, FxHashSet};
+use std::hash::{Hash, Hasher};
 
 #[derive(Copy, Clone)]
 struct IndexedStorage<T> {
@@ -98,7 +96,7 @@ pub struct RawMeshBuilder<T>
 where
     T: Hash + PartialEq,
 {
-    vertices: HashSet<IndexedStorage<T>>,
+    vertices: FxHashSet<IndexedStorage<T>>,
     indices: Vec<u32>,
 }
 
@@ -118,7 +116,10 @@ where
     /// buffers. These values doesn't need to be precise.
     pub fn new(vertices: usize, indices: usize) -> Self {
         Self {
-            vertices: HashSet::with_capacity(vertices),
+            // We can't use plain `with_capacity` with FxHashSet,
+            // we need to specify the hahser manually too
+            // (https://internals.rust-lang.org/t/hashmap-set-new-with-capacity-and-buildhasher/15622).
+            vertices: FxHashSet::with_capacity_and_hasher(vertices, FxBuildHasher::default()),
             indices: Vec::with_capacity(indices),
         }
     }

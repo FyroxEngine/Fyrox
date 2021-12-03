@@ -5,7 +5,6 @@
 
 #![warn(missing_docs)]
 
-use crate::scene::mesh::buffer::{VertexAttributeUsage, VertexReadTrait};
 use crate::{
     core::{
         algebra::{Point3, Vector3},
@@ -15,16 +14,17 @@ use crate::{
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
-    scene::mesh::Mesh,
+    scene::mesh::{
+        buffer::{VertexAttributeUsage, VertexReadTrait},
+        Mesh,
+    },
     utils::{
         astar::{PathError, PathFinder, PathKind, PathVertex},
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use std::{
-    collections::HashSet,
-    hash::{Hash, Hasher},
-};
+use fxhash::FxHashSet;
+use std::hash::{Hash, Hasher};
 
 /// See module docs.
 #[derive(Clone, Debug, Default)]
@@ -107,7 +107,7 @@ impl Navmesh {
         let mut pathfinder = PathFinder::new();
         pathfinder.set_vertices(vertices.iter().map(|v| PathVertex::new(*v)).collect());
 
-        let mut edges = HashSet::new();
+        let mut edges = FxHashSet::default();
         for triangle in triangles {
             edges.insert(Edge {
                 a: triangle[0],

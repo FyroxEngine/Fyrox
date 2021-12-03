@@ -23,11 +23,11 @@ use crate::{
     desc::{ColliderDesc, JointDesc, PhysicsDesc, RigidBodyDesc},
     joint::JointContainer,
 };
+use fxhash::FxHashMap;
 use rg3d_core::{arrayvec::ArrayVec, instant, visitor::prelude::*, BiDirHashMap};
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
-    collections::HashMap,
     fmt::{Debug, Display, Formatter},
     time::Duration,
 };
@@ -380,7 +380,7 @@ impl PhysicsWorld {
             .iter()
             .enumerate()
             .map(|(i, (h, _))| (h, NativeRigidBodyHandle::from_raw_parts(i as u32, 0)))
-            .collect::<HashMap<_, _>>();
+            .collect::<FxHashMap<_, _>>();
 
         let mut body_handle_map = BiDirHashMap::default();
         for (engine_handle, rapier_handle) in self.bodies.handle_map().forward_map() {
@@ -393,7 +393,7 @@ impl PhysicsWorld {
             .iter()
             .enumerate()
             .map(|(i, (h, _))| (h, NativeColliderHandle::from_raw_parts(i as u32, 0)))
-            .collect::<HashMap<_, _>>();
+            .collect::<FxHashMap<_, _>>();
 
         let mut collider_handle_map = BiDirHashMap::default();
         for (engine_handle, rapier_handle) in self.colliders.handle_map().forward_map() {
@@ -406,7 +406,7 @@ impl PhysicsWorld {
             .iter()
             .enumerate()
             .map(|(i, (h, _))| (h, NativeJointHandle::from_raw_parts(i as u32, 0)))
-            .collect::<HashMap<_, _>>();
+            .collect::<FxHashMap<_, _>>();
 
         let mut joint_handle_map = BiDirHashMap::default();
         for (engine_handle, rapier_handle) in self.joints.handle_map.forward_map() {

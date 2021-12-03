@@ -6,7 +6,7 @@ use crate::{
     core::{algebra::Vector3, math::frustum::Frustum, pool::Handle},
     scene::{graph::Graph, node::Node},
 };
-use std::collections::HashMap;
+use fxhash::FxHashMap;
 
 /// Visibility cache stores information about objects visibility for a single frame. Allows you to quickly check
 /// if an object is visible or not.
@@ -24,11 +24,11 @@ use std::collections::HashMap;
 /// The cache is based on hash map, so it is very fast and has O(1) complexity for fetching.
 #[derive(Default, Debug)]
 pub struct VisibilityCache {
-    map: HashMap<Handle<Node>, bool>,
+    map: FxHashMap<Handle<Node>, bool>,
 }
 
-impl From<HashMap<Handle<Node>, bool>> for VisibilityCache {
-    fn from(map: HashMap<Handle<Node>, bool>) -> Self {
+impl From<FxHashMap<Handle<Node>, bool>> for VisibilityCache {
+    fn from(map: FxHashMap<Handle<Node>, bool>) -> Self {
         Self { map }
     }
 }
@@ -36,7 +36,7 @@ impl From<HashMap<Handle<Node>, bool>> for VisibilityCache {
 impl VisibilityCache {
     /// Replaces internal map with empty and returns previous value. This trick is useful
     /// to reuse hash map to prevent redundant memory allocations.
-    pub fn invalidate(&mut self) -> HashMap<Handle<Node>, bool> {
+    pub fn invalidate(&mut self) -> FxHashMap<Handle<Node>, bool> {
         std::mem::take(&mut self.map)
     }
 

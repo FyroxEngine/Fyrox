@@ -17,7 +17,7 @@ use crate::{
         },
     },
 };
-use std::collections::HashMap;
+use fxhash::FxHashMap;
 
 pub mod animation;
 pub mod geometry;
@@ -34,7 +34,7 @@ impl FbxScene {
     /// for conversion to engine format
     pub fn new(document: &FbxDocument) -> Result<Self, FbxError> {
         let mut components = Pool::new();
-        let mut index_to_component = HashMap::new();
+        let mut index_to_component = FxHashMap::default();
 
         let nodes = document.nodes();
 

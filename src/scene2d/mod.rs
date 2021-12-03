@@ -2,8 +2,6 @@
 //!
 //! A `Scene` is a container for graph nodes, animations and physics.
 
-use crate::physics2d::PhysicsPerformanceStatistics;
-use crate::physics2d::RigidBodyHandle;
 use crate::{
     core::{
         algebra::{Isometry2, Translation2, Vector2},
@@ -13,12 +11,13 @@ use crate::{
         visitor::prelude::*,
     },
     engine::PhysicsBinder,
+    physics2d::{PhysicsPerformanceStatistics, RigidBodyHandle},
     resource::texture::Texture,
     scene::base::PhysicsBinding,
     scene2d::{graph::Graph, node::Node, physics::Physics},
     sound::{context::SoundContext, engine::SoundEngine},
 };
-use std::collections::HashMap;
+use fxhash::FxHashMap;
 use std::{
     ops::{Index, IndexMut},
     sync::{Arc, Mutex},
@@ -140,7 +139,7 @@ impl Scene2d {
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
     /// by your criteria.
-    pub fn clone<F>(&self, filter: &mut F) -> (Self, HashMap<Handle<Node>, Handle<Node>>)
+    pub fn clone<F>(&self, filter: &mut F) -> (Self, FxHashMap<Handle<Node>, Handle<Node>>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {

@@ -1,6 +1,5 @@
-use std::collections::HashSet;
-
 use darling::ast;
+use fxhash::FxHashSet;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::*;
 use syn::*;
@@ -108,7 +107,7 @@ pub fn create_field_visits<'a>(
         })
         .collect::<Vec<_>>();
 
-    let mut no_dup = HashSet::new();
+    let mut no_dup = FxHashSet::default();
     for name in visit_args.iter().map(|(_, name, _)| name) {
         if !no_dup.insert(name) {
             panic!("duplicate visiting names detected!");

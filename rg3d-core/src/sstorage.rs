@@ -7,8 +7,9 @@ use crate::{
     parking_lot::Mutex,
     visitor::{Visit, VisitResult, Visitor},
 };
+use fxhash::FxHashMap;
 use std::{
-    collections::{hash_map::DefaultHasher, HashMap},
+    collections::hash_map::DefaultHasher,
     fmt::{Display, Formatter},
     hash::{Hash, Hasher},
     ops::Deref,
@@ -112,7 +113,7 @@ impl Eq for ImmutableString {}
 /// storage is a singleton. In normal circumstances you should never use it directly.
 #[derive(Default)]
 pub struct ImmutableStringStorage {
-    vec: HashMap<u64, Arc<String>>,
+    vec: FxHashMap<u64, Arc<String>>,
 }
 
 impl ImmutableStringStorage {

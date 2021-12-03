@@ -7,6 +7,7 @@ rust-version = "1.56"
 [dependencies]
 rg3d-core = { version = "0.18.0", path = "../../../rg3d-core" }
 rapier2d = "0.11.1"
+fxhash = "0.2.1"
 
 [lib]
 path = "../../src/lib.rs"

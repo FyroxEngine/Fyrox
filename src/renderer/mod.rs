@@ -77,10 +77,11 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, node::Node, Scene, SceneContainer},
     scene2d::Scene2dContainer,
 };
+use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
-    collections::{hash_map::Entry, HashMap},
+    collections::hash_map::Entry,
     fmt::{Display, Formatter},
     rc::Rc,
     sync::{
@@ -679,7 +680,7 @@ pub struct Renderer {
     quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
     pub debug_renderer: DebugRenderer,
-    scene_data_map: HashMap<Handle<Scene>, AssociatedSceneData>,
+    scene_data_map: FxHashMap<Handle<Scene>, AssociatedSceneData>,
     backbuffer_clear_color: Color,
     texture_cache: TextureCache,
     shader_cache: ShaderCache,
@@ -692,7 +693,7 @@ pub struct Renderer {
     texture_upload_sender: Sender<Texture>,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
-    ui_frame_buffers: HashMap<usize, FrameBuffer>,
+    ui_frame_buffers: FxHashMap<usize, FrameBuffer>,
     // MUST BE LAST! Otherwise you'll get crash, because other parts of the renderer will
     // contain **pointer** to pipeline state. It must be dropped last!
     state: Box<PipelineState>,

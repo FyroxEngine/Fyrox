@@ -20,6 +20,7 @@ proc-macro2 = "1.0.28"
 quote = "1.0.9"
 syn = "1.0.74"
 darling = "0.13.0"
+fxhash = "0.2.1"
 
 [dev-dependencies]
 rg3d-core = { path = "../rg3d-core" }

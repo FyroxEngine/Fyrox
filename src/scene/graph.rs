@@ -38,10 +38,8 @@ use crate::{
     scene::{node::Node, transform::TransformBuilder, visibility::VisibilityCache},
     utils::log::{Log, MessageKind},
 };
-use std::{
-    collections::HashMap,
-    ops::{Index, IndexMut},
-};
+use fxhash::FxHashMap;
+use std::ops::{Index, IndexMut};
 
 /// See module docs.
 #[derive(Debug)]
@@ -76,7 +74,7 @@ pub struct SubGraph {
     pub descendants: Vec<(Ticket<Node>, Node)>,
 }
 
-fn remap_handles(old_new_mapping: &HashMap<Handle<Node>, Handle<Node>>, dest_graph: &mut Graph) {
+fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_graph: &mut Graph) {
     // Iterate over instantiated nodes and remap handles.
     for (_, &new_node_handle) in old_new_mapping.iter() {
         let new_node = &mut dest_graph.pool[new_node_handle];
@@ -322,11 +320,11 @@ impl Graph {
         node_handle: Handle<Node>,
         dest_graph: &mut Graph,
         filter: &mut F,
-    ) -> (Handle<Node>, HashMap<Handle<Node>, Handle<Node>>)
+    ) -> (Handle<Node>, FxHashMap<Handle<Node>, Handle<Node>>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
-        let mut old_new_mapping = HashMap::new();
+        let mut old_new_mapping = FxHashMap::default();
         let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping, filter);
 
         remap_handles(&old_new_mapping, dest_graph);
@@ -361,11 +359,11 @@ impl Graph {
         &mut self,
         node_handle: Handle<Node>,
         filter: &mut F,
-    ) -> (Handle<Node>, HashMap<Handle<Node>, Handle<Node>>)
+    ) -> (Handle<Node>, FxHashMap<Handle<Node>, Handle<Node>>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
-        let mut old_new_mapping = HashMap::new();
+        let mut old_new_mapping = FxHashMap::default();
 
         let to_copy = self
             .traverse_handle_iter(node_handle)
@@ -422,7 +420,7 @@ impl Graph {
         &self,
         root_handle: Handle<Node>,
         dest_graph: &mut Graph,
-        old_new_mapping: &mut HashMap<Handle<Node>, Handle<Node>>,
+        old_new_mapping: &mut FxHashMap<Handle<Node>, Handle<Node>>,
         filter: &mut F,
     ) -> Handle<Node>
     where
@@ -1004,7 +1002,7 @@ impl Graph {
 
     /// Creates deep copy of graph. Allows filtering while copying, returns copy and
     /// old-to-new node mapping.
-    pub fn clone<F>(&self, filter: &mut F) -> (Self, HashMap<Handle<Node>, Handle<Node>>)
+    pub fn clone<F>(&self, filter: &mut F) -> (Self, FxHashMap<Handle<Node>, Handle<Node>>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {

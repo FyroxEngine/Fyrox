@@ -75,13 +75,12 @@ use crate::{
     ttf::{Font, SharedFont},
     widget::{Widget, WidgetBuilder, WidgetMessage},
 };
-
 use copypasta::ClipboardContext;
-use std::any::TypeId;
+use fxhash::{FxHashMap, FxHashSet};
 use std::{
-    any::Any,
+    any::{Any, TypeId},
     cell::Cell,
-    collections::{HashMap, HashSet, VecDeque},
+    collections::VecDeque,
     fmt::Debug,
     ops::{Deref, DerefMut, Index, IndexMut},
     sync::{
@@ -220,7 +219,7 @@ type NodeHandle = Handle<UiNode>;
 
 #[derive(Default)]
 pub struct NodeHandleMapping {
-    hash_map: HashMap<NodeHandle, NodeHandle>,
+    hash_map: FxHashMap<NodeHandle, NodeHandle>,
 }
 
 impl NodeHandleMapping {
@@ -524,7 +523,7 @@ pub struct UserInterface {
     keyboard_modifiers: KeyboardModifiers,
     cursor_icon: CursorIcon,
     active_tooltip: Option<TooltipEntry>,
-    preview_set: HashSet<Handle<UiNode>>,
+    preview_set: FxHashSet<Handle<UiNode>>,
     clipboard: Option<ClipboardContext>,
     layout_events_receiver: Receiver<LayoutEvent>,
     layout_events_sender: Sender<LayoutEvent>,

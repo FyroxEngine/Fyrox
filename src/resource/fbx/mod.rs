@@ -10,7 +10,6 @@ mod document;
 pub mod error;
 mod scene;
 
-use crate::core::sstorage::ImmutableString;
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
     core::{
@@ -20,6 +19,7 @@ use crate::{
         math::{self, triangulator::triangulate, RotationOrder},
         parking_lot::Mutex,
         pool::Handle,
+        sstorage::ImmutableString,
     },
     engine::resource_manager::{MaterialSearchOptions, ResourceManager},
     material::{shader::SamplerFallback, PropertyValue},
@@ -49,12 +49,8 @@ use crate::{
         raw_mesh::RawMeshBuilder,
     },
 };
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, HashSet},
-    path::Path,
-    sync::Arc,
-};
+use fxhash::{FxHashMap, FxHashSet};
+use std::{cmp::Ordering, path::Path, sync::Arc};
 use walkdir::WalkDir;
 
 /// Input angles in degrees
@@ -624,7 +620,7 @@ async fn convert(
 ) -> Result<(), FbxError> {
     let root = scene.graph.get_root();
     let animation_handle = scene.animations.add(Animation::default());
-    let mut fbx_model_to_node_map = HashMap::new();
+    let mut fbx_model_to_node_map = FxHashMap::default();
     for (component_handle, component) in fbx_scene.pair_iter() {
         if let FbxComponent::Model(model) = component {
             let node = convert_model(
@@ -658,7 +654,7 @@ async fn convert(
     // on each surface of each mesh.
     for &handle in fbx_model_to_node_map.values() {
         if let Node::Mesh(mesh) = &mut scene.graph[handle] {
-            let mut surface_bones = HashSet::new();
+            let mut surface_bones = FxHashSet::default();
             for surface in mesh.surfaces_mut() {
                 for weight_set in surface.vertex_weights.iter_mut() {
                     for weight in weight_set.iter_mut() {
@@ -748,7 +744,7 @@ pub async fn load_to_scene<P: AsRef<Path>>(
     // It seems that FBX was designed using ass, not brains. It has no unique **persistent**
     // IDs for entities, so the only way to find an entity is to use its name, but FBX also
     // allows to have multiple entities with the same name. facepalm.jpg
-    let mut hash_set = HashSet::<String>::new();
+    let mut hash_set = FxHashSet::<String>::default();
     for node in scene.graph.linear_iter() {
         if hash_set.contains(node.name()) {
             Log::writeln(

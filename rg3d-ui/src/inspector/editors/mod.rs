@@ -19,7 +19,8 @@ use crate::{
     message::UiMessage,
     BuildContext, UiNode, UserInterface,
 };
-use std::{any::TypeId, collections::HashMap, fmt::Debug, rc::Rc};
+use fxhash::FxHashMap;
+use std::{any::TypeId, fmt::Debug, rc::Rc};
 
 pub mod array;
 pub mod bool;
@@ -90,7 +91,7 @@ pub trait PropertyEditorDefinition: Debug {
 
 #[derive(Clone, Default)]
 pub struct PropertyEditorDefinitionContainer {
-    definitions: HashMap<TypeId, Rc<dyn PropertyEditorDefinition>>,
+    definitions: FxHashMap<TypeId, Rc<dyn PropertyEditorDefinition>>,
 }
 
 impl PropertyEditorDefinitionContainer {
@@ -193,7 +194,7 @@ impl PropertyEditorDefinitionContainer {
             .insert(definition.value_type_id(), Rc::new(definition))
     }
 
-    pub fn definitions(&self) -> &HashMap<TypeId, Rc<dyn PropertyEditorDefinition>> {
+    pub fn definitions(&self) -> &FxHashMap<TypeId, Rc<dyn PropertyEditorDefinition>> {
         &self.definitions
     }
 }
