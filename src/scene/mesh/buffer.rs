@@ -17,10 +17,13 @@ use crate::{
     },
     utils::value_as_u8_slice,
 };
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use std::ops::{Deref, DerefMut, Index, IndexMut};
-use std::{marker::PhantomData, mem::MaybeUninit};
+use fxhash::FxHasher;
+use std::{
+    hash::{Hash, Hasher},
+    marker::PhantomData,
+    mem::MaybeUninit,
+    ops::{Deref, DerefMut, Index, IndexMut},
+};
 
 /// Data type for a vertex attribute component.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Debug)]
@@ -148,7 +151,7 @@ pub struct VertexBuffer {
 }
 
 fn calculate_data_hash(data: &[u8]) -> u64 {
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = FxHasher::default();
     data.hash(&mut hasher);
     hasher.finish()
 }
@@ -910,7 +913,7 @@ pub struct GeometryBuffer {
 }
 
 fn calculate_geometry_buffer_hash(triangles: &[TriangleDefinition]) -> u64 {
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = FxHasher::default();
     triangles.hash(&mut hasher);
     hasher.finish()
 }

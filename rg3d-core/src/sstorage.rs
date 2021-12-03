@@ -7,9 +7,8 @@ use crate::{
     parking_lot::Mutex,
     visitor::{Visit, VisitResult, Visitor},
 };
-use fxhash::FxHashMap;
+use fxhash::{FxHashMap, FxHasher};
 use std::{
-    collections::hash_map::DefaultHasher,
     fmt::{Display, Formatter},
     hash::{Hash, Hasher},
     ops::Deref,
@@ -119,7 +118,7 @@ pub struct ImmutableStringStorage {
 impl ImmutableStringStorage {
     #[inline]
     fn insert<S: AsRef<str>>(&mut self, string: S) -> ImmutableString {
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = FxHasher::default();
         string.as_ref().hash(&mut hasher);
         let hash = hasher.finish();
 
