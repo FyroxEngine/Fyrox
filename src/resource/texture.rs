@@ -29,11 +29,11 @@ use crate::{
     },
 };
 use ddsfile::{Caps2, D3DFormat};
+use fxhash::FxHasher;
 use image::{ColorType, DynamicImage, GenericImageView, ImageError, ImageFormat};
-use std::fmt::{Debug, Formatter};
 use std::{
     borrow::Cow,
-    collections::hash_map::DefaultHasher,
+    fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
     io::Cursor,
     ops::{Deref, DerefMut},
@@ -668,7 +668,7 @@ fn compress_rg8_bc4<T: tbc::color::ColorRedGreen8>(
 }
 
 fn data_hash(data: &[u8]) -> u64 {
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = FxHasher::default();
     data.hash(&mut hasher);
     hasher.finish()
 }

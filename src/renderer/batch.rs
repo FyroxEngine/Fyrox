@@ -11,9 +11,8 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
-use fxhash::FxHashMap;
+use fxhash::{FxHashMap, FxHasher};
 use std::{
-    collections::hash_map::DefaultHasher,
     fmt::{Debug, Formatter},
     hash::Hasher,
     sync::Arc,
@@ -138,7 +137,7 @@ impl BatchStorage {
                                 Ok(_) => {
                                     let material = Arc::new(Mutex::new(material));
 
-                                    let mut hasher = DefaultHasher::new();
+                                    let mut hasher = FxHasher::default();
 
                                     hasher.write_u64(&*material as *const _ as u64);
                                     hasher.write_u64(data_key);

@@ -4,9 +4,8 @@
 
 #![allow(dead_code)]
 
-use fxhash::{FxHashMap, FxHashSet};
+use fxhash::{FxHashMap, FxHashSet, FxHasher};
 use std::{
-    collections::hash_map::DefaultHasher,
     fmt,
     fmt::Write,
     hash::{Hash, Hasher},
@@ -102,7 +101,7 @@ impl Default for Profiler {
 }
 
 fn calculate_hash<T: Hash>(t: &T) -> u64 {
-    let mut s = DefaultHasher::new();
+    let mut s = FxHasher::default();
     t.hash(&mut s);
     s.finish()
 }

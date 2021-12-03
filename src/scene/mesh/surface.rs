@@ -29,7 +29,8 @@ use crate::{
     },
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
-use std::{collections::hash_map::DefaultHasher, hash::Hasher, sync::Arc};
+use fxhash::FxHasher;
+use std::{hash::Hasher, sync::Arc};
 
 /// Data source of a surface. Each surface can share same data source, this is used
 /// in instancing technique to render multiple instances of same model at different
@@ -945,7 +946,7 @@ impl Surface {
 
     /// Calculates batch id.
     pub fn batch_id(&self) -> u64 {
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = FxHasher::default();
         hasher.write_u64(self.material_id());
         hasher.write_u64(&**self.data.as_ref().unwrap() as *const _ as u64);
         hasher.finish()
