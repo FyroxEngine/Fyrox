@@ -10,18 +10,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-#[derive(Copy, Clone, Debug)]
-struct Point {
-    x: f32,
-    y: f32,
-    flags: u8,
-}
-
-#[derive(Debug)]
-struct Polygon {
-    points: Vec<Point>,
-}
-
 #[derive(Debug)]
 pub struct FontGlyph {
     pub top: f32,
