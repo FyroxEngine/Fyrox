@@ -4,20 +4,20 @@
 
 #![warn(missing_docs)]
 
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::framework::framebuffer::DrawParameters;
 use crate::{
     asset::ResourceState,
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
+        sstorage::ImmutableString,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
     material::shader::{PropertyKind, SamplerFallback, Shader},
+    renderer::framework::framebuffer::DrawParameters,
     resource::texture::Texture,
 };
-use std::collections::HashMap;
+use fxhash::FxHashMap;
 use std::ops::Deref;
 
 pub mod shader;
@@ -343,7 +343,7 @@ impl Default for PropertyValue {
 pub struct Material {
     shader: Shader,
     draw_parameters: DrawParameters,
-    properties: HashMap<ImmutableString, PropertyValue>,
+    properties: FxHashMap<ImmutableString, PropertyValue>,
 }
 
 /// A set of possible errors that can occur when working with materials.
@@ -445,7 +445,7 @@ impl Material {
     pub fn from_shader(shader: Shader, resource_manager: Option<ResourceManager>) -> Self {
         let data = shader.data_ref();
 
-        let mut property_values = HashMap::new();
+        let mut property_values = FxHashMap::default();
         for property_definition in data.definition.properties.iter() {
             let value = match &property_definition.kind {
                 PropertyKind::Float(value) => PropertyValue::Float(*value),
@@ -663,7 +663,7 @@ impl Material {
     }
 
     /// Returns immutable reference to internal property storage.
-    pub fn properties(&self) -> &HashMap<ImmutableString, PropertyValue> {
+    pub fn properties(&self) -> &FxHashMap<ImmutableString, PropertyValue> {
         &self.properties
     }
 }

@@ -14,7 +14,7 @@ use crate::{
         state::PipelineState,
     },
 };
-use std::collections::HashMap;
+use fxhash::FxHashMap;
 
 #[repr(C)]
 pub struct Vertex {
@@ -59,7 +59,7 @@ impl Mesh {
 
 #[derive(Default)]
 pub(in crate) struct GeometryCache {
-    map: HashMap<usize, TimedEntry<GeometryBuffer>>,
+    map: FxHashMap<usize, TimedEntry<GeometryBuffer>>,
 }
 
 #[derive(Clone)]

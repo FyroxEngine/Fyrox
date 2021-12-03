@@ -1,6 +1,8 @@
-use crate::core::sstorage::ImmutableString;
 use crate::{
-    core::{algebra::Matrix4, arrayvec::ArrayVec, parking_lot::Mutex, pool::Handle, scope_profile},
+    core::{
+        algebra::Matrix4, arrayvec::ArrayVec, parking_lot::Mutex, pool::Handle, scope_profile,
+        sstorage::ImmutableString,
+    },
     material::{Material, PropertyValue},
     scene::{
         graph::Graph,
@@ -9,8 +11,9 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
+use fxhash::FxHashMap;
 use std::{
-    collections::{hash_map::DefaultHasher, HashMap},
+    collections::hash_map::DefaultHasher,
     fmt::{Debug, Formatter},
     hash::Hasher,
     sync::Arc,
@@ -49,7 +52,7 @@ impl Debug for Batch {
 #[derive(Default)]
 pub struct BatchStorage {
     buffers: Vec<Vec<SurfaceInstance>>,
-    batch_map: HashMap<u64, usize>,
+    batch_map: FxHashMap<u64, usize>,
     /// Sorted list of batches.
     pub batches: Vec<Batch>,
 }

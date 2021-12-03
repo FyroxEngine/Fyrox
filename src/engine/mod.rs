@@ -24,9 +24,9 @@ use crate::{
     sound::engine::SoundEngine,
     window::{Window, WindowBuilder},
 };
-use std::hash::Hash;
+use fxhash::FxHashMap;
 use std::{
-    collections::HashMap,
+    hash::Hash,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -291,9 +291,9 @@ impl Visit for Engine {
 #[derive(Clone, Debug)]
 pub struct PhysicsBinder<N, BH> {
     /// Mapping Node -> RigidBody.
-    forward_map: HashMap<Handle<N>, BH>,
+    forward_map: FxHashMap<Handle<N>, BH>,
 
-    backward_map: HashMap<BH, Handle<N>>,
+    backward_map: FxHashMap<BH, Handle<N>>,
 
     /// Whether binder is enabled or not. If binder is disabled, it won't synchronize
     /// node's transform with body's transform.
@@ -359,12 +359,12 @@ where
     }
 
     /// Returns a shared reference to inner forward mapping.
-    pub fn forward_map(&self) -> &HashMap<Handle<N>, BH> {
+    pub fn forward_map(&self) -> &FxHashMap<Handle<N>, BH> {
         &self.forward_map
     }
 
     /// Returns a shared reference to inner backward mapping.
-    pub fn backward_map(&self) -> &HashMap<BH, Handle<N>> {
+    pub fn backward_map(&self) -> &FxHashMap<BH, Handle<N>> {
         &self.backward_map
     }
 

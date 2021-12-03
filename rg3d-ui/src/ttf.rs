@@ -1,8 +1,9 @@
-use crate::core::algebra::Vector2;
-use crate::core::io;
-use crate::{core::rectpack::RectPacker, draw::SharedTexture};
+use crate::{
+    core::{algebra::Vector2, io, rectpack::RectPacker},
+    draw::SharedTexture,
+};
+use fxhash::FxHashMap;
 use std::{
-    collections::HashMap,
     fmt::{Debug, Formatter},
     ops::{Deref, Range},
     path::Path,
@@ -37,7 +38,7 @@ pub struct Font {
     glyphs: Vec<FontGlyph>,
     ascender: f32,
     descender: f32,
-    char_map: HashMap<u32, usize>,
+    char_map: FxHashMap<u32, usize>,
     atlas: Vec<u8>,
     atlas_size: usize,
     pub texture: Option<SharedTexture>,
@@ -162,7 +163,7 @@ impl Font {
             glyphs: Vec::new(),
             ascender: font_metrics.ascent,
             descender: font_metrics.descent,
-            char_map: HashMap::new(),
+            char_map: FxHashMap::default(),
             atlas: Vec::new(),
             atlas_size: 0,
             texture: None,

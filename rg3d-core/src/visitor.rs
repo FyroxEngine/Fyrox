@@ -26,16 +26,16 @@ use crate::{
 };
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::ops::Range;
+use fxhash::FxHashMap;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
-    collections::{hash_map::Entry, HashMap},
+    collections::hash_map::Entry,
     fmt::{Display, Formatter},
     fs::File,
     hash::Hash,
     io::{BufWriter, Cursor, Read, Write},
-    ops::DerefMut,
+    ops::{DerefMut, Range},
     path::{Path, PathBuf},
     rc::Rc,
     string::FromUtf8Error,
@@ -709,8 +709,8 @@ impl Default for Node {
 
 pub struct Visitor {
     nodes: Pool<Node>,
-    rc_map: HashMap<u64, Rc<dyn Any>>,
-    arc_map: HashMap<u64, Arc<dyn Any + Send + Sync>>,
+    rc_map: FxHashMap<u64, Rc<dyn Any>>,
+    arc_map: FxHashMap<u64, Arc<dyn Any + Send + Sync>>,
     reading: bool,
     current_node: Handle<Node>,
     root: Handle<Node>,
@@ -734,8 +734,8 @@ impl Visitor {
         let root = nodes.spawn(Node::new("__ROOT__", Handle::NONE));
         Self {
             nodes,
-            rc_map: HashMap::new(),
-            arc_map: HashMap::new(),
+            rc_map: FxHashMap::default(),
+            arc_map: FxHashMap::default(),
             reading: false,
             current_node: root,
             root,
@@ -1290,7 +1290,7 @@ where
     }
 }
 
-impl<K, V, S: std::hash::BuildHasher> Visit for HashMap<K, V, S>
+impl<K, V> Visit for FxHashMap<K, V>
 where
     K: Visit + Default + Clone + Hash + Eq,
     V: Visit + Default,

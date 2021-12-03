@@ -19,10 +19,10 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fxhash::FxHashSet;
 use std::{
     any::{Any, TypeId},
     cell::{Cell, RefCell},
-    collections::HashSet,
     ops::{Deref, DerefMut},
 };
 
@@ -127,7 +127,7 @@ enum OperationContext {
 
 #[derive(Clone)]
 enum Selection {
-    Keys { keys: HashSet<Uuid> },
+    Keys { keys: FxHashSet<Uuid> },
     // It is ok to use index directly in case of tangents since
     // we won't change position of keys so index will be valid.
     LeftTangent { key: usize },
@@ -143,7 +143,7 @@ enum PickResult {
 
 impl Selection {
     fn single_key(key: Uuid) -> Self {
-        let mut keys = HashSet::new();
+        let mut keys = FxHashSet::default();
         keys.insert(key);
         Self::Keys { keys }
     }
@@ -306,7 +306,7 @@ impl Control for CurveEditor {
                                     let rect =
                                         Rect::new(min.x, min.y, max.x - min.x, max.y - min.y);
 
-                                    let mut selection = HashSet::default();
+                                    let mut selection = FxHashSet::default();
                                     for key in self.key_container.keys() {
                                         if rect.contains(key.position) {
                                             selection.insert(key.id);

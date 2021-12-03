@@ -52,8 +52,8 @@ use crate::{
     sound::{context::SoundContext, engine::SoundEngine},
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
+use fxhash::FxHashMap;
 use std::{
-    collections::HashMap,
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
     path::Path,
@@ -471,7 +471,7 @@ impl Scene {
         if let Some(lightmap) = self.lightmap.as_mut() {
             // Patch surface data first. To do this we gather all surface data instances and
             // look in patch data if we have patch for data.
-            let mut unique_data_set = HashMap::new();
+            let mut unique_data_set = FxHashMap::default();
             for &handle in lightmap.map.keys() {
                 if let Node::Mesh(mesh) = &mut self.graph[handle] {
                     for surface in mesh.surfaces() {
@@ -619,7 +619,7 @@ impl Scene {
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
     /// by your criteria.
-    pub fn clone<F>(&self, filter: &mut F) -> (Self, HashMap<Handle<Node>, Handle<Node>>)
+    pub fn clone<F>(&self, filter: &mut F) -> (Self, FxHashMap<Handle<Node>, Handle<Node>>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {

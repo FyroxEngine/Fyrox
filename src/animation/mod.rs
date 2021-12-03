@@ -15,8 +15,9 @@ use crate::{
     scene::{graph::Graph, node::Node},
     utils::log::{Log, MessageKind},
 };
+use fxhash::FxHashMap;
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::VecDeque,
     ops::{Index, IndexMut},
 };
 
@@ -383,7 +384,7 @@ impl LocalPose {
 
 #[derive(Default, Debug)]
 pub struct AnimationPose {
-    local_poses: HashMap<Handle<Node>, LocalPose>,
+    local_poses: FxHashMap<Handle<Node>, LocalPose>,
 }
 
 impl AnimationPose {

@@ -37,8 +37,9 @@ use rg3d_core::{
     visitor::prelude::*,
     BiDirHashMap,
 };
-use std::fmt::Debug;
-use std::{collections::HashMap, hash::Hash, sync::Arc};
+
+use fxhash::FxHashMap;
+use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 #[derive(Copy, Clone, Debug, Inspect)]
 #[repr(u32)]
@@ -1109,7 +1110,7 @@ impl Visit for PhysicsDesc {
             let mut body_handle_map = if visitor.is_reading() {
                 Default::default()
             } else {
-                let mut hash_map: HashMap<RigidBodyHandle, ErasedHandle> = Default::default();
+                let mut hash_map: FxHashMap<RigidBodyHandle, ErasedHandle> = Default::default();
                 for (k, v) in self.body_handle_map.forward_map().iter() {
                     let (index, gen) = v.into_raw_parts();
                     hash_map.insert(*k, ErasedHandle::new(index as u32, gen as u32));
@@ -1127,7 +1128,7 @@ impl Visit for PhysicsDesc {
                                 NativeRigidBodyHandle::from_raw_parts(v.index(), v.generation()),
                             )
                         })
-                        .collect::<HashMap<_, _>>(),
+                        .collect::<FxHashMap<_, _>>(),
                 );
             }
         }
@@ -1136,7 +1137,7 @@ impl Visit for PhysicsDesc {
             let mut collider_handle_map = if visitor.is_reading() {
                 Default::default()
             } else {
-                let mut hash_map: HashMap<ColliderHandle, ErasedHandle> = Default::default();
+                let mut hash_map: FxHashMap<ColliderHandle, ErasedHandle> = Default::default();
                 for (k, v) in self.collider_handle_map.forward_map().iter() {
                     let (index, gen) = v.into_raw_parts();
                     hash_map.insert(*k, ErasedHandle::new(index as u32, gen as u32));
@@ -1154,7 +1155,7 @@ impl Visit for PhysicsDesc {
                                 NativeColliderHandle::from_raw_parts(v.index(), v.generation()),
                             )
                         })
-                        .collect::<HashMap<_, _>>(),
+                        .collect::<FxHashMap<_, _>>(),
                 );
             }
         }
@@ -1163,7 +1164,7 @@ impl Visit for PhysicsDesc {
             let mut joint_handle_map = if visitor.is_reading() {
                 Default::default()
             } else {
-                let mut hash_map: HashMap<JointHandle, ErasedHandle> = Default::default();
+                let mut hash_map: FxHashMap<JointHandle, ErasedHandle> = Default::default();
                 for (k, v) in self.joint_handle_map.forward_map().iter() {
                     let (index, gen) = v.into_raw_parts();
                     hash_map.insert(*k, ErasedHandle::new(index as u32, gen as u32));
@@ -1181,7 +1182,7 @@ impl Visit for PhysicsDesc {
                                 NativeJointHandle::from_raw_parts(v.index(), v.generation()),
                             )
                         })
-                        .collect::<HashMap<_, _>>(),
+                        .collect::<FxHashMap<_, _>>(),
                 );
             }
         }

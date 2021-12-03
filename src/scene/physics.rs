@@ -35,8 +35,8 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
+use fxhash::FxHashMap;
 use std::{
-    collections::HashMap,
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
@@ -48,9 +48,9 @@ use std::{
 pub struct ResourceLink {
     model: Model,
     // HandleInResource->HandleInInstance mappings
-    bodies: HashMap<RigidBodyHandle, RigidBodyHandle>,
-    colliders: HashMap<ColliderHandle, ColliderHandle>,
-    joints: HashMap<JointHandle, JointHandle>,
+    bodies: FxHashMap<RigidBodyHandle, RigidBodyHandle>,
+    colliders: FxHashMap<ColliderHandle, ColliderHandle>,
+    joints: FxHashMap<JointHandle, JointHandle>,
 }
 
 impl Visit for ResourceLink {
@@ -145,7 +145,7 @@ impl Physics {
         &self,
         binder: &PhysicsBinder<Node, RigidBodyHandle>,
         graph: &Graph,
-        old_to_new_mapping: Option<&HashMap<Handle<Node>, Handle<Node>>>,
+        old_to_new_mapping: Option<&FxHashMap<Handle<Node>, Handle<Node>>>,
     ) -> Self {
         let mut phys = Self::new();
         phys.embedded_resources = self.embedded_resources.clone();
@@ -468,7 +468,7 @@ impl Physics {
         &mut self,
         binder: &PhysicsBinder<Node, RigidBodyHandle>,
         graph: &Graph,
-        old_to_new_mapping: Option<&HashMap<Handle<Node>, Handle<Node>>>,
+        old_to_new_mapping: Option<&FxHashMap<Handle<Node>, Handle<Node>>>,
     ) {
         assert_eq!(self.bodies.len(), 0);
         assert_eq!(self.colliders.len(), 0);
@@ -634,7 +634,7 @@ impl Physics {
         &mut self,
         target_binder: &mut PhysicsBinder<Node, RigidBodyHandle>,
         target_graph: &Graph,
-        old_to_new: HashMap<Handle<Node>, Handle<Node>>,
+        old_to_new: FxHashMap<Handle<Node>, Handle<Node>>,
         resource: Model,
     ) {
         let data = resource.data_ref();

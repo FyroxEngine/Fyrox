@@ -4,8 +4,9 @@
 
 #![allow(dead_code)]
 
+use fxhash::{FxHashMap, FxHashSet};
 use std::{
-    collections::{hash_map::DefaultHasher, HashMap, HashSet},
+    collections::hash_map::DefaultHasher,
     fmt,
     fmt::Write,
     hash::{Hash, Hasher},
@@ -43,7 +44,7 @@ pub fn print_hot_path() -> Result<String, fmt::Error> {
 struct Sample {
     count: u64,
     time: f64,
-    children: HashSet<ScopeMark>,
+    children: FxHashSet<ScopeMark>,
 }
 
 impl Sample {
@@ -72,7 +73,7 @@ struct ScopeMark {
 
 struct Profiler {
     start_time: std::time::Instant,
-    samples: HashMap<ScopeMark, Sample>,
+    samples: FxHashMap<ScopeMark, Sample>,
     scope_stack: Vec<ScopeMark>,
 }
 
@@ -88,9 +89,9 @@ impl Default for Profiler {
         let entry_sample = Sample {
             count: 0,
             time: 0.0,
-            children: HashSet::new(),
+            children: FxHashSet::default(),
         };
-        let mut samples = HashMap::new();
+        let mut samples = FxHashMap::default();
         samples.insert(ENTRY_SCOPE_MARK, entry_sample);
         Self {
             start_time: std::time::Instant::now(),

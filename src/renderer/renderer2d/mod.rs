@@ -1,12 +1,11 @@
 //! A renderer responsible for drawing 2D scenes.
 
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector4},
         math::Rect,
         pool::Handle,
+        sstorage::ImmutableString,
     },
     renderer::{
         framework::{
@@ -16,7 +15,7 @@ use crate::{
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
-            state::PipelineState,
+            state::{BlendFactor, BlendFunc, PipelineState},
         },
         renderer2d::cache::{GeometryCache, InstanceData, Mesh},
         RenderPassStatistics, TextureCache,
@@ -25,11 +24,8 @@ use crate::{
     scene2d::{light::Light, node::Node, Scene2d, Scene2dContainer},
     utils::log::{Log, MessageKind},
 };
-use std::{
-    cell::RefCell,
-    collections::hash_map::{Entry, HashMap},
-    rc::Rc,
-};
+use fxhash::FxHashMap;
+use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
 
 mod cache;
 
@@ -111,7 +107,7 @@ pub(in crate) struct Renderer2d {
     sprite_shader: SpriteShader,
     quad: Mesh,
     geometry_cache: GeometryCache,
-    framebuffers: HashMap<Handle<Scene2d>, RenderTarget>,
+    framebuffers: FxHashMap<Handle<Scene2d>, RenderTarget>,
     batch_storage: BatchStorage,
     instance_data_set: Vec<InstanceData>,
 }
@@ -119,7 +115,7 @@ pub(in crate) struct Renderer2d {
 #[derive(Default)]
 struct BatchStorage {
     batches: Vec<Batch>,
-    index_map: HashMap<u64, usize>,
+    index_map: FxHashMap<u64, usize>,
 }
 
 impl BatchStorage {
