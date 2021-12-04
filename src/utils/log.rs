@@ -1,6 +1,7 @@
 //! Simple logger, it writes in file and in console at the same time.
 
 use crate::lazy_static::lazy_static;
+use std::fmt::Debug;
 use std::{
     io::{self, Write},
     sync::Mutex,
@@ -91,5 +92,23 @@ impl Log {
     /// Sets verbosity level.
     pub fn set_verbosity(kind: MessageKind) {
         LOG.lock().unwrap().verbosity = kind;
+    }
+
+    /// Allows you to verify that the result of operation is Ok, or print the error in the log.
+    ///
+    /// # Use cases
+    ///
+    /// Typical use case for this method is that when you _can_ ignore errors, but want them to
+    /// be in the log.
+    pub fn verify<E>(result: Result<(), E>)
+    where
+        E: Debug,
+    {
+        if let Err(e) = result {
+            Self::writeln(
+                MessageKind::Error,
+                format!("Operation failed! Reason: {:?}", e),
+            );
+        }
     }
 }
