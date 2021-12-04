@@ -25,7 +25,6 @@ impl ExpanderMessage {
 #[derive(Clone)]
 pub struct Expander {
     widget: Widget,
-    header: Handle<UiNode>,
     content: Handle<UiNode>,
     expander: Handle<UiNode>,
     is_expanded: bool,
@@ -174,7 +173,6 @@ impl ExpanderBuilder {
                     .build(ctx),
                 )
                 .build(),
-            header: self.header,
             content: self.content,
             expander,
             is_expanded: self.is_expanded,

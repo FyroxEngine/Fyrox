@@ -35,7 +35,6 @@ pub struct Item {
 pub struct ArrayEditor {
     widget: Widget,
     items: Vec<Item>,
-    panel: Handle<UiNode>,
 }
 
 crate::define_widget_deref!(ArrayEditor);
@@ -204,7 +203,6 @@ where
         let ce = ArrayEditor {
             widget: self.widget_builder.with_child(panel).build(),
             items,
-            panel,
         };
 
         ctx.add_node(UiNode::new(ce))

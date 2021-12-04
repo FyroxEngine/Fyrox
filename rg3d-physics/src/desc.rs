@@ -859,9 +859,9 @@ impl Default for FixedJointDesc {
     fn default() -> Self {
         Self {
             local_anchor1_translation: Default::default(),
-            local_anchor1_rotation: Default::default(),
+            local_anchor1_rotation: Rotation::default(),
             local_anchor2_translation: Default::default(),
-            local_anchor2_rotation: Default::default(),
+            local_anchor2_rotation: Rotation::default(),
         }
     }
 }
