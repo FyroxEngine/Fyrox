@@ -129,9 +129,7 @@ impl<T> SparseBuffer<T> {
     }
 
     pub fn filled(&self) -> usize {
-        self.vec
-            .iter()
-            .fold(0, |i, entry| if entry.is_some() { i + 1 } else { i })
+        self.vec.len() - self.free.len()
     }
 
     pub fn is_index_valid(&self, index: &AtomicIndex<T>) -> bool {

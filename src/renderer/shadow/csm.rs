@@ -224,7 +224,7 @@ impl CsmRenderer {
 
             for batch in batch_storage.batches.iter() {
                 let material = batch.material.lock();
-                let geometry = geom_cache.get(state, &batch.data.lock());
+                let geometry = geom_cache.get(state, &batch.data);
 
                 if let Some(render_pass) = shader_cache
                     .get(state, material.shader())

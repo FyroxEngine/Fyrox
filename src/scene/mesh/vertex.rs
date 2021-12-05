@@ -224,6 +224,13 @@ pub struct SimpleVertex {
 }
 
 impl SimpleVertex {
+    /// Creates a new simple vertex using given coordinates.
+    pub fn new(x: f32, y: f32, z: f32) -> Self {
+        Self {
+            position: Vector3::new(x, y, z),
+        }
+    }
+
     /// Returns layout of the vertex.
     pub fn layout() -> &'static [VertexAttributeDescriptor] {
         static LAYOUT: [VertexAttributeDescriptor; 1] = [VertexAttributeDescriptor {

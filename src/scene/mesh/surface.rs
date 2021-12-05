@@ -20,7 +20,7 @@ use crate::{
     scene::{
         mesh::{
             buffer::{
-                GeometryBuffer, VertexAttributeDescriptor, VertexAttributeUsage, VertexBuffer,
+                TriangleBuffer, VertexAttributeDescriptor, VertexAttributeUsage, VertexBuffer,
                 VertexFetchError, VertexReadTrait, VertexWriteTrait,
             },
             vertex::{OldVertex, StaticVertex},
@@ -40,7 +40,7 @@ pub struct SurfaceData {
     /// Current vertex buffer.
     pub vertex_buffer: VertexBuffer,
     /// Current geometry buffer.
-    pub geometry_buffer: GeometryBuffer,
+    pub geometry_buffer: TriangleBuffer,
     // If true - indicates that surface was generated and does not have reference
     // resource. Procedural data will be serialized.
     is_procedural: bool,
@@ -51,7 +51,7 @@ impl SurfaceData {
     /// Creates new data source using given vertices and indices.
     pub fn new(
         vertex_buffer: VertexBuffer,
-        triangles: GeometryBuffer,
+        triangles: TriangleBuffer,
         is_procedural: bool,
     ) -> Self {
         Self {
@@ -100,7 +100,7 @@ impl SurfaceData {
     ) -> Self {
         Self {
             vertex_buffer: VertexBuffer::new(raw.vertices.len(), layout, raw.vertices).unwrap(),
-            geometry_buffer: GeometryBuffer::new(raw.triangles),
+            geometry_buffer: TriangleBuffer::new(raw.triangles),
             is_procedural,
             cache_entry: AtomicIndex::unassigned(),
         }
@@ -217,7 +217,7 @@ impl SurfaceData {
 
         Self::new(
             VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
-            GeometryBuffer::new(triangles),
+            TriangleBuffer::new(triangles),
             true,
         )
     }
@@ -257,7 +257,7 @@ impl SurfaceData {
 
         Self::new(
             VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
-            GeometryBuffer::new(triangles),
+            TriangleBuffer::new(triangles),
             true,
         )
     }
@@ -293,7 +293,7 @@ impl SurfaceData {
 
         let mut data = Self::new(
             VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
-            GeometryBuffer::new(vec![
+            TriangleBuffer::new(vec![
                 TriangleDefinition([0, 1, 2]),
                 TriangleDefinition([0, 2, 3]),
             ]),
@@ -767,7 +767,7 @@ impl SurfaceData {
 
         let mut data = Self::new(
             VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
-            GeometryBuffer::new(triangles),
+            TriangleBuffer::new(triangles),
             true,
         );
         data.calculate_tangents().unwrap();
@@ -813,7 +813,7 @@ impl Visit for SurfaceData {
             {
                 let mut triangles = Vec::<TriangleDefinition>::new();
                 triangles.visit("Triangles", visitor)?;
-                self.geometry_buffer = GeometryBuffer::new(triangles);
+                self.geometry_buffer = TriangleBuffer::new(triangles);
             }
         }
 

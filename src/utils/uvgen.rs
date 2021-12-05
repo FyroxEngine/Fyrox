@@ -3,7 +3,7 @@
 //! Current implementation uses simple planar mapping.
 use crate::core::instant;
 use crate::scene::mesh::buffer::{
-    GeometryBufferRefMut, VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
+    TriangleBufferRefMut, VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
     VertexBufferRefMut, VertexFetchError, VertexReadTrait, VertexWriteTrait,
 };
 use crate::{
@@ -66,7 +66,7 @@ pub struct UvBox {
 
 fn face_vs_face(
     vertex_buffer: &mut VertexBufferRefMut,
-    geometry_buffer_mut: &mut GeometryBufferRefMut,
+    geometry_buffer_mut: &mut TriangleBufferRefMut,
     face_triangles: &[usize],
     other_face_triangles: &[usize],
     patch: &mut SurfaceDataPatch,
@@ -91,7 +91,7 @@ fn face_vs_face(
 
 fn make_seam(
     vertex_buffer: &mut VertexBufferRefMut,
-    geometry_buffer_mut: &mut GeometryBufferRefMut,
+    geometry_buffer_mut: &mut TriangleBufferRefMut,
     face_triangles: &[usize],
     other_faces: &[&[usize]],
     patch: &mut SurfaceDataPatch,
@@ -207,7 +207,7 @@ pub fn generate_uv_meshes(
     uv_box: &UvBox,
     data_id: u64,
     vertex_buffer_mut: &mut VertexBufferRefMut,
-    geometry_buffer_mut: &mut GeometryBufferRefMut,
+    geometry_buffer_mut: &mut TriangleBufferRefMut,
 ) -> (Vec<UvMesh>, SurfaceDataPatch) {
     let mut mesh_patch = SurfaceDataPatch {
         data_id,

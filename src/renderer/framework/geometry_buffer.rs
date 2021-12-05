@@ -1,3 +1,4 @@
+use crate::scene::mesh::surface::SurfaceData;
 use crate::{
     core::{math::TriangleDefinition, scope_profile},
     renderer::framework::{error::FrameworkError, state::PipelineState},
@@ -290,6 +291,23 @@ impl<'a> GeometryBufferBinding<'a> {
 }
 
 impl GeometryBuffer {
+    pub fn from_surface_data(
+        data: &SurfaceData,
+        kind: GeometryBufferKind,
+        state: &mut PipelineState,
+    ) -> Self {
+        let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
+            .with_buffer_builder(BufferBuilder::from_vertex_buffer(&data.vertex_buffer, kind))
+            .build(state)
+            .unwrap();
+
+        geometry_buffer
+            .bind(state)
+            .set_triangles(data.geometry_buffer.triangles_ref());
+
+        geometry_buffer
+    }
+
     pub fn set_buffer_data<T>(&mut self, state: &mut PipelineState, buffer: usize, data: &[T]) {
         scope_profile!();
 

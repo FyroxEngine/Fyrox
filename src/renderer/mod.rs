@@ -33,6 +33,7 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
+use crate::renderer::framework::geometry_buffer::GeometryBufferKind;
 use crate::renderer::framework::gpu_program::BuiltInUniform;
 use crate::{
     core::{
@@ -675,7 +676,7 @@ pub struct Renderer {
     metallic_dummy: Rc<RefCell<GpuTexture>>,
     ui_renderer: UiRenderer,
     statistics: Statistics,
-    quad: SurfaceData,
+    quad: GeometryBuffer,
     frame_size: (u32, u32),
     quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
@@ -1091,7 +1092,11 @@ impl Renderer {
                 1,
                 Some(&[0u8, 0u8, 0u8, 0u8]),
             )?)),
-            quad: SurfaceData::make_unit_xy_quad(),
+            quad: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_unit_xy_quad(),
+                GeometryBufferKind::StaticDraw,
+                &mut state,
+            ),
             ui_renderer: UiRenderer::new(&mut state)?,
             particle_system_renderer: ParticleSystemRenderer::new(&mut state)?,
             quality_settings: settings,
@@ -1472,7 +1477,6 @@ impl Renderer {
                     white_dummy: self.white_dummy.clone(),
                     viewport,
                     textures: &mut self.texture_cache,
-                    geom_map: &mut self.geometry_cache,
                 });
 
                 self.statistics += self.forward_renderer.render(ForwardRenderContext {
@@ -1514,7 +1518,7 @@ impl Renderer {
                         })?;
                 }
 
-                let quad = self.geometry_cache.get(state, &self.quad);
+                let quad = &self.quad;
 
                 // Prepare glow map.
                 self.statistics.geometry += scene_associated_data.bloom_renderer.render(
@@ -1545,10 +1549,9 @@ impl Renderer {
                         viewport,
                         scene_associated_data.ldr_scene_frame_texture(),
                         &mut scene_associated_data.ldr_temp_framebuffer,
-                        &mut self.geometry_cache,
                     );
 
-                    let quad = self.geometry_cache.get(state, &self.quad);
+                    let quad = &self.quad;
                     let temp_frame_texture = scene_associated_data.ldr_temp_frame_texture();
                     self.statistics.geometry += blit_pixels(
                         state,
@@ -1571,7 +1574,7 @@ impl Renderer {
 
                 // Optionally render everything into back buffer.
                 if scene.render_target.is_none() {
-                    let quad = self.geometry_cache.get(state, &self.quad);
+                    let quad = &self.quad;
                     self.statistics.geometry += blit_pixels(
                         state,
                         &mut self.backbuffer,

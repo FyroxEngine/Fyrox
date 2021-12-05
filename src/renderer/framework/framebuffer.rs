@@ -361,7 +361,7 @@ impl FrameBuffer {
 
     pub fn draw_part<F: FnOnce(GpuProgramBinding<'_, '_>)>(
         &mut self,
-        geometry: &mut GeometryBuffer,
+        geometry: &GeometryBuffer,
         state: &mut PipelineState,
         viewport: Rect<i32>,
         program: &GpuProgram,

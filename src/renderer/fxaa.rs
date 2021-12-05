@@ -1,18 +1,20 @@
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::framework::framebuffer::FrameBuffer;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         math::Rect,
+        sstorage::ImmutableString,
     },
-    renderer::framework::{
-        error::FrameworkError,
-        framebuffer::DrawParameters,
-        gpu_program::{GpuProgram, UniformLocation},
-        gpu_texture::GpuTexture,
-        state::PipelineState,
+    renderer::{
+        framework::{
+            error::FrameworkError,
+            framebuffer::{DrawParameters, FrameBuffer},
+            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            gpu_program::{GpuProgram, UniformLocation},
+            gpu_texture::GpuTexture,
+            state::PipelineState,
+        },
+        RenderPassStatistics,
     },
-    renderer::{GeometryCache, RenderPassStatistics},
     scene::mesh::surface::SurfaceData,
 };
 use std::{cell::RefCell, rc::Rc};
@@ -44,14 +46,18 @@ impl FxaaShader {
 
 pub struct FxaaRenderer {
     shader: FxaaShader,
-    quad: SurfaceData,
+    quad: GeometryBuffer,
 }
 
 impl FxaaRenderer {
     pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         Ok(Self {
             shader: FxaaShader::new(state)?,
-            quad: SurfaceData::make_unit_xy_quad(),
+            quad: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_unit_xy_quad(),
+                GeometryBufferKind::StaticDraw,
+                state,
+            ),
         })
     }
 
@@ -61,11 +67,8 @@ impl FxaaRenderer {
         viewport: Rect<i32>,
         frame_texture: Rc<RefCell<GpuTexture>>,
         frame_buffer: &mut FrameBuffer,
-        geom_cache: &mut GeometryCache,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
-
-        let quad = geom_cache.get(state, &self.quad);
 
         let frame_matrix = Matrix4::new_orthographic(
             0.0,
@@ -81,7 +84,7 @@ impl FxaaRenderer {
         ));
 
         statistics += frame_buffer.draw(
-            quad,
+            &self.quad,
             state,
             viewport,
             &self.shader.program,

@@ -1,18 +1,19 @@
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::make_viewport_matrix;
 use crate::{
-    core::{math::Rect, scope_profile},
-    renderer::framework::{
-        error::FrameworkError,
-        framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
-        gpu_program::{GpuProgram, UniformLocation},
-        gpu_texture::{
-            Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-            PixelKind, WrapMode,
+    core::{math::Rect, scope_profile, sstorage::ImmutableString},
+    renderer::{
+        framework::{
+            error::FrameworkError,
+            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
+            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            gpu_program::{GpuProgram, UniformLocation},
+            gpu_texture::{
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+                PixelKind, WrapMode,
+            },
+            state::PipelineState,
         },
-        state::PipelineState,
+        make_viewport_matrix,
     },
-    renderer::GeometryCache,
     scene::mesh::surface::SurfaceData,
 };
 use std::{cell::RefCell, rc::Rc};
@@ -42,7 +43,7 @@ impl Shader {
 pub struct Blur {
     shader: Shader,
     framebuffer: FrameBuffer,
-    quad: SurfaceData,
+    quad: GeometryBuffer,
     width: usize,
     height: usize,
 }
@@ -81,7 +82,11 @@ impl Blur {
                     texture: Rc::new(RefCell::new(frame)),
                 }],
             )?,
-            quad: SurfaceData::make_unit_xy_quad(),
+            quad: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_unit_xy_quad(),
+                GeometryBufferKind::StaticDraw,
+                state,
+            ),
             width,
             height,
         })
@@ -91,19 +96,14 @@ impl Blur {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub(in crate) fn render(
-        &mut self,
-        state: &mut PipelineState,
-        geom_cache: &mut GeometryCache,
-        input: Rc<RefCell<GpuTexture>>,
-    ) {
+    pub(in crate) fn render(&mut self, state: &mut PipelineState, input: Rc<RefCell<GpuTexture>>) {
         scope_profile!();
 
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
 
         let shader = &self.shader;
         self.framebuffer.draw(
-            geom_cache.get(state, &self.quad),
+            &self.quad,
             state,
             viewport,
             &shader.program,

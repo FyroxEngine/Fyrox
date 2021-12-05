@@ -18,7 +18,7 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         mesh::{
-            buffer::{GeometryBuffer, VertexBuffer},
+            buffer::{TriangleBuffer, VertexBuffer},
             surface::SurfaceData,
             vertex::StaticVertex,
         },
@@ -757,7 +757,7 @@ fn create_layer_mask(width: u32, height: u32, value: u8) -> Texture {
 fn make_surface_data() -> Arc<Mutex<SurfaceData>> {
     Arc::new(Mutex::new(SurfaceData::new(
         VertexBuffer::new::<StaticVertex>(0, StaticVertex::layout(), vec![]).unwrap(),
-        GeometryBuffer::default(),
+        TriangleBuffer::default(),
         false,
     )))
 }

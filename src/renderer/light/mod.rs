@@ -1,3 +1,4 @@
+use crate::renderer::framework::geometry_buffer::{GeometryBuffer, GeometryBufferKind};
 use crate::renderer::shadow::csm::CsmRenderContext;
 use crate::{
     core::{
@@ -38,7 +39,7 @@ use crate::{
         camera::Camera,
         light::Light,
         mesh::{
-            buffer::{GeometryBuffer, VertexBuffer},
+            buffer::{TriangleBuffer, VertexBuffer},
             surface::SurfaceData,
             vertex::SimpleVertex,
         },
@@ -106,9 +107,9 @@ pub struct DeferredLightRenderer {
     point_light_shader: PointLightShader,
     directional_light_shader: DirectionalLightShader,
     ambient_light_shader: AmbientLightShader,
-    quad: SurfaceData,
-    sphere: SurfaceData,
-    skybox: SurfaceData,
+    quad: GeometryBuffer,
+    sphere: GeometryBuffer,
+    skybox: GeometryBuffer,
     flat_shader: FlatShader,
     skybox_shader: SkyboxShader,
     spot_shadow_map_renderer: SpotShadowMapRenderer,
@@ -142,83 +143,35 @@ impl DeferredLightRenderer {
     ) -> Result<Self, FrameworkError> {
         let vertices = vec![
             // Front
-            SimpleVertex {
-                position: Vector3::new(-0.5, 0.5, -0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(0.5, 0.5, -0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(0.5, -0.5, -0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(-0.5, -0.5, -0.5),
-            },
+            SimpleVertex::new(-0.5, 0.5, -0.5),
+            SimpleVertex::new(0.5, 0.5, -0.5),
+            SimpleVertex::new(0.5, -0.5, -0.5),
+            SimpleVertex::new(-0.5, -0.5, -0.5),
             // Back
-            SimpleVertex {
-                position: Vector3::new(0.5, 0.5, 0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(-0.5, 0.5, 0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(-0.5, -0.5, 0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(0.5, -0.5, 0.5),
-            },
+            SimpleVertex::new(0.5, 0.5, 0.5),
+            SimpleVertex::new(-0.5, 0.5, 0.5),
+            SimpleVertex::new(-0.5, -0.5, 0.5),
+            SimpleVertex::new(0.5, -0.5, 0.5),
             // Left
-            SimpleVertex {
-                position: Vector3::new(0.5, 0.5, -0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(0.5, 0.5, 0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(0.5, -0.5, 0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(0.5, -0.5, -0.5),
-            },
+            SimpleVertex::new(0.5, 0.5, -0.5),
+            SimpleVertex::new(0.5, 0.5, 0.5),
+            SimpleVertex::new(0.5, -0.5, 0.5),
+            SimpleVertex::new(0.5, -0.5, -0.5),
             // Right
-            SimpleVertex {
-                position: Vector3::new(-0.5, 0.5, 0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(-0.5, 0.5, -0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(-0.5, -0.5, -0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(-0.5, -0.5, 0.5),
-            },
+            SimpleVertex::new(-0.5, 0.5, 0.5),
+            SimpleVertex::new(-0.5, 0.5, -0.5),
+            SimpleVertex::new(-0.5, -0.5, -0.5),
+            SimpleVertex::new(-0.5, -0.5, 0.5),
             // Up
-            SimpleVertex {
-                position: Vector3::new(-0.5, 0.5, 0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(0.5, 0.5, 0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(0.5, 0.5, -0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(-0.5, 0.5, -0.5),
-            },
+            SimpleVertex::new(-0.5, 0.5, 0.5),
+            SimpleVertex::new(0.5, 0.5, 0.5),
+            SimpleVertex::new(0.5, 0.5, -0.5),
+            SimpleVertex::new(-0.5, 0.5, -0.5),
             // Down
-            SimpleVertex {
-                position: Vector3::new(-0.5, -0.5, 0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(0.5, -0.5, 0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(0.5, -0.5, -0.5),
-            },
-            SimpleVertex {
-                position: Vector3::new(-0.5, -0.5, -0.5),
-            },
+            SimpleVertex::new(-0.5, -0.5, 0.5),
+            SimpleVertex::new(0.5, -0.5, 0.5),
+            SimpleVertex::new(0.5, -0.5, -0.5),
+            SimpleVertex::new(-0.5, -0.5, -0.5),
         ];
 
         let quality_defaults = QualitySettings::default();
@@ -233,26 +186,38 @@ impl DeferredLightRenderer {
             point_light_shader: PointLightShader::new(state)?,
             directional_light_shader: DirectionalLightShader::new(state)?,
             ambient_light_shader: AmbientLightShader::new(state)?,
-            quad: SurfaceData::make_unit_xy_quad(),
-            skybox: SurfaceData::new(
-                VertexBuffer::new(vertices.len(), SimpleVertex::layout(), vertices).unwrap(),
-                GeometryBuffer::new(vec![
-                    TriangleDefinition([0, 1, 2]),
-                    TriangleDefinition([0, 2, 3]),
-                    TriangleDefinition([4, 5, 6]),
-                    TriangleDefinition([4, 6, 7]),
-                    TriangleDefinition([8, 9, 10]),
-                    TriangleDefinition([8, 10, 11]),
-                    TriangleDefinition([12, 13, 14]),
-                    TriangleDefinition([12, 14, 15]),
-                    TriangleDefinition([16, 17, 18]),
-                    TriangleDefinition([16, 18, 19]),
-                    TriangleDefinition([20, 21, 22]),
-                    TriangleDefinition([20, 22, 23]),
-                ]),
-                true,
+            quad: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_unit_xy_quad(),
+                GeometryBufferKind::StaticDraw,
+                state,
             ),
-            sphere: SurfaceData::make_sphere(6, 6, 1.0, &Matrix4::identity()),
+            skybox: GeometryBuffer::from_surface_data(
+                &SurfaceData::new(
+                    VertexBuffer::new(vertices.len(), SimpleVertex::layout(), vertices).unwrap(),
+                    TriangleBuffer::new(vec![
+                        TriangleDefinition([0, 1, 2]),
+                        TriangleDefinition([0, 2, 3]),
+                        TriangleDefinition([4, 5, 6]),
+                        TriangleDefinition([4, 6, 7]),
+                        TriangleDefinition([8, 9, 10]),
+                        TriangleDefinition([8, 10, 11]),
+                        TriangleDefinition([12, 13, 14]),
+                        TriangleDefinition([12, 14, 15]),
+                        TriangleDefinition([16, 17, 18]),
+                        TriangleDefinition([16, 18, 19]),
+                        TriangleDefinition([20, 21, 22]),
+                        TriangleDefinition([20, 22, 23]),
+                    ]),
+                    true,
+                ),
+                GeometryBufferKind::StaticDraw,
+                state,
+            ),
+            sphere: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_sphere(6, 6, 1.0, &Matrix4::identity()),
+                GeometryBufferKind::StaticDraw,
+                state,
+            ),
             flat_shader: FlatShader::new(state)?,
             skybox_shader: SkyboxShader::new(state)?,
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(
@@ -377,7 +342,6 @@ impl DeferredLightRenderer {
             pass_stats += self.ssao_renderer.render(
                 state,
                 gbuffer,
-                geometry_cache,
                 projection_matrix,
                 camera.view_matrix().basis(),
             );
@@ -393,7 +357,7 @@ impl DeferredLightRenderer {
                 let shader = &self.skybox_shader;
                 pass_stats += frame_buffer
                     .draw_part(
-                        geometry_cache.get(state, &self.skybox),
+                        &self.skybox,
                         state,
                         viewport,
                         &shader.program,
@@ -427,7 +391,7 @@ impl DeferredLightRenderer {
         let ao_map = self.ssao_renderer.ao_map();
 
         frame_buffer.draw(
-            geometry_cache.get(state, &self.quad),
+            &self.quad,
             state,
             viewport,
             &self.ambient_light_shader.program,
@@ -613,7 +577,7 @@ impl DeferredLightRenderer {
 
             // Mark lighted areas in stencil buffer to do light calculations only on them.
 
-            let sphere = geometry_cache.get(state, &self.sphere);
+            let sphere = &self.sphere;
 
             pass_stats += frame_buffer.draw(
                 sphere,
@@ -694,7 +658,7 @@ impl DeferredLightRenderer {
                 }),
             };
 
-            let quad = geometry_cache.get(state, &self.quad);
+            let quad = &self.quad;
 
             pass_stats += match light {
                 Light::Spot(spot_light) => {
@@ -869,7 +833,6 @@ impl DeferredLightRenderer {
                     light_handle,
                     gbuffer,
                     &self.quad,
-                    geometry_cache,
                     camera.view_matrix(),
                     inv_projection,
                     view_projection,

@@ -907,21 +907,21 @@ impl<'a> VertexWriteTrait for VertexViewMut<'a> {
 
 /// A buffer for data that defines connections between vertices.
 #[derive(Visit, Default, Clone, Debug)]
-pub struct GeometryBuffer {
+pub struct TriangleBuffer {
     triangles: Vec<TriangleDefinition>,
     data_hash: u64,
 }
 
-fn calculate_geometry_buffer_hash(triangles: &[TriangleDefinition]) -> u64 {
+fn calculate_triangle_buffer_hash(triangles: &[TriangleDefinition]) -> u64 {
     let mut hasher = FxHasher::default();
     triangles.hash(&mut hasher);
     hasher.finish()
 }
 
-impl GeometryBuffer {
-    /// Creates new geometry buffer with given set of triangles.
+impl TriangleBuffer {
+    /// Creates new triangle buffer with given set of triangles.
     pub fn new(triangles: Vec<TriangleDefinition>) -> Self {
-        let hash = calculate_geometry_buffer_hash(&triangles);
+        let hash = calculate_triangle_buffer_hash(&triangles);
 
         Self {
             triangles,
@@ -941,7 +941,7 @@ impl GeometryBuffer {
 
     /// Sets a new set of triangles.
     pub fn set_triangles(&mut self, triangles: Vec<TriangleDefinition>) {
-        self.data_hash = calculate_geometry_buffer_hash(&triangles);
+        self.data_hash = calculate_triangle_buffer_hash(&triangles);
         self.triangles = triangles;
     }
 
@@ -961,14 +961,14 @@ impl GeometryBuffer {
     }
 
     /// See VertexBuffer::modify for more info.
-    pub fn modify(&mut self) -> GeometryBufferRefMut<'_> {
-        GeometryBufferRefMut {
-            geometry_buffer: self,
+    pub fn modify(&mut self) -> TriangleBufferRefMut<'_> {
+        TriangleBufferRefMut {
+            triangle_buffer: self,
         }
     }
 }
 
-impl Index<usize> for GeometryBuffer {
+impl Index<usize> for TriangleBuffer {
     type Output = TriangleDefinition;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -977,32 +977,32 @@ impl Index<usize> for GeometryBuffer {
 }
 
 /// See VertexBuffer::modify for more info.
-pub struct GeometryBufferRefMut<'a> {
-    geometry_buffer: &'a mut GeometryBuffer,
+pub struct TriangleBufferRefMut<'a> {
+    triangle_buffer: &'a mut TriangleBuffer,
 }
 
-impl<'a> Deref for GeometryBufferRefMut<'a> {
-    type Target = GeometryBuffer;
+impl<'a> Deref for TriangleBufferRefMut<'a> {
+    type Target = TriangleBuffer;
 
     fn deref(&self) -> &Self::Target {
-        self.geometry_buffer
+        self.triangle_buffer
     }
 }
 
-impl<'a> DerefMut for GeometryBufferRefMut<'a> {
+impl<'a> DerefMut for TriangleBufferRefMut<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.geometry_buffer
+        self.triangle_buffer
     }
 }
 
-impl<'a> Drop for GeometryBufferRefMut<'a> {
+impl<'a> Drop for TriangleBufferRefMut<'a> {
     fn drop(&mut self) {
-        self.geometry_buffer.data_hash =
-            calculate_geometry_buffer_hash(&self.geometry_buffer.triangles);
+        self.triangle_buffer.data_hash =
+            calculate_triangle_buffer_hash(&self.triangle_buffer.triangles);
     }
 }
 
-impl<'a> GeometryBufferRefMut<'a> {
+impl<'a> TriangleBufferRefMut<'a> {
     /// Returns mutable iterator.
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut TriangleDefinition> {
         self.triangles.iter_mut()
@@ -1019,17 +1019,17 @@ impl<'a> GeometryBufferRefMut<'a> {
     }
 }
 
-impl<'a> Index<usize> for GeometryBufferRefMut<'a> {
+impl<'a> Index<usize> for TriangleBufferRefMut<'a> {
     type Output = TriangleDefinition;
 
     fn index(&self, index: usize) -> &Self::Output {
-        &self.geometry_buffer.triangles[index]
+        &self.triangle_buffer.triangles[index]
     }
 }
 
-impl<'a> IndexMut<usize> for GeometryBufferRefMut<'a> {
+impl<'a> IndexMut<usize> for TriangleBufferRefMut<'a> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.geometry_buffer.triangles[index]
+        &mut self.triangle_buffer.triangles[index]
     }
 }
 

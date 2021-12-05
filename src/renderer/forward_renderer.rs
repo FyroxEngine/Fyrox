@@ -74,8 +74,7 @@ impl ForwardRenderer {
             .filter(|b| b.render_path == RenderPath::Forward)
         {
             let material = batch.material.lock();
-            let data = batch.data.lock();
-            let geometry = geom_cache.get(state, &data);
+            let geometry = geom_cache.get(state, &batch.data);
 
             if let Some(render_pass) = shader_cache
                 .get(state, material.shader())

@@ -1,23 +1,28 @@
-use crate::core::sstorage::ImmutableString;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
         color::Color,
         math::{lerpf, Rect},
         scope_profile,
+        sstorage::ImmutableString,
     },
     rand::Rng,
-    renderer::framework::{
-        error::FrameworkError,
-        framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
-        gpu_program::{GpuProgram, UniformLocation},
-        gpu_texture::{
-            Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-            PixelKind, WrapMode,
+    renderer::{
+        framework::{
+            error::FrameworkError,
+            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
+            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            gpu_program::{GpuProgram, UniformLocation},
+            gpu_texture::{
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+                PixelKind, WrapMode,
+            },
+            state::PipelineState,
         },
-        state::PipelineState,
+        gbuffer::GBuffer,
+        ssao::blur::Blur,
+        RenderPassStatistics,
     },
-    renderer::{gbuffer::GBuffer, ssao::blur::Blur, GeometryCache, RenderPassStatistics},
     scene::mesh::surface::SurfaceData,
 };
 use std::{cell::RefCell, rc::Rc};
@@ -75,7 +80,7 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
     blur: Blur,
     shader: Shader,
     framebuffer: FrameBuffer,
-    quad: SurfaceData,
+    quad: GeometryBuffer,
     width: i32,
     height: i32,
     noise: Rc<RefCell<GpuTexture>>,
@@ -125,7 +130,11 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     texture: Rc::new(RefCell::new(occlusion)),
                 }],
             )?,
-            quad: SurfaceData::make_unit_xy_quad(),
+            quad: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_unit_xy_quad(),
+                GeometryBufferKind::StaticDraw,
+                state,
+            ),
             width: width as i32,
             height: height as i32,
             kernel: {
@@ -193,7 +202,6 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         &mut self,
         state: &mut PipelineState,
         gbuffer: &GBuffer,
-        geom_cache: &mut GeometryCache,
         projection_matrix: Matrix4<f32>,
         view_matrix: Matrix3<f32>,
     ) -> RenderPassStatistics {
@@ -233,7 +241,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         );
         let radius = self.radius;
         stats += self.framebuffer.draw(
-            geom_cache.get(state, &self.quad),
+            &self.quad,
             state,
             viewport,
             &shader.program,
@@ -264,7 +272,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             },
         );
 
-        self.blur.render(state, geom_cache, self.raw_ao_map());
+        self.blur.render(state, self.raw_ao_map());
 
         stats
     }

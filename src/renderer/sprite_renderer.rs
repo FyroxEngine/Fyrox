@@ -1,17 +1,21 @@
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
-    core::{math::Matrix4Ext, math::Rect, scope_profile},
-    renderer::framework::{
-        error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters, FrameBuffer},
-        gpu_program::{GpuProgram, UniformLocation},
-        gpu_texture::GpuTexture,
-        state::PipelineState,
+    core::{
+        math::{Matrix4Ext, Rect},
+        scope_profile,
+        sstorage::ImmutableString,
     },
-    renderer::{GeometryCache, RenderPassStatistics, TextureCache},
-    scene::mesh::surface::SurfaceData,
-    scene::{camera::Camera, graph::Graph, node::Node},
+    renderer::{
+        framework::{
+            error::FrameworkError,
+            framebuffer::{CullFace, DrawParameters, FrameBuffer},
+            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            gpu_program::{GpuProgram, UniformLocation},
+            gpu_texture::GpuTexture,
+            state::{BlendFactor, BlendFunc, PipelineState},
+        },
+        RenderPassStatistics, TextureCache,
+    },
+    scene::{camera::Camera, graph::Graph, mesh::surface::SurfaceData, node::Node},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -53,7 +57,7 @@ impl SpriteShader {
 
 pub struct SpriteRenderer {
     shader: SpriteShader,
-    surface: SurfaceData,
+    collapsed_quad: GeometryBuffer,
 }
 
 pub(in crate) struct SpriteRenderContext<'a, 'b, 'c> {
@@ -64,16 +68,19 @@ pub(in crate) struct SpriteRenderContext<'a, 'b, 'c> {
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub viewport: Rect<i32>,
     pub textures: &'a mut TextureCache,
-    pub geom_map: &'a mut GeometryCache,
 }
 
 impl SpriteRenderer {
     pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let surface = SurfaceData::make_collapsed_xy_quad();
+        let surface = GeometryBuffer::from_surface_data(
+            &SurfaceData::make_collapsed_xy_quad(),
+            GeometryBufferKind::StaticDraw,
+            state,
+        );
 
         Ok(Self {
             shader: SpriteShader::new(state)?,
-            surface,
+            collapsed_quad: surface,
         })
     }
 
@@ -91,7 +98,6 @@ impl SpriteRenderer {
             white_dummy,
             viewport,
             textures,
-            geom_map,
         } = args;
 
         let initial_view_projection = camera.view_projection_matrix();
@@ -131,7 +137,7 @@ impl SpriteRenderer {
             };
 
             statistics += framebuffer.draw(
-                geom_map.get(state, &self.surface),
+                &self.collapsed_quad,
                 state,
                 viewport,
                 &self.shader.program,

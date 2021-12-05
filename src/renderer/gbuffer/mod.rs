@@ -10,6 +10,7 @@
 //! now I don't know better solution.
 
 use crate::core::sstorage::ImmutableString;
+use crate::renderer::framework::geometry_buffer::{GeometryBuffer, GeometryBufferKind};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -47,7 +48,7 @@ pub struct GBuffer {
     decal_framebuffer: FrameBuffer,
     pub width: i32,
     pub height: i32,
-    cube: SurfaceData,
+    cube: GeometryBuffer,
     decal_shader: DecalShader,
     render_pass_name: ImmutableString,
 }
@@ -214,7 +215,11 @@ impl GBuffer {
             width: width as i32,
             height: height as i32,
             decal_shader: DecalShader::new(state)?,
-            cube: SurfaceData::make_cube(Matrix4::identity()),
+            cube: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_cube(Matrix4::identity()),
+                GeometryBufferKind::StaticDraw,
+                state,
+            ),
             decal_framebuffer,
             render_pass_name: ImmutableString::new("GBuffer"),
         })
@@ -286,8 +291,7 @@ impl GBuffer {
             .filter(|b| b.render_path == RenderPath::Deferred)
         {
             let material = batch.material.lock();
-            let data = batch.data.lock();
-            let geometry = geom_cache.get(state, &data);
+            let geometry = geom_cache.get(state, &batch.data);
 
             if let Some(render_pass) = shader_cache
                 .get(state, material.shader())
@@ -342,7 +346,7 @@ impl GBuffer {
         // Render decals after because we need to modify diffuse texture of G-Buffer and use depth texture
         // for rendering. We'll render in the G-Buffer, but depth will be used from final frame, since
         // decals do not modify depth (only diffuse and normal maps).
-        let unit_cube = geom_cache.get(state, &self.cube);
+        let unit_cube = &self.cube;
         for decal in graph.linear_iter().filter_map(|n| {
             if let Node::Decal(d) = n {
                 Some(d)

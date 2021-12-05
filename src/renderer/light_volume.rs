@@ -1,22 +1,25 @@
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::framework::state::{BlendFactor, BlendFunc, CompareFunc, StencilAction};
 use crate::{
     core::{
         algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
         math::Rect,
         pool::Handle,
         scope_profile,
+        sstorage::ImmutableString,
     },
     renderer::{
         flat_shader::FlatShader,
         framework::{
             error::FrameworkError,
             framebuffer::{DrawParameters, FrameBuffer},
+            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
             gpu_program::{GpuProgram, UniformLocation},
-            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
+            state::{
+                BlendFactor, BlendFunc, ColorMask, CompareFunc, PipelineState, StencilAction,
+                StencilFunc, StencilOp,
+            },
         },
         gbuffer::GBuffer,
-        GeometryCache, RenderPassStatistics,
+        RenderPassStatistics,
     },
     scene::{graph::Graph, light::Light, mesh::surface::SurfaceData, node::Node},
 };
@@ -101,8 +104,8 @@ pub struct LightVolumeRenderer {
     spot_light_shader: SpotLightShader,
     point_light_shader: PointLightShader,
     flat_shader: FlatShader,
-    cone: SurfaceData,
-    sphere: SurfaceData,
+    cone: GeometryBuffer,
+    sphere: GeometryBuffer,
 }
 
 impl LightVolumeRenderer {
@@ -111,13 +114,21 @@ impl LightVolumeRenderer {
             spot_light_shader: SpotLightShader::new(state)?,
             point_light_shader: PointLightShader::new(state)?,
             flat_shader: FlatShader::new(state)?,
-            cone: SurfaceData::make_cone(
-                16,
-                1.0,
-                1.0,
-                &Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0)),
+            cone: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_cone(
+                    16,
+                    1.0,
+                    1.0,
+                    &Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0)),
+                ),
+                GeometryBufferKind::StaticDraw,
+                state,
             ),
-            sphere: SurfaceData::make_sphere(8, 8, 1.0, &Matrix4::identity()),
+            sphere: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_sphere(8, 8, 1.0, &Matrix4::identity()),
+                GeometryBufferKind::StaticDraw,
+                state,
+            ),
         })
     }
 
@@ -128,8 +139,7 @@ impl LightVolumeRenderer {
         light: &Light,
         light_handle: Handle<Node>,
         gbuffer: &mut GBuffer,
-        quad: &SurfaceData,
-        geom_cache: &mut GeometryCache,
+        quad: &GeometryBuffer,
         view: Matrix4<f32>,
         inv_proj: Matrix4<f32>,
         view_proj: Matrix4<f32>,
@@ -191,7 +201,7 @@ impl LightVolumeRenderer {
                 frame_buffer.clear(state, viewport, None, None, Some(0));
 
                 stats += frame_buffer.draw(
-                    geom_cache.get(state, &self.cone),
+                    &self.cone,
                     state,
                     viewport,
                     &self.flat_shader.program,
@@ -224,7 +234,7 @@ impl LightVolumeRenderer {
                 let shader = &self.spot_light_shader;
                 let depth_map = gbuffer.depth();
                 stats += frame_buffer.draw(
-                    geom_cache.get(state, quad),
+                    quad,
                     state,
                     viewport,
                     &shader.program,
@@ -276,7 +286,7 @@ impl LightVolumeRenderer {
                 let mvp = view_proj * light_shape_matrix;
 
                 stats += frame_buffer.draw(
-                    geom_cache.get(state, &self.sphere),
+                    &self.sphere,
                     state,
                     viewport,
                     &self.flat_shader.program,
@@ -309,7 +319,7 @@ impl LightVolumeRenderer {
                 let shader = &self.point_light_shader;
                 let depth_map = gbuffer.depth();
                 stats += frame_buffer.draw(
-                    geom_cache.get(state, quad),
+                    quad,
                     state,
                     viewport,
                     &shader.program,

@@ -1,3 +1,4 @@
+use crate::core::parking_lot::Mutex;
 use crate::core::sparse::SparseBuffer;
 use crate::{
     core::scope_profile,
@@ -5,15 +6,13 @@ use crate::{
     renderer::{
         cache::CacheEntry,
         framework::{
-            geometry_buffer::{
-                BufferBuilder, ElementKind, GeometryBuffer, GeometryBufferBuilder,
-                GeometryBufferKind,
-            },
+            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
             state::PipelineState,
         },
     },
     scene::mesh::surface::SurfaceData,
 };
+use std::sync::Arc;
 
 #[derive(Default)]
 pub struct GeometryCache {
@@ -24,10 +23,11 @@ impl GeometryCache {
     pub fn get<'a>(
         &'a mut self,
         state: &mut PipelineState,
-        data: &SurfaceData,
+        data: &Arc<Mutex<SurfaceData>>,
     ) -> &'a mut GeometryBuffer {
         scope_profile!();
 
+        let data = data.lock();
         let data_hash = data.content_hash();
 
         if self.buffer.is_index_valid(&data.cache_entry) {
@@ -46,17 +46,8 @@ impl GeometryCache {
             entry.time_to_live = DEFAULT_RESOURCE_LIFETIME;
             entry
         } else {
-            let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
-                .with_buffer_builder(BufferBuilder::from_vertex_buffer(
-                    &data.vertex_buffer,
-                    GeometryBufferKind::StaticDraw,
-                ))
-                .build(state)
-                .unwrap();
-
-            geometry_buffer
-                .bind(state)
-                .set_triangles(data.geometry_buffer.triangles_ref());
+            let geometry_buffer =
+                GeometryBuffer::from_surface_data(&*data, GeometryBufferKind::StaticDraw, state);
 
             let index = self.buffer.spawn(CacheEntry {
                 value: geometry_buffer,
