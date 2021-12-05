@@ -9,6 +9,7 @@ use crate::{
     scene::{graph::Graph, light::Light, node::Node},
 };
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct Entry {
     node: Handle<Node>,

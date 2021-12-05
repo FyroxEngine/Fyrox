@@ -855,6 +855,7 @@ pub struct FixedJointDesc {
 }
 
 #[cfg(feature = "dim3")]
+#[allow(clippy::derivable_impls)]
 impl Default for FixedJointDesc {
     fn default() -> Self {
         Self {
@@ -867,6 +868,7 @@ impl Default for FixedJointDesc {
 }
 
 #[cfg(feature = "dim2")]
+#[allow(clippy::derivable_impls)]
 impl Default for FixedJointDesc {
     fn default() -> Self {
         Self {

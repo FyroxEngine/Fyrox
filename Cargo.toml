@@ -1,6 +1,6 @@
 [package]
 name = "rg3d"
-version = "0.23.1"
+version = "0.24.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
@@ -59,7 +59,7 @@ fxhash = "0.2.1"
 enable_profiler = ["rg3d-core/enable_profiler"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-glutin = {version = "0.27.0", features = ["serde"] }
+glutin = {version = "0.28.0", features = ["serde"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-winit = { version = "0.25.0", features = ["web-sys", "serde"] }
+winit = { version = "0.26.0", features = ["serde"] }
