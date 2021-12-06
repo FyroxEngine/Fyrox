@@ -313,7 +313,7 @@ impl UiRenderer {
 
             let shader = &self.shader;
             statistics += backbuffer.draw_part(
-                &mut self.geometry_buffer,
+                &self.geometry_buffer,
                 state,
                 viewport,
                 &self.shader.program,
