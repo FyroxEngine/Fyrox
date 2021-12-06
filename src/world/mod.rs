@@ -1242,7 +1242,10 @@ impl WorldViewer {
             self.handle_drop(engine, editor_scene, message.destination(), node);
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if let Some(&view) = self.breadcrumbs.get(&message.destination()) {
-                if let Some(graph_node) = engine.user_interface.node(view).cast::<SceneItem<Node>>()
+                if let Some(graph_node) = engine
+                    .user_interface
+                    .try_get_node(view)
+                    .and_then(|n| n.cast::<SceneItem<Node>>())
                 {
                     self.sender
                         .send(Message::do_scene_command(ChangeSelectionCommand::new(

@@ -1,4 +1,5 @@
 use rg3d::core::sstorage::ImmutableString;
+use rg3d::renderer::framework::geometry_buffer::{GeometryBuffer, GeometryBufferKind};
 use rg3d::renderer::framework::state::{BlendFactor, BlendFunc};
 use rg3d::{
     core::{algebra::Matrix4, math::Matrix4Ext},
@@ -50,7 +51,7 @@ impl OverlayShader {
 }
 
 pub struct OverlayRenderPass {
-    quad: SurfaceData,
+    quad: GeometryBuffer,
     shader: OverlayShader,
     sound_icon: Texture,
     light_icon: Texture,
@@ -59,7 +60,11 @@ pub struct OverlayRenderPass {
 impl OverlayRenderPass {
     pub fn new(state: &mut PipelineState) -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self {
-            quad: SurfaceData::make_collapsed_xy_quad(),
+            quad: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_collapsed_xy_quad(),
+                GeometryBufferKind::StaticDraw,
+                state,
+            ),
             shader: OverlayShader::new(state).unwrap(),
             sound_icon: Texture::load_from_memory(
                 include_bytes!("../resources/embed/sound_source.png"),
@@ -117,7 +122,7 @@ impl SceneRenderPass for OverlayRenderPass {
             let world_matrix = Matrix4::new_translation(&position);
 
             ctx.framebuffer.draw(
-                ctx.geometry_cache.get(ctx.pipeline_state, &self.quad),
+                &self.quad,
                 ctx.pipeline_state,
                 ctx.viewport,
                 &shader.program,
