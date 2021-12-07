@@ -2,6 +2,11 @@ name: CI
 on: [push, pull_request]
 env:
   CARGO_TERM_COLOR: always
+  # Deny warns here as a catch-all and because some commands (e.g. cargo build) don't accept `--deny warnings`
+  # but also deny them on all individual cargo invocations where available because:
+  # 1) Some commands might not support rustflags (e.g. clippy didn't at first, cargo doc uses a different var, ...)
+  # 2) People might copy paste the commands into CI where this flag is missing without noticing.
+  RUSTFLAGS: --deny warnings
 
 jobs:
   tests:
