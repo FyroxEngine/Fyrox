@@ -80,6 +80,7 @@ jobs:
         with:
           toolchain: nightly # Check on nightly because it sometimes has more lints.
           profile: minimal
+          components: clippy
           override: true
       - name: Update
         run: sudo apt update
