@@ -389,6 +389,7 @@ pub fn clampf(v: f32, min: f32, max: f32) -> f32 {
     }
 }
 
+/// There are two versions of remainder, the standard `%` operator which does `x - (x/y).trunc()*y` and IEEE remainder which does `x - (x/y).round()*y`.
 #[inline]
 pub fn ieee_remainder(x: f32, y: f32) -> f32 {
     x - (x / y).round() * y
