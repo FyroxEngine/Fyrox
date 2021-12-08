@@ -2,13 +2,12 @@
 //!
 //! For more info see [`Base`]
 
-use crate::core::math::aabb::AxisAlignedBoundingBox;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
         inspect::{Inspect, PropertyInfo},
-        math::Matrix4Ext,
-        pool::Handle,
+        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
+        pool::{ErasedHandle, Handle},
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     resource::model::Model,
@@ -202,6 +201,46 @@ impl Visit for Mobility {
     }
 }
 
+/// A property value.
+#[derive(Debug, Visit, Inspect)]
+pub enum PropertyValue {
+    /// An arbitrary, type-erased handle.
+    Handle(ErasedHandle),
+    /// A string value.
+    String(String),
+    /// A 64-bit signed integer value.
+    I64(i64),
+    /// A 64-bit unsigned integer value.
+    U64(u64),
+    /// A 32-bit signed integer value.
+    I32(i32),
+    /// A 32-bit unsigned integer value.
+    U32(u32),
+    /// A 16-bit signed integer value.
+    I16(i16),
+    /// A 16-bit unsigned integer value.
+    U16(u16),
+    /// A 8-bit signed integer value.
+    I8(i8),
+    /// A 8-bit unsigned integer value.
+    U8(u8),
+}
+
+impl Default for PropertyValue {
+    fn default() -> Self {
+        Self::I8(0)
+    }
+}
+
+/// A custom property.
+#[derive(Debug, Visit, Inspect, Default)]
+pub struct Property {
+    /// Name of the property.
+    pub name: String,
+    /// A value of the property.
+    pub value: PropertyValue,
+}
+
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -259,6 +298,9 @@ pub struct Base {
     mobility: Mobility,
     tag: String,
     pub(in crate) physics_binding: PhysicsBinding,
+    /// A set of custom properties that can hold almost any data. It can be used to set additional
+    /// properties to scene nodes.
+    pub properties: Vec<Property>,
 }
 
 impl Base {
@@ -539,6 +581,7 @@ impl Visit for Base {
             .visit("Original", visitor)?;
         self.tag.visit("Tag", visitor)?;
         self.physics_binding.visit("PhysicsBinding", visitor)?;
+        let _ = self.properties.visit("Properties", visitor);
 
         visitor.leave_region()
     }
@@ -667,6 +710,7 @@ impl BaseBuilder {
             mobility: self.mobility,
             tag: self.tag,
             physics_binding: PhysicsBinding::NodeWithBody,
+            properties: Default::default(),
         }
     }
 
