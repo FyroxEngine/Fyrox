@@ -69,6 +69,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::WorldViewer,
 };
+use rg3d::core::pool::ErasedHandle;
 use rg3d::engine::Engine;
 use rg3d::{
     core::{
@@ -121,6 +122,7 @@ use rg3d::{
     },
     utils::{into_gui_texture, log::MessageKind, translate_cursor_icon, translate_event},
 };
+use std::any::TypeId;
 use std::{
     fs,
     io::Write,
@@ -788,13 +790,25 @@ pub enum Message {
     CloseScene,
     SetInteractionMode(InteractionModeKind),
     Log(String),
-    Configure { working_directory: PathBuf },
+    Configure {
+        working_directory: PathBuf,
+    },
     NewScene,
-    Exit { force: bool },
+    Exit {
+        force: bool,
+    },
     OpenSettings(SettingsSectionKind),
     OpenMaterialEditor(Arc<Mutex<Material>>),
     ShowInAssetBrowser(PathBuf),
     SetWorldViewerFilter(String),
+    LocateObject {
+        type_id: TypeId,
+        handle: ErasedHandle,
+    },
+    SelectObject {
+        type_id: TypeId,
+        handle: ErasedHandle,
+    },
 }
 
 impl Message {
@@ -1835,6 +1849,31 @@ impl Editor {
                 }
                 Message::SetWorldViewerFilter(filter) => {
                     self.world_viewer.set_filter(filter, &engine.user_interface);
+                }
+                Message::LocateObject { type_id, handle } => {
+                    self.world_viewer.try_locate_object(type_id, handle, engine)
+                }
+                Message::SelectObject { type_id, handle } => {
+                    if let Some(scene) = self.scene.as_ref() {
+                        let new_selection = if type_id == TypeId::of::<Node>() {
+                            Some(Selection::Graph(GraphSelection::single_or_empty(
+                                handle.into(),
+                            )))
+                        } else {
+                            None
+                        };
+
+                        if let Some(new_selection) = new_selection {
+                            self.message_sender
+                                .send(Message::DoSceneCommand(SceneCommand::new(
+                                    ChangeSelectionCommand::new(
+                                        new_selection,
+                                        scene.selection.clone(),
+                                    ),
+                                )))
+                                .unwrap()
+                        }
+                    }
                 }
             }
         }

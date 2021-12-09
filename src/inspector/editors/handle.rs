@@ -1,6 +1,7 @@
 use crate::{
     world::graph::item::SceneItem, Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
+use rg3d::gui::button::ButtonMessage;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -55,6 +56,8 @@ impl<T> Debug for HandlePropertyEditorMessage<T> {
 pub struct HandlePropertyEditor<T> {
     widget: Widget,
     text: Handle<UiNode>,
+    locate: Handle<UiNode>,
+    select: Handle<UiNode>,
     value: Handle<T>,
     sender: Sender<Message>,
 }
@@ -66,6 +69,8 @@ impl<T> Clone for HandlePropertyEditor<T> {
             text: self.text,
             value: self.value,
             sender: self.sender.clone(),
+            locate: self.locate,
+            select: self.select,
         }
     }
 }
@@ -124,6 +129,22 @@ impl<T: 'static> Control for HandlePropertyEditor<T> {
                     ))
                 }
             }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination == self.locate {
+                self.sender
+                    .send(Message::LocateObject {
+                        type_id: TypeId::of::<T>(),
+                        handle: self.value.into(),
+                    })
+                    .unwrap();
+            } else if message.destination == self.select {
+                self.sender
+                    .send(Message::SelectObject {
+                        type_id: TypeId::of::<T>(),
+                        handle: self.value.into(),
+                    })
+                    .unwrap();
+            }
         }
     }
 }
@@ -151,6 +172,7 @@ impl<T: 'static> HandlePropertyEditorBuilder<T> {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let text;
         let locate;
+        let select;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child({
@@ -175,10 +197,23 @@ impl<T: 'static> HandlePropertyEditorBuilder<T> {
                     .with_text(">>")
                     .build(ctx);
                     locate
+                })
+                .with_child({
+                    select = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_tooltip(make_simple_tooltip(ctx, "Select Object"))
+                            .with_width(20.0)
+                            .with_height(20.0)
+                            .on_column(2),
+                    )
+                    .with_text("*")
+                    .build(ctx);
+                    select
                 }),
         )
         .add_row(Row::stretch())
         .add_column(Column::stretch())
+        .add_column(Column::auto())
         .add_column(Column::auto())
         .build(ctx);
 
@@ -195,6 +230,8 @@ impl<T: 'static> HandlePropertyEditorBuilder<T> {
             text,
             value: self.value,
             sender: self.sender,
+            locate,
+            select,
         };
 
         ctx.add_node(UiNode::new(editor))

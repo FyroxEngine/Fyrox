@@ -28,6 +28,7 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::core::pool::ErasedHandle;
 use rg3d::{
     core::{
         arrayvec::ArrayVec,
@@ -60,6 +61,7 @@ use rg3d::{
     scene::{graph::Graph, node::Node, Scene},
     sound::{context::SoundContext, source::SoundSource},
 };
+use std::any::TypeId;
 use std::{cmp::Ordering, collections::HashMap, sync::mpsc::Sender};
 
 pub mod graph;
@@ -1275,14 +1277,14 @@ impl WorldViewer {
                         MessageDirection::ToWidget,
                     ));
             } else if message.destination() == self.locate_selection {
-                self.locate_selection(editor_scene, engine)
+                self.locate_selection(&editor_scene.selection, engine)
             }
         } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data::<CheckBoxMessage>()
         {
             if message.destination() == self.track_selection {
                 self.track_selection_state = *value;
                 if *value {
-                    self.locate_selection(editor_scene, engine);
+                    self.locate_selection(&editor_scene.selection, engine);
                 }
             }
         } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
@@ -1294,8 +1296,17 @@ impl WorldViewer {
         }
     }
 
-    fn locate_selection(&self, editor_scene: &EditorScene, engine: &Engine) {
-        let tree_to_focus = self.map_selection(editor_scene, engine);
+    pub fn try_locate_object(&self, type_id: TypeId, handle: ErasedHandle, engine: &Engine) {
+        if type_id == TypeId::of::<Node>() {
+            let selection = Selection::Graph(GraphSelection::single_or_empty(handle.into()));
+            self.locate_selection(&selection, engine)
+        } else {
+            // TODO: Add more types here.
+        }
+    }
+
+    fn locate_selection(&self, selection: &Selection, engine: &Engine) {
+        let tree_to_focus = self.map_selection(selection, engine);
 
         if let Some(tree_to_focus) = tree_to_focus.first() {
             engine.user_interface.send_message(TreeMessage::expand(
@@ -1586,13 +1597,9 @@ impl WorldViewer {
         }
     }
 
-    fn map_selection(
-        &self,
-        editor_scene: &EditorScene,
-        engine: &GameEngine,
-    ) -> Vec<Handle<UiNode>> {
+    fn map_selection(&self, selection: &Selection, engine: &GameEngine) -> Vec<Handle<UiNode>> {
         let ui = &engine.user_interface;
-        match &editor_scene.selection {
+        match selection {
             Selection::Graph(selection) => {
                 map_selection(selection.nodes(), self.graph_folder, &engine.user_interface)
             }
@@ -1616,7 +1623,7 @@ impl WorldViewer {
     pub fn post_update(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         // Hack. See `self.sync_selection` for details.
         if self.sync_selection {
-            let trees = self.map_selection(editor_scene, engine);
+            let trees = self.map_selection(&editor_scene.selection, engine);
 
             let ui = &mut engine.user_interface;
             send_sync_message(
@@ -1626,7 +1633,7 @@ impl WorldViewer {
 
             self.update_breadcrumbs(ui, editor_scene, &engine.scenes[editor_scene.scene]);
             if self.track_selection_state {
-                self.locate_selection(editor_scene, engine);
+                self.locate_selection(&editor_scene.selection, engine);
             }
 
             self.sync_selection = false;
