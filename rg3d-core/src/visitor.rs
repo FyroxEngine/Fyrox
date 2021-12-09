@@ -1418,7 +1418,7 @@ mod test {
     impl Visit for ResourceKind {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
             match self {
-                ResourceKind::Unknown => Err(VisitError::User(format!("invalid resource type"))),
+                ResourceKind::Unknown => Err(VisitError::User("invalid resource type".to_string())),
                 ResourceKind::Texture(tex) => tex.visit(name, visitor),
                 ResourceKind::Model(model) => model.visit(name, visitor),
             }
@@ -1459,7 +1459,7 @@ mod test {
             } else {
                 let mut kind_id: u8 = match &self.kind {
                     ResourceKind::Unknown => {
-                        return Err(VisitError::User(format!("Invalid resource!")))
+                        return Err(VisitError::User("Invalid resource!".to_string()))
                     }
                     ResourceKind::Model(_) => 0,
                     ResourceKind::Texture(_) => 1,
@@ -1472,18 +1472,10 @@ mod test {
         }
     }
 
+    #[derive(Default)]
     struct Foo {
         bar: u64,
         shared_resource: Option<Rc<Resource>>,
-    }
-
-    impl Default for Foo {
-        fn default() -> Self {
-            Self {
-                bar: 0,
-                shared_resource: None,
-            }
-        }
     }
 
     impl Foo {
@@ -1520,7 +1512,7 @@ mod test {
 
             visitor.save_binary(path).unwrap();
             if let Ok(mut file) = File::create(Path::new("test.txt")) {
-                file.write(visitor.save_text().as_bytes()).unwrap();
+                file.write_all(visitor.save_text().as_bytes()).unwrap();
             }
         }
 

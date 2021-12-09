@@ -283,6 +283,7 @@ fn inspect_prop_key_constants() {
     #[derive(Debug, Inspect)]
     pub struct X;
 
+    #[allow(dead_code)]
     #[derive(Inspect)]
     pub struct SStruct {
         field: usize,
