@@ -1,3 +1,12 @@
+//! Tree widget allows you to create views for hierarchical data.
+//!
+//! ## Built-in controls
+//!
+//! Selection works on all mouse buttons, not just left.
+//!
+//! `Ctrl+Click` - enables multi-selection.
+//! `Alt+Click` - prevents selection allowing you to use drag'n'drop.
+
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -130,30 +139,35 @@ impl Control for Tree {
             }
         } else if let Some(WidgetMessage::MouseDown { .. }) = message.data::<WidgetMessage>() {
             if !message.handled() {
-                if let Some((tree_root_handle, tree_root)) =
-                    ui.try_borrow_by_type_up::<TreeRoot>(self.parent())
-                {
-                    let selection = if ui.keyboard_modifiers().control {
-                        let mut selection = tree_root.selected.clone();
-                        if let Some(existing) = selection.iter().position(|&h| h == self.handle) {
-                            selection.remove(existing);
+                let keyboard_modifiers = ui.keyboard_modifiers();
+                // Prevent selection changes by Alt+Click to be able to drag'n'drop tree items.
+                if !keyboard_modifiers.alt {
+                    if let Some((tree_root_handle, tree_root)) =
+                        ui.try_borrow_by_type_up::<TreeRoot>(self.parent())
+                    {
+                        let selection = if keyboard_modifiers.control {
+                            let mut selection = tree_root.selected.clone();
+                            if let Some(existing) = selection.iter().position(|&h| h == self.handle)
+                            {
+                                selection.remove(existing);
+                            } else {
+                                selection.push(self.handle);
+                            }
+                            Some(selection)
+                        } else if !self.is_selected {
+                            Some(vec![self.handle()])
                         } else {
-                            selection.push(self.handle);
+                            None
+                        };
+                        if let Some(selection) = selection {
+                            ui.send_message(TreeRootMessage::select(
+                                tree_root_handle,
+                                MessageDirection::ToWidget,
+                                selection,
+                            ));
                         }
-                        Some(selection)
-                    } else if !self.is_selected {
-                        Some(vec![self.handle()])
-                    } else {
-                        None
-                    };
-                    if let Some(selection) = selection {
-                        ui.send_message(TreeRootMessage::select(
-                            tree_root_handle,
-                            MessageDirection::ToWidget,
-                            selection,
-                        ));
+                        message.set_handled(true);
                     }
-                    message.set_handled(true);
                 }
             }
         } else if let Some(msg) = message.data::<TreeMessage>() {
