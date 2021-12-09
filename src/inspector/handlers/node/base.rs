@@ -2,7 +2,7 @@ use crate::{
     inspector::handlers::node::transform::handle_transform_property_changed,
     make_command,
     scene::commands::{graph::*, lod::*},
-    SceneCommand,
+    ErasedHandle, SceneCommand,
 };
 use rg3d::{
     core::pool::Handle,
@@ -103,6 +103,14 @@ pub fn handle_base_property_changed(
                                     } else if let Some(string) = value.cast_value_cloned::<String>()
                                     {
                                         Some(PropertyValue::String(string))
+                                    } else if let Some(node_handle) =
+                                        value.cast_value_cloned::<Handle<Node>>()
+                                    {
+                                        Some(PropertyValue::NodeHandle(node_handle))
+                                    } else if let Some(handle) =
+                                        value.cast_value_cloned::<ErasedHandle>()
+                                    {
+                                        Some(PropertyValue::Handle(handle))
                                     } else {
                                         None
                                     };
