@@ -202,8 +202,10 @@ impl Visit for Mobility {
 }
 
 /// A property value.
-#[derive(Debug, Visit, Inspect)]
+#[derive(Debug, Visit, Inspect, Clone)]
 pub enum PropertyValue {
+    /// A node handle.
+    NodeHandle(Handle<Node>),
     /// An arbitrary, type-erased handle.
     Handle(ErasedHandle),
     /// A string value.
@@ -224,6 +226,10 @@ pub enum PropertyValue {
     I8(i8),
     /// A 8-bit unsigned integer value.
     U8(u8),
+    /// A 32-bit floating point value.
+    F32(f32),
+    /// A 64-bit floating point value.
+    F64(f64),
 }
 
 impl Default for PropertyValue {
@@ -233,7 +239,7 @@ impl Default for PropertyValue {
 }
 
 /// A custom property.
-#[derive(Debug, Visit, Inspect, Default)]
+#[derive(Debug, Visit, Inspect, Default, Clone)]
 pub struct Property {
     /// Name of the property.
     pub name: String,
@@ -549,8 +555,13 @@ impl Base {
             tag: self.tag.clone(),
             physics_binding: self.physics_binding,
             lod_group: self.lod_group.clone(),
+            properties: self.properties.clone(),
+
             // Rest of data is *not* copied!
-            ..Default::default()
+            original_handle_in_resource: Default::default(),
+            parent: Default::default(),
+            children: Default::default(),
+            depth_offset: Default::default(),
         }
     }
 }
