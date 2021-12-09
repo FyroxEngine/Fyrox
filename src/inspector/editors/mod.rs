@@ -1,3 +1,4 @@
+use crate::inspector::editors::handle::HandlePropertyEditorDefinition;
 use crate::{
     inspector::editors::{
         material::MaterialPropertyEditorDefinition,
@@ -8,9 +9,8 @@ use crate::{
     },
     Message,
 };
-use rg3d::scene::base::{Property, PropertyValue};
 use rg3d::{
-    core::{inspect::Inspect, parking_lot::Mutex, pool::ErasedHandle},
+    core::{inspect::Inspect, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
     gui::inspector::editors::{
         array::ArrayPropertyEditorDefinition, collection::VecCollectionPropertyEditorDefinition,
         enumeration::EnumPropertyEditorDefinition,
@@ -22,13 +22,14 @@ use rg3d::{
     },
     scene::{
         self,
-        base::{Base, LevelOfDetail, LodGroup, Mobility, PhysicsBinding},
+        base::{Base, LevelOfDetail, LodGroup, Mobility, PhysicsBinding, Property, PropertyValue},
         camera::{ColorGradingLut, Exposure, SkyBox},
         light::{
             directional::{CsmOptions, FrustumSplitOptions},
             BaseLight,
         },
         mesh::{surface::Surface, RenderPath},
+        node::Node,
         particle_system::emitter::{base::BaseEmitter, Emitter},
         terrain::Layer,
     },
@@ -37,6 +38,7 @@ use rg3d::{
 };
 use std::{fmt::Debug, rc::Rc, sync::mpsc::Sender};
 
+pub mod handle;
 pub mod material;
 pub mod resource;
 pub mod texture;
@@ -237,13 +239,14 @@ pub fn make_property_editors_container(
 
     container.insert(TexturePropertyEditorDefinition);
     container.insert(MaterialPropertyEditorDefinition {
-        sender: Mutex::new(sender),
+        sender: Mutex::new(sender.clone()),
     });
     container.insert(VecCollectionPropertyEditorDefinition::<Surface>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<Layer>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<Emitter>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<LevelOfDetail>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<ErasedHandle>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<Handle<Node>>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<Property>::new());
     container.insert(make_physics_binding_enum_editor_definition());
     container.insert(make_mobility_enum_editor_definition());
@@ -278,6 +281,7 @@ pub fn make_property_editors_container(
     container.insert(ArrayPropertyEditorDefinition::<f32, 3>::new());
     container.insert(make_option_editor_definition::<ColorGradingLut>());
     container.insert(make_option_editor_definition::<Box<SkyBox>>());
+    container.insert(HandlePropertyEditorDefinition::<Node>::new(sender));
 
     Rc::new(container)
 }
