@@ -2,6 +2,7 @@ use crate::{
     command::Command, define_node_command, get_set_swap, physics::Physics,
     scene::commands::SceneContext,
 };
+use rg3d::scene::base::{Property, PropertyValue};
 use rg3d::{
     animation::Animation,
     core::{
@@ -403,6 +404,115 @@ impl Command for AddNodeCommand {
         if let Some(ticket) = self.ticket.take() {
             context.scene.graph.forget_ticket(ticket)
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct AddPropertyCommand {
+    pub handle: Handle<Node>,
+    pub property: Property,
+}
+
+impl Command for AddPropertyCommand {
+    fn name(&mut self, _: &SceneContext) -> String {
+        "Add Property Command".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        context.scene.graph[self.handle]
+            .properties
+            .push(std::mem::take(&mut self.property));
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.property = context.scene.graph[self.handle].properties.pop().unwrap();
+    }
+}
+
+#[derive(Debug)]
+pub struct RemovePropertyCommand {
+    pub handle: Handle<Node>,
+    pub index: usize,
+    pub property: Option<Property>,
+}
+
+impl Command for RemovePropertyCommand {
+    fn name(&mut self, _: &SceneContext) -> String {
+        "Remove Property Command".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.property = Some(
+            context.scene.graph[self.handle]
+                .properties
+                .remove(self.index),
+        );
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        context.scene.graph[self.handle]
+            .properties
+            .insert(self.index, self.property.take().unwrap());
+    }
+}
+
+#[derive(Debug)]
+pub struct SetPropertyValueCommand {
+    pub handle: Handle<Node>,
+    pub index: usize,
+    pub value: PropertyValue,
+}
+
+impl SetPropertyValueCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        std::mem::swap(
+            &mut context.scene.graph[self.handle].properties[self.index].value,
+            &mut self.value,
+        );
+    }
+}
+
+impl Command for SetPropertyValueCommand {
+    fn name(&mut self, _: &SceneContext) -> String {
+        "Set Property Value".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+}
+
+#[derive(Debug)]
+pub struct SetPropertyNameCommand {
+    pub handle: Handle<Node>,
+    pub index: usize,
+    pub name: String,
+}
+
+impl SetPropertyNameCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        std::mem::swap(
+            &mut context.scene.graph[self.handle].properties[self.index].name,
+            &mut self.name,
+        );
+    }
+}
+
+impl Command for SetPropertyNameCommand {
+    fn name(&mut self, _: &SceneContext) -> String {
+        "Set Property Name".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context)
     }
 }
 

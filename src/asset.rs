@@ -27,6 +27,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct AssetItem {
     widget: Widget,

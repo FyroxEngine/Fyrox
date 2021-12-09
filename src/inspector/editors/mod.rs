@@ -8,6 +8,7 @@ use crate::{
     },
     Message,
 };
+use rg3d::scene::base::{Property, PropertyValue};
 use rg3d::{
     core::{inspect::Inspect, parking_lot::Mutex, pool::ErasedHandle},
     gui::inspector::editors::{
@@ -176,6 +177,59 @@ pub fn make_frustum_split_options_enum_editor_definition(
     }
 }
 
+pub fn make_property_enum_editor_definition() -> EnumPropertyEditorDefinition<PropertyValue> {
+    EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => PropertyValue::NodeHandle(Default::default()),
+            1 => PropertyValue::Handle(Default::default()),
+            2 => PropertyValue::String("".to_owned()),
+            3 => PropertyValue::I64(0),
+            4 => PropertyValue::U64(0),
+            5 => PropertyValue::I32(0),
+            6 => PropertyValue::U32(0),
+            7 => PropertyValue::I16(0),
+            8 => PropertyValue::U16(0),
+            9 => PropertyValue::I8(0),
+            10 => PropertyValue::U8(0),
+            11 => PropertyValue::F32(0.0),
+            12 => PropertyValue::F64(0.0),
+            _ => unreachable!(),
+        },
+        index_generator: |v| match v {
+            PropertyValue::NodeHandle(_) => 0,
+            PropertyValue::Handle(_) => 1,
+            PropertyValue::String(_) => 2,
+            PropertyValue::I64(_) => 3,
+            PropertyValue::U64(_) => 4,
+            PropertyValue::I32(_) => 5,
+            PropertyValue::U32(_) => 6,
+            PropertyValue::I16(_) => 7,
+            PropertyValue::U16(_) => 8,
+            PropertyValue::I8(_) => 9,
+            PropertyValue::U8(_) => 10,
+            PropertyValue::F32(_) => 11,
+            PropertyValue::F64(_) => 12,
+        },
+        names_generator: || {
+            vec![
+                "Node Handle".to_string(),
+                "Handle".to_string(),
+                "String".to_string(),
+                "I64".to_string(),
+                "U64".to_string(),
+                "I32".to_string(),
+                "U32".to_string(),
+                "I16".to_string(),
+                "U16".to_string(),
+                "I8".to_string(),
+                "U8".to_string(),
+                "F32".to_string(),
+                "F64".to_string(),
+            ]
+        },
+    }
+}
+
 pub fn make_property_editors_container(
     sender: Sender<Message>,
 ) -> Rc<PropertyEditorDefinitionContainer> {
@@ -190,6 +244,7 @@ pub fn make_property_editors_container(
     container.insert(VecCollectionPropertyEditorDefinition::<Emitter>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<LevelOfDetail>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<ErasedHandle>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<Property>::new());
     container.insert(make_physics_binding_enum_editor_definition());
     container.insert(make_mobility_enum_editor_definition());
     container.insert(make_exposure_enum_editor_definition());
@@ -198,6 +253,7 @@ pub fn make_property_editors_container(
     container.insert(make_rigid_body_type_editor_definition());
     container.insert(make_option_editor_definition::<f32>());
     container.insert(make_option_editor_definition::<LodGroup>());
+    container.insert(make_property_enum_editor_definition());
     container.insert(ModelResourcePropertyEditorDefinition);
     container.insert(SoundBufferResourcePropertyEditorDefinition);
     container.insert(InspectablePropertyEditorDefinition::<InteractionGroupsDesc>::new());
