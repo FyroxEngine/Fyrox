@@ -26,15 +26,13 @@ use crate::{
     inspect::{Inspect, PropertyInfo},
     visitor::{Visit, VisitResult, Visitor},
 };
-use std::any::TypeId;
 use std::{
-    fmt::{Debug, Formatter},
+    any::TypeId,
+    fmt::{Debug, Display, Formatter},
+    future::Future,
     hash::{Hash, Hasher},
     iter::FromIterator,
     marker::PhantomData,
-};
-use std::{
-    future::Future,
     ops::{Index, IndexMut},
 };
 
@@ -102,6 +100,12 @@ impl<T: 'static> Inspect for Handle<T> {
 
 unsafe impl<T> Send for Handle<T> {}
 unsafe impl<T> Sync for Handle<T> {}
+
+impl<T> Display for Handle<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.index, self.generation)
+    }
+}
 
 /// Type-erased handle.
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Inspect)]
