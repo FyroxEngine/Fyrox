@@ -4,6 +4,7 @@ use crate::{
     scene::commands::{graph::*, lod::*},
     ErasedHandle, SceneCommand,
 };
+use rg3d::scene::base::LodGroup;
 use rg3d::{
     core::pool::Handle,
     gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
@@ -137,40 +138,62 @@ pub fn handle_base_property_changed(
             _ => None,
         },
         FieldKind::Inspectable(ref inner_value) => match args.name.as_ref() {
-            Base::LOD_GROUP => match inner_value.value {
-                FieldKind::Collection(ref collection_changed) => match **collection_changed {
-                    CollectionChanged::Add => Some(SceneCommand::new(
-                        AddLodGroupLevelCommand::new(handle, Default::default()),
-                    )),
-                    CollectionChanged::Remove(i) => Some(SceneCommand::new(
-                        RemoveLodGroupLevelCommand::new(handle, i),
-                    )),
-                    CollectionChanged::ItemChanged {
-                        index,
-                        ref property,
-                    } => {
-                        if let FieldKind::Object(ref value) = property.value {
-                            match property.name.as_ref() {
+            Base::LOD_GROUP => match inner_value.name.as_ref() {
+                LodGroup::LEVELS => match inner_value.value {
+                    FieldKind::Collection(ref collection_changed) => match **collection_changed {
+                        CollectionChanged::Add => Some(SceneCommand::new(
+                            AddLodGroupLevelCommand::new(handle, Default::default()),
+                        )),
+                        CollectionChanged::Remove(i) => Some(SceneCommand::new(
+                            RemoveLodGroupLevelCommand::new(handle, i),
+                        )),
+                        CollectionChanged::ItemChanged {
+                            index: lod_index,
+                            ref property,
+                        } => match property.value {
+                            FieldKind::Object(ref value) => match property.name.as_ref() {
                                 LevelOfDetail::BEGIN => {
                                     Some(SceneCommand::new(ChangeLodRangeBeginCommand::new(
                                         handle,
-                                        index,
+                                        lod_index,
                                         *value.cast_value()?,
                                     )))
                                 }
                                 LevelOfDetail::END => {
                                     Some(SceneCommand::new(ChangeLodRangeEndCommand::new(
                                         handle,
-                                        index,
+                                        lod_index,
                                         *value.cast_value()?,
                                     )))
                                 }
                                 _ => None,
+                            },
+                            FieldKind::Collection(ref collection_changed) => {
+                                match property.name.as_ref() {
+                                    LevelOfDetail::OBJECTS => match **collection_changed {
+                                        CollectionChanged::Add => {
+                                            Some(SceneCommand::new(AddLodObjectCommand::new(
+                                                handle,
+                                                lod_index,
+                                                Default::default(),
+                                            )))
+                                        }
+                                        CollectionChanged::Remove(object_index) => {
+                                            Some(SceneCommand::new(RemoveLodObjectCommand::new(
+                                                handle,
+                                                lod_index,
+                                                object_index,
+                                            )))
+                                        }
+                                        CollectionChanged::ItemChanged { .. } => None,
+                                    },
+                                    _ => None,
+                                }
                             }
-                        } else {
-                            None
-                        }
-                    }
+                            _ => None,
+                        },
+                    },
+                    _ => None,
                 },
                 _ => None,
             },

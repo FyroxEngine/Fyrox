@@ -163,6 +163,97 @@ impl Command for ChangeLodRangeEndCommand {
     }
 }
 
+#[derive(Debug)]
+pub struct AddLodObjectCommand {
+    handle: Handle<Node>,
+    lod_index: usize,
+    object: Handle<Node>,
+    object_index: usize,
+}
+
+impl AddLodObjectCommand {
+    pub fn new(handle: Handle<Node>, lod_index: usize, object: Handle<Node>) -> Self {
+        Self {
+            handle,
+            lod_index,
+            object,
+            object_index: 0,
+        }
+    }
+}
+
+impl Command for AddLodObjectCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Add Lod Object".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        let objects = &mut context.scene.graph[self.handle]
+            .lod_group_mut()
+            .unwrap()
+            .levels[self.lod_index]
+            .objects;
+        self.object_index = objects.len();
+        objects.push(self.object);
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        context.scene.graph[self.handle]
+            .lod_group_mut()
+            .unwrap()
+            .levels[self.lod_index]
+            .objects
+            .remove(self.object_index);
+    }
+}
+
+#[derive(Debug)]
+pub struct RemoveLodObjectCommand {
+    handle: Handle<Node>,
+    lod_index: usize,
+    object: Handle<Node>,
+    object_index: usize,
+}
+
+impl RemoveLodObjectCommand {
+    pub fn new(handle: Handle<Node>, lod_index: usize, object_index: usize) -> Self {
+        Self {
+            handle,
+            lod_index,
+            object: Default::default(),
+            object_index,
+        }
+    }
+}
+
+impl Command for RemoveLodObjectCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Remove Lod Object".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.object = context.scene.graph[self.handle]
+            .lod_group_mut()
+            .unwrap()
+            .levels[self.lod_index]
+            .objects
+            .remove(self.object_index);
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        let objects = &mut context.scene.graph[self.handle]
+            .lod_group_mut()
+            .unwrap()
+            .levels[self.lod_index]
+            .objects;
+        if objects.is_empty() {
+            objects.push(self.object);
+        } else {
+            objects.insert(self.object_index, self.object);
+        }
+    }
+}
+
 define_node_command!(SetLodGroupCommand("Set Lod Group", Option<LodGroup>) where fn swap(self, node) {
     get_set_swap!(self, node, take_lod_group, set_lod_group);
 });
