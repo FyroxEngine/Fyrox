@@ -14,6 +14,7 @@ use crate::{
     scene::{graph::Graph, node::Node, transform::Transform},
 };
 use std::cell::Cell;
+use std::ops::{Deref, DerefMut};
 
 /// Defines a kind of binding between rigid body and a scene node. Check variants
 /// for more info.
@@ -62,6 +63,30 @@ impl Visit for PhysicsBinding {
     }
 }
 
+/// A handle to scene node that will be controlled by LOD system.
+#[derive(Inspect, Default, Debug, Clone, Copy, PartialEq, Hash)]
+pub struct LodControlledObject(pub Handle<Node>);
+
+impl Deref for LodControlledObject {
+    type Target = Handle<Node>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for LodControlledObject {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Visit for LodControlledObject {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
 /// Level of detail is a collection of objects for given normalized distance range.
 /// Objects will be rendered **only** if they're in specified range.
 /// Normalized distance is a distance in (0; 1) range where 0 - closest to camera,
@@ -73,12 +98,12 @@ pub struct LevelOfDetail {
     end: f32,
     /// List of objects, where each object represents level of detail of parent's
     /// LOD group.
-    pub objects: Vec<Handle<Node>>,
+    pub objects: Vec<LodControlledObject>,
 }
 
 impl LevelOfDetail {
     /// Creates new level of detail.
-    pub fn new(begin: f32, end: f32, objects: Vec<Handle<Node>>) -> Self {
+    pub fn new(begin: f32, end: f32, objects: Vec<LodControlledObject>) -> Self {
         for object in objects.iter() {
             // Invalid handles are not allowed.
             assert!(object.is_some());

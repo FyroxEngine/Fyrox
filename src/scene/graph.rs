@@ -95,7 +95,7 @@ fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_g
                 level.objects.retain_mut(|object| {
                     if let Some(entry) = old_new_mapping.get(object) {
                         // Replace to mapped.
-                        *object = *entry;
+                        object.0 = *entry;
                         true
                     } else {
                         // Discard invalid handles.

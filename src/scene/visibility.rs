@@ -57,14 +57,14 @@ impl VisibilityCache {
             if let Some(lod_group) = node.lod_group() {
                 for level in lod_group.levels.iter() {
                     for &object in level.objects.iter() {
-                        if let Some(object_ref) = graph.try_get(object) {
+                        if let Some(object_ref) = graph.try_get(*object) {
                             let distance =
                                 observer_position.metric_distance(&object_ref.global_position());
                             let z_range = z_far - z_near;
                             let normalized_distance = (distance - z_near) / z_range;
                             let visible = normalized_distance >= level.begin()
                                 && normalized_distance <= level.end();
-                            self.map.insert(object, visible);
+                            self.map.insert(*object, visible);
                         }
                     }
                 }
