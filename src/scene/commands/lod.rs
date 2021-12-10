@@ -1,7 +1,11 @@
 use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
 use rg3d::{
     core::pool::Handle,
-    scene::{base::LevelOfDetail, base::LodGroup, graph::Graph, node::Node},
+    scene::{
+        base::{LevelOfDetail, LodControlledObject, LodGroup},
+        graph::Graph,
+        node::Node,
+    },
 };
 
 #[derive(Debug)]
@@ -167,12 +171,12 @@ impl Command for ChangeLodRangeEndCommand {
 pub struct AddLodObjectCommand {
     handle: Handle<Node>,
     lod_index: usize,
-    object: Handle<Node>,
+    object: LodControlledObject,
     object_index: usize,
 }
 
 impl AddLodObjectCommand {
-    pub fn new(handle: Handle<Node>, lod_index: usize, object: Handle<Node>) -> Self {
+    pub fn new(handle: Handle<Node>, lod_index: usize, object: LodControlledObject) -> Self {
         Self {
             handle,
             lod_index,
@@ -211,7 +215,7 @@ impl Command for AddLodObjectCommand {
 pub struct RemoveLodObjectCommand {
     handle: Handle<Node>,
     lod_index: usize,
-    object: Handle<Node>,
+    object: LodControlledObject,
     object_index: usize,
 }
 
@@ -251,6 +255,42 @@ impl Command for RemoveLodObjectCommand {
         } else {
             objects.insert(self.object_index, self.object);
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct SetLodGroupLodObjectValue {
+    pub handle: Handle<Node>,
+    pub lod_index: usize,
+    pub object_index: usize,
+    pub value: Handle<Node>,
+}
+
+impl SetLodGroupLodObjectValue {
+    fn swap(&mut self, context: &mut SceneContext) {
+        std::mem::swap(
+            &mut context.scene.graph[self.handle]
+                .lod_group_mut()
+                .unwrap()
+                .levels[self.lod_index]
+                .objects[self.object_index]
+                .0,
+            &mut self.value,
+        );
+    }
+}
+
+impl Command for SetLodGroupLodObjectValue {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Set Lod Object".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context)
     }
 }
 

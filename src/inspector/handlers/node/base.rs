@@ -4,7 +4,7 @@ use crate::{
     scene::commands::{graph::*, lod::*},
     ErasedHandle, SceneCommand,
 };
-use rg3d::scene::base::LodGroup;
+use rg3d::scene::base::{LodControlledObject, LodGroup};
 use rg3d::{
     core::pool::Handle,
     gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
@@ -185,7 +185,27 @@ pub fn handle_base_property_changed(
                                                 object_index,
                                             )))
                                         }
-                                        CollectionChanged::ItemChanged { .. } => None,
+                                        CollectionChanged::ItemChanged {
+                                            index,
+                                            ref property,
+                                        } => match property.name.as_ref() {
+                                            LodControlledObject::F_0 => {
+                                                if let FieldKind::Object(ref value) = property.value
+                                                {
+                                                    Some(SceneCommand::new(
+                                                        SetLodGroupLodObjectValue {
+                                                            handle,
+                                                            lod_index,
+                                                            object_index: index,
+                                                            value: value.cast_value_cloned()?,
+                                                        },
+                                                    ))
+                                                } else {
+                                                    None
+                                                }
+                                            }
+                                            _ => None,
+                                        },
                                     },
                                     _ => None,
                                 }

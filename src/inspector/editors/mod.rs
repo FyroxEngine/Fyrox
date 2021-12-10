@@ -9,6 +9,7 @@ use crate::{
     },
     Message,
 };
+use rg3d::scene::base::LodControlledObject;
 use rg3d::{
     core::{inspect::Inspect, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
     gui::inspector::editors::{
@@ -248,6 +249,7 @@ pub fn make_property_editors_container(
     container.insert(VecCollectionPropertyEditorDefinition::<ErasedHandle>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<Handle<Node>>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<Property>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<LodControlledObject>::new());
     container.insert(make_physics_binding_enum_editor_definition());
     container.insert(make_mobility_enum_editor_definition());
     container.insert(make_exposure_enum_editor_definition());
