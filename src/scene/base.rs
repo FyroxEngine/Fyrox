@@ -369,6 +369,11 @@ impl Base {
         self
     }
 
+    /// TODO
+    pub fn find_property_ref(&self, name: &str) -> Option<&Property> {
+        self.properties.iter().find(|p| p.name == name)
+    }
+
     /// Sets lifetime of node in seconds, lifetime is useful for temporary objects.
     /// Example - you firing a gun, it produces two particle systems for each shot:
     /// one for gunpowder fumes and one when bullet hits some surface. These particle
