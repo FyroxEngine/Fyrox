@@ -89,26 +89,28 @@ impl Control for CollectionEditor {
                 ));
             }
         } else if let Some(msg) = message.data::<CollectionEditorMessage>() {
-            match msg {
-                CollectionEditorMessage::Items(items) => {
-                    let views = create_item_views(items, &mut ui.build_ctx(), self.layer_index);
+            if message.destination == self.handle {
+                match msg {
+                    CollectionEditorMessage::Items(items) => {
+                        let views = create_item_views(items, &mut ui.build_ctx(), self.layer_index);
 
-                    for old_item in ui.node(self.panel).children() {
-                        ui.send_message(WidgetMessage::remove(
-                            *old_item,
-                            MessageDirection::ToWidget,
-                        ));
+                        for old_item in ui.node(self.panel).children() {
+                            ui.send_message(WidgetMessage::remove(
+                                *old_item,
+                                MessageDirection::ToWidget,
+                            ));
+                        }
+
+                        for view in views {
+                            ui.send_message(WidgetMessage::link(
+                                view,
+                                MessageDirection::ToWidget,
+                                self.panel,
+                            ));
+                        }
+
+                        self.items = items.clone();
                     }
-
-                    for view in views {
-                        ui.send_message(WidgetMessage::link(
-                            view,
-                            MessageDirection::ToWidget,
-                            self.panel,
-                        ));
-                    }
-
-                    self.items = items.clone();
                 }
             }
         }
