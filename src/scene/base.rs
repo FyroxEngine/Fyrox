@@ -230,8 +230,18 @@ impl Visit for Mobility {
 #[derive(Debug, Visit, Inspect, Clone)]
 pub enum PropertyValue {
     /// A node handle.
+    ///
+    /// # Important notes
+    ///
+    /// The value of the property will be remapped when owning node is cloned, this means that the
+    /// handle will always be correct.
     NodeHandle(Handle<Node>),
     /// An arbitrary, type-erased handle.
+    ///
+    /// # Important notes
+    ///
+    /// The value of the property will **not** be remapped when owning node is cloned, this means
+    /// that the handle correctness is not guaranteed on copy.
     Handle(ErasedHandle),
     /// A string value.
     String(String),
@@ -369,8 +379,14 @@ impl Base {
         self
     }
 
-    /// TODO
-    pub fn find_property_ref(&self, name: &str) -> Option<&Property> {
+    /// Tries to find properties by the name. The method returns an iterator because it possible
+    /// to have multiple properties with the same name.
+    pub fn find_properties_ref<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a Property> {
+        self.properties.iter().filter(move |p| p.name == name)
+    }
+
+    /// Tries to find a first property with the given name.
+    pub fn find_first_property_ref(&self, name: &str) -> Option<&Property> {
         self.properties.iter().find(|p| p.name == name)
     }
 
