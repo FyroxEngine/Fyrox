@@ -74,7 +74,7 @@ impl ObjectValue {
         (*self.value).as_any().downcast_ref::<T>()
     }
 
-    pub fn cast_value_cloned<T: Clone + 'static>(&self) -> Option<T> {
+    pub fn cast_clone<T: Clone + 'static>(&self) -> Option<T> {
         (*self.value).as_any().downcast_ref::<T>().cloned()
     }
 }

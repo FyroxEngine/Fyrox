@@ -324,13 +324,10 @@ impl CurveEditorWindow {
 
     fn save(&self) {
         if let Some(curve_resource) = self.curve_resource.as_ref() {
-            match *curve_resource.state() {
-                ResourceState::Ok(ref mut state) => {
-                    let mut visitor = Visitor::new();
-                    state.curve.visit("Curve", &mut visitor).unwrap();
-                    visitor.save_binary(&self.path).unwrap();
-                }
-                _ => (),
+            if let ResourceState::Ok(ref mut state) = *curve_resource.state() {
+                let mut visitor = Visitor::new();
+                state.curve.visit("Curve", &mut visitor).unwrap();
+                visitor.save_binary(&self.path).unwrap();
             }
         }
     }
@@ -358,12 +355,12 @@ impl CurveEditorWindow {
             let path = curve_resource.data_ref().path().to_path_buf();
 
             if path == PathBuf::default() {
-                format!("Curve Editor - Unnamed Curve")
+                "Curve Editor - Unnamed Curve".to_string()
             } else {
                 format!("Curve Editor - {}", path.display())
             }
         } else {
-            format!("Curve Editor")
+            "Curve Editor".to_string()
         };
 
         ui.send_message(WindowMessage::title(
@@ -528,12 +525,9 @@ impl CurveEditorWindow {
                     _ => (),
                 }
             } else if message.destination() == self.cancel_message_box {
-                match result {
-                    MessageBoxResult::Yes => {
-                        self.revert();
-                        self.close(ui);
-                    }
-                    _ => (),
+                if let MessageBoxResult::Yes = result {
+                    self.revert();
+                    self.close(ui);
                 }
             }
         }

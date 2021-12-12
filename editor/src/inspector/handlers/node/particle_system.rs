@@ -194,53 +194,51 @@ fn handle_base_emitter_property_changed(
     index: usize,
 ) -> Option<SceneCommand> {
     match property_changed.value {
-        FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-            BaseEmitter::POSITION => Some(SceneCommand::new(SetEmitterPositionCommand::new(
-                handle,
-                index,
-                value.cast_value_cloned()?,
-            ))),
-            BaseEmitter::PARTICLE_SPAWN_RATE => Some(SceneCommand::new(
-                SetEmitterSpawnRateCommand::new(handle, index, value.cast_value_cloned()?),
-            )),
-            BaseEmitter::MAX_PARTICLES => Some(SceneCommand::new(
-                SetEmitterParticleLimitCommand::new(handle, index, value.cast_value_cloned()?),
-            )),
-            BaseEmitter::LIFETIME => Some(SceneCommand::new(SetEmitterLifetimeRangeCommand::new(
-                handle,
-                index,
-                value.cast_value_cloned()?,
-            ))),
-            BaseEmitter::SIZE => Some(SceneCommand::new(SetEmitterSizeRangeCommand::new(
-                handle,
-                index,
-                value.cast_value_cloned()?,
-            ))),
-            BaseEmitter::SIZE_MODIFIER => Some(SceneCommand::new(
-                SetEmitterSizeModifierRangeCommand::new(handle, index, value.cast_value_cloned()?),
-            )),
-            BaseEmitter::X_VELOCITY => Some(SceneCommand::new(
-                SetEmitterXVelocityRangeCommand::new(handle, index, value.cast_value_cloned()?),
-            )),
-            BaseEmitter::Y_VELOCITY => Some(SceneCommand::new(
-                SetEmitterYVelocityRangeCommand::new(handle, index, value.cast_value_cloned()?),
-            )),
-            BaseEmitter::Z_VELOCITY => Some(SceneCommand::new(
-                SetEmitterZVelocityRangeCommand::new(handle, index, value.cast_value_cloned()?),
-            )),
-            BaseEmitter::ROTATION_SPEED => Some(SceneCommand::new(
-                SetEmitterRotationSpeedRangeCommand::new(handle, index, value.cast_value_cloned()?),
-            )),
-            BaseEmitter::ROTATION => Some(SceneCommand::new(SetEmitterRotationRangeCommand::new(
-                handle,
-                index,
-                value.cast_value_cloned()?,
-            ))),
-            BaseEmitter::RESURRECT_PARTICLES => Some(SceneCommand::new(
-                SetEmitterResurrectParticlesCommand::new(handle, index, value.cast_value_cloned()?),
-            )),
-            _ => None,
-        },
+        FieldKind::Object(ref value) => {
+            match property_changed.name.as_ref() {
+                BaseEmitter::POSITION => Some(SceneCommand::new(SetEmitterPositionCommand::new(
+                    handle,
+                    index,
+                    value.cast_clone()?,
+                ))),
+                BaseEmitter::PARTICLE_SPAWN_RATE => Some(SceneCommand::new(
+                    SetEmitterSpawnRateCommand::new(handle, index, value.cast_clone()?),
+                )),
+                BaseEmitter::MAX_PARTICLES => Some(SceneCommand::new(
+                    SetEmitterParticleLimitCommand::new(handle, index, value.cast_clone()?),
+                )),
+                BaseEmitter::LIFETIME => Some(SceneCommand::new(
+                    SetEmitterLifetimeRangeCommand::new(handle, index, value.cast_clone()?),
+                )),
+                BaseEmitter::SIZE => Some(SceneCommand::new(SetEmitterSizeRangeCommand::new(
+                    handle,
+                    index,
+                    value.cast_clone()?,
+                ))),
+                BaseEmitter::SIZE_MODIFIER => Some(SceneCommand::new(
+                    SetEmitterSizeModifierRangeCommand::new(handle, index, value.cast_clone()?),
+                )),
+                BaseEmitter::X_VELOCITY => Some(SceneCommand::new(
+                    SetEmitterXVelocityRangeCommand::new(handle, index, value.cast_clone()?),
+                )),
+                BaseEmitter::Y_VELOCITY => Some(SceneCommand::new(
+                    SetEmitterYVelocityRangeCommand::new(handle, index, value.cast_clone()?),
+                )),
+                BaseEmitter::Z_VELOCITY => Some(SceneCommand::new(
+                    SetEmitterZVelocityRangeCommand::new(handle, index, value.cast_clone()?),
+                )),
+                BaseEmitter::ROTATION_SPEED => Some(SceneCommand::new(
+                    SetEmitterRotationSpeedRangeCommand::new(handle, index, value.cast_clone()?),
+                )),
+                BaseEmitter::ROTATION => Some(SceneCommand::new(
+                    SetEmitterRotationRangeCommand::new(handle, index, value.cast_clone()?),
+                )),
+                BaseEmitter::RESURRECT_PARTICLES => Some(SceneCommand::new(
+                    SetEmitterResurrectParticlesCommand::new(handle, index, value.cast_clone()?),
+                )),
+                _ => None,
+            }
+        }
         _ => None,
     }
 }
@@ -282,10 +280,10 @@ fn handle_cylinder_emitter_property_changed(
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 CylinderEmitter::RADIUS => Some(SceneCommand::new(
-                    SetCylinderEmitterRadiusCommand::new(handle, index, value.cast_value_cloned()?),
+                    SetCylinderEmitterRadiusCommand::new(handle, index, value.cast_clone()?),
                 )),
                 CylinderEmitter::HEIGHT => Some(SceneCommand::new(
-                    SetCylinderEmitterHeightCommand::new(handle, index, value.cast_value_cloned()?),
+                    SetCylinderEmitterHeightCommand::new(handle, index, value.cast_clone()?),
                 )),
                 _ => None,
             },
@@ -312,13 +310,13 @@ fn handle_cuboid_emitter_property_changed(
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 CuboidEmitter::HALF_HEIGHT => Some(SceneCommand::new(
-                    SetBoxEmitterHalfHeightCommand::new(handle, index, value.cast_value_cloned()?),
+                    SetBoxEmitterHalfHeightCommand::new(handle, index, value.cast_clone()?),
                 )),
                 CuboidEmitter::HALF_WIDTH => Some(SceneCommand::new(
-                    SetBoxEmitterHalfWidthCommand::new(handle, index, value.cast_value_cloned()?),
+                    SetBoxEmitterHalfWidthCommand::new(handle, index, value.cast_clone()?),
                 )),
                 CuboidEmitter::HALF_DEPTH => Some(SceneCommand::new(
-                    SetBoxEmitterHalfDepthCommand::new(handle, index, value.cast_value_cloned()?),
+                    SetBoxEmitterHalfDepthCommand::new(handle, index, value.cast_clone()?),
                 )),
                 _ => None,
             },

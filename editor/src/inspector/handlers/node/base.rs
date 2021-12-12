@@ -2,7 +2,7 @@ use crate::{
     inspector::handlers::node::transform::handle_transform_property_changed,
     make_command,
     scene::commands::{graph::*, lod::*},
-    ErasedHandle, SceneCommand,
+    SceneCommand,
 };
 use rg3d::scene::base::{LodControlledObject, LodGroup};
 use rg3d::{
@@ -71,7 +71,7 @@ pub fn handle_base_property_changed(
                         Property::NAME => Some(SceneCommand::new(SetPropertyNameCommand {
                             handle,
                             index,
-                            name: value.cast_value_cloned()?,
+                            name: value.cast_clone()?,
                         })),
                         _ => None,
                     },
@@ -79,52 +79,31 @@ pub fn handle_base_property_changed(
                         match property_changed.name.as_ref() {
                             "0" => {
                                 if let FieldKind::Object(ref value) = property_changed.value {
-                                    let value = if let Some(int64) =
-                                        value.cast_value_cloned::<i64>()
-                                    {
-                                        Some(PropertyValue::I64(int64))
-                                    } else if let Some(uint64) = value.cast_value_cloned::<u64>() {
-                                        Some(PropertyValue::U64(uint64))
-                                    } else if let Some(int32) = value.cast_value_cloned::<i32>() {
-                                        Some(PropertyValue::I32(int32))
-                                    } else if let Some(uint32) = value.cast_value_cloned::<u32>() {
-                                        Some(PropertyValue::U32(uint32))
-                                    } else if let Some(int16) = value.cast_value_cloned::<i16>() {
-                                        Some(PropertyValue::I16(int16))
-                                    } else if let Some(uint16) = value.cast_value_cloned::<u16>() {
-                                        Some(PropertyValue::U16(uint16))
-                                    } else if let Some(int8) = value.cast_value_cloned::<i8>() {
-                                        Some(PropertyValue::I8(int8))
-                                    } else if let Some(uint8) = value.cast_value_cloned::<u8>() {
-                                        Some(PropertyValue::U8(uint8))
-                                    } else if let Some(float32) = value.cast_value_cloned::<f32>() {
-                                        Some(PropertyValue::F32(float32))
-                                    } else if let Some(float64) = value.cast_value_cloned::<f64>() {
-                                        Some(PropertyValue::F64(float64))
-                                    } else if let Some(string) = value.cast_value_cloned::<String>()
-                                    {
-                                        Some(PropertyValue::String(string))
-                                    } else if let Some(node_handle) =
-                                        value.cast_value_cloned::<Handle<Node>>()
-                                    {
-                                        Some(PropertyValue::NodeHandle(node_handle))
-                                    } else if let Some(handle) =
-                                        value.cast_value_cloned::<ErasedHandle>()
-                                    {
-                                        Some(PropertyValue::Handle(handle))
-                                    } else {
-                                        None
-                                    };
+                                    let value = value
+                                        .cast_value()
+                                        .map(|v| PropertyValue::I64(*v))
+                                        .or_else(|| value.cast_clone().map(PropertyValue::U64))
+                                        .or_else(|| value.cast_clone().map(PropertyValue::I32))
+                                        .or_else(|| value.cast_clone().map(PropertyValue::U32))
+                                        .or_else(|| value.cast_clone().map(PropertyValue::I16))
+                                        .or_else(|| value.cast_clone().map(PropertyValue::U16))
+                                        .or_else(|| value.cast_clone().map(PropertyValue::I8))
+                                        .or_else(|| value.cast_clone().map(PropertyValue::U8))
+                                        .or_else(|| value.cast_clone().map(PropertyValue::F32))
+                                        .or_else(|| value.cast_clone().map(PropertyValue::F64))
+                                        .or_else(|| value.cast_clone().map(PropertyValue::String))
+                                        .or_else(|| {
+                                            value.cast_clone().map(PropertyValue::NodeHandle)
+                                        })
+                                        .or_else(|| value.cast_clone().map(PropertyValue::Handle));
 
-                                    if let Some(value) = value {
-                                        Some(SceneCommand::new(SetPropertyValueCommand {
+                                    value.map(|value| {
+                                        SceneCommand::new(SetPropertyValueCommand {
                                             handle,
                                             index,
                                             value,
-                                        }))
-                                    } else {
-                                        None
-                                    }
+                                        })
+                                    })
                                 } else {
                                     None
                                 }
@@ -197,7 +176,7 @@ pub fn handle_base_property_changed(
                                                             handle,
                                                             lod_index,
                                                             object_index: index,
-                                                            value: value.cast_value_cloned()?,
+                                                            value: value.cast_clone()?,
                                                         },
                                                     ))
                                                 } else {

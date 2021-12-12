@@ -221,14 +221,12 @@ pub fn handle_camera_property_changed(
                             _ => None,
                         };
 
-                        if let Some(face) = face {
-                            Some(SceneCommand::new(SetSkyBoxCommand::new(
+                        face.map(|face| {
+                            SceneCommand::new(SetSkyBoxCommand::new(
                                 handle,
                                 modify_skybox(camera, texture, face),
-                            )))
-                        } else {
-                            None
-                        }
+                            ))
+                        })
                     } else {
                         None
                     }

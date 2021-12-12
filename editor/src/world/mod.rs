@@ -985,47 +985,51 @@ impl WorldViewer {
                 }),
             );
 
-            if linked_bodies.len() < rigid_body_links.len() {
-                for rigid_body_link in rigid_body_links.iter() {
-                    if linked_bodies.iter().all(|b| {
-                        ui.node(*rigid_body_link)
-                            .cast::<LinkItem<RigidBody, Joint>>()
-                            .unwrap()
-                            .source
-                            != *b
-                    }) {
-                        // Remove link.
-                        ui.send_message(TreeMessage::remove_item(
-                            view,
-                            MessageDirection::ToWidget,
-                            *rigid_body_link,
-                        ));
+            match linked_bodies.len().cmp(&rigid_body_links.len()) {
+                Ordering::Less => {
+                    for rigid_body_link in rigid_body_links.iter() {
+                        if linked_bodies.iter().all(|b| {
+                            ui.node(*rigid_body_link)
+                                .cast::<LinkItem<RigidBody, Joint>>()
+                                .unwrap()
+                                .source
+                                != *b
+                        }) {
+                            // Remove link.
+                            ui.send_message(TreeMessage::remove_item(
+                                view,
+                                MessageDirection::ToWidget,
+                                *rigid_body_link,
+                            ));
+                        }
                     }
                 }
-            } else if linked_bodies.len() > rigid_body_links.len() {
-                for linked_body in linked_bodies.iter() {
-                    if rigid_body_links.iter().all(|l| {
-                        ui.node(*l)
-                            .cast::<LinkItem<RigidBody, Joint>>()
-                            .unwrap()
-                            .source
-                            != *linked_body
-                    }) {
-                        let link = LinkItemBuilder::new(TreeBuilder::new(
-                            WidgetBuilder::new().with_context_menu(self.link_context_menu.menu),
-                        ))
-                        .with_name("Linked Rigid Body")
-                        .with_source(*linked_body)
-                        .with_dest(joint)
-                        .build(&mut ui.build_ctx());
+                Ordering::Greater => {
+                    for linked_body in linked_bodies.iter() {
+                        if rigid_body_links.iter().all(|l| {
+                            ui.node(*l)
+                                .cast::<LinkItem<RigidBody, Joint>>()
+                                .unwrap()
+                                .source
+                                != *linked_body
+                        }) {
+                            let link = LinkItemBuilder::new(TreeBuilder::new(
+                                WidgetBuilder::new().with_context_menu(self.link_context_menu.menu),
+                            ))
+                            .with_name("Linked Rigid Body")
+                            .with_source(*linked_body)
+                            .with_dest(joint)
+                            .build(&mut ui.build_ctx());
 
-                        ui.send_message(TreeMessage::add_item(
-                            view,
-                            MessageDirection::ToWidget,
-                            link,
-                        ));
+                            ui.send_message(TreeMessage::add_item(
+                                view,
+                                MessageDirection::ToWidget,
+                                link,
+                            ));
+                        }
                     }
                 }
+                _ => (),
             }
         }
     }
@@ -1175,17 +1179,12 @@ impl WorldViewer {
             // TODO: It is very easy to forget to add a new condition here if a new type
             // of a scene item is added. Find a way of doing this in a better way.
             // Also due to very simple RTTI in Rust, it becomes boilerplate-ish very quick.
-            let name = if let Some(item) = node_ref.cast::<SceneItem<Node>>() {
-                Some(item.name())
-            } else if let Some(item) = node_ref.cast::<SceneItem<RigidBody>>() {
-                Some(item.name())
-            } else if let Some(item) = node_ref.cast::<SceneItem<Joint>>() {
-                Some(item.name())
-            } else if let Some(item) = node_ref.cast::<SceneItem<Collider>>() {
-                Some(item.name())
-            } else {
-                None
-            };
+            let name = node_ref
+                .cast::<SceneItem<Node>>()
+                .map(|i| i.name())
+                .or_else(|| node_ref.cast::<SceneItem<RigidBody>>().map(|i| i.name()))
+                .or_else(|| node_ref.cast::<SceneItem<Joint>>().map(|i| i.name()))
+                .or_else(|| node_ref.cast::<SceneItem<Collider>>().map(|i| i.name()));
 
             if let Some(name) = name {
                 is_any_match |= name.contains(filter);

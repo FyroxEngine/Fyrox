@@ -106,18 +106,17 @@ impl<T: 'static> Control for HandlePropertyEditor<T> {
         {
             if message.destination() == self.handle()
                 && message.direction() == MessageDirection::ToWidget
+                && self.value != *handle
             {
-                if self.value != *handle {
-                    self.value = *handle;
+                self.value = *handle;
 
-                    ui.send_message(TextMessage::text(
-                        self.text,
-                        MessageDirection::ToWidget,
-                        format!("{}", *handle),
-                    ));
+                ui.send_message(TextMessage::text(
+                    self.text,
+                    MessageDirection::ToWidget,
+                    format!("{}", *handle),
+                ));
 
-                    ui.send_message(message.reverse());
-                }
+                ui.send_message(message.reverse());
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if message.destination() == self.handle() {
@@ -274,7 +273,7 @@ impl<T: 'static> PropertyEditorDefinition for HandlePropertyEditorDefinition<T> 
                 WidgetBuilder::new(),
                 self.sender.lock().unwrap().clone(),
             )
-            .with_value(value.clone())
+            .with_value(*value)
             .build(ctx.build_context),
         })
     }
@@ -288,7 +287,7 @@ impl<T: 'static> PropertyEditorDefinition for HandlePropertyEditorDefinition<T> 
         Ok(Some(HandlePropertyEditorMessage::value(
             ctx.instance,
             MessageDirection::ToWidget,
-            value.clone(),
+            *value,
         )))
     }
 
@@ -305,7 +304,7 @@ impl<T: 'static> PropertyEditorDefinition for HandlePropertyEditorDefinition<T> 
                 return Some(PropertyChanged {
                     owner_type_id,
                     name: name.to_string(),
-                    value: FieldKind::object(value.clone()),
+                    value: FieldKind::object(*value),
                 });
             }
         }
