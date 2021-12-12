@@ -22,6 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::scene::base::PropertyValue;
 use crate::{
     asset::ResourceState,
     core::{
@@ -89,13 +90,21 @@ fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_g
             }
         }
 
+        for property in new_node.properties.iter_mut() {
+            if let PropertyValue::NodeHandle(ref mut handle) = property.value {
+                if let Some(new_handle) = old_new_mapping.get(handle) {
+                    *handle = *new_handle;
+                }
+            }
+        }
+
         // LODs also have handles that must be remapped too.
         if let Some(lod_group) = new_node.lod_group_mut() {
             for level in lod_group.levels.iter_mut() {
-                level.objects.retain_mut(|object| {
+                level.objects.retain_mut_ext(|object| {
                     if let Some(entry) = old_new_mapping.get(object) {
                         // Replace to mapped.
-                        *object = *entry;
+                        object.0 = *entry;
                         true
                     } else {
                         // Discard invalid handles.

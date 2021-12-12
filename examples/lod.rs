@@ -8,6 +8,7 @@ pub mod shared;
 
 use crate::shared::create_camera;
 
+use rg3d::scene::base::LodControlledObject;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -94,17 +95,23 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
                 // by multiplying normalized distance to z far.
                 0.0,
                 0.33,
-                vec![scene.graph.find_by_name(model_handle, "metroLOD0")],
+                vec![LodControlledObject(
+                    scene.graph.find_by_name(model_handle, "metroLOD0"),
+                )],
             ),
             LevelOfDetail::new(
                 0.33,
                 0.66,
-                vec![scene.graph.find_by_name(model_handle, "metroLOD1")],
+                vec![LodControlledObject(
+                    scene.graph.find_by_name(model_handle, "metroLOD1"),
+                )],
             ),
             LevelOfDetail::new(
                 0.66,
                 1.0,
-                vec![scene.graph.find_by_name(model_handle, "metroLOD2")],
+                vec![LodControlledObject(
+                    scene.graph.find_by_name(model_handle, "metroLOD2"),
+                )],
             ),
         ],
     };

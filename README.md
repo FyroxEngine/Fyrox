@@ -28,18 +28,11 @@ use my savings to drive development forward, I'm looking for any financial suppo
 
 [Join the Discord server](https://discord.gg/xENF5Uh)
 
-## Tutorials and learning materials
+## [Learning materials](https://rg3d-book.github.io)
 
-### Book
-[Read the official rg3d book here.](https://rg3d-book.github.io)
-
-### Writing a 3D Shooter using rg3d:
-- [#1 Character controller](https://rg3d.rs/tutorials/2021/03/05/tutorial1.html)
-- [#2 Weapons](https://rg3d.rs/tutorials/2021/03/09/tutorial2.html)
-- [#3 Bots and AI](https://rg3d.rs/tutorials/2021/03/11/tutorial3.html)
-
-### Writing a role-playing game using rg3d
-- [#1 Character controller](https://rg3d.rs/tutorials/2021/07/09/rpg-tutorial1.html)
+[Read the official rg3d book here.](https://rg3d-book.github.io) It is in early development stage, but it should
+help you start using the engine, also the book contains a series of tutorials that should help you to create your
+first game.
 
 ## Features
 
@@ -51,8 +44,9 @@ use my savings to drive development forward, I'm looking for any financial suppo
 - PC (Windows, Linux, macOS) and [Web (WebAssembly) support](https://rg3d.rs/assets/webexample/index.html).
 - Modern 3D rendering pipeline.
 - Comprehensive [documentation](https://docs.rs/rg3d).
+- [Guide book](https://rg3d-book.github.io) 
 - 2D support.
-- [Scene editor](https://github.com/rg3dengine/rusty-editor/).
+- [Scene editor](https://github.com/rg3dengine/rg3d/tree/master/editor).
 - Fast iterative compilation.
 - Classic object-oriented design.
 - Lots of examples.
@@ -214,9 +208,9 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 
 There are many examples covering various aspects of the engine. Also don't hesitate to create an issue or ask on Discord if you need help!
 
-## [Editor](https://github.com/mrDIMAS/rusty-editor/)
+## [Editor](https://github.com/rg3dengine/rg3d/tree/master/editor)
 
-[![editor](https://raw.githubusercontent.com/mrDIMAS/rusty-editor/master/screenshots/latest.png)](https://github.com/mrDIMAS/rusty-editor/)
+[![editor](https://raw.githubusercontent.com/rg3dengine/rg3d/master/editor/screenshots/latest.png)](https://github.com/rg3dengine/rg3d/tree/master/editor)
 
 ## Dependencies
 

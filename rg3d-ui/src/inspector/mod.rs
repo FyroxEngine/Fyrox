@@ -1,26 +1,23 @@
-use crate::check_box::CheckBoxBuilder;
-use crate::expander::ExpanderBuilder;
-use crate::inspector::editors::PropertyEditorInstance;
-use crate::utils::{make_arrow, ArrowDirection};
 use crate::{
     border::BorderBuilder,
-    brush::Brush,
+    check_box::CheckBoxBuilder,
     core::{
         algebra::Vector2,
-        color::Color,
         inspect::{CastError, Inspect, PropertyValue},
         pool::Handle,
     },
     define_constructor,
+    expander::ExpanderBuilder,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     inspector::editors::{
         PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorDefinitionContainer,
-        PropertyEditorMessageContext,
+        PropertyEditorInstance, PropertyEditorMessageContext,
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
+    utils::{make_arrow, make_simple_tooltip, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
@@ -77,7 +74,7 @@ impl ObjectValue {
         (*self.value).as_any().downcast_ref::<T>()
     }
 
-    pub fn cast_value_cloned<T: Clone + 'static>(&self) -> Option<T> {
+    pub fn cast_clone<T: Clone + 'static>(&self) -> Option<T> {
         (*self.value).as_any().downcast_ref::<T>().cloned()
     }
 }
@@ -308,19 +305,7 @@ fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
     if text.is_empty() {
         Handle::NONE
     } else {
-        BorderBuilder::new(
-            WidgetBuilder::new()
-                .with_visibility(false)
-                .with_foreground(Brush::Solid(Color::opaque(160, 160, 160)))
-                .with_max_size(Vector2::new(250.0, f32::INFINITY))
-                .with_child(
-                    TextBuilder::new(WidgetBuilder::new())
-                        .with_wrap(WrapMode::Word)
-                        .with_text(text)
-                        .build(ctx),
-                ),
-        )
-        .build(ctx)
+        make_simple_tooltip(ctx, text)
     }
 }
 

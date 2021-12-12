@@ -16,10 +16,10 @@ proc-macro = true
 
 [dependencies]
 convert_case = "0.4.0"
-proc-macro2 = "1.0.28"
-quote = "1.0.9"
-syn = "1.0.74"
-darling = "0.13.0"
+proc-macro2 = "1.0.33"
+quote = "1.0.10"
+syn = "1.0.82"
+darling = "0.13.1"
 fxhash = "0.2.1"
 
 [dev-dependencies]

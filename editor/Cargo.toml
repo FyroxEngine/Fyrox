@@ -1,0 +1,53 @@
+[package]
+name = "rusty-editor"
+license = "MIT"
+version = "0.11.0"
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
+edition = "2021"
+rust-version = "1.56"
+description = "A scene editor for rg3d game engine"
+documentation = "https://github.com/rg3dengine/rusty-editor"
+homepage = "https://github.com/rg3dengine/rusty-editor"
+keywords = ["rg3d", "game engine", "editor", "rust", "rusty-editor"]
+repository = "https://github.com/rg3dengine/rusty-editor"
+readme = "README.md"
+
+[dependencies]
+rg3d = { path = ".." }
+lazy_static = "1.4.0"
+ron = "0.7.0"
+serde = "^1.0.0"
+toml = "0.5"
+directories = "4.0.1"
+
+[package.metadata.deb]
+maintainer = "Voodlaz <visotnik666@gmail.com>"
+copyright = "2021, rg3dengine developers."
+license-file = ["LICENSE", "2"]
+
+# description probably would be bigger in future, so we use a file
+extended-description-file = "os-installation/general-description.txt"
+
+depends = "$auto"
+section = "editors"
+priority = "optional"
+
+assets = [
+    ["target/release/rusty-editor", "/usr/bin/", "755"],
+    ["resources/lib/*", "usr/lib/rusty-editor", "644"],
+    ["resources/etc/rusty-editor-icon.png", "/usr/share/pixmaps/", "644"],
+    ["resources/etc/rusty-editor-icon.png", "/usr/share/icons/hicolor/256x256/apps/", "644"],
+    ["os-installation/linux/rusty-editor.desktop", "usr/share/applications/", "644"],
+]
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/rusty-editor", dest = "/usr/bin/rusty-editor", mode = "0755" },
+    { source = "resources/lib/release.toml", dest = "/usr/lib/rusty-editor/release.toml", mode = "0644" },
+    { source = "resources/etc/rusty-editor-icon.png", dest = "/usr/share/pixmaps/rusty-editor-icon.png", mode = "0644" },
+    { source = "resources/etc/rusty-editor-icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/rusty-editor-icon.png", mode = "0644" },
+    { source = "os-installation/linux/rusty-editor.desktop", dest = "/usr/share/applications/rusty-editor.desktop", mode = "0644" }
+]
+
+[features]
+enable_profiler = ["rg3d/enable_profiler"]

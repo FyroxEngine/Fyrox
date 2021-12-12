@@ -2088,7 +2088,7 @@ mod test {
         .build(&mut ui.build_ctx());
         ui.update(screen_size, 0.0); // Make sure layout was calculated.
         ui.send_message(WidgetMessage::center(widget, MessageDirection::ToWidget));
-        while let Some(_) = ui.poll_message() {}
+        while ui.poll_message().is_some() {}
         ui.update(screen_size, 0.0);
         let expected_position = (screen_size - widget_size).scale(0.5);
         let actual_position = ui.node(widget).actual_local_position();

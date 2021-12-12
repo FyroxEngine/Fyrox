@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Rusty Editor
+Version=0.7.0
+Comment=Scene editor for rg3d
+GenericName=Rusty Editor
+Exec=rusty-editor
+Icon=rusty-editor-icon
+Type=Application
+Terminal=false
+Categories=Editors

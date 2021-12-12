@@ -2,19 +2,19 @@
 //!
 //! For more info see [`Base`]
 
-use crate::core::math::aabb::AxisAlignedBoundingBox;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
         inspect::{Inspect, PropertyInfo},
-        math::Matrix4Ext,
-        pool::Handle,
+        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
+        pool::{ErasedHandle, Handle},
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     resource::model::Model,
     scene::{graph::Graph, node::Node, transform::Transform},
 };
 use std::cell::Cell;
+use std::ops::{Deref, DerefMut};
 
 /// Defines a kind of binding between rigid body and a scene node. Check variants
 /// for more info.
@@ -63,6 +63,30 @@ impl Visit for PhysicsBinding {
     }
 }
 
+/// A handle to scene node that will be controlled by LOD system.
+#[derive(Inspect, Default, Debug, Clone, Copy, PartialEq, Hash)]
+pub struct LodControlledObject(pub Handle<Node>);
+
+impl Deref for LodControlledObject {
+    type Target = Handle<Node>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for LodControlledObject {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Visit for LodControlledObject {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
 /// Level of detail is a collection of objects for given normalized distance range.
 /// Objects will be rendered **only** if they're in specified range.
 /// Normalized distance is a distance in (0; 1) range where 0 - closest to camera,
@@ -74,12 +98,12 @@ pub struct LevelOfDetail {
     end: f32,
     /// List of objects, where each object represents level of detail of parent's
     /// LOD group.
-    pub objects: Vec<Handle<Node>>,
+    pub objects: Vec<LodControlledObject>,
 }
 
 impl LevelOfDetail {
     /// Creates new level of detail.
-    pub fn new(begin: f32, end: f32, objects: Vec<Handle<Node>>) -> Self {
+    pub fn new(begin: f32, end: f32, objects: Vec<LodControlledObject>) -> Self {
         for object in objects.iter() {
             // Invalid handles are not allowed.
             assert!(object.is_some());
@@ -202,6 +226,62 @@ impl Visit for Mobility {
     }
 }
 
+/// A property value.
+#[derive(Debug, Visit, Inspect, Clone)]
+pub enum PropertyValue {
+    /// A node handle.
+    ///
+    /// # Important notes
+    ///
+    /// The value of the property will be remapped when owning node is cloned, this means that the
+    /// handle will always be correct.
+    NodeHandle(Handle<Node>),
+    /// An arbitrary, type-erased handle.
+    ///
+    /// # Important notes
+    ///
+    /// The value of the property will **not** be remapped when owning node is cloned, this means
+    /// that the handle correctness is not guaranteed on copy.
+    Handle(ErasedHandle),
+    /// A string value.
+    String(String),
+    /// A 64-bit signed integer value.
+    I64(i64),
+    /// A 64-bit unsigned integer value.
+    U64(u64),
+    /// A 32-bit signed integer value.
+    I32(i32),
+    /// A 32-bit unsigned integer value.
+    U32(u32),
+    /// A 16-bit signed integer value.
+    I16(i16),
+    /// A 16-bit unsigned integer value.
+    U16(u16),
+    /// A 8-bit signed integer value.
+    I8(i8),
+    /// A 8-bit unsigned integer value.
+    U8(u8),
+    /// A 32-bit floating point value.
+    F32(f32),
+    /// A 64-bit floating point value.
+    F64(f64),
+}
+
+impl Default for PropertyValue {
+    fn default() -> Self {
+        Self::I8(0)
+    }
+}
+
+/// A custom property.
+#[derive(Debug, Visit, Inspect, Default, Clone)]
+pub struct Property {
+    /// Name of the property.
+    pub name: String,
+    /// A value of the property.
+    pub value: PropertyValue,
+}
+
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -259,6 +339,9 @@ pub struct Base {
     mobility: Mobility,
     tag: String,
     pub(in crate) physics_binding: PhysicsBinding,
+    /// A set of custom properties that can hold almost any data. It can be used to set additional
+    /// properties to scene nodes.
+    pub properties: Vec<Property>,
 }
 
 impl Base {
@@ -294,6 +377,17 @@ impl Base {
     pub fn set_local_transform(&mut self, transform: Transform) -> &mut Self {
         self.local_transform = transform;
         self
+    }
+
+    /// Tries to find properties by the name. The method returns an iterator because it possible
+    /// to have multiple properties with the same name.
+    pub fn find_properties_ref<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a Property> {
+        self.properties.iter().filter(move |p| p.name == name)
+    }
+
+    /// Tries to find a first property with the given name.
+    pub fn find_first_property_ref(&self, name: &str) -> Option<&Property> {
+        self.properties.iter().find(|p| p.name == name)
     }
 
     /// Sets lifetime of node in seconds, lifetime is useful for temporary objects.
@@ -507,8 +601,13 @@ impl Base {
             tag: self.tag.clone(),
             physics_binding: self.physics_binding,
             lod_group: self.lod_group.clone(),
+            properties: self.properties.clone(),
+
             // Rest of data is *not* copied!
-            ..Default::default()
+            original_handle_in_resource: Default::default(),
+            parent: Default::default(),
+            children: Default::default(),
+            depth_offset: Default::default(),
         }
     }
 }
@@ -539,6 +638,7 @@ impl Visit for Base {
             .visit("Original", visitor)?;
         self.tag.visit("Tag", visitor)?;
         self.physics_binding.visit("PhysicsBinding", visitor)?;
+        let _ = self.properties.visit("Properties", visitor);
 
         visitor.leave_region()
     }
@@ -667,6 +767,7 @@ impl BaseBuilder {
             mobility: self.mobility,
             tag: self.tag,
             physics_binding: PhysicsBinding::NodeWithBody,
+            properties: Default::default(),
         }
     }
 

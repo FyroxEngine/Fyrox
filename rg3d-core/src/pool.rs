@@ -26,15 +26,13 @@ use crate::{
     inspect::{Inspect, PropertyInfo},
     visitor::{Visit, VisitResult, Visitor},
 };
-use std::any::TypeId;
 use std::{
-    fmt::{Debug, Formatter},
+    any::TypeId,
+    fmt::{Debug, Display, Formatter},
+    future::Future,
     hash::{Hash, Hasher},
     iter::FromIterator,
     marker::PhantomData,
-};
-use std::{
-    future::Future,
     ops::{Index, IndexMut},
 };
 
@@ -102,6 +100,12 @@ impl<T: 'static> Inspect for Handle<T> {
 
 unsafe impl<T> Send for Handle<T> {}
 unsafe impl<T> Sync for Handle<T> {}
+
+impl<T> Display for Handle<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.index, self.generation)
+    }
+}
 
 /// Type-erased handle.
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Inspect)]
@@ -1206,7 +1210,7 @@ impl<T> FromIterator<T> for Pool<T> {
         let upper_bound =
             upper_bound.map(|b| u32::try_from(b).expect("upper_bound overflowed u32"));
         let mut pool = Self::with_capacity(upper_bound.unwrap_or(lower_bound));
-        for v in iter.into_iter() {
+        for v in iter {
             let _ = pool.spawn(v);
         }
         pool
@@ -1359,15 +1363,15 @@ mod test {
         let foobar_handle = pool.spawn(String::from("Foobar"));
         assert_eq!(foobar_handle.index, 0);
         assert_ne!(foobar_handle.generation, INVALID_GENERATION);
-        let foobar_handle_copy = foobar_handle.clone();
+        let foobar_handle_copy = foobar_handle;
         assert_eq!(foobar_handle.index, foobar_handle_copy.index);
         assert_eq!(foobar_handle.generation, foobar_handle_copy.generation);
         let baz_handle = pool.spawn(String::from("Baz"));
         assert_eq!(pool.borrow(foobar_handle), "Foobar");
         assert_eq!(pool.borrow(baz_handle), "Baz");
         pool.free(foobar_handle);
-        assert_eq!(pool.is_valid_handle(foobar_handle_copy), false);
-        assert_eq!(pool.is_valid_handle(baz_handle), true);
+        assert!(!pool.is_valid_handle(foobar_handle_copy));
+        assert!(pool.is_valid_handle(baz_handle));
         let at_foobar_index = pool.spawn(String::from("AtFoobarIndex"));
         assert_eq!(at_foobar_index.index, 0);
         assert_ne!(at_foobar_index.generation, INVALID_GENERATION);
@@ -1381,10 +1385,10 @@ mod test {
     #[test]
     fn pool_iterator_mut_test() {
         let mut pool: Pool<String> = Pool::new();
-        let foobar = pool.spawn(format!("Foobar"));
-        let d = pool.spawn(format!("Foo"));
+        let foobar = pool.spawn("Foobar".to_string());
+        let d = pool.spawn("Foo".to_string());
         pool.free(d);
-        let baz = pool.spawn(format!("Baz"));
+        let baz = pool.spawn("Baz".to_string());
         for s in pool.iter() {
             println!("{}", s);
         }
@@ -1410,13 +1414,13 @@ mod test {
 
         let mut pool = Pool::new();
         let foobar = pool.spawn(Value {
-            data: format!("Foobar"),
+            data: "Foobar".to_string(),
         });
         let bar = pool.spawn(Value {
-            data: format!("Bar"),
+            data: "Bar".to_string(),
         });
         let baz = pool.spawn(Value {
-            data: format!("Baz"),
+            data: "Baz".to_string(),
         });
         assert_eq!(pool.handle_of(pool.borrow(foobar)), foobar);
         assert_eq!(pool.handle_of(pool.borrow(bar)), bar);

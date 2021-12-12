@@ -1,0 +1,5 @@
+A scene editor for rg3d game engine.
+
+rg3d is a feature rich game engine made in rust, which allows
+you to build shooters, platfomers, sandboxes and more
+in advanced 3D and 2D!
