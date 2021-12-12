@@ -15,10 +15,10 @@ readme = "README.md"
 [dependencies]
 rg3d = { path = ".." }
 lazy_static = "1.4.0"
-ron = "0.6.4"
+ron = "0.7.0"
 serde = "^1.0.0"
 toml = "0.5"
-directories = "3.0"
+directories = "4.0.1"
 
 [package.metadata.deb]
 maintainer = "Voodlaz <visotnik666@gmail.com>"
