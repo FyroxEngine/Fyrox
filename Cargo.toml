@@ -24,7 +24,8 @@ members = [
     "rg3d-resource",
     "rg3d-physics/build/rg3d-physics2d",
     "rg3d-physics/build/rg3d-physics3d",
-    "examples/wasm"
+    "examples/wasm",
+	"editor"
 ]
 
 [profile.dev]
