@@ -101,7 +101,7 @@ fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_g
         // LODs also have handles that must be remapped too.
         if let Some(lod_group) = new_node.lod_group_mut() {
             for level in lod_group.levels.iter_mut() {
-                level.objects.retain_mut(|object| {
+                level.objects.retain_mut_ext(|object| {
                     if let Some(entry) = old_new_mapping.get(object) {
                         // Replace to mapped.
                         object.0 = *entry;

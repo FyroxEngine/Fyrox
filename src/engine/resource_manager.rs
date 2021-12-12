@@ -128,7 +128,7 @@ where
 
     /// Tracks life time of resource and removes unused resources after some time of idling.
     pub fn update(&mut self, dt: f32) {
-        self.resources.retain_mut(|resource| {
+        self.resources.retain_mut_ext(|resource| {
             // One usage means that the resource has single owner, and that owner
             // is this container. Such resources have limited life time, if the time
             // runs out before it gets shared again, the resource will be deleted.

@@ -1806,7 +1806,7 @@ impl Editor {
 
                     engine.get_window().set_title(&format!(
                         "rusty-editor: {}",
-                        working_directory.to_string_lossy().to_string()
+                        working_directory.to_string_lossy()
                     ));
 
                     engine.resource_manager.state().destroy_unused_resources();

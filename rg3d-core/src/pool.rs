@@ -1210,7 +1210,7 @@ impl<T> FromIterator<T> for Pool<T> {
         let upper_bound =
             upper_bound.map(|b| u32::try_from(b).expect("upper_bound overflowed u32"));
         let mut pool = Self::with_capacity(upper_bound.unwrap_or(lower_bound));
-        for v in iter.into_iter() {
+        for v in iter {
             let _ = pool.spawn(v);
         }
         pool

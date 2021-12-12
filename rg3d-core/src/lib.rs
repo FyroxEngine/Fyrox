@@ -261,13 +261,13 @@ pub trait VecExtensions<T> {
     ///
     /// This method is the copy of `retain` method of Vec, but with ability to
     /// modify each element.
-    fn retain_mut<F>(&mut self, f: F)
+    fn retain_mut_ext<F>(&mut self, f: F)
     where
         F: FnMut(&mut T) -> bool;
 }
 
 impl<T> VecExtensions<T> for Vec<T> {
-    fn retain_mut<F>(&mut self, mut f: F)
+    fn retain_mut_ext<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut T) -> bool,
     {
