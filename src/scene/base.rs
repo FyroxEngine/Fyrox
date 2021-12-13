@@ -328,6 +328,7 @@ pub struct Base {
     // Legacy.
     #[inspect(skip)]
     pub(in crate) physics_binding: PhysicsBinding,
+    frustum_culling: bool,
 }
 
 impl Base {
@@ -587,6 +588,16 @@ impl Base {
             physics_binding: Default::default(),
         }
     }
+
+    /// Return the frustum_culling flag
+    pub fn frustum_culling(&self) -> bool {
+        self.frustum_culling
+    }
+
+    /// Sets the frustum_culling flag
+    pub fn set_frustum_culling(&mut self, frustum_culling: bool) {
+        self.frustum_culling = frustum_culling;
+    }
 }
 
 impl Default for Base {
@@ -633,6 +644,7 @@ pub struct BaseBuilder {
     mobility: Mobility,
     inv_bind_pose_transform: Matrix4<f32>,
     tag: String,
+    frustum_culling: bool,
 }
 
 impl Default for BaseBuilder {
@@ -655,6 +667,7 @@ impl BaseBuilder {
             mobility: Mobility::Dynamic,
             inv_bind_pose_transform: Matrix4::identity(),
             tag: Default::default(),
+            frustum_culling: true,
         }
     }
 
@@ -725,6 +738,12 @@ impl BaseBuilder {
         self
     }
 
+    /// Sets desired frustum_culling flag.
+    pub fn with_frustum_culling(mut self, frustum_culling: bool) -> Self {
+        self.frustum_culling = frustum_culling;
+        self
+    }
+
     pub(in crate) fn build_base(self) -> Base {
         Base {
             name: self.name,
@@ -746,6 +765,7 @@ impl BaseBuilder {
             properties: Default::default(),
             transform_modified: Cell::new(false),
             physics_binding: Default::default(),
+            frustum_culling: self.frustum_culling,
         }
     }
 
