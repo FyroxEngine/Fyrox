@@ -7,6 +7,7 @@
 pub mod accel;
 pub mod base;
 pub mod camera;
+pub mod collider;
 pub mod debug;
 pub mod decal;
 pub mod graph;
@@ -15,6 +16,7 @@ pub mod mesh;
 pub mod node;
 pub mod particle_system;
 pub mod physics;
+pub mod rigidbody;
 pub mod sprite;
 pub mod terrain;
 pub mod transform;
@@ -606,7 +608,7 @@ impl Scene {
             (instant::Instant::now() - last).as_secs_f32();
 
         let last = instant::Instant::now();
-        self.graph.update_nodes(frame_size, dt);
+        self.graph.update(frame_size, dt);
         self.performance_statistics.graph_update_time =
             (instant::Instant::now() - last).as_secs_f32();
 

@@ -7,6 +7,8 @@
 use crate::asset::core::inspect::PropertyInfo;
 use crate::core::inspect::Inspect;
 use crate::core::math::aabb::AxisAlignedBoundingBox;
+use crate::scene::collider::Collider;
+use crate::scene::rigidbody::RigidBody;
 use crate::{
     core::{
         define_is_as,
@@ -32,6 +34,8 @@ macro_rules! static_dispatch {
             Node::Sprite(v) => v.$func($($args),*),
             Node::Terrain(v) => v.$func($($args),*),
             Node::Decal(v) => v.$func($($args),*),
+            Node::RigidBody(v) => v.$func($($args),*),
+            Node::Collider(v) => v.$func($($args),*),
         }
     };
 }
@@ -151,6 +155,12 @@ pub enum Node {
     ///
     /// For more info see Decal node docs.
     Decal(Decal),
+
+    /// TODO
+    RigidBody(RigidBody),
+
+    /// TODO
+    Collider(Collider),
 }
 
 macro_rules! static_dispatch_deref {
@@ -164,6 +174,8 @@ macro_rules! static_dispatch_deref {
             Node::Sprite(v) => v,
             Node::Terrain(v) => v,
             Node::Decal(v) => v,
+            Node::RigidBody(v) => v,
+            Node::Collider(v) => v,
         }
     };
 }
@@ -225,6 +237,8 @@ impl Node {
             Self::ParticleSystem(_) => 5,
             Self::Terrain(_) => 6,
             Self::Decal(_) => 7,
+            Self::RigidBody(_) => 8,
+            Self::Collider(_) => 9,
         }
     }
 
@@ -241,6 +255,8 @@ impl Node {
             Node::ParticleSystem(v) => Node::ParticleSystem(v.raw_copy()),
             Node::Terrain(v) => Node::Terrain(v.raw_copy()),
             Node::Decal(v) => Node::Decal(v.raw_copy()),
+            Node::RigidBody(v) => Node::RigidBody(v.raw_copy()),
+            Node::Collider(v) => Node::Collider(v.raw_copy()),
         }
     }
 

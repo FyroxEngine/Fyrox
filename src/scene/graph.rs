@@ -22,11 +22,10 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::base::PropertyValue;
 use crate::{
     asset::ResourceState,
     core::{
-        algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
+        algebra::{Isometry3, Matrix4, Rotation3, Translation3, UnitQuaternion, Vector2, Vector3},
         math::{frustum::Frustum, Matrix4Ext},
         pool::{
             Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
@@ -35,16 +34,105 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
         VecExtensions,
     },
+    physics3d::rapier::{
+        dynamics::{CCDSolver, IntegrationParameters, IslandManager, JointSet},
+        geometry::{BroadPhase, ColliderSet, NarrowPhase},
+        pipeline::{EventHandler, PhysicsPipeline},
+        prelude::{ColliderBuilder, RigidBodyBuilder, RigidBodySet},
+    },
     resource::model::NodeMapping,
-    scene::{node::Node, transform::TransformBuilder, visibility::VisibilityCache},
+    scene::{
+        base::PropertyValue, node::Node, transform::TransformBuilder, visibility::VisibilityCache,
+    },
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
-use std::ops::{Index, IndexMut};
+use std::{
+    fmt::{Debug, Formatter},
+    ops::{Index, IndexMut},
+};
+
+struct PhysicsWorld {
+    /// Current physics pipeline.
+    pipeline: PhysicsPipeline,
+    /// Current gravity vector. Default is (0.0, -9.81, 0.0)
+    gravity: Vector3<f32>,
+    /// A set of parameters that define behavior of every rigid body.
+    integration_parameters: IntegrationParameters,
+    /// Broad phase performs rough intersection checks.
+    broad_phase: BroadPhase,
+    /// Narrow phase is responsible for precise contact generation.
+    narrow_phase: NarrowPhase,
+    /// A continuous collision detection solver.
+    ccd_solver: CCDSolver,
+    /// Structure responsible for maintaining the set of active rigid-bodies, and putting non-moving
+    /// rigid-bodies to sleep to save computation times.
+    islands: IslandManager,
+
+    /// A container of rigid bodies.
+    bodies: RigidBodySet,
+
+    /// A container of colliders.
+    colliders: ColliderSet,
+
+    /// A container of joints.
+    joints: JointSet,
+
+    /// Event handler collects info about contacts and proximity events.
+    event_handler: Box<dyn EventHandler>,
+}
+
+impl PhysicsWorld {
+    /// Creates a new instance of the physics world.
+    fn new() -> Self {
+        Self {
+            pipeline: PhysicsPipeline::new(),
+            gravity: Vector3::new(0.0, -9.81, 0.0),
+            integration_parameters: IntegrationParameters::default(),
+            broad_phase: BroadPhase::new(),
+            narrow_phase: NarrowPhase::new(),
+            ccd_solver: CCDSolver::new(),
+            islands: IslandManager::new(),
+            bodies: RigidBodySet::new(),
+            colliders: ColliderSet::new(),
+            joints: JointSet::new(),
+            event_handler: Box::new(()),
+        }
+    }
+
+    fn update(&mut self) {
+        self.pipeline.step(
+            &self.gravity,
+            &self.integration_parameters,
+            &mut self.islands,
+            &mut self.broad_phase,
+            &mut self.narrow_phase,
+            &mut self.bodies,
+            &mut self.colliders,
+            &mut self.joints,
+            &mut self.ccd_solver,
+            &(),
+            &*self.event_handler,
+        );
+    }
+}
+
+impl Default for PhysicsWorld {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Debug for PhysicsWorld {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "PhysicsWorld")
+    }
+}
 
 /// See module docs.
 #[derive(Debug)]
 pub struct Graph {
+    physics: PhysicsWorld,
     root: Handle<Node>,
     pool: Pool<Node>,
     stack: Vec<Handle<Node>>,
@@ -53,6 +141,7 @@ pub struct Graph {
 impl Default for Graph {
     fn default() -> Self {
         Self {
+            physics: PhysicsWorld::new(),
             root: Handle::NONE,
             pool: Pool::new(),
             stack: Vec::new(),
@@ -124,6 +213,7 @@ impl Graph {
         root.set_name("__ROOT__");
         let root = pool.spawn(root);
         Self {
+            physics: Default::default(),
             stack: Vec::new(),
             root,
             pool,
@@ -203,7 +293,28 @@ impl Graph {
             for &child in self.pool[handle].children().iter() {
                 self.stack.push(child);
             }
-            self.pool.free(handle);
+
+            // Remove associated entities.
+            let node = self.pool.free(handle);
+            match node {
+                Node::RigidBody(body) => {
+                    self.physics.bodies.remove(
+                        body.native,
+                        &mut self.physics.islands,
+                        &mut self.physics.colliders,
+                        &mut self.physics.joints,
+                    );
+                }
+                Node::Collider(collider) => {
+                    self.physics.colliders.remove(
+                        collider.native,
+                        &mut self.physics.islands,
+                        &mut self.physics.bodies,
+                        true,
+                    );
+                }
+                _ => (),
+            }
         }
     }
 
@@ -796,7 +907,9 @@ impl Graph {
     }
 
     /// Updates nodes in graph using given delta time. There is no need to call it manually.
-    pub fn update_nodes(&mut self, frame_size: Vector2<f32>, dt: f32) {
+    pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
+        self.physics.update();
+
         self.update_hierarchical_data();
 
         for i in 0..self.pool.get_capacity() {
@@ -842,6 +955,54 @@ impl Graph {
                         Node::ParticleSystem(particle_system) => particle_system.update(dt),
                         Node::Terrain(terrain) => terrain.update(),
                         Node::Mesh(_) => self.pool.at(i).unwrap().as_mesh().update(self),
+                        Node::RigidBody(rigid_body) => {
+                            match self.physics.bodies.get_mut(rigid_body.native) {
+                                Some(native) => {
+                                    // Sync properties.
+                                }
+                                None => {
+                                    let native_handle = self.physics.bodies.insert(
+                                        RigidBodyBuilder::new(rigid_body.status.into())
+                                            .position(Isometry3 {
+                                                rotation: **rigid_body.local_transform().rotation(),
+                                                translation: Translation3 {
+                                                    vector: **rigid_body
+                                                        .local_transform()
+                                                        .position(),
+                                                },
+                                            })
+                                            .angvel(rigid_body.ang_vel)
+                                            .linvel(rigid_body.lin_vel)
+                                            // TODO: Add rest of properties.
+                                            .build(),
+                                    );
+                                    rigid_body.native = native_handle;
+                                }
+                            }
+                        }
+                        Node::Collider(collider) => {
+                            match self.physics.colliders.get_mut(collider.native) {
+                                Some(native) => {
+                                    // Sync properties.
+                                }
+                                None => {
+                                    let native_handle = self.physics.colliders.insert(
+                                        ColliderBuilder::new(collider.shape.into_collider_shape())
+                                            .position(Isometry3 {
+                                                rotation: **collider.local_transform().rotation(),
+                                                translation: Translation3 {
+                                                    vector: **collider.local_transform().position(),
+                                                },
+                                            })
+                                            .friction(collider.friction)
+                                            .restitution(collider.restitution)
+                                            //.density(collider.density)
+                                            .build(),
+                                    );
+                                    collider.native = native_handle;
+                                }
+                            }
+                        }
                         _ => (),
                     }
                 }
@@ -1183,6 +1344,9 @@ impl Visit for Graph {
 
         self.root.visit("Root", visitor)?;
         self.pool.visit("Pool", visitor)?;
+        // self.physics is not serialized intentionally! The data of physics entities stored
+        // inside graph nodes and corresponding physic entities will be re-created on first
+        // update iteration.
 
         visitor.leave_region()
     }
