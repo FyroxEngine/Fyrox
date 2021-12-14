@@ -22,6 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::scene::collider::ColliderChanges;
 use crate::{
     asset::ResourceState,
     core::{
@@ -48,6 +49,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
+use rg3d_physics3d::rapier::geometry::InteractionGroups;
 use std::{
     fmt::{Debug, Formatter},
     ops::{Index, IndexMut},
@@ -238,20 +240,29 @@ impl Graph {
 
         // Create appropriate physics entities.
         if let Node::RigidBody(ref mut rigid_body) = self.pool[handle] {
-            let native_handle = self.physics.bodies.insert(
-                RigidBodyBuilder::new(rigid_body.body_type.into())
-                    .position(Isometry3 {
-                        rotation: **rigid_body.local_transform().rotation(),
-                        translation: Translation3 {
-                            vector: **rigid_body.local_transform().position(),
-                        },
-                    })
-                    .angvel(rigid_body.ang_vel)
-                    .linvel(rigid_body.lin_vel)
-                    // TODO: Add rest of properties.
-                    .build(),
-            );
-            rigid_body.native = native_handle;
+            let mut builder = RigidBodyBuilder::new(rigid_body.body_type.into())
+                .position(Isometry3 {
+                    rotation: **rigid_body.local_transform().rotation(),
+                    translation: Translation3 {
+                        vector: **rigid_body.local_transform().position(),
+                    },
+                })
+                .additional_mass(rigid_body.mass)
+                .angvel(rigid_body.ang_vel)
+                .linvel(rigid_body.lin_vel)
+                .linear_damping(rigid_body.lin_damping)
+                .angular_damping(rigid_body.ang_damping)
+                .restrict_rotations(
+                    rigid_body.x_rotation_locked,
+                    rigid_body.y_rotation_locked,
+                    rigid_body.z_rotation_locked,
+                );
+
+            if rigid_body.translation_locked {
+                builder = builder.lock_translations();
+            }
+
+            rigid_body.native = self.physics.bodies.insert(builder.build());
         }
 
         handle
@@ -378,16 +389,25 @@ impl Graph {
                 println!("Collider Created!");
 
                 let native_handle = self.physics.colliders.insert_with_parent(
-                    ColliderBuilder::new(collider.shape.into_collider_shape())
+                    ColliderBuilder::new(collider.shape().into_collider_shape())
                         .position(Isometry3 {
                             rotation: **collider.local_transform().rotation(),
                             translation: Translation3 {
                                 vector: **collider.local_transform().position(),
                             },
                         })
-                        .friction(collider.friction)
-                        .restitution(collider.restitution)
-                        // TODO: Add rest of properties.
+                        .friction(collider.friction())
+                        .restitution(collider.restitution())
+                        .collision_groups(InteractionGroups::new(
+                            collider.collision_groups().memberships,
+                            collider.collision_groups().filter,
+                        ))
+                        .solver_groups(InteractionGroups::new(
+                            collider.solver_groups().memberships,
+                            collider.solver_groups().filter,
+                        ))
+                        .sensor(collider.is_sensor())
+                        // TODO Add density, combine rules
                         .build(),
                     rigid_body_native,
                     &mut self.physics.bodies,
@@ -1017,6 +1037,7 @@ impl Graph {
                         Node::Mesh(_) => self.pool.at(i).unwrap().as_mesh().update(self),
                         Node::RigidBody(rigid_body) => {
                             if let Some(native) = self.physics.bodies.get_mut(rigid_body.native) {
+                                let native = native;
                                 // Sync transform in correct direction.
                                 if rigid_body.transform_modified {
                                     // Transform was changed by user, sync native rigid body with node's position.
@@ -1054,6 +1075,20 @@ impl Graph {
                                     native.set_angvel(rigid_body.ang_vel, true);
                                     rigid_body.changes.remove(RigidBodyChanges::ANG_VEL);
                                 }
+                                if rigid_body.changes.contains(RigidBodyChanges::MASS) {
+                                    let mut props = native.mass_properties().clone();
+                                    props.set_mass(rigid_body.mass, true);
+                                    native.set_mass_properties(props, true);
+                                    rigid_body.changes.remove(RigidBodyChanges::MASS);
+                                }
+                                if rigid_body.changes.contains(RigidBodyChanges::LIN_DAMPING) {
+                                    native.set_linear_damping(rigid_body.lin_damping);
+                                    rigid_body.changes.remove(RigidBodyChanges::LIN_DAMPING);
+                                }
+                                if rigid_body.changes.contains(RigidBodyChanges::ANG_DAMPING) {
+                                    native.set_angular_damping(rigid_body.ang_damping);
+                                    rigid_body.changes.remove(RigidBodyChanges::ANG_DAMPING);
+                                }
                                 if rigid_body
                                     .changes
                                     .contains(RigidBodyChanges::ROTATION_LOCKED)
@@ -1071,8 +1106,38 @@ impl Graph {
                         Node::Collider(collider) => {
                             // The collider node may lack backing native physics collider in case if it
                             // is not attached to a rigid body.
-                            if let Some(_native) = self.physics.colliders.get_mut(collider.native) {
-                                // TODO: SYNC
+                            if let Some(native) = self.physics.colliders.get_mut(collider.native) {
+                                if collider.changes.contains(ColliderChanges::SHAPE) {
+                                    native.set_shape(collider.shape().into_collider_shape());
+                                    collider.changes.remove(ColliderChanges::SHAPE);
+                                }
+                                if collider.changes.contains(ColliderChanges::RESTITUTION) {
+                                    native.set_restitution(collider.restitution());
+                                    collider.changes.remove(ColliderChanges::RESTITUTION);
+                                }
+                                if collider.changes.contains(ColliderChanges::COLLISION_GROUPS) {
+                                    native.set_collision_groups(InteractionGroups::new(
+                                        collider.collision_groups().memberships,
+                                        collider.collision_groups().filter,
+                                    ));
+                                    collider.changes.remove(ColliderChanges::COLLISION_GROUPS);
+                                }
+                                if collider.changes.contains(ColliderChanges::SOLVER_GROUPS) {
+                                    native.set_solver_groups(InteractionGroups::new(
+                                        collider.solver_groups().memberships,
+                                        collider.solver_groups().filter,
+                                    ));
+                                    collider.changes.remove(ColliderChanges::SOLVER_GROUPS);
+                                }
+                                if collider.changes.contains(ColliderChanges::FRICTION) {
+                                    native.set_friction(collider.friction());
+                                    collider.changes.remove(ColliderChanges::FRICTION);
+                                }
+                                if collider.changes.contains(ColliderChanges::IS_SENSOR) {
+                                    native.set_sensor(collider.is_sensor());
+                                    collider.changes.remove(ColliderChanges::IS_SENSOR);
+                                }
+                                // TODO: Handle RESTITUTION_COMBINE_RULE + FRICTION_COMBINE_RULE
                             }
                         }
                         _ => (),

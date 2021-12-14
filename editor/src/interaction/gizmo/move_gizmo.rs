@@ -5,7 +5,6 @@ use crate::{
     scene::{EditorScene, Selection},
     set_mesh_diffuse_color, GameEngine,
 };
-use rg3d::scene::base::LocalTransformRefMut;
 use rg3d::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -15,14 +14,14 @@ use rg3d::{
         pool::Handle,
     },
     scene::{
-        base::BaseBuilder,
+        base::{BaseBuilder, LocalTransformRefMut},
         graph::Graph,
         mesh::{
             surface::{SurfaceBuilder, SurfaceData},
             MeshBuilder, RenderPath,
         },
         node::Node,
-        transform::{Transform, TransformBuilder},
+        transform::TransformBuilder,
         Scene,
     },
 };

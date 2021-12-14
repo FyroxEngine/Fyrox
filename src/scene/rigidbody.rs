@@ -20,11 +20,14 @@ use std::ops::{Deref, DerefMut};
 bitflags! {
     pub(crate) struct RigidBodyChanges: u32 {
         const NONE = 0;
-        const LIN_VEL = 0b00000001;
-        const ANG_VEL = 0b00000010;
-        const BODY_TYPE = 0b00000100;
-        const ROTATION_LOCKED = 0b00001000;
-        const TRANSLATION_LOCKED = 0b00010000;
+        const LIN_VEL = 0b0000_0001;
+        const ANG_VEL = 0b0000_0010;
+        const BODY_TYPE = 0b0000_0100;
+        const ROTATION_LOCKED = 0b0000_1000;
+        const TRANSLATION_LOCKED = 0b0001_0000;
+        const MASS = 0b0010_0000;
+        const ANG_DAMPING = 0b0100_0000;
+        const LIN_DAMPING = 0b1000_0000;
     }
 }
 
@@ -33,6 +36,8 @@ pub struct RigidBody {
     base: Base,
     pub lin_vel: Vector3<f32>,
     pub ang_vel: Vector3<f32>,
+    pub lin_damping: f32,
+    pub ang_damping: f32,
     #[inspect(read_only)]
     pub sleeping: bool,
     pub body_type: RigidBodyTypeDesc,
@@ -56,8 +61,10 @@ impl Default for RigidBody {
             base: Default::default(),
             lin_vel: Default::default(),
             ang_vel: Default::default(),
+            lin_damping: 0.0,
+            ang_damping: 0.0,
             sleeping: false,
-            body_type: Default::default(),
+            body_type: RigidBodyTypeDesc::Dynamic,
             mass: 1.0,
             x_rotation_locked: false,
             y_rotation_locked: false,
@@ -89,13 +96,15 @@ impl RigidBody {
             base: self.base.raw_copy(),
             lin_vel: self.lin_vel,
             ang_vel: self.ang_vel,
+            lin_damping: self.lin_damping,
+            ang_damping: self.ang_damping,
             sleeping: self.sleeping,
             body_type: self.body_type,
-            mass: 0.0,
-            x_rotation_locked: false,
-            y_rotation_locked: false,
-            z_rotation_locked: false,
-            translation_locked: false,
+            mass: self.mass,
+            x_rotation_locked: self.x_rotation_locked,
+            y_rotation_locked: self.y_rotation_locked,
+            z_rotation_locked: self.z_rotation_locked,
+            translation_locked: self.translation_locked,
             // Do not copy.
             native: RigidBodyHandle::invalid(),
             changes: RigidBodyChanges::NONE,
@@ -119,12 +128,77 @@ impl RigidBody {
     pub fn ang_vel(&self) -> Vector3<f32> {
         self.ang_vel
     }
+
+    pub fn set_mass(&mut self, mass: f32) {
+        self.mass = mass;
+        self.changes.insert(RigidBodyChanges::MASS);
+    }
+
+    pub fn mass(&self) -> f32 {
+        self.mass
+    }
+
+    pub fn set_ang_damping(&mut self, damping: f32) {
+        self.ang_damping = damping;
+        self.changes.insert(RigidBodyChanges::ANG_DAMPING);
+    }
+
+    pub fn ang_damping(&self) -> f32 {
+        self.ang_damping
+    }
+
+    pub fn set_lin_damping(&mut self, damping: f32) {
+        self.lin_damping = damping;
+        self.changes.insert(RigidBodyChanges::LIN_DAMPING);
+    }
+
+    pub fn lin_damping(&self) -> f32 {
+        self.lin_damping
+    }
+
+    pub fn lock_x_rotations(&mut self, state: bool) {
+        self.x_rotation_locked = state;
+        self.changes.insert(RigidBodyChanges::ROTATION_LOCKED);
+    }
+
+    pub fn is_x_rotation_locked(&self) -> bool {
+        self.x_rotation_locked
+    }
+
+    pub fn lock_y_rotations(&mut self, state: bool) {
+        self.y_rotation_locked = state;
+        self.changes.insert(RigidBodyChanges::ROTATION_LOCKED);
+    }
+
+    pub fn is_y_rotation_locked(&self) -> bool {
+        self.y_rotation_locked
+    }
+
+    pub fn lock_z_rotations(&mut self, state: bool) {
+        self.z_rotation_locked = state;
+        self.changes.insert(RigidBodyChanges::ROTATION_LOCKED);
+    }
+
+    pub fn is_z_rotation_locked(&self) -> bool {
+        self.z_rotation_locked
+    }
+
+    pub fn lock_translation(&mut self, state: bool) {
+        self.translation_locked = state;
+        self.changes.insert(RigidBodyChanges::TRANSLATION_LOCKED);
+    }
+
+    pub fn is_translation_locked(&self) -> bool {
+        self.translation_locked
+    }
 }
 
 pub struct RigidBodyBuilder {
     base_builder: BaseBuilder,
     lin_vel: Vector3<f32>,
     ang_vel: Vector3<f32>,
+    lin_damping: f32,
+    ang_damping: f32,
     sleeping: bool,
     status: RigidBodyTypeDesc,
     mass: f32,
@@ -140,8 +214,10 @@ impl RigidBodyBuilder {
             base_builder,
             lin_vel: Default::default(),
             ang_vel: Default::default(),
+            lin_damping: 0.0,
+            ang_damping: 0.0,
             sleeping: false,
-            status: Default::default(),
+            status: RigidBodyTypeDesc::Dynamic,
             mass: 1.0,
             x_rotation_locked: false,
             y_rotation_locked: false,
@@ -155,6 +231,8 @@ impl RigidBodyBuilder {
             base: self.base_builder.build_base(),
             lin_vel: self.lin_vel,
             ang_vel: self.ang_vel,
+            lin_damping: self.lin_damping,
+            ang_damping: self.ang_damping,
             sleeping: self.sleeping,
             body_type: self.status,
             mass: self.mass,

@@ -147,13 +147,14 @@ impl PhysicsMenu {
             } else if message.destination == self.create_rigid_body2 {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
-                        RigidBodyBuilder::new(BaseBuilder::new()).build_node(),
+                        RigidBodyBuilder::new(BaseBuilder::new().with_name("Rigid Body"))
+                            .build_node(),
                     )))
                     .unwrap();
             } else if message.destination == self.create_cube_collider {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
-                        ColliderBuilder::new(BaseBuilder::new())
+                        ColliderBuilder::new(BaseBuilder::new().with_name("Cuboid Collider"))
                             .with_shape(ColliderShapeDesc::Cuboid(Default::default()))
                             .build_node(),
                     )))

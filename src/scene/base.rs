@@ -282,6 +282,7 @@ pub struct Property {
     pub value: PropertyValue,
 }
 
+#[doc(hidden)]
 pub struct LocalTransformRefMut<'a> {
     parent: &'a mut Base,
 }

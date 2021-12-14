@@ -222,6 +222,8 @@ impl Node {
             5 => Ok(Self::ParticleSystem(Default::default())),
             6 => Ok(Self::Terrain(Default::default())),
             7 => Ok(Self::Decal(Default::default())),
+            8 => Ok(Self::RigidBody(Default::default())),
+            9 => Ok(Self::Collider(Default::default())),
             _ => Err(format!("Invalid node kind {}", id)),
         }
     }
