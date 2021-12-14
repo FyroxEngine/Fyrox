@@ -5,7 +5,9 @@ use crate::{
     scene::commands::physics::{AddJointCommand, CreateRigidBodyCommand},
     Message,
 };
+use rg3d::physics3d::desc::ColliderShapeDesc;
 use rg3d::scene::base::BaseBuilder;
+use rg3d::scene::collider::ColliderBuilder;
 use rg3d::scene::rigidbody::RigidBodyBuilder;
 use rg3d::{
     core::{algebra::Vector3, pool::Handle},
@@ -25,12 +27,14 @@ pub struct PhysicsMenu {
     create_fixed_joint: Handle<UiNode>,
 
     create_rigid_body2: Handle<UiNode>,
+    create_cube_collider: Handle<UiNode>,
 }
 
 impl PhysicsMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let create_rigid_body;
         let create_rigid_body2;
+        let create_cube_collider;
         let create_revolute_joint;
         let create_ball_joint;
         let create_prismatic_joint;
@@ -45,6 +49,10 @@ impl PhysicsMenu {
                 {
                     create_rigid_body2 = create_menu_item("Rigid Body 2", vec![], ctx);
                     create_rigid_body2
+                },
+                {
+                    create_cube_collider = create_menu_item("Cube Collider", vec![], ctx);
+                    create_cube_collider
                 },
                 {
                     create_revolute_joint = create_menu_item("Revolute Joint", vec![], ctx);
@@ -74,6 +82,7 @@ impl PhysicsMenu {
             create_prismatic_joint,
             create_fixed_joint,
             create_rigid_body2,
+            create_cube_collider,
         }
     }
 
@@ -139,6 +148,14 @@ impl PhysicsMenu {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
                         RigidBodyBuilder::new(BaseBuilder::new()).build_node(),
+                    )))
+                    .unwrap();
+            } else if message.destination == self.create_cube_collider {
+                sender
+                    .send(Message::do_scene_command(AddNodeCommand::new(
+                        ColliderBuilder::new(BaseBuilder::new())
+                            .with_shape(ColliderShapeDesc::Cuboid(Default::default()))
+                            .build_node(),
                     )))
                     .unwrap();
             }

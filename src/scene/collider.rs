@@ -101,7 +101,12 @@ impl ColliderBuilder {
         }
     }
 
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+    pub fn with_shape(mut self, shape: ColliderShapeDesc) -> Self {
+        self.shape = shape;
+        self
+    }
+
+    pub fn build_node(self) -> Node {
         let collider = Collider {
             base: self.base_builder.build_base(),
             shape: self.shape,
@@ -113,7 +118,10 @@ impl ColliderBuilder {
             solver_groups: self.solver_groups,
             native: ColliderHandle::invalid(),
         };
+        Node::Collider(collider)
+    }
 
-        graph.add_node(Node::Collider(collider))
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }

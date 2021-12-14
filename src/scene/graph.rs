@@ -22,7 +22,6 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::rigidbody::RigidBodyChanges;
 use crate::{
     asset::ResourceState,
     core::{
@@ -39,11 +38,12 @@ use crate::{
         dynamics::{CCDSolver, IntegrationParameters, IslandManager, JointSet},
         geometry::{BroadPhase, ColliderSet, NarrowPhase},
         pipeline::{EventHandler, PhysicsPipeline},
-        prelude::{ColliderBuilder, RigidBodyBuilder, RigidBodySet},
+        prelude::{ColliderBuilder, ColliderHandle, RigidBodyBuilder, RigidBodySet},
     },
     resource::model::NodeMapping,
     scene::{
-        base::PropertyValue, node::Node, transform::TransformBuilder, visibility::VisibilityCache,
+        base::PropertyValue, node::Node, rigidbody::RigidBodyChanges, transform::TransformBuilder,
+        visibility::VisibilityCache,
     },
     utils::log::{Log, MessageKind},
 };
@@ -235,6 +235,25 @@ impl Graph {
         for child in children {
             self.link_nodes(child, handle);
         }
+
+        // Create appropriate physics entities.
+        if let Node::RigidBody(ref mut rigid_body) = self.pool[handle] {
+            let native_handle = self.physics.bodies.insert(
+                RigidBodyBuilder::new(rigid_body.body_type.into())
+                    .position(Isometry3 {
+                        rotation: **rigid_body.local_transform().rotation(),
+                        translation: Translation3 {
+                            vector: **rigid_body.local_transform().position(),
+                        },
+                    })
+                    .angvel(rigid_body.ang_vel)
+                    .linvel(rigid_body.lin_vel)
+                    // TODO: Add rest of properties.
+                    .build(),
+            );
+            rigid_body.native = native_handle;
+        }
+
         handle
     }
 
@@ -330,6 +349,19 @@ impl Graph {
                 parent.children.remove(i);
             }
         }
+
+        // Remove native collider when detaching a collider node from rigid body node.
+        if let Node::Collider(ref mut collider) = self.pool[node_handle] {
+            if self.physics.colliders.get(collider.native).is_some() {
+                self.physics.colliders.remove(
+                    collider.native,
+                    &mut self.physics.islands,
+                    &mut self.physics.bodies,
+                    true,
+                );
+                collider.native = ColliderHandle::invalid();
+            }
+        }
     }
 
     /// Links specified child with specified parent.
@@ -338,6 +370,31 @@ impl Graph {
         self.unlink_internal(child);
         self.pool[child].parent = parent;
         self.pool[parent].children.push(child);
+
+        // Create native physics colliders when attaching collider to a rigid body node.
+        if let Node::RigidBody(ref rigid_body) = self.pool[parent] {
+            let rigid_body_native = rigid_body.native;
+            if let Node::Collider(ref mut collider) = self.pool[child] {
+                println!("Collider Created!");
+
+                let native_handle = self.physics.colliders.insert_with_parent(
+                    ColliderBuilder::new(collider.shape.into_collider_shape())
+                        .position(Isometry3 {
+                            rotation: **collider.local_transform().rotation(),
+                            translation: Translation3 {
+                                vector: **collider.local_transform().position(),
+                            },
+                        })
+                        .friction(collider.friction)
+                        .restitution(collider.restitution)
+                        // TODO: Add rest of properties.
+                        .build(),
+                    rigid_body_native,
+                    &mut self.physics.bodies,
+                );
+                collider.native = native_handle;
+            }
+        }
     }
 
     /// Unlinks specified node from its parent and attaches it to root graph node.
@@ -633,7 +690,7 @@ impl Graph {
 
                             // Check if we can sync transform of the nodes with resource.
                             let resource_local_transform = resource_node.local_transform();
-                            let local_transform = node.local_transform_mut();
+                            let mut local_transform = node.local_transform_mut();
 
                             // Position.
                             if !local_transform.position().is_custom() {
@@ -688,6 +745,8 @@ impl Graph {
                                 local_transform
                                     .set_scaling_pivot(**resource_local_transform.scaling_pivot());
                             }
+
+                            drop(local_transform);
 
                             if let (Node::Mesh(mesh), Node::Mesh(resource_mesh)) =
                                 (node, resource_node)
@@ -957,77 +1016,63 @@ impl Graph {
                         Node::Terrain(terrain) => terrain.update(),
                         Node::Mesh(_) => self.pool.at(i).unwrap().as_mesh().update(self),
                         Node::RigidBody(rigid_body) => {
-                            match self.physics.bodies.get_mut(rigid_body.native) {
-                                Some(native) => {
-                                    // Sync properties.
+                            if let Some(native) = self.physics.bodies.get_mut(rigid_body.native) {
+                                // Sync transform in correct direction.
+                                if rigid_body.transform_modified {
+                                    // Transform was changed by user, sync native rigid body with node's position.
+                                    native.set_position(
+                                        Isometry3 {
+                                            rotation: **rigid_body.local_transform().rotation(),
+                                            translation: Translation3 {
+                                                vector: **rigid_body.local_transform().position(),
+                                            },
+                                        },
+                                        true,
+                                    );
+                                    rigid_body.transform_modified = false;
+                                } else {
+                                    // Transform was changed by a physics simulation, sync node's transform
+                                    // with native rigid body.
                                     let transform = native.position();
                                     rigid_body
-                                        .local_transform_mut()
+                                        .local_transform
                                         .set_position(transform.translation.vector)
                                         .set_rotation(transform.rotation);
-                                    if rigid_body.changes.contains(RigidBodyChanges::BODY_TYPE) {
-                                        native.set_body_type(rigid_body.body_type.into());
-                                        rigid_body.changes.remove(RigidBodyChanges::BODY_TYPE);
-                                    }
-                                    if rigid_body.changes.contains(RigidBodyChanges::LIN_VEL) {
-                                        native.set_linvel(rigid_body.lin_vel, true);
-                                        rigid_body.changes.remove(RigidBodyChanges::LIN_VEL);
-                                    }
-                                    if rigid_body.changes.contains(RigidBodyChanges::ANG_VEL) {
-                                        native.set_angvel(rigid_body.ang_vel, true);
-                                        rigid_body.changes.remove(RigidBodyChanges::ANG_VEL);
-                                    }
-                                    if rigid_body
-                                        .changes
-                                        .contains(RigidBodyChanges::ROTATION_LOCKED)
-                                    {
-                                        native.restrict_rotations(
-                                            rigid_body.x_rotation_locked,
-                                            rigid_body.y_rotation_locked,
-                                            rigid_body.z_rotation_locked,
-                                            true,
-                                        );
-                                        rigid_body
-                                            .changes
-                                            .remove(RigidBodyChanges::ROTATION_LOCKED);
-                                    }
                                 }
-                                None => {
-                                    let native_handle = self.physics.bodies.insert(
-                                        RigidBodyBuilder::new(rigid_body.body_type.into())
-                                            .position(Isometry3 {
-                                                rotation: **rigid_body.local_transform().rotation(),
-                                                translation: Translation3 {
-                                                    vector: **rigid_body
-                                                        .local_transform()
-                                                        .position(),
-                                                },
-                                            })
-                                            .angvel(rigid_body.ang_vel)
-                                            .linvel(rigid_body.lin_vel)
-                                            // TODO: Add rest of properties.
-                                            .build(),
+
+                                // Sync native rigid body's properties with scene node's in case if they
+                                // were changed by user.
+                                if rigid_body.changes.contains(RigidBodyChanges::BODY_TYPE) {
+                                    native.set_body_type(rigid_body.body_type.into());
+                                    rigid_body.changes.remove(RigidBodyChanges::BODY_TYPE);
+                                }
+                                if rigid_body.changes.contains(RigidBodyChanges::LIN_VEL) {
+                                    native.set_linvel(rigid_body.lin_vel, true);
+                                    rigid_body.changes.remove(RigidBodyChanges::LIN_VEL);
+                                }
+                                if rigid_body.changes.contains(RigidBodyChanges::ANG_VEL) {
+                                    native.set_angvel(rigid_body.ang_vel, true);
+                                    rigid_body.changes.remove(RigidBodyChanges::ANG_VEL);
+                                }
+                                if rigid_body
+                                    .changes
+                                    .contains(RigidBodyChanges::ROTATION_LOCKED)
+                                {
+                                    native.restrict_rotations(
+                                        rigid_body.x_rotation_locked,
+                                        rigid_body.y_rotation_locked,
+                                        rigid_body.z_rotation_locked,
+                                        true,
                                     );
-                                    rigid_body.native = native_handle;
+                                    rigid_body.changes.remove(RigidBodyChanges::ROTATION_LOCKED);
                                 }
                             }
                         }
                         Node::Collider(collider) => {
-                            if self.physics.colliders.get_mut(collider.native).is_none() {
-                                let native_handle = self.physics.colliders.insert(
-                                    ColliderBuilder::new(collider.shape.into_collider_shape())
-                                        .position(Isometry3 {
-                                            rotation: **collider.local_transform().rotation(),
-                                            translation: Translation3 {
-                                                vector: **collider.local_transform().position(),
-                                            },
-                                        })
-                                        .friction(collider.friction)
-                                        .restitution(collider.restitution)
-                                        //.density(collider.density)
-                                        .build(),
-                                );
-                                collider.native = native_handle;
+                            // The collider node may lack backing native physics collider in case if it
+                            // is not attached to a rigid body.
+                            if let Some(_native) = self.physics.colliders.get_mut(collider.native) {
+                                // TODO: SYNC
                             }
                         }
                         _ => (),

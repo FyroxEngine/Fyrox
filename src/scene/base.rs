@@ -282,6 +282,30 @@ pub struct Property {
     pub value: PropertyValue,
 }
 
+pub struct LocalTransformRefMut<'a> {
+    parent: &'a mut Base,
+}
+
+impl<'a> Drop for LocalTransformRefMut<'a> {
+    fn drop(&mut self) {
+        self.parent.transform_modified = true;
+    }
+}
+
+impl<'a> Deref for LocalTransformRefMut<'a> {
+    type Target = Transform;
+
+    fn deref(&self) -> &Self::Target {
+        &self.parent.local_transform
+    }
+}
+
+impl<'a> DerefMut for LocalTransformRefMut<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.parent.local_transform
+    }
+}
+
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -304,7 +328,7 @@ pub struct Property {
 #[derive(Debug, Inspect)]
 pub struct Base {
     name: String,
-    local_transform: Transform,
+    pub(crate) local_transform: Transform,
     visibility: bool,
     #[inspect(skip)]
     pub(in crate) global_visibility: Cell<bool>,
@@ -342,6 +366,7 @@ pub struct Base {
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
     pub properties: Vec<Property>,
+    pub(in crate) transform_modified: bool,
 }
 
 impl Base {
@@ -369,8 +394,8 @@ impl Base {
 
     /// Returns mutable reference to local transform of a node, can be used to set
     /// some local spatial properties, such as position, rotation, scale, etc.
-    pub fn local_transform_mut(&mut self) -> &mut Transform {
-        &mut self.local_transform
+    pub fn local_transform_mut(&mut self) -> LocalTransformRefMut {
+        LocalTransformRefMut { parent: self }
     }
 
     /// Sets new local transform of a node.
@@ -608,6 +633,7 @@ impl Base {
             parent: Default::default(),
             children: Default::default(),
             depth_offset: Default::default(),
+            transform_modified: false,
         }
     }
 }
@@ -768,6 +794,7 @@ impl BaseBuilder {
             tag: self.tag,
             physics_binding: PhysicsBinding::NodeWithBody,
             properties: Default::default(),
+            transform_modified: false,
         }
     }
 
