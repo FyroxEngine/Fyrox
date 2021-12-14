@@ -23,6 +23,7 @@
 //! is used in skinning (animating 3d model by set of bones).
 
 use crate::scene::collider::ColliderChanges;
+use crate::scene::joint::JointChanges;
 use crate::{
     asset::ResourceState,
     core::{
@@ -338,6 +339,14 @@ impl Graph {
                 Node::Collider(collider) => {
                     self.physics.colliders.remove(
                         collider.native,
+                        &mut self.physics.islands,
+                        &mut self.physics.bodies,
+                        true,
+                    );
+                }
+                Node::Joint(joint) => {
+                    self.physics.joints.remove(
+                        joint.native,
                         &mut self.physics.islands,
                         &mut self.physics.bodies,
                         true,
@@ -1148,6 +1157,45 @@ impl Graph {
                                     collider.changes.remove(ColliderChanges::IS_SENSOR);
                                 }
                                 // TODO: Handle RESTITUTION_COMBINE_RULE + FRICTION_COMBINE_RULE
+                            }
+                        }
+                        Node::Joint(joint) => {
+                            if let Some(native) = self.physics.joints.get_mut(joint.native) {
+                                if joint.changes.contains(JointChanges::PARAMS) {
+                                    native.params = joint.params().clone().into();
+                                    joint.changes.remove(JointChanges::PARAMS);
+                                }
+                                if joint.changes.contains(JointChanges::BODY1) {
+                                    // TODO
+                                    joint.changes.remove(JointChanges::BODY1);
+                                }
+                                if joint.changes.contains(JointChanges::BODY2) {
+                                    // TODO
+                                    joint.changes.remove(JointChanges::BODY2);
+                                }
+                            } else {
+                                let body1_handle = joint.body1();
+                                let body2_handle = joint.body2();
+                                let params = joint.params().clone();
+
+                                // A native joint can be created iff both rigid bodies are correctly assigned.
+                                if let (
+                                    Some(Node::RigidBody(body1)),
+                                    Some(Node::RigidBody(body2)),
+                                ) = (
+                                    self.pool.try_borrow(body1_handle),
+                                    self.pool.try_borrow(body2_handle),
+                                ) {
+                                    let native_body1 = body1.native;
+                                    let native_body2 = body2.native;
+
+                                    let native = self.physics.joints.insert(
+                                        native_body1,
+                                        native_body2,
+                                        params,
+                                    );
+                                    self.pool.at_mut(i).unwrap().as_joint_mut().native = native;
+                                }
                             }
                         }
                         _ => (),

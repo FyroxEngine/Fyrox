@@ -56,10 +56,10 @@ pub struct Joint {
     body2: Handle<Node>,
     #[visit(skip)]
     #[inspect(skip)]
-    native: JointHandle,
+    pub(crate) native: JointHandle,
     #[visit(skip)]
     #[inspect(skip)]
-    changes: JointChanges,
+    pub(crate) changes: JointChanges,
 }
 
 impl Default for Joint {
