@@ -586,6 +586,7 @@ impl Base {
             depth_offset: Default::default(),
             transform_modified: Cell::new(false),
             physics_binding: Default::default(),
+            frustum_culling: self.frustum_culling,
         }
     }
 
