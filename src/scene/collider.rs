@@ -5,22 +5,25 @@ use crate::core::visitor::prelude::*;
 use crate::physics3d::desc::ColliderShapeDesc;
 use crate::physics3d::desc::InteractionGroupsDesc;
 use crate::physics3d::rapier::geometry::ColliderHandle;
-use crate::scene::base::Base;
+use crate::scene::base::{Base, BaseBuilder};
+use crate::scene::graph::Graph;
+use crate::scene::node::Node;
+use rg3d_core::pool::Handle;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Inspect, Visit, Debug)]
 pub struct Collider {
     base: Base,
     #[inspect(read_only)]
-    pub shape: ColliderShapeDesc,
+    pub(in crate) shape: ColliderShapeDesc,
     #[inspect(min_value = 0.0, step = 0.05)]
-    pub friction: f32,
-    pub density: Option<f32>,
+    pub(in crate) friction: f32,
+    pub(in crate) density: Option<f32>,
     #[inspect(min_value = 0.0, step = 0.05)]
-    pub restitution: f32,
-    pub is_sensor: bool,
-    pub collision_groups: InteractionGroupsDesc,
-    pub solver_groups: InteractionGroupsDesc,
+    pub(in crate) restitution: f32,
+    pub(in crate) is_sensor: bool,
+    pub(in crate) collision_groups: InteractionGroupsDesc,
+    pub(in crate) solver_groups: InteractionGroupsDesc,
     #[visit(skip)]
     #[inspect(skip)]
     pub(in crate) native: ColliderHandle,
@@ -70,5 +73,47 @@ impl Collider {
             // Do not copy.
             native: ColliderHandle::invalid(),
         }
+    }
+}
+
+pub struct ColliderBuilder {
+    base_builder: BaseBuilder,
+    shape: ColliderShapeDesc,
+    friction: f32,
+    density: Option<f32>,
+    restitution: f32,
+    is_sensor: bool,
+    collision_groups: InteractionGroupsDesc,
+    solver_groups: InteractionGroupsDesc,
+}
+
+impl ColliderBuilder {
+    pub fn new(base_builder: BaseBuilder) -> Self {
+        Self {
+            base_builder,
+            shape: Default::default(),
+            friction: 0.0,
+            density: None,
+            restitution: 0.0,
+            is_sensor: false,
+            collision_groups: Default::default(),
+            solver_groups: Default::default(),
+        }
+    }
+
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        let collider = Collider {
+            base: self.base_builder.build_base(),
+            shape: self.shape,
+            friction: self.friction,
+            density: self.density,
+            restitution: self.restitution,
+            is_sensor: self.is_sensor,
+            collision_groups: self.collision_groups,
+            solver_groups: self.solver_groups,
+            native: ColliderHandle::invalid(),
+        };
+
+        graph.add_node(Node::Collider(collider))
     }
 }

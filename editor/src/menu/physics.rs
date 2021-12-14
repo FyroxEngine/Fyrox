@@ -1,9 +1,12 @@
+use crate::scene::commands::graph::AddNodeCommand;
 use crate::{
     menu::create_menu_item,
     physics::{Joint, RigidBody},
     scene::commands::physics::{AddJointCommand, CreateRigidBodyCommand},
     Message,
 };
+use rg3d::scene::base::BaseBuilder;
+use rg3d::scene::rigidbody::RigidBodyBuilder;
 use rg3d::{
     core::{algebra::Vector3, pool::Handle},
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
@@ -20,11 +23,14 @@ pub struct PhysicsMenu {
     create_ball_joint: Handle<UiNode>,
     create_prismatic_joint: Handle<UiNode>,
     create_fixed_joint: Handle<UiNode>,
+
+    create_rigid_body2: Handle<UiNode>,
 }
 
 impl PhysicsMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let create_rigid_body;
+        let create_rigid_body2;
         let create_revolute_joint;
         let create_ball_joint;
         let create_prismatic_joint;
@@ -35,6 +41,10 @@ impl PhysicsMenu {
                 {
                     create_rigid_body = create_menu_item("Rigid Body", vec![], ctx);
                     create_rigid_body
+                },
+                {
+                    create_rigid_body2 = create_menu_item("Rigid Body 2", vec![], ctx);
+                    create_rigid_body2
                 },
                 {
                     create_revolute_joint = create_menu_item("Revolute Joint", vec![], ctx);
@@ -63,6 +73,7 @@ impl PhysicsMenu {
             create_ball_joint,
             create_prismatic_joint,
             create_fixed_joint,
+            create_rigid_body2,
         }
     }
 
@@ -123,6 +134,12 @@ impl PhysicsMenu {
                             local_anchor2_rotation: Default::default(),
                         }),
                     })))
+                    .unwrap();
+            } else if message.destination == self.create_rigid_body2 {
+                sender
+                    .send(Message::do_scene_command(AddNodeCommand::new(
+                        RigidBodyBuilder::new(BaseBuilder::new()).build_node(),
+                    )))
                     .unwrap();
             }
         }
