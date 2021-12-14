@@ -1,4 +1,6 @@
-use crate::{make_command, physics::Joint, scene::commands::physics::*, SceneCommand};
+use crate::{make_command, scene::commands::physics::*, SceneCommand};
+use rg3d::scene::joint::Joint;
+use rg3d::scene::node::Node;
 use rg3d::{
     core::pool::Handle,
     gui::inspector::{FieldKind, PropertyChanged},
@@ -10,7 +12,7 @@ use std::any::TypeId;
 
 pub fn handle_joint_property_changed(
     args: &PropertyChanged,
-    handle: Handle<Joint>,
+    handle: Handle<Node>,
     joint: &Joint,
 ) -> Option<SceneCommand> {
     match args.value {
@@ -25,7 +27,7 @@ pub fn handle_joint_property_changed(
         },
         FieldKind::Inspectable(ref inner) => {
             if let Joint::PARAMS = args.name.as_ref() {
-                let params = &joint.params;
+                let params = joint.params();
                 if inner.owner_type_id == TypeId::of::<BallJointDesc>() {
                     handle_ball_joint_property_changed(inner, handle, params)
                 } else if inner.owner_type_id == TypeId::of::<RevoluteJointDesc>() {
@@ -47,7 +49,7 @@ pub fn handle_joint_property_changed(
 
 pub fn handle_ball_joint_property_changed(
     args: &PropertyChanged,
-    handle: Handle<Joint>,
+    handle: Handle<Node>,
     params: &JointParamsDesc,
 ) -> Option<SceneCommand> {
     if let JointParamsDesc::BallJoint(_) = params {
@@ -70,7 +72,7 @@ pub fn handle_ball_joint_property_changed(
 
 pub fn handle_revolute_joint_property_changed(
     args: &PropertyChanged,
-    handle: Handle<Joint>,
+    handle: Handle<Node>,
     params: &JointParamsDesc,
 ) -> Option<SceneCommand> {
     if let JointParamsDesc::RevoluteJoint(_) = params {
@@ -99,7 +101,7 @@ pub fn handle_revolute_joint_property_changed(
 
 pub fn handle_prismatic_joint_property_changed(
     args: &PropertyChanged,
-    handle: Handle<Joint>,
+    handle: Handle<Node>,
     params: &JointParamsDesc,
 ) -> Option<SceneCommand> {
     if let JointParamsDesc::PrismaticJoint(_) = params {
@@ -128,7 +130,7 @@ pub fn handle_prismatic_joint_property_changed(
 
 pub fn handle_fixed_joint_property_changed(
     args: &PropertyChanged,
-    handle: Handle<Joint>,
+    handle: Handle<Node>,
     params: &JointParamsDesc,
 ) -> Option<SceneCommand> {
     if let JointParamsDesc::FixedJoint(_) = params {

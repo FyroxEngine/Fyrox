@@ -278,4 +278,7 @@ impl Node {
     define_is_as!(Node : Sprite -> ref Sprite => fn is_sprite, fn as_sprite, fn as_sprite_mut);
     define_is_as!(Node : Terrain -> ref Terrain => fn is_terrain, fn as_terrain, fn as_terrain_mut);
     define_is_as!(Node : Decal -> ref Decal => fn is_decal, fn as_decal, fn as_decal_mut);
+    define_is_as!(Node : RigidBody -> ref RigidBody => fn is_rigid_body, fn as_rigid_body, fn as_rigid_body_mut);
+    define_is_as!(Node : Collider -> ref Collider => fn is_collider, fn as_collider, fn as_collider_mut);
+    define_is_as!(Node : Joint -> ref Joint => fn is_joint, fn as_joint, fn as_joint_mut);
 }

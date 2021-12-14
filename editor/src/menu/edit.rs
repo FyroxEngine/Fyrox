@@ -68,7 +68,6 @@ impl EditMenu {
                     editor_scene.clipboard.fill_from_selection(
                         selection,
                         editor_scene.scene,
-                        &editor_scene.physics,
                         engine,
                     );
                 }

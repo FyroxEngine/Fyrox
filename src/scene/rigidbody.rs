@@ -191,6 +191,15 @@ impl RigidBody {
     pub fn is_translation_locked(&self) -> bool {
         self.translation_locked
     }
+
+    pub fn set_body_type(&mut self, body_type: RigidBodyTypeDesc) {
+        self.body_type = body_type;
+        self.changes.insert(RigidBodyChanges::BODY_TYPE);
+    }
+
+    pub fn body_type(&self) -> RigidBodyTypeDesc {
+        self.body_type
+    }
 }
 
 pub struct RigidBodyBuilder {

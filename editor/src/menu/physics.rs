@@ -1,13 +1,9 @@
 use crate::scene::commands::graph::AddNodeCommand;
-use crate::{
-    menu::create_menu_item,
-    physics::{Joint, RigidBody},
-    scene::commands::physics::{AddJointCommand, CreateRigidBodyCommand},
-    Message,
-};
+use crate::{menu::create_menu_item, Message};
 use rg3d::physics3d::desc::ColliderShapeDesc;
 use rg3d::scene::base::BaseBuilder;
 use rg3d::scene::collider::ColliderBuilder;
+use rg3d::scene::joint::JointBuilder;
 use rg3d::scene::rigidbody::RigidBodyBuilder;
 use rg3d::{
     core::{algebra::Vector3, pool::Handle},
@@ -25,15 +21,12 @@ pub struct PhysicsMenu {
     create_ball_joint: Handle<UiNode>,
     create_prismatic_joint: Handle<UiNode>,
     create_fixed_joint: Handle<UiNode>,
-
-    create_rigid_body2: Handle<UiNode>,
     create_cube_collider: Handle<UiNode>,
 }
 
 impl PhysicsMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let create_rigid_body;
-        let create_rigid_body2;
         let create_cube_collider;
         let create_revolute_joint;
         let create_ball_joint;
@@ -45,10 +38,6 @@ impl PhysicsMenu {
                 {
                     create_rigid_body = create_menu_item("Rigid Body", vec![], ctx);
                     create_rigid_body
-                },
-                {
-                    create_rigid_body2 = create_menu_item("Rigid Body 2", vec![], ctx);
-                    create_rigid_body2
                 },
                 {
                     create_cube_collider = create_menu_item("Cube Collider", vec![], ctx);
@@ -81,7 +70,6 @@ impl PhysicsMenu {
             create_ball_joint,
             create_prismatic_joint,
             create_fixed_joint,
-            create_rigid_body2,
             create_cube_collider,
         }
     }
@@ -90,67 +78,61 @@ impl PhysicsMenu {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.create_rigid_body {
                 sender
-                    .send(Message::do_scene_command(CreateRigidBodyCommand::new(
-                        RigidBody::default(),
-                    )))
-                    .unwrap();
-            } else if message.destination() == self.create_revolute_joint {
-                sender
-                    .send(Message::do_scene_command(AddJointCommand::new(Joint {
-                        body1: Default::default(),
-                        body2: Default::default(),
-                        params: JointParamsDesc::RevoluteJoint(RevoluteJointDesc {
-                            local_anchor1: Default::default(),
-                            local_axis1: Vector3::y(),
-                            local_anchor2: Default::default(),
-                            local_axis2: Vector3::x(),
-                        }),
-                    })))
-                    .unwrap();
-            } else if message.destination() == self.create_ball_joint {
-                sender
-                    .send(Message::do_scene_command(AddJointCommand::new(Joint {
-                        body1: Default::default(),
-                        body2: Default::default(),
-                        params: JointParamsDesc::BallJoint(BallJointDesc {
-                            local_anchor1: Default::default(),
-                            local_anchor2: Default::default(),
-                        }),
-                    })))
-                    .unwrap();
-            } else if message.destination() == self.create_prismatic_joint {
-                sender
-                    .send(Message::do_scene_command(AddJointCommand::new(Joint {
-                        body1: Default::default(),
-                        body2: Default::default(),
-                        params: JointParamsDesc::PrismaticJoint(PrismaticJointDesc {
-                            local_anchor1: Default::default(),
-                            local_axis1: Vector3::y(),
-                            local_anchor2: Default::default(),
-                            local_axis2: Vector3::x(),
-                        }),
-                    })))
-                    .unwrap();
-            } else if message.destination() == self.create_fixed_joint {
-                sender
-                    .send(Message::do_scene_command(AddJointCommand::new(Joint {
-                        body1: Default::default(),
-                        body2: Default::default(),
-                        params: JointParamsDesc::FixedJoint(FixedJointDesc {
-                            local_anchor1_translation: Default::default(),
-                            local_anchor1_rotation: Default::default(),
-                            local_anchor2_translation: Default::default(),
-                            local_anchor2_rotation: Default::default(),
-                        }),
-                    })))
-                    .unwrap();
-            } else if message.destination == self.create_rigid_body2 {
-                sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
                         RigidBodyBuilder::new(BaseBuilder::new().with_name("Rigid Body"))
                             .build_node(),
                     )))
                     .unwrap();
+            } else if message.destination() == self.create_revolute_joint {
+                sender
+                    .send(Message::do_scene_command(AddNodeCommand::new(
+                        JointBuilder::new(BaseBuilder::new().with_name("Revolute Joint"))
+                            .with_params(JointParamsDesc::RevoluteJoint(RevoluteJointDesc {
+                                local_anchor1: Default::default(),
+                                local_axis1: Vector3::y(),
+                                local_anchor2: Default::default(),
+                                local_axis2: Vector3::x(),
+                            }))
+                            .build_node(),
+                    )))
+                    .unwrap()
+            } else if message.destination() == self.create_ball_joint {
+                sender
+                    .send(Message::do_scene_command(AddNodeCommand::new(
+                        JointBuilder::new(BaseBuilder::new().with_name("Ball Joint"))
+                            .with_params(JointParamsDesc::BallJoint(BallJointDesc {
+                                local_anchor1: Default::default(),
+                                local_anchor2: Default::default(),
+                            }))
+                            .build_node(),
+                    )))
+                    .unwrap()
+            } else if message.destination() == self.create_prismatic_joint {
+                sender
+                    .send(Message::do_scene_command(AddNodeCommand::new(
+                        JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint"))
+                            .with_params(JointParamsDesc::PrismaticJoint(PrismaticJointDesc {
+                                local_anchor1: Default::default(),
+                                local_axis1: Vector3::y(),
+                                local_anchor2: Default::default(),
+                                local_axis2: Vector3::x(),
+                            }))
+                            .build_node(),
+                    )))
+                    .unwrap()
+            } else if message.destination() == self.create_fixed_joint {
+                sender
+                    .send(Message::do_scene_command(AddNodeCommand::new(
+                        JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint"))
+                            .with_params(JointParamsDesc::FixedJoint(FixedJointDesc {
+                                local_anchor1_translation: Default::default(),
+                                local_anchor1_rotation: Default::default(),
+                                local_anchor2_translation: Default::default(),
+                                local_anchor2_rotation: Default::default(),
+                            }))
+                            .build_node(),
+                    )))
+                    .unwrap()
             } else if message.destination == self.create_cube_collider {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(

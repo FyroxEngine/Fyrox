@@ -1,5 +1,10 @@
 use std::any::TypeId;
 
+use crate::inspector::handlers::collider::handle_collider_property_changed;
+use crate::inspector::handlers::joint::handle_joint_property_changed;
+use rg3d::scene::collider::Collider;
+use rg3d::scene::joint::Joint;
+use rg3d::scene::rigidbody::RigidBody;
 use rg3d::{
     core::pool::Handle,
     gui::{inspector::PropertyChanged, UserInterface},
@@ -23,6 +28,7 @@ use crate::inspector::handlers::node::{
     particle_system::ParticleSystemHandler, sprite::handle_sprite_property_changed,
     terrain::handle_terrain_property_changed,
 };
+use crate::inspector::handlers::rigid_body::handle_rigid_body_property_changed;
 use crate::SceneCommand;
 
 pub mod base;
@@ -68,6 +74,12 @@ impl SceneNodePropertyChangedHandler {
             handle_terrain_property_changed(args, handle, node, &scene.graph)
         } else if args.owner_type_id == TypeId::of::<Mesh>() {
             handle_mesh_property_changed(args, handle, node)
+        } else if args.owner_type_id == TypeId::of::<RigidBody>() {
+            handle_rigid_body_property_changed(args, handle)
+        } else if args.owner_type_id == TypeId::of::<Collider>() {
+            handle_collider_property_changed(args, handle, node.as_collider())
+        } else if args.owner_type_id == TypeId::of::<Joint>() {
+            handle_joint_property_changed(args, handle, node.as_joint())
         } else {
             None
         }

@@ -1,7 +1,4 @@
-use crate::{
-    command::Command, define_node_command, get_set_swap, physics::Physics,
-    scene::commands::SceneContext,
-};
+use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
 use rg3d::scene::base::{Property, PropertyValue};
 use rg3d::{
     animation::Animation,
@@ -38,13 +35,10 @@ impl MoveNodeCommand {
         position
     }
 
-    fn set_position(&self, graph: &mut Graph, physics: &mut Physics, position: Vector3<f32>) {
+    fn set_position(&self, graph: &mut Graph, position: Vector3<f32>) {
         graph[self.node]
             .local_transform_mut()
             .set_position(position);
-        if let Some(&body) = physics.binder.value_of(&self.node) {
-            physics.bodies[body].position = position;
-        }
     }
 }
 
@@ -55,20 +49,12 @@ impl Command for MoveNodeCommand {
 
     fn execute(&mut self, context: &mut SceneContext) {
         let position = self.swap();
-        self.set_position(
-            &mut context.scene.graph,
-            &mut context.editor_scene.physics,
-            position,
-        );
+        self.set_position(&mut context.scene.graph, position);
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
         let position = self.swap();
-        self.set_position(
-            &mut context.scene.graph,
-            &mut context.editor_scene.physics,
-            position,
-        );
+        self.set_position(&mut context.scene.graph, position);
     }
 }
 
@@ -141,18 +127,10 @@ impl RotateNodeCommand {
         position
     }
 
-    fn set_rotation(
-        &self,
-        graph: &mut Graph,
-        physics: &mut Physics,
-        rotation: UnitQuaternion<f32>,
-    ) {
+    fn set_rotation(&self, graph: &mut Graph, rotation: UnitQuaternion<f32>) {
         graph[self.node]
             .local_transform_mut()
             .set_rotation(rotation);
-        if let Some(&body) = physics.binder.value_of(&self.node) {
-            physics.bodies[body].rotation = rotation;
-        }
     }
 }
 
@@ -163,20 +141,12 @@ impl Command for RotateNodeCommand {
 
     fn execute(&mut self, context: &mut SceneContext) {
         let rotation = self.swap();
-        self.set_rotation(
-            &mut context.scene.graph,
-            &mut context.editor_scene.physics,
-            rotation,
-        );
+        self.set_rotation(&mut context.scene.graph, rotation);
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
         let rotation = self.swap();
-        self.set_rotation(
-            &mut context.scene.graph,
-            &mut context.editor_scene.physics,
-            rotation,
-        );
+        self.set_rotation(&mut context.scene.graph, rotation);
     }
 }
 

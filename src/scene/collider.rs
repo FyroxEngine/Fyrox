@@ -29,6 +29,7 @@ bitflags! {
         const RESTITUTION_COMBINE_RULE = 0b0010_0000;
         const IS_SENSOR = 0b0100_0000;
         const SOLVER_GROUPS = 0b1000_0000;
+        const DENSITY = 0b0001_0000_0000;
     }
 }
 
@@ -84,6 +85,30 @@ impl DerefMut for Collider {
     }
 }
 
+pub struct ColliderShapeRefMut<'a> {
+    parent: &'a mut Collider,
+}
+
+impl<'a> Drop for ColliderShapeRefMut<'a> {
+    fn drop(&mut self) {
+        self.parent.changes.insert(ColliderChanges::SHAPE);
+    }
+}
+
+impl<'a> Deref for ColliderShapeRefMut<'a> {
+    type Target = ColliderShapeDesc;
+
+    fn deref(&self) -> &Self::Target {
+        &self.parent.shape
+    }
+}
+
+impl<'a> DerefMut for ColliderShapeRefMut<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.parent.shape
+    }
+}
+
 impl Collider {
     pub fn raw_copy(&self) -> Self {
         Self {
@@ -110,6 +135,10 @@ impl Collider {
         &self.shape
     }
 
+    pub fn shape_mut(&mut self) -> ColliderShapeRefMut {
+        ColliderShapeRefMut { parent: self }
+    }
+
     pub fn set_restitution(&mut self, restitution: f32) {
         self.restitution = restitution;
         self.changes.insert(ColliderChanges::RESTITUTION);
@@ -117,6 +146,11 @@ impl Collider {
 
     pub fn restitution(&self) -> f32 {
         self.restitution
+    }
+
+    pub fn set_density(&mut self, density: Option<f32>) {
+        self.density = density;
+        self.changes.insert(ColliderChanges::DENSITY);
     }
 
     pub fn density(&self) -> Option<f32> {

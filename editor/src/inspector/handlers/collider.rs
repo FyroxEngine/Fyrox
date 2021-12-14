@@ -1,4 +1,6 @@
-use crate::{make_command, physics::Collider, scene::commands::physics::*, SceneCommand};
+use crate::{make_command, scene::commands::physics::*, SceneCommand};
+use rg3d::scene::collider::Collider;
+use rg3d::scene::node::Node;
 use rg3d::{
     core::pool::Handle,
     gui::inspector::{FieldKind, PropertyChanged},
@@ -8,7 +10,7 @@ use std::any::TypeId;
 
 pub fn handle_collider_property_changed(
     args: &PropertyChanged,
-    handle: Handle<Collider>,
+    handle: Handle<Node>,
     collider: &Collider,
 ) -> Option<SceneCommand> {
     match args.value {
@@ -25,22 +27,24 @@ pub fn handle_collider_property_changed(
             Collider::DENSITY => {
                 make_command!(SetColliderDensityCommand, handle, value)
             }
-            Collider::TRANSLATION => {
-                make_command!(SetColliderPositionCommand, handle, value)
-            }
-            Collider::ROTATION => {
-                make_command!(SetColliderRotationCommand, handle, value)
-            }
             _ => None,
         },
         FieldKind::Inspectable(ref inner_property) => match args.name.as_ref() {
             Collider::COLLISION_GROUPS => match inner_property.value {
                 FieldKind::Object(ref value) => match inner_property.name.as_ref() {
                     InteractionGroupsDesc::MEMBERSHIPS => {
-                        make_command!(SetColliderCollisionGroupsMembershipsCommand, handle, value)
+                        let mut new_value = collider.collision_groups();
+                        new_value.memberships = value.cast_clone()?;
+                        Some(SceneCommand::new(SetColliderCollisionGroupsCommand::new(
+                            handle, new_value,
+                        )))
                     }
                     InteractionGroupsDesc::FILTER => {
-                        make_command!(SetColliderCollisionGroupsFilterCommand, handle, value)
+                        let mut new_value = collider.collision_groups();
+                        new_value.filter = value.cast_clone()?;
+                        Some(SceneCommand::new(SetColliderCollisionGroupsCommand::new(
+                            handle, new_value,
+                        )))
                     }
                     _ => None,
                 },
@@ -49,10 +53,18 @@ pub fn handle_collider_property_changed(
             Collider::SOLVER_GROUPS => match inner_property.value {
                 FieldKind::Object(ref value) => match inner_property.name.as_ref() {
                     InteractionGroupsDesc::MEMBERSHIPS => {
-                        make_command!(SetColliderSolverGroupsMembershipsCommand, handle, value)
+                        let mut new_value = collider.collision_groups();
+                        new_value.memberships = value.cast_clone()?;
+                        Some(SceneCommand::new(SetColliderSolverGroupsCommand::new(
+                            handle, new_value,
+                        )))
                     }
                     InteractionGroupsDesc::FILTER => {
-                        make_command!(SetColliderSolverGroupsFilterCommand, handle, value)
+                        let mut new_value = collider.collision_groups();
+                        new_value.filter = value.cast_clone()?;
+                        Some(SceneCommand::new(SetColliderSolverGroupsCommand::new(
+                            handle, new_value,
+                        )))
                     }
                     _ => None,
                 },
@@ -86,11 +98,11 @@ pub fn handle_collider_property_changed(
 }
 
 fn handle_ball_desc_property_changed(
-    handle: Handle<Collider>,
+    handle: Handle<Node>,
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Ball(_) = collider.shape {
+    if let ColliderShapeDesc::Ball(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 BallDesc::RADIUS => make_command!(SetBallRadiusCommand, handle, value),
@@ -104,11 +116,11 @@ fn handle_ball_desc_property_changed(
 }
 
 fn handle_cuboid_desc_property_changed(
-    handle: Handle<Collider>,
+    handle: Handle<Node>,
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Cuboid(_) = collider.shape {
+    if let ColliderShapeDesc::Cuboid(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 CuboidDesc::HALF_EXTENTS => {
@@ -124,11 +136,11 @@ fn handle_cuboid_desc_property_changed(
 }
 
 fn handle_cylinder_desc_property_changed(
-    handle: Handle<Collider>,
+    handle: Handle<Node>,
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Cylinder(_) = collider.shape {
+    if let ColliderShapeDesc::Cylinder(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 CylinderDesc::HALF_HEIGHT => {
@@ -147,11 +159,11 @@ fn handle_cylinder_desc_property_changed(
 }
 
 fn handle_round_cylinder_desc_property_changed(
-    handle: Handle<Collider>,
+    handle: Handle<Node>,
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::RoundCylinder(_) = collider.shape {
+    if let ColliderShapeDesc::RoundCylinder(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 RoundCylinderDesc::HALF_HEIGHT => {
@@ -173,11 +185,11 @@ fn handle_round_cylinder_desc_property_changed(
 }
 
 fn handle_cone_desc_property_changed(
-    handle: Handle<Collider>,
+    handle: Handle<Node>,
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Cone(_) = collider.shape {
+    if let ColliderShapeDesc::Cone(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 ConeDesc::HALF_HEIGHT => {
@@ -194,11 +206,11 @@ fn handle_cone_desc_property_changed(
 }
 
 fn handle_capsule_desc_property_changed(
-    handle: Handle<Collider>,
+    handle: Handle<Node>,
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Capsule(_) = collider.shape {
+    if let ColliderShapeDesc::Capsule(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 CapsuleDesc::BEGIN => make_command!(SetCapsuleBeginCommand, handle, value),
@@ -216,11 +228,11 @@ fn handle_capsule_desc_property_changed(
 }
 
 fn handle_segment_desc_property_changed(
-    handle: Handle<Collider>,
+    handle: Handle<Node>,
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Segment(_) = collider.shape {
+    if let ColliderShapeDesc::Segment(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 SegmentDesc::BEGIN => make_command!(SetSegmentBeginCommand, handle, value),
@@ -235,11 +247,11 @@ fn handle_segment_desc_property_changed(
 }
 
 fn handle_triangle_desc_property_changed(
-    handle: Handle<Collider>,
+    handle: Handle<Node>,
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Triangle(_) = collider.shape {
+    if let ColliderShapeDesc::Triangle(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 TriangleDesc::A => make_command!(SetTriangleACommand, handle, value),

@@ -1,24 +1,19 @@
-use crate::{make_command, physics::RigidBody, scene::commands::physics::*, SceneCommand};
+use crate::{make_command, scene::commands::physics::*, SceneCommand};
 use rg3d::{
     core::pool::Handle,
-    gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
+    gui::inspector::{FieldKind, PropertyChanged},
+    scene::node::Node,
+    scene::rigidbody::RigidBody,
 };
 
 pub fn handle_rigid_body_property_changed(
     args: &PropertyChanged,
-    handle: Handle<RigidBody>,
-    rigid_body: &RigidBody,
+    handle: Handle<Node>,
 ) -> Option<SceneCommand> {
     match args.value {
         FieldKind::Object(ref value) => match args.name.as_ref() {
             RigidBody::MASS => {
                 make_command!(SetBodyMassCommand, handle, value)
-            }
-            RigidBody::POSITION => {
-                make_command!(SetBodyPositionCommand, handle, value)
-            }
-            RigidBody::ROTATION => {
-                make_command!(SetBodyRotationCommand, handle, value)
             }
             RigidBody::LIN_VEL => {
                 make_command!(SetBodyLinVelCommand, handle, value)
@@ -26,7 +21,7 @@ pub fn handle_rigid_body_property_changed(
             RigidBody::ANG_VEL => {
                 make_command!(SetBodyAngVelCommand, handle, value)
             }
-            RigidBody::STATUS => {
+            RigidBody::BODY_TYPE => {
                 make_command!(SetBodyStatusCommand, handle, value)
             }
             RigidBody::X_ROTATION_LOCKED => {
@@ -43,25 +38,6 @@ pub fn handle_rigid_body_property_changed(
             }
             _ => None,
         },
-        FieldKind::Collection(ref collection_changed) => {
-            if args.name == RigidBody::COLLIDERS {
-                match **collection_changed {
-                    CollectionChanged::Add => {
-                        // TODO
-                        None
-                    }
-                    CollectionChanged::Remove(index) => Some(SceneCommand::new(
-                        DeleteColliderCommand::new(rigid_body.colliders[index].into()),
-                    )),
-                    CollectionChanged::ItemChanged { .. } => {
-                        // TODO
-                        None
-                    }
-                }
-            } else {
-                None
-            }
-        }
         _ => None,
     }
 }
