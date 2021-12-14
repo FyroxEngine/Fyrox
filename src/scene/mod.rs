@@ -11,6 +11,7 @@ pub mod collider;
 pub mod debug;
 pub mod decal;
 pub mod graph;
+pub mod joint;
 pub mod light;
 pub mod mesh;
 pub mod node;

@@ -8,6 +8,7 @@ use crate::asset::core::inspect::PropertyInfo;
 use crate::core::inspect::Inspect;
 use crate::core::math::aabb::AxisAlignedBoundingBox;
 use crate::scene::collider::Collider;
+use crate::scene::joint::Joint;
 use crate::scene::rigidbody::RigidBody;
 use crate::{
     core::{
@@ -36,6 +37,7 @@ macro_rules! static_dispatch {
             Node::Decal(v) => v.$func($($args),*),
             Node::RigidBody(v) => v.$func($($args),*),
             Node::Collider(v) => v.$func($($args),*),
+            Node::Joint(v) => v.$func($($args),*),
         }
     };
 }
@@ -161,6 +163,9 @@ pub enum Node {
 
     /// TODO
     Collider(Collider),
+
+    /// TODO
+    Joint(Joint),
 }
 
 macro_rules! static_dispatch_deref {
@@ -176,6 +181,7 @@ macro_rules! static_dispatch_deref {
             Node::Decal(v) => v,
             Node::RigidBody(v) => v,
             Node::Collider(v) => v,
+            Node::Joint(v) => v,
         }
     };
 }
@@ -224,6 +230,7 @@ impl Node {
             7 => Ok(Self::Decal(Default::default())),
             8 => Ok(Self::RigidBody(Default::default())),
             9 => Ok(Self::Collider(Default::default())),
+            10 => Ok(Self::Joint(Default::default())),
             _ => Err(format!("Invalid node kind {}", id)),
         }
     }
@@ -241,6 +248,7 @@ impl Node {
             Self::Decal(_) => 7,
             Self::RigidBody(_) => 8,
             Self::Collider(_) => 9,
+            Self::Joint(_) => 10,
         }
     }
 
@@ -259,6 +267,7 @@ impl Node {
             Node::Decal(v) => Node::Decal(v.raw_copy()),
             Node::RigidBody(v) => Node::RigidBody(v.raw_copy()),
             Node::Collider(v) => Node::Collider(v.raw_copy()),
+            Node::Joint(v) => Node::Joint(v.raw_copy()),
         }
     }
 
