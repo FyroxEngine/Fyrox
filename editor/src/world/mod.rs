@@ -57,8 +57,6 @@ pub struct WorldViewer {
     pub window: Handle<UiNode>,
     tree_root: Handle<UiNode>,
     graph_folder: Handle<UiNode>,
-    rigid_bodies_folder: Handle<UiNode>,
-    joints_folder: Handle<UiNode>,
     sounds_folder: Handle<UiNode>,
     sender: Sender<Message>,
     track_selection: Handle<UiNode>,
@@ -279,8 +277,6 @@ impl WorldViewer {
         let track_selection;
         let search_bar = SearchBar::new(ctx);
         let graph_folder = make_folder(ctx, "Scene Graph");
-        let rigid_bodies_folder = make_folder(ctx, "Rigid Bodies");
-        let joints_folder = make_folder(ctx, "Joints");
         let sounds_folder = make_folder(ctx, "Sounds");
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
@@ -368,12 +364,7 @@ impl WorldViewer {
                             scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(3))
                                 .with_content({
                                     tree_root = TreeRootBuilder::new(WidgetBuilder::new())
-                                        .with_items(vec![
-                                            graph_folder,
-                                            rigid_bodies_folder,
-                                            joints_folder,
-                                            sounds_folder,
-                                        ])
+                                        .with_items(vec![graph_folder, sounds_folder])
                                         .build(ctx);
                                     tree_root
                                 })
@@ -400,8 +391,6 @@ impl WorldViewer {
             sender,
             tree_root,
             graph_folder,
-            rigid_bodies_folder,
-            joints_folder,
             node_path,
             stack: Default::default(),
             sync_selection: false,
@@ -973,12 +962,7 @@ impl WorldViewer {
         self.node_to_view_map.clear();
         self.sound_to_view_map.clear();
 
-        for folder in [
-            self.graph_folder,
-            self.rigid_bodies_folder,
-            self.joints_folder,
-            self.sounds_folder,
-        ] {
+        for folder in [self.graph_folder, self.sounds_folder] {
             ui.send_message(TreeMessage::set_items(
                 folder,
                 MessageDirection::ToWidget,
