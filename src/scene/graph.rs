@@ -37,7 +37,7 @@ use crate::{
     },
     physics3d::rapier::{
         dynamics::{CCDSolver, IntegrationParameters, IslandManager, JointSet},
-        geometry::{BroadPhase, ColliderSet, NarrowPhase},
+        geometry::{BroadPhase, ColliderSet, InteractionGroups, NarrowPhase},
         pipeline::{EventHandler, PhysicsPipeline},
         prelude::{ColliderBuilder, ColliderHandle, RigidBodyBuilder, RigidBodySet},
     },
@@ -49,7 +49,6 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
-use rg3d_physics3d::rapier::geometry::InteractionGroups;
 use std::{
     fmt::{Debug, Formatter},
     ops::{Index, IndexMut},
@@ -1107,6 +1106,17 @@ impl Graph {
                             // The collider node may lack backing native physics collider in case if it
                             // is not attached to a rigid body.
                             if let Some(native) = self.physics.colliders.get_mut(collider.native) {
+                                if collider.transform_modified {
+                                    // Transform was changed by user, sync native rigid body with node's position.
+                                    native.set_position(Isometry3 {
+                                        rotation: **collider.local_transform().rotation(),
+                                        translation: Translation3 {
+                                            vector: **collider.local_transform().position(),
+                                        },
+                                    });
+                                    collider.transform_modified = false;
+                                }
+
                                 if collider.changes.contains(ColliderChanges::SHAPE) {
                                     native.set_shape(collider.shape().into_collider_shape());
                                     collider.changes.remove(ColliderChanges::SHAPE);
