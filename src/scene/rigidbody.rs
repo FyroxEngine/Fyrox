@@ -209,7 +209,7 @@ pub struct RigidBodyBuilder {
     lin_damping: f32,
     ang_damping: f32,
     sleeping: bool,
-    status: RigidBodyTypeDesc,
+    body_type: RigidBodyTypeDesc,
     mass: f32,
     x_rotation_locked: bool,
     y_rotation_locked: bool,
@@ -226,7 +226,7 @@ impl RigidBodyBuilder {
             lin_damping: 0.0,
             ang_damping: 0.0,
             sleeping: false,
-            status: RigidBodyTypeDesc::Dynamic,
+            body_type: RigidBodyTypeDesc::Dynamic,
             mass: 1.0,
             x_rotation_locked: false,
             y_rotation_locked: false,
@@ -243,7 +243,7 @@ impl RigidBodyBuilder {
             lin_damping: self.lin_damping,
             ang_damping: self.ang_damping,
             sleeping: self.sleeping,
-            body_type: self.status,
+            body_type: self.body_type,
             mass: self.mass,
             x_rotation_locked: self.x_rotation_locked,
             y_rotation_locked: self.y_rotation_locked,
@@ -254,6 +254,56 @@ impl RigidBodyBuilder {
         };
 
         Node::RigidBody(rigid_body)
+    }
+
+    pub fn with_body_type(mut self, body_type: RigidBodyTypeDesc) -> Self {
+        self.body_type = body_type;
+        self
+    }
+
+    pub fn with_mass(mut self, mass: f32) -> Self {
+        self.mass = mass;
+        self
+    }
+
+    pub fn with_lin_vel(mut self, lin_vel: Vector3<f32>) -> Self {
+        self.lin_vel = lin_vel;
+        self
+    }
+
+    pub fn with_ang_vel(mut self, ang_vel: Vector3<f32>) -> Self {
+        self.ang_vel = ang_vel;
+        self
+    }
+
+    pub fn with_ang_damping(mut self, ang_damping: f32) -> Self {
+        self.ang_damping = ang_damping;
+        self
+    }
+
+    pub fn with_lin_damping(mut self, lin_damping: f32) -> Self {
+        self.lin_damping = lin_damping;
+        self
+    }
+
+    pub fn with_x_rotation_locked(mut self, x_rotation_locked: bool) -> Self {
+        self.x_rotation_locked = x_rotation_locked;
+        self
+    }
+
+    pub fn with_y_rotation_locked(mut self, y_rotation_locked: bool) -> Self {
+        self.y_rotation_locked = y_rotation_locked;
+        self
+    }
+
+    pub fn with_z_rotation_locked(mut self, z_rotation_locked: bool) -> Self {
+        self.z_rotation_locked = z_rotation_locked;
+        self
+    }
+
+    pub fn with_translation_locked(mut self, translation_locked: bool) -> Self {
+        self.translation_locked = translation_locked;
+        self
     }
 
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {

@@ -26,6 +26,11 @@ pub mod visibility;
 
 use crate::core::sstorage::ImmutableString;
 use crate::physics3d::{PhysicsPerformanceStatistics, RigidBodyHandle};
+use crate::scene::base::BaseBuilder;
+use crate::scene::collider::ColliderBuilder;
+use crate::scene::joint::JointBuilder;
+use crate::scene::rigidbody::RigidBodyBuilder;
+use crate::scene::transform::TransformBuilder;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -56,6 +61,8 @@ use crate::{
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::FxHashMap;
+use rg3d_core::algebra::UnitQuaternion;
+use rg3d_physics3d::desc::{ColliderShapeDesc, JointParamsDesc, RigidBodyTypeDesc};
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
@@ -458,6 +465,121 @@ impl Scene {
         self.graph.remove_node(handle)
     }
 
+    fn convert_physics(&mut self) {
+        // Convert rigid bodies and colliders.
+        let mut body_map = FxHashMap::default();
+        for (node, body_handle) in self.physics_binder.forward_map() {
+            let body_ref = self.physics.bodies.get(body_handle).unwrap();
+
+            let [x_rotation_locked, y_rotation_locked, z_rotation_locked] =
+                body_ref.is_rotation_locked();
+
+            let body_node_handle = RigidBodyBuilder::new(
+                BaseBuilder::new()
+                    .with_name("Rigid Body")
+                    .with_local_transform(
+                        TransformBuilder::new()
+                            .with_local_position(body_ref.position().translation.vector)
+                            .with_local_rotation(body_ref.position().rotation)
+                            .build(),
+                    ),
+            )
+            .with_body_type(RigidBodyTypeDesc::from(body_ref.body_type()))
+            .with_mass(body_ref.mass())
+            .with_ang_vel(*body_ref.angvel())
+            .with_lin_vel(*body_ref.linvel())
+            .with_lin_damping(body_ref.linear_damping())
+            .with_ang_damping(body_ref.angular_damping())
+            .with_x_rotation_locked(x_rotation_locked)
+            .with_y_rotation_locked(y_rotation_locked)
+            .with_z_rotation_locked(z_rotation_locked)
+            .with_translation_locked(body_ref.is_translation_locked())
+            .build(&mut self.graph);
+
+            body_map.insert(body_handle.clone(), body_node_handle);
+
+            for c in body_ref.colliders() {
+                let collider_ref = self.physics.colliders.native_ref(*c).unwrap();
+
+                let shape = ColliderShapeDesc::from_collider_shape(collider_ref.shape());
+
+                let name = match shape {
+                    ColliderShapeDesc::Ball(_) => "Ball Collider",
+                    ColliderShapeDesc::Cylinder(_) => "Cylinder Collider",
+                    ColliderShapeDesc::RoundCylinder(_) => "Round Cylinder Collider",
+                    ColliderShapeDesc::Cone(_) => "Cone Collider",
+                    ColliderShapeDesc::Cuboid(_) => "Cuboid Collider",
+                    ColliderShapeDesc::Capsule(_) => "Capsule Collider",
+                    ColliderShapeDesc::Segment(_) => "Segment Collider",
+                    ColliderShapeDesc::Triangle(_) => "Triangle Collider",
+                    ColliderShapeDesc::Trimesh(_) => "Trimesh Collider",
+                    ColliderShapeDesc::Heightfield(_) => "Heightfield Collider",
+                };
+
+                let collider_handle = ColliderBuilder::new(
+                    BaseBuilder::new()
+                        .with_name(name.to_owned())
+                        .with_local_transform(
+                            TransformBuilder::new()
+                                .with_local_position(collider_ref.position().translation.vector)
+                                .with_local_rotation(collider_ref.position().rotation)
+                                .build(),
+                        ),
+                )
+                .with_shape(shape)
+                .with_sensor(collider_ref.is_sensor())
+                .with_restitution(collider_ref.restitution())
+                .with_density(collider_ref.density())
+                .with_collision_groups(collider_ref.collision_groups().into())
+                .with_solver_groups(collider_ref.solver_groups().into())
+                .with_friction(collider_ref.friction())
+                .build(&mut self.graph);
+
+                self.graph.link_nodes(collider_handle, body_node_handle);
+            }
+
+            let node_ref = &mut self.graph[*node];
+            node_ref
+                .local_transform_mut()
+                .set_position(Default::default())
+                .set_rotation(UnitQuaternion::default());
+            let parent = node_ref.parent();
+
+            self.graph.link_nodes(*node, body_node_handle);
+            self.graph.link_nodes(body_node_handle, parent);
+        }
+
+        // Convert joints.
+        for joint in self.physics.joints.iter() {
+            let body1 = *body_map
+                .get(
+                    self.physics
+                        .bodies
+                        .handle_map()
+                        .key_of(&joint.body1)
+                        .unwrap(),
+                )
+                .unwrap();
+            let body2 = *body_map
+                .get(
+                    self.physics
+                        .bodies
+                        .handle_map()
+                        .key_of(&joint.body2)
+                        .unwrap(),
+                )
+                .unwrap();
+
+            let joint_handle = JointBuilder::new(BaseBuilder::new())
+                .with_params(JointParamsDesc::from_params(&joint.params))
+                .with_body1(body1)
+                .with_body2(body2)
+                .build(&mut self.graph);
+
+            self.graph.link_nodes(joint_handle, body1);
+        }
+    }
+
     pub(in crate) fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Starting resolve...".to_owned());
 
@@ -467,6 +589,8 @@ impl Scene {
         self.graph.update_hierarchical_data();
         self.physics
             .resolve(&self.physics_binder, &self.graph, None);
+
+        self.convert_physics();
 
         // Re-apply lightmap if any. This has to be done after resolve because we must patch surface
         // data at this stage, but if we'd do this before we wouldn't be able to do this because

@@ -240,6 +240,36 @@ impl ColliderBuilder {
         Node::Collider(collider)
     }
 
+    pub fn with_density(mut self, density: Option<f32>) -> Self {
+        self.density = density;
+        self
+    }
+
+    pub fn with_restitution(mut self, restitution: f32) -> Self {
+        self.restitution = restitution;
+        self
+    }
+
+    pub fn with_friction(mut self, friction: f32) -> Self {
+        self.friction = friction;
+        self
+    }
+
+    pub fn with_sensor(mut self, sensor: bool) -> Self {
+        self.is_sensor = sensor;
+        self
+    }
+
+    pub fn with_solver_groups(mut self, solver_groups: InteractionGroupsDesc) -> Self {
+        self.solver_groups = solver_groups;
+        self
+    }
+
+    pub fn with_collision_groups(mut self, collision_groups: InteractionGroupsDesc) -> Self {
+        self.collision_groups = collision_groups;
+        self
+    }
+
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
     }
