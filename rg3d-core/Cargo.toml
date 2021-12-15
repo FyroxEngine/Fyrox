@@ -25,7 +25,7 @@ memoffset = "0.6.5"
 lazy_static = "1.4.0"
 nalgebra = "0.29.0"
 arrayvec = "0.7.2"
-futures = {version = "0.3.18", features = ["thread-pool"] }
+futures = {version = "0.3.17", features = ["thread-pool"] }
 uuid = { version = "0.8.2", features = ["v4","wasm-bindgen"] }
 instant = {version = "0.1.12", features = ["wasm-bindgen"] }
 num-traits = "0.2.14"
