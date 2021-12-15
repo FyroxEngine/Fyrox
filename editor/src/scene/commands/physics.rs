@@ -1,13 +1,14 @@
 use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
-use rg3d::physics3d::desc::InteractionGroupsDesc;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         pool::Handle,
     },
-    physics3d::desc::{ColliderShapeDesc, JointParamsDesc, RigidBodyTypeDesc},
+    physics3d::desc::JointParamsDesc,
+    scene::collider::*,
     scene::graph::Graph,
     scene::node::Node,
+    scene::rigidbody::*,
 };
 
 macro_rules! define_joint_variant_command {

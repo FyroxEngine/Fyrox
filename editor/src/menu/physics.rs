@@ -1,8 +1,7 @@
 use crate::scene::commands::graph::AddNodeCommand;
 use crate::{menu::create_menu_item, Message};
-use rg3d::physics3d::desc::ColliderShapeDesc;
 use rg3d::scene::base::BaseBuilder;
-use rg3d::scene::collider::ColliderBuilder;
+use rg3d::scene::collider::*;
 use rg3d::scene::joint::JointBuilder;
 use rg3d::scene::rigidbody::RigidBodyBuilder;
 use rg3d::{

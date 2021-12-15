@@ -24,6 +24,7 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
+use crate::scene::collider::ColliderShapeDesc;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -39,10 +40,7 @@ use crate::{
         PhysicsBinder,
     },
     material::{shader::SamplerFallback, PropertyValue},
-    physics3d::{
-        desc::{ColliderShapeDesc, JointParamsDesc, RigidBodyTypeDesc},
-        PhysicsPerformanceStatistics, RigidBodyHandle,
-    },
+    physics3d::{desc::JointParamsDesc, PhysicsPerformanceStatistics, RigidBodyHandle},
     resource::texture::Texture,
     scene::{
         base::BaseBuilder,
@@ -56,7 +54,7 @@ use crate::{
         },
         node::Node,
         physics::LegacyPhysics,
-        rigidbody::RigidBodyBuilder,
+        rigidbody::{RigidBodyBuilder, RigidBodyTypeDesc},
         transform::TransformBuilder,
     },
     sound::{context::SoundContext, engine::SoundEngine},

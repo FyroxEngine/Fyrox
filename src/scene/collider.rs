@@ -6,9 +6,7 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
-    physics3d::{
-        desc::ColliderShapeDesc, desc::InteractionGroupsDesc, rapier::geometry::ColliderHandle,
-    },
+    physics3d::rapier::geometry::ColliderHandle,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -16,7 +14,10 @@ use crate::{
     },
 };
 use bitflags::bitflags;
+use rg3d_core::algebra::{DMatrix, Dynamic, Point3, VecStorage, Vector3};
+use rg3d_physics3d::rapier::geometry::{Cuboid, InteractionGroups, Segment, Shape, SharedShape};
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 
 bitflags! {
     pub(crate) struct ColliderChanges: u32 {
@@ -30,6 +31,229 @@ bitflags! {
         const IS_SENSOR = 0b0100_0000;
         const SOLVER_GROUPS = 0b1000_0000;
         const DENSITY = 0b0001_0000_0000;
+    }
+}
+
+#[derive(Default, Clone, Debug, Visit, Inspect)]
+pub struct BallDesc {
+    #[inspect(min_value = 0.0, step = 0.05)]
+    pub radius: f32,
+}
+
+#[derive(Default, Clone, Debug, Visit, Inspect)]
+pub struct CylinderDesc {
+    #[inspect(min_value = 0.0, step = 0.05)]
+    pub half_height: f32,
+    #[inspect(min_value = 0.0, step = 0.05)]
+    pub radius: f32,
+}
+
+#[derive(Default, Clone, Debug, Visit, Inspect)]
+pub struct RoundCylinderDesc {
+    #[inspect(min_value = 0.0, step = 0.05)]
+    pub half_height: f32,
+    #[inspect(min_value = 0.0, step = 0.05)]
+    pub radius: f32,
+    #[inspect(min_value = 0.0, step = 0.05)]
+    pub border_radius: f32,
+}
+
+#[derive(Default, Clone, Debug, Visit, Inspect)]
+pub struct ConeDesc {
+    #[inspect(min_value = 0.0, step = 0.05)]
+    pub half_height: f32,
+    #[inspect(min_value = 0.0, step = 0.05)]
+    pub radius: f32,
+}
+
+#[derive(Default, Clone, Debug, Visit, Inspect)]
+pub struct CuboidDesc {
+    pub half_extents: Vector3<f32>,
+}
+
+#[derive(Default, Clone, Debug, Visit, Inspect)]
+pub struct CapsuleDesc {
+    pub begin: Vector3<f32>,
+    pub end: Vector3<f32>,
+    #[inspect(min_value = 0.0, step = 0.05)]
+    pub radius: f32,
+}
+
+#[derive(Default, Clone, Debug, Visit, Inspect)]
+pub struct SegmentDesc {
+    pub begin: Vector3<f32>,
+    pub end: Vector3<f32>,
+}
+
+#[derive(Default, Clone, Debug, Visit, Inspect)]
+pub struct TriangleDesc {
+    pub a: Vector3<f32>,
+    pub b: Vector3<f32>,
+    pub c: Vector3<f32>,
+}
+
+#[derive(Default, Clone, PartialEq, Hash, Debug, Visit, Inspect)]
+pub struct GeometrySource(pub Handle<Node>);
+
+#[derive(Default, Clone, Debug, Visit, Inspect)]
+pub struct TrimeshDesc {
+    pub sources: Vec<GeometrySource>,
+}
+
+#[derive(Default, Clone, Debug, Visit, Inspect)]
+pub struct HeightfieldDesc {
+    pub geometry_source: GeometrySource,
+}
+
+#[doc(hidden)]
+#[derive(Visit, Debug, Clone, Copy, Inspect)]
+pub struct InteractionGroupsDesc {
+    pub memberships: u32,
+    pub filter: u32,
+}
+
+impl Default for InteractionGroupsDesc {
+    fn default() -> Self {
+        Self {
+            memberships: u32::MAX,
+            filter: u32::MAX,
+        }
+    }
+}
+
+impl From<InteractionGroups> for InteractionGroupsDesc {
+    fn from(g: InteractionGroups) -> Self {
+        Self {
+            memberships: g.memberships,
+            filter: g.filter,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Visit, Inspect)]
+pub enum ColliderShapeDesc {
+    Ball(BallDesc),
+    Cylinder(CylinderDesc),
+    RoundCylinder(RoundCylinderDesc),
+    Cone(ConeDesc),
+    Cuboid(CuboidDesc),
+    Capsule(CapsuleDesc),
+    Segment(SegmentDesc),
+    Triangle(TriangleDesc),
+    Trimesh(TrimeshDesc),
+    Heightfield(HeightfieldDesc),
+}
+
+impl Default for ColliderShapeDesc {
+    fn default() -> Self {
+        Self::Ball(Default::default())
+    }
+}
+
+impl ColliderShapeDesc {
+    pub(crate) fn from_collider_shape(shape: &dyn Shape) -> Self {
+        if let Some(ball) = shape.as_ball() {
+            ColliderShapeDesc::Ball(BallDesc {
+                radius: ball.radius,
+            })
+        } else if let Some(cuboid) = shape.as_cuboid() {
+            ColliderShapeDesc::Cuboid(CuboidDesc {
+                half_extents: cuboid.half_extents,
+            })
+        } else if let Some(capsule) = shape.as_capsule() {
+            ColliderShapeDesc::Capsule(CapsuleDesc {
+                begin: capsule.segment.a.coords,
+                end: capsule.segment.b.coords,
+                radius: capsule.radius,
+            })
+        } else if let Some(segment) = shape.downcast_ref::<Segment>() {
+            ColliderShapeDesc::Segment(SegmentDesc {
+                begin: segment.a.coords,
+                end: segment.b.coords,
+            })
+        } else if let Some(triangle) = shape.as_triangle() {
+            ColliderShapeDesc::Triangle(TriangleDesc {
+                a: triangle.a.coords,
+                b: triangle.b.coords,
+                c: triangle.c.coords,
+            })
+        } else if shape.as_trimesh().is_some() {
+            ColliderShapeDesc::Trimesh(TrimeshDesc {
+                sources: Default::default(),
+            })
+        } else if shape.as_heightfield().is_some() {
+            ColliderShapeDesc::Heightfield(HeightfieldDesc {
+                geometry_source: Default::default(),
+            })
+        } else if let Some(cylinder) = shape.as_cylinder() {
+            ColliderShapeDesc::Cylinder(CylinderDesc {
+                half_height: cylinder.half_height,
+                radius: cylinder.radius,
+            })
+        } else if let Some(round_cylinder) = shape.as_round_cylinder() {
+            ColliderShapeDesc::RoundCylinder(RoundCylinderDesc {
+                half_height: round_cylinder.base_shape.half_height,
+                radius: round_cylinder.base_shape.radius,
+                border_radius: round_cylinder.border_radius,
+            })
+        } else if let Some(cone) = shape.as_cone() {
+            ColliderShapeDesc::Cone(ConeDesc {
+                half_height: cone.half_height,
+                radius: cone.radius,
+            })
+        } else {
+            unreachable!()
+        }
+    }
+
+    // Converts descriptor in a shared shape.
+    pub(crate) fn into_collider_shape(self) -> SharedShape {
+        match self {
+            ColliderShapeDesc::Ball(ball) => SharedShape::ball(ball.radius),
+
+            ColliderShapeDesc::Cylinder(cylinder) => {
+                SharedShape::cylinder(cylinder.half_height, cylinder.radius)
+            }
+            ColliderShapeDesc::RoundCylinder(rcylinder) => SharedShape::round_cylinder(
+                rcylinder.half_height,
+                rcylinder.radius,
+                rcylinder.border_radius,
+            ),
+            ColliderShapeDesc::Cone(cone) => SharedShape::cone(cone.half_height, cone.radius),
+            ColliderShapeDesc::Cuboid(cuboid) => {
+                SharedShape(Arc::new(Cuboid::new(cuboid.half_extents)))
+            }
+            ColliderShapeDesc::Capsule(capsule) => SharedShape::capsule(
+                Point3::from(capsule.begin),
+                Point3::from(capsule.end),
+                capsule.radius,
+            ),
+            ColliderShapeDesc::Segment(segment) => {
+                SharedShape::segment(Point3::from(segment.begin), Point3::from(segment.end))
+            }
+            ColliderShapeDesc::Triangle(triangle) => SharedShape::triangle(
+                Point3::from(triangle.a),
+                Point3::from(triangle.b),
+                Point3::from(triangle.c),
+            ),
+            ColliderShapeDesc::Trimesh(_) => {
+                // Create fake trimesh. It will be filled with actual data on resolve stage later on.
+                let a = Point3::new(0.0, 0.0, 1.0);
+                let b = Point3::new(1.0, 0.0, 1.0);
+                let c = Point3::new(1.0, 0.0, 0.0);
+                SharedShape::trimesh(vec![a, b, c], vec![[0, 1, 2]])
+            }
+            ColliderShapeDesc::Heightfield(_) => SharedShape::heightfield(
+                {
+                    DMatrix::from_data(VecStorage::new(
+                        Dynamic::new(2),
+                        Dynamic::new(2),
+                        vec![0.0, 1.0, 0.0, 0.0],
+                    ))
+                },
+                Default::default(),
+            ),
+        }
     }
 }
 

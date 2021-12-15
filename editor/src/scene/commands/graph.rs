@@ -7,7 +7,7 @@ use rg3d::{
         pool::{Handle, Ticket},
     },
     scene::{
-        base::{Mobility, PhysicsBinding},
+        base::Mobility,
         graph::{Graph, SubGraph},
         node::Node,
     },
@@ -488,10 +488,6 @@ impl Command for SetPropertyNameCommand {
 
 define_node_command!(SetNameCommand("Set Name", String) where fn swap(self, node) {
     get_set_swap!(self, node, name_owned, set_name);
-});
-
-define_node_command!(SetPhysicsBindingCommand("Set Physics Binding", PhysicsBinding) where fn swap(self, node) {
-    get_set_swap!(self, node, physics_binding, set_physics_binding);
 });
 
 define_node_command!(SetTagCommand("Set Tag", String) where fn swap(self, node) {

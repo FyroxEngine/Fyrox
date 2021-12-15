@@ -16,53 +16,6 @@ use crate::{
 use std::cell::Cell;
 use std::ops::{Deref, DerefMut};
 
-/// Defines a kind of binding between rigid body and a scene node. Check variants
-/// for more info.
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Inspect)]
-#[repr(u32)]
-pub enum PhysicsBinding {
-    /// Forces engine to sync transform of a node with its associated rigid body.
-    /// This is default binding.
-    NodeWithBody = 0,
-
-    /// Forces engine to sync transform of a rigid body with its associated node. This could be useful for
-    /// specific situations like add "hit boxes" to a character.
-    ///
-    /// # Use cases
-    ///
-    /// This option has limited usage, but the most common is to create hit boxes. To do that create kinematic
-    /// rigid bodies with appropriate colliders and set [`PhysicsBinding::BodyWithNode`] binding to make them
-    /// move together with parent nodes.
-    BodyWithNode = 1,
-}
-
-impl Default for PhysicsBinding {
-    fn default() -> Self {
-        Self::NodeWithBody
-    }
-}
-
-impl PhysicsBinding {
-    fn from_id(id: u32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::NodeWithBody),
-            1 => Ok(Self::BodyWithNode),
-            _ => Err(format!("Invalid physics binding id {}!", id)),
-        }
-    }
-}
-
-impl Visit for PhysicsBinding {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut id = *self as u32;
-        id.visit(name, visitor)?;
-        if visitor.is_reading() {
-            *self = Self::from_id(id)?;
-        }
-        Ok(())
-    }
-}
-
 /// A handle to scene node that will be controlled by LOD system.
 #[derive(Inspect, Default, Debug, Clone, Copy, PartialEq, Hash)]
 pub struct LodControlledObject(pub Handle<Node>);
@@ -363,7 +316,6 @@ pub struct Base {
     lod_group: Option<LodGroup>,
     mobility: Mobility,
     tag: String,
-    pub(in crate) physics_binding: PhysicsBinding,
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
     pub properties: Vec<Property>,
@@ -600,16 +552,6 @@ impl Base {
         self.tag = tag;
     }
 
-    /// Returns current physics binding kind.
-    pub fn physics_binding(&self) -> PhysicsBinding {
-        self.physics_binding
-    }
-
-    /// Sets new kind of physics binding.
-    pub fn set_physics_binding(&mut self, binding: PhysicsBinding) {
-        self.physics_binding = binding;
-    }
-
     /// Shallow copy of node data. You should never use this directly, shallow copy
     /// will produce invalid node in most cases!
     pub fn raw_copy(&self) -> Self {
@@ -625,7 +567,6 @@ impl Base {
             lifetime: self.lifetime,
             mobility: self.mobility,
             tag: self.tag.clone(),
-            physics_binding: self.physics_binding,
             lod_group: self.lod_group.clone(),
             properties: self.properties.clone(),
 
@@ -664,7 +605,6 @@ impl Visit for Base {
         self.original_handle_in_resource
             .visit("Original", visitor)?;
         self.tag.visit("Tag", visitor)?;
-        self.physics_binding.visit("PhysicsBinding", visitor)?;
         let _ = self.properties.visit("Properties", visitor);
 
         visitor.leave_region()
@@ -793,7 +733,6 @@ impl BaseBuilder {
             lod_group: self.lod_group,
             mobility: self.mobility,
             tag: self.tag,
-            physics_binding: PhysicsBinding::NodeWithBody,
             properties: Default::default(),
             transform_modified: false,
         }

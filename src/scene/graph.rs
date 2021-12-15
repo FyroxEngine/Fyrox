@@ -505,7 +505,7 @@ impl Graph {
                 println!("Collider Created!");
 
                 let native_handle = self.physics.colliders.insert_with_parent(
-                    ColliderBuilder::new(collider.shape().into_collider_shape())
+                    ColliderBuilder::new(collider.shape().clone().into_collider_shape())
                         .position(Isometry3 {
                             rotation: **collider.local_transform().rotation(),
                             translation: Translation3 {
@@ -1235,7 +1235,8 @@ impl Graph {
                                 }
 
                                 if collider.changes.contains(ColliderChanges::SHAPE) {
-                                    native.set_shape(collider.shape().into_collider_shape());
+                                    native
+                                        .set_shape(collider.shape().clone().into_collider_shape());
                                     collider.changes.remove(ColliderChanges::SHAPE);
                                 }
                                 if collider.changes.contains(ColliderChanges::RESTITUTION) {

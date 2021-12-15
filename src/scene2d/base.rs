@@ -5,7 +5,7 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
-    scene::base::PhysicsBinding,
+    scene2d::PhysicsBinding,
     scene2d::{graph::Graph, node::Node, transform::Transform},
 };
 use std::cell::Cell;

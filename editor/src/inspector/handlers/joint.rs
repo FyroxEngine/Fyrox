@@ -1,3 +1,4 @@
+use crate::inspector::handlers::node::base::handle_base_property_changed;
 use crate::{make_command, scene::commands::physics::*, SceneCommand};
 use rg3d::scene::joint::Joint;
 use rg3d::scene::node::Node;
@@ -25,8 +26,8 @@ pub fn handle_joint_property_changed(
             }
             _ => None,
         },
-        FieldKind::Inspectable(ref inner) => {
-            if let Joint::PARAMS = args.name.as_ref() {
+        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+            Joint::PARAMS => {
                 let params = joint.params();
                 if inner.owner_type_id == TypeId::of::<BallJointDesc>() {
                     handle_ball_joint_property_changed(inner, handle, params)
@@ -39,10 +40,10 @@ pub fn handle_joint_property_changed(
                 } else {
                     None
                 }
-            } else {
-                None
             }
-        }
+            Joint::BASE => handle_base_property_changed(inner, handle, joint),
+            _ => None,
+        },
         _ => None,
     }
 }

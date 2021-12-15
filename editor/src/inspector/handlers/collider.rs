@@ -1,10 +1,11 @@
+use crate::inspector::handlers::node::base::handle_base_property_changed;
 use crate::{make_command, scene::commands::physics::*, SceneCommand};
 use rg3d::scene::collider::Collider;
 use rg3d::scene::node::Node;
 use rg3d::{
     core::pool::Handle,
     gui::inspector::{FieldKind, PropertyChanged},
-    physics3d::desc::*,
+    scene::collider::*,
 };
 use std::any::TypeId;
 
@@ -91,6 +92,7 @@ pub fn handle_collider_property_changed(
                     None
                 }
             }
+            Collider::BASE => handle_base_property_changed(inner_property, handle, collider),
             _ => None,
         },
         _ => None,

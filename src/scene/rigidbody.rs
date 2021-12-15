@@ -7,7 +7,7 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
-    physics3d::{desc::RigidBodyTypeDesc, rapier::prelude::RigidBodyHandle},
+    physics3d::rapier::{dynamics::RigidBodyType, prelude::RigidBodyHandle},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -16,6 +16,43 @@ use crate::{
 };
 use bitflags::bitflags;
 use std::ops::{Deref, DerefMut};
+
+#[derive(Copy, Clone, Debug, Inspect, Visit)]
+#[repr(u32)]
+pub enum RigidBodyTypeDesc {
+    Dynamic = 0,
+    Static = 1,
+    KinematicPositionBased = 2,
+    KinematicVelocityBased = 3,
+}
+
+impl Default for RigidBodyTypeDesc {
+    fn default() -> Self {
+        Self::Dynamic
+    }
+}
+
+impl From<RigidBodyType> for RigidBodyTypeDesc {
+    fn from(s: RigidBodyType) -> Self {
+        match s {
+            RigidBodyType::Dynamic => Self::Dynamic,
+            RigidBodyType::Static => Self::Static,
+            RigidBodyType::KinematicPositionBased => Self::KinematicPositionBased,
+            RigidBodyType::KinematicVelocityBased => Self::KinematicVelocityBased,
+        }
+    }
+}
+
+impl From<RigidBodyTypeDesc> for RigidBodyType {
+    fn from(v: RigidBodyTypeDesc) -> Self {
+        match v {
+            RigidBodyTypeDesc::Dynamic => RigidBodyType::Dynamic,
+            RigidBodyTypeDesc::Static => RigidBodyType::Static,
+            RigidBodyTypeDesc::KinematicPositionBased => RigidBodyType::KinematicPositionBased,
+            RigidBodyTypeDesc::KinematicVelocityBased => RigidBodyType::KinematicVelocityBased,
+        }
+    }
+}
 
 bitflags! {
     pub(crate) struct RigidBodyChanges: u32 {

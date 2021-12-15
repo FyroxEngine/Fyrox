@@ -1,3 +1,4 @@
+use crate::inspector::handlers::node::base::handle_base_property_changed;
 use crate::{make_command, scene::commands::physics::*, SceneCommand};
 use rg3d::{
     core::pool::Handle,
@@ -9,6 +10,7 @@ use rg3d::{
 pub fn handle_rigid_body_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
+    rigid_body: &RigidBody,
 ) -> Option<SceneCommand> {
     match args.value {
         FieldKind::Object(ref value) => match args.name.as_ref() {
@@ -36,6 +38,10 @@ pub fn handle_rigid_body_property_changed(
             RigidBody::TRANSLATION_LOCKED => {
                 make_command!(SetBodyTranslationLockedCommand, handle, value)
             }
+            _ => None,
+        },
+        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+            RigidBody::BASE => handle_base_property_changed(inner, handle, rigid_body),
             _ => None,
         },
         _ => None,
