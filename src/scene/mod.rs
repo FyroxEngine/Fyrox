@@ -419,11 +419,15 @@ impl Scene {
         self.graph.remove_node(handle)
     }
 
-    fn convert_physics(&mut self) {
+    fn convert_legacy_physics(&mut self) {
         // Convert rigid bodies and colliders.
         let mut body_map = FxHashMap::default();
         for (node, body_handle) in self.legacy_physics_binder.forward_map() {
-            let body_ref = self.legacy_physics.bodies.get(body_handle).unwrap();
+            let body_ref = if let Some(body_ref) = self.legacy_physics.bodies.get(body_handle) {
+                body_ref
+            } else {
+                continue;
+            };
 
             let [x_rotation_locked, y_rotation_locked, z_rotation_locked] =
                 body_ref.is_rotation_locked();
@@ -453,7 +457,12 @@ impl Scene {
             body_map.insert(body_handle.clone(), body_node_handle);
 
             for c in body_ref.colliders() {
-                let collider_ref = self.legacy_physics.colliders.native_ref(*c).unwrap();
+                let collider_ref =
+                    if let Some(collider_ref) = self.legacy_physics.colliders.native_ref(*c) {
+                        collider_ref
+                    } else {
+                        continue;
+                    };
 
                 let shape = ColliderShapeDesc::from_collider_shape(collider_ref.shape());
 
@@ -475,8 +484,18 @@ impl Scene {
                         .with_name(name.to_owned())
                         .with_local_transform(
                             TransformBuilder::new()
-                                .with_local_position(collider_ref.position().translation.vector)
-                                .with_local_rotation(collider_ref.position().rotation)
+                                .with_local_position(
+                                    collider_ref
+                                        .position_wrt_parent()
+                                        .map(|p| p.translation.vector)
+                                        .unwrap_or_default(),
+                                )
+                                .with_local_rotation(
+                                    collider_ref
+                                        .position_wrt_parent()
+                                        .map(|p| p.rotation)
+                                        .unwrap_or_default(),
+                                )
                                 .build(),
                         ),
                 )
@@ -505,24 +524,29 @@ impl Scene {
 
         // Convert joints.
         for joint in self.legacy_physics.joints.iter() {
-            let body1 = *body_map
-                .get(
-                    self.legacy_physics
-                        .bodies
-                        .handle_map()
-                        .key_of(&joint.body1)
-                        .unwrap(),
-                )
-                .unwrap();
-            let body2 = *body_map
-                .get(
-                    self.legacy_physics
-                        .bodies
-                        .handle_map()
-                        .key_of(&joint.body2)
-                        .unwrap(),
-                )
-                .unwrap();
+            let body1 = if let Some(body1) = self
+                .legacy_physics
+                .bodies
+                .handle_map()
+                .key_of(&joint.body1)
+                .and_then(|h| body_map.get(h))
+            {
+                *body1
+            } else {
+                continue;
+            };
+
+            let body2 = if let Some(body2) = self
+                .legacy_physics
+                .bodies
+                .handle_map()
+                .key_of(&joint.body2)
+                .and_then(|h| body_map.get(h))
+            {
+                *body2
+            } else {
+                continue;
+            };
 
             let joint_handle = JointBuilder::new(BaseBuilder::new())
                 .with_params(JointParamsDesc::from_params(&joint.params))
@@ -544,7 +568,7 @@ impl Scene {
         self.legacy_physics
             .resolve(&self.legacy_physics_binder, &self.graph, None);
 
-        self.convert_physics();
+        self.convert_legacy_physics();
 
         // Re-apply lightmap if any. This has to be done after resolve because we must patch surface
         // data at this stage, but if we'd do this before we wouldn't be able to do this because
