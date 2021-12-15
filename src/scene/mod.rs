@@ -25,6 +25,7 @@ pub mod variable;
 pub mod visibility;
 
 use crate::scene::collider::ColliderShapeDesc;
+use crate::scene::joint::JointParamsDesc;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -40,7 +41,7 @@ use crate::{
         PhysicsBinder,
     },
     material::{shader::SamplerFallback, PropertyValue},
-    physics3d::{desc::JointParamsDesc, PhysicsPerformanceStatistics, RigidBodyHandle},
+    physics3d::{PhysicsPerformanceStatistics, RigidBodyHandle},
     resource::texture::Texture,
     scene::{
         base::BaseBuilder,

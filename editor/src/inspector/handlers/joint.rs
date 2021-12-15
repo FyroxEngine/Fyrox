@@ -1,13 +1,11 @@
-use crate::inspector::handlers::node::base::handle_base_property_changed;
-use crate::{make_command, scene::commands::physics::*, SceneCommand};
-use rg3d::scene::joint::Joint;
-use rg3d::scene::node::Node;
+use crate::{
+    inspector::handlers::node::base::handle_base_property_changed, make_command,
+    scene::commands::joint::*, SceneCommand,
+};
 use rg3d::{
     core::pool::Handle,
     gui::inspector::{FieldKind, PropertyChanged},
-    physics3d::desc::{
-        BallJointDesc, FixedJointDesc, JointParamsDesc, PrismaticJointDesc, RevoluteJointDesc,
-    },
+    scene::{joint::*, node::Node},
 };
 use std::any::TypeId;
 

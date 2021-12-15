@@ -1,15 +1,8 @@
-use crate::scene::commands::graph::AddNodeCommand;
-use crate::{menu::create_menu_item, Message};
-use rg3d::scene::base::BaseBuilder;
-use rg3d::scene::collider::*;
-use rg3d::scene::joint::JointBuilder;
-use rg3d::scene::rigidbody::RigidBodyBuilder;
+use crate::{menu::create_menu_item, scene::commands::graph::AddNodeCommand, Message};
 use rg3d::{
     core::{algebra::Vector3, pool::Handle},
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
-    physics3d::desc::{
-        BallJointDesc, FixedJointDesc, JointParamsDesc, PrismaticJointDesc, RevoluteJointDesc,
-    },
+    scene::{base::BaseBuilder, collider::*, joint::*, rigidbody::RigidBodyBuilder},
 };
 use std::sync::mpsc::Sender;
 

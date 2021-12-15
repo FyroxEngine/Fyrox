@@ -2,11 +2,14 @@
 
 use crate::{
     core::{
+        algebra::{DMatrix, Dynamic, Point3, VecStorage, Vector3},
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::prelude::*,
     },
-    physics3d::rapier::geometry::ColliderHandle,
+    physics3d::rapier::geometry::{
+        ColliderHandle, Cuboid, InteractionGroups, Segment, Shape, SharedShape,
+    },
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -14,10 +17,10 @@ use crate::{
     },
 };
 use bitflags::bitflags;
-use rg3d_core::algebra::{DMatrix, Dynamic, Point3, VecStorage, Vector3};
-use rg3d_physics3d::rapier::geometry::{Cuboid, InteractionGroups, Segment, Shape, SharedShape};
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 bitflags! {
     pub(crate) struct ColliderChanges: u32 {
@@ -35,13 +38,13 @@ bitflags! {
 }
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
-pub struct BallDesc {
+pub struct BallShape {
     #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
-pub struct CylinderDesc {
+pub struct CylinderShape {
     #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
     #[inspect(min_value = 0.0, step = 0.05)]
@@ -49,7 +52,7 @@ pub struct CylinderDesc {
 }
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
-pub struct RoundCylinderDesc {
+pub struct RoundCylinderShape {
     #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
     #[inspect(min_value = 0.0, step = 0.05)]
@@ -59,7 +62,7 @@ pub struct RoundCylinderDesc {
 }
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
-pub struct ConeDesc {
+pub struct ConeShape {
     #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
     #[inspect(min_value = 0.0, step = 0.05)]
@@ -67,12 +70,12 @@ pub struct ConeDesc {
 }
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
-pub struct CuboidDesc {
+pub struct CuboidShape {
     pub half_extents: Vector3<f32>,
 }
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
-pub struct CapsuleDesc {
+pub struct CapsuleShape {
     pub begin: Vector3<f32>,
     pub end: Vector3<f32>,
     #[inspect(min_value = 0.0, step = 0.05)]
@@ -80,13 +83,13 @@ pub struct CapsuleDesc {
 }
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
-pub struct SegmentDesc {
+pub struct SegmentShape {
     pub begin: Vector3<f32>,
     pub end: Vector3<f32>,
 }
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
-pub struct TriangleDesc {
+pub struct TriangleShape {
     pub a: Vector3<f32>,
     pub b: Vector3<f32>,
     pub c: Vector3<f32>,
@@ -96,12 +99,12 @@ pub struct TriangleDesc {
 pub struct GeometrySource(pub Handle<Node>);
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
-pub struct TrimeshDesc {
+pub struct TrimeshShape {
     pub sources: Vec<GeometrySource>,
 }
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
-pub struct HeightfieldDesc {
+pub struct HeightfieldShape {
     pub geometry_source: GeometrySource,
 }
 
@@ -130,18 +133,35 @@ impl From<InteractionGroups> for InteractionGroupsDesc {
     }
 }
 
-#[derive(Clone, Debug, Visit, Inspect)]
+impl Inspect for ColliderShapeDesc {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        match self {
+            ColliderShapeDesc::Ball(v) => v.properties(),
+            ColliderShapeDesc::Cylinder(v) => v.properties(),
+            ColliderShapeDesc::RoundCylinder(v) => v.properties(),
+            ColliderShapeDesc::Cone(v) => v.properties(),
+            ColliderShapeDesc::Cuboid(v) => v.properties(),
+            ColliderShapeDesc::Capsule(v) => v.properties(),
+            ColliderShapeDesc::Segment(v) => v.properties(),
+            ColliderShapeDesc::Triangle(v) => v.properties(),
+            ColliderShapeDesc::Trimesh(v) => v.properties(),
+            ColliderShapeDesc::Heightfield(v) => v.properties(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Visit)]
 pub enum ColliderShapeDesc {
-    Ball(BallDesc),
-    Cylinder(CylinderDesc),
-    RoundCylinder(RoundCylinderDesc),
-    Cone(ConeDesc),
-    Cuboid(CuboidDesc),
-    Capsule(CapsuleDesc),
-    Segment(SegmentDesc),
-    Triangle(TriangleDesc),
-    Trimesh(TrimeshDesc),
-    Heightfield(HeightfieldDesc),
+    Ball(BallShape),
+    Cylinder(CylinderShape),
+    RoundCylinder(RoundCylinderShape),
+    Cone(ConeShape),
+    Cuboid(CuboidShape),
+    Capsule(CapsuleShape),
+    Segment(SegmentShape),
+    Triangle(TriangleShape),
+    Trimesh(TrimeshShape),
+    Heightfield(HeightfieldShape),
 }
 
 impl Default for ColliderShapeDesc {
@@ -153,51 +173,51 @@ impl Default for ColliderShapeDesc {
 impl ColliderShapeDesc {
     pub(crate) fn from_collider_shape(shape: &dyn Shape) -> Self {
         if let Some(ball) = shape.as_ball() {
-            ColliderShapeDesc::Ball(BallDesc {
+            ColliderShapeDesc::Ball(BallShape {
                 radius: ball.radius,
             })
         } else if let Some(cuboid) = shape.as_cuboid() {
-            ColliderShapeDesc::Cuboid(CuboidDesc {
+            ColliderShapeDesc::Cuboid(CuboidShape {
                 half_extents: cuboid.half_extents,
             })
         } else if let Some(capsule) = shape.as_capsule() {
-            ColliderShapeDesc::Capsule(CapsuleDesc {
+            ColliderShapeDesc::Capsule(CapsuleShape {
                 begin: capsule.segment.a.coords,
                 end: capsule.segment.b.coords,
                 radius: capsule.radius,
             })
         } else if let Some(segment) = shape.downcast_ref::<Segment>() {
-            ColliderShapeDesc::Segment(SegmentDesc {
+            ColliderShapeDesc::Segment(SegmentShape {
                 begin: segment.a.coords,
                 end: segment.b.coords,
             })
         } else if let Some(triangle) = shape.as_triangle() {
-            ColliderShapeDesc::Triangle(TriangleDesc {
+            ColliderShapeDesc::Triangle(TriangleShape {
                 a: triangle.a.coords,
                 b: triangle.b.coords,
                 c: triangle.c.coords,
             })
         } else if shape.as_trimesh().is_some() {
-            ColliderShapeDesc::Trimesh(TrimeshDesc {
+            ColliderShapeDesc::Trimesh(TrimeshShape {
                 sources: Default::default(),
             })
         } else if shape.as_heightfield().is_some() {
-            ColliderShapeDesc::Heightfield(HeightfieldDesc {
+            ColliderShapeDesc::Heightfield(HeightfieldShape {
                 geometry_source: Default::default(),
             })
         } else if let Some(cylinder) = shape.as_cylinder() {
-            ColliderShapeDesc::Cylinder(CylinderDesc {
+            ColliderShapeDesc::Cylinder(CylinderShape {
                 half_height: cylinder.half_height,
                 radius: cylinder.radius,
             })
         } else if let Some(round_cylinder) = shape.as_round_cylinder() {
-            ColliderShapeDesc::RoundCylinder(RoundCylinderDesc {
+            ColliderShapeDesc::RoundCylinder(RoundCylinderShape {
                 half_height: round_cylinder.base_shape.half_height,
                 radius: round_cylinder.base_shape.radius,
                 border_radius: round_cylinder.border_radius,
             })
         } else if let Some(cone) = shape.as_cone() {
-            ColliderShapeDesc::Cone(ConeDesc {
+            ColliderShapeDesc::Cone(ConeShape {
                 half_height: cone.half_height,
                 radius: cone.radius,
             })

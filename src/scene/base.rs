@@ -13,8 +13,10 @@ use crate::{
     resource::model::Model,
     scene::{graph::Graph, node::Node, transform::Transform},
 };
-use std::cell::Cell;
-use std::ops::{Deref, DerefMut};
+use std::{
+    cell::Cell,
+    ops::{Deref, DerefMut},
+};
 
 /// A handle to scene node that will be controlled by LOD system.
 #[derive(Inspect, Default, Debug, Clone, Copy, PartialEq, Hash)]
@@ -319,6 +321,7 @@ pub struct Base {
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
     pub properties: Vec<Property>,
+    #[inspect(skip)]
     pub(in crate) transform_modified: bool,
 }
 

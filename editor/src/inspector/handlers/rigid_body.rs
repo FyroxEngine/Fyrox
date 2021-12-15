@@ -1,5 +1,5 @@
 use crate::inspector::handlers::node::base::handle_base_property_changed;
-use crate::{make_command, scene::commands::physics::*, SceneCommand};
+use crate::{make_command, scene::commands::rigidbody::*, SceneCommand};
 use rg3d::{
     core::pool::Handle,
     gui::inspector::{FieldKind, PropertyChanged},

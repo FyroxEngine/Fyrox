@@ -9,8 +9,6 @@ use crate::{
     },
     Message,
 };
-use rg3d::scene::collider::InteractionGroupsDesc;
-use rg3d::scene::rigidbody::RigidBodyTypeDesc;
 use rg3d::{
     core::{inspect::Inspect, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
     gui::inspector::editors::{
@@ -18,13 +16,14 @@ use rg3d::{
         enumeration::EnumPropertyEditorDefinition,
         inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
-    physics3d::desc::JointParamsDesc,
     scene::{
         self,
-        base::LodControlledObject,
-        base::{Base, LevelOfDetail, LodGroup, Mobility, Property, PropertyValue},
+        base::{
+            Base, LevelOfDetail, LodControlledObject, LodGroup, Mobility, Property, PropertyValue,
+        },
         camera::{ColorGradingLut, Exposure, SkyBox},
-        collider::ColliderShapeDesc,
+        collider::{ColliderShapeDesc, InteractionGroupsDesc},
+        joint::*,
         light::{
             directional::{CsmOptions, FrustumSplitOptions},
             BaseLight,
@@ -32,6 +31,7 @@ use rg3d::{
         mesh::{surface::Surface, RenderPath},
         node::Node,
         particle_system::emitter::{base::BaseEmitter, Emitter},
+        rigidbody::RigidBodyTypeDesc,
         terrain::Layer,
     },
     scene2d,
@@ -132,7 +132,7 @@ pub fn make_rigid_body_type_editor_definition() -> EnumPropertyEditorDefinition<
 
 pub fn make_option_editor_definition<T>() -> EnumPropertyEditorDefinition<Option<T>>
 where
-    T: Inspect + Default + Debug + Send + Sync + 'static,
+    T: Inspect + Default + Debug + 'static,
 {
     EnumPropertyEditorDefinition {
         variant_generator: |i| match i {
