@@ -24,20 +24,14 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
-use crate::core::sstorage::ImmutableString;
-use crate::physics3d::{PhysicsPerformanceStatistics, RigidBodyHandle};
-use crate::scene::base::BaseBuilder;
-use crate::scene::collider::ColliderBuilder;
-use crate::scene::joint::JointBuilder;
-use crate::scene::rigidbody::RigidBodyBuilder;
-use crate::scene::transform::TransformBuilder;
 use crate::{
     animation::AnimationContainer,
     core::{
-        algebra::{Isometry3, Translation, Vector2},
+        algebra::{UnitQuaternion, Vector2},
         color::Color,
         instant,
         pool::{Handle, Pool, PoolIterator, PoolIteratorMut, Ticket},
+        sstorage::ImmutableString,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::{
@@ -45,24 +39,30 @@ use crate::{
         PhysicsBinder,
     },
     material::{shader::SamplerFallback, PropertyValue},
+    physics3d::{
+        desc::{ColliderShapeDesc, JointParamsDesc, RigidBodyTypeDesc},
+        PhysicsPerformanceStatistics, RigidBodyHandle,
+    },
     resource::texture::Texture,
     scene::{
-        base::PhysicsBinding,
+        base::BaseBuilder,
+        collider::ColliderBuilder,
         debug::SceneDrawingContext,
         graph::Graph,
+        joint::JointBuilder,
         mesh::buffer::{
             VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
             VertexWriteTrait,
         },
         node::Node,
-        physics::Physics,
+        physics::LegacyPhysics,
+        rigidbody::RigidBodyBuilder,
+        transform::TransformBuilder,
     },
     sound::{context::SoundContext, engine::SoundEngine},
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::FxHashMap;
-use rg3d_core::algebra::UnitQuaternion;
-use rg3d_physics3d::desc::{ColliderShapeDesc, JointParamsDesc, RigidBodyTypeDesc};
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
@@ -149,14 +149,6 @@ pub struct Scene {
     /// has handles to graph nodes. See `animation` module docs for more info.
     pub animations: AnimationContainer,
 
-    /// Physics world. Allows you create various physics objects such as static geometries and
-    /// rigid bodies. Rigid bodies then should be linked with graph nodes using binder.
-    pub physics: Physics,
-
-    /// Physics binder is a bridge between physics world and scene graph. If a rigid body is linked
-    /// to a graph node, then rigid body will control local transform of node.
-    pub physics_binder: PhysicsBinder<Node, RigidBodyHandle>,
-
     /// Texture to draw scene to. If empty, scene will be drawn on screen directly.
     /// It is useful to "embed" some scene into other by drawing a quad with this
     /// texture. This can be used to make in-game video conference - you can make
@@ -192,6 +184,12 @@ pub struct Scene {
     /// to false for menu's scene and when you need to open a menu - set it to true and
     /// set `enabled` flag to false for level's scene.
     pub enabled: bool,
+
+    // Legacy physics world.
+    legacy_physics: LegacyPhysics,
+
+    // Legacy physics binder.
+    legacy_physics_binder: PhysicsBinder<Node, RigidBodyHandle>,
 }
 
 impl Default for Scene {
@@ -199,8 +197,8 @@ impl Default for Scene {
         Self {
             graph: Default::default(),
             animations: Default::default(),
-            physics: Default::default(),
-            physics_binder: Default::default(),
+            legacy_physics: Default::default(),
+            legacy_physics_binder: Default::default(),
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
@@ -263,9 +261,9 @@ impl Scene {
         Self {
             // Graph must be created with `new` method because it differs from `default`
             graph: Graph::new(),
-            physics: Default::default(),
+            legacy_physics: Default::default(),
             animations: Default::default(),
-            physics_binder: Default::default(),
+            legacy_physics_binder: Default::default(),
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
@@ -399,44 +397,6 @@ impl Scene {
         Ok(scene)
     }
 
-    fn update_physics(&mut self) {
-        self.physics.step();
-
-        self.performance_statistics.physics = self.physics.performance_statistics.clone();
-        self.physics.performance_statistics.reset();
-
-        // Keep pair when node and body are both alive.
-        let graph = &mut self.graph;
-        let physics = &mut self.physics;
-        self.physics_binder
-            .retain(|node, body| graph.is_valid_handle(*node) && physics.bodies.contains(body));
-
-        // Sync node positions with assigned physics bodies
-        if self.physics_binder.enabled {
-            for (&node_handle, body) in self.physics_binder.forward_map().iter() {
-                let body = physics.bodies.get_mut(body).unwrap();
-                let node = &mut self.graph[node_handle];
-                match node.physics_binding {
-                    PhysicsBinding::NodeWithBody => {
-                        node.local_transform_mut()
-                            .set_position(body.position().translation.vector)
-                            .set_rotation(body.position().rotation);
-                    }
-                    PhysicsBinding::BodyWithNode => {
-                        let (r, p) = self.graph.isometric_global_rotation_position(node_handle);
-                        body.set_position(
-                            Isometry3 {
-                                rotation: r,
-                                translation: Translation { vector: p },
-                            },
-                            true,
-                        );
-                    }
-                }
-            }
-        }
-    }
-
     /// Removes node from scene with all associated entities, like animations etc. This method
     /// should be used all times instead of [Graph::remove_node](crate::scene::graph::Graph::remove_node).
     ///
@@ -454,12 +414,6 @@ impl Scene {
                 }
                 true
             });
-
-            // Remove all associated physical bodies.
-            if let Some(body) = self.physics_binder.body_of(descendant) {
-                self.physics.remove_body(body);
-                self.physics_binder.unbind(descendant);
-            }
         }
 
         self.graph.remove_node(handle)
@@ -468,8 +422,8 @@ impl Scene {
     fn convert_physics(&mut self) {
         // Convert rigid bodies and colliders.
         let mut body_map = FxHashMap::default();
-        for (node, body_handle) in self.physics_binder.forward_map() {
-            let body_ref = self.physics.bodies.get(body_handle).unwrap();
+        for (node, body_handle) in self.legacy_physics_binder.forward_map() {
+            let body_ref = self.legacy_physics.bodies.get(body_handle).unwrap();
 
             let [x_rotation_locked, y_rotation_locked, z_rotation_locked] =
                 body_ref.is_rotation_locked();
@@ -499,7 +453,7 @@ impl Scene {
             body_map.insert(body_handle.clone(), body_node_handle);
 
             for c in body_ref.colliders() {
-                let collider_ref = self.physics.colliders.native_ref(*c).unwrap();
+                let collider_ref = self.legacy_physics.colliders.native_ref(*c).unwrap();
 
                 let shape = ColliderShapeDesc::from_collider_shape(collider_ref.shape());
 
@@ -550,10 +504,10 @@ impl Scene {
         }
 
         // Convert joints.
-        for joint in self.physics.joints.iter() {
+        for joint in self.legacy_physics.joints.iter() {
             let body1 = *body_map
                 .get(
-                    self.physics
+                    self.legacy_physics
                         .bodies
                         .handle_map()
                         .key_of(&joint.body1)
@@ -562,7 +516,7 @@ impl Scene {
                 .unwrap();
             let body2 = *body_map
                 .get(
-                    self.physics
+                    self.legacy_physics
                         .bodies
                         .handle_map()
                         .key_of(&joint.body2)
@@ -587,8 +541,8 @@ impl Scene {
         self.animations.resolve(&self.graph);
 
         self.graph.update_hierarchical_data();
-        self.physics
-            .resolve(&self.physics_binder, &self.graph, None);
+        self.legacy_physics
+            .resolve(&self.legacy_physics_binder, &self.graph, None);
 
         self.convert_physics();
 
@@ -725,8 +679,6 @@ impl Scene {
     /// it updates physics, animations, and each graph node. In most cases there is
     /// no need to call it directly, engine automatically updates all available scenes.
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
-        self.update_physics();
-
         let last = instant::Instant::now();
         self.animations.update_animations(dt);
         self.performance_statistics.animations_update_time =
@@ -760,25 +712,12 @@ impl Scene {
                 track.set_node(old_new_map[&track.get_node()]);
             }
         }
-        // It is ok to use old binder here, because handles maps one-to-one.
-        let physics = self
-            .physics
-            .deep_copy(&self.physics_binder, &graph, Some(&old_new_map));
-        let mut physics_binder = PhysicsBinder::default();
-        for (node, &body) in self.physics_binder.forward_map().iter() {
-            // Make sure we bind existing node with new physical body.
-            if let Some(&new_node) = old_new_map.get(node) {
-                // Re-use of body handle is fine here because physics copy bodies
-                // directly and handles from previous pool is still suitable for copy.
-                physics_binder.bind(new_node, body);
-            }
-        }
         (
             Self {
                 graph,
                 animations,
-                physics,
-                physics_binder,
+                legacy_physics: Default::default(),
+                legacy_physics_binder: Default::default(),
                 // Render target is intentionally not copied, because it does not makes sense - a copy
                 // will redraw frame completely.
                 render_target: Default::default(),
@@ -798,16 +737,19 @@ impl Scene {
 impl Visit for Scene {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
-        self.physics_binder.visit("PhysicsBinder", visitor)?;
         self.graph.visit("Graph", visitor)?;
         self.animations.visit("Animations", visitor)?;
-        self.physics.visit("Physics", visitor)?;
         self.lightmap.visit("Lightmap", visitor)?;
         self.sound_context.visit("SoundContext", visitor)?;
         self.navmeshes.visit("NavMeshes", visitor)?;
         self.ambient_lighting_color
             .visit("AmbientLightingColor", visitor)?;
         self.enabled.visit("Enabled", visitor)?;
+        // Load legacy stuff for backward compatibility.
+        if visitor.is_reading() {
+            let _ = self.legacy_physics.visit("Physics", visitor);
+            let _ = self.legacy_physics_binder.visit("PhysicsBinder", visitor);
+        }
         visitor.leave_region()
     }
 }

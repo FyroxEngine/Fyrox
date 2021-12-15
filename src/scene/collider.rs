@@ -36,7 +36,6 @@ bitflags! {
 #[derive(Inspect, Visit, Debug)]
 pub struct Collider {
     base: Base,
-    #[inspect(read_only)]
     shape: ColliderShapeDesc,
     #[inspect(min_value = 0.0, step = 0.05)]
     friction: f32,

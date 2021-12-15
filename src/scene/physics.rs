@@ -1,15 +1,12 @@
 //! Contains all structures and methods to operate with physics world.
 
 use crate::{
-    core::{
-        algebra::Vector2, color::Color, math::aabb::AxisAlignedBoundingBox, pool::Handle,
-        visitor::prelude::*,
-    },
+    core::{algebra::Vector2, pool::Handle, visitor::prelude::*},
     engine::PhysicsBinder,
     physics3d::{
         body::RigidBodyContainer,
         collider::ColliderContainer,
-        desc::{ColliderDesc, ColliderShapeDesc, JointDesc, PhysicsDesc, RigidBodyDesc},
+        desc::{ColliderShapeDesc, PhysicsDesc},
         joint::JointContainer,
         rapier::{
             dynamics::{JointSet, RigidBodyBuilder, RigidBodySet, RigidBodyType},
@@ -18,13 +15,11 @@ use crate::{
                 DMatrix, Dynamic, Isometry3, Point3, Translation, UnitQuaternion, VecStorage,
                 Vector3,
             },
-            parry::shape::{SharedShape, TriMesh},
+            parry::shape::SharedShape,
         },
-        ColliderHandle, JointHandle, PhysicsWorld, RigidBodyHandle,
+        PhysicsWorld, RigidBodyHandle,
     },
-    resource::model::Model,
     scene::{
-        debug::SceneDrawingContext,
         graph::Graph,
         mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
         node::Node,
@@ -41,77 +36,37 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-/// A set of data that has all associations with physics from resource.
-/// It is used to embedding physics from resource to a scene during
-/// the instantiation process.
-#[derive(Default, Clone, Debug)]
-pub struct ResourceLink {
-    model: Model,
-    // HandleInResource->HandleInInstance mappings
-    bodies: FxHashMap<RigidBodyHandle, RigidBodyHandle>,
-    colliders: FxHashMap<ColliderHandle, ColliderHandle>,
-    joints: FxHashMap<JointHandle, JointHandle>,
-}
-
-impl Visit for ResourceLink {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.model.visit("Model", visitor)?;
-        self.bodies.visit("Bodies", visitor)?;
-        self.colliders.visit("Colliders", visitor)?;
-        self.joints.visit("Visit", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// Physics world.
 #[derive(Debug)]
-pub struct Physics {
+pub struct LegacyPhysics {
     /// The physics world.
     pub world: PhysicsWorld,
 
-    /// A list of external resources that were embedded in the physics during
-    /// instantiation process.
-    pub embedded_resources: Vec<ResourceLink>,
-
-    /// Descriptors have two purposes:
-    /// 1) Defer deserialization to resolve stage - the stage where all meshes
-    ///    were loaded and there is a possibility to obtain data for trimeshes.
-    ///    Resolve stage will drain these vectors. This is normal use case.
-    /// 2) Save data from editor: when descriptors are set, only they will be
-    ///    written to output. This is a HACK, but I don't know better solution
-    ///    yet.
+    /// Legacy physics descriptor.
     pub desc: Option<PhysicsDesc>,
 }
 
-impl Visit for Physics {
+impl Visit for LegacyPhysics {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        if !visitor.is_reading() {
+            return VisitResult::Err(VisitError::User(
+                "Serialization of legacy physics is prohibited!".to_string(),
+            ));
+        }
+
         visitor.enter_region(name)?;
 
-        let mut desc = if visitor.is_reading() {
-            Default::default()
-        } else if let Some(desc) = self.desc.as_ref() {
-            desc.clone()
-        } else {
-            self.generate_desc()
-        };
+        let mut desc = PhysicsDesc::default();
         desc.visit("Desc", visitor)?;
 
         // Save descriptors for resolve stage.
-        if visitor.is_reading() {
-            self.desc = Some(desc);
-        }
-
-        self.embedded_resources
-            .visit("EmbeddedResources", visitor)?;
+        self.desc = Some(desc);
 
         visitor.leave_region()
     }
 }
 
-impl Deref for Physics {
+impl Deref for LegacyPhysics {
     type Target = PhysicsWorld;
 
     fn deref(&self) -> &Self::Target {
@@ -119,137 +74,23 @@ impl Deref for Physics {
     }
 }
 
-impl DerefMut for Physics {
+impl DerefMut for LegacyPhysics {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.world
     }
 }
 
-impl Default for Physics {
+impl Default for LegacyPhysics {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Physics {
+impl LegacyPhysics {
     pub(in crate) fn new() -> Self {
         Self {
             world: PhysicsWorld::new(),
-            embedded_resources: Default::default(),
             desc: None,
-        }
-    }
-
-    // Deep copy is performed using descriptors.
-    pub(in crate) fn deep_copy(
-        &self,
-        binder: &PhysicsBinder<Node, RigidBodyHandle>,
-        graph: &Graph,
-        old_to_new_mapping: Option<&FxHashMap<Handle<Node>, Handle<Node>>>,
-    ) -> Self {
-        let mut phys = Self::new();
-        phys.embedded_resources = self.embedded_resources.clone();
-        phys.desc = Some(self.generate_desc());
-        phys.resolve(binder, graph, old_to_new_mapping);
-        phys
-    }
-
-    /// Draws physics world. Very useful for debugging, it allows you to see where are
-    /// rigid bodies, which colliders they have and so on.
-    pub fn draw(&self, context: &mut SceneDrawingContext) {
-        for body in self.bodies.iter() {
-            context.draw_transform(body.position().to_homogeneous());
-        }
-
-        for collider in self.colliders.iter() {
-            let body = self.bodies.native_ref(collider.parent().unwrap()).unwrap();
-            let collider_local_transform = collider.position_wrt_parent().unwrap().to_homogeneous();
-            let transform = body.position().to_homogeneous() * collider_local_transform;
-            if let Some(trimesh) = collider.shape().as_trimesh() {
-                let trimesh: &TriMesh = trimesh;
-                for triangle in trimesh.triangles() {
-                    let a = transform.transform_point(&triangle.a);
-                    let b = transform.transform_point(&triangle.b);
-                    let c = transform.transform_point(&triangle.c);
-                    context.draw_triangle(
-                        a.coords,
-                        b.coords,
-                        c.coords,
-                        Color::opaque(200, 200, 200),
-                    );
-                }
-            } else if let Some(cuboid) = collider.shape().as_cuboid() {
-                let min = -cuboid.half_extents;
-                let max = cuboid.half_extents;
-                context.draw_oob(
-                    &AxisAlignedBoundingBox::from_min_max(min, max),
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(ball) = collider.shape().as_ball() {
-                context.draw_sphere(
-                    body.position().translation.vector,
-                    10,
-                    10,
-                    ball.radius,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(cone) = collider.shape().as_cone() {
-                context.draw_cone(
-                    10,
-                    cone.radius,
-                    cone.half_height * 2.0,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(cylinder) = collider.shape().as_cylinder() {
-                context.draw_cylinder(
-                    10,
-                    cylinder.radius,
-                    cylinder.half_height * 2.0,
-                    true,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(round_cylinder) = collider.shape().as_round_cylinder() {
-                context.draw_cylinder(
-                    10,
-                    round_cylinder.base_shape.radius,
-                    round_cylinder.base_shape.half_height * 2.0,
-                    false,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(triangle) = collider.shape().as_triangle() {
-                context.draw_triangle(
-                    triangle.a.coords,
-                    triangle.b.coords,
-                    triangle.c.coords,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(capsule) = collider.shape().as_capsule() {
-                context.draw_segment_capsule(
-                    capsule.segment.a.coords,
-                    capsule.segment.b.coords,
-                    capsule.radius,
-                    10,
-                    10,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(heightfield) = collider.shape().as_heightfield() {
-                for triangle in heightfield.triangles() {
-                    let a = transform.transform_point(&triangle.a);
-                    let b = transform.transform_point(&triangle.b);
-                    let c = transform.transform_point(&triangle.c);
-                    context.draw_triangle(
-                        a.coords,
-                        b.coords,
-                        c.coords,
-                        Color::opaque(200, 200, 200),
-                    );
-                }
-            }
         }
     }
 
@@ -628,177 +469,5 @@ impl Physics {
         self.colliders =
             ColliderContainer::from_raw_parts(colliders, phys_desc.collider_handle_map).unwrap();
         self.joints = JointContainer::from_raw_parts(joints, phys_desc.joint_handle_map).unwrap();
-    }
-
-    pub(in crate) fn embed_resource(
-        &mut self,
-        target_binder: &mut PhysicsBinder<Node, RigidBodyHandle>,
-        target_graph: &Graph,
-        old_to_new: FxHashMap<Handle<Node>, Handle<Node>>,
-        resource: Model,
-    ) {
-        let data = resource.data_ref();
-        let resource_scene = data.get_scene();
-        let resource_binder = &resource_scene.physics_binder;
-        let resource_physics = &resource_scene.physics;
-        let mut link = ResourceLink::default();
-
-        // Instantiate rigid bodies.
-        for (resource_handle, body) in resource_physics.bodies.inner_ref().iter() {
-            let desc = RigidBodyDesc::<ColliderHandle>::from_body(
-                body,
-                resource_physics.colliders.handle_map(),
-            );
-            let new_handle = self.add_body(desc.convert_to_body());
-
-            link.bodies.insert(
-                resource_physics
-                    .bodies
-                    .handle_map()
-                    .key_of(&resource_handle)
-                    .cloned()
-                    .unwrap(),
-                new_handle,
-            );
-        }
-
-        // Bind instantiated nodes with their respective rigid bodies from resource.
-        for (handle, body) in resource_binder.forward_map().iter() {
-            let new_handle = *old_to_new.get(handle).unwrap();
-            let new_body = *link.bodies.get(body).unwrap();
-            target_binder.bind(new_handle, new_body);
-        }
-
-        // Instantiate colliders.
-        for (resource_handle, collider) in resource_physics.colliders.inner_ref().iter() {
-            let desc = ColliderDesc::from_collider(collider, resource_physics.bodies.handle_map());
-            // Remap handle from resource to one that was created above.
-            let remapped_parent = *link.bodies.get(&desc.parent).unwrap();
-            match desc.shape {
-                ColliderShapeDesc::Trimesh(_) => {
-                    if let Some(associated_node) = target_binder.node_of(remapped_parent) {
-                        if target_graph.is_valid_handle(associated_node) {
-                            let collider = ColliderBuilder::new(Self::make_trimesh(
-                                associated_node,
-                                target_graph,
-                            ))
-                            .build();
-                            let new_handle = self.add_collider(collider, &remapped_parent);
-                            link.colliders.insert(
-                                new_handle,
-                                resource_physics
-                                    .colliders
-                                    .handle_map()
-                                    .key_of(&resource_handle)
-                                    .cloned()
-                                    .unwrap(),
-                            );
-
-                            Log::writeln(
-                                MessageKind::Information,
-                                format!(
-                                    "Geometry for trimesh {:?} was restored from node at handle {:?}!",
-                                    desc.parent, associated_node
-                                ),
-                            )
-                        } else {
-                            Log::writeln(MessageKind::Error, format!("Unable to get geometry for trimesh, node at handle {:?} does not exists!", associated_node))
-                        }
-                    }
-                }
-                ColliderShapeDesc::Heightfield(_) => {
-                    if let Some(associated_node) = target_binder.node_of(remapped_parent) {
-                        if let Some(Node::Terrain(_)) = target_graph.try_get(associated_node) {
-                            let collider =
-                                self.terrain_to_heightfield_collider(associated_node, target_graph);
-
-                            let new_handle = self.add_collider(collider, &remapped_parent);
-                            link.colliders.insert(
-                                new_handle,
-                                resource_physics
-                                    .colliders
-                                    .handle_map()
-                                    .key_of(&resource_handle)
-                                    .cloned()
-                                    .unwrap(),
-                            );
-
-                            Log::writeln(
-                                MessageKind::Information,
-                                format!(
-                                    "Geometry for height field {:?} was restored from node at handle {:?}!",
-                                    desc.parent, associated_node
-                                ),
-                            )
-                        } else {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!(
-                                    "Unable to get geometry for height field,\
-                             node at handle {:?} does not exists!",
-                                    associated_node
-                                ),
-                            )
-                        }
-                    } else {
-                        Log::writeln(
-                            MessageKind::Information,
-                            format!(
-                                "Unable to restore geometry for height field {:?} because it has no associated node in the scene!",
-                                desc.parent
-                            ),
-                        )
-                    }
-                }
-                _ => {
-                    let (new_collider, _) = desc.convert_to_collider();
-                    let new_handle = self.add_collider(new_collider, &remapped_parent);
-                    link.colliders.insert(
-                        resource_physics
-                            .colliders
-                            .handle_map()
-                            .key_of(&resource_handle)
-                            .cloned()
-                            .unwrap(),
-                        new_handle,
-                    );
-                }
-            }
-        }
-
-        // Instantiate joints.
-        for (resource_handle, joint) in resource_physics.joints.inner_ref().iter() {
-            let desc = JointDesc::<RigidBodyHandle>::from_joint(
-                joint,
-                resource_physics.bodies.handle_map(),
-            );
-            let new_body1_handle = link
-                .bodies
-                .get(self.bodies.handle_map().key_of(&joint.body1).unwrap())
-                .unwrap();
-            let new_body2_handle = link
-                .bodies
-                .get(self.bodies.handle_map().key_of(&joint.body2).unwrap())
-                .unwrap();
-            let new_handle = self.add_joint(new_body1_handle, new_body2_handle, desc.params);
-            link.joints.insert(
-                *resource_physics
-                    .joints
-                    .handle_map()
-                    .key_of(&resource_handle)
-                    .unwrap(),
-                new_handle,
-            );
-        }
-
-        self.embedded_resources.push(link);
-
-        Log::writeln(
-            MessageKind::Information,
-            format!(
-                "Resource {} was successfully embedded into physics world!",
-                data.path.display()
-            ),
-        );
     }
 }

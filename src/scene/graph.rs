@@ -23,6 +23,7 @@
 //! is used in skinning (animating 3d model by set of bones).
 
 use crate::scene::collider::ColliderChanges;
+use crate::scene::debug::SceneDrawingContext;
 use crate::scene::joint::JointChanges;
 use crate::{
     asset::ResourceState,
@@ -50,6 +51,9 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
+use rg3d_core::color::Color;
+use rg3d_core::math::aabb::AxisAlignedBoundingBox;
+use rg3d_physics3d::rapier::geometry::TriMesh;
 use std::{
     fmt::{Debug, Formatter},
     ops::{Index, IndexMut},
@@ -117,6 +121,105 @@ impl PhysicsWorld {
             &(),
             &*self.event_handler,
         );
+    }
+
+    /// Draws physics world. Very useful for debugging, it allows you to see where are
+    /// rigid bodies, which colliders they have and so on.
+    pub(crate) fn draw(&self, context: &mut SceneDrawingContext) {
+        for (_, body) in self.bodies.iter() {
+            context.draw_transform(body.position().to_homogeneous());
+        }
+
+        for (_, collider) in self.colliders.iter() {
+            let body = self.bodies.get(collider.parent().unwrap()).unwrap();
+            let collider_local_transform = collider.position_wrt_parent().unwrap().to_homogeneous();
+            let transform = body.position().to_homogeneous() * collider_local_transform;
+            if let Some(trimesh) = collider.shape().as_trimesh() {
+                let trimesh: &TriMesh = trimesh;
+                for triangle in trimesh.triangles() {
+                    let a = transform.transform_point(&triangle.a);
+                    let b = transform.transform_point(&triangle.b);
+                    let c = transform.transform_point(&triangle.c);
+                    context.draw_triangle(
+                        a.coords,
+                        b.coords,
+                        c.coords,
+                        Color::opaque(200, 200, 200),
+                    );
+                }
+            } else if let Some(cuboid) = collider.shape().as_cuboid() {
+                let min = -cuboid.half_extents;
+                let max = cuboid.half_extents;
+                context.draw_oob(
+                    &AxisAlignedBoundingBox::from_min_max(min, max),
+                    transform,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(ball) = collider.shape().as_ball() {
+                context.draw_sphere(
+                    body.position().translation.vector,
+                    10,
+                    10,
+                    ball.radius,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(cone) = collider.shape().as_cone() {
+                context.draw_cone(
+                    10,
+                    cone.radius,
+                    cone.half_height * 2.0,
+                    transform,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(cylinder) = collider.shape().as_cylinder() {
+                context.draw_cylinder(
+                    10,
+                    cylinder.radius,
+                    cylinder.half_height * 2.0,
+                    true,
+                    transform,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(round_cylinder) = collider.shape().as_round_cylinder() {
+                context.draw_cylinder(
+                    10,
+                    round_cylinder.base_shape.radius,
+                    round_cylinder.base_shape.half_height * 2.0,
+                    false,
+                    transform,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(triangle) = collider.shape().as_triangle() {
+                context.draw_triangle(
+                    triangle.a.coords,
+                    triangle.b.coords,
+                    triangle.c.coords,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(capsule) = collider.shape().as_capsule() {
+                context.draw_segment_capsule(
+                    capsule.segment.a.coords,
+                    capsule.segment.b.coords,
+                    capsule.radius,
+                    10,
+                    10,
+                    transform,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(heightfield) = collider.shape().as_heightfield() {
+                for triangle in heightfield.triangles() {
+                    let a = transform.transform_point(&triangle.a);
+                    let b = transform.transform_point(&triangle.b);
+                    let c = transform.transform_point(&triangle.c);
+                    context.draw_triangle(
+                        a.coords,
+                        b.coords,
+                        c.coords,
+                        Color::opaque(200, 200, 200),
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -305,6 +408,11 @@ impl Graph {
     /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
     pub fn try_get_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
         self.pool.try_borrow_mut(handle)
+    }
+
+    /// Draw physics entities in a given drawing context.
+    pub fn debug_draw_physics(&self, context: &mut SceneDrawingContext) {
+        self.physics.draw(context)
     }
 
     /// Destroys node and its children recursively.

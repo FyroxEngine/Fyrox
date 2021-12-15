@@ -93,13 +93,6 @@ impl Model {
 
         std::mem::drop(data);
 
-        dest_scene.physics.embed_resource(
-            &mut dest_scene.physics_binder,
-            &dest_scene.graph,
-            old_to_new,
-            self.clone(),
-        );
-
         root
     }
 
