@@ -134,25 +134,25 @@ impl From<InteractionGroups> for InteractionGroupsDesc {
     }
 }
 
-impl Inspect for ColliderShapeDesc {
+impl Inspect for ColliderShape {
     fn properties(&self) -> Vec<PropertyInfo<'_>> {
         match self {
-            ColliderShapeDesc::Ball(v) => v.properties(),
-            ColliderShapeDesc::Cylinder(v) => v.properties(),
-            ColliderShapeDesc::RoundCylinder(v) => v.properties(),
-            ColliderShapeDesc::Cone(v) => v.properties(),
-            ColliderShapeDesc::Cuboid(v) => v.properties(),
-            ColliderShapeDesc::Capsule(v) => v.properties(),
-            ColliderShapeDesc::Segment(v) => v.properties(),
-            ColliderShapeDesc::Triangle(v) => v.properties(),
-            ColliderShapeDesc::Trimesh(v) => v.properties(),
-            ColliderShapeDesc::Heightfield(v) => v.properties(),
+            ColliderShape::Ball(v) => v.properties(),
+            ColliderShape::Cylinder(v) => v.properties(),
+            ColliderShape::RoundCylinder(v) => v.properties(),
+            ColliderShape::Cone(v) => v.properties(),
+            ColliderShape::Cuboid(v) => v.properties(),
+            ColliderShape::Capsule(v) => v.properties(),
+            ColliderShape::Segment(v) => v.properties(),
+            ColliderShape::Triangle(v) => v.properties(),
+            ColliderShape::Trimesh(v) => v.properties(),
+            ColliderShape::Heightfield(v) => v.properties(),
         }
     }
 }
 
 #[derive(Clone, Debug, Visit)]
-pub enum ColliderShapeDesc {
+pub enum ColliderShape {
     Ball(BallShape),
     Cylinder(CylinderShape),
     RoundCylinder(RoundCylinderShape),
@@ -165,60 +165,60 @@ pub enum ColliderShapeDesc {
     Heightfield(HeightfieldShape),
 }
 
-impl Default for ColliderShapeDesc {
+impl Default for ColliderShape {
     fn default() -> Self {
         Self::Ball(Default::default())
     }
 }
 
-impl ColliderShapeDesc {
+impl ColliderShape {
     pub(crate) fn from_collider_shape(shape: &dyn Shape) -> Self {
         if let Some(ball) = shape.as_ball() {
-            ColliderShapeDesc::Ball(BallShape {
+            ColliderShape::Ball(BallShape {
                 radius: ball.radius,
             })
         } else if let Some(cuboid) = shape.as_cuboid() {
-            ColliderShapeDesc::Cuboid(CuboidShape {
+            ColliderShape::Cuboid(CuboidShape {
                 half_extents: cuboid.half_extents,
             })
         } else if let Some(capsule) = shape.as_capsule() {
-            ColliderShapeDesc::Capsule(CapsuleShape {
+            ColliderShape::Capsule(CapsuleShape {
                 begin: capsule.segment.a.coords,
                 end: capsule.segment.b.coords,
                 radius: capsule.radius,
             })
         } else if let Some(segment) = shape.downcast_ref::<Segment>() {
-            ColliderShapeDesc::Segment(SegmentShape {
+            ColliderShape::Segment(SegmentShape {
                 begin: segment.a.coords,
                 end: segment.b.coords,
             })
         } else if let Some(triangle) = shape.as_triangle() {
-            ColliderShapeDesc::Triangle(TriangleShape {
+            ColliderShape::Triangle(TriangleShape {
                 a: triangle.a.coords,
                 b: triangle.b.coords,
                 c: triangle.c.coords,
             })
         } else if shape.as_trimesh().is_some() {
-            ColliderShapeDesc::Trimesh(TrimeshShape {
+            ColliderShape::Trimesh(TrimeshShape {
                 sources: Default::default(),
             })
         } else if shape.as_heightfield().is_some() {
-            ColliderShapeDesc::Heightfield(HeightfieldShape {
+            ColliderShape::Heightfield(HeightfieldShape {
                 geometry_source: Default::default(),
             })
         } else if let Some(cylinder) = shape.as_cylinder() {
-            ColliderShapeDesc::Cylinder(CylinderShape {
+            ColliderShape::Cylinder(CylinderShape {
                 half_height: cylinder.half_height,
                 radius: cylinder.radius,
             })
         } else if let Some(round_cylinder) = shape.as_round_cylinder() {
-            ColliderShapeDesc::RoundCylinder(RoundCylinderShape {
+            ColliderShape::RoundCylinder(RoundCylinderShape {
                 half_height: round_cylinder.base_shape.half_height,
                 radius: round_cylinder.base_shape.radius,
                 border_radius: round_cylinder.border_radius,
             })
         } else if let Some(cone) = shape.as_cone() {
-            ColliderShapeDesc::Cone(ConeShape {
+            ColliderShape::Cone(ConeShape {
                 half_height: cone.half_height,
                 radius: cone.radius,
             })
@@ -228,41 +228,41 @@ impl ColliderShapeDesc {
     }
 
     // Converts descriptor in a shared shape.
-    pub(crate) fn into_collider_shape(
+    pub(crate) fn into_native_shape(
         self,
         owner_collider: Handle<Node>,
         graph: &Graph,
     ) -> Option<SharedShape> {
         match self {
-            ColliderShapeDesc::Ball(ball) => Some(SharedShape::ball(ball.radius)),
+            ColliderShape::Ball(ball) => Some(SharedShape::ball(ball.radius)),
 
-            ColliderShapeDesc::Cylinder(cylinder) => {
+            ColliderShape::Cylinder(cylinder) => {
                 Some(SharedShape::cylinder(cylinder.half_height, cylinder.radius))
             }
-            ColliderShapeDesc::RoundCylinder(rcylinder) => Some(SharedShape::round_cylinder(
+            ColliderShape::RoundCylinder(rcylinder) => Some(SharedShape::round_cylinder(
                 rcylinder.half_height,
                 rcylinder.radius,
                 rcylinder.border_radius,
             )),
-            ColliderShapeDesc::Cone(cone) => Some(SharedShape::cone(cone.half_height, cone.radius)),
-            ColliderShapeDesc::Cuboid(cuboid) => {
+            ColliderShape::Cone(cone) => Some(SharedShape::cone(cone.half_height, cone.radius)),
+            ColliderShape::Cuboid(cuboid) => {
                 Some(SharedShape(Arc::new(Cuboid::new(cuboid.half_extents))))
             }
-            ColliderShapeDesc::Capsule(capsule) => Some(SharedShape::capsule(
+            ColliderShape::Capsule(capsule) => Some(SharedShape::capsule(
                 Point3::from(capsule.begin),
                 Point3::from(capsule.end),
                 capsule.radius,
             )),
-            ColliderShapeDesc::Segment(segment) => Some(SharedShape::segment(
+            ColliderShape::Segment(segment) => Some(SharedShape::segment(
                 Point3::from(segment.begin),
                 Point3::from(segment.end),
             )),
-            ColliderShapeDesc::Triangle(triangle) => Some(SharedShape::triangle(
+            ColliderShape::Triangle(triangle) => Some(SharedShape::triangle(
                 Point3::from(triangle.a),
                 Point3::from(triangle.b),
                 Point3::from(triangle.c),
             )),
-            ColliderShapeDesc::Trimesh(trimesh) => {
+            ColliderShape::Trimesh(trimesh) => {
                 if trimesh.sources.is_empty() {
                     None
                 } else {
@@ -273,7 +273,7 @@ impl ColliderShapeDesc {
                     ))
                 }
             }
-            ColliderShapeDesc::Heightfield(heightfield) => {
+            ColliderShape::Heightfield(heightfield) => {
                 if let Some(Node::Terrain(terrain)) = graph.try_get(heightfield.geometry_source.0) {
                     Some(LegacyPhysics::make_heightfield(terrain))
                 } else {
@@ -282,12 +282,98 @@ impl ColliderShapeDesc {
             }
         }
     }
+
+    /// Initializes a ball shape defined by its radius.
+    pub fn ball(radius: f32) -> Self {
+        Self::Ball(BallShape { radius })
+    }
+
+    /// Initializes a cylindrical shape defined by its half-height (along along the y axis) and its
+    /// radius.
+    pub fn cylinder(half_height: f32, radius: f32) -> Self {
+        Self::Cylinder(CylinderShape {
+            half_height,
+            radius,
+        })
+    }
+
+    /// Initializes a rounded cylindrical shape defined by its half-height (along along the y axis),
+    /// its radius, and its roundness (the radius of the sphere used for dilating the cylinder).
+    pub fn round_cylinder(half_height: f32, radius: f32, border_radius: f32) -> Self {
+        Self::RoundCylinder(RoundCylinderShape {
+            half_height,
+            radius,
+            border_radius,
+        })
+    }
+
+    /// Initializes a cone shape defined by its half-height (along along the y axis) and its basis
+    /// radius.
+    pub fn cone(half_height: f32, radius: f32) -> Self {
+        Self::Cone(ConeShape {
+            half_height,
+            radius,
+        })
+    }
+
+    /// Initializes a cuboid shape defined by its half-extents.
+    pub fn cuboid(hx: f32, hy: f32, hz: f32) -> Self {
+        Self::Cuboid(CuboidShape {
+            half_extents: Vector3::new(hx, hy, hz),
+        })
+    }
+
+    /// Initializes a capsule shape from its endpoints and radius.
+    pub fn capsule(begin: Vector3<f32>, end: Vector3<f32>, radius: f32) -> Self {
+        Self::Capsule(CapsuleShape { begin, end, radius })
+    }
+
+    /// Initializes a new collider builder with a capsule shape aligned with the `x` axis.
+    pub fn capsule_x(half_height: f32, radius: f32) -> Self {
+        let p = Vector3::x() * half_height;
+        Self::capsule(-p, p, radius)
+    }
+
+    /// Initializes a new collider builder with a capsule shape aligned with the `y` axis.
+    pub fn capsule_y(half_height: f32, radius: f32) -> Self {
+        let p = Vector3::y() * half_height;
+        Self::capsule(-p, p, radius)
+    }
+
+    /// Initializes a new collider builder with a capsule shape aligned with the `z` axis.
+    pub fn capsule_z(half_height: f32, radius: f32) -> Self {
+        let p = Vector3::z() * half_height;
+        Self::capsule(-p, p, radius)
+    }
+
+    /// Initializes a segment shape from its endpoints.
+    pub fn segment(begin: Vector3<f32>, end: Vector3<f32>) -> Self {
+        Self::Segment(SegmentShape { begin, end })
+    }
+
+    /// Initializes a triangle shape.
+    pub fn triangle(a: Vector3<f32>, b: Vector3<f32>, c: Vector3<f32>) -> Self {
+        Self::Triangle(TriangleShape { a, b, c })
+    }
+
+    /// Initializes a triangle mesh shape defined by a set of handles to mesh nodes that will be
+    /// used to create physical shape.
+    pub fn trimesh(geometry_sources: Vec<GeometrySource>) -> Self {
+        Self::Trimesh(TrimeshShape {
+            sources: geometry_sources,
+        })
+    }
+
+    /// Initializes a heightfield shape defined by a handle to terrain node.
+    pub fn heightfield(geometry_source: GeometrySource) -> Self {
+        Self::Heightfield(HeightfieldShape { geometry_source })
+    }
 }
 
 #[derive(Inspect, Visit, Debug)]
 pub struct Collider {
     base: Base,
-    shape: ColliderShapeDesc,
+    shape: ColliderShape,
     #[inspect(min_value = 0.0, step = 0.05)]
     friction: f32,
     density: Option<f32>,
@@ -346,7 +432,7 @@ impl<'a> Drop for ColliderShapeRefMut<'a> {
 }
 
 impl<'a> Deref for ColliderShapeRefMut<'a> {
-    type Target = ColliderShapeDesc;
+    type Target = ColliderShape;
 
     fn deref(&self) -> &Self::Target {
         &self.parent.shape
@@ -376,16 +462,16 @@ impl Collider {
         }
     }
 
-    pub fn set_shape(&mut self, shape: ColliderShapeDesc) {
+    pub fn set_shape(&mut self, shape: ColliderShape) {
         self.shape = shape;
         self.changes.insert(ColliderChanges::SHAPE);
     }
 
-    pub fn shape(&self) -> &ColliderShapeDesc {
+    pub fn shape(&self) -> &ColliderShape {
         &self.shape
     }
 
-    pub fn shape_value(&self) -> ColliderShapeDesc {
+    pub fn shape_value(&self) -> ColliderShape {
         self.shape.clone()
     }
 
@@ -450,7 +536,7 @@ impl Collider {
 
 pub struct ColliderBuilder {
     base_builder: BaseBuilder,
-    shape: ColliderShapeDesc,
+    shape: ColliderShape,
     friction: f32,
     density: Option<f32>,
     restitution: f32,
@@ -473,7 +559,7 @@ impl ColliderBuilder {
         }
     }
 
-    pub fn with_shape(mut self, shape: ColliderShapeDesc) -> Self {
+    pub fn with_shape(mut self, shape: ColliderShape) -> Self {
         self.shape = shape;
         self
     }

@@ -43,7 +43,7 @@ use crate::{
     resource::texture::Texture,
     scene::{
         base::BaseBuilder,
-        collider::{ColliderBuilder, ColliderShapeDesc, GeometrySource},
+        collider::{ColliderBuilder, ColliderShape, GeometrySource},
         debug::SceneDrawingContext,
         graph::Graph,
         joint::{JointBuilder, JointParamsDesc},
@@ -53,7 +53,7 @@ use crate::{
         },
         node::Node,
         physics::LegacyPhysics,
-        rigidbody::{RigidBodyBuilder, RigidBodyTypeDesc},
+        rigidbody::{RigidBodyBuilder, RigidBodyType},
         transform::TransformBuilder,
     },
     sound::{context::SoundContext, engine::SoundEngine},
@@ -439,7 +439,7 @@ impl Scene {
                             .build(),
                     ),
             )
-            .with_body_type(RigidBodyTypeDesc::from(body_ref.body_type()))
+            .with_body_type(RigidBodyType::from(body_ref.body_type()))
             .with_mass(body_ref.mass())
             .with_ang_vel(*body_ref.angvel())
             .with_lin_vel(*body_ref.linvel())
@@ -461,24 +461,24 @@ impl Scene {
                         continue;
                     };
 
-                let mut shape = ColliderShapeDesc::from_collider_shape(collider_ref.shape());
+                let mut shape = ColliderShape::from_collider_shape(collider_ref.shape());
 
                 let name = match shape {
-                    ColliderShapeDesc::Ball(_) => "Ball Collider",
-                    ColliderShapeDesc::Cylinder(_) => "Cylinder Collider",
-                    ColliderShapeDesc::RoundCylinder(_) => "Round Cylinder Collider",
-                    ColliderShapeDesc::Cone(_) => "Cone Collider",
-                    ColliderShapeDesc::Cuboid(_) => "Cuboid Collider",
-                    ColliderShapeDesc::Capsule(_) => "Capsule Collider",
-                    ColliderShapeDesc::Segment(_) => "Segment Collider",
-                    ColliderShapeDesc::Triangle(_) => "Triangle Collider",
-                    ColliderShapeDesc::Trimesh(_) => "Trimesh Collider",
-                    ColliderShapeDesc::Heightfield(_) => "Heightfield Collider",
+                    ColliderShape::Ball(_) => "Ball Collider",
+                    ColliderShape::Cylinder(_) => "Cylinder Collider",
+                    ColliderShape::RoundCylinder(_) => "Round Cylinder Collider",
+                    ColliderShape::Cone(_) => "Cone Collider",
+                    ColliderShape::Cuboid(_) => "Cuboid Collider",
+                    ColliderShape::Capsule(_) => "Capsule Collider",
+                    ColliderShape::Segment(_) => "Segment Collider",
+                    ColliderShape::Triangle(_) => "Triangle Collider",
+                    ColliderShape::Trimesh(_) => "Trimesh Collider",
+                    ColliderShape::Heightfield(_) => "Heightfield Collider",
                 };
 
                 // Trimesh and heightfield needs extra care.
                 match shape {
-                    ColliderShapeDesc::Trimesh(ref mut trimesh) => {
+                    ColliderShape::Trimesh(ref mut trimesh) => {
                         trimesh.sources = self
                             .graph
                             .traverse_handle_iter(*node)
@@ -486,7 +486,7 @@ impl Scene {
                             .map(|h| GeometrySource(h))
                             .collect::<Vec<_>>();
                     }
-                    ColliderShapeDesc::Heightfield(ref mut heightfield) => {
+                    ColliderShape::Heightfield(ref mut heightfield) => {
                         heightfield.geometry_source = GeometrySource(*node);
                     }
                     _ => (),

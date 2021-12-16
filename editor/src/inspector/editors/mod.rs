@@ -23,7 +23,7 @@ use rg3d::{
             Base, LevelOfDetail, LodControlledObject, LodGroup, Mobility, Property, PropertyValue,
         },
         camera::{ColorGradingLut, Exposure, SkyBox},
-        collider::{ColliderShapeDesc, InteractionGroupsDesc},
+        collider::{ColliderShape, InteractionGroupsDesc},
         joint::*,
         light::{
             directional::{CsmOptions, FrustumSplitOptions},
@@ -32,7 +32,7 @@ use rg3d::{
         mesh::{surface::Surface, RenderPath},
         node::Node,
         particle_system::emitter::{base::BaseEmitter, Emitter},
-        rigidbody::RigidBodyTypeDesc,
+        rigidbody::RigidBodyType,
         terrain::Layer,
     },
     scene2d,
@@ -110,13 +110,13 @@ pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Stat
     }
 }
 
-pub fn make_rigid_body_type_editor_definition() -> EnumPropertyEditorDefinition<RigidBodyTypeDesc> {
+pub fn make_rigid_body_type_editor_definition() -> EnumPropertyEditorDefinition<RigidBodyType> {
     EnumPropertyEditorDefinition {
         variant_generator: |i| match i {
-            0 => RigidBodyTypeDesc::Dynamic,
-            1 => RigidBodyTypeDesc::Static,
-            2 => RigidBodyTypeDesc::KinematicPositionBased,
-            3 => RigidBodyTypeDesc::KinematicVelocityBased,
+            0 => RigidBodyType::Dynamic,
+            1 => RigidBodyType::Static,
+            2 => RigidBodyType::KinematicPositionBased,
+            3 => RigidBodyType::KinematicVelocityBased,
             _ => unreachable!(),
         },
         index_generator: |v| *v as usize,
@@ -220,32 +220,32 @@ pub fn make_property_enum_editor_definition() -> EnumPropertyEditorDefinition<Pr
     }
 }
 
-pub fn make_shape_property_editor_definition() -> EnumPropertyEditorDefinition<ColliderShapeDesc> {
+pub fn make_shape_property_editor_definition() -> EnumPropertyEditorDefinition<ColliderShape> {
     EnumPropertyEditorDefinition {
         variant_generator: |i| match i {
-            0 => ColliderShapeDesc::Ball(Default::default()),
-            1 => ColliderShapeDesc::Cylinder(Default::default()),
-            2 => ColliderShapeDesc::RoundCylinder(Default::default()),
-            3 => ColliderShapeDesc::Cone(Default::default()),
-            4 => ColliderShapeDesc::Cuboid(Default::default()),
-            5 => ColliderShapeDesc::Capsule(Default::default()),
-            6 => ColliderShapeDesc::Segment(Default::default()),
-            7 => ColliderShapeDesc::Triangle(Default::default()),
-            8 => ColliderShapeDesc::Trimesh(Default::default()),
-            9 => ColliderShapeDesc::Heightfield(Default::default()),
+            0 => ColliderShape::Ball(Default::default()),
+            1 => ColliderShape::Cylinder(Default::default()),
+            2 => ColliderShape::RoundCylinder(Default::default()),
+            3 => ColliderShape::Cone(Default::default()),
+            4 => ColliderShape::Cuboid(Default::default()),
+            5 => ColliderShape::Capsule(Default::default()),
+            6 => ColliderShape::Segment(Default::default()),
+            7 => ColliderShape::Triangle(Default::default()),
+            8 => ColliderShape::Trimesh(Default::default()),
+            9 => ColliderShape::Heightfield(Default::default()),
             _ => unreachable!(),
         },
         index_generator: |v| match v {
-            ColliderShapeDesc::Ball(_) => 0,
-            ColliderShapeDesc::Cylinder(_) => 1,
-            ColliderShapeDesc::RoundCylinder(_) => 2,
-            ColliderShapeDesc::Cone(_) => 3,
-            ColliderShapeDesc::Cuboid(_) => 4,
-            ColliderShapeDesc::Capsule(_) => 5,
-            ColliderShapeDesc::Segment(_) => 6,
-            ColliderShapeDesc::Triangle(_) => 7,
-            ColliderShapeDesc::Trimesh(_) => 8,
-            ColliderShapeDesc::Heightfield(_) => 9,
+            ColliderShape::Ball(_) => 0,
+            ColliderShape::Cylinder(_) => 1,
+            ColliderShape::RoundCylinder(_) => 2,
+            ColliderShape::Cone(_) => 3,
+            ColliderShape::Cuboid(_) => 4,
+            ColliderShape::Capsule(_) => 5,
+            ColliderShape::Segment(_) => 6,
+            ColliderShape::Triangle(_) => 7,
+            ColliderShape::Trimesh(_) => 8,
+            ColliderShape::Heightfield(_) => 9,
         },
         names_generator: || {
             vec![
@@ -293,7 +293,7 @@ pub fn make_property_editors_container(
     container.insert(ModelResourcePropertyEditorDefinition);
     container.insert(SoundBufferResourcePropertyEditorDefinition);
     container.insert(InspectablePropertyEditorDefinition::<InteractionGroupsDesc>::new());
-    container.insert(InspectablePropertyEditorDefinition::<ColliderShapeDesc>::new());
+    container.insert(InspectablePropertyEditorDefinition::<ColliderShape>::new());
     container.insert(InspectablePropertyEditorDefinition::<JointParamsDesc>::new());
     container.insert(InspectablePropertyEditorDefinition::<Base>::new());
     container.insert(InspectablePropertyEditorDefinition::<scene2d::base::Base>::new());

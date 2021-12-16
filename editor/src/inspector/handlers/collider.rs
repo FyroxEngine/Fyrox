@@ -110,7 +110,7 @@ fn handle_ball_desc_property_changed(
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Ball(_) = collider.shape() {
+    if let ColliderShape::Ball(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 BallShape::RADIUS => make_command!(SetBallRadiusCommand, handle, value),
@@ -128,7 +128,7 @@ fn handle_cuboid_desc_property_changed(
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Cuboid(_) = collider.shape() {
+    if let ColliderShape::Cuboid(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 CuboidShape::HALF_EXTENTS => {
@@ -148,7 +148,7 @@ fn handle_cylinder_desc_property_changed(
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Cylinder(_) = collider.shape() {
+    if let ColliderShape::Cylinder(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 CylinderShape::HALF_HEIGHT => {
@@ -171,7 +171,7 @@ fn handle_round_cylinder_desc_property_changed(
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::RoundCylinder(_) = collider.shape() {
+    if let ColliderShape::RoundCylinder(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 RoundCylinderShape::HALF_HEIGHT => {
@@ -197,7 +197,7 @@ fn handle_cone_desc_property_changed(
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Cone(_) = collider.shape() {
+    if let ColliderShape::Cone(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 ConeShape::HALF_HEIGHT => {
@@ -218,7 +218,7 @@ fn handle_capsule_desc_property_changed(
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Capsule(_) = collider.shape() {
+    if let ColliderShape::Capsule(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 CapsuleShape::BEGIN => make_command!(SetCapsuleBeginCommand, handle, value),
@@ -240,7 +240,7 @@ fn handle_segment_desc_property_changed(
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Segment(_) = collider.shape() {
+    if let ColliderShape::Segment(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 SegmentShape::BEGIN => make_command!(SetSegmentBeginCommand, handle, value),
@@ -259,7 +259,7 @@ fn handle_triangle_desc_property_changed(
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Triangle(_) = collider.shape() {
+    if let ColliderShape::Triangle(_) = collider.shape() {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 TriangleShape::A => make_command!(SetTriangleACommand, handle, value),
@@ -279,7 +279,7 @@ fn handle_trimesh_desc_property_changed(
     collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShapeDesc::Trimesh(_) = collider.shape() {
+    if let ColliderShape::Trimesh(_) = collider.shape() {
         match property_changed.name.as_ref() {
             TrimeshShape::SOURCES => match property_changed.value {
                 FieldKind::Collection(ref collection_changed) => match **collection_changed {

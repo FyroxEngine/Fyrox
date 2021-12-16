@@ -7,7 +7,7 @@ use rg3d::{
 macro_rules! define_collider_variant_command {
     ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $node:ident, $variant:ident, $var:ident) $apply_method:block ) => {
         define_node_command!($name($human_readable_name, $value_type) where fn swap($self, $node) {
-            if let ColliderShapeDesc::$variant(ref mut $var) = *$node.as_collider_mut().shape_mut() {
+            if let ColliderShape::$variant(ref mut $var) = *$node.as_collider_mut().shape_mut() {
                 $apply_method
             } else {
                 unreachable!();
@@ -16,7 +16,7 @@ macro_rules! define_collider_variant_command {
     };
 }
 
-define_node_command!(SetColliderShapeCommand("Set Collider Shape", ColliderShapeDesc) where fn swap(self, node) {
+define_node_command!(SetColliderShapeCommand("Set Collider Shape", ColliderShape) where fn swap(self, node) {
     get_set_swap!(self, node.as_collider_mut(), shape_value, set_shape)
 });
 
@@ -125,7 +125,7 @@ impl Command for AddTrimeshGeometrySourceCommand {
 
     fn execute(&mut self, context: &mut SceneContext) {
         let mut ref_mut = context.scene.graph[self.node].as_collider_mut().shape_mut();
-        if let ColliderShapeDesc::Trimesh(trimesh) = &mut *ref_mut {
+        if let ColliderShape::Trimesh(trimesh) = &mut *ref_mut {
             trimesh.sources.push(self.source)
         } else {
             unreachable!()
@@ -134,7 +134,7 @@ impl Command for AddTrimeshGeometrySourceCommand {
 
     fn revert(&mut self, context: &mut SceneContext) {
         let mut ref_mut = context.scene.graph[self.node].as_collider_mut().shape_mut();
-        if let ColliderShapeDesc::Trimesh(trimesh) = &mut *ref_mut {
+        if let ColliderShape::Trimesh(trimesh) = &mut *ref_mut {
             trimesh.sources.pop();
         } else {
             unreachable!()
@@ -152,7 +152,7 @@ pub struct SetTrimeshColliderGeometrySourceValueCommand {
 impl SetTrimeshColliderGeometrySourceValueCommand {
     fn swap(&mut self, context: &mut SceneContext) {
         let mut ref_mut = context.scene.graph[self.node].as_collider_mut().shape_mut();
-        if let ColliderShapeDesc::Trimesh(trimesh) = &mut *ref_mut {
+        if let ColliderShape::Trimesh(trimesh) = &mut *ref_mut {
             std::mem::swap(&mut trimesh.sources[self.index], &mut self.value)
         } else {
             unreachable!()

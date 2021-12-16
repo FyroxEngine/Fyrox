@@ -4,23 +4,21 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
-use rg3d::engine::Engine;
-use rg3d::gui::{BuildContext, UiNode};
-use rg3d::physics3d::{
-    rapier::{
-        dynamics::RigidBodyBuilder,
-        geometry::ColliderBuilder,
-        na::{Isometry3, UnitQuaternion, Vector3},
-    },
-    RigidBodyHandle,
-};
 use rg3d::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
         Animation, AnimationSignal,
     },
-    core::{algebra::Vector2, color::Color, math::SmoothAngle, pool::Handle},
-    engine::resource_manager::{MaterialSearchOptions, ResourceManager},
+    core::{
+        algebra::{UnitQuaternion, Vector2, Vector3},
+        color::Color,
+        math::SmoothAngle,
+        pool::Handle,
+    },
+    engine::{
+        resource_manager::{MaterialSearchOptions, ResourceManager},
+        Engine,
+    },
     event::{DeviceEvent, ElementState, VirtualKeyCode},
     event_loop::EventLoop,
     gui::{
@@ -31,13 +29,16 @@ use rg3d::{
         widget::WidgetBuilder,
         HorizontalAlignment, Thickness, VerticalAlignment,
     },
+    gui::{BuildContext, UiNode},
     renderer::QualitySettings,
     resource::texture::TextureWrapMode,
     scene::{
         base::BaseBuilder,
         camera::{CameraBuilder, SkyBoxBuilder},
+        collider::{ColliderBuilder, ColliderShape},
         graph::Graph,
         node::Node,
+        rigidbody::{RigidBodyBuilder, RigidBodyType},
         transform::TransformBuilder,
         Scene,
     },
@@ -410,7 +411,7 @@ impl LocomotionMachine {
 
 #[derive(Default)]
 pub struct Player {
-    pub body: RigidBodyHandle,
+    pub body: Handle<Node>,
     pub pivot: Handle<Node>,
     pub camera_pivot: Handle<Node>,
     pub camera_hinge: Handle<Node>,
@@ -487,31 +488,37 @@ impl Player {
         // Instantiation is a process of embedding model resource data in desired scene.
         let model_handle = model_resource.instantiate_geometry(scene);
 
-        let body_height = 1.2;
+        let body_height = 0.5;
 
         // Now we have whole sub-graph instantiated, we can start modifying model instance.
         scene.graph[model_handle]
             .local_transform_mut()
-            .set_position(Vector3::new(0.0, -body_height, 0.0))
+            .set_position(Vector3::new(0.0, -body_height * 2.0, 0.0))
             // Our model is too big, fix it by scale.
             .set_scale(Vector3::new(0.0125, 0.0125, 0.0125));
 
-        let pivot = BaseBuilder::new()
-            .with_children(&[model_handle])
-            .build(&mut scene.graph);
-
-        let capsule = ColliderBuilder::capsule_y(body_height, 0.6).build();
-        let body = scene.physics.add_body(
-            RigidBodyBuilder::new_dynamic()
-                .position(Isometry3::new(
-                    Vector3::new(0.0, 2.0, 0.0),
-                    Default::default(),
-                ))
-                .build(),
-        );
-        scene.physics.add_collider(capsule, &body);
-
-        scene.physics_binder.bind(pivot, body);
+        let pivot;
+        let body = RigidBodyBuilder::new(
+            BaseBuilder::new()
+                .with_local_transform(
+                    TransformBuilder::new()
+                        .with_local_position(Vector3::new(0.0, 2.0, 0.0))
+                        .build(),
+                )
+                .with_children(&[
+                    ColliderBuilder::new(BaseBuilder::new())
+                        .with_shape(ColliderShape::capsule_y(body_height, 0.6))
+                        .build(&mut scene.graph),
+                    {
+                        pivot = BaseBuilder::new()
+                            .with_children(&[model_handle])
+                            .build(&mut scene.graph);
+                        pivot
+                    },
+                ]),
+        )
+        .with_body_type(RigidBodyType::Dynamic)
+        .build(&mut scene.graph);
 
         context
             .lock()
@@ -551,8 +558,6 @@ impl Player {
             .try_normalize(f32::EPSILON)
             .unwrap_or_else(Vector3::x);
 
-        let position = **pivot.local_transform().position();
-
         let mut velocity = Vector3::default();
 
         if self.controller.walk_right {
@@ -575,7 +580,9 @@ impl Player {
             .unwrap_or_default();
         let is_moving = velocity.norm_squared() > 0.0;
 
-        let body = scene.physics.bodies.get_mut(&self.body).unwrap();
+        let body = scene.graph[self.body].as_rigid_body_mut();
+
+        let position = **body.local_transform().position();
 
         let mut new_y_vel = None;
         while let Some(event) = scene
@@ -590,26 +597,27 @@ impl Player {
 
         let quat_yaw = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), self.controller.yaw);
 
-        body.wake_up(true);
-        body.set_angvel(Default::default(), true);
+        body.set_ang_vel(Default::default());
         if let Some(new_y_vel) = new_y_vel {
-            body.set_linvel(
-                Vector3::new(velocity.x / dt, new_y_vel / dt, velocity.z / dt),
-                true,
-            );
+            body.set_lin_vel(Vector3::new(
+                velocity.x / dt,
+                new_y_vel / dt,
+                velocity.z / dt,
+            ));
         } else {
-            body.set_linvel(
-                Vector3::new(velocity.x / dt, body.linvel().y, velocity.z / dt),
-                true,
-            );
+            body.set_lin_vel(Vector3::new(
+                velocity.x / dt,
+                body.lin_vel().y,
+                velocity.z / dt,
+            ));
         }
 
         if is_moving {
             // Since we have free camera while not moving, we have to sync rotation of pivot
             // with rotation of camera so character will start moving in look direction.
-            let mut current_position = *body.position();
-            current_position.rotation = quat_yaw;
-            body.set_position(current_position, true);
+            scene.graph[self.pivot]
+                .local_transform_mut()
+                .set_rotation(quat_yaw);
 
             // Apply additional rotation to model - it will turn in front of walking direction.
             let angle: f32 = if self.controller.walk_left {
@@ -641,9 +649,8 @@ impl Player {
             );
         }
 
-        let camera_pivot_transform = scene.graph[self.camera_pivot].local_transform_mut();
-
-        camera_pivot_transform
+        scene.graph[self.camera_pivot]
+            .local_transform_mut()
             .set_rotation(quat_yaw)
             .set_position(position + velocity);
 
@@ -656,9 +663,11 @@ impl Player {
                 self.controller.pitch,
             ));
 
-        let collider = body.colliders()[0];
+        //let collider = body.colliders()[0];
         let mut has_ground_contact = false;
 
+        // TODO
+        /*
         'outer_loop: for contact in scene.physics.narrow_phase.contacts_with(collider) {
             for manifold in contact.manifolds.iter() {
                 if manifold.local_n1.y > 0.7 {
@@ -666,7 +675,7 @@ impl Player {
                     break 'outer_loop;
                 }
             }
-        }
+        }*/
 
         if has_ground_contact && self.controller.jump {
             // Rewind jump animation to beginning before jump.
@@ -688,6 +697,9 @@ impl Player {
                 is_jumping: has_ground_contact && self.controller.jump,
             },
         );
+
+        scene.drawing_context.clear_lines();
+        scene.graph.debug_draw_physics(&mut scene.drawing_context);
     }
 
     pub fn handle_device_event(&mut self, device_event: &DeviceEvent, dt: f32) {

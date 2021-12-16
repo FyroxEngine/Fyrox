@@ -16,7 +16,7 @@ define_node_command!(SetBodyAngVelCommand("Set Body Angular Velocity", Vector3<f
     get_set_swap!(self, node.as_rigid_body_mut(), ang_vel, set_ang_vel)
 });
 
-define_node_command!(SetBodyStatusCommand("Set Body Status", RigidBodyTypeDesc) where fn swap(self, node) {
+define_node_command!(SetBodyStatusCommand("Set Body Status", RigidBodyType) where fn swap(self, node) {
     get_set_swap!(self, node.as_rigid_body_mut(), body_type, set_body_type)
 });
 

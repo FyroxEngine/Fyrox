@@ -7,7 +7,7 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
-    physics3d::rapier::{dynamics::RigidBodyType, prelude::RigidBodyHandle},
+    physics3d::rapier::prelude::RigidBodyHandle,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -15,41 +15,46 @@ use crate::{
     },
 };
 use bitflags::bitflags;
+use rg3d_physics3d::rapier::dynamics;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Copy, Clone, Debug, Inspect, Visit)]
 #[repr(u32)]
-pub enum RigidBodyTypeDesc {
+pub enum RigidBodyType {
     Dynamic = 0,
     Static = 1,
     KinematicPositionBased = 2,
     KinematicVelocityBased = 3,
 }
 
-impl Default for RigidBodyTypeDesc {
+impl Default for RigidBodyType {
     fn default() -> Self {
         Self::Dynamic
     }
 }
 
-impl From<RigidBodyType> for RigidBodyTypeDesc {
-    fn from(s: RigidBodyType) -> Self {
+impl From<dynamics::RigidBodyType> for RigidBodyType {
+    fn from(s: dynamics::RigidBodyType) -> Self {
         match s {
-            RigidBodyType::Dynamic => Self::Dynamic,
-            RigidBodyType::Static => Self::Static,
-            RigidBodyType::KinematicPositionBased => Self::KinematicPositionBased,
-            RigidBodyType::KinematicVelocityBased => Self::KinematicVelocityBased,
+            dynamics::RigidBodyType::Dynamic => Self::Dynamic,
+            dynamics::RigidBodyType::Static => Self::Static,
+            dynamics::RigidBodyType::KinematicPositionBased => Self::KinematicPositionBased,
+            dynamics::RigidBodyType::KinematicVelocityBased => Self::KinematicVelocityBased,
         }
     }
 }
 
-impl From<RigidBodyTypeDesc> for RigidBodyType {
-    fn from(v: RigidBodyTypeDesc) -> Self {
+impl From<RigidBodyType> for dynamics::RigidBodyType {
+    fn from(v: RigidBodyType) -> Self {
         match v {
-            RigidBodyTypeDesc::Dynamic => RigidBodyType::Dynamic,
-            RigidBodyTypeDesc::Static => RigidBodyType::Static,
-            RigidBodyTypeDesc::KinematicPositionBased => RigidBodyType::KinematicPositionBased,
-            RigidBodyTypeDesc::KinematicVelocityBased => RigidBodyType::KinematicVelocityBased,
+            RigidBodyType::Dynamic => dynamics::RigidBodyType::Dynamic,
+            RigidBodyType::Static => dynamics::RigidBodyType::Static,
+            RigidBodyType::KinematicPositionBased => {
+                dynamics::RigidBodyType::KinematicPositionBased
+            }
+            RigidBodyType::KinematicVelocityBased => {
+                dynamics::RigidBodyType::KinematicVelocityBased
+            }
         }
     }
 }
@@ -71,19 +76,19 @@ bitflags! {
 #[derive(Visit, Inspect, Debug)]
 pub struct RigidBody {
     base: Base,
-    pub lin_vel: Vector3<f32>,
-    pub ang_vel: Vector3<f32>,
-    pub lin_damping: f32,
-    pub ang_damping: f32,
+    pub(crate) lin_vel: Vector3<f32>,
+    pub(crate) ang_vel: Vector3<f32>,
+    pub(crate) lin_damping: f32,
+    pub(crate) ang_damping: f32,
     #[inspect(read_only)]
-    pub sleeping: bool,
-    pub body_type: RigidBodyTypeDesc,
+    pub(crate) sleeping: bool,
+    pub(crate) body_type: RigidBodyType,
     #[inspect(min_value = 0.0, step = 0.05)]
-    pub mass: f32,
-    pub x_rotation_locked: bool,
-    pub y_rotation_locked: bool,
-    pub z_rotation_locked: bool,
-    pub translation_locked: bool,
+    pub(crate) mass: f32,
+    pub(crate) x_rotation_locked: bool,
+    pub(crate) y_rotation_locked: bool,
+    pub(crate) z_rotation_locked: bool,
+    pub(crate) translation_locked: bool,
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) native: RigidBodyHandle,
@@ -101,7 +106,7 @@ impl Default for RigidBody {
             lin_damping: 0.0,
             ang_damping: 0.0,
             sleeping: false,
-            body_type: RigidBodyTypeDesc::Dynamic,
+            body_type: RigidBodyType::Dynamic,
             mass: 1.0,
             x_rotation_locked: false,
             y_rotation_locked: false,
@@ -229,12 +234,12 @@ impl RigidBody {
         self.translation_locked
     }
 
-    pub fn set_body_type(&mut self, body_type: RigidBodyTypeDesc) {
+    pub fn set_body_type(&mut self, body_type: RigidBodyType) {
         self.body_type = body_type;
         self.changes.insert(RigidBodyChanges::BODY_TYPE);
     }
 
-    pub fn body_type(&self) -> RigidBodyTypeDesc {
+    pub fn body_type(&self) -> RigidBodyType {
         self.body_type
     }
 }
@@ -246,7 +251,7 @@ pub struct RigidBodyBuilder {
     lin_damping: f32,
     ang_damping: f32,
     sleeping: bool,
-    body_type: RigidBodyTypeDesc,
+    body_type: RigidBodyType,
     mass: f32,
     x_rotation_locked: bool,
     y_rotation_locked: bool,
@@ -263,7 +268,7 @@ impl RigidBodyBuilder {
             lin_damping: 0.0,
             ang_damping: 0.0,
             sleeping: false,
-            body_type: RigidBodyTypeDesc::Dynamic,
+            body_type: RigidBodyType::Dynamic,
             mass: 1.0,
             x_rotation_locked: false,
             y_rotation_locked: false,
@@ -293,7 +298,7 @@ impl RigidBodyBuilder {
         Node::RigidBody(rigid_body)
     }
 
-    pub fn with_body_type(mut self, body_type: RigidBodyTypeDesc) -> Self {
+    pub fn with_body_type(mut self, body_type: RigidBodyType) -> Self {
         self.body_type = body_type;
         self
     }

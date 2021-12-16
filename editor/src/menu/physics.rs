@@ -129,7 +129,7 @@ impl PhysicsMenu {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
                         ColliderBuilder::new(BaseBuilder::new().with_name("Cuboid Collider"))
-                            .with_shape(ColliderShapeDesc::Cuboid(Default::default()))
+                            .with_shape(ColliderShape::Cuboid(Default::default()))
                             .build_node(),
                     )))
                     .unwrap();
