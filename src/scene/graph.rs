@@ -22,14 +22,12 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::collider::{ColliderChanges, ColliderShapeDesc};
-use crate::scene::debug::SceneDrawingContext;
-use crate::scene::joint::JointChanges;
 use crate::{
     asset::ResourceState,
     core::{
         algebra::{Isometry3, Matrix4, Rotation3, Translation3, UnitQuaternion, Vector2, Vector3},
-        math::{frustum::Frustum, Matrix4Ext},
+        color::Color,
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
         pool::{
             Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
             Ticket,
@@ -39,21 +37,24 @@ use crate::{
     },
     physics3d::rapier::{
         dynamics::{CCDSolver, IntegrationParameters, IslandManager, JointSet},
-        geometry::{BroadPhase, ColliderSet, InteractionGroups, NarrowPhase},
+        geometry::{BroadPhase, ColliderSet, InteractionGroups, NarrowPhase, TriMesh},
         pipeline::{EventHandler, PhysicsPipeline},
         prelude::{ColliderBuilder, ColliderHandle, RigidBodyBuilder, RigidBodySet},
     },
     resource::model::NodeMapping,
     scene::{
-        base::PropertyValue, node::Node, rigidbody::RigidBodyChanges, transform::TransformBuilder,
+        base::PropertyValue,
+        collider::{ColliderChanges, ColliderShapeDesc},
+        debug::SceneDrawingContext,
+        joint::JointChanges,
+        node::Node,
+        rigidbody::RigidBodyChanges,
+        transform::TransformBuilder,
         visibility::VisibilityCache,
     },
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
-use rg3d_core::color::Color;
-use rg3d_core::math::aabb::AxisAlignedBoundingBox;
-use rg3d_physics3d::rapier::geometry::TriMesh;
 use std::{
     fmt::{Debug, Formatter},
     ops::{Index, IndexMut},
@@ -1215,6 +1216,14 @@ impl Graph {
                                 }
 
                                 rigid_body.native = self.physics.bodies.insert(builder.build());
+
+                                Log::writeln(
+                                    MessageKind::Information,
+                                    format!(
+                                        "Native rigid body was created for node {}",
+                                        rigid_body.name()
+                                    ),
+                                );
                             }
                         }
                         Node::Collider(collider) => {
@@ -1305,6 +1314,14 @@ impl Graph {
                                                 &mut self.physics.bodies,
                                             );
                                         collider.native = native_handle;
+
+                                        Log::writeln(
+                                            MessageKind::Information,
+                                            format!(
+                                                "Native collider was created for node {}",
+                                                collider.name()
+                                            ),
+                                        );
                                     }
                                 }
                             }
@@ -1344,7 +1361,18 @@ impl Graph {
                                         native_body2,
                                         params,
                                     );
-                                    self.pool.at_mut(i).unwrap().as_joint_mut().native = native;
+
+                                    let joint = self.pool.at_mut(i).unwrap().as_joint_mut();
+
+                                    joint.native = native;
+
+                                    Log::writeln(
+                                        MessageKind::Information,
+                                        format!(
+                                            "Native joint was created for node {}",
+                                            joint.name()
+                                        ),
+                                    );
                                 }
                             }
                         }

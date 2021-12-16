@@ -1,6 +1,5 @@
 //! Contains all structures and methods to operate with physics world.
 
-use crate::scene::collider::GeometrySource;
 use crate::{
     core::{algebra::Vector2, pool::Handle, visitor::prelude::*},
     engine::PhysicsBinder,
@@ -10,7 +9,7 @@ use crate::{
         desc::{ColliderShapeDesc, PhysicsDesc},
         joint::JointContainer,
         rapier::{
-            dynamics::{JointSet, RigidBodyBuilder, RigidBodySet, RigidBodyType},
+            dynamics::{JointSet, RigidBodySet},
             geometry::{Collider, ColliderBuilder, ColliderSet},
             na::{
                 DMatrix, Dynamic, Isometry3, Point3, Translation, UnitQuaternion, VecStorage,
@@ -21,6 +20,7 @@ use crate::{
         PhysicsWorld, RigidBodyHandle,
     },
     scene::{
+        collider::GeometrySource,
         graph::Graph,
         mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
         node::Node,
@@ -257,28 +257,6 @@ impl LegacyPhysics {
             })
             .friction(0.0)
             .build()
-    }
-
-    /// Creates new height field rigid body from given terrain scene node.
-    pub fn terrain_to_heightfield(
-        &mut self,
-        terrain_handle: Handle<Node>,
-        graph: &Graph,
-    ) -> RigidBodyHandle {
-        let heightfield = self.terrain_to_heightfield_collider(terrain_handle, graph);
-        let (global_rotation, global_position) =
-            graph.isometric_global_rotation_position(terrain_handle);
-        let body = RigidBodyBuilder::new(RigidBodyType::Static)
-            .position(Isometry3 {
-                rotation: global_rotation,
-                translation: Translation {
-                    vector: global_position,
-                },
-            })
-            .build();
-        let handle = self.add_body(body);
-        self.add_collider(heightfield, &handle);
-        handle
     }
 
     pub(in crate) fn resolve(

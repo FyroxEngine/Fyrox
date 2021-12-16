@@ -24,8 +24,6 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
-use crate::scene::collider::{ColliderShapeDesc, GeometrySource};
-use crate::scene::joint::JointParamsDesc;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -45,10 +43,10 @@ use crate::{
     resource::texture::Texture,
     scene::{
         base::BaseBuilder,
-        collider::ColliderBuilder,
+        collider::{ColliderBuilder, ColliderShapeDesc, GeometrySource},
         debug::SceneDrawingContext,
         graph::Graph,
-        joint::JointBuilder,
+        joint::{JointBuilder, JointParamsDesc},
         mesh::buffer::{
             VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
             VertexWriteTrait,
