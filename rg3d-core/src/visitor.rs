@@ -27,6 +27,7 @@ use crate::{
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fxhash::FxHashMap;
+use std::collections::HashMap;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -1291,6 +1292,52 @@ where
 }
 
 impl<K, V> Visit for FxHashMap<K, V>
+where
+    K: Visit + Default + Clone + Hash + Eq,
+    V: Visit + Default,
+{
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut count = self.len() as u32;
+        count.visit("Count", visitor)?;
+
+        if visitor.is_reading() {
+            for i in 0..(count as usize) {
+                let name = format!("Item{}", i);
+
+                visitor.enter_region(name.as_str())?;
+
+                let mut key = K::default();
+                key.visit("Key", visitor)?;
+
+                let mut value = V::default();
+                value.visit("Value", visitor)?;
+
+                self.insert(key, value);
+
+                visitor.leave_region()?;
+            }
+        } else {
+            for (i, (key, value)) in self.iter_mut().enumerate() {
+                let name = format!("Item{}", i);
+
+                visitor.enter_region(name.as_str())?;
+
+                let mut key = key.clone();
+                key.visit("Key", visitor)?;
+
+                value.visit("Value", visitor)?;
+
+                visitor.leave_region()?;
+            }
+        }
+
+        visitor.leave_region()
+    }
+}
+
+impl<K, V> Visit for HashMap<K, V>
 where
     K: Visit + Default + Clone + Hash + Eq,
     V: Visit + Default,
