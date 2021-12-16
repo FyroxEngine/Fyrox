@@ -16,6 +16,10 @@ macro_rules! define_collider_variant_command {
     };
 }
 
+define_node_command!(SetColliderShapeCommand("Set Collider Shape", ColliderShapeDesc) where fn swap(self, node) {
+    get_set_swap!(self, node.as_collider_mut(), shape_value, set_shape)
+});
+
 define_node_command!(SetColliderFrictionCommand("Set Collider Friction", f32) where fn swap(self, node) {
     get_set_swap!(self, node.as_collider_mut(), friction, set_friction)
 });
@@ -107,3 +111,65 @@ define_collider_variant_command!(SetTriangleCCommand("Set Triangle C", Vector3<f
 define_collider_variant_command!(SetBallRadiusCommand("Set Ball Radius", f32) where fn swap(self, physics, Ball, ball) {
     std::mem::swap(&mut ball.radius, &mut self.value);
 });
+
+#[derive(Debug)]
+pub struct AddTrimeshGeometrySourceCommand {
+    pub node: Handle<Node>,
+    pub source: GeometrySource,
+}
+
+impl Command for AddTrimeshGeometrySourceCommand {
+    fn name(&mut self, _: &SceneContext) -> String {
+        "Add Trimesh Geometry Source".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        let mut ref_mut = context.scene.graph[self.node].as_collider_mut().shape_mut();
+        if let ColliderShapeDesc::Trimesh(trimesh) = &mut *ref_mut {
+            trimesh.sources.push(self.source)
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        let mut ref_mut = context.scene.graph[self.node].as_collider_mut().shape_mut();
+        if let ColliderShapeDesc::Trimesh(trimesh) = &mut *ref_mut {
+            trimesh.sources.pop();
+        } else {
+            unreachable!()
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct SetTrimeshColliderGeometrySourceValueCommand {
+    pub node: Handle<Node>,
+    pub index: usize,
+    pub value: GeometrySource,
+}
+
+impl SetTrimeshColliderGeometrySourceValueCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        let mut ref_mut = context.scene.graph[self.node].as_collider_mut().shape_mut();
+        if let ColliderShapeDesc::Trimesh(trimesh) = &mut *ref_mut {
+            std::mem::swap(&mut trimesh.sources[self.index], &mut self.value)
+        } else {
+            unreachable!()
+        }
+    }
+}
+
+impl Command for SetTrimeshColliderGeometrySourceValueCommand {
+    fn name(&mut self, _: &SceneContext) -> String {
+        "Set Trimesh Collider Geometry Source".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+}

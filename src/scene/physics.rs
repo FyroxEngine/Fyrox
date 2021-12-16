@@ -1,5 +1,6 @@
 //! Contains all structures and methods to operate with physics world.
 
+use crate::scene::collider::GeometrySource;
 use crate::{
     core::{algebra::Vector2, pool::Handle, visitor::prelude::*},
     engine::PhysicsBinder,
@@ -96,7 +97,11 @@ impl LegacyPhysics {
 
     /// Creates new trimesh collider shape from given mesh node. It also bakes scale into
     /// vertices of trimesh because rapier does not support collider scaling yet.
-    pub fn make_trimesh(root: Handle<Node>, graph: &Graph) -> SharedShape {
+    pub fn make_trimesh(
+        owner: Handle<Node>,
+        nodes: Vec<GeometrySource>,
+        graph: &Graph,
+    ) -> SharedShape {
         let mut mesh_builder = RawMeshBuilder::new(0, 0);
 
         // Create inverse transform that will discard rotation and translation, but leave scaling and
@@ -105,15 +110,12 @@ impl LegacyPhysics {
         // with scale baked in. We need to do this because root's transform will be synced with body's
         // but we don't want to bake entire transform including root's transform.
         let root_inv_transform = graph
-            .isometric_global_transform(root)
+            .isometric_global_transform(owner)
             .try_inverse()
             .unwrap();
 
-        // Iterate over hierarchy of nodes and build one single trimesh.
-        let mut stack = vec![root];
-        while let Some(handle) = stack.pop() {
-            let node = &graph[handle];
-            if let Node::Mesh(mesh) = node {
+        for source in nodes {
+            if let Some(Node::Mesh(mesh)) = graph.try_get(source.0) {
                 let global_transform = root_inv_transform * mesh.global_transform();
 
                 for surface in mesh.surfaces() {
@@ -162,7 +164,6 @@ impl LegacyPhysics {
                     }
                 }
             }
-            stack.extend_from_slice(node.children.as_slice());
         }
 
         let raw_mesh = mesh_builder.build();
@@ -184,7 +185,7 @@ impl LegacyPhysics {
                 MessageKind::Warning,
                 format!(
                     "Failed to create triangle mesh collider for {}, it has no vertices!",
-                    graph[root].name()
+                    graph[owner].name()
                 ),
             );
 
@@ -239,31 +240,6 @@ impl LegacyPhysics {
         )
     }
 
-    /// Small helper that creates static physics geometry from given mesh.
-    ///
-    /// # Notes
-    ///
-    /// This method *bakes* global transform of given mesh into static geometry
-    /// data. So if given mesh was at some position with any rotation and scale
-    /// resulting static geometry will have vertices that exactly matches given
-    /// mesh.
-    pub fn mesh_to_trimesh(&mut self, root: Handle<Node>, graph: &Graph) -> RigidBodyHandle {
-        let shape = Self::make_trimesh(root, graph);
-        let tri_mesh = ColliderBuilder::new(shape).friction(0.0).build();
-        let (global_rotation, global_position) = graph.isometric_global_rotation_position(root);
-        let body = RigidBodyBuilder::new(RigidBodyType::Static)
-            .position(Isometry3 {
-                rotation: global_rotation,
-                translation: Translation {
-                    vector: global_position,
-                },
-            })
-            .build();
-        let handle = self.add_body(body);
-        self.add_collider(tri_mesh, &handle);
-        handle
-    }
-
     /// Creates new height field collider from given terrain scene node.
     pub fn terrain_to_heightfield_collider(
         &mut self,
@@ -315,7 +291,11 @@ impl LegacyPhysics {
         assert_eq!(self.colliders.len(), 0);
         assert_eq!(self.joints.len(), 0);
 
-        let mut phys_desc = self.desc.take().unwrap();
+        let mut phys_desc = if let Some(old) = self.desc.take() {
+            old
+        } else {
+            return;
+        };
 
         assert_eq!(phys_desc.bodies.len(), phys_desc.body_handle_map.len());
         assert_eq!(
@@ -348,9 +328,11 @@ impl LegacyPhysics {
 
                         if graph.is_valid_handle(associated_node) {
                             // Restore data only for trimeshes.
-                            let collider =
-                                ColliderBuilder::new(Self::make_trimesh(associated_node, graph))
-                                    .build();
+                            let collider = ColliderBuilder::new(SharedShape::trimesh(
+                                vec![Point3::new(0.0, 0.0, 0.0)],
+                                vec![[0, 0, 0]],
+                            ))
+                            .build();
                             colliders.insert_with_parent(
                                 collider,
                                 phys_desc

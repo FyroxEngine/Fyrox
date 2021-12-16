@@ -1,8 +1,9 @@
 #![allow(missing_docs)]
 
+use crate::scene::physics::LegacyPhysics;
 use crate::{
     core::{
-        algebra::{DMatrix, Dynamic, Point3, VecStorage, Vector3},
+        algebra::{Point3, Vector3},
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::prelude::*,
@@ -95,7 +96,7 @@ pub struct TriangleShape {
     pub c: Vector3<f32>,
 }
 
-#[derive(Default, Clone, PartialEq, Hash, Debug, Visit, Inspect)]
+#[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Inspect)]
 pub struct GeometrySource(pub Handle<Node>);
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
@@ -227,52 +228,58 @@ impl ColliderShapeDesc {
     }
 
     // Converts descriptor in a shared shape.
-    pub(crate) fn into_collider_shape(self) -> SharedShape {
+    pub(crate) fn into_collider_shape(
+        self,
+        owner_collider: Handle<Node>,
+        graph: &Graph,
+    ) -> Option<SharedShape> {
         match self {
-            ColliderShapeDesc::Ball(ball) => SharedShape::ball(ball.radius),
+            ColliderShapeDesc::Ball(ball) => Some(SharedShape::ball(ball.radius)),
 
             ColliderShapeDesc::Cylinder(cylinder) => {
-                SharedShape::cylinder(cylinder.half_height, cylinder.radius)
+                Some(SharedShape::cylinder(cylinder.half_height, cylinder.radius))
             }
-            ColliderShapeDesc::RoundCylinder(rcylinder) => SharedShape::round_cylinder(
+            ColliderShapeDesc::RoundCylinder(rcylinder) => Some(SharedShape::round_cylinder(
                 rcylinder.half_height,
                 rcylinder.radius,
                 rcylinder.border_radius,
-            ),
-            ColliderShapeDesc::Cone(cone) => SharedShape::cone(cone.half_height, cone.radius),
+            )),
+            ColliderShapeDesc::Cone(cone) => Some(SharedShape::cone(cone.half_height, cone.radius)),
             ColliderShapeDesc::Cuboid(cuboid) => {
-                SharedShape(Arc::new(Cuboid::new(cuboid.half_extents)))
+                Some(SharedShape(Arc::new(Cuboid::new(cuboid.half_extents))))
             }
-            ColliderShapeDesc::Capsule(capsule) => SharedShape::capsule(
+            ColliderShapeDesc::Capsule(capsule) => Some(SharedShape::capsule(
                 Point3::from(capsule.begin),
                 Point3::from(capsule.end),
                 capsule.radius,
-            ),
-            ColliderShapeDesc::Segment(segment) => {
-                SharedShape::segment(Point3::from(segment.begin), Point3::from(segment.end))
-            }
-            ColliderShapeDesc::Triangle(triangle) => SharedShape::triangle(
+            )),
+            ColliderShapeDesc::Segment(segment) => Some(SharedShape::segment(
+                Point3::from(segment.begin),
+                Point3::from(segment.end),
+            )),
+            ColliderShapeDesc::Triangle(triangle) => Some(SharedShape::triangle(
                 Point3::from(triangle.a),
                 Point3::from(triangle.b),
                 Point3::from(triangle.c),
-            ),
-            ColliderShapeDesc::Trimesh(_) => {
-                // Create fake trimesh. It will be filled with actual data on resolve stage later on.
-                let a = Point3::new(0.0, 0.0, 1.0);
-                let b = Point3::new(1.0, 0.0, 1.0);
-                let c = Point3::new(1.0, 0.0, 0.0);
-                SharedShape::trimesh(vec![a, b, c], vec![[0, 1, 2]])
-            }
-            ColliderShapeDesc::Heightfield(_) => SharedShape::heightfield(
-                {
-                    DMatrix::from_data(VecStorage::new(
-                        Dynamic::new(2),
-                        Dynamic::new(2),
-                        vec![0.0, 1.0, 0.0, 0.0],
+            )),
+            ColliderShapeDesc::Trimesh(trimesh) => {
+                if trimesh.sources.is_empty() {
+                    None
+                } else {
+                    Some(LegacyPhysics::make_trimesh(
+                        owner_collider,
+                        trimesh.sources,
+                        graph,
                     ))
-                },
-                Default::default(),
-            ),
+                }
+            }
+            ColliderShapeDesc::Heightfield(heightfield) => {
+                if let Some(Node::Terrain(terrain)) = graph.try_get(heightfield.geometry_source.0) {
+                    Some(LegacyPhysics::make_heightfield(terrain))
+                } else {
+                    None
+                }
+            }
         }
     }
 }
@@ -376,6 +383,10 @@ impl Collider {
 
     pub fn shape(&self) -> &ColliderShapeDesc {
         &self.shape
+    }
+
+    pub fn shape_value(&self) -> ColliderShapeDesc {
+        self.shape.clone()
     }
 
     pub fn shape_mut(&mut self) -> ColliderShapeRefMut {

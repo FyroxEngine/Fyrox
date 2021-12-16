@@ -24,7 +24,7 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
-use crate::scene::collider::ColliderShapeDesc;
+use crate::scene::collider::{ColliderShapeDesc, GeometrySource};
 use crate::scene::joint::JointParamsDesc;
 use crate::{
     animation::AnimationContainer,
@@ -463,7 +463,7 @@ impl Scene {
                         continue;
                     };
 
-                let shape = ColliderShapeDesc::from_collider_shape(collider_ref.shape());
+                let mut shape = ColliderShapeDesc::from_collider_shape(collider_ref.shape());
 
                 let name = match shape {
                     ColliderShapeDesc::Ball(_) => "Ball Collider",
@@ -477,6 +477,22 @@ impl Scene {
                     ColliderShapeDesc::Trimesh(_) => "Trimesh Collider",
                     ColliderShapeDesc::Heightfield(_) => "Heightfield Collider",
                 };
+
+                // Trimesh and heightfield needs extra care.
+                match shape {
+                    ColliderShapeDesc::Trimesh(ref mut trimesh) => {
+                        trimesh.sources = self
+                            .graph
+                            .traverse_handle_iter(*node)
+                            .filter(|h| self.graph[*h].is_mesh())
+                            .map(|h| GeometrySource(h))
+                            .collect::<Vec<_>>();
+                    }
+                    ColliderShapeDesc::Heightfield(ref mut heightfield) => {
+                        heightfield.geometry_source = GeometrySource(*node);
+                    }
+                    _ => (),
+                }
 
                 let collider_handle = ColliderBuilder::new(
                     BaseBuilder::new()

@@ -341,33 +341,6 @@ impl Graph {
             self.link_nodes(child, handle);
         }
 
-        // Create appropriate physics entities.
-        if let Node::RigidBody(ref mut rigid_body) = self.pool[handle] {
-            let mut builder = RigidBodyBuilder::new(rigid_body.body_type.into())
-                .position(Isometry3 {
-                    rotation: **rigid_body.local_transform().rotation(),
-                    translation: Translation3 {
-                        vector: **rigid_body.local_transform().position(),
-                    },
-                })
-                .additional_mass(rigid_body.mass)
-                .angvel(rigid_body.ang_vel)
-                .linvel(rigid_body.lin_vel)
-                .linear_damping(rigid_body.lin_damping)
-                .angular_damping(rigid_body.ang_damping)
-                .restrict_rotations(
-                    rigid_body.x_rotation_locked,
-                    rigid_body.y_rotation_locked,
-                    rigid_body.z_rotation_locked,
-                );
-
-            if rigid_body.translation_locked {
-                builder = builder.lock_translations();
-            }
-
-            rigid_body.native = self.physics.bodies.insert(builder.build());
-        }
-
         handle
     }
 
@@ -497,40 +470,6 @@ impl Graph {
         self.unlink_internal(child);
         self.pool[child].parent = parent;
         self.pool[parent].children.push(child);
-
-        // Create native physics colliders when attaching collider to a rigid body node.
-        if let Node::RigidBody(ref rigid_body) = self.pool[parent] {
-            let rigid_body_native = rigid_body.native;
-            if let Node::Collider(ref mut collider) = self.pool[child] {
-                println!("Collider Created!");
-
-                let native_handle = self.physics.colliders.insert_with_parent(
-                    ColliderBuilder::new(collider.shape().clone().into_collider_shape())
-                        .position(Isometry3 {
-                            rotation: **collider.local_transform().rotation(),
-                            translation: Translation3 {
-                                vector: **collider.local_transform().position(),
-                            },
-                        })
-                        .friction(collider.friction())
-                        .restitution(collider.restitution())
-                        .collision_groups(InteractionGroups::new(
-                            collider.collision_groups().memberships,
-                            collider.collision_groups().filter,
-                        ))
-                        .solver_groups(InteractionGroups::new(
-                            collider.solver_groups().memberships,
-                            collider.solver_groups().filter,
-                        ))
-                        .sensor(collider.is_sensor())
-                        // TODO Add density, combine rules
-                        .build(),
-                    rigid_body_native,
-                    &mut self.physics.bodies,
-                );
-                collider.native = native_handle;
-            }
-        }
     }
 
     /// Unlinks specified node from its parent and attaches it to root graph node.
@@ -1104,11 +1043,16 @@ impl Graph {
 
     /// Updates nodes in graph using given delta time. There is no need to call it manually.
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
+        // SAFETY: Second reference won't be used in a dangerous places :).
+        let this = unsafe { &*(self as *const _) };
+
         self.physics.update();
 
         self.update_hierarchical_data();
 
         for i in 0..self.pool.get_capacity() {
+            let handle = self.pool.handle_from_index(i);
+
             if let Some(node) = self.pool.at_mut(i) {
                 let remove = if let Some(lifetime) = node.lifetime.as_mut() {
                     *lifetime -= dt;
@@ -1118,7 +1062,7 @@ impl Graph {
                 };
 
                 if remove {
-                    self.remove_node(self.pool.handle_from_index(i));
+                    self.remove_node(handle);
                 } else {
                     match node {
                         Node::Camera(camera) => {
@@ -1217,6 +1161,31 @@ impl Graph {
                                     );
                                     rigid_body.changes.remove(RigidBodyChanges::ROTATION_LOCKED);
                                 }
+                            } else {
+                                let mut builder =
+                                    RigidBodyBuilder::new(rigid_body.body_type.into())
+                                        .position(Isometry3 {
+                                            rotation: **rigid_body.local_transform().rotation(),
+                                            translation: Translation3 {
+                                                vector: **rigid_body.local_transform().position(),
+                                            },
+                                        })
+                                        .additional_mass(rigid_body.mass)
+                                        .angvel(rigid_body.ang_vel)
+                                        .linvel(rigid_body.lin_vel)
+                                        .linear_damping(rigid_body.lin_damping)
+                                        .angular_damping(rigid_body.ang_damping)
+                                        .restrict_rotations(
+                                            rigid_body.x_rotation_locked,
+                                            rigid_body.y_rotation_locked,
+                                            rigid_body.z_rotation_locked,
+                                        );
+
+                                if rigid_body.translation_locked {
+                                    builder = builder.lock_translations();
+                                }
+
+                                rigid_body.native = self.physics.bodies.insert(builder.build());
                             }
                         }
                         Node::Collider(collider) => {
@@ -1235,9 +1204,12 @@ impl Graph {
                                 }
 
                                 if collider.changes.contains(ColliderChanges::SHAPE) {
-                                    native
-                                        .set_shape(collider.shape().clone().into_collider_shape());
-                                    collider.changes.remove(ColliderChanges::SHAPE);
+                                    if let Some(shape) =
+                                        collider.shape().clone().into_collider_shape(handle, this)
+                                    {
+                                        native.set_shape(shape);
+                                        collider.changes.remove(ColliderChanges::SHAPE);
+                                    }
                                 }
                                 if collider.changes.contains(ColliderChanges::RESTITUTION) {
                                     native.set_restitution(collider.restitution());
@@ -1266,6 +1238,46 @@ impl Graph {
                                     collider.changes.remove(ColliderChanges::IS_SENSOR);
                                 }
                                 // TODO: Handle RESTITUTION_COMBINE_RULE + FRICTION_COMBINE_RULE
+                            } else {
+                                if let Some(Node::RigidBody(parent_body)) =
+                                    this.try_get(collider.parent())
+                                {
+                                    let rigid_body_native = parent_body.native;
+                                    if let Some(shape) =
+                                        collider.shape().clone().into_collider_shape(handle, this)
+                                    {
+                                        let mut builder = ColliderBuilder::new(shape)
+                                            .position(Isometry3 {
+                                                rotation: **collider.local_transform().rotation(),
+                                                translation: Translation3 {
+                                                    vector: **collider.local_transform().position(),
+                                                },
+                                            })
+                                            .friction(collider.friction())
+                                            .restitution(collider.restitution())
+                                            .collision_groups(InteractionGroups::new(
+                                                collider.collision_groups().memberships,
+                                                collider.collision_groups().filter,
+                                            ))
+                                            .solver_groups(InteractionGroups::new(
+                                                collider.solver_groups().memberships,
+                                                collider.solver_groups().filter,
+                                            ))
+                                            .sensor(collider.is_sensor());
+
+                                        if let Some(density) = collider.density() {
+                                            builder = builder.density(density);
+                                        }
+
+                                        let native_handle =
+                                            self.physics.colliders.insert_with_parent(
+                                                builder.build(),
+                                                rigid_body_native,
+                                                &mut self.physics.bodies,
+                                            );
+                                        collider.native = native_handle;
+                                    }
+                                }
                             }
                         }
                         Node::Joint(joint) => {

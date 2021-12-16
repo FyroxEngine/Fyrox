@@ -1,5 +1,6 @@
 use crate::inspector::handlers::node::base::handle_base_property_changed;
 use crate::{make_command, scene::commands::collider::*, SceneCommand};
+use rg3d::gui::inspector::CollectionChanged;
 use rg3d::scene::collider::Collider;
 use rg3d::scene::node::Node;
 use rg3d::{
@@ -27,6 +28,9 @@ pub fn handle_collider_property_changed(
             }
             Collider::DENSITY => {
                 make_command!(SetColliderDensityCommand, handle, value)
+            }
+            Collider::SHAPE => {
+                make_command!(SetColliderShapeCommand, handle, value)
             }
             _ => None,
         },
@@ -88,6 +92,8 @@ pub fn handle_collider_property_changed(
                     handle_segment_desc_property_changed(handle, collider, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<TriangleShape>() {
                     handle_triangle_desc_property_changed(handle, collider, inner_property)
+                } else if inner_property.owner_type_id == TypeId::of::<TrimeshShape>() {
+                    handle_trimesh_desc_property_changed(handle, collider, inner_property)
                 } else {
                     None
                 }
@@ -259,6 +265,48 @@ fn handle_triangle_desc_property_changed(
                 TriangleShape::A => make_command!(SetTriangleACommand, handle, value),
                 TriangleShape::B => make_command!(SetTriangleBCommand, handle, value),
                 TriangleShape::C => make_command!(SetTriangleCCommand, handle, value),
+                _ => None,
+            },
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+
+fn handle_trimesh_desc_property_changed(
+    handle: Handle<Node>,
+    collider: &Collider,
+    property_changed: &PropertyChanged,
+) -> Option<SceneCommand> {
+    if let ColliderShapeDesc::Trimesh(_) = collider.shape() {
+        match property_changed.name.as_ref() {
+            TrimeshShape::SOURCES => match property_changed.value {
+                FieldKind::Collection(ref collection_changed) => match **collection_changed {
+                    CollectionChanged::Add => {
+                        Some(SceneCommand::new(AddTrimeshGeometrySourceCommand {
+                            node: handle,
+                            source: Default::default(),
+                        }))
+                    }
+                    CollectionChanged::Remove(_) => None,
+                    CollectionChanged::ItemChanged {
+                        index,
+                        ref property,
+                    } => {
+                        if let FieldKind::Object(ref value) = property.value {
+                            Some(SceneCommand::new(
+                                SetTrimeshColliderGeometrySourceValueCommand {
+                                    node: handle,
+                                    index,
+                                    value: GeometrySource(value.cast_clone()?),
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    }
+                },
                 _ => None,
             },
             _ => None,
