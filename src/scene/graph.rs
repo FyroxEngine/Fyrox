@@ -22,7 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::collider::ColliderChanges;
+use crate::scene::collider::{ColliderChanges, ColliderShapeDesc};
 use crate::scene::debug::SceneDrawingContext;
 use crate::scene::joint::JointChanges;
 use crate::{
@@ -275,14 +275,43 @@ fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_g
     for (_, &new_node_handle) in old_new_mapping.iter() {
         let new_node = &mut dest_graph.pool[new_node_handle];
 
-        if let Node::Mesh(mesh) = new_node {
-            for surface in mesh.surfaces_mut() {
-                for bone_handle in surface.bones.iter_mut() {
-                    if let Some(entry) = old_new_mapping.get(bone_handle) {
-                        *bone_handle = *entry;
+        match new_node {
+            Node::Mesh(mesh) => {
+                for surface in mesh.surfaces_mut() {
+                    for bone_handle in surface.bones.iter_mut() {
+                        if let Some(entry) = old_new_mapping.get(bone_handle) {
+                            *bone_handle = *entry;
+                        }
                     }
                 }
             }
+            Node::Collider(collider) => {
+                let mut shape_mut = collider.shape_mut();
+                match *shape_mut {
+                    ColliderShapeDesc::Trimesh(ref mut trimesh) => {
+                        for source in trimesh.sources.iter_mut() {
+                            if let Some(entry) = old_new_mapping.get(&source.0) {
+                                source.0 = *entry;
+                            }
+                        }
+                    }
+                    ColliderShapeDesc::Heightfield(ref mut heightfield) => {
+                        if let Some(entry) = old_new_mapping.get(&heightfield.geometry_source.0) {
+                            heightfield.geometry_source.0 = *entry;
+                        }
+                    }
+                    _ => (),
+                }
+            }
+            Node::Joint(joint) => {
+                if let Some(entry) = old_new_mapping.get(&joint.body1()) {
+                    joint.set_body1(*entry);
+                }
+                if let Some(entry) = old_new_mapping.get(&joint.body2()) {
+                    joint.set_body2(*entry);
+                }
+            }
+            _ => {}
         }
 
         for property in new_node.properties.iter_mut() {
