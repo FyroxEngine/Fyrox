@@ -1374,6 +1374,14 @@ impl Graph {
                             );
                             changes.remove(RigidBodyChanges::ROTATION_LOCKED);
                         }
+
+                        if changes != RigidBodyChanges::NONE {
+                            Log::writeln(
+                                MessageKind::Warning,
+                                format!("Unhandled rigid body changes! Mask: {:?}", changes),
+                            );
+                        }
+
                         rigid_body.changes.set(changes);
                     } else {
                         let mut builder = RigidBodyBuilder::new(rigid_body.body_type.into())
@@ -1467,6 +1475,14 @@ impl Graph {
                             native.set_sensor(collider.is_sensor());
                             changes.remove(ColliderChanges::IS_SENSOR);
                         }
+
+                        if changes != ColliderChanges::NONE {
+                            Log::writeln(
+                                MessageKind::Warning,
+                                format!("Unhandled collider changes! Mask: {:?}", changes),
+                            );
+                        }
+
                         collider.changes.set(changes);
                         // TODO: Handle RESTITUTION_COMBINE_RULE + FRICTION_COMBINE_RULE
                     } else if let Some(Node::RigidBody(parent_body)) =
@@ -1540,6 +1556,14 @@ impl Graph {
                             // TODO
                             changes.remove(JointChanges::BODY2);
                         }
+
+                        if changes != JointChanges::NONE {
+                            Log::writeln(
+                                MessageKind::Warning,
+                                format!("Unhandled joint changes! Mask: {:?}", changes),
+                            );
+                        }
+
                         joint.changes.set(changes);
                     } else {
                         let body1_handle = joint.body1();

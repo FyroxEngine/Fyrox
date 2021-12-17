@@ -7,7 +7,7 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
-    physics3d::rapier::prelude::RigidBodyHandle,
+    physics3d::rapier::{dynamics, prelude::RigidBodyHandle},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -15,9 +15,10 @@ use crate::{
     },
 };
 use bitflags::bitflags;
-use rg3d_physics3d::rapier::dynamics;
-use std::cell::Cell;
-use std::ops::{Deref, DerefMut};
+use std::{
+    cell::Cell,
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Copy, Clone, Debug, Inspect, Visit)]
 #[repr(u32)]

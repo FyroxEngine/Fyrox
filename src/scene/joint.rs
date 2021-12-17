@@ -7,9 +7,8 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
-    physics3d::rapier::{
-        dynamics::{BallJoint, FixedJoint, JointParams, PrismaticJoint, RevoluteJoint},
-        prelude::JointHandle,
+    physics3d::rapier::dynamics::{
+        BallJoint, FixedJoint, JointHandle, JointParams, PrismaticJoint, RevoluteJoint,
     },
     scene::{
         base::{Base, BaseBuilder},
@@ -18,8 +17,10 @@ use crate::{
     },
 };
 use bitflags::bitflags;
-use std::cell::Cell;
-use std::ops::{Deref, DerefMut};
+use std::{
+    cell::Cell,
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
 pub struct BallJointDesc {
