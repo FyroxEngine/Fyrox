@@ -30,7 +30,7 @@ use std::{
 
 /// Physics world.
 #[derive(Debug)]
-pub struct LegacyPhysics {
+pub(crate) struct LegacyPhysics {
     /// The physics world.
     pub world: PhysicsWorld,
 

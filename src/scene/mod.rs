@@ -12,11 +12,11 @@ pub mod debug;
 pub mod decal;
 pub mod graph;
 pub mod joint;
+pub mod legacy_physics;
 pub mod light;
 pub mod mesh;
 pub mod node;
 pub mod particle_system;
-pub mod physics;
 pub mod rigidbody;
 pub mod sprite;
 pub mod terrain;
@@ -47,12 +47,12 @@ use crate::{
         debug::SceneDrawingContext,
         graph::Graph,
         joint::{JointBuilder, JointParamsDesc},
+        legacy_physics::LegacyPhysics,
         mesh::buffer::{
             VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
             VertexWriteTrait,
         },
         node::Node,
-        physics::LegacyPhysics,
         rigidbody::{RigidBodyBuilder, RigidBodyType},
         transform::TransformBuilder,
     },
