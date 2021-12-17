@@ -16,6 +16,7 @@ use crate::{
 };
 use bitflags::bitflags;
 use rg3d_physics3d::rapier::dynamics;
+use std::cell::Cell;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Copy, Clone, Debug, Inspect, Visit)]
@@ -91,10 +92,10 @@ pub struct RigidBody {
     pub(crate) translation_locked: bool,
     #[visit(skip)]
     #[inspect(skip)]
-    pub(crate) native: RigidBodyHandle,
+    pub(crate) native: Cell<RigidBodyHandle>,
     #[visit(skip)]
     #[inspect(skip)]
-    pub(crate) changes: RigidBodyChanges,
+    pub(crate) changes: Cell<RigidBodyChanges>,
 }
 
 impl Default for RigidBody {
@@ -112,8 +113,8 @@ impl Default for RigidBody {
             y_rotation_locked: false,
             z_rotation_locked: false,
             translation_locked: false,
-            native: RigidBodyHandle::invalid(),
-            changes: RigidBodyChanges::NONE,
+            native: Cell::new(RigidBodyHandle::invalid()),
+            changes: Cell::new(RigidBodyChanges::NONE),
         }
     }
 }
@@ -148,14 +149,14 @@ impl RigidBody {
             z_rotation_locked: self.z_rotation_locked,
             translation_locked: self.translation_locked,
             // Do not copy.
-            native: RigidBodyHandle::invalid(),
-            changes: RigidBodyChanges::NONE,
+            native: Cell::new(RigidBodyHandle::invalid()),
+            changes: Cell::new(RigidBodyChanges::NONE),
         }
     }
 
     pub fn set_lin_vel(&mut self, lin_vel: Vector3<f32>) {
         self.lin_vel = lin_vel;
-        self.changes.insert(RigidBodyChanges::LIN_VEL);
+        self.changes.get_mut().insert(RigidBodyChanges::LIN_VEL);
     }
 
     pub fn lin_vel(&self) -> Vector3<f32> {
@@ -164,7 +165,7 @@ impl RigidBody {
 
     pub fn set_ang_vel(&mut self, ang_vel: Vector3<f32>) {
         self.ang_vel = ang_vel;
-        self.changes.insert(RigidBodyChanges::ANG_VEL);
+        self.changes.get_mut().insert(RigidBodyChanges::ANG_VEL);
     }
 
     pub fn ang_vel(&self) -> Vector3<f32> {
@@ -173,7 +174,7 @@ impl RigidBody {
 
     pub fn set_mass(&mut self, mass: f32) {
         self.mass = mass;
-        self.changes.insert(RigidBodyChanges::MASS);
+        self.changes.get_mut().insert(RigidBodyChanges::MASS);
     }
 
     pub fn mass(&self) -> f32 {
@@ -182,7 +183,7 @@ impl RigidBody {
 
     pub fn set_ang_damping(&mut self, damping: f32) {
         self.ang_damping = damping;
-        self.changes.insert(RigidBodyChanges::ANG_DAMPING);
+        self.changes.get_mut().insert(RigidBodyChanges::ANG_DAMPING);
     }
 
     pub fn ang_damping(&self) -> f32 {
@@ -191,7 +192,7 @@ impl RigidBody {
 
     pub fn set_lin_damping(&mut self, damping: f32) {
         self.lin_damping = damping;
-        self.changes.insert(RigidBodyChanges::LIN_DAMPING);
+        self.changes.get_mut().insert(RigidBodyChanges::LIN_DAMPING);
     }
 
     pub fn lin_damping(&self) -> f32 {
@@ -200,7 +201,9 @@ impl RigidBody {
 
     pub fn lock_x_rotations(&mut self, state: bool) {
         self.x_rotation_locked = state;
-        self.changes.insert(RigidBodyChanges::ROTATION_LOCKED);
+        self.changes
+            .get_mut()
+            .insert(RigidBodyChanges::ROTATION_LOCKED);
     }
 
     pub fn is_x_rotation_locked(&self) -> bool {
@@ -209,7 +212,9 @@ impl RigidBody {
 
     pub fn lock_y_rotations(&mut self, state: bool) {
         self.y_rotation_locked = state;
-        self.changes.insert(RigidBodyChanges::ROTATION_LOCKED);
+        self.changes
+            .get_mut()
+            .insert(RigidBodyChanges::ROTATION_LOCKED);
     }
 
     pub fn is_y_rotation_locked(&self) -> bool {
@@ -218,7 +223,9 @@ impl RigidBody {
 
     pub fn lock_z_rotations(&mut self, state: bool) {
         self.z_rotation_locked = state;
-        self.changes.insert(RigidBodyChanges::ROTATION_LOCKED);
+        self.changes
+            .get_mut()
+            .insert(RigidBodyChanges::ROTATION_LOCKED);
     }
 
     pub fn is_z_rotation_locked(&self) -> bool {
@@ -227,7 +234,9 @@ impl RigidBody {
 
     pub fn lock_translation(&mut self, state: bool) {
         self.translation_locked = state;
-        self.changes.insert(RigidBodyChanges::TRANSLATION_LOCKED);
+        self.changes
+            .get_mut()
+            .insert(RigidBodyChanges::TRANSLATION_LOCKED);
     }
 
     pub fn is_translation_locked(&self) -> bool {
@@ -236,7 +245,7 @@ impl RigidBody {
 
     pub fn set_body_type(&mut self, body_type: RigidBodyType) {
         self.body_type = body_type;
-        self.changes.insert(RigidBodyChanges::BODY_TYPE);
+        self.changes.get_mut().insert(RigidBodyChanges::BODY_TYPE);
     }
 
     pub fn body_type(&self) -> RigidBodyType {
@@ -291,8 +300,8 @@ impl RigidBodyBuilder {
             y_rotation_locked: self.y_rotation_locked,
             z_rotation_locked: self.z_rotation_locked,
             translation_locked: self.translation_locked,
-            native: RigidBodyHandle::invalid(),
-            changes: RigidBodyChanges::NONE,
+            native: Cell::new(RigidBodyHandle::invalid()),
+            changes: Cell::new(RigidBodyChanges::NONE),
         };
 
         Node::RigidBody(rigid_body)

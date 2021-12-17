@@ -2025,7 +2025,7 @@ impl Editor {
             let graph = &mut scene.graph;
 
             if self.settings.debugging.show_physics {
-                graph.debug_draw_physics(&mut scene.drawing_context);
+                graph.physics.draw(&mut scene.drawing_context);
             }
             editor_scene.camera_controller.update(graph, dt);
 

@@ -699,7 +699,6 @@ impl Player {
         );
 
         scene.drawing_context.clear_lines();
-        scene.graph.debug_draw_physics(&mut scene.drawing_context);
     }
 
     pub fn handle_device_event(&mut self, device_event: &DeviceEvent, dt: f32) {

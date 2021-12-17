@@ -18,6 +18,9 @@ use crate::{
     },
 };
 use bitflags::bitflags;
+use rg3d_core::algebra::Matrix4;
+use rg3d_core::pool::Pool;
+use std::cell::Cell;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -230,8 +233,9 @@ impl ColliderShape {
     // Converts descriptor in a shared shape.
     pub(crate) fn into_native_shape(
         self,
+        owner_inv_global_transform: Matrix4<f32>,
         owner_collider: Handle<Node>,
-        graph: &Graph,
+        pool: &Pool<Node>,
     ) -> Option<SharedShape> {
         match self {
             ColliderShape::Ball(ball) => Some(SharedShape::ball(ball.radius)),
@@ -267,14 +271,16 @@ impl ColliderShape {
                     None
                 } else {
                     Some(LegacyPhysics::make_trimesh(
+                        owner_inv_global_transform,
                         owner_collider,
                         trimesh.sources,
-                        graph,
+                        pool,
                     ))
                 }
             }
             ColliderShape::Heightfield(heightfield) => {
-                if let Some(Node::Terrain(terrain)) = graph.try_get(heightfield.geometry_source.0) {
+                if let Some(Node::Terrain(terrain)) = pool.try_borrow(heightfield.geometry_source.0)
+                {
                     Some(LegacyPhysics::make_heightfield(terrain))
                 } else {
                     None
@@ -384,10 +390,10 @@ pub struct Collider {
     solver_groups: InteractionGroupsDesc,
     #[visit(skip)]
     #[inspect(skip)]
-    pub(in crate) native: ColliderHandle,
+    pub(in crate) native: Cell<ColliderHandle>,
     #[visit(skip)]
     #[inspect(skip)]
-    pub(in crate) changes: ColliderChanges,
+    pub(in crate) changes: Cell<ColliderChanges>,
 }
 
 impl Default for Collider {
@@ -401,8 +407,8 @@ impl Default for Collider {
             is_sensor: false,
             collision_groups: Default::default(),
             solver_groups: Default::default(),
-            native: ColliderHandle::invalid(),
-            changes: ColliderChanges::NONE,
+            native: Cell::new(ColliderHandle::invalid()),
+            changes: Cell::new(ColliderChanges::NONE),
         }
     }
 }
@@ -427,7 +433,7 @@ pub struct ColliderShapeRefMut<'a> {
 
 impl<'a> Drop for ColliderShapeRefMut<'a> {
     fn drop(&mut self) {
-        self.parent.changes.insert(ColliderChanges::SHAPE);
+        self.parent.changes.get_mut().insert(ColliderChanges::SHAPE);
     }
 }
 
@@ -457,14 +463,14 @@ impl Collider {
             collision_groups: self.collision_groups,
             solver_groups: self.solver_groups,
             // Do not copy.
-            native: ColliderHandle::invalid(),
-            changes: ColliderChanges::NONE,
+            native: Cell::new(ColliderHandle::invalid()),
+            changes: Cell::new(ColliderChanges::NONE),
         }
     }
 
     pub fn set_shape(&mut self, shape: ColliderShape) {
         self.shape = shape;
-        self.changes.insert(ColliderChanges::SHAPE);
+        self.changes.get_mut().insert(ColliderChanges::SHAPE);
     }
 
     pub fn shape(&self) -> &ColliderShape {
@@ -481,7 +487,7 @@ impl Collider {
 
     pub fn set_restitution(&mut self, restitution: f32) {
         self.restitution = restitution;
-        self.changes.insert(ColliderChanges::RESTITUTION);
+        self.changes.get_mut().insert(ColliderChanges::RESTITUTION);
     }
 
     pub fn restitution(&self) -> f32 {
@@ -490,7 +496,7 @@ impl Collider {
 
     pub fn set_density(&mut self, density: Option<f32>) {
         self.density = density;
-        self.changes.insert(ColliderChanges::DENSITY);
+        self.changes.get_mut().insert(ColliderChanges::DENSITY);
     }
 
     pub fn density(&self) -> Option<f32> {
@@ -499,7 +505,7 @@ impl Collider {
 
     pub fn set_friction(&mut self, friction: f32) {
         self.friction = friction;
-        self.changes.insert(ColliderChanges::FRICTION);
+        self.changes.get_mut().insert(ColliderChanges::FRICTION);
     }
 
     pub fn friction(&self) -> f32 {
@@ -508,7 +514,9 @@ impl Collider {
 
     pub fn set_collision_groups(&mut self, groups: InteractionGroupsDesc) {
         self.collision_groups = groups;
-        self.changes.insert(ColliderChanges::COLLISION_GROUPS);
+        self.changes
+            .get_mut()
+            .insert(ColliderChanges::COLLISION_GROUPS);
     }
 
     pub fn collision_groups(&self) -> InteractionGroupsDesc {
@@ -517,7 +525,9 @@ impl Collider {
 
     pub fn set_solver_groups(&mut self, groups: InteractionGroupsDesc) {
         self.solver_groups = groups;
-        self.changes.insert(ColliderChanges::SOLVER_GROUPS);
+        self.changes
+            .get_mut()
+            .insert(ColliderChanges::SOLVER_GROUPS);
     }
 
     pub fn solver_groups(&self) -> InteractionGroupsDesc {
@@ -526,7 +536,7 @@ impl Collider {
 
     pub fn set_is_sensor(&mut self, is_sensor: bool) {
         self.is_sensor = is_sensor;
-        self.changes.insert(ColliderChanges::IS_SENSOR);
+        self.changes.get_mut().insert(ColliderChanges::IS_SENSOR);
     }
 
     pub fn is_sensor(&self) -> bool {
@@ -574,8 +584,8 @@ impl ColliderBuilder {
             is_sensor: self.is_sensor,
             collision_groups: self.collision_groups,
             solver_groups: self.solver_groups,
-            native: ColliderHandle::invalid(),
-            changes: ColliderChanges::NONE,
+            native: Cell::new(ColliderHandle::invalid()),
+            changes: Cell::new(ColliderChanges::NONE),
         };
         Node::Collider(collider)
     }

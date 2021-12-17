@@ -32,6 +32,8 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use rg3d_core::algebra::Matrix4;
+use rg3d_core::pool::Pool;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -97,10 +99,11 @@ impl LegacyPhysics {
 
     /// Creates new trimesh collider shape from given mesh node. It also bakes scale into
     /// vertices of trimesh because rapier does not support collider scaling yet.
-    pub fn make_trimesh(
+    pub(crate) fn make_trimesh(
+        owner_inv_transform: Matrix4<f32>,
         owner: Handle<Node>,
-        nodes: Vec<GeometrySource>,
-        graph: &Graph,
+        sources: Vec<GeometrySource>,
+        nodes: &Pool<Node>,
     ) -> SharedShape {
         let mut mesh_builder = RawMeshBuilder::new(0, 0);
 
@@ -109,13 +112,10 @@ impl LegacyPhysics {
         // When global transform of node is combined with this transform, we'll get relative transform
         // with scale baked in. We need to do this because root's transform will be synced with body's
         // but we don't want to bake entire transform including root's transform.
-        let root_inv_transform = graph
-            .isometric_global_transform(owner)
-            .try_inverse()
-            .unwrap();
+        let root_inv_transform = owner_inv_transform;
 
-        for source in nodes {
-            if let Some(Node::Mesh(mesh)) = graph.try_get(source.0) {
+        for source in sources {
+            if let Some(Node::Mesh(mesh)) = nodes.try_borrow(source.0) {
                 let global_transform = root_inv_transform * mesh.global_transform();
 
                 for surface in mesh.surfaces() {
@@ -185,7 +185,7 @@ impl LegacyPhysics {
                 MessageKind::Warning,
                 format!(
                     "Failed to create triangle mesh collider for {}, it has no vertices!",
-                    graph[owner].name()
+                    nodes[owner].name()
                 ),
             );
 

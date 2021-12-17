@@ -244,7 +244,7 @@ pub struct LocalTransformRefMut<'a> {
 
 impl<'a> Drop for LocalTransformRefMut<'a> {
     fn drop(&mut self) {
-        self.parent.transform_modified = true;
+        self.parent.transform_modified.set(true);
     }
 }
 
@@ -322,7 +322,7 @@ pub struct Base {
     /// properties to scene nodes.
     pub properties: Vec<Property>,
     #[inspect(skip)]
-    pub(in crate) transform_modified: bool,
+    pub(in crate) transform_modified: Cell<bool>,
 }
 
 impl Base {
@@ -578,7 +578,7 @@ impl Base {
             parent: Default::default(),
             children: Default::default(),
             depth_offset: Default::default(),
-            transform_modified: false,
+            transform_modified: Cell::new(false),
         }
     }
 }
@@ -737,7 +737,7 @@ impl BaseBuilder {
             mobility: self.mobility,
             tag: self.tag,
             properties: Default::default(),
-            transform_modified: false,
+            transform_modified: Cell::new(false),
         }
     }
 

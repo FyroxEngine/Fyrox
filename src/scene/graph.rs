@@ -25,7 +25,10 @@
 use crate::{
     asset::ResourceState,
     core::{
-        algebra::{Isometry3, Matrix4, Rotation3, Translation3, UnitQuaternion, Vector2, Vector3},
+        algebra::{
+            Isometry3, Matrix4, Point3, Rotation3, Translation3, UnitQuaternion, Vector2, Vector3,
+        },
+        arrayvec::ArrayVec,
         color::Color,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
         pool::{
@@ -36,10 +39,15 @@ use crate::{
         VecExtensions,
     },
     physics3d::rapier::{
-        dynamics::{CCDSolver, IntegrationParameters, IslandManager, JointSet},
-        geometry::{BroadPhase, ColliderSet, InteractionGroups, NarrowPhase, TriMesh},
-        pipeline::{EventHandler, PhysicsPipeline},
-        prelude::{ColliderBuilder, ColliderHandle, RigidBodyBuilder, RigidBodySet},
+        dynamics::{
+            CCDSolver, IntegrationParameters, IslandManager, JointSet, RigidBodyBuilder,
+            RigidBodyHandle, RigidBodySet,
+        },
+        geometry::{
+            self, BroadPhase, ColliderBuilder, ColliderHandle, ColliderSet, InteractionGroups,
+            NarrowPhase, Ray, TriMesh,
+        },
+        pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
     },
     resource::model::NodeMapping,
     scene::{
@@ -55,13 +63,161 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
-use rg3d_physics3d::rapier::dynamics::RigidBodyHandle;
 use std::{
-    fmt::{Debug, Formatter},
+    cell::{Cell, RefCell},
+    cmp::Ordering,
+    fmt::{Debug, Display, Formatter},
     ops::{Index, IndexMut},
+    time::Duration,
 };
 
-struct PhysicsWorld {
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub enum FeatureId {
+    /// Shape-dependent identifier of a vertex.
+    Vertex(u32),
+    /// Shape-dependent identifier of an edge.
+    Edge(u32),
+    /// Shape-dependent identifier of a face.
+    Face(u32),
+    /// Unknown identifier.
+    Unknown,
+}
+
+impl From<geometry::FeatureId> for FeatureId {
+    fn from(v: geometry::FeatureId) -> Self {
+        match v {
+            geometry::FeatureId::Vertex(v) => FeatureId::Vertex(v),
+            geometry::FeatureId::Edge(v) => FeatureId::Edge(v),
+            geometry::FeatureId::Face(v) => FeatureId::Face(v),
+            geometry::FeatureId::Unknown => FeatureId::Unknown,
+        }
+    }
+}
+
+/// Performance statistics for the physics part of the engine.
+#[derive(Debug, Default, Clone)]
+pub struct PhysicsPerformanceStatistics {
+    /// A time that was needed to perform a single simulation step.
+    pub step_time: Duration,
+
+    /// A time that was needed to perform all ray casts.
+    pub total_ray_cast_time: Cell<Duration>,
+}
+
+impl Display for PhysicsPerformanceStatistics {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Physics Step Time: {:?}\nPhysics Ray Cast Time: {:?}",
+            self.step_time,
+            self.total_ray_cast_time.get(),
+        )
+    }
+}
+
+impl PhysicsPerformanceStatistics {
+    /// Resets performance statistics to default values.
+    pub fn reset(&mut self) {
+        *self = Default::default();
+    }
+}
+
+/// A ray intersection result.
+#[derive(Debug, Clone)]
+pub struct Intersection {
+    /// A handle of the collider with which intersection was detected.
+    pub collider: Handle<Node>,
+
+    /// A normal at the intersection position.
+    pub normal: Vector3<f32>,
+
+    /// A position of the intersection in world coordinates.
+    pub position: Point3<f32>,
+
+    /// Additional data that contains a kind of the feature with which
+    /// intersection was detected as well as its index.
+    ///
+    /// # Important notes.
+    ///
+    /// FeatureId::Face might have index that is greater than amount of triangles in
+    /// a triangle mesh, this means that intersection was detected from "back" side of
+    /// a face. To "fix" that index, simply subtract amount of triangles of a triangle
+    /// mesh from the value.
+    pub feature: FeatureId,
+
+    /// Distance from the ray origin.
+    pub toi: f32,
+}
+
+/// A set of options for the ray cast.
+pub struct RayCastOptions {
+    /// A ray origin.
+    pub ray_origin: Point3<f32>,
+
+    /// A ray direction. Can be non-normalized.
+    pub ray_direction: Vector3<f32>,
+
+    /// Maximum distance of cast.
+    pub max_len: f32,
+
+    /// Groups to check.
+    pub groups: InteractionGroups,
+
+    /// Whether to sort intersections from closest to farthest.
+    pub sort_results: bool,
+}
+
+/// A trait for ray cast results storage. It has two implementations: Vec and ArrayVec.
+/// Latter is needed for the cases where you need to avoid runtime memory allocations
+/// and do everything on stack.
+pub trait QueryResultsStorage {
+    /// Pushes new intersection in the storage. Returns true if intersection was
+    /// successfully inserted, false otherwise.
+    fn push(&mut self, intersection: Intersection) -> bool;
+
+    /// Clears the storage.
+    fn clear(&mut self);
+
+    /// Sorts intersections by given compare function.
+    fn sort_intersections_by<C: FnMut(&Intersection, &Intersection) -> Ordering>(&mut self, cmp: C);
+}
+
+impl QueryResultsStorage for Vec<Intersection> {
+    fn push(&mut self, intersection: Intersection) -> bool {
+        self.push(intersection);
+        true
+    }
+
+    fn clear(&mut self) {
+        self.clear()
+    }
+
+    fn sort_intersections_by<C>(&mut self, cmp: C)
+    where
+        C: FnMut(&Intersection, &Intersection) -> Ordering,
+    {
+        self.sort_by(cmp);
+    }
+}
+
+impl<const CAP: usize> QueryResultsStorage for ArrayVec<Intersection, CAP> {
+    fn push(&mut self, intersection: Intersection) -> bool {
+        self.try_push(intersection).is_ok()
+    }
+
+    fn clear(&mut self) {
+        self.clear()
+    }
+
+    fn sort_intersections_by<C>(&mut self, cmp: C)
+    where
+        C: FnMut(&Intersection, &Intersection) -> Ordering,
+    {
+        self.sort_by(cmp);
+    }
+}
+
+pub struct PhysicsWorld {
     /// Current physics pipeline.
     pipeline: PhysicsPipeline,
     /// Current gravity vector. Default is (0.0, -9.81, 0.0)
@@ -89,6 +245,11 @@ struct PhysicsWorld {
 
     /// Event handler collects info about contacts and proximity events.
     event_handler: Box<dyn EventHandler>,
+
+    query: RefCell<QueryPipeline>,
+
+    /// Performance statistics of a single simulation step.
+    pub performance_statistics: PhysicsPerformanceStatistics,
 }
 
 impl PhysicsWorld {
@@ -106,6 +267,8 @@ impl PhysicsWorld {
             colliders: ColliderSet::new(),
             joints: JointSet::new(),
             event_handler: Box::new(()),
+            query: RefCell::new(Default::default()),
+            performance_statistics: Default::default(),
         }
     }
 
@@ -127,7 +290,7 @@ impl PhysicsWorld {
 
     /// Draws physics world. Very useful for debugging, it allows you to see where are
     /// rigid bodies, which colliders they have and so on.
-    pub(crate) fn draw(&self, context: &mut SceneDrawingContext) {
+    pub fn draw(&self, context: &mut SceneDrawingContext) {
         for (_, body) in self.bodies.iter() {
             context.draw_transform(body.position().to_homogeneous());
         }
@@ -223,6 +386,59 @@ impl PhysicsWorld {
             }
         }
     }
+
+    /// Casts a ray with given options.
+    pub(crate) fn cast_ray<S: QueryResultsStorage>(
+        &self,
+        handle_map: &FxHashMap<ColliderHandle, Handle<Node>>,
+        opts: RayCastOptions,
+        query_buffer: &mut S,
+    ) {
+        let mut query = self.query.borrow_mut();
+
+        // TODO: Ideally this must be called once per frame, but it seems to be impossible because
+        // a body can be deleted during the consecutive calls of this method which will most
+        // likely end up in panic because of invalid handle stored in internal acceleration
+        // structure. This could be fixed by delaying deleting of bodies/collider to the end
+        // of the frame.
+        query.update(&self.islands, &self.bodies, &self.colliders);
+
+        query_buffer.clear();
+        let ray = Ray::new(
+            opts.ray_origin,
+            opts.ray_direction
+                .try_normalize(f32::EPSILON)
+                .unwrap_or_default(),
+        );
+        query.intersections_with_ray(
+            &self.colliders,
+            &ray,
+            opts.max_len,
+            true,
+            opts.groups,
+            None, // TODO
+            |handle, intersection| {
+                query_buffer.push(Intersection {
+                    collider: handle_map.get(&handle).cloned().unwrap(),
+                    normal: intersection.normal,
+                    position: ray.point_at(intersection.toi),
+                    feature: intersection.feature.into(),
+                    toi: intersection.toi,
+                })
+            },
+        );
+        if opts.sort_results {
+            query_buffer.sort_intersections_by(|a, b| {
+                if a.toi > b.toi {
+                    Ordering::Greater
+                } else if a.toi < b.toi {
+                    Ordering::Less
+                } else {
+                    Ordering::Equal
+                }
+            })
+        }
+    }
 }
 
 impl Default for PhysicsWorld {
@@ -240,7 +456,8 @@ impl Debug for PhysicsWorld {
 /// See module docs.
 #[derive(Debug)]
 pub struct Graph {
-    physics: PhysicsWorld,
+    pub physics: PhysicsWorld,
+    collider_map: FxHashMap<ColliderHandle, Handle<Node>>,
     root: Handle<Node>,
     pool: Pool<Node>,
     stack: Vec<Handle<Node>>,
@@ -250,6 +467,7 @@ impl Default for Graph {
     fn default() -> Self {
         Self {
             physics: PhysicsWorld::new(),
+            collider_map: Default::default(),
             root: Handle::NONE,
             pool: Pool::new(),
             stack: Vec::new(),
@@ -342,6 +560,26 @@ fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_g
     }
 }
 
+fn isometric_local_transform(nodes: &Pool<Node>, node: Handle<Node>) -> Matrix4<f32> {
+    let transform = nodes[node].local_transform();
+    TransformBuilder::new()
+        .with_local_position(**transform.position())
+        .with_local_rotation(**transform.rotation())
+        .with_pre_rotation(**transform.pre_rotation())
+        .with_post_rotation(**transform.post_rotation())
+        .build()
+        .matrix()
+}
+
+fn isometric_global_transform(nodes: &Pool<Node>, node: Handle<Node>) -> Matrix4<f32> {
+    let parent = nodes[node].parent();
+    if parent.is_some() {
+        isometric_global_transform(nodes, parent) * isometric_local_transform(nodes, node)
+    } else {
+        isometric_local_transform(nodes, node)
+    }
+}
+
 impl Graph {
     /// Creates new graph instance with single root node.
     pub fn new() -> Self {
@@ -354,6 +592,7 @@ impl Graph {
             stack: Vec::new(),
             root,
             pool,
+            collider_map: Default::default(),
         }
     }
 
@@ -414,11 +653,6 @@ impl Graph {
         self.pool.try_borrow_mut(handle)
     }
 
-    /// Draw physics entities in a given drawing context.
-    pub fn debug_draw_physics(&self, context: &mut SceneDrawingContext) {
-        self.physics.draw(context)
-    }
-
     /// Destroys node and its children recursively.
     ///
     /// # Notes
@@ -442,15 +676,16 @@ impl Graph {
             match node {
                 Node::RigidBody(body) => {
                     self.physics.bodies.remove(
-                        body.native,
+                        body.native.get(),
                         &mut self.physics.islands,
                         &mut self.physics.colliders,
                         &mut self.physics.joints,
                     );
                 }
                 Node::Collider(collider) => {
+                    self.collider_map.remove(&collider.native.get());
                     self.physics.colliders.remove(
-                        collider.native,
+                        collider.native.get(),
                         &mut self.physics.islands,
                         &mut self.physics.bodies,
                         true,
@@ -458,7 +693,7 @@ impl Graph {
                 }
                 Node::Joint(joint) => {
                     self.physics.joints.remove(
-                        joint.native,
+                        joint.native.get(),
                         &mut self.physics.islands,
                         &mut self.physics.bodies,
                         true,
@@ -483,14 +718,15 @@ impl Graph {
 
         // Remove native collider when detaching a collider node from rigid body node.
         if let Node::Collider(ref mut collider) = self.pool[node_handle] {
-            if self.physics.colliders.get(collider.native).is_some() {
+            if self.physics.colliders.get(collider.native.get()).is_some() {
+                self.collider_map.remove(&collider.native.get());
                 self.physics.colliders.remove(
-                    collider.native,
+                    collider.native.get(),
                     &mut self.physics.islands,
                     &mut self.physics.bodies,
                     true,
                 );
-                collider.native = ColliderHandle::invalid();
+                collider.native.set(ColliderHandle::invalid());
             }
         }
     }
@@ -746,6 +982,12 @@ impl Graph {
             model_root_handle = model_node.parent();
         }
         model_root_handle
+    }
+
+    /// Casts a ray with given options.
+    pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
+        self.physics
+            .cast_ray(&self.collider_map, opts, query_buffer)
     }
 
     pub(in crate) fn resolve(&mut self) {
@@ -1073,19 +1315,14 @@ impl Graph {
     }
 
     fn sync_native_physics(&mut self) {
-        // SAFETY: It is safe to take second immutable reference while having mutable one, because:
-        //  1) We're guarantee that pool won't be changed, only content of its records.
-        //  2) There won't be the two or more reference to the same node.
-        let this = unsafe { &*(self as *const _) };
-
-        for (handle, node) in self.pool.pair_iter_mut() {
+        for (handle, node) in self.pool.pair_iter() {
             match node {
                 Node::RigidBody(rigid_body) => {
-                    if let Some(native) = self.physics.bodies.get_mut(rigid_body.native) {
+                    if let Some(native) = self.physics.bodies.get_mut(rigid_body.native.get()) {
                         let native = native;
 
                         // Sync transform.
-                        if rigid_body.transform_modified {
+                        if rigid_body.transform_modified.get() {
                             // Transform was changed by user, sync native rigid body with node's position.
                             native.set_position(
                                 Isometry3 {
@@ -1096,49 +1333,48 @@ impl Graph {
                                 },
                                 true,
                             );
-                            rigid_body.transform_modified = false;
+                            rigid_body.transform_modified.set(false);
                         }
 
                         // Sync native rigid body's properties with scene node's in case if they
                         // were changed by user.
-                        if rigid_body.changes.contains(RigidBodyChanges::BODY_TYPE) {
+                        let mut changes = rigid_body.changes.get();
+                        if changes.contains(RigidBodyChanges::BODY_TYPE) {
                             native.set_body_type(rigid_body.body_type.into());
-                            rigid_body.changes.remove(RigidBodyChanges::BODY_TYPE);
+                            changes.remove(RigidBodyChanges::BODY_TYPE);
                         }
-                        if rigid_body.changes.contains(RigidBodyChanges::LIN_VEL) {
+                        if changes.contains(RigidBodyChanges::LIN_VEL) {
                             native.set_linvel(rigid_body.lin_vel, true);
-                            rigid_body.changes.remove(RigidBodyChanges::LIN_VEL);
+                            changes.remove(RigidBodyChanges::LIN_VEL);
                         }
-                        if rigid_body.changes.contains(RigidBodyChanges::ANG_VEL) {
+                        if changes.contains(RigidBodyChanges::ANG_VEL) {
                             native.set_angvel(rigid_body.ang_vel, true);
-                            rigid_body.changes.remove(RigidBodyChanges::ANG_VEL);
+                            changes.remove(RigidBodyChanges::ANG_VEL);
                         }
-                        if rigid_body.changes.contains(RigidBodyChanges::MASS) {
-                            let mut props = native.mass_properties().clone();
+                        if changes.contains(RigidBodyChanges::MASS) {
+                            let mut props = *native.mass_properties();
                             props.set_mass(rigid_body.mass, true);
                             native.set_mass_properties(props, true);
-                            rigid_body.changes.remove(RigidBodyChanges::MASS);
+                            changes.remove(RigidBodyChanges::MASS);
                         }
-                        if rigid_body.changes.contains(RigidBodyChanges::LIN_DAMPING) {
+                        if changes.contains(RigidBodyChanges::LIN_DAMPING) {
                             native.set_linear_damping(rigid_body.lin_damping);
-                            rigid_body.changes.remove(RigidBodyChanges::LIN_DAMPING);
+                            changes.remove(RigidBodyChanges::LIN_DAMPING);
                         }
-                        if rigid_body.changes.contains(RigidBodyChanges::ANG_DAMPING) {
+                        if changes.contains(RigidBodyChanges::ANG_DAMPING) {
                             native.set_angular_damping(rigid_body.ang_damping);
-                            rigid_body.changes.remove(RigidBodyChanges::ANG_DAMPING);
+                            changes.remove(RigidBodyChanges::ANG_DAMPING);
                         }
-                        if rigid_body
-                            .changes
-                            .contains(RigidBodyChanges::ROTATION_LOCKED)
-                        {
+                        if changes.contains(RigidBodyChanges::ROTATION_LOCKED) {
                             native.restrict_rotations(
                                 rigid_body.x_rotation_locked,
                                 rigid_body.y_rotation_locked,
                                 rigid_body.z_rotation_locked,
                                 true,
                             );
-                            rigid_body.changes.remove(RigidBodyChanges::ROTATION_LOCKED);
+                            changes.remove(RigidBodyChanges::ROTATION_LOCKED);
                         }
+                        rigid_body.changes.set(changes);
                     } else {
                         let mut builder = RigidBodyBuilder::new(rigid_body.body_type.into())
                             .position(Isometry3 {
@@ -1162,7 +1398,9 @@ impl Graph {
                             builder = builder.lock_translations();
                         }
 
-                        rigid_body.native = self.physics.bodies.insert(builder.build());
+                        rigid_body
+                            .native
+                            .set(self.physics.bodies.insert(builder.build()));
 
                         Log::writeln(
                             MessageKind::Information,
@@ -1176,8 +1414,8 @@ impl Graph {
                 Node::Collider(collider) => {
                     // The collider node may lack backing native physics collider in case if it
                     // is not attached to a rigid body.
-                    if let Some(native) = self.physics.colliders.get_mut(collider.native) {
-                        if collider.transform_modified {
+                    if let Some(native) = self.physics.colliders.get_mut(collider.native.get()) {
+                        if collider.transform_modified.get() {
                             // Transform was changed by user, sync native rigid body with node's position.
                             native.set_position(Isometry3 {
                                 rotation: **collider.local_transform().rotation(),
@@ -1185,52 +1423,66 @@ impl Graph {
                                     vector: **collider.local_transform().position(),
                                 },
                             });
-                            collider.transform_modified = false;
+                            collider.transform_modified.set(false);
                         }
 
-                        if collider.changes.contains(ColliderChanges::SHAPE) {
-                            if let Some(shape) =
-                                collider.shape().clone().into_native_shape(handle, this)
-                            {
+                        let mut changes = collider.changes.get();
+                        if changes.contains(ColliderChanges::SHAPE) {
+                            let inv_global_transform =
+                                isometric_global_transform(&self.pool, handle)
+                                    .try_inverse()
+                                    .unwrap();
+                            if let Some(shape) = collider.shape().clone().into_native_shape(
+                                inv_global_transform,
+                                handle,
+                                &self.pool,
+                            ) {
                                 native.set_shape(shape);
-                                collider.changes.remove(ColliderChanges::SHAPE);
+                                changes.remove(ColliderChanges::SHAPE);
                             }
                         }
-                        if collider.changes.contains(ColliderChanges::RESTITUTION) {
+                        if changes.contains(ColliderChanges::RESTITUTION) {
                             native.set_restitution(collider.restitution());
-                            collider.changes.remove(ColliderChanges::RESTITUTION);
+                            changes.remove(ColliderChanges::RESTITUTION);
                         }
-                        if collider.changes.contains(ColliderChanges::COLLISION_GROUPS) {
+                        if changes.contains(ColliderChanges::COLLISION_GROUPS) {
                             native.set_collision_groups(InteractionGroups::new(
                                 collider.collision_groups().memberships,
                                 collider.collision_groups().filter,
                             ));
-                            collider.changes.remove(ColliderChanges::COLLISION_GROUPS);
+                            changes.remove(ColliderChanges::COLLISION_GROUPS);
                         }
-                        if collider.changes.contains(ColliderChanges::SOLVER_GROUPS) {
+                        if changes.contains(ColliderChanges::SOLVER_GROUPS) {
                             native.set_solver_groups(InteractionGroups::new(
                                 collider.solver_groups().memberships,
                                 collider.solver_groups().filter,
                             ));
-                            collider.changes.remove(ColliderChanges::SOLVER_GROUPS);
+                            changes.remove(ColliderChanges::SOLVER_GROUPS);
                         }
-                        if collider.changes.contains(ColliderChanges::FRICTION) {
+                        if changes.contains(ColliderChanges::FRICTION) {
                             native.set_friction(collider.friction());
-                            collider.changes.remove(ColliderChanges::FRICTION);
+                            changes.remove(ColliderChanges::FRICTION);
                         }
-                        if collider.changes.contains(ColliderChanges::IS_SENSOR) {
+                        if changes.contains(ColliderChanges::IS_SENSOR) {
                             native.set_sensor(collider.is_sensor());
-                            collider.changes.remove(ColliderChanges::IS_SENSOR);
+                            changes.remove(ColliderChanges::IS_SENSOR);
                         }
+                        collider.changes.set(changes);
                         // TODO: Handle RESTITUTION_COMBINE_RULE + FRICTION_COMBINE_RULE
                     } else if let Some(Node::RigidBody(parent_body)) =
-                        this.try_get(collider.parent())
+                        self.try_get(collider.parent())
                     {
-                        if parent_body.native != RigidBodyHandle::invalid() {
-                            let rigid_body_native = parent_body.native;
-                            if let Some(shape) =
-                                collider.shape().clone().into_native_shape(handle, this)
-                            {
+                        if parent_body.native.get() != RigidBodyHandle::invalid() {
+                            let inv_global_transform = self
+                                .isometric_global_transform(handle)
+                                .try_inverse()
+                                .unwrap();
+                            let rigid_body_native = parent_body.native.get();
+                            if let Some(shape) = collider.shape().clone().into_native_shape(
+                                inv_global_transform,
+                                handle,
+                                &self.pool,
+                            ) {
                                 let mut builder = ColliderBuilder::new(shape)
                                     .position(Isometry3 {
                                         rotation: **collider.local_transform().rotation(),
@@ -1259,7 +1511,8 @@ impl Graph {
                                     rigid_body_native,
                                     &mut self.physics.bodies,
                                 );
-                                collider.native = native_handle;
+                                self.collider_map.insert(native_handle, handle);
+                                collider.native.set(native_handle);
 
                                 Log::writeln(
                                     MessageKind::Information,
@@ -1273,19 +1526,21 @@ impl Graph {
                     }
                 }
                 Node::Joint(joint) => {
-                    if let Some(native) = self.physics.joints.get_mut(joint.native) {
-                        if joint.changes.contains(JointChanges::PARAMS) {
+                    if let Some(native) = self.physics.joints.get_mut(joint.native.get()) {
+                        let mut changes = joint.changes.get();
+                        if changes.contains(JointChanges::PARAMS) {
                             native.params = joint.params().clone().into();
-                            joint.changes.remove(JointChanges::PARAMS);
+                            changes.remove(JointChanges::PARAMS);
                         }
-                        if joint.changes.contains(JointChanges::BODY1) {
+                        if changes.contains(JointChanges::BODY1) {
                             // TODO
-                            joint.changes.remove(JointChanges::BODY1);
+                            changes.remove(JointChanges::BODY1);
                         }
-                        if joint.changes.contains(JointChanges::BODY2) {
+                        if changes.contains(JointChanges::BODY2) {
                             // TODO
-                            joint.changes.remove(JointChanges::BODY2);
+                            changes.remove(JointChanges::BODY2);
                         }
+                        joint.changes.set(changes);
                     } else {
                         let body1_handle = joint.body1();
                         let body2_handle = joint.body2();
@@ -1293,18 +1548,18 @@ impl Graph {
 
                         // A native joint can be created iff both rigid bodies are correctly assigned.
                         if let (Some(Node::RigidBody(body1)), Some(Node::RigidBody(body2))) = (
-                            this.pool.try_borrow(body1_handle),
-                            this.pool.try_borrow(body2_handle),
+                            self.pool.try_borrow(body1_handle),
+                            self.pool.try_borrow(body2_handle),
                         ) {
-                            let native_body1 = body1.native;
-                            let native_body2 = body2.native;
+                            let native_body1 = body1.native.get();
+                            let native_body2 = body2.native.get();
 
                             let native =
                                 self.physics
                                     .joints
                                     .insert(native_body1, native_body2, params);
 
-                            joint.native = native;
+                            joint.native.set(native);
 
                             Log::writeln(
                                 MessageKind::Information,
@@ -1374,7 +1629,9 @@ impl Graph {
                         // We have to sync rigid body parameters back after each physics step, hopefully there is
                         // not many data that has to be synced.
                         Node::RigidBody(rigid_body) => {
-                            if let Some(native) = self.physics.bodies.get_mut(rigid_body.native) {
+                            if let Some(native) =
+                                self.physics.bodies.get_mut(rigid_body.native.get())
+                            {
                                 rigid_body
                                     .local_transform
                                     .set_position(native.position().translation.vector)
@@ -1582,25 +1839,13 @@ impl Graph {
     /// Returns isometric local transformation matrix of a node. Such transform has
     /// only translation and rotation.
     pub fn isometric_local_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
-        let transform = self[node].local_transform();
-        TransformBuilder::new()
-            .with_local_position(**transform.position())
-            .with_local_rotation(**transform.rotation())
-            .with_pre_rotation(**transform.pre_rotation())
-            .with_post_rotation(**transform.post_rotation())
-            .build()
-            .matrix()
+        isometric_local_transform(&self.pool, node)
     }
 
     /// Returns world transformation matrix of a node only.  Such transform has
     /// only translation and rotation.
     pub fn isometric_global_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
-        let parent = self[node].parent();
-        if parent.is_some() {
-            self.isometric_global_transform(parent) * self.isometric_local_transform(node)
-        } else {
-            self.isometric_local_transform(node)
-        }
+        isometric_global_transform(&self.pool, node)
     }
 
     /// Returns global scale matrix of a node.

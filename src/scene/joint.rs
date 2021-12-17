@@ -18,6 +18,7 @@ use crate::{
     },
 };
 use bitflags::bitflags;
+use std::cell::Cell;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
@@ -158,7 +159,7 @@ pub struct JointParamsRefMut<'a> {
 
 impl<'a> Drop for JointParamsRefMut<'a> {
     fn drop(&mut self) {
-        self.parent.changes.insert(JointChanges::PARAMS);
+        self.parent.changes.get_mut().insert(JointChanges::PARAMS);
     }
 }
 
@@ -184,10 +185,10 @@ pub struct Joint {
     body2: Handle<Node>,
     #[visit(skip)]
     #[inspect(skip)]
-    pub(crate) native: JointHandle,
+    pub(crate) native: Cell<JointHandle>,
     #[visit(skip)]
     #[inspect(skip)]
-    pub(crate) changes: JointChanges,
+    pub(crate) changes: Cell<JointChanges>,
 }
 
 impl Default for Joint {
@@ -197,8 +198,8 @@ impl Default for Joint {
             params: Default::default(),
             body1: Default::default(),
             body2: Default::default(),
-            native: JointHandle::invalid(),
-            changes: JointChanges::NONE,
+            native: Cell::new(JointHandle::invalid()),
+            changes: Cell::new(JointChanges::NONE),
         }
     }
 }
@@ -224,8 +225,8 @@ impl Joint {
             params: self.params.clone(),
             body1: self.body1,
             body2: self.body2,
-            native: JointHandle::invalid(),
-            changes: JointChanges::NONE,
+            native: Cell::new(JointHandle::invalid()),
+            changes: Cell::new(JointChanges::NONE),
         }
     }
 
@@ -239,7 +240,7 @@ impl Joint {
 
     pub fn set_body1(&mut self, handle: Handle<Node>) {
         self.body1 = handle;
-        self.changes.insert(JointChanges::BODY1);
+        self.changes.get_mut().insert(JointChanges::BODY1);
     }
 
     pub fn body1(&self) -> Handle<Node> {
@@ -248,7 +249,7 @@ impl Joint {
 
     pub fn set_body2(&mut self, handle: Handle<Node>) {
         self.body2 = handle;
-        self.changes.insert(JointChanges::BODY2);
+        self.changes.get_mut().insert(JointChanges::BODY2);
     }
 
     pub fn body2(&self) -> Handle<Node> {
@@ -293,8 +294,8 @@ impl JointBuilder {
             params: self.params,
             body1: self.body1,
             body2: self.body2,
-            native: JointHandle::invalid(),
-            changes: JointChanges::NONE,
+            native: Cell::new(JointHandle::invalid()),
+            changes: Cell::new(JointChanges::NONE),
         })
     }
 

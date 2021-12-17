@@ -451,7 +451,7 @@ impl Scene {
             .with_translation_locked(body_ref.is_translation_locked())
             .build(&mut self.graph);
 
-            body_map.insert(body_handle.clone(), body_node_handle);
+            body_map.insert(body_handle, body_node_handle);
 
             for c in body_ref.colliders() {
                 let collider_ref =
@@ -483,7 +483,7 @@ impl Scene {
                             .graph
                             .traverse_handle_iter(*node)
                             .filter(|h| self.graph[*h].is_mesh())
-                            .map(|h| GeometrySource(h))
+                            .map(GeometrySource)
                             .collect::<Vec<_>>();
                     }
                     ColliderShape::Heightfield(ref mut heightfield) => {
