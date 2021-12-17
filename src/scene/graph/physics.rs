@@ -287,14 +287,6 @@ impl PhysicsWorld {
         );
     }
 
-    pub(super) fn body_owner(&self, handle: RigidBodyHandle) -> Handle<Node> {
-        *self
-            .bodies
-            .map
-            .value_of(&handle)
-            .expect("Desync has occurred!")
-    }
-
     pub(super) fn add_collider(
         &mut self,
         owner: Handle<Node>,
@@ -323,14 +315,6 @@ impl PhysicsWorld {
         }
     }
 
-    pub(super) fn collider_owner(&self, handle: ColliderHandle) -> Handle<Node> {
-        *self
-            .colliders
-            .map
-            .value_of(&handle)
-            .expect("Desync has occurred!")
-    }
-
     pub(super) fn add_joint(
         &mut self,
         owner: Handle<Node>,
@@ -348,14 +332,6 @@ impl PhysicsWorld {
         self.joints
             .set
             .remove(handle, &mut self.islands, &mut self.bodies.set, true);
-    }
-
-    pub(super) fn joint_owner(&self, handle: JointHandle) -> Handle<Node> {
-        *self
-            .joints
-            .map
-            .value_of(&handle)
-            .expect("Desync has occurred!")
     }
 
     /// Draws physics world. Very useful for debugging, it allows you to see where are
@@ -756,11 +732,15 @@ impl PhysicsWorld {
                 changes.remove(JointChanges::PARAMS);
             }
             if changes.contains(JointChanges::BODY1) {
-                // TODO
+                if let Some(Node::RigidBody(rigid_body_node)) = nodes.try_borrow(joint.body1()) {
+                    native.body1 = rigid_body_node.native.get();
+                }
                 changes.remove(JointChanges::BODY1);
             }
             if changes.contains(JointChanges::BODY2) {
-                // TODO
+                if let Some(Node::RigidBody(rigid_body_node)) = nodes.try_borrow(joint.body2()) {
+                    native.body2 = rigid_body_node.native.get();
+                }
                 changes.remove(JointChanges::BODY2);
             }
 

@@ -664,7 +664,7 @@ impl Player {
             ));
 
         //let collider = body.colliders()[0];
-        let mut has_ground_contact = false;
+        let has_ground_contact = false;
 
         // TODO
         /*

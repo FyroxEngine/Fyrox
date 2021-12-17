@@ -22,7 +22,6 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::graph::physics::{PhysicsWorld, QueryResultsStorage, RayCastOptions};
 use crate::{
     asset::ResourceState,
     core::{
@@ -35,17 +34,13 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
         VecExtensions,
     },
-    physics3d::rapier::{
-        geometry::{ColliderHandle, InteractionGroups},
-        pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
-    },
+    physics3d::rapier::geometry::ColliderHandle,
     resource::model::NodeMapping,
     scene::{
         base::PropertyValue,
-        collider::{ColliderChanges, ColliderShape},
-        joint::JointChanges,
+        collider::ColliderShape,
+        graph::physics::{PhysicsWorld, QueryResultsStorage, RayCastOptions},
         node::Node,
-        rigidbody::RigidBodyChanges,
         transform::TransformBuilder,
         visibility::VisibilityCache,
     },
@@ -53,11 +48,8 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use std::{
-    cell::{Cell, RefCell},
-    cmp::Ordering,
-    fmt::{Debug, Display, Formatter},
+    fmt::Debug,
     ops::{Index, IndexMut},
-    time::Duration,
 };
 
 pub mod physics;
