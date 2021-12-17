@@ -595,7 +595,7 @@ impl Base {
         self.frustum_culling
     }
 
-    /// Sets the frustum_culling flag
+    /// Sets whether to use frustum culling or not
     pub fn set_frustum_culling(&mut self, frustum_culling: bool) {
         self.frustum_culling = frustum_culling;
     }
@@ -628,6 +628,7 @@ impl Visit for Base {
         self.tag.visit("Tag", visitor)?;
         let _ = self.properties.visit("Properties", visitor);
         let _ = self.physics_binding.visit("PhysicsBinding", visitor);
+        self.frustum_culling.visit("FrustumCulling", visitor)?;
 
         visitor.leave_region()
     }
