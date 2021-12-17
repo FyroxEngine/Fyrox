@@ -29,6 +29,7 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
+use rg3d_core::algebra::Vector2;
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
@@ -181,6 +182,48 @@ impl<const CAP: usize> QueryResultsStorage for ArrayVec<Intersection, CAP> {
     {
         self.sort_by(cmp);
     }
+}
+
+pub struct ContactData {
+    /// The contact point in the local-space of the first shape.
+    pub local_p1: Vector3<f32>,
+    /// The contact point in the local-space of the second shape.
+    pub local_p2: Vector3<f32>,
+    /// The distance between the two contact points.
+    pub dist: f32,
+    /// The impulse, along the contact normal, applied by this contact to the first collider's rigid-body.
+    /// The impulse applied to the second collider's rigid-body is given by `-impulse`.
+    pub impulse: f32,
+    /// The friction impulses along the basis orthonormal to the contact normal, applied to the first
+    /// collider's rigid-body.
+    pub tangent_impulse: Vector2<f32>,
+}
+
+pub struct ContactManifold {
+    /// The contacts points.
+    pub points: Vec<ContactData>,
+    /// The contact normal of all the contacts of this manifold, expressed in the local space of the first shape.
+    pub local_n1: Vector3<f32>,
+    /// The contact normal of all the contacts of this manifold, expressed in the local space of the second shape.
+    pub local_n2: Vector3<f32>,
+    /// The first rigid-body involved in this contact manifold.
+    pub rigid_body1: Handle<Node>,
+    /// The second rigid-body involved in this contact manifold.
+    pub rigid_body2: Handle<Node>,
+    /// The world-space contact normal shared by all the contact in this contact manifold.
+    pub normal: Vector3<f32>,
+}
+
+pub struct ContactPair {
+    /// The first collider involved in the contact pair.
+    pub collider1: Handle<Node>,
+    /// The second collider involved in the contact pair.
+    pub collider2: Handle<Node>,
+    /// The set of contact manifolds between the two colliders.
+    /// All contact manifold contain themselves contact points between the colliders.
+    pub manifolds: Vec<ContactManifold>,
+    /// Is there any active contact in this contact pair?
+    pub has_any_active_contact: bool,
 }
 
 pub(super) struct Container<S, A>
@@ -775,6 +818,59 @@ impl PhysicsWorld {
                 );
             }
         }
+    }
+
+    pub(crate) fn contacts_with(
+        &self,
+        collider: ColliderHandle,
+    ) -> impl Iterator<Item = ContactPair> + '_ {
+        self.narrow_phase
+            .contacts_with(collider)
+            .map(|c| ContactPair {
+                collider1: self
+                    .colliders
+                    .map
+                    .value_of(&c.collider1)
+                    .cloned()
+                    .unwrap_or_default(),
+                collider2: self
+                    .colliders
+                    .map
+                    .value_of(&c.collider2)
+                    .cloned()
+                    .unwrap_or_default(),
+                manifolds: c
+                    .manifolds
+                    .iter()
+                    .map(|m| ContactManifold {
+                        points: m
+                            .points
+                            .iter()
+                            .map(|p| ContactData {
+                                local_p1: p.local_p1.coords,
+                                local_p2: p.local_p2.coords,
+                                dist: p.dist,
+                                impulse: p.data.impulse,
+                                tangent_impulse: p.data.tangent_impulse,
+                            })
+                            .collect(),
+                        local_n1: m.local_n1,
+                        local_n2: m.local_n2,
+                        rigid_body1: m
+                            .data
+                            .rigid_body1
+                            .and_then(|h| self.bodies.map.value_of(&h).cloned())
+                            .unwrap_or_default(),
+                        rigid_body2: m
+                            .data
+                            .rigid_body2
+                            .and_then(|h| self.bodies.map.value_of(&h).cloned())
+                            .unwrap_or_default(),
+                        normal: m.data.normal,
+                    })
+                    .collect(),
+                has_any_active_contact: c.has_any_active_contact,
+            })
     }
 }
 

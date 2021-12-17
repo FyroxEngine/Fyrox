@@ -411,6 +411,7 @@ impl LocomotionMachine {
 
 #[derive(Default)]
 pub struct Player {
+    pub capsule_collider: Handle<Node>,
     pub body: Handle<Node>,
     pub pivot: Handle<Node>,
     pub camera_pivot: Handle<Node>,
@@ -498,6 +499,7 @@ impl Player {
             .set_scale(Vector3::new(0.0125, 0.0125, 0.0125));
 
         let pivot;
+        let capsule_collider;
         let body = RigidBodyBuilder::new(
             BaseBuilder::new()
                 .with_local_transform(
@@ -506,9 +508,12 @@ impl Player {
                         .build(),
                 )
                 .with_children(&[
-                    ColliderBuilder::new(BaseBuilder::new())
-                        .with_shape(ColliderShape::capsule_y(body_height, 0.6))
-                        .build(&mut scene.graph),
+                    {
+                        capsule_collider = ColliderBuilder::new(BaseBuilder::new())
+                            .with_shape(ColliderShape::capsule_y(body_height, 0.6))
+                            .build(&mut scene.graph);
+                        capsule_collider
+                    },
                     {
                         pivot = BaseBuilder::new()
                             .with_children(&[model_handle])
@@ -529,6 +534,7 @@ impl Player {
             LocomotionMachine::new(scene, model_handle, resource_manager).await;
 
         Self {
+            capsule_collider,
             body,
             pivot,
             model: model_handle,
@@ -663,19 +669,17 @@ impl Player {
                 self.controller.pitch,
             ));
 
-        //let collider = body.colliders()[0];
-        let has_ground_contact = false;
-
-        // TODO
-        /*
-        'outer_loop: for contact in scene.physics.narrow_phase.contacts_with(collider) {
-            for manifold in contact.manifolds.iter() {
-                if manifold.local_n1.y > 0.7 {
-                    has_ground_contact = true;
-                    break 'outer_loop;
+        let mut has_ground_contact = false;
+        if let Some(Node::Collider(collider)) = scene.graph.try_get(self.capsule_collider) {
+            'outer_loop: for contact in collider.contacts(&scene.graph.physics) {
+                for manifold in contact.manifolds.iter() {
+                    if manifold.local_n1.y > 0.7 {
+                        has_ground_contact = true;
+                        break 'outer_loop;
+                    }
                 }
             }
-        }*/
+        }
 
         if has_ground_contact && self.controller.jump {
             // Rewind jump animation to beginning before jump.
@@ -697,8 +701,6 @@ impl Player {
                 is_jumping: has_ground_contact && self.controller.jump,
             },
         );
-
-        scene.drawing_context.clear_lines();
     }
 
     pub fn handle_device_event(&mut self, device_event: &DeviceEvent, dt: f32) {

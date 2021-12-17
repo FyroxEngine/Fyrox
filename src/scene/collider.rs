@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+use crate::scene::graph::physics::{ContactPair, PhysicsWorld};
 use crate::{
     core::{
         algebra::{DMatrix, Dynamic, Matrix4, Point3, VecStorage, Vector2, Vector3},
@@ -687,6 +688,13 @@ impl Collider {
 
     pub fn is_sensor(&self) -> bool {
         self.is_sensor
+    }
+
+    pub fn contacts<'a>(
+        &self,
+        physics: &'a PhysicsWorld,
+    ) -> impl Iterator<Item = ContactPair> + 'a {
+        physics.contacts_with(self.native.get())
     }
 }
 
