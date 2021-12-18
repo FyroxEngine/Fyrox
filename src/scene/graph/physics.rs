@@ -1,7 +1,9 @@
-use crate::scene::rigidbody::ApplyAction;
 use crate::{
     core::{
-        algebra::{Isometry3, Point3, Translation3, Vector2, Vector3},
+        algebra::{
+            DMatrix, Dynamic, Isometry3, Matrix4, Point3, Translation3, Unit, VecStorage, Vector2,
+            Vector3,
+        },
         arrayvec::ArrayVec,
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
@@ -10,31 +12,46 @@ use crate::{
     },
     physics3d::rapier::{
         dynamics::{
-            CCDSolver, IntegrationParameters, IslandManager, JointHandle, JointParams, JointSet,
-            RigidBody, RigidBodyBuilder, RigidBodyHandle, RigidBodySet,
+            BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager, JointHandle,
+            JointParams, JointSet, PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyBuilder,
+            RigidBodyHandle, RigidBodySet,
         },
         geometry::{
-            self, BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet,
-            InteractionGroups, NarrowPhase, Ray, TriMesh,
+            self, BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
+            InteractionGroups, NarrowPhase, Ray, Segment, Shape, SharedShape, TriMesh,
         },
         pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
     },
     scene::{
         self,
+        collider::{
+            BallShape, CapsuleShape, ColliderShape, ConeShape, CuboidShape, CylinderShape,
+            GeometrySource, HeightfieldShape, RoundCylinderShape, SegmentShape, TriangleShape,
+            TrimeshShape,
+        },
         collider::{ColliderChanges, InteractionGroupsDesc},
         debug::SceneDrawingContext,
         graph::isometric_global_transform,
-        joint::JointChanges,
+        joint::{
+            BallJointDesc, FixedJointDesc, JointChanges, JointParamsDesc, PrismaticJointDesc,
+            RevoluteJointDesc,
+        },
+        mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
         node::Node,
-        rigidbody::RigidBodyChanges,
+        rigidbody::{ApplyAction, RigidBodyChanges},
+        terrain::Terrain,
     },
-    utils::log::{Log, MessageKind},
+    utils::{
+        log::{Log, MessageKind},
+        raw_mesh::{RawMeshBuilder, RawVertex},
+    },
 };
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
     fmt::{Debug, Display, Formatter},
     hash::Hash,
+    sync::Arc,
     time::Duration,
 };
 
@@ -232,6 +249,326 @@ where
 {
     set: S,
     map: BiDirHashMap<A, Handle<Node>>,
+}
+
+fn convert_joint_params(params: JointParamsDesc) -> JointParams {
+    match params {
+        JointParamsDesc::BallJoint(v) => JointParams::from(BallJoint::new(
+            Point3::from(v.local_anchor1),
+            Point3::from(v.local_anchor2),
+        )),
+        JointParamsDesc::FixedJoint(v) => JointParams::from(FixedJoint::new(
+            Isometry3 {
+                translation: Translation3 {
+                    vector: v.local_anchor1_translation,
+                },
+                rotation: v.local_anchor1_rotation,
+            },
+            Isometry3 {
+                translation: Translation3 {
+                    vector: v.local_anchor2_translation,
+                },
+                rotation: v.local_anchor2_rotation,
+            },
+        )),
+        JointParamsDesc::PrismaticJoint(v) => JointParams::from(PrismaticJoint::new(
+            Point3::from(v.local_anchor1),
+            Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
+            Default::default(), // TODO
+            Point3::from(v.local_anchor2),
+            Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
+            Default::default(), // TODO
+        )),
+        JointParamsDesc::RevoluteJoint(v) => JointParams::from(RevoluteJoint::new(
+            Point3::from(v.local_anchor1),
+            Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
+            Point3::from(v.local_anchor2),
+            Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
+        )),
+    }
+}
+
+pub(crate) fn joint_params_from_native(params: &JointParams) -> JointParamsDesc {
+    match params {
+        JointParams::BallJoint(v) => JointParamsDesc::BallJoint(BallJointDesc {
+            local_anchor1: v.local_anchor1.coords,
+            local_anchor2: v.local_anchor2.coords,
+        }),
+        JointParams::FixedJoint(v) => JointParamsDesc::FixedJoint(FixedJointDesc {
+            local_anchor1_translation: v.local_frame1.translation.vector,
+            local_anchor1_rotation: v.local_frame1.rotation,
+            local_anchor2_translation: v.local_frame2.translation.vector,
+            local_anchor2_rotation: v.local_frame2.rotation,
+        }),
+        JointParams::PrismaticJoint(v) => JointParamsDesc::PrismaticJoint(PrismaticJointDesc {
+            local_anchor1: v.local_anchor1.coords,
+            local_axis1: v.local_axis1().into_inner(),
+            local_anchor2: v.local_anchor2.coords,
+            local_axis2: v.local_axis2().into_inner(),
+        }),
+        JointParams::RevoluteJoint(v) => JointParamsDesc::RevoluteJoint(RevoluteJointDesc {
+            local_anchor1: v.local_anchor1.coords,
+            local_axis1: v.local_axis1.into_inner(),
+            local_anchor2: v.local_anchor2.coords,
+            local_axis2: v.local_axis2.into_inner(),
+        }),
+    }
+}
+
+pub(crate) fn collider_shape_from_native_collider(shape: &dyn Shape) -> ColliderShape {
+    if let Some(ball) = shape.as_ball() {
+        ColliderShape::Ball(BallShape {
+            radius: ball.radius,
+        })
+    } else if let Some(cuboid) = shape.as_cuboid() {
+        ColliderShape::Cuboid(CuboidShape {
+            half_extents: cuboid.half_extents,
+        })
+    } else if let Some(capsule) = shape.as_capsule() {
+        ColliderShape::Capsule(CapsuleShape {
+            begin: capsule.segment.a.coords,
+            end: capsule.segment.b.coords,
+            radius: capsule.radius,
+        })
+    } else if let Some(segment) = shape.downcast_ref::<Segment>() {
+        ColliderShape::Segment(SegmentShape {
+            begin: segment.a.coords,
+            end: segment.b.coords,
+        })
+    } else if let Some(triangle) = shape.as_triangle() {
+        ColliderShape::Triangle(TriangleShape {
+            a: triangle.a.coords,
+            b: triangle.b.coords,
+            c: triangle.c.coords,
+        })
+    } else if shape.as_trimesh().is_some() {
+        ColliderShape::Trimesh(TrimeshShape {
+            sources: Default::default(),
+        })
+    } else if shape.as_heightfield().is_some() {
+        ColliderShape::Heightfield(HeightfieldShape {
+            geometry_source: Default::default(),
+        })
+    } else if let Some(cylinder) = shape.as_cylinder() {
+        ColliderShape::Cylinder(CylinderShape {
+            half_height: cylinder.half_height,
+            radius: cylinder.radius,
+        })
+    } else if let Some(round_cylinder) = shape.as_round_cylinder() {
+        ColliderShape::RoundCylinder(RoundCylinderShape {
+            half_height: round_cylinder.base_shape.half_height,
+            radius: round_cylinder.base_shape.radius,
+            border_radius: round_cylinder.border_radius,
+        })
+    } else if let Some(cone) = shape.as_cone() {
+        ColliderShape::Cone(ConeShape {
+            half_height: cone.half_height,
+            radius: cone.radius,
+        })
+    } else {
+        unreachable!()
+    }
+}
+
+/// Creates new trimesh collider shape from given mesh node. It also bakes scale into
+/// vertices of trimesh because rapier does not support collider scaling yet.
+fn make_trimesh(
+    owner_inv_transform: Matrix4<f32>,
+    owner: Handle<Node>,
+    sources: &[GeometrySource],
+    nodes: &Pool<Node>,
+) -> SharedShape {
+    let mut mesh_builder = RawMeshBuilder::new(0, 0);
+
+    // Create inverse transform that will discard rotation and translation, but leave scaling and
+    // other parameters of global transform.
+    // When global transform of node is combined with this transform, we'll get relative transform
+    // with scale baked in. We need to do this because root's transform will be synced with body's
+    // but we don't want to bake entire transform including root's transform.
+    let root_inv_transform = owner_inv_transform;
+
+    for &source in sources {
+        if let Some(Node::Mesh(mesh)) = nodes.try_borrow(source.0) {
+            let global_transform = root_inv_transform * mesh.global_transform();
+
+            for surface in mesh.surfaces() {
+                let shared_data = surface.data();
+                let shared_data = shared_data.lock();
+
+                let vertices = &shared_data.vertex_buffer;
+                for triangle in shared_data.geometry_buffer.iter() {
+                    let a = RawVertex::from(
+                        global_transform
+                            .transform_point(&Point3::from(
+                                vertices
+                                    .get(triangle[0] as usize)
+                                    .unwrap()
+                                    .read_3_f32(VertexAttributeUsage::Position)
+                                    .unwrap(),
+                            ))
+                            .coords,
+                    );
+                    let b = RawVertex::from(
+                        global_transform
+                            .transform_point(&Point3::from(
+                                vertices
+                                    .get(triangle[1] as usize)
+                                    .unwrap()
+                                    .read_3_f32(VertexAttributeUsage::Position)
+                                    .unwrap(),
+                            ))
+                            .coords,
+                    );
+                    let c = RawVertex::from(
+                        global_transform
+                            .transform_point(&Point3::from(
+                                vertices
+                                    .get(triangle[2] as usize)
+                                    .unwrap()
+                                    .read_3_f32(VertexAttributeUsage::Position)
+                                    .unwrap(),
+                            ))
+                            .coords,
+                    );
+
+                    mesh_builder.insert(a);
+                    mesh_builder.insert(b);
+                    mesh_builder.insert(c);
+                }
+            }
+        }
+    }
+
+    let raw_mesh = mesh_builder.build();
+
+    let vertices: Vec<Point3<f32>> = raw_mesh
+        .vertices
+        .into_iter()
+        .map(|v| Point3::new(v.x, v.y, v.z))
+        .collect();
+
+    let indices = raw_mesh
+        .triangles
+        .into_iter()
+        .map(|t| [t.0[0], t.0[1], t.0[2]])
+        .collect::<Vec<_>>();
+
+    if indices.is_empty() {
+        Log::writeln(
+            MessageKind::Warning,
+            format!(
+                "Failed to create triangle mesh collider for {}, it has no vertices!",
+                nodes[owner].name()
+            ),
+        );
+
+        SharedShape::trimesh(vec![Point3::new(0.0, 0.0, 0.0)], vec![[0, 0, 0]])
+    } else {
+        SharedShape::trimesh(vertices, indices)
+    }
+}
+
+/// Creates height field shape from given terrain.
+fn make_heightfield(terrain: &Terrain) -> SharedShape {
+    assert!(!terrain.chunks_ref().is_empty());
+
+    // Count rows and columns.
+    let first_chunk = terrain.chunks_ref().first().unwrap();
+    let chunk_size = Vector2::new(
+        first_chunk.width_point_count(),
+        first_chunk.length_point_count(),
+    );
+    let nrows = chunk_size.y * terrain.length_chunk_count() as u32;
+    let ncols = chunk_size.x * terrain.width_chunk_count() as u32;
+
+    // Combine height map of each chunk into bigger one.
+    let mut ox = 0;
+    let mut oz = 0;
+    let mut data = vec![0.0; (nrows * ncols) as usize];
+    for cz in 0..terrain.length_chunk_count() {
+        for cx in 0..terrain.width_chunk_count() {
+            let chunk = &terrain.chunks_ref()[cz * terrain.width_chunk_count() + cx];
+
+            for z in 0..chunk.length_point_count() {
+                for x in 0..chunk.width_point_count() {
+                    let value = chunk.heightmap()[(z * chunk.width_point_count() + x) as usize];
+                    data[((ox + x) * nrows + oz + z) as usize] = value;
+                }
+            }
+
+            ox += chunk_size.x;
+        }
+
+        ox = 0;
+        oz += chunk_size.y;
+    }
+
+    SharedShape::heightfield(
+        DMatrix::from_data(VecStorage::new(
+            Dynamic::new(nrows as usize),
+            Dynamic::new(ncols as usize),
+            data,
+        )),
+        Vector3::new(terrain.width(), 1.0, terrain.length()),
+    )
+}
+
+// Converts descriptor in a shared shape.
+fn collider_shape_into_native_shape(
+    shape: &ColliderShape,
+    owner_inv_global_transform: Matrix4<f32>,
+    owner_collider: Handle<Node>,
+    pool: &Pool<Node>,
+) -> Option<SharedShape> {
+    match shape {
+        ColliderShape::Ball(ball) => Some(SharedShape::ball(ball.radius)),
+
+        ColliderShape::Cylinder(cylinder) => {
+            Some(SharedShape::cylinder(cylinder.half_height, cylinder.radius))
+        }
+        ColliderShape::RoundCylinder(rcylinder) => Some(SharedShape::round_cylinder(
+            rcylinder.half_height,
+            rcylinder.radius,
+            rcylinder.border_radius,
+        )),
+        ColliderShape::Cone(cone) => Some(SharedShape::cone(cone.half_height, cone.radius)),
+        ColliderShape::Cuboid(cuboid) => {
+            Some(SharedShape(Arc::new(Cuboid::new(cuboid.half_extents))))
+        }
+        ColliderShape::Capsule(capsule) => Some(SharedShape::capsule(
+            Point3::from(capsule.begin),
+            Point3::from(capsule.end),
+            capsule.radius,
+        )),
+        ColliderShape::Segment(segment) => Some(SharedShape::segment(
+            Point3::from(segment.begin),
+            Point3::from(segment.end),
+        )),
+        ColliderShape::Triangle(triangle) => Some(SharedShape::triangle(
+            Point3::from(triangle.a),
+            Point3::from(triangle.b),
+            Point3::from(triangle.c),
+        )),
+        ColliderShape::Trimesh(trimesh) => {
+            if trimesh.sources.is_empty() {
+                None
+            } else {
+                Some(make_trimesh(
+                    owner_inv_global_transform,
+                    owner_collider,
+                    &trimesh.sources,
+                    pool,
+                ))
+            }
+        }
+        ColliderShape::Heightfield(heightfield) => {
+            if let Some(Node::Terrain(terrain)) = pool.try_borrow(heightfield.geometry_source.0) {
+                Some(make_heightfield(terrain))
+            } else {
+                None
+            }
+        }
+    }
 }
 
 pub struct PhysicsWorld {
@@ -686,7 +1023,8 @@ impl PhysicsWorld {
                 let inv_global_transform = isometric_global_transform(nodes, handle)
                     .try_inverse()
                     .unwrap();
-                if let Some(shape) = collider_node.shape().clone().into_native_shape(
+                if let Some(shape) = collider_shape_into_native_shape(
+                    collider_node.shape(),
                     inv_global_transform,
                     handle,
                     nodes,
@@ -738,7 +1076,8 @@ impl PhysicsWorld {
                     .try_inverse()
                     .unwrap();
                 let rigid_body_native = parent_body.native.get();
-                if let Some(shape) = collider_node.shape().clone().into_native_shape(
+                if let Some(shape) = collider_shape_into_native_shape(
+                    collider_node.shape(),
                     inv_global_transform,
                     handle,
                     nodes,
@@ -792,7 +1131,7 @@ impl PhysicsWorld {
         if let Some(native) = self.joints.set.get_mut(joint.native.get()) {
             let mut changes = joint.changes.get();
             if changes.contains(JointChanges::PARAMS) {
-                native.params = joint.params().clone().into();
+                native.params = convert_joint_params(joint.params().clone());
                 changes.remove(JointChanges::PARAMS);
             }
             if changes.contains(JointChanges::BODY1) {
@@ -829,7 +1168,12 @@ impl PhysicsWorld {
                 let native_body1 = body1.native.get();
                 let native_body2 = body2.native.get();
 
-                let native = self.add_joint(handle, native_body1, native_body2, params.into());
+                let native = self.add_joint(
+                    handle,
+                    native_body1,
+                    native_body2,
+                    convert_joint_params(params),
+                );
 
                 joint.native.set(native);
 

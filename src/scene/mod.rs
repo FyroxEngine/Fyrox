@@ -24,6 +24,7 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
+use crate::scene::graph::physics::{collider_shape_from_native_collider, joint_params_from_native};
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -46,7 +47,7 @@ use crate::{
         collider::{ColliderBuilder, ColliderShape, GeometrySource},
         debug::SceneDrawingContext,
         graph::Graph,
-        joint::{JointBuilder, JointParamsDesc},
+        joint::JointBuilder,
         legacy_physics::LegacyPhysics,
         mesh::buffer::{
             VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
@@ -461,7 +462,7 @@ impl Scene {
                         continue;
                     };
 
-                let mut shape = ColliderShape::from_collider_shape(collider_ref.shape());
+                let mut shape = collider_shape_from_native_collider(collider_ref.shape());
 
                 let name = match shape {
                     ColliderShape::Ball(_) => "Ball Collider",
@@ -562,7 +563,7 @@ impl Scene {
             };
 
             let joint_handle = JointBuilder::new(BaseBuilder::new())
-                .with_params(JointParamsDesc::from_params(&joint.params))
+                .with_params(joint_params_from_native(&joint.params))
                 .with_body1(body1)
                 .with_body2(body2)
                 .build(&mut self.graph);

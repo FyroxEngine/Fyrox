@@ -1,33 +1,26 @@
 #![allow(missing_docs)]
 
-use crate::scene::graph::physics::{ContactPair, PhysicsWorld};
 use crate::{
     core::{
-        algebra::{DMatrix, Dynamic, Matrix4, Point3, VecStorage, Vector2, Vector3},
+        algebra::Vector3,
         inspect::{Inspect, PropertyInfo},
-        pool::{Handle, Pool},
+        pool::Handle,
         visitor::prelude::*,
     },
-    physics3d::rapier::geometry::{
-        ColliderHandle, Cuboid, InteractionGroups, Segment, Shape, SharedShape,
-    },
+    physics3d::rapier::geometry::{ColliderHandle, InteractionGroups},
     scene::{
         base::{Base, BaseBuilder},
-        graph::Graph,
-        mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
+        graph::{
+            physics::{ContactPair, PhysicsWorld},
+            Graph,
+        },
         node::Node,
-        terrain::Terrain,
-    },
-    utils::{
-        log::{Log, MessageKind},
-        raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
 use bitflags::bitflags;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
-    sync::Arc,
 };
 
 bitflags! {
@@ -239,149 +232,6 @@ impl Inspect for ColliderShape {
     }
 }
 
-/// Creates new trimesh collider shape from given mesh node. It also bakes scale into
-/// vertices of trimesh because rapier does not support collider scaling yet.
-pub(crate) fn make_trimesh(
-    owner_inv_transform: Matrix4<f32>,
-    owner: Handle<Node>,
-    sources: Vec<GeometrySource>,
-    nodes: &Pool<Node>,
-) -> SharedShape {
-    let mut mesh_builder = RawMeshBuilder::new(0, 0);
-
-    // Create inverse transform that will discard rotation and translation, but leave scaling and
-    // other parameters of global transform.
-    // When global transform of node is combined with this transform, we'll get relative transform
-    // with scale baked in. We need to do this because root's transform will be synced with body's
-    // but we don't want to bake entire transform including root's transform.
-    let root_inv_transform = owner_inv_transform;
-
-    for source in sources {
-        if let Some(Node::Mesh(mesh)) = nodes.try_borrow(source.0) {
-            let global_transform = root_inv_transform * mesh.global_transform();
-
-            for surface in mesh.surfaces() {
-                let shared_data = surface.data();
-                let shared_data = shared_data.lock();
-
-                let vertices = &shared_data.vertex_buffer;
-                for triangle in shared_data.geometry_buffer.iter() {
-                    let a = RawVertex::from(
-                        global_transform
-                            .transform_point(&Point3::from(
-                                vertices
-                                    .get(triangle[0] as usize)
-                                    .unwrap()
-                                    .read_3_f32(VertexAttributeUsage::Position)
-                                    .unwrap(),
-                            ))
-                            .coords,
-                    );
-                    let b = RawVertex::from(
-                        global_transform
-                            .transform_point(&Point3::from(
-                                vertices
-                                    .get(triangle[1] as usize)
-                                    .unwrap()
-                                    .read_3_f32(VertexAttributeUsage::Position)
-                                    .unwrap(),
-                            ))
-                            .coords,
-                    );
-                    let c = RawVertex::from(
-                        global_transform
-                            .transform_point(&Point3::from(
-                                vertices
-                                    .get(triangle[2] as usize)
-                                    .unwrap()
-                                    .read_3_f32(VertexAttributeUsage::Position)
-                                    .unwrap(),
-                            ))
-                            .coords,
-                    );
-
-                    mesh_builder.insert(a);
-                    mesh_builder.insert(b);
-                    mesh_builder.insert(c);
-                }
-            }
-        }
-    }
-
-    let raw_mesh = mesh_builder.build();
-
-    let vertices: Vec<Point3<f32>> = raw_mesh
-        .vertices
-        .into_iter()
-        .map(|v| Point3::new(v.x, v.y, v.z))
-        .collect();
-
-    let indices = raw_mesh
-        .triangles
-        .into_iter()
-        .map(|t| [t.0[0], t.0[1], t.0[2]])
-        .collect::<Vec<_>>();
-
-    if indices.is_empty() {
-        Log::writeln(
-            MessageKind::Warning,
-            format!(
-                "Failed to create triangle mesh collider for {}, it has no vertices!",
-                nodes[owner].name()
-            ),
-        );
-
-        SharedShape::trimesh(vec![Point3::new(0.0, 0.0, 0.0)], vec![[0, 0, 0]])
-    } else {
-        SharedShape::trimesh(vertices, indices)
-    }
-}
-
-/// Creates height field shape from given terrain.
-pub fn make_heightfield(terrain: &Terrain) -> SharedShape {
-    assert!(!terrain.chunks_ref().is_empty());
-
-    // Count rows and columns.
-    let first_chunk = terrain.chunks_ref().first().unwrap();
-    let chunk_size = Vector2::new(
-        first_chunk.width_point_count(),
-        first_chunk.length_point_count(),
-    );
-    let nrows = chunk_size.y * terrain.length_chunk_count() as u32;
-    let ncols = chunk_size.x * terrain.width_chunk_count() as u32;
-
-    // Combine height map of each chunk into bigger one.
-    let mut ox = 0;
-    let mut oz = 0;
-    let mut data = vec![0.0; (nrows * ncols) as usize];
-    for cz in 0..terrain.length_chunk_count() {
-        for cx in 0..terrain.width_chunk_count() {
-            let chunk = &terrain.chunks_ref()[cz * terrain.width_chunk_count() + cx];
-
-            for z in 0..chunk.length_point_count() {
-                for x in 0..chunk.width_point_count() {
-                    let value = chunk.heightmap()[(z * chunk.width_point_count() + x) as usize];
-                    data[((ox + x) * nrows + oz + z) as usize] = value;
-                }
-            }
-
-            ox += chunk_size.x;
-        }
-
-        ox = 0;
-        oz += chunk_size.y;
-    }
-
-    SharedShape::heightfield(
-        DMatrix::from_data(VecStorage::new(
-            Dynamic::new(nrows as usize),
-            Dynamic::new(ncols as usize),
-            data,
-        )),
-        Vector3::new(terrain.width(), 1.0, terrain.length()),
-    )
-}
-
 #[derive(Clone, Debug, Visit)]
 pub enum ColliderShape {
     Ball(BallShape),
@@ -403,120 +253,6 @@ impl Default for ColliderShape {
 }
 
 impl ColliderShape {
-    pub(crate) fn from_collider_shape(shape: &dyn Shape) -> Self {
-        if let Some(ball) = shape.as_ball() {
-            ColliderShape::Ball(BallShape {
-                radius: ball.radius,
-            })
-        } else if let Some(cuboid) = shape.as_cuboid() {
-            ColliderShape::Cuboid(CuboidShape {
-                half_extents: cuboid.half_extents,
-            })
-        } else if let Some(capsule) = shape.as_capsule() {
-            ColliderShape::Capsule(CapsuleShape {
-                begin: capsule.segment.a.coords,
-                end: capsule.segment.b.coords,
-                radius: capsule.radius,
-            })
-        } else if let Some(segment) = shape.downcast_ref::<Segment>() {
-            ColliderShape::Segment(SegmentShape {
-                begin: segment.a.coords,
-                end: segment.b.coords,
-            })
-        } else if let Some(triangle) = shape.as_triangle() {
-            ColliderShape::Triangle(TriangleShape {
-                a: triangle.a.coords,
-                b: triangle.b.coords,
-                c: triangle.c.coords,
-            })
-        } else if shape.as_trimesh().is_some() {
-            ColliderShape::Trimesh(TrimeshShape {
-                sources: Default::default(),
-            })
-        } else if shape.as_heightfield().is_some() {
-            ColliderShape::Heightfield(HeightfieldShape {
-                geometry_source: Default::default(),
-            })
-        } else if let Some(cylinder) = shape.as_cylinder() {
-            ColliderShape::Cylinder(CylinderShape {
-                half_height: cylinder.half_height,
-                radius: cylinder.radius,
-            })
-        } else if let Some(round_cylinder) = shape.as_round_cylinder() {
-            ColliderShape::RoundCylinder(RoundCylinderShape {
-                half_height: round_cylinder.base_shape.half_height,
-                radius: round_cylinder.base_shape.radius,
-                border_radius: round_cylinder.border_radius,
-            })
-        } else if let Some(cone) = shape.as_cone() {
-            ColliderShape::Cone(ConeShape {
-                half_height: cone.half_height,
-                radius: cone.radius,
-            })
-        } else {
-            unreachable!()
-        }
-    }
-
-    // Converts descriptor in a shared shape.
-    pub(crate) fn into_native_shape(
-        self,
-        owner_inv_global_transform: Matrix4<f32>,
-        owner_collider: Handle<Node>,
-        pool: &Pool<Node>,
-    ) -> Option<SharedShape> {
-        match self {
-            ColliderShape::Ball(ball) => Some(SharedShape::ball(ball.radius)),
-
-            ColliderShape::Cylinder(cylinder) => {
-                Some(SharedShape::cylinder(cylinder.half_height, cylinder.radius))
-            }
-            ColliderShape::RoundCylinder(rcylinder) => Some(SharedShape::round_cylinder(
-                rcylinder.half_height,
-                rcylinder.radius,
-                rcylinder.border_radius,
-            )),
-            ColliderShape::Cone(cone) => Some(SharedShape::cone(cone.half_height, cone.radius)),
-            ColliderShape::Cuboid(cuboid) => {
-                Some(SharedShape(Arc::new(Cuboid::new(cuboid.half_extents))))
-            }
-            ColliderShape::Capsule(capsule) => Some(SharedShape::capsule(
-                Point3::from(capsule.begin),
-                Point3::from(capsule.end),
-                capsule.radius,
-            )),
-            ColliderShape::Segment(segment) => Some(SharedShape::segment(
-                Point3::from(segment.begin),
-                Point3::from(segment.end),
-            )),
-            ColliderShape::Triangle(triangle) => Some(SharedShape::triangle(
-                Point3::from(triangle.a),
-                Point3::from(triangle.b),
-                Point3::from(triangle.c),
-            )),
-            ColliderShape::Trimesh(trimesh) => {
-                if trimesh.sources.is_empty() {
-                    None
-                } else {
-                    Some(make_trimesh(
-                        owner_inv_global_transform,
-                        owner_collider,
-                        trimesh.sources,
-                        pool,
-                    ))
-                }
-            }
-            ColliderShape::Heightfield(heightfield) => {
-                if let Some(Node::Terrain(terrain)) = pool.try_borrow(heightfield.geometry_source.0)
-                {
-                    Some(make_heightfield(terrain))
-                } else {
-                    None
-                }
-            }
-        }
-    }
-
     /// Initializes a ball shape defined by its radius.
     pub fn ball(radius: f32) -> Self {
         Self::Ball(BallShape { radius })

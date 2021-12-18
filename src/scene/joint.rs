@@ -2,14 +2,12 @@
 
 use crate::{
     core::{
-        algebra::{Isometry3, Point3, Translation3, Unit, UnitQuaternion, Vector3},
+        algebra::{UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::prelude::*,
     },
-    physics3d::rapier::dynamics::{
-        BallJoint, FixedJoint, JointHandle, JointParams, PrismaticJoint, RevoluteJoint,
-    },
+    physics3d::rapier::dynamics::JointHandle,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -74,74 +72,6 @@ impl Inspect for JointParamsDesc {
 impl Default for JointParamsDesc {
     fn default() -> Self {
         Self::BallJoint(Default::default())
-    }
-}
-
-impl From<JointParamsDesc> for JointParams {
-    fn from(params: JointParamsDesc) -> Self {
-        match params {
-            JointParamsDesc::BallJoint(v) => JointParams::from(BallJoint::new(
-                Point3::from(v.local_anchor1),
-                Point3::from(v.local_anchor2),
-            )),
-            JointParamsDesc::FixedJoint(v) => JointParams::from(FixedJoint::new(
-                Isometry3 {
-                    translation: Translation3 {
-                        vector: v.local_anchor1_translation,
-                    },
-                    rotation: v.local_anchor1_rotation,
-                },
-                Isometry3 {
-                    translation: Translation3 {
-                        vector: v.local_anchor2_translation,
-                    },
-                    rotation: v.local_anchor2_rotation,
-                },
-            )),
-            JointParamsDesc::PrismaticJoint(v) => JointParams::from(PrismaticJoint::new(
-                Point3::from(v.local_anchor1),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
-                Default::default(), // TODO
-                Point3::from(v.local_anchor2),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
-                Default::default(), // TODO
-            )),
-            JointParamsDesc::RevoluteJoint(v) => JointParams::from(RevoluteJoint::new(
-                Point3::from(v.local_anchor1),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
-                Point3::from(v.local_anchor2),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
-            )),
-        }
-    }
-}
-
-impl JointParamsDesc {
-    pub(crate) fn from_params(params: &JointParams) -> Self {
-        match params {
-            JointParams::BallJoint(v) => Self::BallJoint(BallJointDesc {
-                local_anchor1: v.local_anchor1.coords,
-                local_anchor2: v.local_anchor2.coords,
-            }),
-            JointParams::FixedJoint(v) => Self::FixedJoint(FixedJointDesc {
-                local_anchor1_translation: v.local_frame1.translation.vector,
-                local_anchor1_rotation: v.local_frame1.rotation,
-                local_anchor2_translation: v.local_frame2.translation.vector,
-                local_anchor2_rotation: v.local_frame2.rotation,
-            }),
-            JointParams::PrismaticJoint(v) => Self::PrismaticJoint(PrismaticJointDesc {
-                local_anchor1: v.local_anchor1.coords,
-                local_axis1: v.local_axis1().into_inner(),
-                local_anchor2: v.local_anchor2.coords,
-                local_axis2: v.local_axis2().into_inner(),
-            }),
-            JointParams::RevoluteJoint(v) => Self::RevoluteJoint(RevoluteJointDesc {
-                local_anchor1: v.local_anchor1.coords,
-                local_axis1: v.local_axis1.into_inner(),
-                local_anchor2: v.local_anchor2.coords,
-                local_axis2: v.local_axis2.into_inner(),
-            }),
-        }
     }
 }
 
