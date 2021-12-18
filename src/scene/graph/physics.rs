@@ -672,8 +672,7 @@ impl PhysicsWorld {
         // is not attached to a rigid body.
         if let Some(native) = self.colliders.set.get_mut(collider_node.native.get()) {
             if collider_node.transform_modified.get() {
-                // Transform was changed by user, sync native rigid body with node's position.
-                native.set_position(Isometry3 {
+                native.set_position_wrt_parent(Isometry3 {
                     rotation: **collider_node.local_transform().rotation(),
                     translation: Translation3 {
                         vector: **collider_node.local_transform().position(),
