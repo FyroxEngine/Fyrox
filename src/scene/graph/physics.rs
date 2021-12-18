@@ -235,6 +235,8 @@ where
 }
 
 pub struct PhysicsWorld {
+    pub enabled: bool,
+
     /// Current physics pipeline.
     pipeline: PhysicsPipeline,
     /// Current gravity vector. Default is (0.0, -9.81, 0.0)
@@ -273,6 +275,7 @@ impl PhysicsWorld {
     /// Creates a new instance of the physics world.
     pub(super) fn new() -> Self {
         Self {
+            enabled: true,
             pipeline: PhysicsPipeline::new(),
             gravity: Vector3::new(0.0, -9.81, 0.0),
             integration_parameters: IntegrationParameters::default(),
@@ -299,19 +302,21 @@ impl PhysicsWorld {
     }
 
     pub(super) fn update(&mut self) {
-        self.pipeline.step(
-            &self.gravity,
-            &self.integration_parameters,
-            &mut self.islands,
-            &mut self.broad_phase,
-            &mut self.narrow_phase,
-            &mut self.bodies.set,
-            &mut self.colliders.set,
-            &mut self.joints.set,
-            &mut self.ccd_solver,
-            &(),
-            &*self.event_handler,
-        );
+        if self.enabled {
+            self.pipeline.step(
+                &self.gravity,
+                &self.integration_parameters,
+                &mut self.islands,
+                &mut self.broad_phase,
+                &mut self.narrow_phase,
+                &mut self.bodies.set,
+                &mut self.colliders.set,
+                &mut self.joints.set,
+                &mut self.ccd_solver,
+                &(),
+                &*self.event_handler,
+            );
+        }
     }
 
     pub(super) fn add_body(&mut self, owner: Handle<Node>, body: RigidBody) -> RigidBodyHandle {

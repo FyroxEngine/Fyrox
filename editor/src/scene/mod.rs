@@ -39,6 +39,9 @@ impl EditorScene {
         let root = BaseBuilder::new().build(&mut scene.graph);
         let camera_controller = CameraController::new(&mut scene.graph, root);
 
+        // Prevent physics simulation in while editing scene.
+        scene.graph.physics.enabled = false;
+
         let mut navmeshes = Pool::new();
 
         for navmesh in scene.navmeshes.iter() {
