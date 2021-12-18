@@ -25,6 +25,7 @@ pub mod variable;
 pub mod visibility;
 
 use crate::scene::graph::physics::{collider_shape_from_native_collider, joint_params_from_native};
+use crate::scene2d::PhysicsBinding;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -532,8 +533,15 @@ impl Scene {
                 .set_rotation(UnitQuaternion::default());
             let parent = node_ref.parent();
 
-            self.graph.link_nodes(*node, body_node_handle);
-            self.graph.link_nodes(body_node_handle, parent);
+            match node_ref.physics_binding {
+                PhysicsBinding::NodeWithBody => {
+                    self.graph.link_nodes(*node, body_node_handle);
+                    self.graph.link_nodes(body_node_handle, parent);
+                }
+                PhysicsBinding::BodyWithNode => {
+                    self.graph.link_nodes(body_node_handle, *node);
+                }
+            }
         }
 
         // Convert joints.

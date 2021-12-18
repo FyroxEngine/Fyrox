@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Base`]
 
+use crate::scene2d::PhysicsBinding;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -323,6 +324,10 @@ pub struct Base {
     pub properties: Vec<Property>,
     #[inspect(skip)]
     pub(in crate) transform_modified: Cell<bool>,
+
+    // Legacy.
+    #[inspect(skip)]
+    pub(in crate) physics_binding: PhysicsBinding,
 }
 
 impl Base {
@@ -579,6 +584,7 @@ impl Base {
             children: Default::default(),
             depth_offset: Default::default(),
             transform_modified: Cell::new(false),
+            physics_binding: Default::default(),
         }
     }
 }
@@ -609,6 +615,7 @@ impl Visit for Base {
             .visit("Original", visitor)?;
         self.tag.visit("Tag", visitor)?;
         let _ = self.properties.visit("Properties", visitor);
+        let _ = self.physics_binding.visit("PhysicsBinding", visitor);
 
         visitor.leave_region()
     }
@@ -738,6 +745,7 @@ impl BaseBuilder {
             tag: self.tag,
             properties: Default::default(),
             transform_modified: Cell::new(false),
+            physics_binding: Default::default(),
         }
     }
 
