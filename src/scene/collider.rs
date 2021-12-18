@@ -45,13 +45,19 @@ bitflags! {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, Inspect)]
 pub struct BallShape {
     #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+impl Default for BallShape {
+    fn default() -> Self {
+        Self { radius: 0.5 }
+    }
+}
+
+#[derive(Clone, Debug, Visit, Inspect)]
 pub struct CylinderShape {
     #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
@@ -59,7 +65,16 @@ pub struct CylinderShape {
     pub radius: f32,
 }
 
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+impl Default for CylinderShape {
+    fn default() -> Self {
+        Self {
+            half_height: 0.5,
+            radius: 0.5,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Visit, Inspect)]
 pub struct RoundCylinderShape {
     #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
@@ -69,7 +84,17 @@ pub struct RoundCylinderShape {
     pub border_radius: f32,
 }
 
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+impl Default for RoundCylinderShape {
+    fn default() -> Self {
+        Self {
+            half_height: 0.5,
+            radius: 0.5,
+            border_radius: 0.1,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Visit, Inspect)]
 pub struct ConeShape {
     #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
@@ -77,12 +102,29 @@ pub struct ConeShape {
     pub radius: f32,
 }
 
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+impl Default for ConeShape {
+    fn default() -> Self {
+        Self {
+            half_height: 0.5,
+            radius: 0.5,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Visit, Inspect)]
 pub struct CuboidShape {
     pub half_extents: Vector3<f32>,
 }
 
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+impl Default for CuboidShape {
+    fn default() -> Self {
+        Self {
+            half_extents: Vector3::new(0.5, 0.5, 0.5),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Visit, Inspect)]
 pub struct CapsuleShape {
     pub begin: Vector3<f32>,
     pub end: Vector3<f32>,
@@ -90,17 +132,47 @@ pub struct CapsuleShape {
     pub radius: f32,
 }
 
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+impl Default for CapsuleShape {
+    // Y-capsule
+    fn default() -> Self {
+        Self {
+            begin: Default::default(),
+            end: Vector3::new(0.0, 1.0, 0.0),
+            radius: 0.5,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Visit, Inspect)]
 pub struct SegmentShape {
     pub begin: Vector3<f32>,
     pub end: Vector3<f32>,
 }
 
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+impl Default for SegmentShape {
+    fn default() -> Self {
+        Self {
+            begin: Default::default(),
+            end: Vector3::new(0.0, 1.0, 0.0),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Visit, Inspect)]
 pub struct TriangleShape {
     pub a: Vector3<f32>,
     pub b: Vector3<f32>,
     pub c: Vector3<f32>,
+}
+
+impl Default for TriangleShape {
+    fn default() -> Self {
+        Self {
+            a: Default::default(),
+            b: Vector3::new(1.0, 0.0, 0.0),
+            c: Vector3::new(0.0, 0.0, 1.0),
+        }
+    }
 }
 
 #[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Inspect)]
