@@ -7,7 +7,6 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::scene::graph::{Intersection, RayCastOptions};
 use rg3d::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -32,6 +31,7 @@ use rg3d::{
     scene::{
         base::BaseBuilder,
         debug::Line,
+        graph::physics::{Intersection, RayCastOptions},
         mesh::{
             surface::{SurfaceBuilder, SurfaceData},
             MeshBuilder,

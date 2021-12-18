@@ -1,7 +1,7 @@
-use crate::scene::joint::JointChanges;
+use crate::scene::rigidbody::ApplyAction;
 use crate::{
     core::{
-        algebra::{Isometry3, Point3, Translation3, Vector3},
+        algebra::{Isometry3, Point3, Translation3, Vector2, Vector3},
         arrayvec::ArrayVec,
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
@@ -24,12 +24,12 @@ use crate::{
         collider::{ColliderChanges, InteractionGroupsDesc},
         debug::SceneDrawingContext,
         graph::isometric_global_transform,
+        joint::JointChanges,
         node::Node,
         rigidbody::RigidBodyChanges,
     },
     utils::log::{Log, MessageKind},
 };
-use rg3d_core::algebra::Vector2;
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
@@ -600,6 +600,23 @@ impl PhysicsWorld {
                     MessageKind::Warning,
                     format!("Unhandled rigid body changes! Mask: {:?}", changes),
                 );
+            }
+
+            while let Some(action) = rigid_body_node.actions.lock().pop_front() {
+                match action {
+                    ApplyAction::Force(force) => native.apply_force(force, true),
+                    ApplyAction::Torque(torque) => native.apply_torque(torque, true),
+                    ApplyAction::ForceAtPoint { force, point } => {
+                        native.apply_force_at_point(force, Point3::from(point), true)
+                    }
+                    ApplyAction::Impulse(impulse) => native.apply_impulse(impulse, true),
+                    ApplyAction::TorqueImpulse(impulse) => {
+                        native.apply_torque_impulse(impulse, true)
+                    }
+                    ApplyAction::ImpulseAtPoint { impulse, point } => {
+                        native.apply_impulse_at_point(impulse, Point3::from(point), true)
+                    }
+                }
             }
 
             rigid_body_node.changes.set(changes);

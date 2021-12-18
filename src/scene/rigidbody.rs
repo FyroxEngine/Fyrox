@@ -4,6 +4,7 @@ use crate::{
     core::{
         algebra::Vector3,
         inspect::{Inspect, PropertyInfo},
+        parking_lot::Mutex,
         pool::Handle,
         visitor::prelude::*,
     },
@@ -15,8 +16,10 @@ use crate::{
     },
 };
 use bitflags::bitflags;
+use std::fmt::{Debug, Formatter};
 use std::{
     cell::Cell,
+    collections::VecDeque,
     ops::{Deref, DerefMut},
 };
 
@@ -75,7 +78,22 @@ bitflags! {
     }
 }
 
-#[derive(Visit, Inspect, Debug)]
+pub(crate) enum ApplyAction {
+    Force(Vector3<f32>),
+    Torque(Vector3<f32>),
+    ForceAtPoint {
+        force: Vector3<f32>,
+        point: Vector3<f32>,
+    },
+    Impulse(Vector3<f32>),
+    TorqueImpulse(Vector3<f32>),
+    ImpulseAtPoint {
+        impulse: Vector3<f32>,
+        point: Vector3<f32>,
+    },
+}
+
+#[derive(Visit, Inspect)]
 pub struct RigidBody {
     base: Base,
     pub(crate) lin_vel: Vector3<f32>,
@@ -97,6 +115,15 @@ pub struct RigidBody {
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) changes: Cell<RigidBodyChanges>,
+    #[visit(skip)]
+    #[inspect(skip)]
+    pub(crate) actions: Mutex<VecDeque<ApplyAction>>,
+}
+
+impl Debug for RigidBody {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RigidBody")
+    }
 }
 
 impl Default for RigidBody {
@@ -116,6 +143,7 @@ impl Default for RigidBody {
             translation_locked: false,
             native: Cell::new(RigidBodyHandle::invalid()),
             changes: Cell::new(RigidBodyChanges::NONE),
+            actions: Default::default(),
         }
     }
 }
@@ -152,6 +180,7 @@ impl RigidBody {
             // Do not copy.
             native: Cell::new(RigidBodyHandle::invalid()),
             changes: Cell::new(RigidBodyChanges::NONE),
+            actions: Default::default(),
         }
     }
 
@@ -252,6 +281,58 @@ impl RigidBody {
     pub fn body_type(&self) -> RigidBodyType {
         self.body_type
     }
+
+    /// Applies a force at the center-of-mass of this rigid-body.
+    /// The force will be applied in the next simulation step.
+    /// This does nothing on non-dynamic bodies.
+    pub fn apply_force(&mut self, force: Vector3<f32>) {
+        self.actions.get_mut().push_back(ApplyAction::Force(force))
+    }
+
+    /// Applies a torque at the center-of-mass of this rigid-body.
+    /// The torque will be applied in the next simulation step.
+    /// This does nothing on non-dynamic bodies.
+    pub fn apply_torque(&mut self, torque: Vector3<f32>) {
+        self.actions
+            .get_mut()
+            .push_back(ApplyAction::Torque(torque))
+    }
+
+    /// Applies a force at the given world-space point of this rigid-body.
+    /// The force will be applied in the next simulation step.
+    /// This does nothing on non-dynamic bodies.
+    pub fn apply_force_at_point(&mut self, force: Vector3<f32>, point: Vector3<f32>) {
+        self.actions
+            .get_mut()
+            .push_back(ApplyAction::ForceAtPoint { force, point })
+    }
+
+    /// Applies an impulse at the center-of-mass of this rigid-body.
+    /// The impulse is applied right away, changing the linear velocity.
+    /// This does nothing on non-dynamic bodies.
+    pub fn apply_impulse(&mut self, impulse: Vector3<f32>) {
+        self.actions
+            .get_mut()
+            .push_back(ApplyAction::Impulse(impulse))
+    }
+
+    /// Applies an angular impulse at the center-of-mass of this rigid-body.
+    /// The impulse is applied right away, changing the angular velocity.
+    /// This does nothing on non-dynamic bodies.
+    pub fn apply_torque_impulse(&mut self, torque_impulse: Vector3<f32>) {
+        self.actions
+            .get_mut()
+            .push_back(ApplyAction::TorqueImpulse(torque_impulse))
+    }
+
+    /// Applies an impulse at the given world-space point of this rigid-body.
+    /// The impulse is applied right away, changing the linear and/or angular velocities.
+    /// This does nothing on non-dynamic bodies.
+    pub fn apply_impulse_at_point(&mut self, impulse: Vector3<f32>, point: Vector3<f32>) {
+        self.actions
+            .get_mut()
+            .push_back(ApplyAction::ImpulseAtPoint { impulse, point })
+    }
 }
 
 pub struct RigidBodyBuilder {
@@ -303,6 +384,7 @@ impl RigidBodyBuilder {
             translation_locked: self.translation_locked,
             native: Cell::new(RigidBodyHandle::invalid()),
             changes: Cell::new(RigidBodyChanges::NONE),
+            actions: Default::default(),
         };
 
         Node::RigidBody(rigid_body)

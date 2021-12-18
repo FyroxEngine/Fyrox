@@ -123,6 +123,15 @@ pub struct InteractionGroupsDesc {
     pub filter: u32,
 }
 
+impl InteractionGroupsDesc {
+    pub fn new(memberships: u32, filter: u32) -> Self {
+        Self {
+            memberships,
+            filter,
+        }
+    }
+}
+
 impl Default for InteractionGroupsDesc {
     fn default() -> Self {
         Self {
