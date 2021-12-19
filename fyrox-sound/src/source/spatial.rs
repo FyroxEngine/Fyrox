@@ -9,12 +9,12 @@
 //!
 //! ```no_run
 //! use std::sync::{Arc, Mutex};
-//! use rg3d_sound::buffer::SoundBufferResource;
-//! use rg3d_sound::pool::Handle;
-//! use rg3d_sound::source::{SoundSource, Status};
-//! use rg3d_sound::source::generic::GenericSourceBuilder;
-//! use rg3d_sound::context::SoundContext;
-//! use rg3d_sound::source::spatial::SpatialSourceBuilder;
+//! use fyrox_sound::buffer::SoundBufferResource;
+//! use fyrox_sound::pool::Handle;
+//! use fyrox_sound::source::{SoundSource, Status};
+//! use fyrox_sound::source::generic::GenericSourceBuilder;
+//! use fyrox_sound::context::SoundContext;
+//! use fyrox_sound::source::spatial::SpatialSourceBuilder;
 //!
 //! fn make_source(context: &mut SoundContext, buffer: SoundBufferResource) -> Handle<SoundSource> {
 //!     let source = SpatialSourceBuilder::new(GenericSourceBuilder::new()
@@ -32,7 +32,7 @@ use crate::{
     listener::Listener,
     source::{generic::GenericSource, SoundSource},
 };
-use rg3d_core::{
+use fyrox_core::{
     algebra::Vector3,
     inspect::{Inspect, PropertyInfo},
     visitor::{Visit, VisitResult, Visitor},

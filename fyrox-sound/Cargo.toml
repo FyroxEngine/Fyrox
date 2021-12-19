@@ -1,5 +1,5 @@
 [package]
-name = "rg3d-sound"
+name = "fyrox-sound"
 version = "0.25.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
@@ -16,8 +16,8 @@ resolver = "2"
 rust-version = "1.56"
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.18.0" }
-rg3d-resource = { path = "../rg3d-resource", version = "0.2.0" }
+fyrox-core = { path = "../fyrox-core", version = "0.18.0" }
+fyrox-resource = { path = "../fyrox-resource", version = "0.2.0" }
 lewton = "0.10.2"
 hrtf = "0.7.0"
 hound = "3.4.0"
@@ -33,4 +33,4 @@ coreaudio-sys = { version = "0.2.8" }
 core-foundation-sys = { version = "0.8.2" }
 
 [features]
-enable_profiler = ["rg3d-core/enable_profiler"]
+enable_profiler = ["fyrox-core/enable_profiler"]

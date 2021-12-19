@@ -19,9 +19,9 @@
 //! To use HRTF you need to change default renderer to HRTF renderer like so:
 //!
 //! ```no_run
-//! use rg3d_sound::context::{self, SoundContext};
-//! use rg3d_sound::renderer::hrtf::{HrtfRenderer};
-//! use rg3d_sound::renderer::Renderer;
+//! use fyrox_sound::context::{self, SoundContext};
+//! use fyrox_sound::renderer::hrtf::{HrtfRenderer};
+//! use fyrox_sound::renderer::Renderer;
 //! use std::path::Path;
 //! use hrtf::HrirSphere;
 //!
@@ -59,7 +59,7 @@ use crate::{
     source::SoundSource,
 };
 use hrtf::HrirSphere;
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::visitor::{Visit, VisitResult, Visitor};
 use std::fmt::Debug;
 
 /// See module docs.

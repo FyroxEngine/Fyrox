@@ -5,7 +5,7 @@
 //! Sound engine manages contexts, feeds output device with data.
 
 use crate::{context::SoundContext, device};
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::visitor::{Visit, VisitResult, Visitor};
 use std::sync::{Arc, Mutex};
 
 /// Internal state of sound engine.

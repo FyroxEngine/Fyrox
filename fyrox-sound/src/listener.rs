@@ -5,9 +5,9 @@
 //! Engine has only one listener which can be positioned and oriented in space. Listener defined as coordinate
 //! system which is used to compute spatial properties of sound sources.
 
-use rg3d_core::algebra::{Matrix3, Vector3};
-use rg3d_core::math::Matrix3Ext;
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::algebra::{Matrix3, Vector3};
+use fyrox_core::math::Matrix3Ext;
+use fyrox_core::visitor::{Visit, VisitResult, Visitor};
 
 /// See module docs.
 #[derive(Debug, Clone)]
@@ -55,9 +55,9 @@ impl Listener {
     /// Basis must have mutually perpendicular axes.
     ///
     /// ```
-    /// use rg3d_sound::listener::Listener;
-    /// use rg3d_sound::algebra::{Matrix3, UnitQuaternion, Vector3};
-    /// use rg3d_sound::math::{Matrix4Ext};
+    /// use fyrox_sound::listener::Listener;
+    /// use fyrox_sound::algebra::{Matrix3, UnitQuaternion, Vector3};
+    /// use fyrox_sound::math::{Matrix4Ext};
     ///
     /// fn orient_listener(listener: &mut Listener) {
     ///     let basis = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), 45.0f32.to_radians()).to_homogeneous().basis();

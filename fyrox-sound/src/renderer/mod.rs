@@ -14,7 +14,7 @@ use crate::{
     renderer::hrtf::HrtfRenderer,
     source::{generic::GenericSource, SoundSource},
 };
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::visitor::{Visit, VisitResult, Visitor};
 
 pub mod hrtf;
 

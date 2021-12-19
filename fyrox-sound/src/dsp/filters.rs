@@ -7,7 +7,7 @@
 //! description of each filter. There is no need to describe them all here.
 
 use crate::dsp::DelayLine;
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::visitor::{Visit, VisitResult, Visitor};
 
 /// One-pole Filter.
 /// For details see - <https://www.earlevel.com/main/2012/12/15/a-one-pole-filter/>

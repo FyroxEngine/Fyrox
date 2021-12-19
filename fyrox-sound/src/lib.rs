@@ -10,14 +10,14 @@
 //!
 //! ## Examples
 //!
-//! Here is an example of how to play a sound using rg3d-sound:
+//! Here is an example of how to play a sound using fyrox-sound:
 //!
 //! ```no_run
 //! use std::{
 //!     thread,
 //!     time::Duration
 //! };
-//! use rg3d_sound::{
+//! use fyrox_sound::{
 //!     source::{
 //!         generic::GenericSourceBuilder,
 //!         SoundSource,
@@ -32,7 +32,7 @@
 //!
 //!  let context = SoundContext::new();
 //!
-//!  let sound_buffer = SoundBufferResource::new_generic(rg3d_sound::futures::executor::block_on(DataSource::from_file("sound.wav")).unwrap()).unwrap();
+//!  let sound_buffer = SoundBufferResource::new_generic(fyrox_sound::futures::executor::block_on(DataSource::from_file("sound.wav")).unwrap()).unwrap();
 //!
 //!  let source = GenericSourceBuilder::new()
 //!     .with_buffer(sound_buffer)
@@ -79,10 +79,10 @@ pub mod source;
 
 // Reexport some modules because there some types of them in public API.
 pub use hrtf;
-pub use rg3d_core::algebra;
-pub use rg3d_core::futures;
-pub use rg3d_core::math;
-pub use rg3d_core::pool;
+pub use fyrox_core::algebra;
+pub use fyrox_core::futures;
+pub use fyrox_core::math;
+pub use fyrox_core::pool;
 
 mod decoder;
 mod device;

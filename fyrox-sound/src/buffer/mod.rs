@@ -10,8 +10,8 @@
 
 use crate::buffer::{generic::GenericBuffer, streaming::StreamingBuffer};
 use crate::error::SoundError;
-use rg3d_core::{io::FileLoadError, visitor::prelude::*};
-use rg3d_resource::{define_new_resource, Resource, ResourceData, ResourceState};
+use fyrox_core::{io::FileLoadError, visitor::prelude::*};
+use fyrox_resource::{define_new_resource, Resource, ResourceData, ResourceState};
 use std::fmt::Debug;
 use std::time::Duration;
 use std::{
@@ -113,7 +113,7 @@ impl DataSource {
             }),
 
             #[cfg(target_arch = "wasm32")]
-            data: Cursor::new(rg3d_core::io::load_file(path).await?),
+            data: Cursor::new(fyrox_core::io::load_file(path).await?),
         })
     }
 

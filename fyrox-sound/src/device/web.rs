@@ -2,7 +2,7 @@ use crate::{
     context::SAMPLE_RATE,
     device::{Device, MixContext, NativeSample},
 };
-use rg3d_core::{
+use fyrox_core::{
     parking_lot::{Mutex, RwLock},
     wasm_bindgen::{self, prelude::*, JsCast},
     web_sys::{AudioContext, AudioContextOptions},
@@ -117,7 +117,7 @@ impl Device for WebAudioDevice {
     }
 
     fn run(&mut self) {
-        let window = rg3d_core::web_sys::window().unwrap();
+        let window = fyrox_core::web_sys::window().unwrap();
         let mut offset_ms = 0;
         let time_step_ms = (self.buffer_duration_secs * 1_000.0) as i32;
         for on_ended_closure in self.onended.iter() {

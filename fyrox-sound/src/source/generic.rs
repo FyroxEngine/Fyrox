@@ -11,11 +11,11 @@
 //!
 //! ```no_run
 //! use std::sync::{Arc, Mutex};
-//! use rg3d_sound::buffer::SoundBufferResource;
-//! use rg3d_sound::pool::Handle;
-//! use rg3d_sound::source::{SoundSource, Status};
-//! use rg3d_sound::source::generic::GenericSourceBuilder;
-//! use rg3d_sound::context::SoundContext;
+//! use fyrox_sound::buffer::SoundBufferResource;
+//! use fyrox_sound::pool::Handle;
+//! use fyrox_sound::source::{SoundSource, Status};
+//! use fyrox_sound::source::generic::GenericSourceBuilder;
+//! use fyrox_sound::context::SoundContext;
 //!
 //! fn make_source(context: &mut SoundContext, buffer: SoundBufferResource) -> Handle<SoundSource> {
 //!     let source = GenericSourceBuilder::new()
@@ -35,11 +35,11 @@ use crate::{
     error::SoundError,
     source::{SoundSource, Status},
 };
-use rg3d_core::{
+use fyrox_core::{
     inspect::{Inspect, PropertyInfo},
     visitor::{Visit, VisitResult, Visitor},
 };
-use rg3d_resource::ResourceState;
+use fyrox_resource::ResourceState;
 use std::time::Duration;
 
 /// See module info.
@@ -537,9 +537,9 @@ impl Visit for GenericSource {
 ///
 /// ```no_run
 /// use std::sync::{Arc, Mutex};
-/// use rg3d_sound::buffer::SoundBufferResource;
-/// use rg3d_sound::source::generic::{GenericSource, GenericSourceBuilder};
-/// use rg3d_sound::source::{Status, SoundSource};
+/// use fyrox_sound::buffer::SoundBufferResource;
+/// use fyrox_sound::source::generic::{GenericSource, GenericSourceBuilder};
+/// use fyrox_sound::source::{Status, SoundSource};
 ///
 /// fn make_generic_source(buffer: SoundBufferResource) -> GenericSource {
 ///     GenericSourceBuilder::new()

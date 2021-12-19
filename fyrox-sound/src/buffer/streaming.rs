@@ -13,7 +13,7 @@
 //!
 //! ```no_run
 //! use std::sync::{Mutex, Arc};
-//! use rg3d_sound::buffer::{SoundBufferResource, DataSource};
+//! use fyrox_sound::buffer::{SoundBufferResource, DataSource};
 //!
 //! async fn make_streaming_buffer() -> SoundBufferResource {
 //!     let data_source = DataSource::from_file("some_long_sound.ogg").await.unwrap();
@@ -32,7 +32,7 @@ use crate::{
     decoder::Decoder,
     error::SoundError,
 };
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::visitor::{Visit, VisitResult, Visitor};
 use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 

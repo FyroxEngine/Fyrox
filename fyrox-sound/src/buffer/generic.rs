@@ -12,7 +12,7 @@
 //!
 //! ```no_run
 //! use std::sync::{Mutex, Arc};
-//! use rg3d_sound::buffer::{SoundBufferResource, DataSource};
+//! use fyrox_sound::buffer::{SoundBufferResource, DataSource};
 //!
 //! async fn make_buffer() -> SoundBufferResource {
 //!     let data_source = DataSource::from_file("sound.wav").await.unwrap();
@@ -23,7 +23,7 @@
 #![allow(clippy::manual_range_contains)]
 
 use crate::{buffer::DataSource, decoder::Decoder};
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::visitor::{Visit, VisitResult, Visitor};
 use std::path::Path;
 use std::{path::PathBuf, time::Duration};
 

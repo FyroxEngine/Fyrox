@@ -3,7 +3,7 @@
 //! # Overview
 //!
 //! Context is a sort of "sound scene" - an isolated storage for a set of sound sources, effects, filters, etc.
-//! rg3d-sound can manage multiple contexts at the same time. Main usage for multiple contexts is a typical
+//! fyrox-sound can manage multiple contexts at the same time. Main usage for multiple contexts is a typical
 //! situation in games where you have multiple scenes: a scene for main menu, a scene for game level, a scene
 //! for inventory and so on. With this approach of multiple contexts it is very easy to manage such scenes:
 //! for example your main menu have a complex scene with some sounds and you decide to load a game level -
@@ -17,8 +17,8 @@ use crate::{
     renderer::{render_source_default, Renderer},
     source::{SoundSource, Status},
 };
-use rg3d_core::visitor::VisitError;
-use rg3d_core::{
+use fyrox_core::visitor::VisitError;
+use fyrox_core::{
     pool::{Handle, Pool},
     visitor::{Visit, VisitResult, Visitor},
 };
@@ -250,7 +250,7 @@ impl State {
     }
 
     pub(crate) fn render(&mut self, master_gain: f32, buf: &mut [(f32, f32)]) {
-        let last_time = rg3d_core::instant::Instant::now();
+        let last_time = fyrox_core::instant::Instant::now();
 
         if !self.paused {
             self.sources.retain(|source| {
@@ -294,7 +294,7 @@ impl State {
             }
         }
 
-        self.render_duration = rg3d_core::instant::Instant::now() - last_time;
+        self.render_duration = fyrox_core::instant::Instant::now() - last_time;
     }
 }
 
@@ -333,7 +333,7 @@ impl SoundContext {
     /// This method internally locks a mutex, so if you'll try to do something like this:
     ///
     /// ```no_run
-    /// # use rg3d_sound::context::SoundContext;
+    /// # use fyrox_sound::context::SoundContext;
     /// # let ctx = SoundContext::new();
     /// let state = ctx.state();
     /// // Do something

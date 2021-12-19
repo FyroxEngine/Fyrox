@@ -9,9 +9,9 @@
 //!
 //! ```
 //! use std::time::Duration;
-//! use rg3d_sound::context::SoundContext;
-//! use rg3d_sound::effects::reverb::Reverb;
-//! use rg3d_sound::effects::{Effect, BaseEffect};
+//! use fyrox_sound::context::SoundContext;
+//! use fyrox_sound::effects::reverb::Reverb;
+//! use fyrox_sound::effects::{Effect, BaseEffect};
 //!
 //! fn set_reverberator(context: &mut SoundContext) {
 //!     let mut reverb = Reverb::new(BaseEffect::default());
@@ -32,7 +32,7 @@ use crate::{
     listener::Listener,
     source::SoundSource,
 };
-use rg3d_core::{
+use fyrox_core::{
     pool::Pool,
     visitor::{Visit, VisitResult, Visitor},
 };

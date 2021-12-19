@@ -11,7 +11,7 @@ use crate::{
     listener::Listener,
     source::{SoundSource, Status},
 };
-use rg3d_core::{
+use fyrox_core::{
     math,
     pool::{Handle, Pool},
     visitor::{Visit, VisitResult, Visitor},
