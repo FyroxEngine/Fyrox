@@ -1,5 +1,5 @@
 [package]
-name = "rg3d-ui"
+name = "fyrox-ui"
 version = "0.14.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
@@ -16,7 +16,7 @@ resolver = "2"
 rust-version = "1.56"
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.18.0" }
+fyrox-core = { path = "../fyrox-core", version = "0.18.0" }
 lazy_static = "1.4.0"
 copypasta = "0.7.1"
 fontdue = "0.6.2"
@@ -24,7 +24,7 @@ notify = "4.0"
 fxhash = "0.2.1"
 
 [features]
-enable_profiler = ["rg3d-core/enable_profiler"]
+enable_profiler = ["fyrox-core/enable_profiler"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sysinfo = "0.20.0"

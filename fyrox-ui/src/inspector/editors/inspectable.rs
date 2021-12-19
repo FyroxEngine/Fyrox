@@ -11,7 +11,7 @@ use crate::{
     message::{MessageDirection, UiMessage},
     widget::WidgetBuilder,
 };
-use rg3d_core::pool::Handle;
+use fyrox_core::pool::Handle;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},

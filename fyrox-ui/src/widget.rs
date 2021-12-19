@@ -151,13 +151,13 @@ pub enum WidgetMessage {
     Name(String),
 
     /// A request to set width of a widget. In most cases there is no need to explicitly set width of a widget,
-    /// because rg3d-ui uses automatic layout engine which will correctly calculate desired width of a widget.
+    /// because fyrox-ui uses automatic layout engine which will correctly calculate desired width of a widget.
     ///
     /// Direction: **From/To UI**
     Width(f32),
 
     /// A request to set height of a widget. In most cases there is no need to explicitly set height of a widget,
-    /// because rg3d-ui uses automatic layout engine which will correctly calculate desired height of a widget.
+    /// because fyrox-ui uses automatic layout engine which will correctly calculate desired height of a widget.
     ///
     /// Direction: **From/To UI**
     Height(f32),

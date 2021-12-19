@@ -12,7 +12,7 @@
 #[macro_use]
 extern crate lazy_static;
 
-pub use rg3d_core as core;
+pub use fyrox_core as core;
 
 pub mod border;
 pub mod brush;

@@ -7,7 +7,7 @@ use crate::{
     widget::WidgetBuilder,
     Brush, BuildContext, HorizontalAlignment, UiNode, VerticalAlignment, BRUSH_BRIGHT,
 };
-use rg3d_core::color::Color;
+use fyrox_core::color::Color;
 
 pub enum ArrowDirection {
     Top,

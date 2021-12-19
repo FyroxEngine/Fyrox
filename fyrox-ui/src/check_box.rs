@@ -10,7 +10,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_DARK, BRUSH_LIGHT, BRUSH_TEXT,
 };
-use rg3d_core::algebra::Vector2;
+use fyrox_core::algebra::Vector2;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
