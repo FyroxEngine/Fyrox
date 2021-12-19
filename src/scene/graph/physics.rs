@@ -1035,7 +1035,7 @@ impl PhysicsWorld {
                     // were changed by user.
                     let mut changes = rigid_body_node.changes.get();
                     if changes.contains(RigidBodyChanges::BODY_TYPE) {
-                        native.set_body_type(rigid_body_node.body_type.into());
+                        native.set_body_type(rigid_body_node.body_type().into());
                         changes.remove(RigidBodyChanges::BODY_TYPE);
                     }
                     if changes.contains(RigidBodyChanges::LIN_VEL) {
@@ -1048,7 +1048,7 @@ impl PhysicsWorld {
                     }
                     if changes.contains(RigidBodyChanges::MASS) {
                         let mut props = *native.mass_properties();
-                        props.set_mass(rigid_body_node.mass, true);
+                        props.set_mass(rigid_body_node.mass(), true);
                         native.set_mass_properties(props, true);
                         changes.remove(RigidBodyChanges::MASS);
                     }
@@ -1061,17 +1061,21 @@ impl PhysicsWorld {
                         changes.remove(RigidBodyChanges::ANG_DAMPING);
                     }
                     if changes.contains(RigidBodyChanges::CCD_STATE) {
-                        native.enable_ccd(rigid_body_node.ccd_enabled);
+                        native.enable_ccd(rigid_body_node.is_ccd_enabled());
                         changes.remove(RigidBodyChanges::CCD_STATE);
                     }
                     if changes.contains(RigidBodyChanges::ROTATION_LOCKED) {
                         native.restrict_rotations(
-                            rigid_body_node.x_rotation_locked,
-                            rigid_body_node.y_rotation_locked,
-                            rigid_body_node.z_rotation_locked,
+                            rigid_body_node.is_x_rotation_locked(),
+                            rigid_body_node.is_y_rotation_locked(),
+                            rigid_body_node.is_z_rotation_locked(),
                             true,
                         );
                         changes.remove(RigidBodyChanges::ROTATION_LOCKED);
+                    }
+                    if changes.contains(RigidBodyChanges::TRANSLATION_LOCKED) {
+                        native.lock_translations(rigid_body_node.is_translation_locked(), true);
+                        changes.remove(RigidBodyChanges::TRANSLATION_LOCKED);
                     }
 
                     if changes != RigidBodyChanges::NONE {
@@ -1102,26 +1106,26 @@ impl PhysicsWorld {
                 }
             }
         } else {
-            let mut builder = RigidBodyBuilder::new(rigid_body_node.body_type.into())
+            let mut builder = RigidBodyBuilder::new(rigid_body_node.body_type().into())
                 .position(Isometry3 {
                     rotation: **rigid_body_node.local_transform().rotation(),
                     translation: Translation3 {
                         vector: **rigid_body_node.local_transform().position(),
                     },
                 })
-                .ccd_enabled(rigid_body_node.ccd_enabled)
-                .additional_mass(rigid_body_node.mass)
+                .ccd_enabled(rigid_body_node.is_ccd_enabled())
+                .additional_mass(rigid_body_node.mass())
                 .angvel(rigid_body_node.ang_vel)
                 .linvel(rigid_body_node.lin_vel)
                 .linear_damping(rigid_body_node.lin_damping)
                 .angular_damping(rigid_body_node.ang_damping)
                 .restrict_rotations(
-                    rigid_body_node.x_rotation_locked,
-                    rigid_body_node.y_rotation_locked,
-                    rigid_body_node.z_rotation_locked,
+                    rigid_body_node.is_x_rotation_locked(),
+                    rigid_body_node.is_y_rotation_locked(),
+                    rigid_body_node.is_z_rotation_locked(),
                 );
 
-            if rigid_body_node.translation_locked {
+            if rigid_body_node.is_translation_locked() {
                 builder = builder.lock_translations();
             }
 
