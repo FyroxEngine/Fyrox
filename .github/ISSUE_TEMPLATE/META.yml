@@ -3,7 +3,7 @@ description: Ask questions on the engine, gamedev, contributing to the engine an
 body:
 - type: checkboxes
   attributes:
-    label: What do you want to know/help with?
+    label: What do you want to know/have help with?
     options:
       - label: meta
       - label: question
@@ -18,8 +18,6 @@ body:
       - label: user-interface
       - label: graphics
       - label: docs
-  validations:
-    required: true
 - type: textarea
   attributes:
     label: Put your question/request here.
