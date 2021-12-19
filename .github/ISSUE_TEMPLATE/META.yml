@@ -22,4 +22,4 @@ body:
     required: true
 - type: textarea
   attributes:
-    label: Put your question/request here:
+    label: Put your question/request here.
