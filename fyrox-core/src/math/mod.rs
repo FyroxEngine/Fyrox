@@ -78,8 +78,8 @@ where
     /// To build bounding rectangle you should correctly initialize initial rectangle:
     ///
     /// ```
-    /// # use rg3d_core::algebra::Vector2;
-    /// # use rg3d_core::math::Rect;
+    /// # use fyrox_core::algebra::Vector2;
+    /// # use fyrox_core::math::Rect;
     ///
     /// let vertices = [Vector2::new(1.0, 2.0), Vector2::new(-3.0, 5.0)];
     ///

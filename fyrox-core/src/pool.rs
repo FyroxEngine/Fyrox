@@ -638,7 +638,7 @@ impl<T> Pool<T> {
     /// # Example
     ///
     /// ```
-    /// use rg3d_core::pool::Pool;
+    /// use fyrox_core::pool::Pool;
     /// let mut pool = Pool::<u32>::new();
     /// let a = pool.spawn(1);
     /// let a = pool.borrow_mut(a);
@@ -711,7 +711,7 @@ impl<T> Pool<T> {
     /// # Example
     ///
     /// ```
-    /// use rg3d_core::pool::Pool;
+    /// use fyrox_core::pool::Pool;
     /// let mut pool = Pool::<u32>::new();
     /// let a = pool.spawn(1);
     /// let b = pool.spawn(2);
@@ -741,7 +741,7 @@ impl<T> Pool<T> {
     /// # Example
     ///
     /// ```
-    /// use rg3d_core::pool::Pool;
+    /// use fyrox_core::pool::Pool;
     /// let mut pool = Pool::<u32>::new();
     /// let a = pool.spawn(1);
     /// let b = pool.spawn(2);
@@ -782,7 +782,7 @@ impl<T> Pool<T> {
     /// # Example
     ///
     /// ```
-    /// use rg3d_core::pool::Pool;
+    /// use fyrox_core::pool::Pool;
     /// let mut pool = Pool::<u32>::new();
     /// let a = pool.spawn(1);
     /// let b = pool.spawn(2);
@@ -1014,7 +1014,7 @@ impl<T> Pool<T> {
     /// # Example
     ///
     /// ```
-    /// use rg3d_core::pool::Pool;
+    /// use fyrox_core::pool::Pool;
     /// let mut pool = Pool::<u32>::new();
     /// pool.spawn(123);
     /// pool.spawn(321);
@@ -1066,7 +1066,7 @@ impl<T> Pool<T> {
     /// # Example
     ///
     /// ```
-    /// use rg3d_core::pool::Pool;
+    /// use fyrox_core::pool::Pool;
     /// let mut pool = Pool::<u32>::new();
     /// let handle = pool.spawn(123);
     /// assert_eq!(pool.is_valid_handle(handle), true)
@@ -1085,7 +1085,7 @@ impl<T> Pool<T> {
     /// # Example
     ///
     /// ```
-    /// use rg3d_core::pool::Pool;
+    /// use fyrox_core::pool::Pool;
     /// let mut pool = Pool::<u32>::new();
     /// pool.spawn(123);
     /// pool.spawn(321);
@@ -1120,7 +1120,7 @@ impl<T> Pool<T> {
     /// # Example
     ///
     /// ```
-    /// use rg3d_core::pool::Pool;
+    /// use fyrox_core::pool::Pool;
     /// let mut pool = Pool::<u32>::new();
     /// pool.spawn(123);
     /// pool.spawn(321);

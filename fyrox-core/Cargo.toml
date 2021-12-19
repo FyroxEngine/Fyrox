@@ -1,10 +1,10 @@
 [package]
-name = "rg3d-core"
+name = "fyrox-core"
 version = "0.18.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
-description = "Shared core for the rg3d engine and its external crates."
+description = "Shared core for the fyrox engine and its external crates."
 keywords = ["game", "engine", "3d"]
 categories = ["game-development", "graphics", "gui", "rendering", "wasm"]
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
@@ -16,7 +16,7 @@ resolver = "2"
 rust-version = "1.56"
 
 [dependencies]
-rg3d-core-derive = { path = "../rg3d-core-derive", version = "0.13.0" }
+fyrox-core-derive = { path = "../fyrox-core-derive", version = "0.13.0" }
 
 base64 = "0.13.0"
 byteorder = "1.4.3"

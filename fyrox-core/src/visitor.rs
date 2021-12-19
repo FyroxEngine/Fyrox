@@ -8,7 +8,7 @@
 //! types and some of basic structures of the crate. Main criteria of what could be the field and what
 //! not is the ability to be represented as set of bytes without any aliasing issues.
 
-pub use rg3d_core_derive::Visit;
+pub use fyrox_core_derive::Visit;
 
 pub mod prelude {
     //! Types to use `#[derive(Visit)]`
@@ -728,7 +728,7 @@ impl Default for Visitor {
 }
 
 impl Visitor {
-    const MAGIC: &'static str = "RG3D";
+    const MAGIC: &'static str = "fyrox";
 
     pub fn new() -> Self {
         let mut nodes = Pool::new();

@@ -1,4 +1,4 @@
-//! Core data structures and algorithms used throughout rg3d.
+//! Core data structures and algorithms used throughout fyrox.
 //!
 //! Some of them can be useful separately outside the engine.
 

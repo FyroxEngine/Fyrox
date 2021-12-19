@@ -188,4 +188,4 @@ impl_self_inspect!(u16, u16::MIN as f64, u16::MAX as f64, 1.0, 0);
 impl_self_inspect!(i8, i8::MIN as f64, i8::MAX as f64, 1.0, 0);
 impl_self_inspect!(u8, u8::MIN as f64, u8::MAX as f64, 1.0, 0);
 
-pub use rg3d_core_derive::Inspect;
+pub use fyrox_core_derive::Inspect;
