@@ -1,5 +1,5 @@
 [package]
-name = "rg3d-core-derive"
+name = "fyrox-core-derive"
 version = "0.13.0"
 authors = ["toyboot4e <toyboot4e@gmail.com>, Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
@@ -23,5 +23,5 @@ darling = "0.13.1"
 fxhash = "0.2.1"
 
 [dev-dependencies]
-rg3d-core = { path = "../rg3d-core" }
+fyrox-core = { path = "../fyrox-core" }
 futures = "0.3.16"
