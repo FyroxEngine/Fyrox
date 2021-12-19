@@ -7,7 +7,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::{
+use fyrox::{
     core::{
         algebra::{Matrix4, Vector3},
         color::Color,

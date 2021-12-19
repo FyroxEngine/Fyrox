@@ -3,7 +3,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::{
+use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
@@ -183,7 +183,7 @@ impl GameState for Game {
         Self: Sized,
     {
         // Create test scene.
-        let loader = rg3d::core::futures::executor::block_on(SceneLoader::load_with(
+        let loader = fyrox::core::futures::executor::block_on(SceneLoader::load_with(
             engine.resource_manager.clone(),
         ));
 

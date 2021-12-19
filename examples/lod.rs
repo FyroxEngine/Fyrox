@@ -8,8 +8,8 @@ pub mod shared;
 
 use crate::shared::create_camera;
 
-use rg3d::scene::base::LodControlledObject;
-use rg3d::{
+use fyrox::scene::base::LodControlledObject;
+use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         color::Color,
@@ -135,7 +135,7 @@ struct InputController {
 fn main() {
     let event_loop = EventLoop::new();
 
-    let window_builder = rg3d::window::WindowBuilder::new()
+    let window_builder = fyrox::window::WindowBuilder::new()
         .with_title("Example 08 - Level of detail")
         .with_resizable(true);
 
@@ -149,7 +149,7 @@ fn main() {
         scene,
         model_handle,
         camera,
-    } = rg3d::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
+    } = fyrox::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some

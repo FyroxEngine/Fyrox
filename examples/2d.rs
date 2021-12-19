@@ -4,7 +4,7 @@
 //!
 //! This example shows simple 2D scene with light sources.
 
-use rg3d::{
+use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
     event::{ElementState, VirtualKeyCode, WindowEvent},

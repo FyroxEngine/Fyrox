@@ -8,7 +8,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::{
+use fyrox::{
     animation::Animation,
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
@@ -74,7 +74,7 @@ impl SceneLoader {
         // create instance of it - much more efficient is to load it once and then make copies
         // of it. In case of models it is very efficient because single vertex and index buffer
         // can be used for all models instances, so memory footprint on GPU will be lower.
-        let (model_resource, walk_animation_resource) = rg3d::core::futures::join!(
+        let (model_resource, walk_animation_resource) = fyrox::core::futures::join!(
             resource_manager.request_model(
                 "examples/data/mutant/mutant.FBX",
                 MaterialSearchOptions::RecursiveUp
@@ -123,7 +123,7 @@ impl SceneLoader {
                 scene
                     .animations
                     .get_mut(walk_animation)
-                    .set_speed(rg3d::rand::thread_rng().gen_range(0.8..1.2));
+                    .set_speed(fyrox::rand::thread_rng().gen_range(0.8..1.2));
 
                 animations.push(walk_animation);
             }
@@ -203,7 +203,7 @@ impl GameState for Game {
         engine.renderer.set_quality_settings(&settings).unwrap();
 
         // Create test scene.
-        let loader = rg3d::core::futures::executor::block_on(SceneLoader::load_with(
+        let loader = fyrox::core::futures::executor::block_on(SceneLoader::load_with(
             engine.resource_manager.clone(),
         ));
 

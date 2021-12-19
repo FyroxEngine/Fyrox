@@ -1,5 +1,5 @@
-use rg3d::engine::Engine;
-use rg3d::{
+use fyrox::engine::Engine;
+use fyrox::{
     core::color::{Color, Hsv},
     engine::framework::prelude::*,
     event_loop::ControlFlow,

@@ -7,7 +7,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::{
+use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
         arrayvec::ArrayVec,
@@ -143,7 +143,7 @@ struct InputController {
 fn main() {
     let event_loop = EventLoop::new();
 
-    let window_builder = rg3d::window::WindowBuilder::new()
+    let window_builder = fyrox::window::WindowBuilder::new()
         .with_title("Example 12 - Navigation Mesh")
         .with_resizable(true);
 
@@ -158,7 +158,7 @@ fn main() {
         agent,
         cursor,
         camera,
-    } = rg3d::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
+    } = fyrox::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some

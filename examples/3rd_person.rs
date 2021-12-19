@@ -26,7 +26,7 @@ pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
 
-use rg3d::{
+use fyrox::{
     core::algebra::Vector2,
     event::{Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
@@ -166,7 +166,7 @@ fn main() {
                 game.engine.render().unwrap();
             }
             Event::LoopDestroyed => {
-                println!("{:?}", rg3d::core::profiler::print());
+                println!("{:?}", fyrox::core::profiler::print());
             }
             Event::WindowEvent { event, .. } => {
                 match event {

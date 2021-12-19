@@ -4,7 +4,7 @@
 //!
 //! This example based on 3rd_person example, it uses lots of code from shared mod.
 //!
-//! rg3d has powerful built-in serialization/deserialization which is used for various
+//! fyrox has powerful built-in serialization/deserialization which is used for various
 //! purposes, one of them is to create or load save files in your game. It very easy
 //! to use, all you need to do is to implement Visit trait on your game structures and
 //! then create new instance of visitor and call your_struct.visit(...) on it. Check code
@@ -12,13 +12,13 @@
 //!
 //! # Important
 //!
-//! You should carefully read documentation of rg3d::core::Visitor to understand basic ideas
+//! You should carefully read documentation of fyrox::core::Visitor to understand basic ideas
 //! of how it works, otherwise Visit trait implementation might be confusing.
 
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene, LocomotionMachine, Player};
-use rg3d::{
+use fyrox::{
     core::{
         algebra::Vector2,
         visitor::{Visit, VisitResult, Visitor},
@@ -56,7 +56,7 @@ impl Visit for LocomotionMachine {
         self.jump_animation.visit("JumpAnimation", visitor)?;
         self.walk_animation.visit("WalkAnimation", visitor)?;
         self.walk_state.visit("WalkState", visitor)?;
-        // Machine is an internal rg3d type, however it has implementation of Visit and
+        // Machine is an internal fyrox type, however it has implementation of Visit and
         // can be serialized in one call.
         self.machine.visit("Machine", visitor)?;
 
@@ -103,7 +103,7 @@ impl Visit for Game {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        // As you can see entire state of the rg3d engine saved in a single line.
+        // As you can see entire state of the fyrox engine saved in a single line.
         self.engine.visit("Engine", visitor)?;
 
         self.game_scene.visit("GameScene", visitor)?;
@@ -249,7 +249,7 @@ fn main() {
                 game.engine.render().unwrap();
             }
             Event::LoopDestroyed => {
-                println!("{:?}", rg3d::core::profiler::print());
+                println!("{:?}", fyrox::core::profiler::print());
             }
             Event::WindowEvent { event, .. } => {
                 match event {
@@ -306,7 +306,7 @@ fn main() {
                                     VirtualKeyCode::F9 => {
                                         if Path::new(SAVE_FILE).exists() {
                                             // Loading a game is even simpler - just 2 lines.
-                                            let mut visitor = rg3d::core::futures::executor::block_on(Visitor::load_binary(SAVE_FILE)).unwrap();
+                                            let mut visitor = fyrox::core::futures::executor::block_on(Visitor::load_binary(SAVE_FILE)).unwrap();
                                             game.visit("Game", &mut visitor).unwrap();
                                         }
                                     },

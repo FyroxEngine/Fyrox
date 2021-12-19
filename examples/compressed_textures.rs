@@ -3,8 +3,8 @@
 //! Just shows two textures with compression. Engine compresses textures automatically,
 //! based on compression options.
 
-use rg3d::engine::Engine;
-use rg3d::{
+use fyrox::engine::Engine;
+use fyrox::{
     core::{algebra::Vector2, color::Color},
     engine::{framework::prelude::*, resource_manager::TextureImportOptions},
     gui::{image::ImageBuilder, widget::WidgetBuilder},

@@ -1,4 +1,4 @@
-use rg3d::{
+use fyrox::{
     core::{algebra::Vector2, pool::Handle, rand::Rng},
     engine::{framework::prelude::*, Engine},
     gui::{
