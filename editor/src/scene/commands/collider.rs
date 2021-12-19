@@ -112,8 +112,9 @@ impl Command for AddTrimeshGeometrySourceCommand {
     }
 
     fn execute(&mut self, context: &mut SceneContext) {
-        let mut ref_mut = context.scene.graph[self.node].as_collider_mut().shape_mut();
-        if let ColliderShape::Trimesh(trimesh) = &mut *ref_mut {
+        if let ColliderShape::Trimesh(trimesh) =
+            context.scene.graph[self.node].as_collider_mut().shape_mut()
+        {
             trimesh.sources.push(self.source)
         } else {
             unreachable!()
@@ -121,8 +122,9 @@ impl Command for AddTrimeshGeometrySourceCommand {
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
-        let mut ref_mut = context.scene.graph[self.node].as_collider_mut().shape_mut();
-        if let ColliderShape::Trimesh(trimesh) = &mut *ref_mut {
+        if let ColliderShape::Trimesh(trimesh) =
+            context.scene.graph[self.node].as_collider_mut().shape_mut()
+        {
             trimesh.sources.pop();
         } else {
             unreachable!()
@@ -139,8 +141,9 @@ pub struct SetTrimeshColliderGeometrySourceValueCommand {
 
 impl SetTrimeshColliderGeometrySourceValueCommand {
     fn swap(&mut self, context: &mut SceneContext) {
-        let mut ref_mut = context.scene.graph[self.node].as_collider_mut().shape_mut();
-        if let ColliderShape::Trimesh(trimesh) = &mut *ref_mut {
+        if let ColliderShape::Trimesh(trimesh) =
+            context.scene.graph[self.node].as_collider_mut().shape_mut()
+        {
             std::mem::swap(&mut trimesh.sources[self.index], &mut self.value)
         } else {
             unreachable!()

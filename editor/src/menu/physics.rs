@@ -84,6 +84,8 @@ impl PhysicsMenu {
                                 local_axis1: Vector3::y(),
                                 local_anchor2: Default::default(),
                                 local_axis2: Vector3::x(),
+                                limits_enabled: false,
+                                limits: [f32::MIN, f32::MAX],
                             }))
                             .build_node(),
                     )))
@@ -95,6 +97,10 @@ impl PhysicsMenu {
                             .with_params(JointParams::BallJoint(BallJoint {
                                 local_anchor1: Default::default(),
                                 local_anchor2: Default::default(),
+                                limits_enabled: false,
+                                limits_local_axis1: Default::default(),
+                                limits_local_axis2: Default::default(),
+                                limits_angle: 0.0,
                             }))
                             .build_node(),
                     )))
@@ -108,6 +114,8 @@ impl PhysicsMenu {
                                 local_axis1: Vector3::y(),
                                 local_anchor2: Default::default(),
                                 local_axis2: Vector3::x(),
+                                limits_enabled: false,
+                                limits: [f32::MIN, f32::MAX],
                             }))
                             .build_node(),
                     )))
