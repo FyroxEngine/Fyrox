@@ -23,3 +23,5 @@ body:
 - type: textarea
   attributes:
     label: Put your question/request here.
+  validations:
+    required: true
