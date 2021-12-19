@@ -33,7 +33,12 @@ body:
 - type: textarea
   attributes:
     label: Example snippet or link?
-    render: rs
+    value: |
+     ```rust
+     fn main() {
+         println!("Hello world");
+     }
+     ```
   validations:
     required: false
 - type: textarea
