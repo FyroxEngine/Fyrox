@@ -36,11 +36,11 @@ define_node_command!(SetColliderDensityCommand("Set Collider Density", Option<f3
     get_set_swap!(self, node.as_collider_mut(), density, set_density)
 });
 
-define_node_command!(SetColliderCollisionGroupsCommand("Set Collider Collision Groups", InteractionGroupsDesc) where fn swap(self, node) {
+define_node_command!(SetColliderCollisionGroupsCommand("Set Collider Collision Groups", InteractionGroups) where fn swap(self, node) {
     get_set_swap!(self, node.as_collider_mut(), collision_groups, set_collision_groups)
 });
 
-define_node_command!(SetColliderSolverGroupsCommand("Set Collider Solver Groups", InteractionGroupsDesc) where fn swap(self, node) {
+define_node_command!(SetColliderSolverGroupsCommand("Set Collider Solver Groups", InteractionGroups) where fn swap(self, node) {
     get_set_swap!(self, node.as_collider_mut(), solver_groups, set_solver_groups)
 });
 

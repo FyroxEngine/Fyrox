@@ -37,14 +37,14 @@ pub fn handle_collider_property_changed(
         FieldKind::Inspectable(ref inner_property) => match args.name.as_ref() {
             Collider::COLLISION_GROUPS => match inner_property.value {
                 FieldKind::Object(ref value) => match inner_property.name.as_ref() {
-                    InteractionGroupsDesc::MEMBERSHIPS => {
+                    InteractionGroups::MEMBERSHIPS => {
                         let mut new_value = collider.collision_groups();
                         new_value.memberships = value.cast_clone()?;
                         Some(SceneCommand::new(SetColliderCollisionGroupsCommand::new(
                             handle, new_value,
                         )))
                     }
-                    InteractionGroupsDesc::FILTER => {
+                    InteractionGroups::FILTER => {
                         let mut new_value = collider.collision_groups();
                         new_value.filter = value.cast_clone()?;
                         Some(SceneCommand::new(SetColliderCollisionGroupsCommand::new(
@@ -57,14 +57,14 @@ pub fn handle_collider_property_changed(
             },
             Collider::SOLVER_GROUPS => match inner_property.value {
                 FieldKind::Object(ref value) => match inner_property.name.as_ref() {
-                    InteractionGroupsDesc::MEMBERSHIPS => {
+                    InteractionGroups::MEMBERSHIPS => {
                         let mut new_value = collider.collision_groups();
                         new_value.memberships = value.cast_clone()?;
                         Some(SceneCommand::new(SetColliderSolverGroupsCommand::new(
                             handle, new_value,
                         )))
                     }
-                    InteractionGroupsDesc::FILTER => {
+                    InteractionGroups::FILTER => {
                         let mut new_value = collider.collision_groups();
                         new_value.filter = value.cast_clone()?;
                         Some(SceneCommand::new(SetColliderSolverGroupsCommand::new(

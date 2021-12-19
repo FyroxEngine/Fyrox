@@ -8,7 +8,7 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
-    physics3d::rapier::geometry::{ColliderHandle, InteractionGroups},
+    physics3d::rapier::geometry::{self, ColliderHandle},
     scene::{
         base::{Base, BaseBuilder},
         graph::{
@@ -73,10 +73,13 @@ impl Default for CylinderShape {
     }
 }
 
+/// Cone shape aligned in Y axis.
 #[derive(Clone, Debug, Visit, Inspect)]
 pub struct ConeShape {
+    /// Half height of the cone, actual height will be 2 times bigger.
     #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
+    /// Radius of the cone base.
     #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
@@ -90,8 +93,11 @@ impl Default for ConeShape {
     }
 }
 
+/// Cuboid shape (box).
 #[derive(Clone, Debug, Visit, Inspect)]
 pub struct CuboidShape {
+    /// Half extents of the box. X - half width, Y - half height, Z - half depth.
+    /// Actual _size_ will be 2 times bigger.
     pub half_extents: Vector3<f32>,
 }
 
@@ -103,10 +109,14 @@ impl Default for CuboidShape {
     }
 }
 
+/// Arbitrary capsule shape defined by 2 points (which forms axis) and a radius.
 #[derive(Clone, Debug, Visit, Inspect)]
 pub struct CapsuleShape {
+    /// Begin point of the capsule.
     pub begin: Vector3<f32>,
+    /// End point of the capsule.
     pub end: Vector3<f32>,
+    /// Radius of the capsule.
     #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
@@ -122,9 +132,12 @@ impl Default for CapsuleShape {
     }
 }
 
+/// Arbitrary segment shape defined by two points.
 #[derive(Clone, Debug, Visit, Inspect)]
 pub struct SegmentShape {
+    /// Begin point of the capsule.
     pub begin: Vector3<f32>,
+    /// End point of the capsule.
     pub end: Vector3<f32>,
 }
 
@@ -137,10 +150,14 @@ impl Default for SegmentShape {
     }
 }
 
+/// Arbitrary triangle shape.
 #[derive(Clone, Debug, Visit, Inspect)]
 pub struct TriangleShape {
+    /// First point of the triangle shape.
     pub a: Vector3<f32>,
+    /// Second point of the triangle shape.
     pub b: Vector3<f32>,
+    /// Third point of the triangle shape.
     pub c: Vector3<f32>,
 }
 
@@ -154,27 +171,53 @@ impl Default for TriangleShape {
     }
 }
 
+/// Geometry source for colliders with complex geometry.
+///
+/// # Notes
+///
+/// Currently there is only one way to set geometry - using a scene node as a source of data.
 #[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Inspect)]
 pub struct GeometrySource(pub Handle<Node>);
 
+/// Arbitrary triangle mesh shape.
 #[derive(Default, Clone, Debug, Visit, Inspect)]
 pub struct TrimeshShape {
+    /// Geometry sources for the shape.
     pub sources: Vec<GeometrySource>,
 }
 
+/// Arbitrary height field shape.
 #[derive(Default, Clone, Debug, Visit, Inspect)]
 pub struct HeightfieldShape {
+    /// A handle to terrain scene node.
     pub geometry_source: GeometrySource,
 }
 
-#[doc(hidden)]
+/// Pairwise filtering using bit masks.
+///
+/// This filtering method is based on two 32-bit values:
+/// - The interaction groups memberships.
+/// - The interaction groups filter.
+///
+/// An interaction is allowed between two filters `a` and `b` when two conditions
+/// are met simultaneously:
+/// - The groups membership of `a` has at least one bit set to `1` in common with the groups filter of `b`.
+/// - The groups membership of `b` has at least one bit set to `1` in common with the groups filter of `a`.
+///
+/// In other words, interactions are allowed between two filter iff. the following condition is met:
+/// ```ignore
+/// (self.memberships & rhs.filter) != 0 && (rhs.memberships & self.filter) != 0
+/// ```
 #[derive(Visit, Debug, Clone, Copy, Inspect)]
-pub struct InteractionGroupsDesc {
+pub struct InteractionGroups {
+    /// Groups memberships.
     pub memberships: u32,
+    /// Groups filter.
     pub filter: u32,
 }
 
-impl InteractionGroupsDesc {
+impl InteractionGroups {
+    /// Creates new interaction group using given values.
     pub fn new(memberships: u32, filter: u32) -> Self {
         Self {
             memberships,
@@ -183,7 +226,7 @@ impl InteractionGroupsDesc {
     }
 }
 
-impl Default for InteractionGroupsDesc {
+impl Default for InteractionGroups {
     fn default() -> Self {
         Self {
             memberships: u32::MAX,
@@ -192,8 +235,8 @@ impl Default for InteractionGroupsDesc {
     }
 }
 
-impl From<InteractionGroups> for InteractionGroupsDesc {
-    fn from(g: InteractionGroups) -> Self {
+impl From<geometry::InteractionGroups> for InteractionGroups {
+    fn from(g: geometry::InteractionGroups) -> Self {
         Self {
             memberships: g.memberships,
             filter: g.filter,
@@ -326,8 +369,8 @@ pub struct Collider {
     #[inspect(min_value = 0.0, step = 0.05)]
     restitution: f32,
     is_sensor: bool,
-    collision_groups: InteractionGroupsDesc,
-    solver_groups: InteractionGroupsDesc,
+    collision_groups: InteractionGroups,
+    solver_groups: InteractionGroups,
     friction_combine_rule: CoefficientCombineRule,
     restitution_combine_rule: CoefficientCombineRule,
     #[visit(skip)]
@@ -458,25 +501,25 @@ impl Collider {
         self.friction
     }
 
-    pub fn set_collision_groups(&mut self, groups: InteractionGroupsDesc) {
+    pub fn set_collision_groups(&mut self, groups: InteractionGroups) {
         self.collision_groups = groups;
         self.changes
             .get_mut()
             .insert(ColliderChanges::COLLISION_GROUPS);
     }
 
-    pub fn collision_groups(&self) -> InteractionGroupsDesc {
+    pub fn collision_groups(&self) -> InteractionGroups {
         self.collision_groups
     }
 
-    pub fn set_solver_groups(&mut self, groups: InteractionGroupsDesc) {
+    pub fn set_solver_groups(&mut self, groups: InteractionGroups) {
         self.solver_groups = groups;
         self.changes
             .get_mut()
             .insert(ColliderChanges::SOLVER_GROUPS);
     }
 
-    pub fn solver_groups(&self) -> InteractionGroupsDesc {
+    pub fn solver_groups(&self) -> InteractionGroups {
         self.solver_groups
     }
 
@@ -511,6 +554,7 @@ impl Collider {
             .insert(ColliderChanges::RESTITUTION_COMBINE_RULE);
     }
 
+    /// Returns an iterator that yields contact information for the collider.
     pub fn contacts<'a>(
         &self,
         physics: &'a PhysicsWorld,
@@ -519,6 +563,7 @@ impl Collider {
     }
 }
 
+/// Collider builder allows you to build a collider node in declarative mannner.
 pub struct ColliderBuilder {
     base_builder: BaseBuilder,
     shape: ColliderShape,
@@ -526,13 +571,14 @@ pub struct ColliderBuilder {
     density: Option<f32>,
     restitution: f32,
     is_sensor: bool,
-    collision_groups: InteractionGroupsDesc,
-    solver_groups: InteractionGroupsDesc,
+    collision_groups: InteractionGroups,
+    solver_groups: InteractionGroups,
     friction_combine_rule: CoefficientCombineRule,
     restitution_combine_rule: CoefficientCombineRule,
 }
 
 impl ColliderBuilder {
+    /// Creates new collider builder.
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
@@ -548,11 +594,61 @@ impl ColliderBuilder {
         }
     }
 
+    /// Sets desired shape of the collider.
     pub fn with_shape(mut self, shape: ColliderShape) -> Self {
         self.shape = shape;
         self
     }
 
+    /// Sets desired density value.
+    pub fn with_density(mut self, density: Option<f32>) -> Self {
+        self.density = density;
+        self
+    }
+
+    /// Sets desired restitution value.
+    pub fn with_restitution(mut self, restitution: f32) -> Self {
+        self.restitution = restitution;
+        self
+    }
+
+    /// Sets desired friction value.    
+    pub fn with_friction(mut self, friction: f32) -> Self {
+        self.friction = friction;
+        self
+    }
+
+    /// Sets whether this collider will be used a sensor or not.
+    pub fn with_sensor(mut self, sensor: bool) -> Self {
+        self.is_sensor = sensor;
+        self
+    }
+
+    /// Sets desired solver groups.    
+    pub fn with_solver_groups(mut self, solver_groups: InteractionGroups) -> Self {
+        self.solver_groups = solver_groups;
+        self
+    }
+
+    /// Sets desired collision groups.
+    pub fn with_collision_groups(mut self, collision_groups: InteractionGroups) -> Self {
+        self.collision_groups = collision_groups;
+        self
+    }
+
+    /// Sets desired friction combine rule.
+    pub fn with_friction_combine_rule(mut self, rule: CoefficientCombineRule) -> Self {
+        self.friction_combine_rule = rule;
+        self
+    }
+
+    /// Sets desired restitution combine rule.
+    pub fn with_restitution_combine_rule(mut self, rule: CoefficientCombineRule) -> Self {
+        self.restitution_combine_rule = rule;
+        self
+    }
+
+    /// Creates collider node, but does not add it to a graph.
     pub fn build_node(self) -> Node {
         let collider = Collider {
             base: self.base_builder.build_base(),
@@ -571,46 +667,7 @@ impl ColliderBuilder {
         Node::Collider(collider)
     }
 
-    pub fn with_density(mut self, density: Option<f32>) -> Self {
-        self.density = density;
-        self
-    }
-
-    pub fn with_restitution(mut self, restitution: f32) -> Self {
-        self.restitution = restitution;
-        self
-    }
-
-    pub fn with_friction(mut self, friction: f32) -> Self {
-        self.friction = friction;
-        self
-    }
-
-    pub fn with_sensor(mut self, sensor: bool) -> Self {
-        self.is_sensor = sensor;
-        self
-    }
-
-    pub fn with_solver_groups(mut self, solver_groups: InteractionGroupsDesc) -> Self {
-        self.solver_groups = solver_groups;
-        self
-    }
-
-    pub fn with_collision_groups(mut self, collision_groups: InteractionGroupsDesc) -> Self {
-        self.collision_groups = collision_groups;
-        self
-    }
-
-    pub fn with_friction_combine_rule(mut self, rule: CoefficientCombineRule) -> Self {
-        self.friction_combine_rule = rule;
-        self
-    }
-
-    pub fn with_restitution_combine_rule(mut self, rule: CoefficientCombineRule) -> Self {
-        self.restitution_combine_rule = rule;
-        self
-    }
-
+    /// Creates collider node and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
     }

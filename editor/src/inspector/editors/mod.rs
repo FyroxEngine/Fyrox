@@ -23,7 +23,7 @@ use rg3d::{
             Base, LevelOfDetail, LodControlledObject, LodGroup, Mobility, Property, PropertyValue,
         },
         camera::{ColorGradingLut, Exposure, SkyBox},
-        collider::{ColliderShape, InteractionGroupsDesc},
+        collider::{ColliderShape, InteractionGroups},
         joint::*,
         light::{
             directional::{CsmOptions, FrustumSplitOptions},
@@ -289,7 +289,7 @@ pub fn make_property_editors_container(
     container.insert(make_property_enum_editor_definition());
     container.insert(ModelResourcePropertyEditorDefinition);
     container.insert(SoundBufferResourcePropertyEditorDefinition);
-    container.insert(InspectablePropertyEditorDefinition::<InteractionGroupsDesc>::new());
+    container.insert(InspectablePropertyEditorDefinition::<InteractionGroups>::new());
     container.insert(InspectablePropertyEditorDefinition::<ColliderShape>::new());
     container.insert(InspectablePropertyEditorDefinition::<JointParams>::new());
     container.insert(InspectablePropertyEditorDefinition::<Base>::new());

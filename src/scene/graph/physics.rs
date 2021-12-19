@@ -26,11 +26,11 @@ use crate::{
     },
     scene::{
         self,
+        collider::ColliderChanges,
         collider::{
             BallShape, CapsuleShape, ColliderShape, ConeShape, CuboidShape, CylinderShape,
             GeometrySource, HeightfieldShape, SegmentShape, TriangleShape, TrimeshShape,
         },
-        collider::{ColliderChanges, InteractionGroupsDesc},
         debug::SceneDrawingContext,
         graph::isometric_global_transform,
         joint::JointChanges,
@@ -191,7 +191,7 @@ pub struct RayCastOptions {
     pub max_len: f32,
 
     /// Groups to check.
-    pub groups: InteractionGroupsDesc,
+    pub groups: InteractionGroups,
 
     /// Whether to sort intersections from closest to farthest.
     pub sort_results: bool,
