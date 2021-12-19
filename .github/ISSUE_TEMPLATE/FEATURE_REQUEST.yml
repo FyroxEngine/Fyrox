@@ -16,10 +16,18 @@ body:
       - label: physics
       - label: user-interface
       - label: graphics
+      - label: docs
   validations:
     required: true
 - type: textarea
   attributes:
-    label: Additional features
+    label: Additional details
   validations:
     required: true
+- type: checkboxes
+  attributes:
+    label: Are you willing to contribute to its development?
+    options:
+      - label: Yes I am
+        required: true
+      - label: No I am not
