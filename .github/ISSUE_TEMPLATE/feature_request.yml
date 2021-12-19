@@ -5,6 +5,8 @@ body:
   attributes:
     label: What feature do you want to have you included?
     placeholder: E.g New widget, framework feature...
+  validations:
+    required: true
 - type: checkboxes
   attributes:
     label: What part of RG3D does this feature apply to?
@@ -14,6 +16,8 @@ body:
       - label: physics
       - label: user-interface
       - label: graphics
+  validations:
+    required: true
 - type: textarea
   attributes:
     label: Additional features
