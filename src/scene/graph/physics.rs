@@ -34,10 +34,7 @@ use crate::{
         collider::{ColliderChanges, InteractionGroupsDesc},
         debug::SceneDrawingContext,
         graph::isometric_global_transform,
-        joint::{
-            BallJointDesc, FixedJointDesc, JointChanges, JointParamsDesc, PrismaticJointDesc,
-            RevoluteJointDesc,
-        },
+        joint::JointChanges,
         mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
         node::Node,
         rigidbody::{ApplyAction, RigidBodyChanges},
@@ -301,13 +298,13 @@ where
     map: BiDirHashMap<A, Handle<Node>>,
 }
 
-fn convert_joint_params(params: JointParamsDesc) -> JointParams {
+fn convert_joint_params(params: scene::joint::JointParams) -> JointParams {
     match params {
-        JointParamsDesc::BallJoint(v) => JointParams::from(BallJoint::new(
+        scene::joint::JointParams::BallJoint(v) => JointParams::from(BallJoint::new(
             Point3::from(v.local_anchor1),
             Point3::from(v.local_anchor2),
         )),
-        JointParamsDesc::FixedJoint(v) => JointParams::from(FixedJoint::new(
+        scene::joint::JointParams::FixedJoint(v) => JointParams::from(FixedJoint::new(
             Isometry3 {
                 translation: Translation3 {
                     vector: v.local_anchor1_translation,
@@ -321,7 +318,7 @@ fn convert_joint_params(params: JointParamsDesc) -> JointParams {
                 rotation: v.local_anchor2_rotation,
             },
         )),
-        JointParamsDesc::PrismaticJoint(v) => JointParams::from(PrismaticJoint::new(
+        scene::joint::JointParams::PrismaticJoint(v) => JointParams::from(PrismaticJoint::new(
             Point3::from(v.local_anchor1),
             Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
             Default::default(), // TODO
@@ -329,7 +326,7 @@ fn convert_joint_params(params: JointParamsDesc) -> JointParams {
             Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
             Default::default(), // TODO
         )),
-        JointParamsDesc::RevoluteJoint(v) => JointParams::from(RevoluteJoint::new(
+        scene::joint::JointParams::RevoluteJoint(v) => JointParams::from(RevoluteJoint::new(
             Point3::from(v.local_anchor1),
             Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
             Point3::from(v.local_anchor2),
@@ -338,30 +335,38 @@ fn convert_joint_params(params: JointParamsDesc) -> JointParams {
     }
 }
 
-pub(crate) fn joint_params_from_native(params: &JointParams) -> JointParamsDesc {
+pub(crate) fn joint_params_from_native(params: &JointParams) -> scene::joint::JointParams {
     match params {
-        JointParams::BallJoint(v) => JointParamsDesc::BallJoint(BallJointDesc {
-            local_anchor1: v.local_anchor1.coords,
-            local_anchor2: v.local_anchor2.coords,
-        }),
-        JointParams::FixedJoint(v) => JointParamsDesc::FixedJoint(FixedJointDesc {
-            local_anchor1_translation: v.local_frame1.translation.vector,
-            local_anchor1_rotation: v.local_frame1.rotation,
-            local_anchor2_translation: v.local_frame2.translation.vector,
-            local_anchor2_rotation: v.local_frame2.rotation,
-        }),
-        JointParams::PrismaticJoint(v) => JointParamsDesc::PrismaticJoint(PrismaticJointDesc {
-            local_anchor1: v.local_anchor1.coords,
-            local_axis1: v.local_axis1().into_inner(),
-            local_anchor2: v.local_anchor2.coords,
-            local_axis2: v.local_axis2().into_inner(),
-        }),
-        JointParams::RevoluteJoint(v) => JointParamsDesc::RevoluteJoint(RevoluteJointDesc {
-            local_anchor1: v.local_anchor1.coords,
-            local_axis1: v.local_axis1.into_inner(),
-            local_anchor2: v.local_anchor2.coords,
-            local_axis2: v.local_axis2.into_inner(),
-        }),
+        JointParams::BallJoint(v) => {
+            scene::joint::JointParams::BallJoint(scene::joint::BallJoint {
+                local_anchor1: v.local_anchor1.coords,
+                local_anchor2: v.local_anchor2.coords,
+            })
+        }
+        JointParams::FixedJoint(v) => {
+            scene::joint::JointParams::FixedJoint(scene::joint::FixedJoint {
+                local_anchor1_translation: v.local_frame1.translation.vector,
+                local_anchor1_rotation: v.local_frame1.rotation,
+                local_anchor2_translation: v.local_frame2.translation.vector,
+                local_anchor2_rotation: v.local_frame2.rotation,
+            })
+        }
+        JointParams::PrismaticJoint(v) => {
+            scene::joint::JointParams::PrismaticJoint(scene::joint::PrismaticJoint {
+                local_anchor1: v.local_anchor1.coords,
+                local_axis1: v.local_axis1().into_inner(),
+                local_anchor2: v.local_anchor2.coords,
+                local_axis2: v.local_axis2().into_inner(),
+            })
+        }
+        JointParams::RevoluteJoint(v) => {
+            scene::joint::JointParams::RevoluteJoint(scene::joint::RevoluteJoint {
+                local_anchor1: v.local_anchor1.coords,
+                local_axis1: v.local_axis1.into_inner(),
+                local_anchor2: v.local_anchor2.coords,
+                local_axis2: v.local_axis2.into_inner(),
+            })
+        }
     }
 }
 

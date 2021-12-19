@@ -79,7 +79,7 @@ impl PhysicsMenu {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
                         JointBuilder::new(BaseBuilder::new().with_name("Revolute Joint"))
-                            .with_params(JointParamsDesc::RevoluteJoint(RevoluteJointDesc {
+                            .with_params(JointParams::RevoluteJoint(RevoluteJoint {
                                 local_anchor1: Default::default(),
                                 local_axis1: Vector3::y(),
                                 local_anchor2: Default::default(),
@@ -92,7 +92,7 @@ impl PhysicsMenu {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
                         JointBuilder::new(BaseBuilder::new().with_name("Ball Joint"))
-                            .with_params(JointParamsDesc::BallJoint(BallJointDesc {
+                            .with_params(JointParams::BallJoint(BallJoint {
                                 local_anchor1: Default::default(),
                                 local_anchor2: Default::default(),
                             }))
@@ -103,7 +103,7 @@ impl PhysicsMenu {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
                         JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint"))
-                            .with_params(JointParamsDesc::PrismaticJoint(PrismaticJointDesc {
+                            .with_params(JointParams::PrismaticJoint(PrismaticJoint {
                                 local_anchor1: Default::default(),
                                 local_axis1: Vector3::y(),
                                 local_anchor2: Default::default(),
@@ -116,7 +116,7 @@ impl PhysicsMenu {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
                         JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint"))
-                            .with_params(JointParamsDesc::FixedJoint(FixedJointDesc {
+                            .with_params(JointParams::FixedJoint(FixedJoint {
                                 local_anchor1_translation: Default::default(),
                                 local_anchor1_rotation: Default::default(),
                                 local_anchor2_translation: Default::default(),

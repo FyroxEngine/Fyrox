@@ -1,5 +1,3 @@
-#![allow(missing_docs, dead_code)]
-
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -21,13 +19,13 @@ use std::{
 };
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
-pub struct BallJointDesc {
+pub struct BallJoint {
     pub local_anchor1: Vector3<f32>,
     pub local_anchor2: Vector3<f32>,
 }
 
 #[derive(Clone, Debug, Default, Visit, Inspect)]
-pub struct FixedJointDesc {
+pub struct FixedJoint {
     pub local_anchor1_translation: Vector3<f32>,
     pub local_anchor1_rotation: UnitQuaternion<f32>,
     pub local_anchor2_translation: Vector3<f32>,
@@ -35,7 +33,7 @@ pub struct FixedJointDesc {
 }
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
-pub struct PrismaticJointDesc {
+pub struct PrismaticJoint {
     pub local_anchor1: Vector3<f32>,
     pub local_axis1: Vector3<f32>,
     pub local_anchor2: Vector3<f32>,
@@ -43,7 +41,7 @@ pub struct PrismaticJointDesc {
 }
 
 #[derive(Default, Clone, Debug, Visit, Inspect)]
-pub struct RevoluteJointDesc {
+pub struct RevoluteJoint {
     pub local_anchor1: Vector3<f32>,
     pub local_axis1: Vector3<f32>,
     pub local_anchor2: Vector3<f32>,
@@ -51,25 +49,25 @@ pub struct RevoluteJointDesc {
 }
 
 #[derive(Clone, Debug, Visit)]
-pub enum JointParamsDesc {
-    BallJoint(BallJointDesc),
-    FixedJoint(FixedJointDesc),
-    PrismaticJoint(PrismaticJointDesc),
-    RevoluteJoint(RevoluteJointDesc),
+pub enum JointParams {
+    BallJoint(BallJoint),
+    FixedJoint(FixedJoint),
+    PrismaticJoint(PrismaticJoint),
+    RevoluteJoint(RevoluteJoint),
 }
 
-impl Inspect for JointParamsDesc {
+impl Inspect for JointParams {
     fn properties(&self) -> Vec<PropertyInfo<'_>> {
         match self {
-            JointParamsDesc::BallJoint(v) => v.properties(),
-            JointParamsDesc::FixedJoint(v) => v.properties(),
-            JointParamsDesc::PrismaticJoint(v) => v.properties(),
-            JointParamsDesc::RevoluteJoint(v) => v.properties(),
+            JointParams::BallJoint(v) => v.properties(),
+            JointParams::FixedJoint(v) => v.properties(),
+            JointParams::PrismaticJoint(v) => v.properties(),
+            JointParams::RevoluteJoint(v) => v.properties(),
         }
     }
 }
 
-impl Default for JointParamsDesc {
+impl Default for JointParams {
     fn default() -> Self {
         Self::BallJoint(Default::default())
     }
@@ -95,7 +93,7 @@ impl<'a> Drop for JointParamsRefMut<'a> {
 }
 
 impl<'a> Deref for JointParamsRefMut<'a> {
-    type Target = JointParamsDesc;
+    type Target = JointParams;
 
     fn deref(&self) -> &Self::Target {
         &self.parent.params
@@ -111,7 +109,7 @@ impl<'a> DerefMut for JointParamsRefMut<'a> {
 #[derive(Visit, Inspect, Debug)]
 pub struct Joint {
     base: Base,
-    params: JointParamsDesc,
+    params: JointParams,
     body1: Handle<Node>,
     body2: Handle<Node>,
     #[visit(skip)]
@@ -161,7 +159,7 @@ impl Joint {
         }
     }
 
-    pub fn params(&self) -> &JointParamsDesc {
+    pub fn params(&self) -> &JointParams {
         &self.params
     }
 
@@ -190,7 +188,7 @@ impl Joint {
 
 pub struct JointBuilder {
     base_builder: BaseBuilder,
-    params: JointParamsDesc,
+    params: JointParams,
     body1: Handle<Node>,
     body2: Handle<Node>,
 }
@@ -205,7 +203,7 @@ impl JointBuilder {
         }
     }
 
-    pub fn with_params(mut self, params: JointParamsDesc) -> Self {
+    pub fn with_params(mut self, params: JointParams) -> Self {
         self.params = params;
         self
     }

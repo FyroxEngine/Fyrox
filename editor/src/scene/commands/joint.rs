@@ -10,7 +10,7 @@ use rg3d::{
 macro_rules! define_joint_variant_command {
     ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $node:ident, $variant:ident, $var:ident) $apply_method:block ) => {
         define_node_command!($name($human_readable_name, $value_type) where fn swap($self, $node) {
-            if let JointParamsDesc::$variant(ref mut $var) = *$node.as_joint_mut().params_mut() {
+            if let JointParams::$variant(ref mut $var) = *$node.as_joint_mut().params_mut() {
                 $apply_method
             } else {
                 unreachable!();

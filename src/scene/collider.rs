@@ -1,6 +1,3 @@
-#![allow(missing_docs)]
-
-use crate::scene::graph::physics::CoefficientCombineRule;
 use crate::{
     core::{
         algebra::Vector3,
@@ -12,7 +9,7 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::{
-            physics::{ContactPair, PhysicsWorld},
+            physics::{CoefficientCombineRule, ContactPair, PhysicsWorld},
             Graph,
         },
         node::Node,

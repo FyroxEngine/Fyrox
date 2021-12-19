@@ -294,7 +294,7 @@ pub fn make_property_editors_container(
     container.insert(SoundBufferResourcePropertyEditorDefinition);
     container.insert(InspectablePropertyEditorDefinition::<InteractionGroupsDesc>::new());
     container.insert(InspectablePropertyEditorDefinition::<ColliderShape>::new());
-    container.insert(InspectablePropertyEditorDefinition::<JointParamsDesc>::new());
+    container.insert(InspectablePropertyEditorDefinition::<JointParams>::new());
     container.insert(InspectablePropertyEditorDefinition::<Base>::new());
     container.insert(InspectablePropertyEditorDefinition::<scene2d::base::Base>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseLight>::new());

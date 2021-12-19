@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use crate::{
     core::{
         algebra::Vector3,
@@ -16,10 +14,10 @@ use crate::{
     },
 };
 use bitflags::bitflags;
-use std::fmt::{Debug, Formatter};
 use std::{
     cell::Cell,
     collections::VecDeque,
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
 
