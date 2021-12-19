@@ -1,3 +1,5 @@
+//! Scene physics module.
+
 use crate::{
     core::{
         algebra::{
@@ -53,6 +55,7 @@ use std::{
     time::Duration,
 };
 
+/// Shape-dependent identifier.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum FeatureId {
     /// Shape-dependent identifier of a vertex.
@@ -247,6 +250,7 @@ impl<const CAP: usize> QueryResultsStorage for ArrayVec<Intersection, CAP> {
     }
 }
 
+/// Data of the contact.
 pub struct ContactData {
     /// The contact point in the local-space of the first shape.
     pub local_p1: Vector3<f32>,
@@ -262,6 +266,7 @@ pub struct ContactData {
     pub tangent_impulse: Vector2<f32>,
 }
 
+/// A contact manifold between two colliders.
 pub struct ContactManifold {
     /// The contacts points.
     pub points: Vec<ContactData>,
@@ -277,6 +282,7 @@ pub struct ContactManifold {
     pub normal: Vector3<f32>,
 }
 
+/// Contact info for pair of colliders.
 pub struct ContactPair {
     /// The first collider involved in the contact pair.
     pub collider1: Handle<Node>,
@@ -614,35 +620,39 @@ fn collider_shape_into_native_shape(
     }
 }
 
+/// Physics world is responsible for physics simulation in the engine. There is a very few public
+/// methods, mostly for ray casting. You should add physical entities using scene graph nodes, such
+/// as RigidBody, Collider, Joint.
 pub struct PhysicsWorld {
+    /// A flag that defines whether physics simulation is enabled or not.
     pub enabled: bool,
 
-    /// Current physics pipeline.
+    // Current physics pipeline.
     pipeline: PhysicsPipeline,
-    /// Current gravity vector. Default is (0.0, -9.81, 0.0)
+    // Current gravity vector. Default is (0.0, -9.81, 0.0)
     gravity: Vector3<f32>,
-    /// A set of parameters that define behavior of every rigid body.
+    // A set of parameters that define behavior of every rigid body.
     integration_parameters: IntegrationParameters,
-    /// Broad phase performs rough intersection checks.
+    // Broad phase performs rough intersection checks.
     broad_phase: BroadPhase,
-    /// Narrow phase is responsible for precise contact generation.
+    // Narrow phase is responsible for precise contact generation.
     narrow_phase: NarrowPhase,
-    /// A continuous collision detection solver.
+    // A continuous collision detection solver.
     ccd_solver: CCDSolver,
-    /// Structure responsible for maintaining the set of active rigid-bodies, and putting non-moving
-    /// rigid-bodies to sleep to save computation times.
+    // Structure responsible for maintaining the set of active rigid-bodies, and putting non-moving
+    // rigid-bodies to sleep to save computation times.
     islands: IslandManager,
 
-    /// A container of rigid bodies.
+    // A container of rigid bodies.
     bodies: Container<RigidBodySet, RigidBodyHandle>,
 
-    /// A container of colliders.
+    // A container of colliders.
     colliders: Container<ColliderSet, ColliderHandle>,
 
-    /// A container of joints.
+    // A container of joints.
     joints: Container<JointSet, JointHandle>,
 
-    /// Event handler collects info about contacts and proximity events.
+    // Event handler collects info about contacts and proximity events.
     event_handler: Box<dyn EventHandler>,
 
     query: RefCell<QueryPipeline>,

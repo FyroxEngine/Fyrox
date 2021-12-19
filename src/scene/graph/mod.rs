@@ -57,6 +57,7 @@ pub mod physics;
 /// See module docs.
 #[derive(Debug)]
 pub struct Graph {
+    /// Backing physics "world". It is responsible for the physics simulation.
     pub physics: PhysicsWorld,
     root: Handle<Node>,
     pool: Pool<Node>,
@@ -104,24 +105,21 @@ fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_g
                     }
                 }
             }
-            Node::Collider(collider) => {
-                let mut shape_mut = collider.shape_mut();
-                match *shape_mut {
-                    ColliderShape::Trimesh(ref mut trimesh) => {
-                        for source in trimesh.sources.iter_mut() {
-                            if let Some(entry) = old_new_mapping.get(&source.0) {
-                                source.0 = *entry;
-                            }
+            Node::Collider(collider) => match collider.shape_mut() {
+                ColliderShape::Trimesh(ref mut trimesh) => {
+                    for source in trimesh.sources.iter_mut() {
+                        if let Some(entry) = old_new_mapping.get(&source.0) {
+                            source.0 = *entry;
                         }
                     }
-                    ColliderShape::Heightfield(ref mut heightfield) => {
-                        if let Some(entry) = old_new_mapping.get(&heightfield.geometry_source.0) {
-                            heightfield.geometry_source.0 = *entry;
-                        }
-                    }
-                    _ => (),
                 }
-            }
+                ColliderShape::Heightfield(ref mut heightfield) => {
+                    if let Some(entry) = old_new_mapping.get(&heightfield.geometry_source.0) {
+                        heightfield.geometry_source.0 = *entry;
+                    }
+                }
+                _ => (),
+            },
             Node::Joint(joint) => {
                 if let Some(entry) = old_new_mapping.get(&joint.body1()) {
                     joint.set_body1(*entry);

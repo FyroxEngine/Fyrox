@@ -260,16 +260,26 @@ impl Inspect for ColliderShape {
     }
 }
 
+/// Possible collider shapes.
 #[derive(Clone, Debug, Visit)]
 pub enum ColliderShape {
+    /// See [`BallShape`] docs.
     Ball(BallShape),
+    /// See [`CylinderShape`] docs.
     Cylinder(CylinderShape),
+    /// See [`ConeShape`] docs.
     Cone(ConeShape),
+    /// See [`CuboidShape`] docs.
     Cuboid(CuboidShape),
+    /// See [`CapsuleShape`] docs.
     Capsule(CapsuleShape),
+    /// See [`SegmentShape`] docs.
     Segment(SegmentShape),
+    /// See [`TriangleShape`] docs.
     Triangle(TriangleShape),
+    /// See [`TrimeshShape`] docs.
     Trimesh(TrimeshShape),
+    /// See [`HeightfieldShape`] docs.
     Heightfield(HeightfieldShape),
 }
 
@@ -414,31 +424,8 @@ impl DerefMut for Collider {
     }
 }
 
-pub struct ColliderShapeRefMut<'a> {
-    parent: &'a mut Collider,
-}
-
-impl<'a> Drop for ColliderShapeRefMut<'a> {
-    fn drop(&mut self) {
-        self.parent.changes.get_mut().insert(ColliderChanges::SHAPE);
-    }
-}
-
-impl<'a> Deref for ColliderShapeRefMut<'a> {
-    type Target = ColliderShape;
-
-    fn deref(&self) -> &Self::Target {
-        &self.parent.shape
-    }
-}
-
-impl<'a> DerefMut for ColliderShapeRefMut<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.parent.shape
-    }
-}
-
 impl Collider {
+    /// Creates a raw copy of the collider. This method is for internal use only!
     pub fn raw_copy(&self) -> Self {
         Self {
             base: self.base.raw_copy(),
@@ -457,50 +444,109 @@ impl Collider {
         }
     }
 
+    /// Sets the new shape to the collider.
+    ///
+    /// # Performance
+    ///
+    /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
+    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// performance.
     pub fn set_shape(&mut self, shape: ColliderShape) {
         self.shape = shape;
         self.changes.get_mut().insert(ColliderChanges::SHAPE);
     }
 
+    /// Returns shared reference to the collider shape.
     pub fn shape(&self) -> &ColliderShape {
         &self.shape
     }
 
+    /// Returns a copy of the collider shape.
     pub fn shape_value(&self) -> ColliderShape {
         self.shape.clone()
     }
 
-    pub fn shape_mut(&mut self) -> ColliderShapeRefMut {
-        ColliderShapeRefMut { parent: self }
+    /// Returns mutable reference to the current collider shape.
+    ///
+    /// # Performance
+    ///
+    /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
+    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// performance.
+    pub fn shape_mut(&mut self) -> &mut ColliderShape {
+        self.changes.get_mut().insert(ColliderChanges::SHAPE);
+        &mut self.shape
     }
 
+    /// Sets the new restitution value. The exact meaning of possible values is somewhat complex,
+    /// check [Wikipedia page](https://en.wikipedia.org/wiki/Coefficient_of_restitution) for more
+    /// info.
+    ///
+    /// # Performance
+    ///
+    /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
+    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// performance.
     pub fn set_restitution(&mut self, restitution: f32) {
         self.restitution = restitution;
         self.changes.get_mut().insert(ColliderChanges::RESTITUTION);
     }
 
+    /// Returns current restitution value of the collider.
     pub fn restitution(&self) -> f32 {
         self.restitution
     }
 
+    /// Sets the new density value of the collider. Density defines actual mass of the rigid body to
+    /// which the collider is attached. Final mass will be a sum of `ColliderVolume * ColliderDensity`
+    /// of each collider. In case if density is undefined, the mass of the collider will be zero,
+    /// which will lead to two possible effects:
+    ///
+    /// 1) If a rigid body to which collider is attached have no additional mass, then the rigid body
+    ///    won't rotate, only move.
+    /// 2) If the rigid body have some additional mass, then the rigid body will have normal behaviour.
+    ///
+    /// # Performance
+    ///
+    /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
+    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// performance.
     pub fn set_density(&mut self, density: Option<f32>) {
         self.density = density;
         self.changes.get_mut().insert(ColliderChanges::DENSITY);
     }
 
+    /// Returns current density of the collider.
     pub fn density(&self) -> Option<f32> {
         self.density
     }
 
+    /// Sets friction coefficient for the collider. The greater value is the more kinematic energy
+    /// will be converted to heat (in other words - lost), the parent rigid body will slowdown much
+    /// faster and so on.
+    ///
+    /// # Performance
+    ///
+    /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
+    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// performance.
     pub fn set_friction(&mut self, friction: f32) {
         self.friction = friction;
         self.changes.get_mut().insert(ColliderChanges::FRICTION);
     }
 
+    /// Return current friction of the collider.
     pub fn friction(&self) -> f32 {
         self.friction
     }
 
+    /// Sets the new collision filtering options. See [`InteractionGroups`] docs for more info.
+    ///
+    /// # Performance
+    ///
+    /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
+    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// performance.
     pub fn set_collision_groups(&mut self, groups: InteractionGroups) {
         self.collision_groups = groups;
         self.changes
@@ -508,10 +554,18 @@ impl Collider {
             .insert(ColliderChanges::COLLISION_GROUPS);
     }
 
+    /// Returns current collision filtering options.
     pub fn collision_groups(&self) -> InteractionGroups {
         self.collision_groups
     }
 
+    /// Sets the new joint solver filtering options. See [`InteractionGroups`] docs for more info.
+    ///
+    /// # Performance
+    ///
+    /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
+    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// performance.
     pub fn set_solver_groups(&mut self, groups: InteractionGroups) {
         self.solver_groups = groups;
         self.changes
@@ -519,23 +573,36 @@ impl Collider {
             .insert(ColliderChanges::SOLVER_GROUPS);
     }
 
+    /// Returns current solver groups.
     pub fn solver_groups(&self) -> InteractionGroups {
         self.solver_groups
     }
 
+    /// If true is passed, the method makes collider a sensor. Sensors will not participate in
+    /// collision response, but it is still possible to query contact information from them.
+    ///
+    /// # Performance
+    ///
+    /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
+    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// performance.
     pub fn set_is_sensor(&mut self, is_sensor: bool) {
         self.is_sensor = is_sensor;
         self.changes.get_mut().insert(ColliderChanges::IS_SENSOR);
     }
 
+    /// Returns true if the collider is sensor, false - otherwise.
     pub fn is_sensor(&self) -> bool {
         self.is_sensor
     }
 
-    pub fn friction_combine_rule(&self) -> CoefficientCombineRule {
-        self.friction_combine_rule
-    }
-
+    /// Sets the new friction combine rule. See [`CoefficientCombineRule`] docs for more info.
+    ///
+    /// # Performance
+    ///
+    /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
+    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// performance.
     pub fn set_friction_combine_rule(&mut self, rule: CoefficientCombineRule) {
         self.friction_combine_rule = rule;
         self.changes
@@ -543,15 +610,28 @@ impl Collider {
             .insert(ColliderChanges::FRICTION_COMBINE_RULE);
     }
 
-    pub fn restitution_combine_rule(&self) -> CoefficientCombineRule {
-        self.restitution_combine_rule
+    /// Returns current friction combine rule of the collider.
+    pub fn friction_combine_rule(&self) -> CoefficientCombineRule {
+        self.friction_combine_rule
     }
 
+    /// Sets the new restitution combine rule. See [`CoefficientCombineRule`] docs for more info.
+    ///
+    /// # Performance
+    ///
+    /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
+    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// performance.
     pub fn set_restitution_combine_rule(&mut self, rule: CoefficientCombineRule) {
         self.restitution_combine_rule = rule;
         self.changes
             .get_mut()
             .insert(ColliderChanges::RESTITUTION_COMBINE_RULE);
+    }
+
+    /// Returns current restitution combine rule of the collider.
+    pub fn restitution_combine_rule(&self) -> CoefficientCombineRule {
+        self.restitution_combine_rule
     }
 
     /// Returns an iterator that yields contact information for the collider.
