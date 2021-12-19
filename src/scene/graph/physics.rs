@@ -46,6 +46,7 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
+use rg3d_core::algebra::UnitVector3;
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
@@ -305,47 +306,77 @@ where
 
 fn convert_joint_params(params: scene::joint::JointParams) -> JointParams {
     match params {
-        scene::joint::JointParams::BallJoint(v) => JointParams::from(BallJoint::new(
-            Point3::from(v.local_anchor1),
-            Point3::from(v.local_anchor2),
-        )),
-        scene::joint::JointParams::FixedJoint(v) => JointParams::from(FixedJoint::new(
-            Isometry3 {
-                translation: Translation3 {
-                    vector: v.local_anchor1_translation,
+        scene::joint::JointParams::BallJoint(v) => {
+            let mut ball_joint =
+                BallJoint::new(Point3::from(v.local_anchor1), Point3::from(v.local_anchor2));
+
+            ball_joint.limits_enabled = v.limits_enabled;
+            ball_joint.limits_local_axis1 = UnitVector3::new_normalize(v.limits_local_axis1);
+            ball_joint.limits_local_axis2 = UnitVector3::new_normalize(v.limits_local_axis2);
+            ball_joint.limits_angle = v.limits_angle;
+
+            JointParams::from(ball_joint)
+        }
+        scene::joint::JointParams::FixedJoint(v) => {
+            let fixed_joint = FixedJoint::new(
+                Isometry3 {
+                    translation: Translation3 {
+                        vector: v.local_anchor1_translation,
+                    },
+                    rotation: v.local_anchor1_rotation,
                 },
-                rotation: v.local_anchor1_rotation,
-            },
-            Isometry3 {
-                translation: Translation3 {
-                    vector: v.local_anchor2_translation,
+                Isometry3 {
+                    translation: Translation3 {
+                        vector: v.local_anchor2_translation,
+                    },
+                    rotation: v.local_anchor2_rotation,
                 },
-                rotation: v.local_anchor2_rotation,
-            },
-        )),
-        scene::joint::JointParams::PrismaticJoint(v) => JointParams::from(PrismaticJoint::new(
-            Point3::from(v.local_anchor1),
-            Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
-            Default::default(), // TODO
-            Point3::from(v.local_anchor2),
-            Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
-            Default::default(), // TODO
-        )),
-        scene::joint::JointParams::RevoluteJoint(v) => JointParams::from(RevoluteJoint::new(
-            Point3::from(v.local_anchor1),
-            Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
-            Point3::from(v.local_anchor2),
-            Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
-        )),
+            );
+
+            JointParams::from(fixed_joint)
+        }
+        scene::joint::JointParams::PrismaticJoint(v) => {
+            let mut prismatic_joint = PrismaticJoint::new(
+                Point3::from(v.local_anchor1),
+                Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
+                Default::default(), // TODO
+                Point3::from(v.local_anchor2),
+                Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
+                Default::default(), // TODO
+            );
+
+            prismatic_joint.limits = v.limits;
+            prismatic_joint.limits_enabled = v.limits_enabled;
+
+            JointParams::from(prismatic_joint)
+        }
+        scene::joint::JointParams::RevoluteJoint(v) => {
+            let mut revolute_joint = RevoluteJoint::new(
+                Point3::from(v.local_anchor1),
+                Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
+                Point3::from(v.local_anchor2),
+                Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
+            );
+
+            revolute_joint.limits_enabled = v.limits_enabled;
+            revolute_joint.limits = v.limits;
+
+            JointParams::from(revolute_joint)
+        }
     }
 }
 
+// LEGACY. Will be removed in future versions.
 pub(crate) fn joint_params_from_native(params: &JointParams) -> scene::joint::JointParams {
     match params {
         JointParams::BallJoint(v) => {
             scene::joint::JointParams::BallJoint(scene::joint::BallJoint {
                 local_anchor1: v.local_anchor1.coords,
                 local_anchor2: v.local_anchor2.coords,
+                limits_enabled: false,
+                limits_local_axis1: Default::default(),
+                limits_local_axis2: Default::default(),
+                limits_angle: 0.0,
             })
         }
         JointParams::FixedJoint(v) => {
@@ -362,6 +393,8 @@ pub(crate) fn joint_params_from_native(params: &JointParams) -> scene::joint::Jo
                 local_axis1: v.local_axis1().into_inner(),
                 local_anchor2: v.local_anchor2.coords,
                 local_axis2: v.local_axis2().into_inner(),
+                limits_enabled: false,
+                limits: [0.0, 0.0],
             })
         }
         JointParams::RevoluteJoint(v) => {
@@ -370,11 +403,14 @@ pub(crate) fn joint_params_from_native(params: &JointParams) -> scene::joint::Jo
                 local_axis1: v.local_axis1.into_inner(),
                 local_anchor2: v.local_anchor2.coords,
                 local_axis2: v.local_axis2.into_inner(),
+                limits_enabled: false,
+                limits: [0.0, 0.0],
             })
         }
     }
 }
 
+// LEGACY. Will be removed in future versions.
 pub(crate) fn collider_shape_from_native_collider(shape: &dyn Shape) -> ColliderShape {
     if let Some(ball) = shape.as_ball() {
         ColliderShape::Ball(BallShape {
