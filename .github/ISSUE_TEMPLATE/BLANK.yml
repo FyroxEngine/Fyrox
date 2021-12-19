@@ -3,5 +3,5 @@ description: Full customization for your issue/question/feature request.
 body:
 - type: textarea
   attributes:
-    label: Enter your issue here.
+    label: ""
     placeholder: Leave a comment
