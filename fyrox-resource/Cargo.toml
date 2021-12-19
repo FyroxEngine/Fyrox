@@ -1,10 +1,10 @@
 [package]
-name = "rg3d-resource"
+name = "fyrox-resource"
 version = "0.2.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
-description = "Asset management crate for the rg3d engine"
+description = "Asset management crate for the fyrox engine"
 keywords = ["asset", "resource"]
 categories = ["game-development"]
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE"]
@@ -15,4 +15,4 @@ resolver = "2"
 rust-version = "1.56"
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.18.0" }
+fyrox-core = { path = "../fyrox-core", version = "0.18.0" }

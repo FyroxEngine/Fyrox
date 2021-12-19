@@ -15,7 +15,7 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
-pub use rg3d_core as core;
+pub use fyrox_core as core;
 
 /// A trait for resource data.
 pub trait ResourceData: 'static + Default + Debug + Visit + Send {
