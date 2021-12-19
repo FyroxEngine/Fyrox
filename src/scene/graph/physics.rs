@@ -1,12 +1,12 @@
 use crate::{
     core::{
         algebra::{
-            DMatrix, Dynamic, Isometry3, Matrix4, Point3, Translation3, Unit, VecStorage, Vector2,
-            Vector3,
+            DMatrix, Dynamic, Isometry3, Matrix4, Point3, Translation3, Unit, UnitQuaternion,
+            VecStorage, Vector2, Vector3,
         },
         arrayvec::ArrayVec,
         color::Color,
-        math::aabb::AxisAlignedBoundingBox,
+        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{Handle, Pool},
         BiDirHashMap,
     },
@@ -14,7 +14,7 @@ use crate::{
         dynamics::{
             BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager, JointHandle,
             JointParams, JointSet, PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyBuilder,
-            RigidBodyHandle, RigidBodySet,
+            RigidBodyHandle, RigidBodySet, RigidBodyType,
         },
         geometry::{
             self, BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
@@ -866,14 +866,56 @@ impl PhysicsWorld {
         }
     }
 
-    pub(super) fn sync_rigid_body_node(&mut self, rigid_body: &mut scene::rigidbody::RigidBody) {
+    pub(super) fn set_rigid_body_position(
+        &mut self,
+        rigid_body: &scene::rigidbody::RigidBody,
+        new_global_transform: &Matrix4<f32>,
+    ) {
         if let Some(native) = self.bodies.set.get_mut(rigid_body.native.get()) {
-            rigid_body
-                .local_transform
-                .set_position(native.position().translation.vector)
-                .set_rotation(native.position().rotation);
-            rigid_body.lin_vel = *native.linvel();
-            rigid_body.ang_vel = *native.angvel();
+            let global_rotation = UnitQuaternion::from_matrix(&new_global_transform.basis());
+            let global_position = Vector3::new(
+                new_global_transform[12],
+                new_global_transform[13],
+                new_global_transform[14],
+            );
+
+            native.set_position(
+                Isometry3 {
+                    translation: Translation3::from(global_position),
+                    rotation: global_rotation,
+                },
+                true,
+            );
+        }
+    }
+
+    pub(super) fn sync_rigid_body_node(
+        &mut self,
+        rigid_body: &mut scene::rigidbody::RigidBody,
+        parent_transform: Matrix4<f32>,
+    ) {
+        if let Some(native) = self.bodies.set.get_mut(rigid_body.native.get()) {
+            if native.body_type() == RigidBodyType::Dynamic {
+                let local_transform: Matrix4<f32> = parent_transform
+                    .try_inverse()
+                    .unwrap_or_else(Matrix4::identity)
+                    * native.position().to_homogeneous();
+
+                let local_rotation = UnitQuaternion::from_matrix(&local_transform.basis());
+                let local_position = Vector3::new(
+                    local_transform[12],
+                    local_transform[13],
+                    local_transform[14],
+                );
+
+                rigid_body
+                    .local_transform
+                    .set_position(local_position)
+                    .set_rotation(local_rotation);
+
+                rigid_body.lin_vel = *native.linvel();
+                rigid_body.ang_vel = *native.angvel();
+            }
         }
     }
 
@@ -883,21 +925,6 @@ impl PhysicsWorld {
         rigid_body_node: &scene::rigidbody::RigidBody,
     ) {
         if let Some(native) = self.bodies.set.get_mut(rigid_body_node.native.get()) {
-            // Sync transform.
-            if rigid_body_node.transform_modified.get() {
-                // Transform was changed by user, sync native rigid body with node's position.
-                native.set_position(
-                    Isometry3 {
-                        rotation: **rigid_body_node.local_transform().rotation(),
-                        translation: Translation3 {
-                            vector: **rigid_body_node.local_transform().position(),
-                        },
-                    },
-                    true,
-                );
-                rigid_body_node.transform_modified.set(false);
-            }
-
             // Sync native rigid body's properties with scene node's in case if they
             // were changed by user.
             let mut changes = rigid_body_node.changes.get();
@@ -1015,7 +1042,6 @@ impl PhysicsWorld {
                         vector: **collider_node.local_transform().position(),
                     },
                 });
-                collider_node.transform_modified.set(false);
             }
 
             let mut changes = collider_node.changes.get();

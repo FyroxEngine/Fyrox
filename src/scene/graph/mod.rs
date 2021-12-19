@@ -860,27 +860,38 @@ impl Graph {
     /// need to know global transform of nodes before entering update loop, then you can call
     /// this method.
     pub fn update_hierarchical_data(&mut self) {
-        fn update_recursively(graph: &Graph, node_handle: Handle<Node>) {
-            let node = &graph.pool[node_handle];
+        fn update_recursively(
+            nodes: &Pool<Node>,
+            physics: &mut PhysicsWorld,
+            node_handle: Handle<Node>,
+        ) {
+            let node = &nodes[node_handle];
 
             let (parent_global_transform, parent_visibility) =
-                if let Some(parent) = graph.pool.try_borrow(node.parent()) {
+                if let Some(parent) = nodes.try_borrow(node.parent()) {
                     (parent.global_transform(), parent.global_visibility())
                 } else {
                     (Matrix4::identity(), true)
                 };
 
-            node.global_transform
-                .set(parent_global_transform * node.local_transform().matrix());
+            let new_global_transform = parent_global_transform * node.local_transform().matrix();
+
+            if let Node::RigidBody(rigid_body) = node {
+                if new_global_transform != node.global_transform() {
+                    physics.set_rigid_body_position(rigid_body, &new_global_transform);
+                }
+            }
+
+            node.global_transform.set(new_global_transform);
             node.global_visibility
                 .set(parent_visibility && node.visibility());
 
             for &child in node.children() {
-                update_recursively(graph, child);
+                update_recursively(nodes, physics, child);
             }
         }
 
-        update_recursively(self, self.root);
+        update_recursively(&self.pool, &mut self.physics, self.root);
     }
 
     /// Checks whether given node handle is valid or not.
@@ -908,11 +919,13 @@ impl Graph {
 
     /// Updates nodes in graph using given delta time. There is no need to call it manually.
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
+        let this = unsafe { &*(self as *const Graph) };
+
         self.sync_native_physics();
 
-        self.physics.update();
-
         self.update_hierarchical_data();
+
+        self.physics.update();
 
         for i in 0..self.pool.get_capacity() {
             let handle = self.pool.handle_from_index(i);
@@ -928,6 +941,8 @@ impl Graph {
                 if remove {
                     self.remove_node(handle);
                 } else {
+                    node.transform_modified.set(false);
+
                     match node {
                         Node::Camera(camera) => {
                             camera.calculate_matrices(frame_size);
@@ -961,9 +976,10 @@ impl Graph {
                         Node::Mesh(_) => self.pool.at(i).unwrap().as_mesh().update(self),
                         // We have to sync rigid body parameters back after each physics step, hopefully there is
                         // not many data that has to be synced.
-                        Node::RigidBody(rigid_body) => {
-                            self.physics.sync_rigid_body_node(rigid_body)
-                        }
+                        Node::RigidBody(rigid_body) => self.physics.sync_rigid_body_node(
+                            rigid_body,
+                            this.pool[rigid_body.parent].global_transform(),
+                        ),
                         _ => (),
                     }
                 }
