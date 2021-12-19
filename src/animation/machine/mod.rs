@@ -45,7 +45,7 @@
 //! Example:
 //!
 //! ```no_run
-//! use rg3d::{
+//! use fyrox::{
 //!     animation::machine::{
 //!         Machine, State, Transition, PoseNode, blend_nodes::BlendPose,
 //!         Parameter, PlayAnimation, PoseWeight, blend_nodes::BlendAnimations

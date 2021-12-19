@@ -1,7 +1,7 @@
 //! Contains all structures and methods to create and manage lights.
 //!
 //! Light sources arte basic building blocks of many scenes in games, it improves
-//! perception of scene and makes it look natural. rg3d engine supports three kinds
+//! perception of scene and makes it look natural. fyrox engine supports three kinds
 //! of light sources:
 //!
 //! 1) Directional - similar to sun in real life, its rays are parallel.

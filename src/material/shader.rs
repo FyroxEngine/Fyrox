@@ -430,7 +430,7 @@ define_new_resource!(
     ///
     /// # Built-in variables
     ///
-    /// There are number of build-in variables that rg3d pass to each shader automatically:
+    /// There are number of build-in variables that fyrox pass to each shader automatically:
     ///
     /// | Name                      | Type            | Description
     /// |---------------------------|-----------------|--------------------------------------------
@@ -494,11 +494,11 @@ define_new_resource!(
     ///
     /// # Standard shader
     ///
-    /// By default rg3d uses standard material for rendering, it covers 95% of uses cases and it is very
+    /// By default fyrox uses standard material for rendering, it covers 95% of uses cases and it is very
     /// flexible. To get standard shader instance, use [`Shader::standard`]
     ///
     /// ```no_run
-    /// # use rg3d::material::shader::Shader;
+    /// # use fyrox::material::shader::Shader;
     ///
     /// let standard_shader = Shader::standard();
     /// ```

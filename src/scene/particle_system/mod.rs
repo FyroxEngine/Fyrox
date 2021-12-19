@@ -25,20 +25,20 @@
 //! Simple smoke effect can be create like so:
 //!
 //! ```
-//! use rg3d::scene::particle_system::{
+//! use fyrox::scene::particle_system::{
 //!     emitter::sphere::SphereEmitter, ParticleSystemBuilder, emitter::Emitter,
 //!     emitter::base::BaseEmitterBuilder, emitter::sphere::SphereEmitterBuilder
 //! };
-//! use rg3d::engine::resource_manager::ResourceManager;
-//! use rg3d::core::algebra::Vector3;
-//! use rg3d::scene::graph::Graph;
-//! use rg3d::scene::node::Node;
-//! use rg3d::scene::transform::TransformBuilder;
-//! use rg3d::core::color_gradient::{GradientPoint, ColorGradient};
-//! use rg3d::scene::base::BaseBuilder;
-//! use rg3d::core::color::Color;
+//! use fyrox::engine::resource_manager::ResourceManager;
+//! use fyrox::core::algebra::Vector3;
+//! use fyrox::scene::graph::Graph;
+//! use fyrox::scene::node::Node;
+//! use fyrox::scene::transform::TransformBuilder;
+//! use fyrox::core::color_gradient::{GradientPoint, ColorGradient};
+//! use fyrox::scene::base::BaseBuilder;
+//! use fyrox::core::color::Color;
 //! use std::path::Path;
-//! use rg3d::resource::texture::TexturePixelKind;
+//! use fyrox::resource::texture::TexturePixelKind;
 //!
 //! fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vector3<f32>) {
 //!      ParticleSystemBuilder::new(BaseBuilder::new()

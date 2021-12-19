@@ -41,7 +41,7 @@ use std::ops::{Deref, DerefMut};
 /// # Example
 ///
 /// ```rust
-/// use rg3d::{
+/// use fyrox::{
 ///     scene::{
 ///         node::Node,
 ///         sprite::SpriteBuilder,

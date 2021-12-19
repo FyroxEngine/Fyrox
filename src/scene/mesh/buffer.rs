@@ -500,7 +500,7 @@ impl VertexBuffer {
     /// Do **not** even try to do this:
     ///
     /// ```no_run
-    /// use rg3d::{
+    /// use fyrox::{
     ///     scene::mesh::buffer::{VertexBuffer, VertexWriteTrait, VertexAttributeUsage},
     ///     core::algebra::Vector3
     /// };
@@ -519,7 +519,7 @@ impl VertexBuffer {
     /// Instead do this:
     ///
     /// ```no_run
-    /// use rg3d::{
+    /// use fyrox::{
     ///     scene::mesh::buffer::{VertexBuffer, VertexWriteTrait, VertexAttributeUsage},
     ///     core::algebra::Vector3
     /// };

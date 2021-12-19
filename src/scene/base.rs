@@ -290,10 +290,10 @@ pub struct Property {
 /// # Example
 ///
 /// ```
-/// use rg3d::scene::base::BaseBuilder;
-/// use rg3d::scene::graph::Graph;
-/// use rg3d::scene::node::Node;
-/// use rg3d::core::pool::Handle;
+/// use fyrox::scene::base::BaseBuilder;
+/// use fyrox::scene::graph::Graph;
+/// use fyrox::scene::node::Node;
+/// use fyrox::core::pool::Handle;
 ///
 /// fn create_base_node(graph: &mut Graph) -> Handle<Node> {
 ///     BaseBuilder::new()

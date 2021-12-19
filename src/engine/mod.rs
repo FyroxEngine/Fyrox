@@ -71,9 +71,9 @@ impl Engine {
     /// # Examples
     ///
     /// ```no_run
-    /// use rg3d::engine::Engine;
-    /// use rg3d::window::WindowBuilder;
-    /// use rg3d::event_loop::EventLoop;
+    /// use fyrox::engine::Engine;
+    /// use fyrox::window::WindowBuilder;
+    /// use fyrox::event_loop::EventLoop;
     ///
     /// let evt = EventLoop::new();
     /// let window_builder = WindowBuilder::new()

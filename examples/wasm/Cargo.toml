@@ -8,7 +8,7 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-rg3d = { path = "../../" }
+fyrox = { path = "../../" }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

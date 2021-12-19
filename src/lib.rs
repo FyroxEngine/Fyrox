@@ -28,19 +28,19 @@ pub use walkdir;
 pub use winit::*;
 
 #[doc(inline)]
-pub use rg3d_core as core;
+pub use fyrox_core as core;
 
 #[doc(inline)]
-pub use rg3d_physics2d as physics2d;
+pub use fyrox_physics2d as physics2d;
 
 #[doc(inline)]
-pub use rg3d_physics3d as physics3d;
+pub use fyrox_physics3d as physics3d;
 
 #[doc(inline)]
-pub use rg3d_resource as asset;
+pub use fyrox_resource as asset;
 
 #[doc(inline)]
-pub use rg3d_sound as sound;
+pub use fyrox_sound as sound;
 
 #[doc(inline)]
-pub use rg3d_ui as gui;
+pub use fyrox_ui as gui;

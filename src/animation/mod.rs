@@ -587,10 +587,10 @@ impl Animation {
     /// this.
     ///
     /// ```
-    /// use rg3d::scene::node::Node;
-    /// use rg3d::animation::Animation;
-    /// use rg3d::core::pool::Handle;
-    /// use rg3d::scene::graph::Graph;
+    /// use fyrox::scene::node::Node;
+    /// use fyrox::animation::Animation;
+    /// use fyrox::core::pool::Handle;
+    /// use fyrox::scene::graph::Graph;
     ///
     /// fn disable_legs(torso_bone: Handle<Node>, aim_animation: &mut Animation, graph: &Graph) {
     ///     aim_animation.set_tracks_enabled_from(torso_bone, false, graph)

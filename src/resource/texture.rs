@@ -1,17 +1,17 @@
 //! Texture is an image that used to fill faces to add details to them.
 //!
 //! In most cases textures are just 2D images, however there are some exclusions to that -
-//! for example cube maps, that may be used for environment mapping. rg3d supports 1D, 2D,
+//! for example cube maps, that may be used for environment mapping. fyrox supports 1D, 2D,
 //! 3D and Cube textures.
 //!
 //! ## Supported formats
 //!
-//! To load images and decode them, rg3d uses image and ddsfile crates. Here is the list of
+//! To load images and decode them, fyrox uses image and ddsfile crates. Here is the list of
 //! supported formats: png, tga, bmp, dds, jpg, gif, tiff, dds.
 //!
 //! ## Compressed textures
 //!
-//! rg3d supports most commonly used formats of compressed textures: DXT1, DXT3, DXT5.
+//! fyrox supports most commonly used formats of compressed textures: DXT1, DXT3, DXT5.
 //!
 //! ## Render target
 //!
@@ -614,7 +614,7 @@ fn ceil_div_4(x: u32) -> u32 {
 /// # Notes
 ///
 /// Try to avoid using compression for normal maps, normals maps usually has smooth
-/// gradients, but compression algorithms used by rg3d cannot preserve good quality
+/// gradients, but compression algorithms used by fyrox cannot preserve good quality
 /// of such gradients.
 #[derive(Copy, Clone)]
 pub enum CompressionOptions {

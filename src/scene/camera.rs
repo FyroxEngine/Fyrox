@@ -5,7 +5,7 @@
 //!
 //! # Multiple cameras
 //!
-//! rg3d supports multiple cameras per scene, it means that you can create split
+//! fyrox supports multiple cameras per scene, it means that you can create split
 //! screen games, make picture-in-picture insertions in your main camera view and
 //! any other combinations you need.
 //!
@@ -462,9 +462,9 @@ impl ColorGradingLut {
     /// Typical usage would be:
     ///
     /// ```no_run
-    /// use rg3d::scene::camera::ColorGradingLut;
-    /// use rg3d::engine::resource_manager::{TextureImportOptions, ResourceManager};
-    /// use rg3d::resource::texture::CompressionOptions;
+    /// use fyrox::scene::camera::ColorGradingLut;
+    /// use fyrox::engine::resource_manager::{TextureImportOptions, ResourceManager};
+    /// use fyrox::resource::texture::CompressionOptions;
     ///
     /// async fn create_lut(resource_manager: ResourceManager) -> ColorGradingLut {
     ///     ColorGradingLut::new(resource_manager.request_texture(

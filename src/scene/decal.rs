@@ -54,7 +54,7 @@ use std::ops::{Deref, DerefMut};
 /// # Example
 ///
 /// ```
-/// use rg3d::{
+/// use fyrox::{
 ///         engine::resource_manager::ResourceManager,
 ///         core::pool::Handle,
 ///         scene::{
