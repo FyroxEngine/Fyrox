@@ -2,25 +2,21 @@ name: Feature request
 description: This is for requesting features or optimisations.
 body:
 - type: input
-  label: What feature do you want to have you included?
-  placeholder:
-    Example: E.g New widget, framework feature...
+  attributes:
+    description: What feature do you want to have you included?
+    placeholder: E.g New widget, framework feature...
 - type: checkboxes
   attributes:
     label: 
-    description:
+    description: What part of RG3D does this feature apply to?
     options:
       - label: sound
-        required: false
       - label: animation
-        required: false
       - label: physics
-        required: false
-      - label: user interface
-        required: false
+      - label: user-interface
       - label: graphics
-        required: false 
 - type: textarea
-  label: Additional features
+  attributes:
+    label: Additional features
   validations:
     required: true
