@@ -1,0 +1,45 @@
+name: Bug Report
+description: |
+ This is for requesting reporting bugs in the engine or docs.
+ Anything related to the rg3d book should be said here: https://github.com/rg3d-book/rg3d-book.github.io/issues/new
+body:
+- type: textarea
+  attributes:
+    label: Describe the bug
+  validations:
+    required: true
+- type: checkboxes
+  attributes:
+    label: What part of RG3D does this issue apply to?
+    options:
+      - label: sound
+      - label: animation
+      - label: physics
+      - label: user-interface
+      - label: graphics
+      - label: docs
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: How to reproduce?
+    value: |
+      1.
+      2.
+      3.
+      ...
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Example snippet or link?
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Desktop environment
+    value: |
+      OS:
+      RG3D Version/Commit hash:
+  validations:
+    required: true
