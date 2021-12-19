@@ -33,6 +33,7 @@ body:
 - type: textarea
   attributes:
     label: Example snippet or link?
+    render: rust
   validations:
     required: false
 - type: textarea
