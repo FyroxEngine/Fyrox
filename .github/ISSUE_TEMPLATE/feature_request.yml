@@ -3,12 +3,11 @@ description: This is for requesting features or optimisations.
 body:
 - type: input
   attributes:
-    description: What feature do you want to have you included?
+    label: What feature do you want to have you included?
     placeholder: E.g New widget, framework feature...
 - type: checkboxes
   attributes:
-    label: 
-    description: What part of RG3D does this feature apply to?
+    label: What part of RG3D does this feature apply to?
     options:
       - label: sound
       - label: animation
