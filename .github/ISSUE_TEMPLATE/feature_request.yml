@@ -1,3 +1,25 @@
+- type: input
+  label: What feature have you included/made?
+  placeholder: Example: E.gNew widget, framework feature...
+- type: checkboxes
+  attributes:
+    label: 
+    description:
+    options:
+      - label: sound
+        required: false
+      - label: animation
+        required: false
+      - label: physics
+        required: false
+      - label: user interface
+        required: false
+      - label: graphics
+        required: false 
+- type: textarea
+  label: Additional features
+  validations:
+    required: true
 ---
 name: Feature request
 about: Suggest an idea for this project
