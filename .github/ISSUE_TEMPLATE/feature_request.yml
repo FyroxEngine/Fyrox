@@ -1,24 +1,24 @@
 body:
-  - type: input
-    label: What feature do you want to have you included?
-    placeholder:
-      Example: E.g New widget, framework feature...
-  - type: checkboxes
-    attributes:
-      label: 
-      description:
-      options:
-        - label: sound
-          required: false
-        - label: animation
-          required: false
-        - label: physics
-          required: false
-        - label: user interface
-          required: false
-        - label: graphics
-          required: false 
-  - type: textarea
-    label: Additional features
-    validations:
-      required: true
+- type: input
+  label: What feature do you want to have you included?
+  placeholder:
+    Example: E.g New widget, framework feature...
+- type: checkboxes
+  attributes:
+    label: 
+    description:
+    options:
+      - label: sound
+        required: false
+      - label: animation
+        required: false
+      - label: physics
+        required: false
+      - label: user interface
+        required: false
+      - label: graphics
+        required: false 
+- type: textarea
+  label: Additional features
+  validations:
+    required: true
