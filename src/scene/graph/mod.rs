@@ -877,7 +877,12 @@ impl Graph {
             let new_global_transform = parent_global_transform * node.local_transform().matrix();
 
             if let Node::RigidBody(rigid_body) = node {
-                if new_global_transform != node.global_transform() {
+                // TODO: Detect changes from user code here.
+                let changed = new_global_transform
+                    .iter()
+                    .zip(node.global_transform().iter())
+                    .any(|(a, b)| (*a - *b).abs() >= 0.001);
+                if changed {
                     physics.set_rigid_body_position(rigid_body, &new_global_transform);
                 }
             }

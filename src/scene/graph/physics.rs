@@ -906,7 +906,7 @@ impl PhysicsWorld {
         rigid_body: &mut scene::rigidbody::RigidBody,
         parent_transform: Matrix4<f32>,
     ) {
-        if let Some(native) = self.bodies.set.get_mut(rigid_body.native.get()) {
+        if let Some(native) = self.bodies.set.get(rigid_body.native.get()) {
             if native.body_type() == RigidBodyType::Dynamic {
                 let local_transform: Matrix4<f32> = parent_transform
                     .try_inverse()
@@ -936,71 +936,79 @@ impl PhysicsWorld {
         handle: Handle<Node>,
         rigid_body_node: &scene::rigidbody::RigidBody,
     ) {
-        if let Some(native) = self.bodies.set.get_mut(rigid_body_node.native.get()) {
-            // Sync native rigid body's properties with scene node's in case if they
-            // were changed by user.
-            let mut changes = rigid_body_node.changes.get();
-            if changes.contains(RigidBodyChanges::BODY_TYPE) {
-                native.set_body_type(rigid_body_node.body_type.into());
-                changes.remove(RigidBodyChanges::BODY_TYPE);
-            }
-            if changes.contains(RigidBodyChanges::LIN_VEL) {
-                native.set_linvel(rigid_body_node.lin_vel, true);
-                changes.remove(RigidBodyChanges::LIN_VEL);
-            }
-            if changes.contains(RigidBodyChanges::ANG_VEL) {
-                native.set_angvel(rigid_body_node.ang_vel, true);
-                changes.remove(RigidBodyChanges::ANG_VEL);
-            }
-            if changes.contains(RigidBodyChanges::MASS) {
-                let mut props = *native.mass_properties();
-                props.set_mass(rigid_body_node.mass, true);
-                native.set_mass_properties(props, true);
-                changes.remove(RigidBodyChanges::MASS);
-            }
-            if changes.contains(RigidBodyChanges::LIN_DAMPING) {
-                native.set_linear_damping(rigid_body_node.lin_damping);
-                changes.remove(RigidBodyChanges::LIN_DAMPING);
-            }
-            if changes.contains(RigidBodyChanges::ANG_DAMPING) {
-                native.set_angular_damping(rigid_body_node.ang_damping);
-                changes.remove(RigidBodyChanges::ANG_DAMPING);
-            }
-            if changes.contains(RigidBodyChanges::ROTATION_LOCKED) {
-                native.restrict_rotations(
-                    rigid_body_node.x_rotation_locked,
-                    rigid_body_node.y_rotation_locked,
-                    rigid_body_node.z_rotation_locked,
-                    true,
-                );
-                changes.remove(RigidBodyChanges::ROTATION_LOCKED);
-            }
+        // Important notes!
+        // 1) `get_mut` is **very** expensive because it forces physics engine to recalculate contacts
+        //    and a lot of other stuff, this is why we need `anything_changed` flag.
+        if rigid_body_node.native.get() != RigidBodyHandle::invalid() {
+            let mut actions = rigid_body_node.actions.lock();
+            if !rigid_body_node.changes.get().is_empty() || !actions.is_empty() {
+                if let Some(native) = self.bodies.set.get_mut(rigid_body_node.native.get()) {
+                    // Sync native rigid body's properties with scene node's in case if they
+                    // were changed by user.
+                    let mut changes = rigid_body_node.changes.get();
+                    if changes.contains(RigidBodyChanges::BODY_TYPE) {
+                        native.set_body_type(rigid_body_node.body_type.into());
+                        changes.remove(RigidBodyChanges::BODY_TYPE);
+                    }
+                    if changes.contains(RigidBodyChanges::LIN_VEL) {
+                        native.set_linvel(rigid_body_node.lin_vel, true);
+                        changes.remove(RigidBodyChanges::LIN_VEL);
+                    }
+                    if changes.contains(RigidBodyChanges::ANG_VEL) {
+                        native.set_angvel(rigid_body_node.ang_vel, true);
+                        changes.remove(RigidBodyChanges::ANG_VEL);
+                    }
+                    if changes.contains(RigidBodyChanges::MASS) {
+                        let mut props = *native.mass_properties();
+                        props.set_mass(rigid_body_node.mass, true);
+                        native.set_mass_properties(props, true);
+                        changes.remove(RigidBodyChanges::MASS);
+                    }
+                    if changes.contains(RigidBodyChanges::LIN_DAMPING) {
+                        native.set_linear_damping(rigid_body_node.lin_damping);
+                        changes.remove(RigidBodyChanges::LIN_DAMPING);
+                    }
+                    if changes.contains(RigidBodyChanges::ANG_DAMPING) {
+                        native.set_angular_damping(rigid_body_node.ang_damping);
+                        changes.remove(RigidBodyChanges::ANG_DAMPING);
+                    }
+                    if changes.contains(RigidBodyChanges::ROTATION_LOCKED) {
+                        native.restrict_rotations(
+                            rigid_body_node.x_rotation_locked,
+                            rigid_body_node.y_rotation_locked,
+                            rigid_body_node.z_rotation_locked,
+                            true,
+                        );
+                        changes.remove(RigidBodyChanges::ROTATION_LOCKED);
+                    }
 
-            if changes != RigidBodyChanges::NONE {
-                Log::writeln(
-                    MessageKind::Warning,
-                    format!("Unhandled rigid body changes! Mask: {:?}", changes),
-                );
-            }
+                    if changes != RigidBodyChanges::NONE {
+                        Log::writeln(
+                            MessageKind::Warning,
+                            format!("Unhandled rigid body changes! Mask: {:?}", changes),
+                        );
+                    }
 
-            while let Some(action) = rigid_body_node.actions.lock().pop_front() {
-                match action {
-                    ApplyAction::Force(force) => native.apply_force(force, true),
-                    ApplyAction::Torque(torque) => native.apply_torque(torque, true),
-                    ApplyAction::ForceAtPoint { force, point } => {
-                        native.apply_force_at_point(force, Point3::from(point), true)
+                    while let Some(action) = actions.pop_front() {
+                        match action {
+                            ApplyAction::Force(force) => native.apply_force(force, true),
+                            ApplyAction::Torque(torque) => native.apply_torque(torque, true),
+                            ApplyAction::ForceAtPoint { force, point } => {
+                                native.apply_force_at_point(force, Point3::from(point), true)
+                            }
+                            ApplyAction::Impulse(impulse) => native.apply_impulse(impulse, true),
+                            ApplyAction::TorqueImpulse(impulse) => {
+                                native.apply_torque_impulse(impulse, true)
+                            }
+                            ApplyAction::ImpulseAtPoint { impulse, point } => {
+                                native.apply_impulse_at_point(impulse, Point3::from(point), true)
+                            }
+                        }
                     }
-                    ApplyAction::Impulse(impulse) => native.apply_impulse(impulse, true),
-                    ApplyAction::TorqueImpulse(impulse) => {
-                        native.apply_torque_impulse(impulse, true)
-                    }
-                    ApplyAction::ImpulseAtPoint { impulse, point } => {
-                        native.apply_impulse_at_point(impulse, Point3::from(point), true)
-                    }
+
+                    rigid_body_node.changes.set(changes);
                 }
             }
-
-            rigid_body_node.changes.set(changes);
         } else {
             let mut builder = RigidBodyBuilder::new(rigid_body_node.body_type.into())
                 .position(Isometry3 {
@@ -1044,69 +1052,79 @@ impl PhysicsWorld {
         handle: Handle<Node>,
         collider_node: &scene::collider::Collider,
     ) {
-        // The collider node may lack backing native physics collider in case if it
-        // is not attached to a rigid body.
-        if let Some(native) = self.colliders.set.get_mut(collider_node.native.get()) {
-            if collider_node.transform_modified.get() {
-                native.set_position_wrt_parent(Isometry3 {
-                    rotation: **collider_node.local_transform().rotation(),
-                    translation: Translation3 {
-                        vector: **collider_node.local_transform().position(),
-                    },
-                });
-            }
+        let anything_changed =
+            collider_node.transform_modified.get() || !collider_node.changes.get().is_empty();
 
-            let mut changes = collider_node.changes.get();
-            if changes.contains(ColliderChanges::SHAPE) {
-                let inv_global_transform = isometric_global_transform(nodes, handle)
-                    .try_inverse()
-                    .unwrap();
-                if let Some(shape) = collider_shape_into_native_shape(
-                    collider_node.shape(),
-                    inv_global_transform,
-                    handle,
-                    nodes,
-                ) {
-                    native.set_shape(shape);
-                    changes.remove(ColliderChanges::SHAPE);
+        // Important notes!
+        // 1) The collider node may lack backing native physics collider in case if it
+        //    is not attached to a rigid body.
+        // 2) `get_mut` is **very** expensive because it forces physics engine to recalculate contacts
+        //    and a lot of other stuff, this is why we need `anything_changed` flag.
+        if collider_node.native.get() != ColliderHandle::invalid() {
+            if anything_changed {
+                if let Some(native) = self.colliders.set.get_mut(collider_node.native.get()) {
+                    if collider_node.transform_modified.get() {
+                        native.set_position_wrt_parent(Isometry3 {
+                            rotation: **collider_node.local_transform().rotation(),
+                            translation: Translation3 {
+                                vector: **collider_node.local_transform().position(),
+                            },
+                        });
+                    }
+
+                    let mut changes = collider_node.changes.get();
+                    if changes.contains(ColliderChanges::SHAPE) {
+                        let inv_global_transform = isometric_global_transform(nodes, handle)
+                            .try_inverse()
+                            .unwrap();
+                        if let Some(shape) = collider_shape_into_native_shape(
+                            collider_node.shape(),
+                            inv_global_transform,
+                            handle,
+                            nodes,
+                        ) {
+                            native.set_shape(shape);
+                            changes.remove(ColliderChanges::SHAPE);
+                        }
+                    }
+                    if changes.contains(ColliderChanges::RESTITUTION) {
+                        native.set_restitution(collider_node.restitution());
+                        changes.remove(ColliderChanges::RESTITUTION);
+                    }
+                    if changes.contains(ColliderChanges::COLLISION_GROUPS) {
+                        native.set_collision_groups(InteractionGroups::new(
+                            collider_node.collision_groups().memberships,
+                            collider_node.collision_groups().filter,
+                        ));
+                        changes.remove(ColliderChanges::COLLISION_GROUPS);
+                    }
+                    if changes.contains(ColliderChanges::SOLVER_GROUPS) {
+                        native.set_solver_groups(InteractionGroups::new(
+                            collider_node.solver_groups().memberships,
+                            collider_node.solver_groups().filter,
+                        ));
+                        changes.remove(ColliderChanges::SOLVER_GROUPS);
+                    }
+                    if changes.contains(ColliderChanges::FRICTION) {
+                        native.set_friction(collider_node.friction());
+                        changes.remove(ColliderChanges::FRICTION);
+                    }
+                    if changes.contains(ColliderChanges::IS_SENSOR) {
+                        native.set_sensor(collider_node.is_sensor());
+                        changes.remove(ColliderChanges::IS_SENSOR);
+                    }
+
+                    if changes != ColliderChanges::NONE {
+                        Log::writeln(
+                            MessageKind::Warning,
+                            format!("Unhandled collider changes! Mask: {:?}", changes),
+                        );
+                    }
+
+                    collider_node.changes.set(changes);
+                    // TODO: Handle RESTITUTION_COMBINE_RULE + FRICTION_COMBINE_RULE
                 }
             }
-            if changes.contains(ColliderChanges::RESTITUTION) {
-                native.set_restitution(collider_node.restitution());
-                changes.remove(ColliderChanges::RESTITUTION);
-            }
-            if changes.contains(ColliderChanges::COLLISION_GROUPS) {
-                native.set_collision_groups(InteractionGroups::new(
-                    collider_node.collision_groups().memberships,
-                    collider_node.collision_groups().filter,
-                ));
-                changes.remove(ColliderChanges::COLLISION_GROUPS);
-            }
-            if changes.contains(ColliderChanges::SOLVER_GROUPS) {
-                native.set_solver_groups(InteractionGroups::new(
-                    collider_node.solver_groups().memberships,
-                    collider_node.solver_groups().filter,
-                ));
-                changes.remove(ColliderChanges::SOLVER_GROUPS);
-            }
-            if changes.contains(ColliderChanges::FRICTION) {
-                native.set_friction(collider_node.friction());
-                changes.remove(ColliderChanges::FRICTION);
-            }
-            if changes.contains(ColliderChanges::IS_SENSOR) {
-                native.set_sensor(collider_node.is_sensor());
-                changes.remove(ColliderChanges::IS_SENSOR);
-            }
-
-            if changes != ColliderChanges::NONE {
-                Log::writeln(
-                    MessageKind::Warning,
-                    format!("Unhandled collider changes! Mask: {:?}", changes),
-                );
-            }
-
-            collider_node.changes.set(changes);
-            // TODO: Handle RESTITUTION_COMBINE_RULE + FRICTION_COMBINE_RULE
         } else if let Some(Node::RigidBody(parent_body)) = nodes.try_borrow(collider_node.parent())
         {
             if parent_body.native.get() != RigidBodyHandle::invalid() {

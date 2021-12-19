@@ -23,7 +23,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Copy, Clone, Debug, Inspect, Visit)]
+#[derive(Copy, Clone, Debug, Inspect, Visit, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum RigidBodyType {
     Dynamic = 0,
@@ -78,6 +78,7 @@ bitflags! {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum ApplyAction {
     Force(Vector3<f32>),
     Torque(Vector3<f32>),
