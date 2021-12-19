@@ -1,0 +1,25 @@
+name: Meta
+description: Ask questions on the engine, gamedev, contributing to the engine and/or for help on contributing here.
+body:
+- type: checkboxes
+  attributes:
+    label: What do you want to know/help with?
+    options:
+      - label: meta
+      - label: question
+      - label: help wanted
+- type: checkboxes
+  attributes:
+    label: What part of RG3D does this issue apply to?
+    options:
+      - label: sound
+      - label: animation
+      - label: physics
+      - label: user-interface
+      - label: graphics
+      - label: docs
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Put your question/request here:
