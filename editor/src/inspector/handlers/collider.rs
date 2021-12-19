@@ -82,8 +82,6 @@ pub fn handle_collider_property_changed(
                     handle_ball_desc_property_changed(handle, collider, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<CylinderShape>() {
                     handle_cylinder_desc_property_changed(handle, collider, inner_property)
-                } else if inner_property.owner_type_id == TypeId::of::<RoundCylinderShape>() {
-                    handle_round_cylinder_desc_property_changed(handle, collider, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<ConeShape>() {
                     handle_cone_desc_property_changed(handle, collider, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<CapsuleShape>() {
@@ -156,32 +154,6 @@ fn handle_cylinder_desc_property_changed(
                 }
                 CylinderShape::RADIUS => {
                     make_command!(SetCylinderRadiusCommand, handle, value)
-                }
-                _ => None,
-            },
-            _ => None,
-        }
-    } else {
-        None
-    }
-}
-
-fn handle_round_cylinder_desc_property_changed(
-    handle: Handle<Node>,
-    collider: &Collider,
-    property_changed: &PropertyChanged,
-) -> Option<SceneCommand> {
-    if let ColliderShape::RoundCylinder(_) = collider.shape() {
-        match property_changed.value {
-            FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                RoundCylinderShape::HALF_HEIGHT => {
-                    make_command!(SetRoundCylinderHalfHeightCommand, handle, value)
-                }
-                RoundCylinderShape::RADIUS => {
-                    make_command!(SetRoundCylinderRadiusCommand, handle, value)
-                }
-                RoundCylinderShape::BORDER_RADIUS => {
-                    make_command!(SetRoundCylinderBorderRadiusCommand, handle, value)
                 }
                 _ => None,
             },

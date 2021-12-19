@@ -1,3 +1,6 @@
+//! Collider is a geometric entity that can be attached to a rigid body to allow participate it
+//! participate in contact generation, collision response and proximity queries.
+
 use crate::{
     core::{
         algebra::Vector3,
@@ -36,8 +39,10 @@ bitflags! {
     }
 }
 
+/// Ball is an idea sphere shape defined by a single parameters - its radius.
 #[derive(Clone, Debug, Visit, Inspect)]
 pub struct BallShape {
+    /// Radius of the sphere.
     #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
@@ -48,10 +53,13 @@ impl Default for BallShape {
     }
 }
 
+/// Cylinder shape aligned in Y axis.
 #[derive(Clone, Debug, Visit, Inspect)]
 pub struct CylinderShape {
+    /// Half height of the cylinder, actual height will be 2 times bigger.
     #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
+    /// Radius of the cylinder.
     #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
@@ -61,26 +69,6 @@ impl Default for CylinderShape {
         Self {
             half_height: 0.5,
             radius: 0.5,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Visit, Inspect)]
-pub struct RoundCylinderShape {
-    #[inspect(min_value = 0.0, step = 0.05)]
-    pub half_height: f32,
-    #[inspect(min_value = 0.0, step = 0.05)]
-    pub radius: f32,
-    #[inspect(min_value = 0.0, step = 0.05)]
-    pub border_radius: f32,
-}
-
-impl Default for RoundCylinderShape {
-    fn default() -> Self {
-        Self {
-            half_height: 0.5,
-            radius: 0.5,
-            border_radius: 0.1,
         }
     }
 }
@@ -218,7 +206,6 @@ impl Inspect for ColliderShape {
         match self {
             ColliderShape::Ball(v) => v.properties(),
             ColliderShape::Cylinder(v) => v.properties(),
-            ColliderShape::RoundCylinder(v) => v.properties(),
             ColliderShape::Cone(v) => v.properties(),
             ColliderShape::Cuboid(v) => v.properties(),
             ColliderShape::Capsule(v) => v.properties(),
@@ -234,7 +221,6 @@ impl Inspect for ColliderShape {
 pub enum ColliderShape {
     Ball(BallShape),
     Cylinder(CylinderShape),
-    RoundCylinder(RoundCylinderShape),
     Cone(ConeShape),
     Cuboid(CuboidShape),
     Capsule(CapsuleShape),
@@ -262,16 +248,6 @@ impl ColliderShape {
         Self::Cylinder(CylinderShape {
             half_height,
             radius,
-        })
-    }
-
-    /// Initializes a rounded cylindrical shape defined by its half-height (along along the y axis),
-    /// its radius, and its roundness (the radius of the sphere used for dilating the cylinder).
-    pub fn round_cylinder(half_height: f32, radius: f32, border_radius: f32) -> Self {
-        Self::RoundCylinder(RoundCylinderShape {
-            half_height,
-            radius,
-            border_radius,
         })
     }
 
@@ -338,6 +314,8 @@ impl ColliderShape {
     }
 }
 
+/// Collider is a geometric entity that can be attached to a rigid body to allow participate it
+/// participate in contact generation, collision response and proximity queries.
 #[derive(Inspect, Visit, Debug)]
 pub struct Collider {
     base: Base,

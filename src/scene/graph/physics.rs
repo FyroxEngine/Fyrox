@@ -28,8 +28,7 @@ use crate::{
         self,
         collider::{
             BallShape, CapsuleShape, ColliderShape, ConeShape, CuboidShape, CylinderShape,
-            GeometrySource, HeightfieldShape, RoundCylinderShape, SegmentShape, TriangleShape,
-            TrimeshShape,
+            GeometrySource, HeightfieldShape, SegmentShape, TriangleShape, TrimeshShape,
         },
         collider::{ColliderChanges, InteractionGroupsDesc},
         debug::SceneDrawingContext,
@@ -409,12 +408,6 @@ pub(crate) fn collider_shape_from_native_collider(shape: &dyn Shape) -> Collider
             half_height: cylinder.half_height,
             radius: cylinder.radius,
         })
-    } else if let Some(round_cylinder) = shape.as_round_cylinder() {
-        ColliderShape::RoundCylinder(RoundCylinderShape {
-            half_height: round_cylinder.base_shape.half_height,
-            radius: round_cylinder.base_shape.radius,
-            border_radius: round_cylinder.border_radius,
-        })
     } else if let Some(cone) = shape.as_cone() {
         ColliderShape::Cone(ConeShape {
             half_height: cone.half_height,
@@ -581,11 +574,6 @@ fn collider_shape_into_native_shape(
         ColliderShape::Cylinder(cylinder) => {
             Some(SharedShape::cylinder(cylinder.half_height, cylinder.radius))
         }
-        ColliderShape::RoundCylinder(rcylinder) => Some(SharedShape::round_cylinder(
-            rcylinder.half_height,
-            rcylinder.radius,
-            rcylinder.border_radius,
-        )),
         ColliderShape::Cone(cone) => Some(SharedShape::cone(cone.half_height, cone.radius)),
         ColliderShape::Cuboid(cuboid) => {
             Some(SharedShape(Arc::new(Cuboid::new(cuboid.half_extents))))

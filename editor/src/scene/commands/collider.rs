@@ -52,18 +52,6 @@ define_collider_variant_command!(SetCylinderRadiusCommand("Set Cylinder Radius",
     std::mem::swap(&mut cylinder.radius, &mut self.value);
 });
 
-define_collider_variant_command!(SetRoundCylinderHalfHeightCommand("Set Cylinder Half Height", f32) where fn swap(self, physics, RoundCylinder, round_cylinder) {
-    std::mem::swap(&mut round_cylinder.half_height, &mut self.value);
-});
-
-define_collider_variant_command!(SetRoundCylinderRadiusCommand("Set Round Cylinder Radius", f32) where fn swap(self, physics, RoundCylinder, round_cylinder) {
-    std::mem::swap(&mut round_cylinder.radius, &mut self.value);
-});
-
-define_collider_variant_command!(SetRoundCylinderBorderRadiusCommand("Set Round Cylinder Border Radius", f32) where fn swap(self, physics, RoundCylinder, round_cylinder) {
-    std::mem::swap(&mut round_cylinder.border_radius, &mut self.value);
-});
-
 define_collider_variant_command!(SetConeHalfHeightCommand("Set Cone Half Height", f32) where fn swap(self, physics, Cone, cone) {
     std::mem::swap(&mut cone.half_height, &mut self.value);
 });

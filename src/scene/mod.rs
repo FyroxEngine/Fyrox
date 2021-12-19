@@ -474,7 +474,6 @@ impl Scene {
                 let name = match shape {
                     ColliderShape::Ball(_) => "Ball Collider",
                     ColliderShape::Cylinder(_) => "Cylinder Collider",
-                    ColliderShape::RoundCylinder(_) => "Round Cylinder Collider",
                     ColliderShape::Cone(_) => "Cone Collider",
                     ColliderShape::Cuboid(_) => "Cuboid Collider",
                     ColliderShape::Capsule(_) => "Capsule Collider",
