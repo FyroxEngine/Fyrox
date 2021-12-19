@@ -75,6 +75,7 @@ bitflags! {
         const MASS = 0b0010_0000;
         const ANG_DAMPING = 0b0100_0000;
         const LIN_DAMPING = 0b1000_0000;
+        const CCD_STATE = 0b0001_0000_0000;
     }
 }
 
@@ -110,6 +111,7 @@ pub struct RigidBody {
     pub(crate) y_rotation_locked: bool,
     pub(crate) z_rotation_locked: bool,
     pub(crate) translation_locked: bool,
+    pub(crate) ccd_enabled: bool,
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) native: Cell<RigidBodyHandle>,
@@ -142,6 +144,7 @@ impl Default for RigidBody {
             y_rotation_locked: false,
             z_rotation_locked: false,
             translation_locked: false,
+            ccd_enabled: false,
             native: Cell::new(RigidBodyHandle::invalid()),
             changes: Cell::new(RigidBodyChanges::NONE),
             actions: Default::default(),
@@ -178,6 +181,7 @@ impl RigidBody {
             y_rotation_locked: self.y_rotation_locked,
             z_rotation_locked: self.z_rotation_locked,
             translation_locked: self.translation_locked,
+            ccd_enabled: self.ccd_enabled,
             // Do not copy.
             native: Cell::new(RigidBodyHandle::invalid()),
             changes: Cell::new(RigidBodyChanges::NONE),
@@ -283,6 +287,15 @@ impl RigidBody {
         self.body_type
     }
 
+    pub fn is_ccd_enabled(&self) -> bool {
+        self.ccd_enabled
+    }
+
+    pub fn enable_ccd(&mut self, enable: bool) {
+        self.ccd_enabled = enable;
+        self.changes.get_mut().insert(RigidBodyChanges::CCD_STATE);
+    }
+
     /// Applies a force at the center-of-mass of this rigid-body.
     /// The force will be applied in the next simulation step.
     /// This does nothing on non-dynamic bodies.
@@ -349,6 +362,7 @@ pub struct RigidBodyBuilder {
     y_rotation_locked: bool,
     z_rotation_locked: bool,
     translation_locked: bool,
+    ccd_enabled: bool,
 }
 
 impl RigidBodyBuilder {
@@ -366,6 +380,7 @@ impl RigidBodyBuilder {
             y_rotation_locked: false,
             z_rotation_locked: false,
             translation_locked: false,
+            ccd_enabled: false,
         }
     }
 
@@ -383,6 +398,7 @@ impl RigidBodyBuilder {
             y_rotation_locked: self.y_rotation_locked,
             z_rotation_locked: self.z_rotation_locked,
             translation_locked: self.translation_locked,
+            ccd_enabled: self.ccd_enabled,
             native: Cell::new(RigidBodyHandle::invalid()),
             changes: Cell::new(RigidBodyChanges::NONE),
             actions: Default::default(),
@@ -398,6 +414,11 @@ impl RigidBodyBuilder {
 
     pub fn with_mass(mut self, mass: f32) -> Self {
         self.mass = mass;
+        self
+    }
+
+    pub fn with_ccd_enabled(mut self, enabled: bool) -> Self {
+        self.ccd_enabled = enabled;
         self
     }
 

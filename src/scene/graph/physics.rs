@@ -972,6 +972,10 @@ impl PhysicsWorld {
                         native.set_angular_damping(rigid_body_node.ang_damping);
                         changes.remove(RigidBodyChanges::ANG_DAMPING);
                     }
+                    if changes.contains(RigidBodyChanges::CCD_STATE) {
+                        native.enable_ccd(rigid_body_node.ccd_enabled);
+                        changes.remove(RigidBodyChanges::CCD_STATE);
+                    }
                     if changes.contains(RigidBodyChanges::ROTATION_LOCKED) {
                         native.restrict_rotations(
                             rigid_body_node.x_rotation_locked,
@@ -1017,6 +1021,7 @@ impl PhysicsWorld {
                         vector: **rigid_body_node.local_transform().position(),
                     },
                 })
+                .ccd_enabled(rigid_body_node.ccd_enabled)
                 .additional_mass(rigid_body_node.mass)
                 .angvel(rigid_body_node.ang_vel)
                 .linvel(rigid_body_node.lin_vel)
