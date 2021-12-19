@@ -1,3 +1,5 @@
+name: Feature request
+description: This is for requesting features or optimisations.
 body:
 - type: input
   label: What feature do you want to have you included?
