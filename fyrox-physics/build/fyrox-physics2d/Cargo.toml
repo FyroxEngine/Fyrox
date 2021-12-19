@@ -1,17 +1,17 @@
 [package]
-name = "rg3d-physics3d"
+name = "fyrox-physics2d"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.56"
 
 [dependencies]
-rg3d-core = { version = "0.18.0", path = "../../../rg3d-core" }
-rapier3d = "0.11.1"
+fyrox-core = { version = "0.18.0", path = "../../../fyrox-core" }
+rapier2d = "0.11.1"
 fxhash = "0.2.1"
 
 [lib]
 path = "../../src/lib.rs"
 
 [features]
-dim3 = []
-default = ["dim3"]
+dim2 = []
+default = ["dim2"]

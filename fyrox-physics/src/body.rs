@@ -7,7 +7,7 @@ use crate::{
 use rapier2d::dynamics::{IslandManager, RigidBody, RigidBodySet};
 #[cfg(feature = "dim3")]
 use rapier3d::dynamics::{IslandManager, RigidBody, RigidBodySet};
-use rg3d_core::{uuid::Uuid, BiDirHashMap};
+use fyrox_core::{uuid::Uuid, BiDirHashMap};
 
 /// See module docs.
 pub struct RigidBodyContainer {
@@ -107,7 +107,7 @@ impl RigidBodyContainer {
         self.set.get(handle)
     }
 
-    /// Returns a mapping that allows you to map RapierHandle <-> rg3dHandle
+    /// Returns a mapping that allows you to map RapierHandle <-> fyroxHandle
     pub fn handle_map(&self) -> &BiDirHashMap<RigidBodyHandle, NativeRigidBodyHandle> {
         &self.handle_map
     }

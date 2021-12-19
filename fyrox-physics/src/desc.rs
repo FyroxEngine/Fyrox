@@ -25,12 +25,12 @@ use rapier3d::{
 };
 
 #[cfg(feature = "dim2")]
-use rg3d_core::algebra::{Const, DVector, UnitComplex};
+use fyrox_core::algebra::{Const, DVector, UnitComplex};
 
 #[cfg(feature = "dim3")]
-use rg3d_core::algebra::DMatrix;
+use fyrox_core::algebra::DMatrix;
 
-use rg3d_core::{
+use fyrox_core::{
     algebra::{Dynamic, Unit, VecStorage},
     inspect::{Inspect, PropertyInfo},
     pool::ErasedHandle,

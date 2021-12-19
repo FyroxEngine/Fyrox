@@ -24,7 +24,7 @@ use crate::{
     joint::JointContainer,
 };
 use fxhash::FxHashMap;
-use rg3d_core::{arrayvec::ArrayVec, instant, visitor::prelude::*, BiDirHashMap};
+use fyrox_core::{arrayvec::ArrayVec, instant, visitor::prelude::*, BiDirHashMap};
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
@@ -110,15 +110,15 @@ macro_rules! define_rapier_handle {
         $(#[$meta])*
         #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
         #[repr(transparent)]
-        pub struct $type_name(pub rg3d_core::uuid::Uuid);
+        pub struct $type_name(pub fyrox_core::uuid::Uuid);
 
-        impl From<rg3d_core::uuid::Uuid> for $type_name {
-            fn from(inner: rg3d_core::uuid::Uuid) -> Self {
+        impl From<fyrox_core::uuid::Uuid> for $type_name {
+            fn from(inner: fyrox_core::uuid::Uuid) -> Self {
                 Self(inner)
             }
         }
 
-        impl From<$type_name> for rg3d_core::uuid::Uuid {
+        impl From<$type_name> for fyrox_core::uuid::Uuid {
             fn from(v: $type_name) -> Self {
                 v.0
             }
