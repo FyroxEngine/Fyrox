@@ -6,15 +6,17 @@ use crate::{
         },
         arrayvec::ArrayVec,
         color::Color,
+        instant,
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{Handle, Pool},
+        visitor::prelude::*,
         BiDirHashMap,
     },
     physics3d::rapier::{
         dynamics::{
-            BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager, JointHandle,
-            JointParams, JointSet, PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyBuilder,
-            RigidBodyHandle, RigidBodySet, RigidBodyType,
+            self, BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager,
+            JointHandle, JointParams, JointSet, PrismaticJoint, RevoluteJoint, RigidBody,
+            RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
         },
         geometry::{
             self, BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
@@ -46,7 +48,6 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use rg3d_core::instant;
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
@@ -75,6 +76,54 @@ impl From<geometry::FeatureId> for FeatureId {
             geometry::FeatureId::Edge(v) => FeatureId::Edge(v),
             geometry::FeatureId::Face(v) => FeatureId::Face(v),
             geometry::FeatureId::Unknown => FeatureId::Unknown,
+        }
+    }
+}
+
+/// Rules used to combine two coefficients.
+///
+/// # Notes
+///
+/// This is used to determine the effective restitution and friction coefficients for a contact
+/// between two colliders. Each collider has its combination rule of type `CoefficientCombineRule`,
+/// the rule actually used is given by `max(first_combine_rule, second_combine_rule)`.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit)]
+#[repr(u32)]
+pub enum CoefficientCombineRule {
+    /// The two coefficients are averaged.
+    Average = 0,
+    /// The smallest coefficient is chosen.
+    Min,
+    /// The two coefficients are multiplied.
+    Multiply,
+    /// The greatest coefficient is chosen.
+    Max,
+}
+
+impl Default for CoefficientCombineRule {
+    fn default() -> Self {
+        CoefficientCombineRule::Average
+    }
+}
+
+impl From<dynamics::CoefficientCombineRule> for CoefficientCombineRule {
+    fn from(v: dynamics::CoefficientCombineRule) -> Self {
+        match v {
+            dynamics::CoefficientCombineRule::Average => CoefficientCombineRule::Average,
+            dynamics::CoefficientCombineRule::Min => CoefficientCombineRule::Min,
+            dynamics::CoefficientCombineRule::Multiply => CoefficientCombineRule::Multiply,
+            dynamics::CoefficientCombineRule::Max => CoefficientCombineRule::Max,
+        }
+    }
+}
+
+impl Into<dynamics::CoefficientCombineRule> for CoefficientCombineRule {
+    fn into(self) -> dynamics::CoefficientCombineRule {
+        match self {
+            CoefficientCombineRule::Average => dynamics::CoefficientCombineRule::Average,
+            CoefficientCombineRule::Min => dynamics::CoefficientCombineRule::Min,
+            CoefficientCombineRule::Multiply => dynamics::CoefficientCombineRule::Multiply,
+            CoefficientCombineRule::Max => dynamics::CoefficientCombineRule::Max,
         }
     }
 }
@@ -1118,6 +1167,18 @@ impl PhysicsWorld {
                         native.set_sensor(collider_node.is_sensor());
                         changes.remove(ColliderChanges::IS_SENSOR);
                     }
+                    if changes.contains(ColliderChanges::FRICTION_COMBINE_RULE) {
+                        native.set_friction_combine_rule(
+                            collider_node.friction_combine_rule().into(),
+                        );
+                        changes.remove(ColliderChanges::FRICTION_COMBINE_RULE);
+                    }
+                    if changes.contains(ColliderChanges::RESTITUTION_COMBINE_RULE) {
+                        native.set_restitution_combine_rule(
+                            collider_node.restitution_combine_rule().into(),
+                        );
+                        changes.remove(ColliderChanges::RESTITUTION_COMBINE_RULE);
+                    }
 
                     if changes != ColliderChanges::NONE {
                         Log::writeln(
@@ -1127,7 +1188,6 @@ impl PhysicsWorld {
                     }
 
                     collider_node.changes.set(changes);
-                    // TODO: Handle RESTITUTION_COMBINE_RULE + FRICTION_COMBINE_RULE
                 }
             }
         } else if let Some(Node::RigidBody(parent_body)) = nodes.try_borrow(collider_node.parent())
@@ -1156,6 +1216,8 @@ impl PhysicsWorld {
                             collider_node.collision_groups().memberships,
                             collider_node.collision_groups().filter,
                         ))
+                        .friction_combine_rule(collider_node.friction_combine_rule().into())
+                        .restitution_combine_rule(collider_node.restitution_combine_rule().into())
                         .solver_groups(InteractionGroups::new(
                             collider_node.solver_groups().memberships,
                             collider_node.solver_groups().filter,

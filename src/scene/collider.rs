@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+use crate::scene::graph::physics::CoefficientCombineRule;
 use crate::{
     core::{
         algebra::Vector3,
@@ -352,6 +353,8 @@ pub struct Collider {
     is_sensor: bool,
     collision_groups: InteractionGroupsDesc,
     solver_groups: InteractionGroupsDesc,
+    friction_combine_rule: CoefficientCombineRule,
+    restitution_combine_rule: CoefficientCombineRule,
     #[visit(skip)]
     #[inspect(skip)]
     pub(in crate) native: Cell<ColliderHandle>,
@@ -371,6 +374,8 @@ impl Default for Collider {
             is_sensor: false,
             collision_groups: Default::default(),
             solver_groups: Default::default(),
+            friction_combine_rule: Default::default(),
+            restitution_combine_rule: Default::default(),
             native: Cell::new(ColliderHandle::invalid()),
             changes: Cell::new(ColliderChanges::NONE),
         }
@@ -426,6 +431,8 @@ impl Collider {
             is_sensor: self.is_sensor,
             collision_groups: self.collision_groups,
             solver_groups: self.solver_groups,
+            friction_combine_rule: self.friction_combine_rule,
+            restitution_combine_rule: self.restitution_combine_rule,
             // Do not copy.
             native: Cell::new(ColliderHandle::invalid()),
             changes: Cell::new(ColliderChanges::NONE),
@@ -507,6 +514,28 @@ impl Collider {
         self.is_sensor
     }
 
+    pub fn friction_combine_rule(&self) -> CoefficientCombineRule {
+        self.friction_combine_rule
+    }
+
+    pub fn set_friction_combine_rule(&mut self, rule: CoefficientCombineRule) {
+        self.friction_combine_rule = rule;
+        self.changes
+            .get_mut()
+            .insert(ColliderChanges::FRICTION_COMBINE_RULE);
+    }
+
+    pub fn restitution_combine_rule(&self) -> CoefficientCombineRule {
+        self.restitution_combine_rule
+    }
+
+    pub fn set_restitution_combine_rule(&mut self, rule: CoefficientCombineRule) {
+        self.restitution_combine_rule = rule;
+        self.changes
+            .get_mut()
+            .insert(ColliderChanges::RESTITUTION_COMBINE_RULE);
+    }
+
     pub fn contacts<'a>(
         &self,
         physics: &'a PhysicsWorld,
@@ -524,6 +553,8 @@ pub struct ColliderBuilder {
     is_sensor: bool,
     collision_groups: InteractionGroupsDesc,
     solver_groups: InteractionGroupsDesc,
+    friction_combine_rule: CoefficientCombineRule,
+    restitution_combine_rule: CoefficientCombineRule,
 }
 
 impl ColliderBuilder {
@@ -537,6 +568,8 @@ impl ColliderBuilder {
             is_sensor: false,
             collision_groups: Default::default(),
             solver_groups: Default::default(),
+            friction_combine_rule: Default::default(),
+            restitution_combine_rule: Default::default(),
         }
     }
 
@@ -555,6 +588,8 @@ impl ColliderBuilder {
             is_sensor: self.is_sensor,
             collision_groups: self.collision_groups,
             solver_groups: self.solver_groups,
+            friction_combine_rule: self.friction_combine_rule,
+            restitution_combine_rule: self.restitution_combine_rule,
             native: Cell::new(ColliderHandle::invalid()),
             changes: Cell::new(ColliderChanges::NONE),
         };
@@ -588,6 +623,16 @@ impl ColliderBuilder {
 
     pub fn with_collision_groups(mut self, collision_groups: InteractionGroupsDesc) -> Self {
         self.collision_groups = collision_groups;
+        self
+    }
+
+    pub fn with_friction_combine_rule(mut self, rule: CoefficientCombineRule) -> Self {
+        self.friction_combine_rule = rule;
+        self
+    }
+
+    pub fn with_restitution_combine_rule(mut self, rule: CoefficientCombineRule) -> Self {
+        self.restitution_combine_rule = rule;
         self
     }
 

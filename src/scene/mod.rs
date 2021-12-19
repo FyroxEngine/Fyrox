@@ -456,6 +456,7 @@ impl Scene {
             .with_y_rotation_locked(y_rotation_locked)
             .with_z_rotation_locked(z_rotation_locked)
             .with_translation_locked(body_ref.is_translation_locked())
+            .with_ccd_enabled(body_ref.is_ccd_enabled())
             .build(&mut self.graph);
 
             body_map.insert(body_handle, body_node_handle);
@@ -519,6 +520,8 @@ impl Scene {
                                 .build(),
                         ),
                 )
+                .with_friction_combine_rule(collider_ref.friction_combine_rule().into())
+                .with_restitution_combine_rule(collider_ref.restitution_combine_rule().into())
                 .with_shape(shape)
                 .with_sensor(collider_ref.is_sensor())
                 .with_restitution(collider_ref.restitution())
