@@ -919,6 +919,8 @@ impl Graph {
 
     /// Updates nodes in graph using given delta time. There is no need to call it manually.
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
+        self.physics.performance_statistics.reset();
+
         let this = unsafe { &*(self as *const Graph) };
 
         self.sync_native_physics();

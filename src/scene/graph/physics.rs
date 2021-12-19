@@ -46,6 +46,7 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
+use rg3d_core::instant;
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
@@ -639,6 +640,8 @@ impl PhysicsWorld {
     }
 
     pub(super) fn update(&mut self) {
+        let time = instant::Instant::now();
+
         if self.enabled {
             self.pipeline.step(
                 &self.gravity,
@@ -654,6 +657,8 @@ impl PhysicsWorld {
                 &*self.event_handler,
             );
         }
+
+        self.performance_statistics.step_time += instant::Instant::now() - time;
     }
 
     pub(super) fn add_body(&mut self, owner: Handle<Node>, body: RigidBody) -> RigidBodyHandle {
@@ -820,6 +825,8 @@ impl PhysicsWorld {
 
     /// Casts a ray with given options.
     pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
+        let time = instant::Instant::now();
+
         let mut query = self.query.borrow_mut();
 
         // TODO: Ideally this must be called once per frame, but it seems to be impossible because
@@ -864,6 +871,11 @@ impl PhysicsWorld {
                 }
             })
         }
+
+        self.performance_statistics.total_ray_cast_time.set(
+            self.performance_statistics.total_ray_cast_time.get()
+                + (instant::Instant::now() - time),
+        );
     }
 
     pub(super) fn set_rigid_body_position(

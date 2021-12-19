@@ -24,8 +24,6 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
-use crate::scene::graph::physics::{collider_shape_from_native_collider, joint_params_from_native};
-use crate::scene2d::PhysicsBinding;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -41,13 +39,19 @@ use crate::{
         PhysicsBinder,
     },
     material::{shader::SamplerFallback, PropertyValue},
-    physics3d::{PhysicsPerformanceStatistics, RigidBodyHandle},
+    physics3d::RigidBodyHandle,
     resource::texture::Texture,
     scene::{
         base::BaseBuilder,
         collider::{ColliderBuilder, ColliderShape, GeometrySource},
         debug::SceneDrawingContext,
-        graph::Graph,
+        graph::{
+            physics::{
+                collider_shape_from_native_collider, joint_params_from_native,
+                PhysicsPerformanceStatistics,
+            },
+            Graph,
+        },
         joint::JointBuilder,
         legacy_physics::LegacyPhysics,
         mesh::buffer::{
@@ -58,6 +62,7 @@ use crate::{
         rigidbody::{RigidBodyBuilder, RigidBodyType},
         transform::TransformBuilder,
     },
+    scene2d::PhysicsBinding,
     sound::{context::SoundContext, engine::SoundEngine},
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
@@ -732,6 +737,7 @@ impl Scene {
 
         let last = instant::Instant::now();
         self.graph.update(frame_size, dt);
+        self.performance_statistics.physics = self.graph.physics.performance_statistics.clone();
         self.performance_statistics.graph_update_time =
             (instant::Instant::now() - last).as_secs_f32();
 
