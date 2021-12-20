@@ -501,7 +501,7 @@ impl Scene {
 
                 let collider_handle = ColliderBuilder::new(
                     BaseBuilder::new()
-                        .with_name(name.to_owned())
+                        .with_name(name)
                         .with_local_transform(
                             TransformBuilder::new()
                                 .with_local_position(
