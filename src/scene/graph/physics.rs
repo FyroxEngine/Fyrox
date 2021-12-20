@@ -1,5 +1,6 @@
 //! Scene physics module.
 
+use crate::scene::collider;
 use crate::{
     core::{
         algebra::{
@@ -47,6 +48,7 @@ use crate::{
     },
 };
 use rg3d_core::algebra::UnitVector3;
+use rg3d_physics3d::rapier::dynamics::RigidBodyActivation;
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
@@ -195,7 +197,7 @@ pub struct RayCastOptions {
     pub max_len: f32,
 
     /// Groups to check.
-    pub groups: InteractionGroups,
+    pub groups: collider::InteractionGroups,
 
     /// Whether to sort intersections from closest to farthest.
     pub sort_results: bool,
@@ -783,7 +785,7 @@ impl PhysicsWorld {
         if self
             .colliders
             .set
-            .remove(handle, &mut self.islands, &mut self.bodies.set, true)
+            .remove(handle, &mut self.islands, &mut self.bodies.set, false)
             .is_some()
         {
             assert!(self.colliders.map.remove_by_key(&handle).is_some());
@@ -809,7 +811,7 @@ impl PhysicsWorld {
         assert!(self.joints.map.remove_by_key(&handle).is_some());
         self.joints
             .set
-            .remove(handle, &mut self.islands, &mut self.bodies.set, true);
+            .remove(handle, &mut self.islands, &mut self.bodies.set, false);
     }
 
     /// Draws physics world. Very useful for debugging, it allows you to see where are
@@ -984,7 +986,9 @@ impl PhysicsWorld {
                     translation: Translation3::from(global_position),
                     rotation: global_rotation,
                 },
-                true,
+                // Do not wake up body, it is too expensive and must be done **only** by explicit
+                // `wake_up` call!
+                false,
             );
         }
     }
@@ -1040,11 +1044,11 @@ impl PhysicsWorld {
                         changes.remove(RigidBodyChanges::BODY_TYPE);
                     }
                     if changes.contains(RigidBodyChanges::LIN_VEL) {
-                        native.set_linvel(rigid_body_node.lin_vel, true);
+                        native.set_linvel(rigid_body_node.lin_vel, false);
                         changes.remove(RigidBodyChanges::LIN_VEL);
                     }
                     if changes.contains(RigidBodyChanges::ANG_VEL) {
-                        native.set_angvel(rigid_body_node.ang_vel, true);
+                        native.set_angvel(rigid_body_node.ang_vel, false);
                         changes.remove(RigidBodyChanges::ANG_VEL);
                     }
                     if changes.contains(RigidBodyChanges::MASS) {
@@ -1065,17 +1069,27 @@ impl PhysicsWorld {
                         native.enable_ccd(rigid_body_node.is_ccd_enabled());
                         changes.remove(RigidBodyChanges::CCD_STATE);
                     }
+                    if changes.contains(RigidBodyChanges::CAN_SLEEP) {
+                        let mut activation = native.activation_mut();
+                        if rigid_body_node.is_can_sleep() {
+                            activation.threshold = RigidBodyActivation::default_threshold()
+                        } else {
+                            activation.sleeping = false;
+                            activation.threshold = -1.0;
+                        };
+                        changes.remove(RigidBodyChanges::CAN_SLEEP);
+                    }
                     if changes.contains(RigidBodyChanges::ROTATION_LOCKED) {
                         native.restrict_rotations(
-                            rigid_body_node.is_x_rotation_locked(),
-                            rigid_body_node.is_y_rotation_locked(),
-                            rigid_body_node.is_z_rotation_locked(),
+                            !rigid_body_node.is_x_rotation_locked(),
+                            !rigid_body_node.is_y_rotation_locked(),
+                            !rigid_body_node.is_z_rotation_locked(),
                             true,
                         );
                         changes.remove(RigidBodyChanges::ROTATION_LOCKED);
                     }
                     if changes.contains(RigidBodyChanges::TRANSLATION_LOCKED) {
-                        native.lock_translations(rigid_body_node.is_translation_locked(), true);
+                        native.lock_translations(rigid_body_node.is_translation_locked(), false);
                         changes.remove(RigidBodyChanges::TRANSLATION_LOCKED);
                     }
 
@@ -1088,18 +1102,19 @@ impl PhysicsWorld {
 
                     while let Some(action) = actions.pop_front() {
                         match action {
-                            ApplyAction::Force(force) => native.apply_force(force, true),
-                            ApplyAction::Torque(torque) => native.apply_torque(torque, true),
+                            ApplyAction::Force(force) => native.apply_force(force, false),
+                            ApplyAction::Torque(torque) => native.apply_torque(torque, false),
                             ApplyAction::ForceAtPoint { force, point } => {
-                                native.apply_force_at_point(force, Point3::from(point), true)
+                                native.apply_force_at_point(force, Point3::from(point), false)
                             }
-                            ApplyAction::Impulse(impulse) => native.apply_impulse(impulse, true),
+                            ApplyAction::Impulse(impulse) => native.apply_impulse(impulse, false),
                             ApplyAction::TorqueImpulse(impulse) => {
-                                native.apply_torque_impulse(impulse, true)
+                                native.apply_torque_impulse(impulse, false)
                             }
                             ApplyAction::ImpulseAtPoint { impulse, point } => {
-                                native.apply_impulse_at_point(impulse, Point3::from(point), true)
+                                native.apply_impulse_at_point(impulse, Point3::from(point), false)
                             }
+                            ApplyAction::WakeUp => native.wake_up(false),
                         }
                     }
 
@@ -1120,10 +1135,12 @@ impl PhysicsWorld {
                 .linvel(rigid_body_node.lin_vel)
                 .linear_damping(rigid_body_node.lin_damping)
                 .angular_damping(rigid_body_node.ang_damping)
+                .can_sleep(rigid_body_node.is_can_sleep())
+                .sleeping(rigid_body_node.is_sleeping())
                 .restrict_rotations(
-                    rigid_body_node.is_x_rotation_locked(),
-                    rigid_body_node.is_y_rotation_locked(),
-                    rigid_body_node.is_z_rotation_locked(),
+                    !rigid_body_node.is_x_rotation_locked(),
+                    !rigid_body_node.is_y_rotation_locked(),
+                    !rigid_body_node.is_z_rotation_locked(),
                 );
 
             if rigid_body_node.is_translation_locked() {

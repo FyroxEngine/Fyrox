@@ -1,5 +1,13 @@
 //! Rigid body is a physics entity that responsible for the dynamics and kinematics of the solid.
-
+//!
+//! # Common problems
+//!
+//! **Q:** Rigid body is "stuck".
+//! **A:** Most likely the rigid body is "sleeping", in this case it must be activated manually, it is
+//! most common problem with rigid bodies that controlled manually from code. They must be activated
+//! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
+//! You can also explicitly tell to rigid body that it cannot sleep, by calling
+//! [`RigidBody::set_can_sleep`] with `false` value.
 use crate::{
     core::{
         algebra::Vector3,
@@ -83,6 +91,7 @@ bitflags! {
         const ANG_DAMPING = 0b0100_0000;
         const LIN_DAMPING = 0b1000_0000;
         const CCD_STATE = 0b0001_0000_0000;
+        const CAN_SLEEP = 0b0010_0000_0000;
     }
 }
 
@@ -100,6 +109,7 @@ pub(crate) enum ApplyAction {
         impulse: Vector3<f32>,
         point: Vector3<f32>,
     },
+    WakeUp,
 }
 
 /// Rigid body is a physics entity that responsible for the dynamics and kinematics of the solid.
@@ -127,6 +137,7 @@ pub struct RigidBody {
     z_rotation_locked: bool,
     translation_locked: bool,
     ccd_enabled: bool,
+    can_sleep: bool,
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) native: Cell<RigidBodyHandle>,
@@ -160,6 +171,7 @@ impl Default for RigidBody {
             z_rotation_locked: false,
             translation_locked: false,
             ccd_enabled: false,
+            can_sleep: true,
             native: Cell::new(RigidBodyHandle::invalid()),
             changes: Cell::new(RigidBodyChanges::NONE),
             actions: Default::default(),
@@ -198,6 +210,7 @@ impl RigidBody {
             z_rotation_locked: self.z_rotation_locked,
             translation_locked: self.translation_locked,
             ccd_enabled: self.ccd_enabled,
+            can_sleep: self.can_sleep,
             // Do not copy.
             native: Cell::new(RigidBodyHandle::invalid()),
             changes: Cell::new(RigidBodyChanges::NONE),
@@ -402,6 +415,23 @@ impl RigidBody {
             .get_mut()
             .push_back(ApplyAction::ImpulseAtPoint { impulse, point })
     }
+
+    /// Sets whether the rigid body can sleep or not. If `false` is passed, it _automatically_ wake
+    /// up rigid body.
+    pub fn set_can_sleep(&mut self, can_sleep: bool) {
+        self.can_sleep = can_sleep;
+        self.changes.get_mut().insert(RigidBodyChanges::CAN_SLEEP);
+    }
+
+    /// Returns true if the rigid body can sleep, false - otherwise.
+    pub fn is_can_sleep(&self) -> bool {
+        self.can_sleep
+    }
+
+    /// Wakes up rigid body, forcing it to return to participate in the simulation.
+    pub fn wake_up(&mut self) {
+        self.actions.get_mut().push_back(ApplyAction::WakeUp)
+    }
 }
 
 /// Allows you to create rigid body in declarative manner.
@@ -419,6 +449,7 @@ pub struct RigidBodyBuilder {
     z_rotation_locked: bool,
     translation_locked: bool,
     ccd_enabled: bool,
+    can_sleep: bool,
 }
 
 impl RigidBodyBuilder {
@@ -438,6 +469,7 @@ impl RigidBodyBuilder {
             z_rotation_locked: false,
             translation_locked: false,
             ccd_enabled: false,
+            can_sleep: true,
         }
     }
 
@@ -515,6 +547,18 @@ impl RigidBodyBuilder {
         self
     }
 
+    /// Sets initial state of the body (sleeping or not).
+    pub fn with_sleeping(mut self, sleeping: bool) -> Self {
+        self.sleeping = sleeping;
+        self
+    }
+
+    /// Sets whether rigid body can sleep or not.
+    pub fn with_can_sleep(mut self, can_sleep: bool) -> Self {
+        self.can_sleep = can_sleep;
+        self
+    }
+
     /// Creates RigidBody node but does not add it to the graph.
     pub fn build_node(self) -> Node {
         let rigid_body = RigidBody {
@@ -531,6 +575,7 @@ impl RigidBodyBuilder {
             z_rotation_locked: self.z_rotation_locked,
             translation_locked: self.translation_locked,
             ccd_enabled: self.ccd_enabled,
+            can_sleep: self.can_sleep,
             native: Cell::new(RigidBodyHandle::invalid()),
             changes: Cell::new(RigidBodyChanges::NONE),
             actions: Default::default(),
