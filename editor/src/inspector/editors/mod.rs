@@ -309,6 +309,7 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<CsmOptions>::new());
     container.insert(make_frustum_split_options_enum_editor_definition());
     container.insert(ArrayPropertyEditorDefinition::<f32, 3>::new());
+    container.insert(ArrayPropertyEditorDefinition::<f32, 2>::new());
     container.insert(make_option_editor_definition::<ColorGradingLut>());
     container.insert(make_option_editor_definition::<Box<SkyBox>>());
     container.insert(HandlePropertyEditorDefinition::<Node>::new(sender));

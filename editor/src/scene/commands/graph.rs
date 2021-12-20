@@ -331,15 +331,17 @@ pub struct AddNodeCommand {
     handle: Handle<Node>,
     node: Option<Node>,
     cached_name: String,
+    parent: Handle<Node>,
 }
 
 impl AddNodeCommand {
-    pub fn new(node: Node) -> Self {
+    pub fn new(node: Node, parent: Handle<Node>) -> Self {
         Self {
             ticket: None,
             handle: Default::default(),
             cached_name: format!("Add Node {}", node.name()),
             node: Some(node),
+            parent,
         }
     }
 }
@@ -362,9 +364,12 @@ impl Command for AddNodeCommand {
                 assert_eq!(handle, self.handle);
             }
         }
+
+        context.scene.graph.link_nodes(self.handle, self.parent)
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
+        // No need to unlink node from its parent because .take_reserve() does that for us.
         let (ticket, node) = context.scene.graph.take_reserve(self.handle);
         self.ticket = Some(ticket);
         self.node = Some(node);

@@ -1,3 +1,4 @@
+use crate::menu::create::CreateEntityMenu;
 use crate::{
     scene::{commands::make_delete_selection_command, EditorScene, Selection},
     GameEngine, Message,
@@ -19,12 +20,15 @@ pub struct ItemContextMenu {
     pub menu: Handle<UiNode>,
     delete_selection: Handle<UiNode>,
     copy_selection: Handle<UiNode>,
+    create_entity_menu: CreateEntityMenu,
 }
 
 impl ItemContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let delete_selection;
         let copy_selection;
+
+        let (create_entity_menu, create_entity_menu_root_items) = CreateEntityMenu::new(ctx);
 
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
@@ -53,13 +57,22 @@ impl ItemContextMenu {
                             })
                             .build(ctx);
                             copy_selection
-                        }),
+                        })
+                        .with_child(
+                            MenuItemBuilder::new(
+                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
+                            )
+                            .with_content(MenuItemContent::text("Create Child"))
+                            .with_items(create_entity_menu_root_items)
+                            .build(ctx),
+                        ),
                 )
                 .build(ctx),
             )
             .build(ctx);
 
         Self {
+            create_entity_menu,
             menu,
             delete_selection,
             copy_selection,
@@ -74,6 +87,13 @@ impl ItemContextMenu {
         sender: &Sender<Message>,
     ) {
         scope_profile!();
+
+        if let Selection::Graph(graph_selection) = &editor_scene.selection {
+            if let Some(first) = graph_selection.nodes().first() {
+                self.create_entity_menu
+                    .handle_ui_message(message, sender, *first);
+            }
+        }
 
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.delete_selection {
