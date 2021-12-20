@@ -303,6 +303,16 @@ impl RigidBody {
         self.z_rotation_locked
     }
 
+    /// Locks or unlocks rotations around all axes at once.
+    pub fn lock_rotations(&mut self, locked: bool) {
+        self.x_rotation_locked = locked;
+        self.y_rotation_locked = locked;
+        self.z_rotation_locked = locked;
+        self.changes
+            .get_mut()
+            .insert(RigidBodyChanges::ROTATION_LOCKED);
+    }
+
     /// Locks translation in world coordinates.
     pub fn lock_translation(&mut self, state: bool) {
         self.translation_locked = state;
@@ -487,6 +497,14 @@ impl RigidBodyBuilder {
     /// Sets whether the translation of the body should be locked or not.
     pub fn with_translation_locked(mut self, translation_locked: bool) -> Self {
         self.translation_locked = translation_locked;
+        self
+    }
+
+    /// Locks or unlocks rotations of the rigid body.
+    pub fn with_locked_rotations(mut self, locked: bool) -> Self {
+        self.x_rotation_locked = locked;
+        self.y_rotation_locked = locked;
+        self.z_rotation_locked = locked;
         self
     }
 
