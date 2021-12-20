@@ -1,4 +1,5 @@
 use crate::rg3d::core::math::Matrix4Ext;
+use rg3d::core::math::aabb::AxisAlignedBoundingBox;
 use rg3d::scene::camera::Exposure;
 use rg3d::{
     core::{
@@ -270,10 +271,16 @@ impl CameraController {
                 if handle != graph.get_root() {
                     let object_space_ray =
                         ray.transform(node.global_transform().try_inverse().unwrap_or_default());
+
+                    let aabb = if handle == graph.get_root() {
+                        // Prevent root selection.
+                        AxisAlignedBoundingBox::default()
+                    } else {
+                        node.local_bounding_box()
+                    };
+
                     // Do coarse intersection test with bounding box.
-                    if let Some(points) =
-                        object_space_ray.aabb_intersection_points(&node.local_bounding_box())
-                    {
+                    if let Some(points) = object_space_ray.aabb_intersection_points(&aabb) {
                         // TODO: Do fine intersection test with surfaces if any
 
                         let da = points[0].metric_distance(&object_space_ray.origin);
