@@ -116,7 +116,8 @@ pub struct RigidBody {
     pub(crate) ang_vel: Vector3<f32>,
     pub(crate) lin_damping: f32,
     pub(crate) ang_damping: f32,
-    #[inspect(read_only)]
+    #[visit(skip)]
+    #[inspect(skip)]
     pub(crate) sleeping: bool,
     body_type: RigidBodyType,
     #[inspect(min_value = 0.0, step = 0.05)]
@@ -335,6 +336,12 @@ impl RigidBody {
     /// Returns current body type.
     pub fn body_type(&self) -> RigidBodyType {
         self.body_type
+    }
+
+    /// Returns true if the rigid body is sleeping (temporarily excluded from simulation to save
+    /// resources), false - otherwise.
+    pub fn is_sleeping(&self) -> bool {
+        self.sleeping
     }
 
     /// Returns true if continuous collision detection is enabled, false - otherwise.

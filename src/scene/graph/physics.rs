@@ -1015,6 +1015,7 @@ impl PhysicsWorld {
 
                 rigid_body.lin_vel = *native.linvel();
                 rigid_body.ang_vel = *native.angvel();
+                rigid_body.sleeping = native.is_sleeping();
             }
         }
     }
