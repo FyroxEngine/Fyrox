@@ -2,14 +2,10 @@ use crate::{
     inspector::{
         editors::make_property_editors_container,
         handlers::{
-            collider::handle_collider_property_changed,
-            joint::handle_joint_property_changed,
             node::{particle_system::ParticleSystemHandler, SceneNodePropertyChangedHandler},
-            rigid_body::handle_rigid_body_property_changed,
             sound::*,
         },
     },
-    physics::{Collider, Joint, RigidBody},
     scene::{EditorScene, Selection},
     Brush, CommandGroup, GameEngine, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
@@ -163,16 +159,6 @@ impl Inspector {
                         .sources()
                         .try_borrow(selection.sources()[0])
                         .map(|s| s as &dyn Inspect),
-                    Selection::RigidBody(selection) => editor_scene
-                        .physics
-                        .bodies
-                        .try_borrow(selection.bodies()[0])
-                        .map(|s| s as &dyn Inspect),
-                    Selection::Joint(selection) => editor_scene
-                        .physics
-                        .joints
-                        .try_borrow(selection.joints()[0])
-                        .map(|s| s as &dyn Inspect),
                     _ => None,
                 };
 
@@ -238,21 +224,6 @@ impl Inspector {
                     Selection::Sound(selection) => ctx
                         .sources()
                         .try_borrow(selection.sources()[0])
-                        .map(|s| s as &dyn Inspect),
-                    Selection::RigidBody(selection) => editor_scene
-                        .physics
-                        .bodies
-                        .try_borrow(selection.bodies()[0])
-                        .map(|s| s as &dyn Inspect),
-                    Selection::Joint(selection) => editor_scene
-                        .physics
-                        .joints
-                        .try_borrow(selection.joints()[0])
-                        .map(|s| s as &dyn Inspect),
-                    Selection::Collider(selection) => editor_scene
-                        .physics
-                        .colliders
-                        .try_borrow(selection.colliders()[0])
                         .map(|s| s as &dyn Inspect),
                     _ => None,
                 };
@@ -326,46 +297,6 @@ impl Inspector {
                                     source_handle,
                                     scene.sound_context.state().source(source_handle),
                                 )
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>(),
-                    Selection::RigidBody(selection) => selection
-                        .bodies
-                        .iter()
-                        .filter_map(|&rigid_body_handle| {
-                            let rigid_body_ref = &editor_scene.physics.bodies[rigid_body_handle];
-                            if args.owner_type_id == TypeId::of::<RigidBody>() {
-                                handle_rigid_body_property_changed(
-                                    args,
-                                    rigid_body_handle,
-                                    rigid_body_ref,
-                                )
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>(),
-                    Selection::Collider(selection) => selection
-                        .colliders
-                        .iter()
-                        .filter_map(|&collider_handle| {
-                            let collider = &editor_scene.physics.colliders[collider_handle];
-                            if args.owner_type_id == TypeId::of::<Collider>() {
-                                handle_collider_property_changed(args, collider_handle, collider)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>(),
-                    Selection::Joint(selection) => selection
-                        .joints
-                        .iter()
-                        .filter_map(|&joint_handle| {
-                            let joint = &editor_scene.physics.joints[joint_handle];
-                            if args.owner_type_id == TypeId::of::<Joint>() {
-                                handle_joint_property_changed(args, joint_handle, joint)
                             } else {
                                 None
                             }

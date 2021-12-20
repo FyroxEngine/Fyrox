@@ -408,7 +408,10 @@ impl PathFixer {
                                             }
                                         }
                                     }
-                                    Node::Base(_) => {
+                                    Node::Base(_)
+                                    | Node::RigidBody(_)
+                                    | Node::Collider(_)
+                                    | Node::Joint(_) => {
                                         // Nothing
                                     }
                                 }

@@ -17,7 +17,7 @@ use rg3d::{
 pub fn handle_base_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    node: &Node,
+    base: &Base,
 ) -> Option<SceneCommand> {
     match args.value {
         FieldKind::Object(ref value) => match args.name.as_ref() {
@@ -32,9 +32,6 @@ pub fn handle_base_property_changed(
             }
             Base::MOBILITY => {
                 make_command!(SetMobilityCommand, handle, value)
-            }
-            Base::PHYSICS_BINDING => {
-                make_command!(SetPhysicsBindingCommand, handle, value)
             }
             Base::LIFETIME => {
                 make_command!(SetLifetimeCommand, handle, value)
@@ -196,7 +193,7 @@ pub fn handle_base_property_changed(
                 },
                 _ => None,
             },
-            Base::LOCAL_TRANSFORM => handle_transform_property_changed(inner_value, handle, node),
+            Base::LOCAL_TRANSFORM => handle_transform_property_changed(inner_value, handle, base),
             _ => None,
         },
     }

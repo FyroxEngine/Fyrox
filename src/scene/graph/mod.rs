@@ -22,7 +22,6 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::base::PropertyValue;
 use crate::{
     asset::ResourceState,
     core::{
@@ -35,16 +34,31 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
         VecExtensions,
     },
+    physics3d::rapier::geometry::ColliderHandle,
     resource::model::NodeMapping,
-    scene::{node::Node, transform::TransformBuilder, visibility::VisibilityCache},
+    scene::{
+        base::PropertyValue,
+        collider::ColliderShape,
+        graph::physics::{PhysicsWorld, QueryResultsStorage, RayCastOptions},
+        node::Node,
+        transform::TransformBuilder,
+        visibility::VisibilityCache,
+    },
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
-use std::ops::{Index, IndexMut};
+use std::{
+    fmt::Debug,
+    ops::{Index, IndexMut},
+};
+
+pub mod physics;
 
 /// See module docs.
 #[derive(Debug)]
 pub struct Graph {
+    /// Backing physics "world". It is responsible for the physics simulation.
+    pub physics: PhysicsWorld,
     root: Handle<Node>,
     pool: Pool<Node>,
     stack: Vec<Handle<Node>>,
@@ -53,6 +67,7 @@ pub struct Graph {
 impl Default for Graph {
     fn default() -> Self {
         Self {
+            physics: PhysicsWorld::new(),
             root: Handle::NONE,
             pool: Pool::new(),
             stack: Vec::new(),
@@ -80,14 +95,40 @@ fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_g
     for (_, &new_node_handle) in old_new_mapping.iter() {
         let new_node = &mut dest_graph.pool[new_node_handle];
 
-        if let Node::Mesh(mesh) = new_node {
-            for surface in mesh.surfaces_mut() {
-                for bone_handle in surface.bones.iter_mut() {
-                    if let Some(entry) = old_new_mapping.get(bone_handle) {
-                        *bone_handle = *entry;
+        match new_node {
+            Node::Mesh(mesh) => {
+                for surface in mesh.surfaces_mut() {
+                    for bone_handle in surface.bones.iter_mut() {
+                        if let Some(entry) = old_new_mapping.get(bone_handle) {
+                            *bone_handle = *entry;
+                        }
                     }
                 }
             }
+            Node::Collider(collider) => match collider.shape_mut() {
+                ColliderShape::Trimesh(ref mut trimesh) => {
+                    for source in trimesh.sources.iter_mut() {
+                        if let Some(entry) = old_new_mapping.get(&source.0) {
+                            source.0 = *entry;
+                        }
+                    }
+                }
+                ColliderShape::Heightfield(ref mut heightfield) => {
+                    if let Some(entry) = old_new_mapping.get(&heightfield.geometry_source.0) {
+                        heightfield.geometry_source.0 = *entry;
+                    }
+                }
+                _ => (),
+            },
+            Node::Joint(joint) => {
+                if let Some(entry) = old_new_mapping.get(&joint.body1()) {
+                    joint.set_body1(*entry);
+                }
+                if let Some(entry) = old_new_mapping.get(&joint.body2()) {
+                    joint.set_body2(*entry);
+                }
+            }
+            _ => {}
         }
 
         for property in new_node.properties.iter_mut() {
@@ -116,6 +157,26 @@ fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_g
     }
 }
 
+fn isometric_local_transform(nodes: &Pool<Node>, node: Handle<Node>) -> Matrix4<f32> {
+    let transform = nodes[node].local_transform();
+    TransformBuilder::new()
+        .with_local_position(**transform.position())
+        .with_local_rotation(**transform.rotation())
+        .with_pre_rotation(**transform.pre_rotation())
+        .with_post_rotation(**transform.post_rotation())
+        .build()
+        .matrix()
+}
+
+fn isometric_global_transform(nodes: &Pool<Node>, node: Handle<Node>) -> Matrix4<f32> {
+    let parent = nodes[node].parent();
+    if parent.is_some() {
+        isometric_global_transform(nodes, parent) * isometric_local_transform(nodes, node)
+    } else {
+        isometric_local_transform(nodes, node)
+    }
+}
+
 impl Graph {
     /// Creates new graph instance with single root node.
     pub fn new() -> Self {
@@ -124,6 +185,7 @@ impl Graph {
         root.set_name("__ROOT__");
         let root = pool.spawn(root);
         Self {
+            physics: Default::default(),
             stack: Vec::new(),
             root,
             pool,
@@ -144,6 +206,7 @@ impl Graph {
         for child in children {
             self.link_nodes(child, handle);
         }
+
         handle
     }
 
@@ -203,7 +266,21 @@ impl Graph {
             for &child in self.pool[handle].children().iter() {
                 self.stack.push(child);
             }
-            self.pool.free(handle);
+
+            // Remove associated entities.
+            let node = self.pool.free(handle);
+            match node {
+                Node::RigidBody(body) => {
+                    self.physics.remove_body(body.native.get());
+                }
+                Node::Collider(collider) => {
+                    self.physics.remove_collider(collider.native.get());
+                }
+                Node::Joint(joint) => {
+                    self.physics.remove_joint(joint.native.get());
+                }
+                _ => (),
+            }
         }
     }
 
@@ -216,6 +293,13 @@ impl Graph {
             let parent = &mut self.pool[parent_handle];
             if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
                 parent.children.remove(i);
+            }
+        }
+
+        // Remove native collider when detaching a collider node from rigid body node.
+        if let Node::Collider(ref mut collider) = self.pool[node_handle] {
+            if self.physics.remove_collider(collider.native.get()) {
+                collider.native.set(ColliderHandle::invalid());
             }
         }
     }
@@ -473,6 +557,11 @@ impl Graph {
         model_root_handle
     }
 
+    /// Casts a ray with given options.
+    pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
+        self.physics.cast_ray(opts, query_buffer)
+    }
+
     pub(in crate) fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Resolving graph...".to_owned());
 
@@ -521,7 +610,7 @@ impl Graph {
 
                             // Check if we can sync transform of the nodes with resource.
                             let resource_local_transform = resource_node.local_transform();
-                            let local_transform = node.local_transform_mut();
+                            let mut local_transform = node.local_transform_mut();
 
                             // Position.
                             if !local_transform.position().is_custom() {
@@ -576,6 +665,8 @@ impl Graph {
                                 local_transform
                                     .set_scaling_pivot(**resource_local_transform.scaling_pivot());
                             }
+
+                            drop(local_transform);
 
                             if let (Node::Mesh(mesh), Node::Mesh(resource_mesh)) =
                                 (node, resource_node)
@@ -767,27 +858,43 @@ impl Graph {
     /// need to know global transform of nodes before entering update loop, then you can call
     /// this method.
     pub fn update_hierarchical_data(&mut self) {
-        fn update_recursively(graph: &Graph, node_handle: Handle<Node>) {
-            let node = &graph.pool[node_handle];
+        fn update_recursively(
+            nodes: &Pool<Node>,
+            physics: &mut PhysicsWorld,
+            node_handle: Handle<Node>,
+        ) {
+            let node = &nodes[node_handle];
 
             let (parent_global_transform, parent_visibility) =
-                if let Some(parent) = graph.pool.try_borrow(node.parent()) {
+                if let Some(parent) = nodes.try_borrow(node.parent()) {
                     (parent.global_transform(), parent.global_visibility())
                 } else {
                     (Matrix4::identity(), true)
                 };
 
-            node.global_transform
-                .set(parent_global_transform * node.local_transform().matrix());
+            let new_global_transform = parent_global_transform * node.local_transform().matrix();
+
+            if let Node::RigidBody(rigid_body) = node {
+                // TODO: Detect changes from user code here.
+                let changed = new_global_transform
+                    .iter()
+                    .zip(node.global_transform().iter())
+                    .any(|(a, b)| (*a - *b).abs() >= 0.001);
+                if changed {
+                    physics.set_rigid_body_position(rigid_body, &new_global_transform);
+                }
+            }
+
+            node.global_transform.set(new_global_transform);
             node.global_visibility
                 .set(parent_visibility && node.visibility());
 
             for &child in node.children() {
-                update_recursively(graph, child);
+                update_recursively(nodes, physics, child);
             }
         }
 
-        update_recursively(self, self.root);
+        update_recursively(&self.pool, &mut self.physics, self.root);
     }
 
     /// Checks whether given node handle is valid or not.
@@ -795,11 +902,39 @@ impl Graph {
         self.pool.is_valid_handle(node_handle)
     }
 
+    fn sync_native_physics(&mut self) {
+        for (handle, node) in self.pool.pair_iter() {
+            match node {
+                Node::RigidBody(rigid_body) => {
+                    self.physics.sync_to_rigid_body_node(handle, rigid_body);
+                }
+                Node::Collider(collider) => {
+                    self.physics
+                        .sync_to_collider_node(&self.pool, handle, collider);
+                }
+                Node::Joint(joint) => {
+                    self.physics.sync_to_joint_node(&self.pool, handle, joint);
+                }
+                _ => (),
+            }
+        }
+    }
+
     /// Updates nodes in graph using given delta time. There is no need to call it manually.
-    pub fn update_nodes(&mut self, frame_size: Vector2<f32>, dt: f32) {
+    pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
+        self.physics.performance_statistics.reset();
+
+        let this = unsafe { &*(self as *const Graph) };
+
+        self.sync_native_physics();
+
         self.update_hierarchical_data();
 
+        self.physics.update();
+
         for i in 0..self.pool.get_capacity() {
+            let handle = self.pool.handle_from_index(i);
+
             if let Some(node) = self.pool.at_mut(i) {
                 let remove = if let Some(lifetime) = node.lifetime.as_mut() {
                     *lifetime -= dt;
@@ -809,8 +944,10 @@ impl Graph {
                 };
 
                 if remove {
-                    self.remove_node(self.pool.handle_from_index(i));
+                    self.remove_node(handle);
                 } else {
+                    node.transform_modified.set(false);
+
                     match node {
                         Node::Camera(camera) => {
                             camera.calculate_matrices(frame_size);
@@ -842,6 +979,12 @@ impl Graph {
                         Node::ParticleSystem(particle_system) => particle_system.update(dt),
                         Node::Terrain(terrain) => terrain.update(),
                         Node::Mesh(_) => self.pool.at(i).unwrap().as_mesh().update(self),
+                        // We have to sync rigid body parameters back after each physics step, hopefully there is
+                        // not many data that has to be synced.
+                        Node::RigidBody(rigid_body) => self.physics.sync_rigid_body_node(
+                            rigid_body,
+                            this.pool[rigid_body.parent].global_transform(),
+                        ),
                         _ => (),
                     }
                 }
@@ -1041,25 +1184,13 @@ impl Graph {
     /// Returns isometric local transformation matrix of a node. Such transform has
     /// only translation and rotation.
     pub fn isometric_local_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
-        let transform = self[node].local_transform();
-        TransformBuilder::new()
-            .with_local_position(**transform.position())
-            .with_local_rotation(**transform.rotation())
-            .with_pre_rotation(**transform.pre_rotation())
-            .with_post_rotation(**transform.post_rotation())
-            .build()
-            .matrix()
+        isometric_local_transform(&self.pool, node)
     }
 
     /// Returns world transformation matrix of a node only.  Such transform has
     /// only translation and rotation.
     pub fn isometric_global_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
-        let parent = self[node].parent();
-        if parent.is_some() {
-            self.isometric_global_transform(parent) * self.isometric_local_transform(node)
-        } else {
-            self.isometric_local_transform(node)
-        }
+        isometric_global_transform(&self.pool, node)
     }
 
     /// Returns global scale matrix of a node.
@@ -1183,6 +1314,9 @@ impl Visit for Graph {
 
         self.root.visit("Root", visitor)?;
         self.pool.visit("Pool", visitor)?;
+        // self.physics is not serialized intentionally! The data of physics entities stored
+        // inside graph nodes and corresponding physic entities will be re-created on first
+        // update iteration.
 
         visitor.leave_region()
     }

@@ -44,11 +44,11 @@ fn bounding_box(node: &Node) -> AxisAlignedBoundingBox {
         },
         Node::Mesh(mesh) => mesh.local_bounding_box(),
         Node::Sprite(sprite) => AxisAlignedBoundingBox::from_radius(sprite.size()),
-        Node::ParticleSystem(_) => {
+        Node::Terrain(terrain) => terrain.local_bounding_box(),
+        _ => {
             // TODO
             AxisAlignedBoundingBox::unit()
         }
-        Node::Terrain(terrain) => terrain.local_bounding_box(),
     };
 
     local_aabb.transform(&node.global_transform.get())

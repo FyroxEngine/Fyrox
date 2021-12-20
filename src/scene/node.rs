@@ -7,6 +7,9 @@
 use crate::asset::core::inspect::PropertyInfo;
 use crate::core::inspect::Inspect;
 use crate::core::math::aabb::AxisAlignedBoundingBox;
+use crate::scene::collider::Collider;
+use crate::scene::joint::Joint;
+use crate::scene::rigidbody::RigidBody;
 use crate::{
     core::{
         define_is_as,
@@ -32,6 +35,9 @@ macro_rules! static_dispatch {
             Node::Sprite(v) => v.$func($($args),*),
             Node::Terrain(v) => v.$func($($args),*),
             Node::Decal(v) => v.$func($($args),*),
+            Node::RigidBody(v) => v.$func($($args),*),
+            Node::Collider(v) => v.$func($($args),*),
+            Node::Joint(v) => v.$func($($args),*),
         }
     };
 }
@@ -151,6 +157,15 @@ pub enum Node {
     ///
     /// For more info see Decal node docs.
     Decal(Decal),
+
+    /// TODO
+    RigidBody(RigidBody),
+
+    /// TODO
+    Collider(Collider),
+
+    /// TODO
+    Joint(Joint),
 }
 
 macro_rules! static_dispatch_deref {
@@ -164,6 +179,9 @@ macro_rules! static_dispatch_deref {
             Node::Sprite(v) => v,
             Node::Terrain(v) => v,
             Node::Decal(v) => v,
+            Node::RigidBody(v) => v,
+            Node::Collider(v) => v,
+            Node::Joint(v) => v,
         }
     };
 }
@@ -210,6 +228,9 @@ impl Node {
             5 => Ok(Self::ParticleSystem(Default::default())),
             6 => Ok(Self::Terrain(Default::default())),
             7 => Ok(Self::Decal(Default::default())),
+            8 => Ok(Self::RigidBody(Default::default())),
+            9 => Ok(Self::Collider(Default::default())),
+            10 => Ok(Self::Joint(Default::default())),
             _ => Err(format!("Invalid node kind {}", id)),
         }
     }
@@ -225,6 +246,9 @@ impl Node {
             Self::ParticleSystem(_) => 5,
             Self::Terrain(_) => 6,
             Self::Decal(_) => 7,
+            Self::RigidBody(_) => 8,
+            Self::Collider(_) => 9,
+            Self::Joint(_) => 10,
         }
     }
 
@@ -241,6 +265,9 @@ impl Node {
             Node::ParticleSystem(v) => Node::ParticleSystem(v.raw_copy()),
             Node::Terrain(v) => Node::Terrain(v.raw_copy()),
             Node::Decal(v) => Node::Decal(v.raw_copy()),
+            Node::RigidBody(v) => Node::RigidBody(v.raw_copy()),
+            Node::Collider(v) => Node::Collider(v.raw_copy()),
+            Node::Joint(v) => Node::Joint(v.raw_copy()),
         }
     }
 
@@ -251,4 +278,7 @@ impl Node {
     define_is_as!(Node : Sprite -> ref Sprite => fn is_sprite, fn as_sprite, fn as_sprite_mut);
     define_is_as!(Node : Terrain -> ref Terrain => fn is_terrain, fn as_terrain, fn as_terrain_mut);
     define_is_as!(Node : Decal -> ref Decal => fn is_decal, fn as_decal, fn as_decal_mut);
+    define_is_as!(Node : RigidBody -> ref RigidBody => fn is_rigid_body, fn as_rigid_body, fn as_rigid_body_mut);
+    define_is_as!(Node : Collider -> ref Collider => fn is_collider, fn as_collider, fn as_collider_mut);
+    define_is_as!(Node : Joint -> ref Joint => fn is_joint, fn as_joint, fn as_joint_mut);
 }

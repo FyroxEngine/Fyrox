@@ -25,7 +25,6 @@ mod log;
 mod material;
 mod menu;
 mod overlay;
-mod physics;
 mod preview;
 mod project_dirs;
 mod scene;
@@ -55,7 +54,6 @@ use crate::{
     material::MaterialEditor,
     menu::{Menu, MenuContext, Panels},
     overlay::OverlayRenderPass,
-    physics::Physics,
     scene::{
         commands::{
             graph::AddModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
@@ -1098,10 +1096,6 @@ impl Editor {
         self.sync_to_model(engine);
         poll_ui_messages(self, engine);
 
-        // Disable binder so we'll have full control over node's transform even if
-        // it has a physical body.
-        scene.physics_binder.enabled = false;
-
         scene.render_target = Some(Texture::new_render_target(0, 0));
         engine.user_interface.send_message(ImageMessage::texture(
             self.preview.frame,
@@ -1412,7 +1406,6 @@ impl Editor {
                                         editor_scene.clipboard.fill_from_selection(
                                             graph_selection,
                                             editor_scene.scene,
-                                            &editor_scene.physics,
                                             engine,
                                         );
                                     }
@@ -2029,14 +2022,11 @@ impl Editor {
                 self.settings.debugging.show_bounds,
             );
 
-            if self.settings.debugging.show_physics {
-                editor_scene
-                    .physics
-                    .draw(&mut scene.drawing_context, &scene.graph);
-            }
-
             let graph = &mut scene.graph;
 
+            if self.settings.debugging.show_physics {
+                graph.physics.draw(&mut scene.drawing_context);
+            }
             editor_scene.camera_controller.update(graph, dt);
 
             if let Some(mode) = self.current_interaction_mode {

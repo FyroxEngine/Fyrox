@@ -41,7 +41,7 @@ use rg3d_core::{
 use fxhash::FxHashMap;
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
-#[derive(Copy, Clone, Debug, Inspect)]
+#[derive(Copy, Clone, Debug)]
 #[repr(u32)]
 #[doc(hidden)]
 pub enum RigidBodyTypeDesc {
@@ -106,7 +106,7 @@ impl From<RigidBodyTypeDesc> for RigidBodyType {
     }
 }
 
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct RigidBodyDesc<C>
 where
@@ -116,11 +116,9 @@ where
     pub rotation: Rotation<f32>,
     pub lin_vel: Vector<f32>,
     pub ang_vel: AngVector<f32>,
-    #[inspect(read_only)]
     pub sleeping: bool,
     pub status: RigidBodyTypeDesc,
     pub colliders: Vec<C>,
-    #[inspect(min_value = 0.0, step = 0.05)]
     pub mass: f32,
     #[cfg(feature = "dim3")]
     pub x_rotation_locked: bool,
@@ -241,65 +239,56 @@ where
     }
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct BallDesc {
-    #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct CylinderDesc {
-    #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
-    #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct RoundCylinderDesc {
-    #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
-    #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
-    #[inspect(min_value = 0.0, step = 0.05)]
     pub border_radius: f32,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct ConeDesc {
-    #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
-    #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct CuboidDesc {
     pub half_extents: Vector<f32>,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct CapsuleDesc {
     pub begin: Vector<f32>,
     pub end: Vector<f32>,
-    #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct SegmentDesc {
     pub begin: Vector<f32>,
     pub end: Vector<f32>,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct TriangleDesc {
     pub a: Vector<f32>,
@@ -310,7 +299,7 @@ pub struct TriangleDesc {
 // TODO: for now data of trimesh and heightfield is not serializable.
 //  In most cases it is ok, because PhysicsBinder allows to automatically
 //  obtain data from associated mesh.
-#[derive(Default, Copy, Clone, Debug, Inspect)]
+#[derive(Default, Copy, Clone, Debug)]
 #[doc(hidden)]
 pub struct TrimeshDesc;
 
@@ -321,7 +310,7 @@ impl Visit for TrimeshDesc {
     }
 }
 
-#[derive(Default, Copy, Clone, Debug, Inspect)]
+#[derive(Default, Copy, Clone, Debug)]
 #[doc(hidden)]
 pub struct HeightfieldDesc;
 
@@ -348,26 +337,6 @@ pub enum ColliderShapeDesc {
     Triangle(TriangleDesc),
     Trimesh(TrimeshDesc),
     Heightfield(HeightfieldDesc),
-}
-
-impl Inspect for ColliderShapeDesc {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        match self {
-            ColliderShapeDesc::Ball(v) => v.properties(),
-            #[cfg(feature = "dim3")]
-            ColliderShapeDesc::Cylinder(v) => v.properties(),
-            #[cfg(feature = "dim3")]
-            ColliderShapeDesc::RoundCylinder(v) => v.properties(),
-            #[cfg(feature = "dim3")]
-            ColliderShapeDesc::Cone(v) => v.properties(),
-            ColliderShapeDesc::Cuboid(v) => v.properties(),
-            ColliderShapeDesc::Capsule(v) => v.properties(),
-            ColliderShapeDesc::Segment(v) => v.properties(),
-            ColliderShapeDesc::Triangle(v) => v.properties(),
-            ColliderShapeDesc::Trimesh(v) => v.properties(),
-            ColliderShapeDesc::Heightfield(v) => v.properties(),
-        }
-    }
 }
 
 impl Default for ColliderShapeDesc {
@@ -581,19 +550,16 @@ impl Visit for ColliderShapeDesc {
     }
 }
 
-#[derive(Clone, Debug, Inspect)]
+#[derive(Clone, Debug)]
 #[doc(hidden)]
 pub struct ColliderDesc<R>
 where
     R: Debug + Send + Sync + 'static,
 {
     pub shape: ColliderShapeDesc,
-    #[inspect(read_only)]
     pub parent: R,
-    #[inspect(min_value = 0.0, step = 0.05)]
     pub friction: f32,
     pub density: Option<f32>,
-    #[inspect(min_value = 0.0, step = 0.05)]
     pub restitution: f32,
     pub is_sensor: bool,
     pub translation: Vector<f32>,
@@ -603,7 +569,7 @@ where
 }
 
 #[doc(hidden)]
-#[derive(Visit, Debug, Clone, Copy, Inspect)]
+#[derive(Visit, Debug, Clone, Copy)]
 pub struct InteractionGroupsDesc {
     pub memberships: u32,
     pub filter: u32,
@@ -838,14 +804,14 @@ impl Visit for IntegrationParametersDesc {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct BallJointDesc {
     pub local_anchor1: Vector<f32>,
     pub local_anchor2: Vector<f32>,
 }
 
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct FixedJointDesc {
     pub local_anchor1_translation: Vector<f32>,
@@ -880,7 +846,7 @@ impl Default for FixedJointDesc {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct PrismaticJointDesc {
     pub local_anchor1: Vector<f32>,
@@ -890,7 +856,7 @@ pub struct PrismaticJointDesc {
 }
 
 #[cfg(feature = "dim3")]
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct RevoluteJointDesc {
     pub local_anchor1: Vector<f32>,
@@ -901,7 +867,7 @@ pub struct RevoluteJointDesc {
 
 #[derive(Clone, Debug)]
 #[doc(hidden)]
-pub enum JointParamsDesc {
+pub enum LegacyJointParamsDesc {
     BallJoint(BallJointDesc),
     FixedJoint(FixedJointDesc),
     PrismaticJoint(PrismaticJointDesc),
@@ -909,32 +875,20 @@ pub enum JointParamsDesc {
     RevoluteJoint(RevoluteJointDesc),
 }
 
-impl Inspect for JointParamsDesc {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        match self {
-            JointParamsDesc::BallJoint(v) => v.properties(),
-            JointParamsDesc::FixedJoint(v) => v.properties(),
-            JointParamsDesc::PrismaticJoint(v) => v.properties(),
-            #[cfg(feature = "dim3")]
-            JointParamsDesc::RevoluteJoint(v) => v.properties(),
-        }
-    }
-}
-
-impl Default for JointParamsDesc {
+impl Default for LegacyJointParamsDesc {
     fn default() -> Self {
         Self::BallJoint(Default::default())
     }
 }
 
-impl From<JointParamsDesc> for JointParams {
-    fn from(params: JointParamsDesc) -> Self {
+impl From<LegacyJointParamsDesc> for JointParams {
+    fn from(params: LegacyJointParamsDesc) -> Self {
         match params {
-            JointParamsDesc::BallJoint(v) => JointParams::from(BallJoint::new(
+            LegacyJointParamsDesc::BallJoint(v) => JointParams::from(BallJoint::new(
                 Point::from(v.local_anchor1),
                 Point::from(v.local_anchor2),
             )),
-            JointParamsDesc::FixedJoint(v) => JointParams::from(FixedJoint::new(
+            LegacyJointParamsDesc::FixedJoint(v) => JointParams::from(FixedJoint::new(
                 Isometry {
                     translation: Translation {
                         vector: v.local_anchor1_translation,
@@ -948,7 +902,7 @@ impl From<JointParamsDesc> for JointParams {
                     rotation: v.local_anchor2_rotation,
                 },
             )),
-            JointParamsDesc::PrismaticJoint(v) => JointParams::from(
+            LegacyJointParamsDesc::PrismaticJoint(v) => JointParams::from(
                 #[cfg(feature = "dim3")]
                 {
                     PrismaticJoint::new(
@@ -971,7 +925,7 @@ impl From<JointParamsDesc> for JointParams {
                 },
             ),
             #[cfg(feature = "dim3")]
-            JointParamsDesc::RevoluteJoint(v) => JointParams::from(RevoluteJoint::new(
+            LegacyJointParamsDesc::RevoluteJoint(v) => JointParams::from(RevoluteJoint::new(
                 Point::from(v.local_anchor1),
                 Unit::<Vector<f32>>::new_normalize(v.local_axis1),
                 Point::from(v.local_anchor2),
@@ -981,15 +935,15 @@ impl From<JointParamsDesc> for JointParams {
     }
 }
 
-impl JointParamsDesc {
+impl LegacyJointParamsDesc {
     #[doc(hidden)]
     pub fn id(&self) -> u32 {
         match self {
-            JointParamsDesc::BallJoint(_) => 0,
-            JointParamsDesc::FixedJoint(_) => 1,
-            JointParamsDesc::PrismaticJoint(_) => 2,
+            LegacyJointParamsDesc::BallJoint(_) => 0,
+            LegacyJointParamsDesc::FixedJoint(_) => 1,
+            LegacyJointParamsDesc::PrismaticJoint(_) => 2,
             #[cfg(feature = "dim3")]
-            JointParamsDesc::RevoluteJoint(_) => 3,
+            LegacyJointParamsDesc::RevoluteJoint(_) => 3,
         }
     }
 
@@ -1006,7 +960,7 @@ impl JointParamsDesc {
     }
 }
 
-impl Visit for JointParamsDesc {
+impl Visit for LegacyJointParamsDesc {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -1016,18 +970,18 @@ impl Visit for JointParamsDesc {
             *self = Self::from_id(id)?;
         }
         match self {
-            JointParamsDesc::BallJoint(v) => v.visit("Data", visitor)?,
-            JointParamsDesc::FixedJoint(v) => v.visit("Data", visitor)?,
-            JointParamsDesc::PrismaticJoint(v) => v.visit("Data", visitor)?,
+            LegacyJointParamsDesc::BallJoint(v) => v.visit("Data", visitor)?,
+            LegacyJointParamsDesc::FixedJoint(v) => v.visit("Data", visitor)?,
+            LegacyJointParamsDesc::PrismaticJoint(v) => v.visit("Data", visitor)?,
             #[cfg(feature = "dim3")]
-            JointParamsDesc::RevoluteJoint(v) => v.visit("Data", visitor)?,
+            LegacyJointParamsDesc::RevoluteJoint(v) => v.visit("Data", visitor)?,
         }
 
         visitor.leave_region()
     }
 }
 
-impl JointParamsDesc {
+impl LegacyJointParamsDesc {
     #[doc(hidden)]
     pub fn from_params(params: &JointParams) -> Self {
         match params {
@@ -1058,7 +1012,7 @@ impl JointParamsDesc {
     }
 }
 
-#[derive(Clone, Debug, Default, Visit, Inspect)]
+#[derive(Clone, Debug, Default, Visit)]
 #[doc(hidden)]
 pub struct JointDesc<R>
 where
@@ -1066,7 +1020,7 @@ where
 {
     pub body1: R,
     pub body2: R,
-    pub params: JointParamsDesc,
+    pub params: LegacyJointParamsDesc,
 }
 
 impl<R> JointDesc<R>
@@ -1078,7 +1032,7 @@ where
         Self {
             body1: handle_map.key_of(&joint.body1).cloned().unwrap(),
             body2: handle_map.key_of(&joint.body2).cloned().unwrap(),
-            params: JointParamsDesc::from_params(&joint.params),
+            params: LegacyJointParamsDesc::from_params(&joint.params),
         }
     }
 }
