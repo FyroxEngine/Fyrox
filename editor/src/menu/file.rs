@@ -163,7 +163,7 @@ impl FileMenu {
             }
         } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.save {
-                if let Some(scene_path) = editor_scene.as_ref().map(|s| s.path.as_ref()).flatten() {
+                if let Some(scene_path) = editor_scene.as_ref().and_then(|s| s.path.as_ref()) {
                     sender.send(Message::SaveScene(scene_path.clone())).unwrap();
                 } else {
                     // If scene wasn't saved yet - open Save As window.

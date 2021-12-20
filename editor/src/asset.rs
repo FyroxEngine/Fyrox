@@ -141,8 +141,7 @@ impl AssetItemBuilder {
         let path = self.path.unwrap_or_default();
         let mut kind = AssetKind::Unknown;
         let texture = path
-            .extension()
-            .map(|ext| match ext.to_string_lossy().to_lowercase().as_ref() {
+            .extension().and_then(|ext| match ext.to_string_lossy().to_lowercase().as_ref() {
                 "jpg" | "tga" | "png" | "bmp" => {
                     kind = AssetKind::Texture;
                     Some(into_gui_texture(
@@ -162,8 +161,7 @@ impl AssetItemBuilder {
                     load_image(include_bytes!("../resources/embed/shader.png"))
                 }
                 _ => None,
-            })
-            .flatten();
+            });
 
         let preview = ImageBuilder::new(
             WidgetBuilder::new()
@@ -193,10 +191,9 @@ impl AssetItemBuilder {
                                 )
                                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
                                 .with_text(
-                                    path.file_name()
+                                    &path.file_name()
                                         .unwrap_or_default()
-                                        .to_string_lossy()
-                                        .to_string(),
+                                        .to_string_lossy(),
                                 )
                                 .build(ctx),
                             ),
