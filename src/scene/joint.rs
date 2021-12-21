@@ -140,7 +140,7 @@ bitflags! {
 }
 
 /// Joint is used to restrict motion of two rigid bodies. There are numerous examples of joints in
-/// real life: hinge
+/// real life: door hinge, ball joints in human arms, etc.
 #[derive(Visit, Inspect, Debug)]
 pub struct Joint {
     base: Base,

@@ -1,14 +1,12 @@
+use crate::scene::graph::Graph;
+use crate::scene::node::Node;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::prelude::*,
     },
-    scene2d::{
-        graph::Graph,
-        light::{BaseLight, BaseLightBuilder, Light},
-        node::Node,
-    },
+    scene::dim2::light::{BaseLight, BaseLightBuilder, Light},
 };
 use std::ops::{Deref, DerefMut};
 
@@ -73,7 +71,7 @@ impl PointLightBuilder {
     }
 
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(Node::Light(Light::Point(PointLight {
+        graph.add_node(Node::Light2D(Light::Point(PointLight {
             base_light: self.base_light_builder.build(),
             radius: self.radius,
         })))

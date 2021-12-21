@@ -10,6 +10,7 @@ pub mod camera;
 pub mod collider;
 pub mod debug;
 pub mod decal;
+pub mod dim2;
 pub mod graph;
 pub mod joint;
 pub mod legacy_physics;
@@ -24,6 +25,7 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
+use crate::scene::base::legacy::PhysicsBinding;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -62,7 +64,6 @@ use crate::{
         rigidbody::{RigidBodyBuilder, RigidBodyType},
         transform::TransformBuilder,
     },
-    scene2d::PhysicsBinding,
     sound::{context::SoundContext, engine::SoundEngine},
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
@@ -500,24 +501,22 @@ impl Scene {
                 }
 
                 let collider_handle = ColliderBuilder::new(
-                    BaseBuilder::new()
-                        .with_name(name)
-                        .with_local_transform(
-                            TransformBuilder::new()
-                                .with_local_position(
-                                    collider_ref
-                                        .position_wrt_parent()
-                                        .map(|p| p.translation.vector)
-                                        .unwrap_or_default(),
-                                )
-                                .with_local_rotation(
-                                    collider_ref
-                                        .position_wrt_parent()
-                                        .map(|p| p.rotation)
-                                        .unwrap_or_default(),
-                                )
-                                .build(),
-                        ),
+                    BaseBuilder::new().with_name(name).with_local_transform(
+                        TransformBuilder::new()
+                            .with_local_position(
+                                collider_ref
+                                    .position_wrt_parent()
+                                    .map(|p| p.translation.vector)
+                                    .unwrap_or_default(),
+                            )
+                            .with_local_rotation(
+                                collider_ref
+                                    .position_wrt_parent()
+                                    .map(|p| p.rotation)
+                                    .unwrap_or_default(),
+                            )
+                            .build(),
+                    ),
                 )
                 .with_friction_combine_rule(collider_ref.friction_combine_rule().into())
                 .with_restitution_combine_rule(collider_ref.restitution_combine_rule().into())

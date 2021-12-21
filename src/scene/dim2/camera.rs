@@ -1,17 +1,13 @@
-use crate::{
-    core::{
-        algebra::{Matrix4, Vector2},
-        inspect::{Inspect, PropertyInfo},
-        math::Rect,
-        pool::Handle,
-        visitor::prelude::*,
-    },
-    scene2d::{
-        base::{Base, BaseBuilder},
-        graph::Graph,
-        node::Node,
-    },
+use crate::core::{
+    algebra::{Matrix4, Vector2},
+    inspect::{Inspect, PropertyInfo},
+    math::Rect,
+    pool::Handle,
+    visitor::prelude::*,
 };
+use crate::scene::base::{Base, BaseBuilder};
+use crate::scene::graph::Graph;
+use crate::scene::node::Node;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Visit, Inspect, Debug)]
@@ -131,7 +127,7 @@ impl CameraBuilder {
     }
 
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(Node::Camera(Camera {
+        graph.add_node(Node::Camera2D(Camera {
             base: self.base_builder.build_base(),
             viewport: self.viewport,
             view_matrix: Matrix4::identity(),

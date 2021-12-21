@@ -1,3 +1,6 @@
+use crate::scene::base::{Base, BaseBuilder};
+use crate::scene::graph::Graph;
+use crate::scene::node::Node;
 use crate::{
     core::{
         algebra::{Point3, Vector2},
@@ -8,11 +11,6 @@ use crate::{
         visitor::prelude::*,
     },
     resource::texture::Texture,
-    scene2d::{
-        base::{Base, BaseBuilder},
-        graph::Graph,
-        node::Node,
-    },
 };
 use std::ops::{Deref, DerefMut};
 
@@ -76,14 +74,14 @@ impl Sprite {
 
     pub fn local_bounds(&self) -> Rect<f32> {
         Rect {
-            position: self.local_transform().position(),
+            position: self.local_transform().position().xy(),
             size: Vector2::new(self.size, self.size),
         }
     }
 
     pub fn global_bounds(&self) -> Rect<f32> {
         let mut bounds = Rect::default();
-        let local_top_left = self.local_transform().position();
+        let local_top_left = self.local_transform().position().xy();
         let local_bottom_right = local_top_left + Vector2::new(self.size, self.size);
         let global_top_left = self
             .global_transform()
@@ -145,7 +143,7 @@ impl SpriteBuilder {
     }
 
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(Node::Sprite(Sprite {
+        graph.add_node(Node::Sprite2D(Sprite {
             base: self.base_builder.build_base(),
             texture: self.texture,
             color: self.color,

@@ -4,20 +4,18 @@
 
 #![warn(missing_docs)]
 
-use crate::asset::core::inspect::PropertyInfo;
-use crate::core::inspect::Inspect;
-use crate::core::math::aabb::AxisAlignedBoundingBox;
-use crate::scene::collider::Collider;
-use crate::scene::joint::Joint;
-use crate::scene::rigidbody::RigidBody;
 use crate::{
+    asset::core::inspect::PropertyInfo,
     core::{
         define_is_as,
+        inspect::Inspect,
+        math::aabb::AxisAlignedBoundingBox,
         visitor::{Visit, VisitResult, Visitor},
     },
     scene::{
-        base::Base, camera::Camera, decal::Decal, light::Light, mesh::Mesh,
-        particle_system::ParticleSystem, sprite::Sprite, terrain::Terrain,
+        base::Base, camera::Camera, collider::Collider, decal::Decal, dim2, joint::Joint,
+        light::Light, mesh::Mesh, particle_system::ParticleSystem, rigidbody::RigidBody,
+        sprite::Sprite, terrain::Terrain,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -38,6 +36,9 @@ macro_rules! static_dispatch {
             Node::RigidBody(v) => v.$func($($args),*),
             Node::Collider(v) => v.$func($($args),*),
             Node::Joint(v) => v.$func($($args),*),
+            Node::Camera2D(v) => v.$func($($args),*),
+            Node::Sprite2D(v) => v.$func($($args),*),
+            Node::Light2D(v) => v.$func($($args),*),
         }
     };
 }
@@ -158,14 +159,23 @@ pub enum Node {
     /// For more info see Decal node docs.
     Decal(Decal),
 
-    /// TODO
+    /// See [`RigidBody`] node docs.
     RigidBody(RigidBody),
 
-    /// TODO
+    /// See [`Collider`] node docs.
     Collider(Collider),
 
-    /// TODO
+    /// See [`Joint`] node docs.
     Joint(Joint),
+
+    /// 2D Camera node.
+    Camera2D(dim2::camera::Camera),
+
+    /// 2D Sprite node.
+    Sprite2D(dim2::sprite::Sprite),
+
+    /// 2D Light node.
+    Light2D(dim2::light::Light),
 }
 
 macro_rules! static_dispatch_deref {
@@ -182,6 +192,9 @@ macro_rules! static_dispatch_deref {
             Node::RigidBody(v) => v,
             Node::Collider(v) => v,
             Node::Joint(v) => v,
+            Node::Camera2D(v) => v,
+            Node::Sprite2D(v) => v,
+            Node::Light2D(v) => v,
         }
     };
 }
@@ -231,6 +244,9 @@ impl Node {
             8 => Ok(Self::RigidBody(Default::default())),
             9 => Ok(Self::Collider(Default::default())),
             10 => Ok(Self::Joint(Default::default())),
+            11 => Ok(Self::Camera2D(Default::default())),
+            12 => Ok(Self::Sprite2D(Default::default())),
+            13 => Ok(Self::Light2D(Default::default())),
             _ => Err(format!("Invalid node kind {}", id)),
         }
     }
@@ -249,6 +265,9 @@ impl Node {
             Self::RigidBody(_) => 8,
             Self::Collider(_) => 9,
             Self::Joint(_) => 10,
+            Self::Camera2D(_) => 11,
+            Self::Sprite2D(_) => 12,
+            Self::Light2D(_) => 13,
         }
     }
 
@@ -268,6 +287,9 @@ impl Node {
             Node::RigidBody(v) => Node::RigidBody(v.raw_copy()),
             Node::Collider(v) => Node::Collider(v.raw_copy()),
             Node::Joint(v) => Node::Joint(v.raw_copy()),
+            Node::Camera2D(v) => Node::Camera2D(v.raw_copy()),
+            Node::Sprite2D(v) => Node::Sprite2D(v.raw_copy()),
+            Node::Light2D(v) => Node::Light2D(v.raw_copy()),
         }
     }
 

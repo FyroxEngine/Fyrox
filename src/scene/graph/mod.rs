@@ -985,6 +985,7 @@ impl Graph {
                             rigid_body,
                             this.pool[rigid_body.parent].global_transform(),
                         ),
+                        Node::Camera2D(camera) => camera.update(frame_size),
                         _ => (),
                     }
                 }
