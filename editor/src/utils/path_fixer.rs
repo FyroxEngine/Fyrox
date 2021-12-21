@@ -408,7 +408,10 @@ impl PathFixer {
                                             }
                                         }
                                     }
-                                    Node::Base(_) => {
+                                    Node::Base(_)
+                                    | Node::RigidBody(_)
+                                    | Node::Collider(_)
+                                    | Node::Joint(_) => {
                                         // Nothing
                                     }
                                 }
@@ -433,7 +436,7 @@ impl PathFixer {
                                                     .with_foreground(Brush::Solid(Color::RED)),
                                             )
                                             .with_vertical_text_alignment(VerticalAlignment::Center)
-                                            .with_text(r.path().to_string_lossy().to_string())
+                                            .with_text(&r.path().to_string_lossy())
                                             .build(ctx),
                                         ),
                                     ))

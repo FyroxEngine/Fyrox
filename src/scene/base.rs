@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Base`]
 
+use crate::scene2d::PhysicsBinding;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -13,55 +14,10 @@ use crate::{
     resource::model::Model,
     scene::{graph::Graph, node::Node, transform::Transform},
 };
-use std::cell::Cell;
-use std::ops::{Deref, DerefMut};
-
-/// Defines a kind of binding between rigid body and a scene node. Check variants
-/// for more info.
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Inspect)]
-#[repr(u32)]
-pub enum PhysicsBinding {
-    /// Forces engine to sync transform of a node with its associated rigid body.
-    /// This is default binding.
-    NodeWithBody = 0,
-
-    /// Forces engine to sync transform of a rigid body with its associated node. This could be useful for
-    /// specific situations like add "hit boxes" to a character.
-    ///
-    /// # Use cases
-    ///
-    /// This option has limited usage, but the most common is to create hit boxes. To do that create kinematic
-    /// rigid bodies with appropriate colliders and set [`PhysicsBinding::BodyWithNode`] binding to make them
-    /// move together with parent nodes.
-    BodyWithNode = 1,
-}
-
-impl Default for PhysicsBinding {
-    fn default() -> Self {
-        Self::NodeWithBody
-    }
-}
-
-impl PhysicsBinding {
-    fn from_id(id: u32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::NodeWithBody),
-            1 => Ok(Self::BodyWithNode),
-            _ => Err(format!("Invalid physics binding id {}!", id)),
-        }
-    }
-}
-
-impl Visit for PhysicsBinding {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut id = *self as u32;
-        id.visit(name, visitor)?;
-        if visitor.is_reading() {
-            *self = Self::from_id(id)?;
-        }
-        Ok(())
-    }
-}
+use std::{
+    cell::Cell,
+    ops::{Deref, DerefMut},
+};
 
 /// A handle to scene node that will be controlled by LOD system.
 #[derive(Inspect, Default, Debug, Clone, Copy, PartialEq, Hash)]
@@ -282,6 +238,31 @@ pub struct Property {
     pub value: PropertyValue,
 }
 
+#[doc(hidden)]
+pub struct LocalTransformRefMut<'a> {
+    parent: &'a mut Base,
+}
+
+impl<'a> Drop for LocalTransformRefMut<'a> {
+    fn drop(&mut self) {
+        self.parent.transform_modified.set(true);
+    }
+}
+
+impl<'a> Deref for LocalTransformRefMut<'a> {
+    type Target = Transform;
+
+    fn deref(&self) -> &Self::Target {
+        &self.parent.local_transform
+    }
+}
+
+impl<'a> DerefMut for LocalTransformRefMut<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.parent.local_transform
+    }
+}
+
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -304,7 +285,7 @@ pub struct Property {
 #[derive(Debug, Inspect)]
 pub struct Base {
     name: String,
-    local_transform: Transform,
+    pub(crate) local_transform: Transform,
     visibility: bool,
     #[inspect(skip)]
     pub(in crate) global_visibility: Cell<bool>,
@@ -338,10 +319,15 @@ pub struct Base {
     lod_group: Option<LodGroup>,
     mobility: Mobility,
     tag: String,
-    pub(in crate) physics_binding: PhysicsBinding,
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
     pub properties: Vec<Property>,
+    #[inspect(skip)]
+    pub(in crate) transform_modified: Cell<bool>,
+
+    // Legacy.
+    #[inspect(skip)]
+    pub(in crate) physics_binding: PhysicsBinding,
 }
 
 impl Base {
@@ -369,8 +355,8 @@ impl Base {
 
     /// Returns mutable reference to local transform of a node, can be used to set
     /// some local spatial properties, such as position, rotation, scale, etc.
-    pub fn local_transform_mut(&mut self) -> &mut Transform {
-        &mut self.local_transform
+    pub fn local_transform_mut(&mut self) -> LocalTransformRefMut {
+        LocalTransformRefMut { parent: self }
     }
 
     /// Sets new local transform of a node.
@@ -574,16 +560,6 @@ impl Base {
         self.tag = tag;
     }
 
-    /// Returns current physics binding kind.
-    pub fn physics_binding(&self) -> PhysicsBinding {
-        self.physics_binding
-    }
-
-    /// Sets new kind of physics binding.
-    pub fn set_physics_binding(&mut self, binding: PhysicsBinding) {
-        self.physics_binding = binding;
-    }
-
     /// Shallow copy of node data. You should never use this directly, shallow copy
     /// will produce invalid node in most cases!
     pub fn raw_copy(&self) -> Self {
@@ -599,7 +575,6 @@ impl Base {
             lifetime: self.lifetime,
             mobility: self.mobility,
             tag: self.tag.clone(),
-            physics_binding: self.physics_binding,
             lod_group: self.lod_group.clone(),
             properties: self.properties.clone(),
 
@@ -608,6 +583,8 @@ impl Base {
             parent: Default::default(),
             children: Default::default(),
             depth_offset: Default::default(),
+            transform_modified: Cell::new(false),
+            physics_binding: Default::default(),
         }
     }
 }
@@ -637,8 +614,8 @@ impl Visit for Base {
         self.original_handle_in_resource
             .visit("Original", visitor)?;
         self.tag.visit("Tag", visitor)?;
-        self.physics_binding.visit("PhysicsBinding", visitor)?;
         let _ = self.properties.visit("Properties", visitor);
+        let _ = self.physics_binding.visit("PhysicsBinding", visitor);
 
         visitor.leave_region()
     }
@@ -766,8 +743,9 @@ impl BaseBuilder {
             lod_group: self.lod_group,
             mobility: self.mobility,
             tag: self.tag,
-            physics_binding: PhysicsBinding::NodeWithBody,
             properties: Default::default(),
+            transform_modified: Cell::new(false),
+            physics_binding: Default::default(),
         }
     }
 

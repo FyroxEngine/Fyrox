@@ -1,6 +1,6 @@
-use crate::inspector::editors::handle::HandlePropertyEditorDefinition;
 use crate::{
     inspector::editors::{
+        handle::HandlePropertyEditorDefinition,
         material::MaterialPropertyEditorDefinition,
         resource::{
             ModelResourcePropertyEditorDefinition, SoundBufferResourcePropertyEditorDefinition,
@@ -9,7 +9,7 @@ use crate::{
     },
     Message,
 };
-use rg3d::scene::base::LodControlledObject;
+use rg3d::scene::collider::GeometrySource;
 use rg3d::{
     core::{inspect::Inspect, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
     gui::inspector::editors::{
@@ -17,14 +17,14 @@ use rg3d::{
         enumeration::EnumPropertyEditorDefinition,
         inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
-    physics3d::{
-        self,
-        desc::{ColliderShapeDesc, InteractionGroupsDesc, JointParamsDesc},
-    },
     scene::{
         self,
-        base::{Base, LevelOfDetail, LodGroup, Mobility, PhysicsBinding, Property, PropertyValue},
+        base::{
+            Base, LevelOfDetail, LodControlledObject, LodGroup, Mobility, Property, PropertyValue,
+        },
         camera::{ColorGradingLut, Exposure, SkyBox},
+        collider::{ColliderShape, InteractionGroups},
+        joint::*,
         light::{
             directional::{CsmOptions, FrustumSplitOptions},
             BaseLight,
@@ -32,6 +32,7 @@ use rg3d::{
         mesh::{surface::Surface, RenderPath},
         node::Node,
         particle_system::emitter::{base::BaseEmitter, Emitter},
+        rigidbody::RigidBodyType,
         terrain::Layer,
     },
     scene2d,
@@ -43,19 +44,6 @@ pub mod handle;
 pub mod material;
 pub mod resource;
 pub mod texture;
-
-pub fn make_physics_binding_enum_editor_definition() -> EnumPropertyEditorDefinition<PhysicsBinding>
-{
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => PhysicsBinding::NodeWithBody,
-            1 => PhysicsBinding::BodyWithNode,
-            _ => unreachable!(),
-        },
-        index_generator: |v| *v as usize,
-        names_generator: || vec!["Node With Body".to_string(), "Body With Node".to_string()],
-    }
-}
 
 pub fn make_mobility_enum_editor_definition() -> EnumPropertyEditorDefinition<Mobility> {
     EnumPropertyEditorDefinition {
@@ -122,14 +110,13 @@ pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Stat
     }
 }
 
-pub fn make_rigid_body_type_editor_definition(
-) -> EnumPropertyEditorDefinition<physics3d::desc::RigidBodyTypeDesc> {
+pub fn make_rigid_body_type_editor_definition() -> EnumPropertyEditorDefinition<RigidBodyType> {
     EnumPropertyEditorDefinition {
         variant_generator: |i| match i {
-            0 => physics3d::desc::RigidBodyTypeDesc::Dynamic,
-            1 => physics3d::desc::RigidBodyTypeDesc::Static,
-            2 => physics3d::desc::RigidBodyTypeDesc::KinematicPositionBased,
-            3 => physics3d::desc::RigidBodyTypeDesc::KinematicVelocityBased,
+            0 => RigidBodyType::Dynamic,
+            1 => RigidBodyType::Static,
+            2 => RigidBodyType::KinematicPositionBased,
+            3 => RigidBodyType::KinematicVelocityBased,
             _ => unreachable!(),
         },
         index_generator: |v| *v as usize,
@@ -146,7 +133,7 @@ pub fn make_rigid_body_type_editor_definition(
 
 pub fn make_option_editor_definition<T>() -> EnumPropertyEditorDefinition<Option<T>>
 where
-    T: Inspect + Default + Debug + Send + Sync + 'static,
+    T: Inspect + Default + Debug + 'static,
 {
     EnumPropertyEditorDefinition {
         variant_generator: |i| match i {
@@ -233,6 +220,47 @@ pub fn make_property_enum_editor_definition() -> EnumPropertyEditorDefinition<Pr
     }
 }
 
+pub fn make_shape_property_editor_definition() -> EnumPropertyEditorDefinition<ColliderShape> {
+    EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => ColliderShape::Ball(Default::default()),
+            1 => ColliderShape::Cylinder(Default::default()),
+            2 => ColliderShape::Cone(Default::default()),
+            3 => ColliderShape::Cuboid(Default::default()),
+            4 => ColliderShape::Capsule(Default::default()),
+            5 => ColliderShape::Segment(Default::default()),
+            6 => ColliderShape::Triangle(Default::default()),
+            7 => ColliderShape::Trimesh(Default::default()),
+            8 => ColliderShape::Heightfield(Default::default()),
+            _ => unreachable!(),
+        },
+        index_generator: |v| match v {
+            ColliderShape::Ball(_) => 0,
+            ColliderShape::Cylinder(_) => 1,
+            ColliderShape::Cone(_) => 2,
+            ColliderShape::Cuboid(_) => 3,
+            ColliderShape::Capsule(_) => 4,
+            ColliderShape::Segment(_) => 5,
+            ColliderShape::Triangle(_) => 6,
+            ColliderShape::Trimesh(_) => 7,
+            ColliderShape::Heightfield(_) => 8,
+        },
+        names_generator: || {
+            vec![
+                "Ball".to_string(),
+                "Cylinder".to_string(),
+                "Cone".to_string(),
+                "Cuboid".to_string(),
+                "Capsule".to_string(),
+                "Segment".to_string(),
+                "Triangle".to_string(),
+                "Trimesh".to_string(),
+                "Heightfield".to_string(),
+            ]
+        },
+    }
+}
+
 pub fn make_property_editors_container(
     sender: Sender<Message>,
 ) -> Rc<PropertyEditorDefinitionContainer> {
@@ -250,7 +278,7 @@ pub fn make_property_editors_container(
     container.insert(VecCollectionPropertyEditorDefinition::<Handle<Node>>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<Property>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<LodControlledObject>::new());
-    container.insert(make_physics_binding_enum_editor_definition());
+    container.insert(VecCollectionPropertyEditorDefinition::<GeometrySource>::new());
     container.insert(make_mobility_enum_editor_definition());
     container.insert(make_exposure_enum_editor_definition());
     container.insert(make_render_path_enum_editor_definition());
@@ -261,9 +289,9 @@ pub fn make_property_editors_container(
     container.insert(make_property_enum_editor_definition());
     container.insert(ModelResourcePropertyEditorDefinition);
     container.insert(SoundBufferResourcePropertyEditorDefinition);
-    container.insert(InspectablePropertyEditorDefinition::<InteractionGroupsDesc>::new());
-    container.insert(InspectablePropertyEditorDefinition::<ColliderShapeDesc>::new());
-    container.insert(InspectablePropertyEditorDefinition::<JointParamsDesc>::new());
+    container.insert(InspectablePropertyEditorDefinition::<InteractionGroups>::new());
+    container.insert(InspectablePropertyEditorDefinition::<ColliderShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<JointParams>::new());
     container.insert(InspectablePropertyEditorDefinition::<Base>::new());
     container.insert(InspectablePropertyEditorDefinition::<scene2d::base::Base>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseLight>::new());
@@ -281,9 +309,11 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<CsmOptions>::new());
     container.insert(make_frustum_split_options_enum_editor_definition());
     container.insert(ArrayPropertyEditorDefinition::<f32, 3>::new());
+    container.insert(ArrayPropertyEditorDefinition::<f32, 2>::new());
     container.insert(make_option_editor_definition::<ColorGradingLut>());
     container.insert(make_option_editor_definition::<Box<SkyBox>>());
     container.insert(HandlePropertyEditorDefinition::<Node>::new(sender));
+    container.insert(make_shape_property_editor_definition());
 
     Rc::new(container)
 }

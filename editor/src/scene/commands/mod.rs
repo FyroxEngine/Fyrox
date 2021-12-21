@@ -1,35 +1,32 @@
-use crate::scene::commands::physics::{SetJointBody1Command, SetJointBody2Command};
 use crate::{
     command::Command,
-    physics::{Collider, Joint, RigidBody},
     scene::{
-        clipboard::DeepCloneResult,
-        commands::{
-            graph::DeleteSubGraphCommand,
-            physics::{DeleteBodyCommand, DeleteColliderCommand, DeleteJointCommand},
-        },
-        EditorScene, GraphSelection, Selection,
+        clipboard::DeepCloneResult, commands::graph::DeleteSubGraphCommand, EditorScene,
+        GraphSelection, Selection,
     },
     GameEngine, Message,
 };
 use rg3d::{
-    core::pool::{ErasedHandle, Handle, Ticket},
     engine::resource_manager::ResourceManager,
-    scene::{graph::SubGraph, node::Node, Scene},
+    scene::{graph::SubGraph, Scene},
 };
-use std::ops::{Deref, DerefMut};
-use std::{collections::HashMap, sync::mpsc::Sender};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
+};
 
 pub mod camera;
+pub mod collider;
 pub mod decal;
 pub mod graph;
+pub mod joint;
 pub mod light;
 pub mod lod;
 pub mod material;
 pub mod mesh;
 pub mod navmesh;
 pub mod particle_system;
-pub mod physics;
+pub mod rigidbody;
 pub mod sound;
 pub mod sprite;
 pub mod terrain;
@@ -165,43 +162,6 @@ pub fn make_delete_selection_command(
 
     let root_nodes = selection.root_nodes(graph);
 
-    // Delete all associated physics entities in the whole hierarchy starting from root nodes
-    // found above.
-    let mut stack = root_nodes.clone();
-    while let Some(node) = stack.pop() {
-        if let Some(&body) = editor_scene.physics.binder.value_of(&node) {
-            for &collider in editor_scene.physics.bodies[body].colliders.iter() {
-                command_group.push(SceneCommand::new(DeleteColliderCommand::new(
-                    collider.into(),
-                )))
-            }
-
-            command_group.push(SceneCommand::new(DeleteBodyCommand::new(body)));
-
-            // Remove any associated joints.
-            let joint = editor_scene.physics.find_joint(body);
-            if joint.is_some() {
-                command_group.push(SceneCommand::new(DeleteJointCommand::new(joint)));
-            }
-
-            // Also check if this node is attached to a joint.
-            for (handle, joint) in editor_scene.physics.joints.pair_iter() {
-                if joint.body1 == ErasedHandle::from(body) {
-                    command_group.push(SceneCommand::new(SetJointBody1Command::new(
-                        handle,
-                        ErasedHandle::none(),
-                    )));
-                } else if joint.body2 == ErasedHandle::from(body) {
-                    command_group.push(SceneCommand::new(SetJointBody2Command::new(
-                        handle,
-                        ErasedHandle::none(),
-                    )));
-                }
-            }
-        }
-        stack.extend_from_slice(graph[node].children());
-    }
-
     for root_node in root_nodes {
         command_group.push(SceneCommand::new(DeleteSubGraphCommand::new(root_node)));
     }
@@ -224,9 +184,6 @@ impl ChangeSelectionCommand {
                 Selection::Graph(_) => "Change Selection: Graph",
                 Selection::Navmesh(_) => "Change Selection: Navmesh",
                 Selection::Sound(_) => "Change Selection: Sound",
-                Selection::RigidBody(_) => "Change Selection: RigidBody",
-                Selection::Joint(_) => "Change Selection: Joint",
-                Selection::Collider(_) => "Change Selection: Collider",
             }
             .to_owned(),
             new_selection,
@@ -275,10 +232,6 @@ enum PasteCommandState {
     NonExecuted,
     Reverted {
         subgraphs: Vec<SubGraph>,
-        bodies: Vec<(Ticket<RigidBody>, RigidBody)>,
-        colliders: Vec<(Ticket<Collider>, Collider)>,
-        joints: Vec<(Ticket<Joint>, Joint)>,
-        binder: HashMap<Handle<Node>, Handle<RigidBody>>,
         selection: Selection,
     },
     Executed {
@@ -317,7 +270,7 @@ impl Command for PasteCommand {
                 let paste_result = context
                     .editor_scene
                     .clipboard
-                    .paste(&mut context.scene.graph, &mut context.editor_scene.physics);
+                    .paste(&mut context.scene.graph);
 
                 let mut selection =
                     Selection::Graph(GraphSelection::from_list(paste_result.root_nodes.clone()));
@@ -330,14 +283,9 @@ impl Command for PasteCommand {
             }
             PasteCommandState::Reverted {
                 subgraphs,
-                bodies,
-                colliders,
-                joints,
-                binder,
                 mut selection,
             } => {
                 let mut paste_result = DeepCloneResult {
-                    binder,
                     ..Default::default()
                 };
 
@@ -345,32 +293,6 @@ impl Command for PasteCommand {
                     paste_result
                         .root_nodes
                         .push(context.scene.graph.put_sub_graph_back(subgraph));
-                }
-
-                for (ticket, body) in bodies {
-                    paste_result
-                        .bodies
-                        .push(context.editor_scene.physics.bodies.put_back(ticket, body));
-                }
-
-                for (ticket, collider) in colliders {
-                    paste_result.colliders.push(
-                        context
-                            .editor_scene
-                            .physics
-                            .colliders
-                            .put_back(ticket, collider),
-                    );
-                }
-
-                for (ticket, joint) in joints {
-                    paste_result
-                        .joints
-                        .push(context.editor_scene.physics.joints.put_back(ticket, joint));
-                }
-
-                for (&node, &body) in paste_result.binder.iter() {
-                    context.editor_scene.physics.binder.insert(node, body);
                 }
 
                 std::mem::swap(&mut context.editor_scene.selection, &mut selection);
@@ -394,67 +316,21 @@ impl Command for PasteCommand {
                 subgraphs.push(context.scene.graph.take_reserve_sub_graph(root_node));
             }
 
-            let mut bodies = Vec::new();
-            for body in paste_result.bodies {
-                bodies.push(context.editor_scene.physics.bodies.take_reserve(body));
-            }
-
-            let mut colliders = Vec::new();
-            for collider in paste_result.colliders {
-                colliders.push(
-                    context
-                        .editor_scene
-                        .physics
-                        .colliders
-                        .take_reserve(collider),
-                );
-            }
-
-            let mut joints = Vec::new();
-            for joint in paste_result.joints {
-                joints.push(context.editor_scene.physics.joints.take_reserve(joint));
-            }
-
-            for (node, _) in paste_result.binder.iter() {
-                context.editor_scene.physics.binder.remove_by_key(node);
-            }
-
             std::mem::swap(&mut context.editor_scene.selection, &mut last_selection);
 
             self.state = PasteCommandState::Reverted {
                 subgraphs,
-                bodies,
-                colliders,
-                joints,
-                binder: paste_result.binder,
                 selection: last_selection,
             };
         }
     }
 
     fn finalize(&mut self, context: &mut SceneContext) {
-        if let PasteCommandState::Reverted {
-            subgraphs,
-            bodies,
-            colliders,
-            joints,
-            ..
-        } = std::mem::replace(&mut self.state, PasteCommandState::Undefined)
+        if let PasteCommandState::Reverted { subgraphs, .. } =
+            std::mem::replace(&mut self.state, PasteCommandState::Undefined)
         {
             for subgraph in subgraphs {
                 context.scene.graph.forget_sub_graph(subgraph);
-            }
-
-            for (ticket, _) in bodies {
-                context.editor_scene.physics.bodies.forget_ticket(ticket);
-            }
-
-            for (ticket, _) in colliders {
-                context.editor_scene.physics.colliders.forget_ticket(ticket)
-            }
-
-            for (ticket, _) in joints {
-                context.editor_scene.physics.joints.forget_ticket(ticket);
             }
         }
     }

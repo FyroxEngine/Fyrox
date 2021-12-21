@@ -93,13 +93,6 @@ impl Model {
 
         std::mem::drop(data);
 
-        dest_scene.physics.embed_resource(
-            &mut dest_scene.physics_binder,
-            &dest_scene.graph,
-            old_to_new,
-            self.clone(),
-        );
-
         root
     }
 
@@ -268,7 +261,7 @@ impl ModelData {
                 let mut scene = Scene::new();
                 if let Some(filename) = path.as_ref().file_name() {
                     let root = scene.graph.get_root();
-                    scene.graph[root].set_name(filename.to_string_lossy().to_string());
+                    scene.graph[root].set_name(&filename.to_string_lossy());
                 }
                 fbx::load_to_scene(
                     &mut scene,

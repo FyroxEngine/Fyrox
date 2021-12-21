@@ -4,20 +4,15 @@ use crate::{
         calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo, plane::PlaneKind,
         InteractionMode,
     },
-    physics::RigidBody,
     scene::{
         commands::{
-            graph::MoveNodeCommand, physics::MoveRigidBodyCommand,
-            sound::MoveSpatialSoundSourceCommand, ChangeSelectionCommand, CommandGroup,
-            SceneCommand,
+            graph::MoveNodeCommand, sound::MoveSpatialSoundSourceCommand, ChangeSelectionCommand,
+            CommandGroup, SceneCommand,
         },
         EditorScene, Selection,
     },
     settings::Settings,
-    world::{
-        graph::selection::GraphSelection, physics::selection::RigidBodySelection,
-        sound::selection::SoundSelection,
-    },
+    world::{graph::selection::GraphSelection, sound::selection::SoundSelection},
     GameEngine, Message,
 };
 use rg3d::{
@@ -36,11 +31,10 @@ use std::sync::mpsc::Sender;
 enum MovableEntity {
     Node(Handle<Node>),
     Sound(Handle<SoundSource>),
-    RigidBody(Handle<RigidBody>),
 }
 
 impl MovableEntity {
-    fn position(&self, scene: &Scene, editor_scene: &EditorScene) -> Vector3<f32> {
+    fn position(&self, scene: &Scene) -> Vector3<f32> {
         match *self {
             MovableEntity::Node(node) => **scene.graph[node].local_transform().position(),
             MovableEntity::Sound(sound) => {
@@ -50,18 +44,10 @@ impl MovableEntity {
                     SoundSource::Spatial(spatial) => spatial.position(),
                 }
             }
-            MovableEntity::RigidBody(rigid_body) => {
-                editor_scene.physics.bodies[rigid_body].position
-            }
         }
     }
 
-    fn set_position(
-        &self,
-        scene: &mut Scene,
-        editor_scene: &mut EditorScene,
-        position: Vector3<f32>,
-    ) {
+    fn set_position(&self, scene: &mut Scene, position: Vector3<f32>) {
         match *self {
             MovableEntity::Node(node) => {
                 scene.graph[node]
@@ -73,9 +59,6 @@ impl MovableEntity {
                 if let SoundSource::Spatial(spatial) = state.source_mut(sound) {
                     spatial.set_position(position);
                 }
-            }
-            MovableEntity::RigidBody(rigid_body) => {
-                editor_scene.physics.bodies[rigid_body].position = position
             }
         }
     }
@@ -211,8 +194,7 @@ impl MoveContext {
             |plane_point, gizmo_inv_transform, gizmo_origin| {
                 selection
                     .sources()
-                    .iter()
-                    .map(|&source_handle| {
+                    .iter().filter_map(|&source_handle| {
                         let source = state.source(source_handle);
                         match source {
                             SoundSource::Generic(_) => None,
@@ -230,49 +212,6 @@ impl MoveContext {
                             }),
                         }
                     })
-                    .flatten()
-                    .collect()
-            },
-        )
-    }
-
-    pub fn from_rigid_body_selection(
-        selection: &RigidBodySelection,
-        scene: &Scene,
-        editor_scene: &EditorScene,
-        move_gizmo: &MoveGizmo,
-        camera_controller: &CameraController,
-        plane_kind: PlaneKind,
-        mouse_pos: Vector2<f32>,
-        frame_size: Vector2<f32>,
-    ) -> Self {
-        Self::from_filler(
-            scene,
-            move_gizmo,
-            camera_controller,
-            plane_kind,
-            mouse_pos,
-            frame_size,
-            |plane_point, gizmo_inv_transform, gizmo_origin| {
-                selection
-                    .bodies()
-                    .iter()
-                    .map(|&rigid_body_handle| {
-                        let rigid_body = &editor_scene.physics.bodies[rigid_body_handle];
-                        Some(Entry {
-                            entity: MovableEntity::RigidBody(rigid_body_handle),
-                            initial_offset_gizmo_space: gizmo_inv_transform
-                                .transform_point(&Point3::from(rigid_body.position))
-                                .coords
-                                - plane_point
-                                - gizmo_inv_transform
-                                    .transform_vector(&(rigid_body.position - gizmo_origin)),
-                            new_local_position: rigid_body.position,
-                            initial_local_position: rigid_body.position,
-                            initial_parent_inv_global_transform: Matrix4::identity(),
-                        })
-                    })
-                    .flatten()
                     .collect()
             },
         )
@@ -395,18 +334,6 @@ impl InteractionMode for MoveInteractionMode {
                             frame_size,
                         ));
                     }
-                    Selection::RigidBody(selection) => {
-                        self.move_context = Some(MoveContext::from_rigid_body_selection(
-                            selection,
-                            scene,
-                            editor_scene,
-                            &self.move_gizmo,
-                            &editor_scene.camera_controller,
-                            plane_kind,
-                            mouse_pos,
-                            frame_size,
-                        ))
-                    }
                     _ => {}
                 }
             }
@@ -426,9 +353,7 @@ impl InteractionMode for MoveInteractionMode {
             let mut changed = false;
 
             for initial_state in move_context.objects.iter() {
-                if initial_state.entity.position(scene, editor_scene)
-                    != initial_state.initial_local_position
-                {
+                if initial_state.entity.position(scene) != initial_state.initial_local_position {
                     changed = true;
                     break;
                 }
@@ -438,8 +363,7 @@ impl InteractionMode for MoveInteractionMode {
                 let commands = CommandGroup::from(
                     move_context
                         .objects
-                        .iter()
-                        .map(|initial_state| match initial_state.entity {
+                        .iter().filter_map(|initial_state| match initial_state.entity {
                             MovableEntity::Node(node) => {
                                 Some(SceneCommand::new(MoveNodeCommand::new(
                                     node,
@@ -460,15 +384,7 @@ impl InteractionMode for MoveInteractionMode {
                                     }
                                 }
                             }
-                            MovableEntity::RigidBody(rigid_body) => {
-                                Some(SceneCommand::new(MoveRigidBodyCommand::new(
-                                    rigid_body,
-                                    initial_state.initial_local_position,
-                                    editor_scene.physics.bodies[rigid_body].position,
-                                )))
-                            }
                         })
-                        .flatten()
                         .collect::<Vec<_>>(),
                 );
 
@@ -536,9 +452,7 @@ impl InteractionMode for MoveInteractionMode {
             );
 
             for entry in move_context.objects.iter() {
-                entry
-                    .entity
-                    .set_position(scene, editor_scene, entry.new_local_position);
+                entry.entity.set_position(scene, entry.new_local_position);
             }
         }
     }
@@ -554,12 +468,8 @@ impl InteractionMode for MoveInteractionMode {
         if !editor_scene.selection.is_empty() {
             let scale = calculate_gizmo_distance_scaling(graph, camera, self.move_gizmo.origin);
             self.move_gizmo.set_visible(graph, true);
-            self.move_gizmo.sync_transform(
-                scene,
-                &editor_scene.selection,
-                &editor_scene.physics,
-                scale,
-            );
+            self.move_gizmo
+                .sync_transform(scene, &editor_scene.selection, scale);
         } else {
             self.move_gizmo.set_visible(graph, false);
         }

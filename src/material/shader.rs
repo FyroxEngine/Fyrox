@@ -513,7 +513,7 @@ impl Shader {
     /// examples for [`Shader`].
     pub fn from_str<P: AsRef<Path>>(str: &str, path: P) -> Result<Self, ShaderError> {
         Ok(Self(Resource::new(ResourceState::Ok(
-            ShaderState::from_str(str, path.as_ref().to_owned())?,
+            ShaderState::from_str(str, path.as_ref())?,
         ))))
     }
 

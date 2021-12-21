@@ -1,4 +1,5 @@
 use crate::{make_command, scene::commands::graph::*, SceneCommand};
+use rg3d::scene::base::Base;
 use rg3d::{
     core::pool::Handle,
     gui::inspector::{FieldKind, PropertyChanged},
@@ -8,23 +9,23 @@ use rg3d::{
 pub fn handle_transform_property_changed(
     args: &PropertyChanged,
     node_handle: Handle<Node>,
-    node: &Node,
+    base: &Base,
 ) -> Option<SceneCommand> {
     match args.value {
         FieldKind::Object(ref value) => match args.name.as_ref() {
             "local_position" => Some(SceneCommand::new(MoveNodeCommand::new(
                 node_handle,
-                **node.local_transform().position(),
+                **base.local_transform().position(),
                 *value.cast_value()?,
             ))),
             "local_rotation" => Some(SceneCommand::new(RotateNodeCommand::new(
                 node_handle,
-                **node.local_transform().rotation(),
+                **base.local_transform().rotation(),
                 *value.cast_value()?,
             ))),
             "local_scale" => Some(SceneCommand::new(ScaleNodeCommand::new(
                 node_handle,
-                **node.local_transform().scale(),
+                **base.local_transform().scale(),
                 *value.cast_value()?,
             ))),
             "pre_rotation" => {

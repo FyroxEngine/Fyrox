@@ -1,6 +1,7 @@
 use crate::{
     menu::{
-        create::CreateEntityMenu, edit::EditMenu, file::FileMenu, utils::UtilsMenu, view::ViewMenu,
+        create::CreateEntityRootMenu, edit::EditMenu, file::FileMenu, utils::UtilsMenu,
+        view::ViewMenu,
     },
     scene::EditorScene,
     send_sync_message,
@@ -27,7 +28,7 @@ pub mod view;
 
 pub struct Menu {
     pub menu: Handle<UiNode>,
-    create_entity_menu: CreateEntityMenu,
+    create_entity_menu: CreateEntityRootMenu,
     edit_menu: EditMenu,
     pub file_menu: FileMenu,
     view_menu: ViewMenu,
@@ -95,7 +96,7 @@ impl Menu {
     ) -> Self {
         let file_menu = FileMenu::new(engine, &message_sender, settings);
         let ctx = &mut engine.user_interface.build_ctx();
-        let create_entity_menu = CreateEntityMenu::new(ctx);
+        let create_entity_menu = CreateEntityRootMenu::new(ctx);
         let edit_menu = EditMenu::new(ctx);
         let view_menu = ViewMenu::new(ctx);
         let utils_menu = UtilsMenu::new(ctx);
@@ -154,10 +155,14 @@ impl Menu {
                 &mut **scene,
                 ctx.engine,
             );
+
+            self.create_entity_menu.handle_ui_message(
+                message,
+                &self.message_sender,
+                ctx.engine.scenes[scene.scene].graph.get_root(),
+            );
         }
 
-        self.create_entity_menu
-            .handle_ui_message(message, &self.message_sender);
         self.utils_menu
             .handle_ui_message(message, &ctx.panels, &ctx.engine.user_interface);
         self.file_menu.handle_ui_message(

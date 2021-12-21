@@ -3,6 +3,7 @@
 //! A `Scene` is a container for graph nodes, animations and physics.
 
 use crate::{
+    core::inspect::{Inspect, PropertyInfo},
     core::{
         algebra::{Isometry2, Translation2, Vector2},
         color::Color,
@@ -13,7 +14,6 @@ use crate::{
     engine::PhysicsBinder,
     physics2d::{PhysicsPerformanceStatistics, RigidBodyHandle},
     resource::texture::Texture,
-    scene::base::PhysicsBinding,
     scene2d::{graph::Graph, node::Node, physics::Physics},
     sound::{context::SoundContext, engine::SoundEngine},
 };
@@ -43,6 +43,53 @@ pub struct PerformanceStatistics {
 
     /// A time (in seconds) which was required to render sounds.
     pub sound_update_time: f32,
+}
+
+/// Defines a kind of binding between rigid body and a scene node. Check variants
+/// for more info.
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Inspect)]
+#[repr(u32)]
+pub enum PhysicsBinding {
+    /// Forces engine to sync transform of a node with its associated rigid body.
+    /// This is default binding.
+    NodeWithBody = 0,
+
+    /// Forces engine to sync transform of a rigid body with its associated node. This could be useful for
+    /// specific situations like add "hit boxes" to a character.
+    ///
+    /// # Use cases
+    ///
+    /// This option has limited usage, but the most common is to create hit boxes. To do that create kinematic
+    /// rigid bodies with appropriate colliders and set [`PhysicsBinding::BodyWithNode`] binding to make them
+    /// move together with parent nodes.
+    BodyWithNode = 1,
+}
+
+impl Default for PhysicsBinding {
+    fn default() -> Self {
+        Self::NodeWithBody
+    }
+}
+
+impl PhysicsBinding {
+    fn from_id(id: u32) -> Result<Self, String> {
+        match id {
+            0 => Ok(Self::NodeWithBody),
+            1 => Ok(Self::BodyWithNode),
+            _ => Err(format!("Invalid physics binding id {}!", id)),
+        }
+    }
+}
+
+impl Visit for PhysicsBinding {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut id = *self as u32;
+        id.visit(name, visitor)?;
+        if visitor.is_reading() {
+            *self = Self::from_id(id)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Visit, Default)]
