@@ -28,16 +28,16 @@ mod overlay;
 mod preview;
 mod project_dirs;
 mod scene;
+mod scene_viewer;
 mod settings;
 mod utils;
 mod world;
 
-use crate::curve_editor::CurveEditorWindow;
-use crate::world::graph::selection::GraphSelection;
 use crate::{
     asset::{AssetBrowser, AssetItem, AssetKind},
     command::{panel::CommandStackViewer, Command, CommandStack},
     configurator::Configurator,
+    curve_editor::CurveEditorWindow,
     gui::make_dropdown_list_option,
     inspector::Inspector,
     interaction::{
@@ -63,38 +63,37 @@ use crate::{
         },
         EditorScene, Selection,
     },
+    scene_viewer::ScenePreview,
     settings::{Settings, SettingsSectionKind},
     utils::path_fixer::PathFixer,
-    world::WorldViewer,
+    world::{graph::selection::GraphSelection, WorldViewer},
 };
-use rg3d::core::pool::ErasedHandle;
-use rg3d::engine::Engine;
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
         parking_lot::Mutex,
-        pool::Handle,
+        pool::{ErasedHandle, Handle},
         scope_profile,
         sstorage::ImmutableString,
     },
     dpi::LogicalSize,
-    engine::resource_manager::{MaterialSearchOptions, TextureImportOptions},
+    engine::{
+        resource_manager::{MaterialSearchOptions, TextureImportOptions},
+        Engine,
+    },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
-        border::BorderBuilder,
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
-        canvas::CanvasBuilder,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
         draw,
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
         file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        image::{Image, ImageBuilder, ImageMessage},
         message::{KeyCode, MessageDirection, MouseButton, UiMessage},
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
         stack_panel::StackPanelBuilder,
@@ -220,22 +219,6 @@ pub fn create_terrain_layer_material() -> Arc<Mutex<Material>> {
         )
         .unwrap();
     Arc::new(Mutex::new(material))
-}
-
-pub struct ScenePreview {
-    frame: Handle<UiNode>,
-    window: Handle<UiNode>,
-    last_mouse_pos: Option<Vector2<f32>>,
-    click_mouse_pos: Option<Vector2<f32>>,
-    selection_frame: Handle<UiNode>,
-    // Side bar stuff
-    select_mode: Handle<UiNode>,
-    move_mode: Handle<UiNode>,
-    rotate_mode: Handle<UiNode>,
-    scale_mode: Handle<UiNode>,
-    navmesh_mode: Handle<UiNode>,
-    terrain_mode: Handle<UiNode>,
-    sender: Sender<Message>,
 }
 
 pub fn make_relative_path<P: AsRef<Path>>(path: P) -> PathBuf {
@@ -539,242 +522,6 @@ impl ModelImportDialog {
     }
 }
 
-fn make_interaction_mode_button(
-    ctx: &mut BuildContext,
-    image: &[u8],
-    tooltip: &str,
-) -> Handle<UiNode> {
-    ButtonBuilder::new(
-        WidgetBuilder::new()
-            .with_tooltip(
-                BorderBuilder::new(
-                    WidgetBuilder::new()
-                        .with_max_size(Vector2::new(300.0, f32::MAX))
-                        .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
-                            )
-                            .with_wrap(WrapMode::Word)
-                            .with_text(tooltip)
-                            .build(ctx),
-                        ),
-                )
-                .build(ctx),
-            )
-            .with_margin(Thickness::uniform(1.0)),
-    )
-    .with_content(
-        ImageBuilder::new(
-            WidgetBuilder::new()
-                .with_margin(Thickness::uniform(1.0))
-                .with_width(32.0)
-                .with_height(32.0),
-        )
-        .with_opt_texture(load_image(image))
-        .build(ctx),
-    )
-    .build(ctx)
-}
-
-impl ScenePreview {
-    pub fn new(engine: &mut GameEngine, sender: Sender<Message>) -> Self {
-        let ctx = &mut engine.user_interface.build_ctx();
-
-        let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \
-        allows you to select an object by a single left mouse button click or multiple objects using either \
-        frame selection (click and drag) or by holding Ctrl+Click";
-
-        let move_mode_tooltip =
-            "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
-        objects. Keep in mind that movement always works in local coordinates!\n\n\
-        This also allows you to select an object or add an object to current selection using Ctrl+Click";
-
-        let rotate_mode_tooltip =
-            "Rotate Object(s) - Shortcut: [3]\n\nRotation interaction mode allows you to rotate selected \
-        objects. Keep in mind that rotation always works in local coordinates!\n\n\
-        This also allows you to select an object or add an object to current selection using Ctrl+Click";
-
-        let scale_mode_tooltip =
-            "Scale Object(s) - Shortcut: [4]\n\nScaling interaction mode allows you to scale selected \
-        objects. Keep in mind that scaling always works in local coordinates!\n\n\
-        This also allows you to select an object or add an object to current selection using Ctrl+Click";
-
-        let navmesh_mode_tooltip =
-            "Edit Navmesh\n\nNavmesh edit mode allows you to modify selected \
-        navigational mesh.";
-
-        let terrain_mode_tooltip =
-            "Edit Terrain\n\nTerrain edit mode allows you to modify selected \
-        terrain.";
-
-        let frame;
-        let select_mode;
-        let move_mode;
-        let rotate_mode;
-        let scale_mode;
-        let navmesh_mode;
-        let terrain_mode;
-        let selection_frame;
-        let window = WindowBuilder::new(WidgetBuilder::new())
-            .can_close(false)
-            .can_minimize(false)
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            frame = ImageBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(0)
-                                    .on_column(1)
-                                    .with_allow_drop(true),
-                            )
-                            .with_flip(true)
-                            .build(ctx);
-                            frame
-                        })
-                        .with_child(
-                            CanvasBuilder::new(WidgetBuilder::new().on_column(1).with_child({
-                                selection_frame = BorderBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_visibility(false)
-                                        .with_background(Brush::Solid(Color::from_rgba(
-                                            255, 255, 255, 40,
-                                        )))
-                                        .with_foreground(Brush::Solid(Color::opaque(0, 255, 0))),
-                                )
-                                .with_stroke_thickness(Thickness::uniform(1.0))
-                                .build(ctx);
-                                selection_frame
-                            }))
-                            .build(ctx),
-                        )
-                        .with_child(
-                            StackPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(1.0))
-                                    .on_row(0)
-                                    .on_column(0)
-                                    .with_child({
-                                        select_mode = make_interaction_mode_button(
-                                            ctx,
-                                            include_bytes!("../resources/embed/select.png"),
-                                            select_mode_tooltip,
-                                        );
-                                        select_mode
-                                    })
-                                    .with_child({
-                                        move_mode = make_interaction_mode_button(
-                                            ctx,
-                                            include_bytes!("../resources/embed/move_arrow.png"),
-                                            move_mode_tooltip,
-                                        );
-                                        move_mode
-                                    })
-                                    .with_child({
-                                        rotate_mode = make_interaction_mode_button(
-                                            ctx,
-                                            include_bytes!("../resources/embed/rotate_arrow.png"),
-                                            rotate_mode_tooltip,
-                                        );
-                                        rotate_mode
-                                    })
-                                    .with_child({
-                                        scale_mode = make_interaction_mode_button(
-                                            ctx,
-                                            include_bytes!("../resources/embed/scale_arrow.png"),
-                                            scale_mode_tooltip,
-                                        );
-                                        scale_mode
-                                    })
-                                    .with_child({
-                                        navmesh_mode = make_interaction_mode_button(
-                                            ctx,
-                                            include_bytes!("../resources/embed/navmesh.png"),
-                                            navmesh_mode_tooltip,
-                                        );
-                                        navmesh_mode
-                                    })
-                                    .with_child({
-                                        terrain_mode = make_interaction_mode_button(
-                                            ctx,
-                                            include_bytes!("../resources/embed/terrain.png"),
-                                            terrain_mode_tooltip,
-                                        );
-                                        terrain_mode
-                                    }),
-                            )
-                            .build(ctx),
-                        ),
-                )
-                .add_row(Row::stretch())
-                .add_column(Column::auto())
-                .add_column(Column::stretch())
-                .build(ctx),
-            )
-            .with_title(WindowTitle::text("Scene Preview"))
-            .build(ctx);
-
-        Self {
-            sender,
-            window,
-            frame,
-            last_mouse_pos: None,
-            move_mode,
-            rotate_mode,
-            scale_mode,
-            selection_frame,
-            select_mode,
-            navmesh_mode,
-            terrain_mode,
-            click_mouse_pos: None,
-        }
-    }
-}
-
-impl ScenePreview {
-    fn handle_ui_message(&mut self, message: &UiMessage, ui: &UserInterface) {
-        scope_profile!();
-
-        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.scale_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Scale))
-                    .unwrap();
-            } else if message.destination() == self.rotate_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
-                    .unwrap();
-            } else if message.destination() == self.move_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Move))
-                    .unwrap();
-            } else if message.destination() == self.select_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Select))
-                    .unwrap();
-            } else if message.destination() == self.navmesh_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
-                    .unwrap();
-            } else if message.destination() == self.terrain_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
-                    .unwrap();
-            }
-        } else if let Some(WidgetMessage::MouseDown { button, .. }) =
-            message.data::<WidgetMessage>()
-        {
-            if ui.is_node_child_of(message.destination(), self.move_mode)
-                && *button == MouseButton::Right
-            {
-                self.sender
-                    .send(Message::OpenSettings(SettingsSectionKind::MoveModeSettings))
-                    .unwrap();
-            }
-        }
-    }
-}
-
 #[derive(Debug)]
 pub enum Message {
     DoSceneCommand(SceneCommand),
@@ -958,7 +705,7 @@ impl Editor {
                                                         tiles: [
                                                             TileBuilder::new(WidgetBuilder::new())
                                                                 .with_content(TileContent::Window(
-                                                                    preview.window,
+                                                                    preview.window(),
                                                                 ))
                                                                 .build(ctx),
                                                             TileBuilder::new(WidgetBuilder::new())
@@ -1097,11 +844,8 @@ impl Editor {
         poll_ui_messages(self, engine);
 
         scene.render_target = Some(Texture::new_render_target(0, 0));
-        engine.user_interface.send_message(ImageMessage::texture(
-            self.preview.frame,
-            MessageDirection::ToWidget,
-            Some(into_gui_texture(scene.render_target.clone().unwrap())),
-        ));
+        self.preview
+            .set_render_target(&engine.user_interface, scene.render_target.clone());
 
         let editor_scene = EditorScene::from_native_scene(scene, engine, path.clone());
 
@@ -1111,8 +855,8 @@ impl Editor {
 
         self.interaction_modes = vec![
             Box::new(SelectInteractionMode::new(
-                self.preview.frame,
-                self.preview.selection_frame,
+                self.preview.frame(),
+                self.preview.selection_frame(),
                 self.message_sender.clone(),
             )),
             Box::new(MoveInteractionMode::new(
@@ -1148,16 +892,15 @@ impl Editor {
         self.set_interaction_mode(Some(InteractionModeKind::Move), engine);
         self.sync_to_model(engine);
 
-        engine.user_interface.send_message(WindowMessage::title(
-            self.preview.window,
-            MessageDirection::ToWidget,
-            WindowTitle::Text(format!(
+        self.preview.set_title(
+            &engine.user_interface,
+            format!(
                 "Scene Preview - {}",
                 path.map_or("Unnamed Scene".to_string(), |p| p
                     .to_string_lossy()
                     .to_string())
-            )),
-        ));
+            ),
+        );
 
         engine.renderer.flush();
     }
@@ -1261,23 +1004,17 @@ impl Editor {
                 &self.message_sender,
             );
 
-            let frame_size = engine
-                .user_interface
-                .node(self.preview.frame)
-                .screen_bounds()
-                .size;
+            let screen_bounds = self.preview.frame_bounds(&engine.user_interface);
+            let frame_size = screen_bounds.size;
 
-            if message.destination() == self.preview.frame {
+            if message.destination() == self.preview.frame() {
                 if let Some(msg) = message.data::<WidgetMessage>() {
                     match *msg {
                         WidgetMessage::MouseDown { button, pos, .. } => {
-                            engine.user_interface.capture_mouse(self.preview.frame);
+                            engine.user_interface.capture_mouse(self.preview.frame());
+
                             if button == MouseButton::Left {
                                 if let Some(current_im) = self.current_interaction_mode {
-                                    let screen_bounds = engine
-                                        .user_interface
-                                        .node(self.preview.frame)
-                                        .screen_bounds();
                                     let rel_pos = pos - screen_bounds.position;
 
                                     self.preview.click_mouse_pos = Some(rel_pos);
@@ -1299,10 +1036,6 @@ impl Editor {
                             if button == MouseButton::Left {
                                 self.preview.click_mouse_pos = None;
                                 if let Some(current_im) = self.current_interaction_mode {
-                                    let screen_bounds = engine
-                                        .user_interface
-                                        .node(self.preview.frame)
-                                        .screen_bounds();
                                     let rel_pos = pos - screen_bounds.position;
                                     self.interaction_modes[current_im as usize]
                                         .on_left_mouse_button_up(
@@ -1323,10 +1056,6 @@ impl Editor {
                             let last_pos = *self.preview.last_mouse_pos.get_or_insert(pos);
                             let mouse_offset = pos - last_pos;
                             editor_scene.camera_controller.on_mouse_move(mouse_offset);
-                            let screen_bounds = engine
-                                .user_interface
-                                .node(self.preview.frame)
-                                .screen_bounds();
                             let rel_pos = pos - screen_bounds.position;
 
                             if let Some(current_im) = self.current_interaction_mode {
@@ -1481,10 +1210,6 @@ impl Editor {
                                         AssetKind::Texture => {
                                             let cursor_pos =
                                                 engine.user_interface.cursor_position();
-                                            let screen_bounds = engine
-                                                .user_interface
-                                                .node(self.preview.frame)
-                                                .screen_bounds();
                                             let rel_pos = cursor_pos - screen_bounds.position;
                                             let graph = &engine.scenes[editor_scene.scene].graph;
                                             if let Some(result) =
@@ -1704,14 +1429,10 @@ impl Editor {
                     if let Some(editor_scene) = self.scene.as_mut() {
                         match editor_scene.save(path.clone(), engine) {
                             Ok(message) => {
-                                engine.user_interface.send_message(WindowMessage::title(
-                                    self.preview.window,
-                                    MessageDirection::ToWidget,
-                                    WindowTitle::Text(format!(
-                                        "Scene Preview - {}",
-                                        path.display()
-                                    )),
-                                ));
+                                self.preview.set_title(
+                                    &engine.user_interface,
+                                    format!("Scene Preview - {}", path.display()),
+                                );
 
                                 self.message_sender.send(Message::Log(message)).unwrap();
                             }
@@ -1776,11 +1497,7 @@ impl Editor {
 
                         // Preview frame has scene frame texture assigned, it must be cleared explicitly,
                         // otherwise it will show last rendered frame in preview which is not what we want.
-                        engine.user_interface.send_message(ImageMessage::texture(
-                            self.preview.frame,
-                            MessageDirection::ToWidget,
-                            None,
-                        ));
+                        self.preview.set_render_target(&engine.user_interface, None);
                     }
                 }
                 Message::NewScene => {
@@ -1887,27 +1604,17 @@ impl Editor {
             camera.set_z_far(self.settings.graphics.z_far);
 
             // Create new render target if preview frame has changed its size.
-            let (rt_width, rt_height) = if let TextureKind::Rectangle { width, height } =
+            if let TextureKind::Rectangle { width, height } =
                 scene.render_target.clone().unwrap().data_ref().kind()
             {
-                (width, height)
-            } else {
-                unreachable!();
-            };
-            if let Some(frame) = engine
-                .user_interface
-                .node(self.preview.frame)
-                .cast::<Image>()
-            {
-                let frame_size = frame.actual_size();
-                if rt_width != frame_size.x as u32 || rt_height != frame_size.y as u32 {
-                    let rt = Texture::new_render_target(frame_size.x as u32, frame_size.y as u32);
-                    scene.render_target = Some(rt.clone());
-                    engine.user_interface.send_message(ImageMessage::texture(
-                        self.preview.frame,
-                        MessageDirection::ToWidget,
-                        Some(into_gui_texture(rt)),
+                let frame_size = self.preview.frame_bounds(&engine.user_interface).size;
+                if width != frame_size.x as u32 || height != frame_size.y as u32 {
+                    scene.render_target = Some(Texture::new_render_target(
+                        frame_size.x as u32,
+                        frame_size.y as u32,
                     ));
+                    self.preview
+                        .set_render_target(&engine.user_interface, scene.render_target.clone());
                 }
             }
 
