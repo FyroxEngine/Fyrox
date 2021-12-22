@@ -1,11 +1,13 @@
-use crate::scene::base::{Base, BaseBuilder};
 use crate::{
     core::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
         visitor::prelude::*,
     },
-    scene::dim2::light::{point::PointLight, spot::SpotLight},
+    scene::{
+        base::{Base, BaseBuilder},
+        dim2::light::{point::PointLight, spot::SpotLight},
+    },
 };
 use std::ops::{Deref, DerefMut};
 

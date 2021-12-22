@@ -35,7 +35,6 @@ use rg3d::{
         rigidbody::RigidBodyType,
         terrain::Layer,
     },
-    scene2d,
     sound::source::{generic::GenericSource, Status},
 };
 use std::{fmt::Debug, rc::Rc, sync::mpsc::Sender};
@@ -293,17 +292,10 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<ColliderShape>::new());
     container.insert(InspectablePropertyEditorDefinition::<JointParams>::new());
     container.insert(InspectablePropertyEditorDefinition::<Base>::new());
-    container.insert(InspectablePropertyEditorDefinition::<scene2d::base::Base>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseLight>::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        scene2d::light::BaseLight,
-    >::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseEmitter>::new());
     container.insert(InspectablePropertyEditorDefinition::<
         scene::transform::Transform,
-    >::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        scene2d::transform::Transform,
     >::new());
     container.insert(InspectablePropertyEditorDefinition::<GenericSource>::new());
     container.insert(InspectablePropertyEditorDefinition::<CsmOptions>::new());

@@ -1,6 +1,3 @@
-use crate::scene::base::{Base, BaseBuilder};
-use crate::scene::graph::Graph;
-use crate::scene::node::Node;
 use crate::{
     core::{
         algebra::{Point3, Vector2},
@@ -11,6 +8,11 @@ use crate::{
         visitor::prelude::*,
     },
     resource::texture::Texture,
+    scene::{
+        base::{Base, BaseBuilder},
+        graph::Graph,
+        node::Node,
+    },
 };
 use std::ops::{Deref, DerefMut};
 
@@ -142,12 +144,16 @@ impl SpriteBuilder {
         self
     }
 
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(Node::Sprite2D(Sprite {
+    pub fn build_node(self) -> Node {
+        Node::Sprite2D(Sprite {
             base: self.base_builder.build_base(),
             texture: self.texture,
             color: self.color,
             size: self.size,
-        }))
+        })
+    }
+
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }
