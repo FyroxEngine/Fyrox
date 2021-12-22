@@ -63,7 +63,7 @@ use crate::{
         },
         EditorScene, Selection,
     },
-    scene_viewer::ScenePreview,
+    scene_viewer::SceneViewer,
     settings::{Settings, SettingsSectionKind},
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
@@ -595,7 +595,7 @@ struct Editor {
     current_interaction_mode: Option<InteractionModeKind>,
     world_viewer: WorldViewer,
     root_grid: Handle<UiNode>,
-    preview: ScenePreview,
+    scene_viewer: SceneViewer,
     asset_browser: AssetBrowser,
     exit_message_box: Handle<UiNode>,
     save_file_selector: Handle<UiNode>,
@@ -666,7 +666,7 @@ impl Editor {
             }
         }
 
-        let preview = ScenePreview::new(engine, message_sender.clone());
+        let scene_viewer = SceneViewer::new(engine, message_sender.clone());
         let asset_browser = AssetBrowser::new(engine);
         let menu = Menu::new(engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(engine);
@@ -705,7 +705,7 @@ impl Editor {
                                                         tiles: [
                                                             TileBuilder::new(WidgetBuilder::new())
                                                                 .with_content(TileContent::Window(
-                                                                    preview.window(),
+                                                                    scene_viewer.window(),
                                                                 ))
                                                                 .build(ctx),
                                                             TileBuilder::new(WidgetBuilder::new())
@@ -803,7 +803,7 @@ impl Editor {
 
         let mut editor = Self {
             navmesh_panel,
-            preview,
+            scene_viewer,
             scene: None,
             command_stack: CommandStack::new(false),
             message_sender,
@@ -844,7 +844,7 @@ impl Editor {
         poll_ui_messages(self, engine);
 
         scene.render_target = Some(Texture::new_render_target(0, 0));
-        self.preview
+        self.scene_viewer
             .set_render_target(&engine.user_interface, scene.render_target.clone());
 
         let editor_scene = EditorScene::from_native_scene(scene, engine, path.clone());
@@ -855,8 +855,8 @@ impl Editor {
 
         self.interaction_modes = vec![
             Box::new(SelectInteractionMode::new(
-                self.preview.frame(),
-                self.preview.selection_frame(),
+                self.scene_viewer.frame(),
+                self.scene_viewer.selection_frame(),
                 self.message_sender.clone(),
             )),
             Box::new(MoveInteractionMode::new(
@@ -892,7 +892,7 @@ impl Editor {
         self.set_interaction_mode(Some(InteractionModeKind::Move), engine);
         self.sync_to_model(engine);
 
-        self.preview.set_title(
+        self.scene_viewer.set_title(
             &engine.user_interface,
             format!(
                 "Scene Preview - {}",
@@ -991,7 +991,7 @@ impl Editor {
             self.light_panel
                 .handle_ui_message(message, editor_scene, engine);
 
-            self.preview
+            self.scene_viewer
                 .handle_ui_message(message, &engine.user_interface);
 
             self.material_editor
@@ -1004,20 +1004,22 @@ impl Editor {
                 &self.message_sender,
             );
 
-            let screen_bounds = self.preview.frame_bounds(&engine.user_interface);
+            let screen_bounds = self.scene_viewer.frame_bounds(&engine.user_interface);
             let frame_size = screen_bounds.size;
 
-            if message.destination() == self.preview.frame() {
+            if message.destination() == self.scene_viewer.frame() {
                 if let Some(msg) = message.data::<WidgetMessage>() {
                     match *msg {
                         WidgetMessage::MouseDown { button, pos, .. } => {
-                            engine.user_interface.capture_mouse(self.preview.frame());
+                            engine
+                                .user_interface
+                                .capture_mouse(self.scene_viewer.frame());
 
                             if button == MouseButton::Left {
                                 if let Some(current_im) = self.current_interaction_mode {
                                     let rel_pos = pos - screen_bounds.position;
 
-                                    self.preview.click_mouse_pos = Some(rel_pos);
+                                    self.scene_viewer.click_mouse_pos = Some(rel_pos);
 
                                     self.interaction_modes[current_im as usize]
                                         .on_left_mouse_button_down(
@@ -1034,7 +1036,7 @@ impl Editor {
                             engine.user_interface.release_mouse_capture();
 
                             if button == MouseButton::Left {
-                                self.preview.click_mouse_pos = None;
+                                self.scene_viewer.click_mouse_pos = None;
                                 if let Some(current_im) = self.current_interaction_mode {
                                     let rel_pos = pos - screen_bounds.position;
                                     self.interaction_modes[current_im as usize]
@@ -1053,7 +1055,7 @@ impl Editor {
                             editor_scene.camera_controller.on_mouse_wheel(amount, graph);
                         }
                         WidgetMessage::MouseMove { pos, .. } => {
-                            let last_pos = *self.preview.last_mouse_pos.get_or_insert(pos);
+                            let last_pos = *self.scene_viewer.last_mouse_pos.get_or_insert(pos);
                             let mouse_offset = pos - last_pos;
                             editor_scene.camera_controller.on_mouse_move(mouse_offset);
                             let rel_pos = pos - screen_bounds.position;
@@ -1069,7 +1071,7 @@ impl Editor {
                                     &self.settings,
                                 );
                             }
-                            self.preview.last_mouse_pos = Some(pos);
+                            self.scene_viewer.last_mouse_pos = Some(pos);
                         }
                         WidgetMessage::KeyUp(key) => {
                             editor_scene.camera_controller.on_key_up(key);
@@ -1429,7 +1431,7 @@ impl Editor {
                     if let Some(editor_scene) = self.scene.as_mut() {
                         match editor_scene.save(path.clone(), engine) {
                             Ok(message) => {
-                                self.preview.set_title(
+                                self.scene_viewer.set_title(
                                     &engine.user_interface,
                                     format!("Scene Preview - {}", path.display()),
                                 );
@@ -1497,7 +1499,8 @@ impl Editor {
 
                         // Preview frame has scene frame texture assigned, it must be cleared explicitly,
                         // otherwise it will show last rendered frame in preview which is not what we want.
-                        self.preview.set_render_target(&engine.user_interface, None);
+                        self.scene_viewer
+                            .set_render_target(&engine.user_interface, None);
                     }
                 }
                 Message::NewScene => {
@@ -1607,13 +1610,13 @@ impl Editor {
             if let TextureKind::Rectangle { width, height } =
                 scene.render_target.clone().unwrap().data_ref().kind()
             {
-                let frame_size = self.preview.frame_bounds(&engine.user_interface).size;
+                let frame_size = self.scene_viewer.frame_bounds(&engine.user_interface).size;
                 if width != frame_size.x as u32 || height != frame_size.y as u32 {
                     scene.render_target = Some(Texture::new_render_target(
                         frame_size.x as u32,
                         frame_size.y as u32,
                     ));
-                    self.preview
+                    self.scene_viewer
                         .set_render_target(&engine.user_interface, scene.render_target.clone());
                 }
             }

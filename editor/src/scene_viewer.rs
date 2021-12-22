@@ -1,12 +1,6 @@
 use crate::{load_image, GameEngine, InteractionModeKind, Message, SettingsSectionKind};
-use rg3d::core::math::Rect;
-use rg3d::gui::image::ImageMessage;
-use rg3d::gui::message::MessageDirection;
-use rg3d::gui::window::WindowMessage;
-use rg3d::resource::texture::Texture;
-use rg3d::utils::into_gui_texture;
 use rg3d::{
-    core::{algebra::Vector2, color::Color, pool::Handle},
+    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -14,18 +8,20 @@ use rg3d::{
         canvas::CanvasBuilder,
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        image::ImageBuilder,
-        message::{MouseButton, UiMessage},
+        image::{ImageBuilder, ImageMessage},
+        message::{MessageDirection, MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowTitle},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
+    resource::texture::Texture,
+    utils::into_gui_texture,
 };
 use std::sync::mpsc::Sender;
 
-pub struct ScenePreview {
+pub struct SceneViewer {
     frame: Handle<UiNode>,
     window: Handle<UiNode>,
     pub last_mouse_pos: Option<Vector2<f32>>,
@@ -78,7 +74,7 @@ fn make_interaction_mode_button(
     .build(ctx)
 }
 
-impl ScenePreview {
+impl SceneViewer {
     pub fn new(engine: &mut GameEngine, sender: Sender<Message>) -> Self {
         let ctx = &mut engine.user_interface.build_ctx();
 
@@ -233,7 +229,7 @@ impl ScenePreview {
     }
 }
 
-impl ScenePreview {
+impl SceneViewer {
     pub fn window(&self) -> Handle<UiNode> {
         self.window
     }
