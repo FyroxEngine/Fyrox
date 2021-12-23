@@ -197,7 +197,7 @@ impl CsmRenderer {
                 .clone()
                 .with_z_near(znear)
                 .with_z_far(zfar)
-                .matrix(&camera.viewport(), frame_size);
+                .matrix(frame_size);
 
             let frustum =
                 Frustum::from(projection_matrix * camera.view_matrix()).unwrap_or_default();

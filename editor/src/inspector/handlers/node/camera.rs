@@ -284,6 +284,9 @@ pub fn handle_ortho_property_changed(
             OrthographicProjection::Z_FAR => {
                 make_command!(SetOrthoZFar, handle, value)
             }
+            OrthographicProjection::VERTICAL_SIZE => {
+                make_command!(SetOrthoVerticalSize, handle, value)
+            }
             _ => None,
         }
     } else {

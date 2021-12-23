@@ -83,6 +83,14 @@ define_node_command!(SetOrthoZFar("Set Z Far", f32) where fn swap(self, node) {
     }
 });
 
+define_node_command!(SetOrthoVerticalSize("Set Vertical Size", f32) where fn swap(self, node) {
+    if let Projection::Orthographic(proj) = node.as_camera_mut().projection_mut() {
+        std::mem::swap(&mut proj.vertical_size, &mut self.value)
+    } else {
+        unreachable!()
+    }
+});
+
 #[derive(Debug)]
 pub struct SetCameraPreviewCommand {
     handle: Handle<Node>,

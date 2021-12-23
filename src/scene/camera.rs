@@ -75,6 +75,8 @@ pub struct OrthographicProjection {
     pub z_near: f32,
     #[inspect(min_value = 0.0, step = 0.1)]
     pub z_far: f32,
+    #[inspect(step = 0.1)]
+    pub vertical_size: f32,
 }
 
 impl Default for OrthographicProjection {
@@ -82,21 +84,21 @@ impl Default for OrthographicProjection {
         Self {
             z_near: 0.0,
             z_far: 2048.0,
+            vertical_size: 5.0,
         }
     }
 }
 
 impl OrthographicProjection {
     #[inline]
-    pub fn matrix(
-        &self,
-        normalized_viewport: &Rect<f32>,
-        frame_size: Vector2<f32>,
-    ) -> Matrix4<f32> {
-        let left = normalized_viewport.position.x * frame_size.x;
-        let top = normalized_viewport.position.y * frame_size.y;
-        let right = (normalized_viewport.position.x + normalized_viewport.size.x) * frame_size.x;
-        let bottom = (normalized_viewport.position.y + normalized_viewport.size.y) * frame_size.y;
+    pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
+        let aspect = frame_size.x / frame_size.y;
+        let horizontal_size = aspect * self.vertical_size;
+
+        let left = -horizontal_size;
+        let top = self.vertical_size;
+        let right = horizontal_size;
+        let bottom = -self.vertical_size;
         Matrix4::new_orthographic(left, right, bottom, top, self.z_near, self.z_far)
     }
 }
@@ -161,14 +163,10 @@ impl Projection {
     }
 
     #[inline]
-    pub fn matrix(
-        &self,
-        normalized_viewport: &Rect<f32>,
-        frame_size: Vector2<f32>,
-    ) -> Matrix4<f32> {
+    pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
         match self {
             Projection::Perspective(v) => v.matrix(frame_size),
-            Projection::Orthographic(v) => v.matrix(normalized_viewport, frame_size),
+            Projection::Orthographic(v) => v.matrix(frame_size),
         }
     }
 }
@@ -273,7 +271,7 @@ impl Camera {
         let up = self.base.up_vector();
 
         self.view_matrix = Matrix4::look_at_rh(&Point3::from(pos), &Point3::from(pos + look), &up);
-        self.projection_matrix = self.projection.matrix(&self.viewport, frame_size);
+        self.projection_matrix = self.projection.matrix(frame_size);
     }
 
     /// Sets new viewport in resolution-independent format. In other words
