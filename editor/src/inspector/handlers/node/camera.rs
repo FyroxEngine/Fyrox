@@ -2,6 +2,7 @@ use crate::{
     inspector::handlers::node::base::handle_base_property_changed, make_command,
     scene::commands::camera::*, SceneCommand,
 };
+use rg3d::scene::camera::{OrthographicProjection, PerspectiveProjection, Projection};
 use rg3d::{
     core::{futures::executor::block_on, pool::Handle},
     gui::inspector::{FieldKind, PropertyChanged},
@@ -11,6 +12,7 @@ use rg3d::{
         node::Node,
     },
 };
+use std::any::TypeId;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 #[repr(u32)]
@@ -94,14 +96,8 @@ pub fn handle_camera_property_changed(
                     handle,
                     *value.cast_value::<Exposure>()?,
                 ))),
-                Camera::Z_NEAR => {
-                    make_command!(SetZNearCommand, handle, value)
-                }
-                Camera::Z_FAR => {
-                    make_command!(SetZFarCommand, handle, value)
-                }
-                Camera::FOV => {
-                    make_command!(SetFovCommand, handle, value)
+                Camera::PROJECTION => {
+                    make_command!(SetProjectionCommand, handle, value)
                 }
                 Camera::VIEWPORT => {
                     make_command!(SetViewportCommand, handle, value)
@@ -231,9 +227,63 @@ pub fn handle_camera_property_changed(
                         None
                     }
                 }
+                Camera::PROJECTION => {
+                    if let FieldKind::Inspectable(ref value) = inner.value {
+                        if value.owner_type_id == TypeId::of::<PerspectiveProjection>() {
+                            handle_perspective_property_changed(&**value, handle)
+                        } else if value.owner_type_id == TypeId::of::<OrthographicProjection>() {
+                            handle_ortho_property_changed(&**value, handle)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
                 Camera::BASE => handle_base_property_changed(inner, handle, node),
                 _ => None,
             },
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+
+pub fn handle_perspective_property_changed(
+    args: &PropertyChanged,
+    handle: Handle<Node>,
+) -> Option<SceneCommand> {
+    if let FieldKind::Object(ref value) = args.value {
+        match args.name.as_ref() {
+            PerspectiveProjection::Z_NEAR => {
+                make_command!(SetPerspectiveZNear, handle, value)
+            }
+            PerspectiveProjection::Z_FAR => {
+                make_command!(SetPerspectiveZFar, handle, value)
+            }
+            PerspectiveProjection::FOV => {
+                make_command!(SetPerspectiveFov, handle, value)
+            }
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+
+pub fn handle_ortho_property_changed(
+    args: &PropertyChanged,
+    handle: Handle<Node>,
+) -> Option<SceneCommand> {
+    if let FieldKind::Object(ref value) = args.value {
+        match args.name.as_ref() {
+            OrthographicProjection::Z_NEAR => {
+                make_command!(SetOrthoZNear, handle, value)
+            }
+            OrthographicProjection::Z_FAR => {
+                make_command!(SetOrthoZFar, handle, value)
+            }
             _ => None,
         }
     } else {

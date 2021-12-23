@@ -1,4 +1,5 @@
 use crate::GameEngine;
+use rg3d::scene::camera::Projection;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -195,9 +196,11 @@ impl PreviewPanel {
         self.yaw = 0.0;
         self.pitch = -45.0;
 
-        let fov = scene.graph[self.camera].as_camera().fov();
-        self.xz_position = bounding_box.center().xz();
-        self.distance = (bounding_box.max - bounding_box.min).norm() * (fov * 0.5).tan();
+        if let Projection::Perspective(proj) = scene.graph[self.camera].as_camera().projection() {
+            let fov = proj.fov;
+            self.xz_position = bounding_box.center().xz();
+            self.distance = (bounding_box.max - bounding_box.min).norm() * (fov * 0.5).tan();
+        }
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {

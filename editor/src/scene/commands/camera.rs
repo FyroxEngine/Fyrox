@@ -2,6 +2,7 @@ use crate::{
     define_node_command, get_set_swap,
     scene::commands::{Command, SceneContext},
 };
+use rg3d::scene::camera::Projection;
 use rg3d::{
     core::{math::Rect, pool::Handle},
     resource::texture::Texture,
@@ -11,10 +12,6 @@ use rg3d::{
         node::Node,
     },
 };
-
-define_node_command!(SetFovCommand("Set Fov", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_camera_mut(), fov, set_fov);
-});
 
 define_node_command!(SetViewportCommand("Set Viewport", Rect<f32>) where fn swap(self, node) {
     get_set_swap!(self, node.as_camera_mut(), viewport, set_viewport);
@@ -30,12 +27,8 @@ define_node_command!(SetEnvironmentMap("Set Camera Environment Map", Option<Text
     get_set_swap!(self, node.as_camera_mut(), environment_map, set_environment);
 });
 
-define_node_command!(SetZNearCommand("Set Camera Z Near", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_camera_mut(), z_near, set_z_near);
-});
-
-define_node_command!(SetZFarCommand("Set Camera Z Far", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_camera_mut(), z_far, set_z_far);
+define_node_command!(SetProjectionCommand("Set Camera Projection", Projection) where fn swap(self, node) {
+    get_set_swap!(self, node.as_camera_mut(), projection_value, set_projection);
 });
 
 define_node_command!(SetExposureCommand("Set Camera Exposure", Exposure) where fn swap(self, node) {
@@ -48,6 +41,46 @@ define_node_command!(SetColorGradingLutCommand("Set Color Grading Lut", Option<C
 
 define_node_command!(SetColorGradingEnabledCommand("Set Color Grading Enabled", bool) where fn swap(self, node) {
     get_set_swap!(self, node.as_camera_mut(), color_grading_enabled, set_color_grading_enabled);
+});
+
+define_node_command!(SetPerspectiveZNear("Set Z Near", f32) where fn swap(self, node) {
+    if let Projection::Perspective(proj) = node.as_camera_mut().projection_mut() {
+        std::mem::swap(&mut proj.z_near, &mut self.value)
+    } else {
+        unreachable!()
+    }
+});
+
+define_node_command!(SetPerspectiveZFar("Set Z Far", f32) where fn swap(self, node) {
+    if let Projection::Perspective(proj) = node.as_camera_mut().projection_mut() {
+        std::mem::swap(&mut proj.z_far, &mut self.value)
+    } else {
+        unreachable!()
+    }
+});
+
+define_node_command!(SetPerspectiveFov("Set Fov", f32) where fn swap(self, node) {
+    if let Projection::Perspective(proj) = node.as_camera_mut().projection_mut() {
+        std::mem::swap(&mut proj.fov, &mut self.value)
+    } else {
+        unreachable!()
+    }
+});
+
+define_node_command!(SetOrthoZNear("Set Z Near", f32) where fn swap(self, node) {
+    if let Projection::Orthographic(proj) = node.as_camera_mut().projection_mut() {
+        std::mem::swap(&mut proj.z_near, &mut self.value)
+    } else {
+        unreachable!()
+    }
+});
+
+define_node_command!(SetOrthoZFar("Set Z Far", f32) where fn swap(self, node) {
+    if let Projection::Orthographic(proj) = node.as_camera_mut().projection_mut() {
+        std::mem::swap(&mut proj.z_far, &mut self.value)
+    } else {
+        unreachable!()
+    }
 });
 
 #[derive(Debug)]

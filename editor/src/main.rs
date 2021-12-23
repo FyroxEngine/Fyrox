@@ -1603,8 +1603,12 @@ impl Editor {
 
             let camera = scene.graph[editor_scene.camera_controller.camera].as_camera_mut();
 
-            camera.set_z_near(self.settings.graphics.z_near);
-            camera.set_z_far(self.settings.graphics.z_far);
+            camera
+                .projection_mut()
+                .set_z_near(self.settings.graphics.z_near);
+            camera
+                .projection_mut()
+                .set_z_far(self.settings.graphics.z_far);
 
             // Create new render target if preview frame has changed its size.
             if let TextureKind::Rectangle { width, height } =

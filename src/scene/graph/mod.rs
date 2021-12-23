@@ -955,8 +955,8 @@ impl Graph {
                             let old_cache = camera.visibility_cache.invalidate();
                             let mut new_cache = VisibilityCache::from(old_cache);
                             let observer_position = camera.global_position();
-                            let z_near = camera.z_near();
-                            let z_far = camera.z_far();
+                            let z_near = camera.projection().z_near();
+                            let z_far = camera.projection().z_far();
                             let frustum =
                                 Frustum::from(camera.view_projection_matrix()).unwrap_or_default();
                             new_cache.update(

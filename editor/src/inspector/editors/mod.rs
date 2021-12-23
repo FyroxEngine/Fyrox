@@ -9,6 +9,7 @@ use crate::{
     },
     Message,
 };
+use rg3d::scene::camera::{OrthographicProjection, PerspectiveProjection, Projection};
 use rg3d::scene::collider::GeometrySource;
 use rg3d::{
     core::{inspect::Inspect, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
@@ -145,6 +146,21 @@ where
             Some(_) => 1,
         },
         names_generator: || vec!["None".to_string(), "Some".to_string()],
+    }
+}
+
+pub fn make_projection_editor_definition() -> EnumPropertyEditorDefinition<Projection> {
+    EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => Projection::Perspective(Default::default()),
+            1 => Projection::Orthographic(Default::default()),
+            _ => unreachable!(),
+        },
+        index_generator: |v| match v {
+            Projection::Perspective(_) => 0,
+            Projection::Orthographic(_) => 1,
+        },
+        names_generator: || vec!["Perspective".to_string(), "Orthographic".to_string()],
     }
 }
 
@@ -294,6 +310,8 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<Base>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseLight>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseEmitter>::new());
+    container.insert(InspectablePropertyEditorDefinition::<PerspectiveProjection>::new());
+    container.insert(InspectablePropertyEditorDefinition::<OrthographicProjection>::new());
     container.insert(InspectablePropertyEditorDefinition::<
         scene::transform::Transform,
     >::new());
@@ -306,6 +324,7 @@ pub fn make_property_editors_container(
     container.insert(make_option_editor_definition::<Box<SkyBox>>());
     container.insert(HandlePropertyEditorDefinition::<Node>::new(sender));
     container.insert(make_shape_property_editor_definition());
+    container.insert(make_projection_editor_definition());
 
     Rc::new(container)
 }

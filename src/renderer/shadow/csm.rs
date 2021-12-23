@@ -26,6 +26,7 @@ use crate::{
         node::Node,
     },
 };
+use rg3d_core::algebra::Vector2;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct Cascade {
@@ -94,7 +95,7 @@ pub struct CsmRenderer {
 }
 
 pub(in crate) struct CsmRenderContext<'a, 'c> {
-    pub aspect: f32,
+    pub frame_size: Vector2<f32>,
     pub state: &'a mut PipelineState,
     pub graph: &'c Graph,
     pub light: &'c DirectionalLight,
@@ -142,7 +143,7 @@ impl CsmRenderer {
         let mut stats = RenderPassStatistics::default();
 
         let CsmRenderContext {
-            aspect,
+            frame_size,
             state,
             graph,
             light,
@@ -173,14 +174,17 @@ impl CsmRenderer {
         );
 
         let z_values = match light.csm_options.split_options {
-            FrustumSplitOptions::Absolute { far_planes } => {
-                [camera.z_near(), far_planes[0], far_planes[1], far_planes[2]]
-            }
+            FrustumSplitOptions::Absolute { far_planes } => [
+                camera.projection().z_near(),
+                far_planes[0],
+                far_planes[1],
+                far_planes[2],
+            ],
             FrustumSplitOptions::Relative { fractions } => [
-                camera.z_near(),
-                camera.z_far() * fractions[0],
-                camera.z_far() * fractions[1],
-                camera.z_far() * fractions[2],
+                camera.projection().z_near(),
+                camera.projection().z_far() * fractions[0],
+                camera.projection().z_far() * fractions[1],
+                camera.projection().z_far() * fractions[2],
             ],
         };
 
@@ -188,10 +192,15 @@ impl CsmRenderer {
             let znear = z_values[i];
             let zfar = z_values[i + 1];
 
-            let perspective_proj = Matrix4::new_perspective(aspect, camera.fov(), znear, zfar);
+            let projection_matrix = camera
+                .projection()
+                .clone()
+                .with_z_near(znear)
+                .with_z_far(zfar)
+                .matrix(&camera.viewport(), frame_size);
 
             let frustum =
-                Frustum::from(perspective_proj * camera.view_matrix()).unwrap_or_default();
+                Frustum::from(projection_matrix * camera.view_matrix()).unwrap_or_default();
 
             let mut aabb = AxisAlignedBoundingBox::default();
             for corner in frustum.corners() {

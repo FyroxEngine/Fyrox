@@ -1,4 +1,5 @@
 use crate::{scene::EditorScene, settings::Settings, GameEngine};
+use rg3d::scene::camera::Projection;
 use rg3d::{
     core::{
         algebra::{Vector2, Vector3},
@@ -106,7 +107,14 @@ pub fn calculate_gizmo_distance_scaling(
     camera: Handle<Node>,
     gizmo_origin: Handle<Node>,
 ) -> Vector3<f32> {
-    let distance = distance_scale_factor(graph[camera].as_camera().fov())
+    let scale_factor = if let Projection::Perspective(proj) = graph[camera].as_camera().projection()
+    {
+        distance_scale_factor(proj.fov)
+    } else {
+        1.0
+    };
+
+    let distance = scale_factor
         * graph[gizmo_origin]
             .global_position()
             .metric_distance(&graph[camera].global_position());
