@@ -1,4 +1,7 @@
-use crate::{load_image, GameEngine, InteractionModeKind, Message, SettingsSectionKind};
+use crate::{
+    gui::make_dropdown_list_option_with_height, load_image, DropdownListBuilder, GameEngine,
+    InteractionModeKind, Message, SettingsSectionKind,
+};
 use rg3d::{
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     gui::{
@@ -6,6 +9,7 @@ use rg3d::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         canvas::CanvasBuilder,
+        dropdown_list::DropdownListMessage,
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::{ImageBuilder, ImageMessage},
@@ -14,9 +18,10 @@ use rg3d::{
         text::TextBuilder,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Thickness, UiNode, UserInterface,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
     resource::texture::Texture,
+    scene::camera::Projection,
     utils::into_gui_texture,
 };
 use std::sync::mpsc::Sender;
@@ -34,6 +39,7 @@ pub struct SceneViewer {
     scale_mode: Handle<UiNode>,
     navmesh_mode: Handle<UiNode>,
     terrain_mode: Handle<UiNode>,
+    camera_projection: Handle<UiNode>,
     sender: Sender<Message>,
 }
 
@@ -113,99 +119,156 @@ impl SceneViewer {
         let navmesh_mode;
         let terrain_mode;
         let selection_frame;
+        let camera_projection;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
             .can_minimize(false)
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
-                        .with_child({
-                            frame = ImageBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(0)
-                                    .on_column(1)
-                                    .with_allow_drop(true),
-                            )
-                            .with_flip(true)
-                            .build(ctx);
-                            frame
-                        })
-                        .with_child(
-                            CanvasBuilder::new(WidgetBuilder::new().on_column(1).with_child({
-                                selection_frame = BorderBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_visibility(false)
-                                        .with_background(Brush::Solid(Color::from_rgba(
-                                            255, 255, 255, 40,
-                                        )))
-                                        .with_foreground(Brush::Solid(Color::opaque(0, 255, 0))),
-                                )
-                                .with_stroke_thickness(Thickness::uniform(1.0))
-                                .build(ctx);
-                                selection_frame
-                            }))
-                            .build(ctx),
-                        )
+                        .on_row(0)
                         .with_child(
                             StackPanelBuilder::new(
                                 WidgetBuilder::new()
                                     .with_margin(Thickness::uniform(1.0))
-                                    .on_row(0)
-                                    .on_column(0)
+                                    .with_horizontal_alignment(HorizontalAlignment::Right)
                                     .with_child({
-                                        select_mode = make_interaction_mode_button(
-                                            ctx,
-                                            include_bytes!("../resources/embed/select.png"),
-                                            select_mode_tooltip,
-                                        );
-                                        select_mode
-                                    })
-                                    .with_child({
-                                        move_mode = make_interaction_mode_button(
-                                            ctx,
-                                            include_bytes!("../resources/embed/move_arrow.png"),
-                                            move_mode_tooltip,
-                                        );
-                                        move_mode
-                                    })
-                                    .with_child({
-                                        rotate_mode = make_interaction_mode_button(
-                                            ctx,
-                                            include_bytes!("../resources/embed/rotate_arrow.png"),
-                                            rotate_mode_tooltip,
-                                        );
-                                        rotate_mode
-                                    })
-                                    .with_child({
-                                        scale_mode = make_interaction_mode_button(
-                                            ctx,
-                                            include_bytes!("../resources/embed/scale_arrow.png"),
-                                            scale_mode_tooltip,
-                                        );
-                                        scale_mode
-                                    })
-                                    .with_child({
-                                        navmesh_mode = make_interaction_mode_button(
-                                            ctx,
-                                            include_bytes!("../resources/embed/navmesh.png"),
-                                            navmesh_mode_tooltip,
-                                        );
-                                        navmesh_mode
-                                    })
-                                    .with_child({
-                                        terrain_mode = make_interaction_mode_button(
-                                            ctx,
-                                            include_bytes!("../resources/embed/terrain.png"),
-                                            terrain_mode_tooltip,
-                                        );
-                                        terrain_mode
+                                        camera_projection = DropdownListBuilder::new(
+                                            WidgetBuilder::new().with_width(150.0),
+                                        )
+                                        .with_items(vec![
+                                            make_dropdown_list_option_with_height(
+                                                ctx,
+                                                "Perspective (3D)",
+                                                22.0,
+                                            ),
+                                            make_dropdown_list_option_with_height(
+                                                ctx,
+                                                "Orthographic (2D)",
+                                                22.0,
+                                            ),
+                                        ])
+                                        .with_selected(0)
+                                        .build(ctx);
+                                        camera_projection
                                     }),
                             )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx),
+                        )
+                        .with_child(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(1)
+                                    .with_child({
+                                        frame = ImageBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_row(0)
+                                                .on_column(1)
+                                                .with_allow_drop(true),
+                                        )
+                                        .with_flip(true)
+                                        .build(ctx);
+                                        frame
+                                    })
+                                    .with_child(
+                                        CanvasBuilder::new(
+                                            WidgetBuilder::new().on_column(1).with_child({
+                                                selection_frame = BorderBuilder::new(
+                                                    WidgetBuilder::new()
+                                                        .with_visibility(false)
+                                                        .with_background(Brush::Solid(
+                                                            Color::from_rgba(255, 255, 255, 40),
+                                                        ))
+                                                        .with_foreground(Brush::Solid(
+                                                            Color::opaque(0, 255, 0),
+                                                        )),
+                                                )
+                                                .with_stroke_thickness(Thickness::uniform(1.0))
+                                                .build(ctx);
+                                                selection_frame
+                                            }),
+                                        )
+                                        .build(ctx),
+                                    )
+                                    .with_child(
+                                        StackPanelBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .on_row(0)
+                                                .on_column(0)
+                                                .with_child({
+                                                    select_mode = make_interaction_mode_button(
+                                                        ctx,
+                                                        include_bytes!(
+                                                            "../resources/embed/select.png"
+                                                        ),
+                                                        select_mode_tooltip,
+                                                    );
+                                                    select_mode
+                                                })
+                                                .with_child({
+                                                    move_mode = make_interaction_mode_button(
+                                                        ctx,
+                                                        include_bytes!(
+                                                            "../resources/embed/move_arrow.png"
+                                                        ),
+                                                        move_mode_tooltip,
+                                                    );
+                                                    move_mode
+                                                })
+                                                .with_child({
+                                                    rotate_mode = make_interaction_mode_button(
+                                                        ctx,
+                                                        include_bytes!(
+                                                            "../resources/embed/rotate_arrow.png"
+                                                        ),
+                                                        rotate_mode_tooltip,
+                                                    );
+                                                    rotate_mode
+                                                })
+                                                .with_child({
+                                                    scale_mode = make_interaction_mode_button(
+                                                        ctx,
+                                                        include_bytes!(
+                                                            "../resources/embed/scale_arrow.png"
+                                                        ),
+                                                        scale_mode_tooltip,
+                                                    );
+                                                    scale_mode
+                                                })
+                                                .with_child({
+                                                    navmesh_mode = make_interaction_mode_button(
+                                                        ctx,
+                                                        include_bytes!(
+                                                            "../resources/embed/navmesh.png"
+                                                        ),
+                                                        navmesh_mode_tooltip,
+                                                    );
+                                                    navmesh_mode
+                                                })
+                                                .with_child({
+                                                    terrain_mode = make_interaction_mode_button(
+                                                        ctx,
+                                                        include_bytes!(
+                                                            "../resources/embed/terrain.png"
+                                                        ),
+                                                        terrain_mode_tooltip,
+                                                    );
+                                                    terrain_mode
+                                                }),
+                                        )
+                                        .build(ctx),
+                                    ),
+                            )
+                            .add_row(Row::stretch())
+                            .add_column(Column::auto())
+                            .add_column(Column::stretch())
                             .build(ctx),
                         ),
                 )
+                .add_row(Row::strict(25.0))
                 .add_row(Row::stretch())
-                .add_column(Column::auto())
                 .add_column(Column::stretch())
                 .build(ctx),
             )
@@ -224,6 +287,7 @@ impl SceneViewer {
             select_mode,
             navmesh_mode,
             terrain_mode,
+            camera_projection,
             click_mouse_pos: None,
         }
     }
@@ -278,6 +342,22 @@ impl SceneViewer {
                 self.sender
                     .send(Message::OpenSettings(SettingsSectionKind::MoveModeSettings))
                     .unwrap();
+            }
+        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+            if message.destination() == self.camera_projection {
+                if *index == 0 {
+                    self.sender
+                        .send(Message::SetEditorCameraProjection(Projection::Perspective(
+                            Default::default(),
+                        )))
+                        .unwrap()
+                } else {
+                    self.sender
+                        .send(Message::SetEditorCameraProjection(
+                            Projection::Orthographic(Default::default()),
+                        ))
+                        .unwrap()
+                }
             }
         }
     }

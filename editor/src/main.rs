@@ -68,6 +68,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use rg3d::scene::camera::Projection;
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -554,6 +555,7 @@ pub enum Message {
         type_id: TypeId,
         handle: ErasedHandle,
     },
+    SetEditorCameraProjection(Projection),
 }
 
 impl Message {
@@ -1586,6 +1588,14 @@ impl Editor {
                                 )))
                                 .unwrap()
                         }
+                    }
+                }
+                Message::SetEditorCameraProjection(projection) => {
+                    if let Some(editor_scene) = self.scene.as_ref() {
+                        editor_scene.camera_controller.set_projection(
+                            &mut engine.scenes[editor_scene.scene].graph,
+                            projection,
+                        );
                     }
                 }
             }

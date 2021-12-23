@@ -1,15 +1,16 @@
 use crate::rg3d::core::math::Matrix4Ext;
-use rg3d::core::math::aabb::AxisAlignedBoundingBox;
-use rg3d::scene::camera::Exposure;
 use rg3d::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
-        math::plane::Plane,
+        math::{aabb::AxisAlignedBoundingBox, plane::Plane},
         pool::Handle,
     },
     gui::message::{KeyCode, MouseButton},
     scene::{
-        base::BaseBuilder, camera::CameraBuilder, graph::Graph, node::Node,
+        base::BaseBuilder,
+        camera::{CameraBuilder, Exposure, Projection},
+        graph::Graph,
+        node::Node,
         transform::TransformBuilder,
     },
 };
@@ -95,6 +96,12 @@ impl CameraController {
             editor_context: Default::default(),
             scene_context: Default::default(),
         }
+    }
+
+    pub fn set_projection(&self, graph: &mut Graph, projection: Projection) {
+        graph[self.camera]
+            .as_camera_mut()
+            .set_projection(projection)
     }
 
     pub fn on_mouse_move(&mut self, delta: Vector2<f32>) {
