@@ -52,7 +52,6 @@ fn make_move_axis(
                 arrow = MeshBuilder::new(
                     BaseBuilder::new()
                         .with_name(name_prefix.to_owned() + "Arrow")
-                        .with_depth_offset(0.5)
                         .with_local_transform(
                             TransformBuilder::new()
                                 .with_local_position(Vector3::new(0.0, 1.0, 0.0))
@@ -70,7 +69,6 @@ fn make_move_axis(
                 arrow
             }])
             .with_name(name_prefix.to_owned() + "Axis")
-            .with_depth_offset(0.5)
             .with_local_transform(
                 TransformBuilder::new()
                     .with_local_rotation(rotation)
@@ -96,14 +94,11 @@ fn create_quad_plane(
     name: &str,
 ) -> Handle<Node> {
     MeshBuilder::new(
-        BaseBuilder::new()
-            .with_name(name)
-            .with_depth_offset(0.5)
-            .with_local_transform(
-                TransformBuilder::new()
-                    .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
-                    .build(),
-            ),
+        BaseBuilder::new().with_name(name).with_local_transform(
+            TransformBuilder::new()
+                .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
+                .build(),
+        ),
     )
     .with_render_path(RenderPath::Forward)
     .with_cast_shadows(false)

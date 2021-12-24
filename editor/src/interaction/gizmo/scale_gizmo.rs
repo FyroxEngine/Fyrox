@@ -55,7 +55,6 @@ fn make_scale_axis(
                 arrow = MeshBuilder::new(
                     BaseBuilder::new()
                         .with_name(name_prefix.to_owned() + "Arrow")
-                        .with_depth_offset(0.5)
                         .with_local_transform(
                             TransformBuilder::new()
                                 .with_local_position(Vector3::new(0.0, 1.0, 0.0))
@@ -75,7 +74,6 @@ fn make_scale_axis(
                 arrow
             }])
             .with_name(name_prefix.to_owned() + "Axis")
-            .with_depth_offset(0.5)
             .with_local_transform(
                 TransformBuilder::new()
                     .with_local_rotation(rotation)
@@ -101,7 +99,6 @@ impl ScaleGizmo {
 
         let origin = MeshBuilder::new(
             BaseBuilder::new()
-                .with_depth_offset(0.5)
                 .with_name("Origin")
                 .with_visibility(false),
         )
