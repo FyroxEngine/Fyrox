@@ -4,6 +4,7 @@ use crate::{
     scene::{EditorScene, Selection},
     set_mesh_diffuse_color, GameEngine,
 };
+use rg3d::scene::transform::Transform;
 use rg3d::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -13,7 +14,7 @@ use rg3d::{
         pool::Handle,
     },
     scene::{
-        base::{BaseBuilder, LocalTransformRefMut},
+        base::BaseBuilder,
         graph::Graph,
         mesh::{
             surface::{SurfaceBuilder, SurfaceData},
@@ -244,7 +245,7 @@ impl MoveGizmo {
         mode
     }
 
-    pub fn transform<'a>(&self, graph: &'a mut Graph) -> LocalTransformRefMut<'a> {
+    pub fn transform<'a>(&self, graph: &'a mut Graph) -> &'a mut Transform {
         graph[self.origin].local_transform_mut()
     }
 

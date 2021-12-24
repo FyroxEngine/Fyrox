@@ -292,31 +292,6 @@ pub struct Property {
     pub value: PropertyValue,
 }
 
-#[doc(hidden)]
-pub struct LocalTransformRefMut<'a> {
-    parent: &'a mut Base,
-}
-
-impl<'a> Drop for LocalTransformRefMut<'a> {
-    fn drop(&mut self) {
-        self.parent.transform_modified.set(true);
-    }
-}
-
-impl<'a> Deref for LocalTransformRefMut<'a> {
-    type Target = Transform;
-
-    fn deref(&self) -> &Self::Target {
-        &self.parent.local_transform
-    }
-}
-
-impl<'a> DerefMut for LocalTransformRefMut<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.parent.local_transform
-    }
-}
-
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -409,8 +384,9 @@ impl Base {
 
     /// Returns mutable reference to local transform of a node, can be used to set
     /// some local spatial properties, such as position, rotation, scale, etc.
-    pub fn local_transform_mut(&mut self) -> LocalTransformRefMut {
-        LocalTransformRefMut { parent: self }
+    pub fn local_transform_mut(&mut self) -> &mut Transform {
+        self.transform_modified.set(true);
+        &mut self.local_transform
     }
 
     /// Sets new local transform of a node.

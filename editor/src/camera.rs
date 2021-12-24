@@ -19,6 +19,8 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+const DEFAULT_Z_OFFSET: f32 = -3.0;
+
 pub struct CameraController {
     pub pivot: Handle<Node>,
     pub camera: Handle<Node>,
@@ -69,7 +71,7 @@ impl CameraController {
             .with_name("EditorCameraPivot")
             .with_local_transform(
                 TransformBuilder::new()
-                    .with_local_position(Vector3::new(0.0, 1.0, -3.0))
+                    .with_local_position(Vector3::new(0.0, 1.0, DEFAULT_Z_OFFSET))
                     .build(),
             )
             .build(graph);
@@ -243,7 +245,7 @@ impl CameraController {
                     .offset(move_vec);
             }
             Projection::Orthographic(_) => {
-                let mut move_vec = Vector3::default();
+                let mut move_vec = Vector2::<f32>::default();
 
                 if self.move_left {
                     move_vec.x += 1.0;
@@ -269,10 +271,16 @@ impl CameraController {
                     .local_transform_mut()
                     .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 0.0));
 
-                graph[self.pivot]
-                    .local_transform_mut()
+                let mut local_transform = graph[self.pivot].local_transform_mut();
+
+                let mut new_position = **local_transform.position();
+                new_position.z = DEFAULT_Z_OFFSET;
+                new_position.x += move_vec.x;
+                new_position.y += move_vec.y;
+
+                local_transform
                     .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::y_axis(), 0.0))
-                    .offset(move_vec);
+                    .set_position(new_position);
             }
         }
 
