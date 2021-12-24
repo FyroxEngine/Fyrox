@@ -68,6 +68,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use rg3d::material::shader::Shader;
 use rg3d::scene::camera::Projection;
 use rg3d::{
     core::{
@@ -187,8 +188,18 @@ pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
     ))
 }
 
+lazy_static! {
+    static ref GIZMO_SHADER: Shader = {
+        Shader::from_str(
+            include_str!("../resources/embed/shaders/gizmo.shader",),
+            PathBuf::default(),
+        )
+        .unwrap()
+    };
+}
+
 pub fn make_color_material(color: Color) -> Arc<Mutex<Material>> {
-    let mut material = Material::standard();
+    let mut material = Material::from_shader(GIZMO_SHADER.clone(), None);
     material
         .set_property(
             &ImmutableString::new("diffuseColor"),
