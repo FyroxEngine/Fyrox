@@ -123,12 +123,18 @@ impl CameraController {
     }
 
     pub fn on_mouse_wheel(&mut self, delta: f32, graph: &mut Graph) {
-        let camera = &mut graph[self.camera];
+        let camera = graph[self.camera].as_camera_mut();
 
-        let look = camera.global_transform().look();
-
-        if let Node::Base(pivot) = &mut graph[self.pivot] {
-            pivot.local_transform_mut().offset(look.scale(delta));
+        match *camera.projection_mut() {
+            Projection::Perspective(_) => {
+                let look = camera.global_transform().look();
+                graph[self.pivot]
+                    .local_transform_mut()
+                    .offset(look.scale(delta));
+            }
+            Projection::Orthographic(ref mut ortho) => {
+                ortho.vertical_size = (ortho.vertical_size - delta).max(f32::EPSILON);
+            }
         }
     }
 
@@ -184,52 +190,94 @@ impl CameraController {
     }
 
     pub fn update(&mut self, graph: &mut Graph, dt: f32) {
-        let camera = &mut graph[self.camera];
+        let camera = graph[self.camera].as_camera_mut();
 
-        let global_transform = camera.global_transform();
-        let look = global_transform.look();
-        let side = global_transform.side();
-        let up = global_transform.up();
+        match camera.projection_value() {
+            Projection::Perspective(_) => {
+                let global_transform = camera.global_transform();
+                let look = global_transform.look();
+                let side = global_transform.side();
+                let up = global_transform.up();
 
-        let mut move_vec = Vector3::default();
-        if self.move_forward {
-            move_vec += look;
-        }
-        if self.move_backward {
-            move_vec -= look;
-        }
-        if self.move_left {
-            move_vec += side;
-        }
-        if self.move_right {
-            move_vec -= side;
-        }
-        if self.move_up {
-            move_vec += up;
-        }
-        if self.move_down {
-            move_vec -= up;
-        }
-        if let Some(v) = move_vec.try_normalize(std::f32::EPSILON) {
-            move_vec = v.scale(self.speed_factor * 10.0 * dt);
+                let mut move_vec = Vector3::default();
+
+                if self.move_forward {
+                    move_vec += look;
+                }
+                if self.move_backward {
+                    move_vec -= look;
+                }
+                if self.move_left {
+                    move_vec += side;
+                }
+                if self.move_right {
+                    move_vec -= side;
+                }
+                if self.move_up {
+                    move_vec += up;
+                }
+                if self.move_down {
+                    move_vec -= up;
+                }
+
+                move_vec += side * self.drag_side;
+                move_vec.y += self.drag_up;
+
+                if let Some(v) = move_vec.try_normalize(std::f32::EPSILON) {
+                    move_vec = v.scale(self.speed_factor * 10.0 * dt);
+                }
+
+                camera
+                    .local_transform_mut()
+                    .set_rotation(UnitQuaternion::from_axis_angle(
+                        &Vector3::x_axis(),
+                        self.pitch,
+                    ));
+
+                graph[self.pivot]
+                    .local_transform_mut()
+                    .set_rotation(UnitQuaternion::from_axis_angle(
+                        &Vector3::y_axis(),
+                        self.yaw,
+                    ))
+                    .offset(move_vec);
+            }
+            Projection::Orthographic(_) => {
+                let mut move_vec = Vector3::default();
+
+                if self.move_left {
+                    move_vec.x += 1.0;
+                }
+                if self.move_right {
+                    move_vec.x -= 1.0;
+                }
+                if self.move_forward {
+                    move_vec.y += 1.0;
+                }
+                if self.move_backward {
+                    move_vec.y -= 1.0;
+                }
+
+                move_vec.x += self.drag_side;
+                move_vec.y += self.drag_up;
+
+                if let Some(v) = move_vec.try_normalize(f32::EPSILON) {
+                    move_vec = v.scale(self.speed_factor * 10.0 * dt);
+                }
+
+                camera
+                    .local_transform_mut()
+                    .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 0.0));
+
+                graph[self.pivot]
+                    .local_transform_mut()
+                    .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::y_axis(), 0.0))
+                    .offset(move_vec);
+            }
         }
 
-        move_vec += side * self.drag_side;
-        move_vec.y += self.drag_up;
         self.drag_side = 0.0;
         self.drag_up = 0.0;
-
-        if let Node::Camera(camera) = camera {
-            let pitch = UnitQuaternion::from_axis_angle(&Vector3::x_axis(), self.pitch);
-            camera.local_transform_mut().set_rotation(pitch);
-        }
-        if let Node::Base(pivot) = &mut graph[self.pivot] {
-            let yaw = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), self.yaw);
-            pivot
-                .local_transform_mut()
-                .set_rotation(yaw)
-                .offset(move_vec);
-        }
     }
 
     pub fn pick<F>(

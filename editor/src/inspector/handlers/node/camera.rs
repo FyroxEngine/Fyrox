@@ -2,13 +2,15 @@ use crate::{
     inspector::handlers::node::base::handle_base_property_changed, make_command,
     scene::commands::camera::*, SceneCommand,
 };
-use rg3d::scene::camera::{OrthographicProjection, PerspectiveProjection, Projection};
 use rg3d::{
     core::{futures::executor::block_on, pool::Handle},
     gui::inspector::{FieldKind, PropertyChanged},
     resource::texture::{Texture, TextureWrapMode},
     scene::{
-        camera::{Camera, ColorGradingLut, Exposure, SkyBox, SkyBoxBuilder},
+        camera::{
+            Camera, ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection,
+            SkyBox, SkyBoxBuilder,
+        },
         node::Node,
     },
 };
