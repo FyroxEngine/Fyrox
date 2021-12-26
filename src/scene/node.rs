@@ -36,9 +36,7 @@ macro_rules! static_dispatch {
             Node::RigidBody(v) => v.$func($($args),*),
             Node::Collider(v) => v.$func($($args),*),
             Node::Joint(v) => v.$func($($args),*),
-            Node::Camera2D(v) => v.$func($($args),*),
-            Node::Sprite2D(v) => v.$func($($args),*),
-            Node::Light2D(v) => v.$func($($args),*),
+            Node::Rectangle(v) => v.$func($($args),*),
         }
     };
 }
@@ -168,14 +166,8 @@ pub enum Node {
     /// See [`Joint`] node docs.
     Joint(Joint),
 
-    /// 2D Camera node.
-    Camera2D(dim2::camera::Camera),
-
-    /// 2D Sprite node.
-    Sprite2D(dim2::sprite::Sprite),
-
-    /// 2D Light node.
-    Light2D(dim2::light::Light),
+    /// Rectangle node. See [`Rectangle`] node docs.
+    Rectangle(dim2::rectangle::Rectangle),
 }
 
 macro_rules! static_dispatch_deref {
@@ -192,9 +184,7 @@ macro_rules! static_dispatch_deref {
             Node::RigidBody(v) => v,
             Node::Collider(v) => v,
             Node::Joint(v) => v,
-            Node::Camera2D(v) => v,
-            Node::Sprite2D(v) => v,
-            Node::Light2D(v) => v,
+            Node::Rectangle(v) => v,
         }
     };
 }
@@ -244,9 +234,7 @@ impl Node {
             8 => Ok(Self::RigidBody(Default::default())),
             9 => Ok(Self::Collider(Default::default())),
             10 => Ok(Self::Joint(Default::default())),
-            11 => Ok(Self::Camera2D(Default::default())),
-            12 => Ok(Self::Sprite2D(Default::default())),
-            13 => Ok(Self::Light2D(Default::default())),
+            11 => Ok(Self::Rectangle(Default::default())),
             _ => Err(format!("Invalid node kind {}", id)),
         }
     }
@@ -265,9 +253,7 @@ impl Node {
             Self::RigidBody(_) => 8,
             Self::Collider(_) => 9,
             Self::Joint(_) => 10,
-            Self::Camera2D(_) => 11,
-            Self::Sprite2D(_) => 12,
-            Self::Light2D(_) => 13,
+            Self::Rectangle(_) => 11,
         }
     }
 
@@ -287,9 +273,7 @@ impl Node {
             Node::RigidBody(v) => Node::RigidBody(v.raw_copy()),
             Node::Collider(v) => Node::Collider(v.raw_copy()),
             Node::Joint(v) => Node::Joint(v.raw_copy()),
-            Node::Camera2D(v) => Node::Camera2D(v.raw_copy()),
-            Node::Sprite2D(v) => Node::Sprite2D(v.raw_copy()),
-            Node::Light2D(v) => Node::Light2D(v.raw_copy()),
+            Node::Rectangle(v) => Node::Rectangle(v.raw_copy()),
         }
     }
 

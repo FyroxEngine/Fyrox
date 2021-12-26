@@ -1,9 +1,7 @@
 use crate::{
     core::{
-        algebra::{Point3, Vector2},
         color::Color,
         inspect::{Inspect, PropertyInfo},
-        math::Rect,
         pool::Handle,
         visitor::prelude::*,
     },
@@ -17,25 +15,23 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Visit, Inspect, Debug)]
-pub struct Sprite {
+pub struct Rectangle {
     base: Base,
     texture: Option<Texture>,
     color: Color,
-    size: f32,
 }
 
-impl Default for Sprite {
+impl Default for Rectangle {
     fn default() -> Self {
         Self {
             base: Default::default(),
             texture: None,
             color: Default::default(),
-            size: 16.0,
         }
     }
 }
 
-impl Deref for Sprite {
+impl Deref for Rectangle {
     type Target = Base;
 
     fn deref(&self) -> &Self::Target {
@@ -43,13 +39,13 @@ impl Deref for Sprite {
     }
 }
 
-impl DerefMut for Sprite {
+impl DerefMut for Rectangle {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
     }
 }
 
-impl Sprite {
+impl Rectangle {
     pub fn texture(&self) -> Option<&Texture> {
         self.texture.as_ref()
     }
@@ -66,66 +62,27 @@ impl Sprite {
         self.color = color;
     }
 
-    pub fn size(&self) -> f32 {
-        self.size
-    }
-
-    pub fn set_size(&mut self, size: f32) {
-        self.size = size;
-    }
-
-    pub fn local_bounds(&self) -> Rect<f32> {
-        Rect {
-            position: self.local_transform().position().xy(),
-            size: Vector2::new(self.size, self.size),
-        }
-    }
-
-    pub fn global_bounds(&self) -> Rect<f32> {
-        let mut bounds = Rect::default();
-        let local_top_left = self.local_transform().position().xy();
-        let local_bottom_right = local_top_left + Vector2::new(self.size, self.size);
-        let global_top_left = self
-            .global_transform()
-            .transform_point(&Point3::new(local_top_left.x, local_top_left.y, 0.0))
-            .coords;
-        let global_bottom_right = self
-            .global_transform()
-            .transform_point(&Point3::new(
-                local_bottom_right.x,
-                local_bottom_right.y,
-                0.0,
-            ))
-            .coords;
-        bounds.push(global_top_left.xy());
-        bounds.push(global_bottom_right.xy());
-        bounds
-    }
-
     pub fn raw_copy(&self) -> Self {
         Self {
             base: self.base.raw_copy(),
             texture: self.texture.clone(),
             color: self.color,
-            size: self.size,
         }
     }
 }
 
-pub struct SpriteBuilder {
+pub struct RectangleBuilder {
     base_builder: BaseBuilder,
     texture: Option<Texture>,
     color: Color,
-    size: f32,
 }
 
-impl SpriteBuilder {
+impl RectangleBuilder {
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
             texture: None,
             color: Color::WHITE,
-            size: 16.0,
         }
     }
 
@@ -139,17 +96,11 @@ impl SpriteBuilder {
         self
     }
 
-    pub fn with_size(mut self, size: f32) -> Self {
-        self.size = size;
-        self
-    }
-
     pub fn build_node(self) -> Node {
-        Node::Sprite2D(Sprite {
+        Node::Rectangle(Rectangle {
             base: self.base_builder.build_base(),
             texture: self.texture,
             color: self.color,
-            size: self.size,
         })
     }
 

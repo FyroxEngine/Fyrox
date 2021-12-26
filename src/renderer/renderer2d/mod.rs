@@ -2,9 +2,9 @@
 
 use crate::{
     core::{
-        algebra::{Matrix4, Vector2, Vector4},
+        algebra::{Vector2, Vector3, Vector4},
         color::Color,
-        math::Rect,
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Rect},
         sstorage::ImmutableString,
     },
     renderer::{
@@ -18,7 +18,7 @@ use crate::{
         renderer2d::cache::{GeometryCache, InstanceData, Mesh},
         RenderPassStatistics, TextureCache,
     },
-    scene::{dim2::light::Light, graph::Graph, node::Node},
+    scene::{camera::Camera, graph::Graph, light::Light, node::Node},
 };
 use fxhash::FxHashMap;
 use std::{cell::RefCell, rc::Rc};
@@ -31,7 +31,8 @@ struct SpriteShader {
     diffuse_texture: UniformLocation,
     light_count: UniformLocation,
     light_color_radius: UniformLocation,
-    light_position_direction: UniformLocation,
+    light_position: UniformLocation,
+    light_direction: UniformLocation,
     light_parameters: UniformLocation,
     ambient_light_color: UniformLocation,
 }
@@ -42,7 +43,7 @@ impl SpriteShader {
         let vertex_source = include_str!("shaders/sprite_vs.glsl");
 
         let program =
-            GpuProgram::from_source(state, "SpriteShader2D", vertex_source, fragment_source)?;
+            GpuProgram::from_source(state, "RectangleShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program.uniform_location(state, &ImmutableString::new("viewProjection"))?,
             diffuse_texture: program
@@ -50,8 +51,10 @@ impl SpriteShader {
             light_count: program.uniform_location(state, &ImmutableString::new("lightCount"))?,
             light_color_radius: program
                 .uniform_location(state, &ImmutableString::new("lightColorRadius"))?,
-            light_position_direction: program
-                .uniform_location(state, &ImmutableString::new("lightPositionDirection"))?,
+            light_direction: program
+                .uniform_location(state, &ImmutableString::new("lightDirection"))?,
+            light_position: program
+                .uniform_location(state, &ImmutableString::new("lightPosition"))?,
             light_parameters: program
                 .uniform_location(state, &ImmutableString::new("lightParameters"))?,
             ambient_light_color: program
@@ -90,12 +93,12 @@ impl SpriteBatchStorage {
 
         let mut batch_index = 0;
         for node in graph.linear_iter() {
-            if let Node::Sprite2D(sprite) = node {
-                if !sprite.global_visibility() {
+            if let Node::Rectangle(rectangle) = node {
+                if !rectangle.global_visibility() {
                     continue;
                 }
 
-                let texture = sprite.texture().map_or_else(
+                let texture = rectangle.texture().map_or_else(
                     || white_dummy.clone(),
                     |t| {
                         texture_cache
@@ -125,11 +128,10 @@ impl SpriteBatchStorage {
 
                 batch.instances.push(Instance {
                     gpu_data: InstanceData {
-                        color: sprite.color().srgb_to_linear(),
-                        world_matrix: sprite.global_transform()
-                            * Matrix4::new_scaling(sprite.size()),
+                        color: rectangle.color().srgb_to_linear(),
+                        world_matrix: rectangle.global_transform(),
                     },
-                    bounds: sprite.global_bounds(),
+                    aabb: rectangle.world_bounding_box(),
                 });
             }
         }
@@ -138,7 +140,7 @@ impl SpriteBatchStorage {
 
 struct Instance {
     gpu_data: InstanceData,
-    bounds: Rect<f32>,
+    aabb: AxisAlignedBoundingBox,
 }
 
 struct Batch {
@@ -164,8 +166,9 @@ impl Renderer2d {
     pub(in crate) fn render(
         &mut self,
         state: &mut PipelineState,
+        camera: &Camera,
         frame_buffer: &mut FrameBuffer,
-        frame_size: Vector2<f32>,
+        viewport: Rect<i32>,
         graph: &Graph,
         texture_cache: &mut TextureCache,
         white_dummy: Rc<RefCell<GpuTexture>>,
@@ -177,114 +180,101 @@ impl Renderer2d {
         self.batch_storage
             .generate_batches(state, graph, texture_cache, white_dummy.clone());
 
-        for camera in graph.linear_iter().filter_map(|n| {
-            if let Node::Camera2D(c) = n {
-                Some(c)
+        let view_projection = camera.view_projection_matrix();
+
+        let frustum = Frustum::from(camera.view_projection_matrix()).unwrap_or_default();
+
+        const MAX_LIGHTS: usize = 16;
+        let mut light_count = 0;
+        let mut light_color_radius = [Vector4::default(); MAX_LIGHTS];
+        let mut light_position = [Vector3::default(); MAX_LIGHTS];
+        let mut light_direction = [Vector3::default(); MAX_LIGHTS];
+        let mut light_parameters = [Vector2::default(); MAX_LIGHTS];
+
+        for light in graph.linear_iter().filter_map(|n| {
+            if let Node::Light(l) = n {
+                Some(l)
             } else {
                 None
             }
         }) {
-            let view_projection = camera.view_projection_matrix();
-            let viewport = camera.viewport_pixels(frame_size);
-            let viewport_f32 = Rect::new(
-                viewport.position.x as f32,
-                viewport.position.y as f32,
-                viewport.size.x as f32,
-                viewport.size.y as f32,
+            if !light.global_visibility() || light_count == MAX_LIGHTS {
+                continue;
+            }
+
+            let (radius, half_cone_angle_cos, half_hotspot_angle_cos) = match light {
+                Light::Point(point) => (
+                    point.radius(),
+                    std::f32::consts::PI.cos(),
+                    std::f32::consts::PI.cos(),
+                ),
+                Light::Spot(spot) => (
+                    spot.distance(),
+                    (spot.hotspot_cone_angle() * 0.5).cos(),
+                    (spot.full_cone_angle() * 0.5).cos(),
+                ),
+                Light::Directional(_) => (
+                    f32::INFINITY,
+                    std::f32::consts::PI.cos(),
+                    std::f32::consts::PI.cos(),
+                ),
+            };
+
+            if frustum.is_intersects_aabb(&light.world_bounding_box()) {
+                let light_num = light_count as usize;
+                let color = light.color().as_frgb();
+
+                light_position[light_num] = light.global_position();
+                light_direction[light_num] = light.up_vector();
+                light_color_radius[light_num] = Vector4::new(color.x, color.y, color.z, radius);
+                light_parameters[light_num] =
+                    Vector2::new(half_cone_angle_cos, half_hotspot_angle_cos);
+
+                light_count += 1;
+            }
+        }
+
+        for batch in self.batch_storage.batches.iter() {
+            self.instance_data_set.clear();
+            for instance in batch.instances.iter() {
+                if frustum.is_intersects_aabb(&instance.aabb) {
+                    self.instance_data_set.push(instance.gpu_data.clone());
+                }
+            }
+
+            quad.set_buffer_data(state, 1, &self.instance_data_set);
+
+            let shader = &self.sprite_shader;
+            stats += frame_buffer.draw_instances(
+                batch.instances.len(),
+                quad,
+                state,
+                viewport,
+                &shader.program,
+                &DrawParameters {
+                    cull_face: None,
+                    color_write: Default::default(),
+                    depth_write: false,
+                    stencil_test: None,
+                    depth_test: false,
+                    blend: Some(BlendFunc {
+                        sfactor: BlendFactor::SrcAlpha,
+                        dfactor: BlendFactor::OneMinusSrcAlpha,
+                    }),
+                    stencil_op: Default::default(),
+                },
+                |mut program_binding| {
+                    program_binding
+                        .set_matrix4(&shader.wvp_matrix, &view_projection)
+                        .set_texture(&shader.diffuse_texture, &batch.texture)
+                        .set_i32(&shader.light_count, light_count as i32)
+                        .set_vector4_slice(&shader.light_color_radius, &light_color_radius)
+                        .set_vector3_slice(&shader.light_direction, &light_direction)
+                        .set_vector3_slice(&shader.light_position, &light_position)
+                        .set_vector2_slice(&shader.light_parameters, &light_parameters)
+                        .set_vector3(&shader.ambient_light_color, &ambient_color.as_frgb());
+                },
             );
-
-            const MAX_LIGHTS: usize = 16;
-            let mut light_count = 0;
-            let mut light_color_radius = [Vector4::default(); MAX_LIGHTS];
-            let mut light_position_direction = [Vector4::default(); MAX_LIGHTS];
-            let mut light_parameters = [Vector2::default(); MAX_LIGHTS];
-
-            for light in graph.linear_iter().filter_map(|n| {
-                if let Node::Light2D(l) = n {
-                    Some(l)
-                } else {
-                    None
-                }
-            }) {
-                if !light.global_visibility() || light_count == MAX_LIGHTS {
-                    continue;
-                }
-
-                let (radius, half_cone_angle_cos, half_hotspot_angle_cos, direction) = match light {
-                    Light::Point(point) => (
-                        point.radius(),
-                        std::f32::consts::PI.cos(),
-                        std::f32::consts::PI.cos(),
-                        Vector2::new(0.0, 1.0),
-                    ),
-                    Light::Spot(spot) => (
-                        spot.radius(),
-                        spot.half_hotspot_cone_angle(),
-                        spot.half_full_cone_angle_cos(),
-                        spot.up_vector().xy(),
-                    ),
-                };
-
-                let position = light.global_position().xy();
-
-                if viewport_f32.intersects_circle(position, radius) {
-                    let light_num = light_count as usize;
-                    let color = light.color().as_frgb();
-
-                    light_position_direction[light_num] =
-                        Vector4::new(position.x, position.y, direction.x, direction.y);
-                    light_color_radius[light_num] = Vector4::new(color.x, color.y, color.z, radius);
-                    light_parameters[light_num] =
-                        Vector2::new(half_cone_angle_cos, half_hotspot_angle_cos);
-
-                    light_count += 1;
-                }
-            }
-
-            for batch in self.batch_storage.batches.iter() {
-                self.instance_data_set.clear();
-                for instance in batch.instances.iter() {
-                    if viewport_f32.intersects(instance.bounds) {
-                        self.instance_data_set.push(instance.gpu_data.clone());
-                    }
-                }
-
-                quad.set_buffer_data(state, 1, &self.instance_data_set);
-
-                let shader = &self.sprite_shader;
-                stats += frame_buffer.draw_instances(
-                    batch.instances.len(),
-                    quad,
-                    state,
-                    viewport,
-                    &shader.program,
-                    &DrawParameters {
-                        cull_face: None,
-                        color_write: Default::default(),
-                        depth_write: false,
-                        stencil_test: None,
-                        depth_test: false,
-                        blend: Some(BlendFunc {
-                            sfactor: BlendFactor::SrcAlpha,
-                            dfactor: BlendFactor::OneMinusSrcAlpha,
-                        }),
-                        stencil_op: Default::default(),
-                    },
-                    |mut program_binding| {
-                        program_binding
-                            .set_matrix4(&shader.wvp_matrix, &view_projection)
-                            .set_texture(&shader.diffuse_texture, &batch.texture)
-                            .set_i32(&shader.light_count, light_count as i32)
-                            .set_vector4_slice(&shader.light_color_radius, &light_color_radius)
-                            .set_vector4_slice(
-                                &shader.light_position_direction,
-                                &light_position_direction,
-                            )
-                            .set_vector2_slice(&shader.light_parameters, &light_parameters)
-                            .set_vector3(&shader.ambient_light_color, &ambient_color.as_frgb());
-                    },
-                );
-            }
         }
 
         Ok(stats)

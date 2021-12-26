@@ -1477,6 +1477,17 @@ impl Renderer {
                     textures: &mut self.texture_cache,
                 });
 
+                self.statistics += self.renderer2d.render(
+                    state,
+                    camera,
+                    &mut scene_associated_data.hdr_scene_framebuffer,
+                    viewport,
+                    graph,
+                    &mut self.texture_cache,
+                    self.white_dummy.clone(),
+                    scene.ambient_lighting_color,
+                )?;
+
                 self.statistics += self.forward_renderer.render(ForwardRenderContext {
                     state,
                     camera,
@@ -1570,17 +1581,6 @@ impl Renderer {
                     camera,
                 );
             }
-
-            // Render 2D objects in the LDR frame buffer on top of everything else in the scene.
-            self.statistics += self.renderer2d.render(
-                state,
-                &mut scene_associated_data.ldr_scene_framebuffer,
-                Vector2::new(backbuffer_width, backbuffer_height),
-                graph,
-                &mut self.texture_cache,
-                self.white_dummy.clone(),
-                scene.ambient_lighting_color,
-            )?;
 
             // Optionally render everything into back buffer.
             if scene.render_target.is_none() {
