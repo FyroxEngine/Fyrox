@@ -41,7 +41,7 @@ use crate::{
         PhysicsBinder,
     },
     material::{shader::SamplerFallback, PropertyValue},
-    physics3d::RigidBodyHandle,
+    physics3d::legacy::RigidBodyHandle,
     resource::texture::Texture,
     scene::{
         base::BaseBuilder,

@@ -4,8 +4,9 @@
 //! compatibility of Rapier.
 
 use crate::{
-    AngVector, ColliderHandle, Isometry, JointHandle, NativeColliderHandle, NativeJointHandle,
-    NativeRigidBodyHandle, Point, RigidBodyHandle, Rotation, Translation, Vector,
+    legacy::ColliderHandle, legacy::JointHandle, legacy::RigidBodyHandle, AngVector, Isometry,
+    NativeColliderHandle, NativeJointHandle, NativeRigidBodyHandle, Point, Rotation, Translation,
+    Vector,
 };
 #[cfg(feature = "dim2")]
 use rapier2d::{

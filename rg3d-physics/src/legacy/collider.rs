@@ -1,6 +1,9 @@
 //! A container for colliders.
 
-use crate::{body::RigidBodyContainer, ColliderHandle, NativeColliderHandle, RigidBodyHandle};
+use crate::{
+    legacy::body::RigidBodyContainer, legacy::ColliderHandle, legacy::RigidBodyHandle,
+    NativeColliderHandle,
+};
 #[cfg(feature = "dim2")]
 use rapier2d::{
     dynamics::IslandManager,

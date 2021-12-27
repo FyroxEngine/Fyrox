@@ -1,6 +1,9 @@
 //! A container for joints.
 
-use crate::{body::RigidBodyContainer, JointHandle, NativeJointHandle, RigidBodyHandle};
+use crate::{
+    legacy::body::RigidBodyContainer, legacy::JointHandle, legacy::RigidBodyHandle,
+    NativeJointHandle,
+};
 #[cfg(feature = "dim2")]
 use rapier2d::dynamics::{IslandManager, Joint, JointParams, JointSet};
 #[cfg(feature = "dim3")]

@@ -1,7 +1,8 @@
 //! A container for rigid bodies.
 
 use crate::{
-    collider::ColliderContainer, joint::JointContainer, NativeRigidBodyHandle, RigidBodyHandle,
+    legacy::collider::ColliderContainer, legacy::joint::JointContainer, legacy::RigidBodyHandle,
+    NativeRigidBodyHandle,
 };
 #[cfg(feature = "dim2")]
 use rapier2d::dynamics::{IslandManager, RigidBody, RigidBodySet};
