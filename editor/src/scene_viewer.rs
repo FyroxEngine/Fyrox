@@ -366,7 +366,7 @@ impl SceneViewer {
         ui.send_message(ImageMessage::texture(
             self.frame,
             MessageDirection::ToWidget,
-            render_target.map(|rt| into_gui_texture(rt)),
+            render_target.map(into_gui_texture),
         ));
     }
 
