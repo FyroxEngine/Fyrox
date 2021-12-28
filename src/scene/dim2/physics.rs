@@ -35,6 +35,7 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
+use rg3d_core::algebra::{Isometry3, Translation3};
 use std::{
     cell::RefCell,
     cmp::Ordering,
@@ -511,10 +512,22 @@ impl PhysicsWorld {
     ) {
         if let Some(native) = self.bodies.set.get(rigid_body.native.get()) {
             if native.body_type() == RigidBodyType::Dynamic {
+                let translation2 = native.position().translation;
+                let isometry3 = Isometry3 {
+                    rotation: UnitQuaternion::from_euler_angles(
+                        native.position().rotation.angle(),
+                        0.0,
+                        0.0,
+                    ),
+                    translation: Translation3 {
+                        vector: Vector3::new(translation2.x, translation2.y, 0.0),
+                    },
+                };
+
                 let local_transform: Matrix4<f32> = parent_transform
                     .try_inverse()
                     .unwrap_or_else(Matrix4::identity)
-                    * native.position().to_homogeneous().to_homogeneous();
+                    * isometry3.to_homogeneous();
 
                 let local_rotation = UnitQuaternion::from_matrix(&local_transform.basis());
                 let local_position = Vector3::new(local_transform[12], local_transform[13], 0.0);
