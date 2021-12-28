@@ -1,39 +1,43 @@
 //! Scene physics module.
 
-use crate::scene::collider;
 use crate::{
     core::{
         algebra::{
             DMatrix, Dynamic, Isometry3, Matrix4, Point3, Translation3, Unit, UnitQuaternion,
-            VecStorage, Vector2, Vector3,
+            UnitVector3, VecStorage, Vector2, Vector3,
         },
         arrayvec::ArrayVec,
         color::Color,
+        inspect::{Inspect, PropertyInfo},
         instant,
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{Handle, Pool},
         visitor::prelude::*,
         BiDirHashMap,
     },
-    physics2d, physics3d,
-    physics3d::rapier::{
-        dynamics::{
-            BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager, JointHandle,
-            JointParams, JointSet, PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyBuilder,
-            RigidBodyHandle, RigidBodySet, RigidBodyType,
+    physics2d,
+    physics3d::{
+        self,
+        rapier::dynamics::RigidBodyActivation,
+        rapier::{
+            dynamics::{
+                BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager,
+                JointHandle, JointParams, JointSet, PrismaticJoint, RevoluteJoint, RigidBody,
+                RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
+            },
+            geometry::{
+                BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
+                InteractionGroups, NarrowPhase, Ray, Segment, Shape, SharedShape, TriMesh,
+            },
+            pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
         },
-        geometry::{
-            BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
-            InteractionGroups, NarrowPhase, Ray, Segment, Shape, SharedShape, TriMesh,
-        },
-        pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
     },
     scene::{
         self,
-        collider::ColliderChanges,
         collider::{
-            BallShape, CapsuleShape, ColliderShape, ConeShape, CuboidShape, CylinderShape,
-            GeometrySource, HeightfieldShape, SegmentShape, TriangleShape, TrimeshShape,
+            self, BallShape, CapsuleShape, ColliderChanges, ColliderShape, ConeShape, CuboidShape,
+            CylinderShape, GeometrySource, HeightfieldShape, SegmentShape, TriangleShape,
+            TrimeshShape,
         },
         debug::SceneDrawingContext,
         graph::isometric_global_transform,
@@ -48,8 +52,6 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use rg3d_core::algebra::UnitVector3;
-use rg3d_physics3d::rapier::dynamics::RigidBodyActivation;
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
@@ -100,7 +102,7 @@ impl From<physics2d::rapier::geometry::FeatureId> for FeatureId {
 /// This is used to determine the effective restitution and friction coefficients for a contact
 /// between two colliders. Each collider has its combination rule of type `CoefficientCombineRule`,
 /// the rule actually used is given by `max(first_combine_rule, second_combine_rule)`.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit, Inspect)]
 #[repr(u32)]
 pub enum CoefficientCombineRule {
     /// The two coefficients are averaged.

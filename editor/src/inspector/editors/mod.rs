@@ -9,8 +9,6 @@ use crate::{
     },
     Message,
 };
-use rg3d::scene::camera::{OrthographicProjection, PerspectiveProjection, Projection};
-use rg3d::scene::collider::GeometrySource;
 use rg3d::{
     core::{inspect::Inspect, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
     gui::inspector::editors::{
@@ -23,8 +21,13 @@ use rg3d::{
         base::{
             Base, LevelOfDetail, LodControlledObject, LodGroup, Mobility, Property, PropertyValue,
         },
-        camera::{ColorGradingLut, Exposure, SkyBox},
-        collider::{ColliderShape, InteractionGroups},
+        camera::{
+            ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection, Projection,
+            SkyBox,
+        },
+        collider::{ColliderShape, GeometrySource, InteractionGroups},
+        dim2,
+        graph::physics::CoefficientCombineRule,
         joint::*,
         light::{
             directional::{CsmOptions, FrustumSplitOptions},
@@ -164,6 +167,28 @@ pub fn make_projection_editor_definition() -> EnumPropertyEditorDefinition<Proje
     }
 }
 
+pub fn make_coefficient_combine_rule_editor_definition(
+) -> EnumPropertyEditorDefinition<CoefficientCombineRule> {
+    EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => CoefficientCombineRule::Average,
+            1 => CoefficientCombineRule::Min,
+            2 => CoefficientCombineRule::Multiply,
+            3 => CoefficientCombineRule::Max,
+            _ => unreachable!(),
+        },
+        index_generator: |v| *v as usize,
+        names_generator: || {
+            vec![
+                "Average".to_string(),
+                "Min".to_string(),
+                "Multiply".to_string(),
+                "Max".to_string(),
+            ]
+        },
+    }
+}
+
 pub fn make_frustum_split_options_enum_editor_definition(
 ) -> EnumPropertyEditorDefinition<FrustumSplitOptions> {
     EnumPropertyEditorDefinition {
@@ -276,6 +301,42 @@ pub fn make_shape_property_editor_definition() -> EnumPropertyEditorDefinition<C
     }
 }
 
+pub fn make_shape_2d_property_editor_definition(
+) -> EnumPropertyEditorDefinition<dim2::collider::ColliderShape> {
+    EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => dim2::collider::ColliderShape::Ball(Default::default()),
+            1 => dim2::collider::ColliderShape::Cuboid(Default::default()),
+            2 => dim2::collider::ColliderShape::Capsule(Default::default()),
+            3 => dim2::collider::ColliderShape::Segment(Default::default()),
+            4 => dim2::collider::ColliderShape::Triangle(Default::default()),
+            5 => dim2::collider::ColliderShape::Trimesh(Default::default()),
+            6 => dim2::collider::ColliderShape::Heightfield(Default::default()),
+            _ => unreachable!(),
+        },
+        index_generator: |v| match v {
+            dim2::collider::ColliderShape::Ball(_) => 0,
+            dim2::collider::ColliderShape::Cuboid(_) => 1,
+            dim2::collider::ColliderShape::Capsule(_) => 2,
+            dim2::collider::ColliderShape::Segment(_) => 3,
+            dim2::collider::ColliderShape::Triangle(_) => 4,
+            dim2::collider::ColliderShape::Trimesh(_) => 5,
+            dim2::collider::ColliderShape::Heightfield(_) => 6,
+        },
+        names_generator: || {
+            vec![
+                "Ball".to_string(),
+                "Cuboid".to_string(),
+                "Capsule".to_string(),
+                "Segment".to_string(),
+                "Triangle".to_string(),
+                "Trimesh".to_string(),
+                "Heightfield".to_string(),
+            ]
+        },
+    }
+}
+
 pub fn make_property_editors_container(
     sender: Sender<Message>,
 ) -> Rc<PropertyEditorDefinitionContainer> {
@@ -324,7 +385,9 @@ pub fn make_property_editors_container(
     container.insert(make_option_editor_definition::<Box<SkyBox>>());
     container.insert(HandlePropertyEditorDefinition::<Node>::new(sender));
     container.insert(make_shape_property_editor_definition());
+    container.insert(make_shape_2d_property_editor_definition());
     container.insert(make_projection_editor_definition());
+    container.insert(make_coefficient_combine_rule_editor_definition());
 
     Rc::new(container)
 }
