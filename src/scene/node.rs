@@ -37,6 +37,9 @@ macro_rules! static_dispatch {
             Node::Collider(v) => v.$func($($args),*),
             Node::Joint(v) => v.$func($($args),*),
             Node::Rectangle(v) => v.$func($($args),*),
+            Node::RigidBody2D(v) => v.$func($($args),*),
+            Node::Collider2D(v) => v.$func($($args),*),
+            Node::Joint2D(v) => v.$func($($args),*),
         }
     };
 }
@@ -166,6 +169,15 @@ pub enum Node {
     /// See [`Joint`] node docs.
     Joint(Joint),
 
+    /// See [`dim2::rigidbody::RigidBody`] node docs.
+    RigidBody2D(dim2::rigidbody::RigidBody),
+
+    /// See [`dim2::collider::Collider`] node docs.
+    Collider2D(dim2::collider::Collider),
+
+    /// See [`dim2::joint::Joint`] node docs.
+    Joint2D(dim2::joint::Joint),
+
     /// Rectangle node. See [`Rectangle`] node docs.
     Rectangle(dim2::rectangle::Rectangle),
 }
@@ -185,6 +197,9 @@ macro_rules! static_dispatch_deref {
             Node::Collider(v) => v,
             Node::Joint(v) => v,
             Node::Rectangle(v) => v,
+            Node::RigidBody2D(v) => v,
+            Node::Collider2D(v) => v,
+            Node::Joint2D(v) => v,
         }
     };
 }
@@ -235,6 +250,9 @@ impl Node {
             9 => Ok(Self::Collider(Default::default())),
             10 => Ok(Self::Joint(Default::default())),
             11 => Ok(Self::Rectangle(Default::default())),
+            12 => Ok(Self::RigidBody2D(Default::default())),
+            13 => Ok(Self::Collider2D(Default::default())),
+            14 => Ok(Self::Joint2D(Default::default())),
             _ => Err(format!("Invalid node kind {}", id)),
         }
     }
@@ -254,6 +272,9 @@ impl Node {
             Self::Collider(_) => 9,
             Self::Joint(_) => 10,
             Self::Rectangle(_) => 11,
+            Self::RigidBody2D(_) => 12,
+            Self::Collider2D(_) => 13,
+            Self::Joint2D(_) => 14,
         }
     }
 
@@ -274,6 +295,9 @@ impl Node {
             Node::Collider(v) => Node::Collider(v.raw_copy()),
             Node::Joint(v) => Node::Joint(v.raw_copy()),
             Node::Rectangle(v) => Node::Rectangle(v.raw_copy()),
+            Node::RigidBody2D(v) => Node::RigidBody2D(v.raw_copy()),
+            Node::Collider2D(v) => Node::Collider2D(v.raw_copy()),
+            Node::Joint2D(v) => Node::Joint2D(v.raw_copy()),
         }
     }
 

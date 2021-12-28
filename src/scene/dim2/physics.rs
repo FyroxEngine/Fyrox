@@ -1,241 +1,47 @@
 //! Scene physics module.
 
-use crate::scene::collider;
 use crate::{
     core::{
         algebra::{
-            DMatrix, Dynamic, Isometry3, Matrix4, Point3, Translation3, Unit, UnitQuaternion,
-            VecStorage, Vector2, Vector3,
+            Isometry2, Matrix4, Point2, Translation2, Unit, UnitComplex, UnitQuaternion,
+            UnitVector2, Vector2, Vector3,
         },
         arrayvec::ArrayVec,
-        color::Color,
         instant,
-        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
+        math::Matrix4Ext,
         pool::{Handle, Pool},
-        visitor::prelude::*,
         BiDirHashMap,
     },
-    physics2d, physics3d,
-    physics3d::rapier::{
+    physics2d::rapier::{
         dynamics::{
             BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager, JointHandle,
-            JointParams, JointSet, PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyBuilder,
-            RigidBodyHandle, RigidBodySet, RigidBodyType,
+            JointParams, JointSet, PrismaticJoint, RigidBody, RigidBodyActivation,
+            RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
         },
         geometry::{
             BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
-            InteractionGroups, NarrowPhase, Ray, Segment, Shape, SharedShape, TriMesh,
+            InteractionGroups, NarrowPhase, Ray, SharedShape,
         },
         pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
     },
     scene::{
         self,
-        collider::ColliderChanges,
-        collider::{
-            BallShape, CapsuleShape, ColliderShape, ConeShape, CuboidShape, CylinderShape,
-            GeometrySource, HeightfieldShape, SegmentShape, TriangleShape, TrimeshShape,
-        },
-        debug::SceneDrawingContext,
-        graph::isometric_global_transform,
+        collider::{self, ColliderChanges},
+        dim2::{collider::ColliderShape, rigidbody::ApplyAction},
+        graph::physics::{FeatureId, PhysicsPerformanceStatistics},
         joint::JointChanges,
-        mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
         node::Node,
-        rigidbody::{ApplyAction, RigidBodyChanges},
-        terrain::Terrain,
+        rigidbody::RigidBodyChanges,
     },
-    utils::{
-        log::{Log, MessageKind},
-        raw_mesh::{RawMeshBuilder, RawVertex},
-    },
+    utils::log::{Log, MessageKind},
 };
-use rg3d_core::algebra::UnitVector3;
-use rg3d_physics3d::rapier::dynamics::RigidBodyActivation;
 use std::{
-    cell::{Cell, RefCell},
+    cell::RefCell,
     cmp::Ordering,
-    fmt::{Debug, Display, Formatter},
+    fmt::{Debug, Formatter},
     hash::Hash,
     sync::Arc,
-    time::Duration,
 };
-
-/// Shape-dependent identifier.
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub enum FeatureId {
-    /// Shape-dependent identifier of a vertex.
-    Vertex(u32),
-    /// Shape-dependent identifier of an edge.
-    Edge(u32),
-    /// Shape-dependent identifier of a face.
-    Face(u32),
-    /// Unknown identifier.
-    Unknown,
-}
-
-impl From<physics3d::rapier::geometry::FeatureId> for FeatureId {
-    fn from(v: physics3d::rapier::geometry::FeatureId) -> Self {
-        match v {
-            physics3d::rapier::geometry::FeatureId::Vertex(v) => FeatureId::Vertex(v),
-            physics3d::rapier::geometry::FeatureId::Edge(v) => FeatureId::Edge(v),
-            physics3d::rapier::geometry::FeatureId::Face(v) => FeatureId::Face(v),
-            physics3d::rapier::geometry::FeatureId::Unknown => FeatureId::Unknown,
-        }
-    }
-}
-
-impl From<physics2d::rapier::geometry::FeatureId> for FeatureId {
-    fn from(v: physics2d::rapier::geometry::FeatureId) -> Self {
-        match v {
-            physics2d::rapier::geometry::FeatureId::Vertex(v) => FeatureId::Vertex(v),
-            physics2d::rapier::geometry::FeatureId::Face(v) => FeatureId::Face(v),
-            physics2d::rapier::geometry::FeatureId::Unknown => FeatureId::Unknown,
-        }
-    }
-}
-
-/// Rules used to combine two coefficients.
-///
-/// # Notes
-///
-/// This is used to determine the effective restitution and friction coefficients for a contact
-/// between two colliders. Each collider has its combination rule of type `CoefficientCombineRule`,
-/// the rule actually used is given by `max(first_combine_rule, second_combine_rule)`.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit)]
-#[repr(u32)]
-pub enum CoefficientCombineRule {
-    /// The two coefficients are averaged.
-    Average = 0,
-    /// The smallest coefficient is chosen.
-    Min,
-    /// The two coefficients are multiplied.
-    Multiply,
-    /// The greatest coefficient is chosen.
-    Max,
-}
-
-impl Default for CoefficientCombineRule {
-    fn default() -> Self {
-        CoefficientCombineRule::Average
-    }
-}
-
-impl From<physics3d::rapier::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
-    fn from(v: physics3d::rapier::dynamics::CoefficientCombineRule) -> Self {
-        match v {
-            physics3d::rapier::dynamics::CoefficientCombineRule::Average => {
-                CoefficientCombineRule::Average
-            }
-            physics3d::rapier::dynamics::CoefficientCombineRule::Min => CoefficientCombineRule::Min,
-            physics3d::rapier::dynamics::CoefficientCombineRule::Multiply => {
-                CoefficientCombineRule::Multiply
-            }
-            physics3d::rapier::dynamics::CoefficientCombineRule::Max => CoefficientCombineRule::Max,
-        }
-    }
-}
-
-impl Into<physics3d::rapier::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
-    fn into(self) -> physics3d::rapier::dynamics::CoefficientCombineRule {
-        match self {
-            CoefficientCombineRule::Average => {
-                physics3d::rapier::dynamics::CoefficientCombineRule::Average
-            }
-            CoefficientCombineRule::Min => physics3d::rapier::dynamics::CoefficientCombineRule::Min,
-            CoefficientCombineRule::Multiply => {
-                physics3d::rapier::dynamics::CoefficientCombineRule::Multiply
-            }
-            CoefficientCombineRule::Max => physics3d::rapier::dynamics::CoefficientCombineRule::Max,
-        }
-    }
-}
-
-impl Into<physics2d::rapier::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
-    fn into(self) -> physics2d::rapier::dynamics::CoefficientCombineRule {
-        match self {
-            CoefficientCombineRule::Average => {
-                physics2d::rapier::dynamics::CoefficientCombineRule::Average
-            }
-            CoefficientCombineRule::Min => physics2d::rapier::dynamics::CoefficientCombineRule::Min,
-            CoefficientCombineRule::Multiply => {
-                physics2d::rapier::dynamics::CoefficientCombineRule::Multiply
-            }
-            CoefficientCombineRule::Max => physics2d::rapier::dynamics::CoefficientCombineRule::Max,
-        }
-    }
-}
-
-/// Performance statistics for the physics part of the engine.
-#[derive(Debug, Default, Clone)]
-pub struct PhysicsPerformanceStatistics {
-    /// A time that was needed to perform a single simulation step.
-    pub step_time: Duration,
-
-    /// A time that was needed to perform all ray casts.
-    pub total_ray_cast_time: Cell<Duration>,
-}
-
-impl Display for PhysicsPerformanceStatistics {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Physics Step Time: {:?}\nPhysics Ray Cast Time: {:?}",
-            self.step_time,
-            self.total_ray_cast_time.get(),
-        )
-    }
-}
-
-impl PhysicsPerformanceStatistics {
-    /// Resets performance statistics to default values.
-    pub fn reset(&mut self) {
-        *self = Default::default();
-    }
-}
-
-/// A ray intersection result.
-#[derive(Debug, Clone)]
-pub struct Intersection {
-    /// A handle of the collider with which intersection was detected.
-    pub collider: Handle<Node>,
-
-    /// A normal at the intersection position.
-    pub normal: Vector3<f32>,
-
-    /// A position of the intersection in world coordinates.
-    pub position: Point3<f32>,
-
-    /// Additional data that contains a kind of the feature with which
-    /// intersection was detected as well as its index.
-    ///
-    /// # Important notes.
-    ///
-    /// FeatureId::Face might have index that is greater than amount of triangles in
-    /// a triangle mesh, this means that intersection was detected from "back" side of
-    /// a face. To "fix" that index, simply subtract amount of triangles of a triangle
-    /// mesh from the value.
-    pub feature: FeatureId,
-
-    /// Distance from the ray origin.
-    pub toi: f32,
-}
-
-/// A set of options for the ray cast.
-pub struct RayCastOptions {
-    /// A ray origin.
-    pub ray_origin: Point3<f32>,
-
-    /// A ray direction. Can be non-normalized.
-    pub ray_direction: Vector3<f32>,
-
-    /// Maximum distance of cast.
-    pub max_len: f32,
-
-    /// Groups to check.
-    pub groups: collider::InteractionGroups,
-
-    /// Whether to sort intersections from closest to farthest.
-    pub sort_results: bool,
-}
 
 /// A trait for ray cast results storage. It has two implementations: Vec and ArrayVec.
 /// Latter is needed for the cases where you need to avoid runtime memory allocations
@@ -287,12 +93,57 @@ impl<const CAP: usize> QueryResultsStorage for ArrayVec<Intersection, CAP> {
     }
 }
 
+/// A ray intersection result.
+#[derive(Debug, Clone)]
+pub struct Intersection {
+    /// A handle of the collider with which intersection was detected.
+    pub collider: Handle<Node>,
+
+    /// A normal at the intersection position.
+    pub normal: Vector2<f32>,
+
+    /// A position of the intersection in world coordinates.
+    pub position: Point2<f32>,
+
+    /// Additional data that contains a kind of the feature with which
+    /// intersection was detected as well as its index.
+    ///
+    /// # Important notes.
+    ///
+    /// FeatureId::Face might have index that is greater than amount of triangles in
+    /// a triangle mesh, this means that intersection was detected from "back" side of
+    /// a face. To "fix" that index, simply subtract amount of triangles of a triangle
+    /// mesh from the value.
+    pub feature: FeatureId,
+
+    /// Distance from the ray origin.
+    pub toi: f32,
+}
+
+/// A set of options for the ray cast.
+pub struct RayCastOptions {
+    /// A ray origin.
+    pub ray_origin: Point2<f32>,
+
+    /// A ray direction. Can be non-normalized.
+    pub ray_direction: Vector2<f32>,
+
+    /// Maximum distance of cast.
+    pub max_len: f32,
+
+    /// Groups to check.
+    pub groups: collider::InteractionGroups,
+
+    /// Whether to sort intersections from closest to farthest.
+    pub sort_results: bool,
+}
+
 /// Data of the contact.
 pub struct ContactData {
     /// The contact point in the local-space of the first shape.
-    pub local_p1: Vector3<f32>,
+    pub local_p1: Vector2<f32>,
     /// The contact point in the local-space of the second shape.
-    pub local_p2: Vector3<f32>,
+    pub local_p2: Vector2<f32>,
     /// The distance between the two contact points.
     pub dist: f32,
     /// The impulse, along the contact normal, applied by this contact to the first collider's rigid-body.
@@ -300,7 +151,7 @@ pub struct ContactData {
     pub impulse: f32,
     /// The friction impulses along the basis orthonormal to the contact normal, applied to the first
     /// collider's rigid-body.
-    pub tangent_impulse: Vector2<f32>,
+    pub tangent_impulse: f32,
 }
 
 /// A contact manifold between two colliders.
@@ -308,15 +159,15 @@ pub struct ContactManifold {
     /// The contacts points.
     pub points: Vec<ContactData>,
     /// The contact normal of all the contacts of this manifold, expressed in the local space of the first shape.
-    pub local_n1: Vector3<f32>,
+    pub local_n1: Vector2<f32>,
     /// The contact normal of all the contacts of this manifold, expressed in the local space of the second shape.
-    pub local_n2: Vector3<f32>,
+    pub local_n2: Vector2<f32>,
     /// The first rigid-body involved in this contact manifold.
     pub rigid_body1: Handle<Node>,
     /// The second rigid-body involved in this contact manifold.
     pub rigid_body2: Handle<Node>,
     /// The world-space contact normal shared by all the contact in this contact manifold.
-    pub normal: Vector3<f32>,
+    pub normal: Vector2<f32>,
 }
 
 /// Contact info for pair of colliders.
@@ -340,29 +191,29 @@ where
     map: BiDirHashMap<A, Handle<Node>>,
 }
 
-fn convert_joint_params(params: scene::joint::JointParams) -> JointParams {
+fn convert_joint_params(params: scene::dim2::joint::JointParams) -> JointParams {
     match params {
-        scene::joint::JointParams::BallJoint(v) => {
+        scene::dim2::joint::JointParams::BallJoint(v) => {
             let mut ball_joint =
-                BallJoint::new(Point3::from(v.local_anchor1), Point3::from(v.local_anchor2));
+                BallJoint::new(Point2::from(v.local_anchor1), Point2::from(v.local_anchor2));
 
             ball_joint.limits_enabled = v.limits_enabled;
-            ball_joint.limits_local_axis1 = UnitVector3::new_normalize(v.limits_local_axis1);
-            ball_joint.limits_local_axis2 = UnitVector3::new_normalize(v.limits_local_axis2);
+            ball_joint.limits_local_axis1 = UnitVector2::new_normalize(v.limits_local_axis1);
+            ball_joint.limits_local_axis2 = UnitVector2::new_normalize(v.limits_local_axis2);
             ball_joint.limits_angle = v.limits_angle;
 
             JointParams::from(ball_joint)
         }
-        scene::joint::JointParams::FixedJoint(v) => {
+        scene::dim2::joint::JointParams::FixedJoint(v) => {
             let fixed_joint = FixedJoint::new(
-                Isometry3 {
-                    translation: Translation3 {
+                Isometry2 {
+                    translation: Translation2 {
                         vector: v.local_anchor1_translation,
                     },
                     rotation: v.local_anchor1_rotation,
                 },
-                Isometry3 {
-                    translation: Translation3 {
+                Isometry2 {
+                    translation: Translation2 {
                         vector: v.local_anchor2_translation,
                     },
                     rotation: v.local_anchor2_rotation,
@@ -371,14 +222,12 @@ fn convert_joint_params(params: scene::joint::JointParams) -> JointParams {
 
             JointParams::from(fixed_joint)
         }
-        scene::joint::JointParams::PrismaticJoint(v) => {
+        scene::dim2::joint::JointParams::PrismaticJoint(v) => {
             let mut prismatic_joint = PrismaticJoint::new(
-                Point3::from(v.local_anchor1),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
-                Default::default(), // TODO
-                Point3::from(v.local_anchor2),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
-                Default::default(), // TODO
+                Point2::from(v.local_anchor1),
+                Unit::<Vector2<f32>>::new_normalize(v.local_axis1),
+                Point2::from(v.local_anchor2),
+                Unit::<Vector2<f32>>::new_normalize(v.local_axis2),
             );
 
             prismatic_joint.limits = v.limits;
@@ -386,310 +235,41 @@ fn convert_joint_params(params: scene::joint::JointParams) -> JointParams {
 
             JointParams::from(prismatic_joint)
         }
-        scene::joint::JointParams::RevoluteJoint(v) => {
-            let mut revolute_joint = RevoluteJoint::new(
-                Point3::from(v.local_anchor1),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
-                Point3::from(v.local_anchor2),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
-            );
-
-            revolute_joint.limits_enabled = v.limits_enabled;
-            revolute_joint.limits = v.limits;
-
-            JointParams::from(revolute_joint)
-        }
     }
-}
-
-// LEGACY. Will be removed in future versions.
-pub(crate) fn joint_params_from_native(params: &JointParams) -> scene::joint::JointParams {
-    match params {
-        JointParams::BallJoint(v) => {
-            scene::joint::JointParams::BallJoint(scene::joint::BallJoint {
-                local_anchor1: v.local_anchor1.coords,
-                local_anchor2: v.local_anchor2.coords,
-                limits_enabled: false,
-                limits_local_axis1: Default::default(),
-                limits_local_axis2: Default::default(),
-                limits_angle: 0.0,
-            })
-        }
-        JointParams::FixedJoint(v) => {
-            scene::joint::JointParams::FixedJoint(scene::joint::FixedJoint {
-                local_anchor1_translation: v.local_frame1.translation.vector,
-                local_anchor1_rotation: v.local_frame1.rotation,
-                local_anchor2_translation: v.local_frame2.translation.vector,
-                local_anchor2_rotation: v.local_frame2.rotation,
-            })
-        }
-        JointParams::PrismaticJoint(v) => {
-            scene::joint::JointParams::PrismaticJoint(scene::joint::PrismaticJoint {
-                local_anchor1: v.local_anchor1.coords,
-                local_axis1: v.local_axis1().into_inner(),
-                local_anchor2: v.local_anchor2.coords,
-                local_axis2: v.local_axis2().into_inner(),
-                limits_enabled: false,
-                limits: [0.0, 0.0],
-            })
-        }
-        JointParams::RevoluteJoint(v) => {
-            scene::joint::JointParams::RevoluteJoint(scene::joint::RevoluteJoint {
-                local_anchor1: v.local_anchor1.coords,
-                local_axis1: v.local_axis1.into_inner(),
-                local_anchor2: v.local_anchor2.coords,
-                local_axis2: v.local_axis2.into_inner(),
-                limits_enabled: false,
-                limits: [0.0, 0.0],
-            })
-        }
-    }
-}
-
-// LEGACY. Will be removed in future versions.
-pub(crate) fn collider_shape_from_native_collider(shape: &dyn Shape) -> ColliderShape {
-    if let Some(ball) = shape.as_ball() {
-        ColliderShape::Ball(BallShape {
-            radius: ball.radius,
-        })
-    } else if let Some(cuboid) = shape.as_cuboid() {
-        ColliderShape::Cuboid(CuboidShape {
-            half_extents: cuboid.half_extents,
-        })
-    } else if let Some(capsule) = shape.as_capsule() {
-        ColliderShape::Capsule(CapsuleShape {
-            begin: capsule.segment.a.coords,
-            end: capsule.segment.b.coords,
-            radius: capsule.radius,
-        })
-    } else if let Some(segment) = shape.downcast_ref::<Segment>() {
-        ColliderShape::Segment(SegmentShape {
-            begin: segment.a.coords,
-            end: segment.b.coords,
-        })
-    } else if let Some(triangle) = shape.as_triangle() {
-        ColliderShape::Triangle(TriangleShape {
-            a: triangle.a.coords,
-            b: triangle.b.coords,
-            c: triangle.c.coords,
-        })
-    } else if shape.as_trimesh().is_some() {
-        ColliderShape::Trimesh(TrimeshShape {
-            sources: Default::default(),
-        })
-    } else if shape.as_heightfield().is_some() {
-        ColliderShape::Heightfield(HeightfieldShape {
-            geometry_source: Default::default(),
-        })
-    } else if let Some(cylinder) = shape.as_cylinder() {
-        ColliderShape::Cylinder(CylinderShape {
-            half_height: cylinder.half_height,
-            radius: cylinder.radius,
-        })
-    } else if let Some(cone) = shape.as_cone() {
-        ColliderShape::Cone(ConeShape {
-            half_height: cone.half_height,
-            radius: cone.radius,
-        })
-    } else {
-        unreachable!()
-    }
-}
-
-/// Creates new trimesh collider shape from given mesh node. It also bakes scale into
-/// vertices of trimesh because rapier does not support collider scaling yet.
-fn make_trimesh(
-    owner_inv_transform: Matrix4<f32>,
-    owner: Handle<Node>,
-    sources: &[GeometrySource],
-    nodes: &Pool<Node>,
-) -> SharedShape {
-    let mut mesh_builder = RawMeshBuilder::new(0, 0);
-
-    // Create inverse transform that will discard rotation and translation, but leave scaling and
-    // other parameters of global transform.
-    // When global transform of node is combined with this transform, we'll get relative transform
-    // with scale baked in. We need to do this because root's transform will be synced with body's
-    // but we don't want to bake entire transform including root's transform.
-    let root_inv_transform = owner_inv_transform;
-
-    for &source in sources {
-        if let Some(Node::Mesh(mesh)) = nodes.try_borrow(source.0) {
-            let global_transform = root_inv_transform * mesh.global_transform();
-
-            for surface in mesh.surfaces() {
-                let shared_data = surface.data();
-                let shared_data = shared_data.lock();
-
-                let vertices = &shared_data.vertex_buffer;
-                for triangle in shared_data.geometry_buffer.iter() {
-                    let a = RawVertex::from(
-                        global_transform
-                            .transform_point(&Point3::from(
-                                vertices
-                                    .get(triangle[0] as usize)
-                                    .unwrap()
-                                    .read_3_f32(VertexAttributeUsage::Position)
-                                    .unwrap(),
-                            ))
-                            .coords,
-                    );
-                    let b = RawVertex::from(
-                        global_transform
-                            .transform_point(&Point3::from(
-                                vertices
-                                    .get(triangle[1] as usize)
-                                    .unwrap()
-                                    .read_3_f32(VertexAttributeUsage::Position)
-                                    .unwrap(),
-                            ))
-                            .coords,
-                    );
-                    let c = RawVertex::from(
-                        global_transform
-                            .transform_point(&Point3::from(
-                                vertices
-                                    .get(triangle[2] as usize)
-                                    .unwrap()
-                                    .read_3_f32(VertexAttributeUsage::Position)
-                                    .unwrap(),
-                            ))
-                            .coords,
-                    );
-
-                    mesh_builder.insert(a);
-                    mesh_builder.insert(b);
-                    mesh_builder.insert(c);
-                }
-            }
-        }
-    }
-
-    let raw_mesh = mesh_builder.build();
-
-    let vertices: Vec<Point3<f32>> = raw_mesh
-        .vertices
-        .into_iter()
-        .map(|v| Point3::new(v.x, v.y, v.z))
-        .collect();
-
-    let indices = raw_mesh
-        .triangles
-        .into_iter()
-        .map(|t| [t.0[0], t.0[1], t.0[2]])
-        .collect::<Vec<_>>();
-
-    if indices.is_empty() {
-        Log::writeln(
-            MessageKind::Warning,
-            format!(
-                "Failed to create triangle mesh collider for {}, it has no vertices!",
-                nodes[owner].name()
-            ),
-        );
-
-        SharedShape::trimesh(vec![Point3::new(0.0, 0.0, 0.0)], vec![[0, 0, 0]])
-    } else {
-        SharedShape::trimesh(vertices, indices)
-    }
-}
-
-/// Creates height field shape from given terrain.
-fn make_heightfield(terrain: &Terrain) -> SharedShape {
-    assert!(!terrain.chunks_ref().is_empty());
-
-    // Count rows and columns.
-    let first_chunk = terrain.chunks_ref().first().unwrap();
-    let chunk_size = Vector2::new(
-        first_chunk.width_point_count(),
-        first_chunk.length_point_count(),
-    );
-    let nrows = chunk_size.y * terrain.length_chunk_count() as u32;
-    let ncols = chunk_size.x * terrain.width_chunk_count() as u32;
-
-    // Combine height map of each chunk into bigger one.
-    let mut ox = 0;
-    let mut oz = 0;
-    let mut data = vec![0.0; (nrows * ncols) as usize];
-    for cz in 0..terrain.length_chunk_count() {
-        for cx in 0..terrain.width_chunk_count() {
-            let chunk = &terrain.chunks_ref()[cz * terrain.width_chunk_count() + cx];
-
-            for z in 0..chunk.length_point_count() {
-                for x in 0..chunk.width_point_count() {
-                    let value = chunk.heightmap()[(z * chunk.width_point_count() + x) as usize];
-                    data[((ox + x) * nrows + oz + z) as usize] = value;
-                }
-            }
-
-            ox += chunk_size.x;
-        }
-
-        ox = 0;
-        oz += chunk_size.y;
-    }
-
-    SharedShape::heightfield(
-        DMatrix::from_data(VecStorage::new(
-            Dynamic::new(nrows as usize),
-            Dynamic::new(ncols as usize),
-            data,
-        )),
-        Vector3::new(terrain.width(), 1.0, terrain.length()),
-    )
 }
 
 // Converts descriptor in a shared shape.
-fn collider_shape_into_native_shape(
-    shape: &ColliderShape,
-    owner_inv_global_transform: Matrix4<f32>,
-    owner_collider: Handle<Node>,
-    pool: &Pool<Node>,
-) -> Option<SharedShape> {
+fn collider_shape_into_native_shape(shape: &ColliderShape) -> Option<SharedShape> {
     match shape {
         ColliderShape::Ball(ball) => Some(SharedShape::ball(ball.radius)),
-
-        ColliderShape::Cylinder(cylinder) => {
-            Some(SharedShape::cylinder(cylinder.half_height, cylinder.radius))
-        }
-        ColliderShape::Cone(cone) => Some(SharedShape::cone(cone.half_height, cone.radius)),
         ColliderShape::Cuboid(cuboid) => {
             Some(SharedShape(Arc::new(Cuboid::new(cuboid.half_extents))))
         }
         ColliderShape::Capsule(capsule) => Some(SharedShape::capsule(
-            Point3::from(capsule.begin),
-            Point3::from(capsule.end),
+            Point2::from(capsule.begin),
+            Point2::from(capsule.end),
             capsule.radius,
         )),
         ColliderShape::Segment(segment) => Some(SharedShape::segment(
-            Point3::from(segment.begin),
-            Point3::from(segment.end),
+            Point2::from(segment.begin),
+            Point2::from(segment.end),
         )),
         ColliderShape::Triangle(triangle) => Some(SharedShape::triangle(
-            Point3::from(triangle.a),
-            Point3::from(triangle.b),
-            Point3::from(triangle.c),
+            Point2::from(triangle.a),
+            Point2::from(triangle.b),
+            Point2::from(triangle.c),
         )),
-        ColliderShape::Trimesh(trimesh) => {
-            if trimesh.sources.is_empty() {
-                None
-            } else {
-                Some(make_trimesh(
-                    owner_inv_global_transform,
-                    owner_collider,
-                    &trimesh.sources,
-                    pool,
-                ))
-            }
+        ColliderShape::Trimesh(_) => {
+            None // TODO
         }
-        ColliderShape::Heightfield(heightfield) => {
-            if let Some(Node::Terrain(terrain)) = pool.try_borrow(heightfield.geometry_source.0) {
-                Some(make_heightfield(terrain))
-            } else {
-                None
-            }
+        ColliderShape::Heightfield(_) => {
+            None // TODO
         }
     }
+}
+
+fn rotation_angle(m: &Matrix4<f32>) -> f32 {
+    m[4].atan2(m[0])
 }
 
 /// Physics world is responsible for physics simulation in the engine. There is a very few public
@@ -702,7 +282,7 @@ pub struct PhysicsWorld {
     // Current physics pipeline.
     pipeline: PhysicsPipeline,
     // Current gravity vector. Default is (0.0, -9.81, 0.0)
-    gravity: Vector3<f32>,
+    gravity: Vector2<f32>,
     // A set of parameters that define behavior of every rigid body.
     integration_parameters: IntegrationParameters,
     // Broad phase performs rough intersection checks.
@@ -735,11 +315,11 @@ pub struct PhysicsWorld {
 
 impl PhysicsWorld {
     /// Creates a new instance of the physics world.
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             enabled: true,
             pipeline: PhysicsPipeline::new(),
-            gravity: Vector3::new(0.0, -9.81, 0.0),
+            gravity: Vector2::new(0.0, -9.81),
             integration_parameters: IntegrationParameters::default(),
             broad_phase: BroadPhase::new(),
             narrow_phase: NarrowPhase::new(),
@@ -763,7 +343,7 @@ impl PhysicsWorld {
         }
     }
 
-    pub(super) fn update(&mut self) {
+    pub(crate) fn update(&mut self) {
         let time = instant::Instant::now();
 
         if self.enabled {
@@ -785,13 +365,13 @@ impl PhysicsWorld {
         self.performance_statistics.step_time += instant::Instant::now() - time;
     }
 
-    pub(super) fn add_body(&mut self, owner: Handle<Node>, body: RigidBody) -> RigidBodyHandle {
+    pub(crate) fn add_body(&mut self, owner: Handle<Node>, body: RigidBody) -> RigidBodyHandle {
         let handle = self.bodies.set.insert(body);
         self.bodies.map.insert(handle, owner);
         handle
     }
 
-    pub(super) fn remove_body(&mut self, handle: RigidBodyHandle) {
+    pub(crate) fn remove_body(&mut self, handle: RigidBodyHandle) {
         assert!(self.bodies.map.remove_by_key(&handle).is_some());
         self.bodies.set.remove(
             handle,
@@ -801,7 +381,7 @@ impl PhysicsWorld {
         );
     }
 
-    pub(super) fn add_collider(
+    pub(crate) fn add_collider(
         &mut self,
         owner: Handle<Node>,
         parent_body: RigidBodyHandle,
@@ -815,7 +395,7 @@ impl PhysicsWorld {
         handle
     }
 
-    pub(super) fn remove_collider(&mut self, handle: ColliderHandle) -> bool {
+    pub(crate) fn remove_collider(&mut self, handle: ColliderHandle) -> bool {
         if self
             .colliders
             .set
@@ -829,7 +409,7 @@ impl PhysicsWorld {
         }
     }
 
-    pub(super) fn add_joint(
+    pub(crate) fn add_joint(
         &mut self,
         owner: Handle<Node>,
         body1: RigidBodyHandle,
@@ -841,110 +421,11 @@ impl PhysicsWorld {
         handle
     }
 
-    pub(super) fn remove_joint(&mut self, handle: JointHandle) {
+    pub(crate) fn remove_joint(&mut self, handle: JointHandle) {
         assert!(self.joints.map.remove_by_key(&handle).is_some());
         self.joints
             .set
             .remove(handle, &mut self.islands, &mut self.bodies.set, false);
-    }
-
-    /// Draws physics world. Very useful for debugging, it allows you to see where are
-    /// rigid bodies, which colliders they have and so on.
-    pub fn draw(&self, context: &mut SceneDrawingContext) {
-        for (_, body) in self.bodies.set.iter() {
-            context.draw_transform(body.position().to_homogeneous());
-        }
-
-        for (_, collider) in self.colliders.set.iter() {
-            let body = self.bodies.set.get(collider.parent().unwrap()).unwrap();
-            let collider_local_transform = collider.position_wrt_parent().unwrap().to_homogeneous();
-            let transform = body.position().to_homogeneous() * collider_local_transform;
-            if let Some(trimesh) = collider.shape().as_trimesh() {
-                let trimesh: &TriMesh = trimesh;
-                for triangle in trimesh.triangles() {
-                    let a = transform.transform_point(&triangle.a);
-                    let b = transform.transform_point(&triangle.b);
-                    let c = transform.transform_point(&triangle.c);
-                    context.draw_triangle(
-                        a.coords,
-                        b.coords,
-                        c.coords,
-                        Color::opaque(200, 200, 200),
-                    );
-                }
-            } else if let Some(cuboid) = collider.shape().as_cuboid() {
-                let min = -cuboid.half_extents;
-                let max = cuboid.half_extents;
-                context.draw_oob(
-                    &AxisAlignedBoundingBox::from_min_max(min, max),
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(ball) = collider.shape().as_ball() {
-                context.draw_sphere(
-                    body.position().translation.vector,
-                    10,
-                    10,
-                    ball.radius,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(cone) = collider.shape().as_cone() {
-                context.draw_cone(
-                    10,
-                    cone.radius,
-                    cone.half_height * 2.0,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(cylinder) = collider.shape().as_cylinder() {
-                context.draw_cylinder(
-                    10,
-                    cylinder.radius,
-                    cylinder.half_height * 2.0,
-                    true,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(round_cylinder) = collider.shape().as_round_cylinder() {
-                context.draw_cylinder(
-                    10,
-                    round_cylinder.base_shape.radius,
-                    round_cylinder.base_shape.half_height * 2.0,
-                    false,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(triangle) = collider.shape().as_triangle() {
-                context.draw_triangle(
-                    triangle.a.coords,
-                    triangle.b.coords,
-                    triangle.c.coords,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(capsule) = collider.shape().as_capsule() {
-                context.draw_segment_capsule(
-                    capsule.segment.a.coords,
-                    capsule.segment.b.coords,
-                    capsule.radius,
-                    10,
-                    10,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(heightfield) = collider.shape().as_heightfield() {
-                for triangle in heightfield.triangles() {
-                    let a = transform.transform_point(&triangle.a);
-                    let b = transform.transform_point(&triangle.b);
-                    let c = transform.transform_point(&triangle.c);
-                    context.draw_triangle(
-                        a.coords,
-                        b.coords,
-                        c.coords,
-                        Color::opaque(200, 200, 200),
-                    );
-                }
-            }
-        }
     }
 
     /// Casts a ray with given options.
@@ -1002,22 +483,18 @@ impl PhysicsWorld {
         );
     }
 
-    pub(super) fn set_rigid_body_position(
+    pub(crate) fn set_rigid_body_position(
         &mut self,
-        rigid_body: &scene::rigidbody::RigidBody,
+        rigid_body: &scene::dim2::rigidbody::RigidBody,
         new_global_transform: &Matrix4<f32>,
     ) {
         if let Some(native) = self.bodies.set.get_mut(rigid_body.native.get()) {
-            let global_rotation = UnitQuaternion::from_matrix(&new_global_transform.basis());
-            let global_position = Vector3::new(
-                new_global_transform[12],
-                new_global_transform[13],
-                new_global_transform[14],
-            );
+            let global_rotation = UnitComplex::from_angle(rotation_angle(&new_global_transform));
+            let global_position = Vector2::new(new_global_transform[12], new_global_transform[13]);
 
             native.set_position(
-                Isometry3 {
-                    translation: Translation3::from(global_position),
+                Isometry2 {
+                    translation: Translation2::from(global_position),
                     rotation: global_rotation,
                 },
                 // Do not wake up body, it is too expensive and must be done **only** by explicit
@@ -1027,9 +504,9 @@ impl PhysicsWorld {
         }
     }
 
-    pub(super) fn sync_rigid_body_node(
+    pub(crate) fn sync_rigid_body_node(
         &mut self,
-        rigid_body: &mut scene::rigidbody::RigidBody,
+        rigid_body: &mut scene::dim2::rigidbody::RigidBody,
         parent_transform: Matrix4<f32>,
     ) {
         if let Some(native) = self.bodies.set.get(rigid_body.native.get()) {
@@ -1037,14 +514,10 @@ impl PhysicsWorld {
                 let local_transform: Matrix4<f32> = parent_transform
                     .try_inverse()
                     .unwrap_or_else(Matrix4::identity)
-                    * native.position().to_homogeneous();
+                    * native.position().to_homogeneous().to_homogeneous();
 
                 let local_rotation = UnitQuaternion::from_matrix(&local_transform.basis());
-                let local_position = Vector3::new(
-                    local_transform[12],
-                    local_transform[13],
-                    local_transform[14],
-                );
+                let local_position = Vector3::new(local_transform[12], local_transform[13], 0.0);
 
                 rigid_body
                     .local_transform
@@ -1052,16 +525,16 @@ impl PhysicsWorld {
                     .set_rotation(local_rotation);
 
                 rigid_body.lin_vel = *native.linvel();
-                rigid_body.ang_vel = *native.angvel();
+                rigid_body.ang_vel = native.angvel();
                 rigid_body.sleeping = native.is_sleeping();
             }
         }
     }
 
-    pub(super) fn sync_to_rigid_body_node(
+    pub(crate) fn sync_to_rigid_body_node(
         &mut self,
         handle: Handle<Node>,
-        rigid_body_node: &scene::rigidbody::RigidBody,
+        rigid_body_node: &scene::dim2::rigidbody::RigidBody,
     ) {
         // Important notes!
         // 1) `get_mut` is **very** expensive because it forces physics engine to recalculate contacts
@@ -1115,10 +588,10 @@ impl PhysicsWorld {
                     }
                     if changes.contains(RigidBodyChanges::ROTATION_LOCKED) {
                         native.restrict_rotations(
-                            !rigid_body_node.is_x_rotation_locked(),
-                            !rigid_body_node.is_y_rotation_locked(),
-                            !rigid_body_node.is_z_rotation_locked(),
                             true,
+                            true,
+                            !rigid_body_node.is_rotation_locked(),
+                            false,
                         );
                         changes.remove(RigidBodyChanges::ROTATION_LOCKED);
                     }
@@ -1139,14 +612,14 @@ impl PhysicsWorld {
                             ApplyAction::Force(force) => native.apply_force(force, false),
                             ApplyAction::Torque(torque) => native.apply_torque(torque, false),
                             ApplyAction::ForceAtPoint { force, point } => {
-                                native.apply_force_at_point(force, Point3::from(point), false)
+                                native.apply_force_at_point(force, Point2::from(point), false)
                             }
                             ApplyAction::Impulse(impulse) => native.apply_impulse(impulse, false),
                             ApplyAction::TorqueImpulse(impulse) => {
                                 native.apply_torque_impulse(impulse, false)
                             }
                             ApplyAction::ImpulseAtPoint { impulse, point } => {
-                                native.apply_impulse_at_point(impulse, Point3::from(point), false)
+                                native.apply_impulse_at_point(impulse, Point2::from(point), false)
                             }
                             ApplyAction::WakeUp => native.wake_up(false),
                         }
@@ -1157,10 +630,16 @@ impl PhysicsWorld {
             }
         } else {
             let mut builder = RigidBodyBuilder::new(rigid_body_node.body_type().into())
-                .position(Isometry3 {
-                    rotation: **rigid_body_node.local_transform().rotation(),
-                    translation: Translation3 {
-                        vector: **rigid_body_node.local_transform().position(),
+                .position(Isometry2 {
+                    rotation: UnitComplex::from_angle(
+                        rigid_body_node
+                            .local_transform()
+                            .rotation()
+                            .euler_angles()
+                            .0,
+                    ),
+                    translation: Translation2 {
+                        vector: rigid_body_node.local_transform().position().xy(),
                     },
                 })
                 .ccd_enabled(rigid_body_node.is_ccd_enabled())
@@ -1170,20 +649,16 @@ impl PhysicsWorld {
                 .linear_damping(rigid_body_node.lin_damping)
                 .angular_damping(rigid_body_node.ang_damping)
                 .can_sleep(rigid_body_node.is_can_sleep())
-                .sleeping(rigid_body_node.is_sleeping())
-                .restrict_rotations(
-                    !rigid_body_node.is_x_rotation_locked(),
-                    !rigid_body_node.is_y_rotation_locked(),
-                    !rigid_body_node.is_z_rotation_locked(),
-                );
+                .sleeping(rigid_body_node.is_sleeping());
 
             if rigid_body_node.is_translation_locked() {
                 builder = builder.lock_translations();
             }
 
-            rigid_body_node
-                .native
-                .set(self.add_body(handle, builder.build()));
+            let mut body = builder.build();
+            body.restrict_rotations(true, true, !rigid_body_node.is_rotation_locked(), false);
+
+            rigid_body_node.native.set(self.add_body(handle, body));
 
             Log::writeln(
                 MessageKind::Information,
@@ -1195,11 +670,11 @@ impl PhysicsWorld {
         }
     }
 
-    pub(super) fn sync_to_collider_node(
+    pub(crate) fn sync_to_collider_node(
         &mut self,
         nodes: &Pool<Node>,
         handle: Handle<Node>,
-        collider_node: &scene::collider::Collider,
+        collider_node: &scene::dim2::collider::Collider,
     ) {
         let anything_changed =
             collider_node.transform_modified.get() || !collider_node.changes.get().is_empty();
@@ -1213,25 +688,20 @@ impl PhysicsWorld {
             if anything_changed {
                 if let Some(native) = self.colliders.set.get_mut(collider_node.native.get()) {
                     if collider_node.transform_modified.get() {
-                        native.set_position_wrt_parent(Isometry3 {
-                            rotation: **collider_node.local_transform().rotation(),
-                            translation: Translation3 {
-                                vector: **collider_node.local_transform().position(),
+                        native.set_position_wrt_parent(Isometry2 {
+                            rotation: UnitComplex::from_angle(
+                                collider_node.local_transform().rotation().euler_angles().0,
+                            ),
+                            translation: Translation2 {
+                                vector: collider_node.local_transform().position().xy(),
                             },
                         });
                     }
 
                     let mut changes = collider_node.changes.get();
                     if changes.contains(ColliderChanges::SHAPE) {
-                        let inv_global_transform = isometric_global_transform(nodes, handle)
-                            .try_inverse()
-                            .unwrap();
-                        if let Some(shape) = collider_shape_into_native_shape(
-                            collider_node.shape(),
-                            inv_global_transform,
-                            handle,
-                            nodes,
-                        ) {
+                        if let Some(shape) = collider_shape_into_native_shape(collider_node.shape())
+                        {
                             native.set_shape(shape);
                             changes.remove(ColliderChanges::SHAPE);
                         }
@@ -1285,24 +755,19 @@ impl PhysicsWorld {
                     collider_node.changes.set(changes);
                 }
             }
-        } else if let Some(Node::RigidBody(parent_body)) = nodes.try_borrow(collider_node.parent())
+        } else if let Some(Node::RigidBody2D(parent_body)) =
+            nodes.try_borrow(collider_node.parent())
         {
             if parent_body.native.get() != RigidBodyHandle::invalid() {
-                let inv_global_transform = isometric_global_transform(nodes, handle)
-                    .try_inverse()
-                    .unwrap();
                 let rigid_body_native = parent_body.native.get();
-                if let Some(shape) = collider_shape_into_native_shape(
-                    collider_node.shape(),
-                    inv_global_transform,
-                    handle,
-                    nodes,
-                ) {
+                if let Some(shape) = collider_shape_into_native_shape(collider_node.shape()) {
                     let mut builder = ColliderBuilder::new(shape)
-                        .position(Isometry3 {
-                            rotation: **collider_node.local_transform().rotation(),
-                            translation: Translation3 {
-                                vector: **collider_node.local_transform().position(),
+                        .position(Isometry2 {
+                            rotation: UnitComplex::from_angle(
+                                collider_node.local_transform().rotation().euler_angles().0,
+                            ),
+                            translation: Translation2 {
+                                vector: collider_node.local_transform().position().xy(),
                             },
                         })
                         .friction(collider_node.friction())
@@ -1340,11 +805,11 @@ impl PhysicsWorld {
         }
     }
 
-    pub(super) fn sync_to_joint_node(
+    pub(crate) fn sync_to_joint_node(
         &mut self,
         nodes: &Pool<Node>,
         handle: Handle<Node>,
-        joint: &scene::joint::Joint,
+        joint: &scene::dim2::joint::Joint,
     ) {
         if let Some(native) = self.joints.set.get_mut(joint.native.get()) {
             let mut changes = joint.changes.get();
@@ -1353,13 +818,13 @@ impl PhysicsWorld {
                 changes.remove(JointChanges::PARAMS);
             }
             if changes.contains(JointChanges::BODY1) {
-                if let Some(Node::RigidBody(rigid_body_node)) = nodes.try_borrow(joint.body1()) {
+                if let Some(Node::RigidBody2D(rigid_body_node)) = nodes.try_borrow(joint.body1()) {
                     native.body1 = rigid_body_node.native.get();
                 }
                 changes.remove(JointChanges::BODY1);
             }
             if changes.contains(JointChanges::BODY2) {
-                if let Some(Node::RigidBody(rigid_body_node)) = nodes.try_borrow(joint.body2()) {
+                if let Some(Node::RigidBody2D(rigid_body_node)) = nodes.try_borrow(joint.body2()) {
                     native.body2 = rigid_body_node.native.get();
                 }
                 changes.remove(JointChanges::BODY2);
@@ -1379,7 +844,7 @@ impl PhysicsWorld {
             let params = joint.params().clone();
 
             // A native joint can be created iff both rigid bodies are correctly assigned.
-            if let (Some(Node::RigidBody(body1)), Some(Node::RigidBody(body2))) = (
+            if let (Some(Node::RigidBody2D(body1)), Some(Node::RigidBody2D(body2))) = (
                 nodes.try_borrow(body1_handle),
                 nodes.try_borrow(body2_handle),
             ) {

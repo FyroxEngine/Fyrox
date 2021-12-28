@@ -8,23 +8,22 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
+use crate::scene::rigidbody::{RigidBodyChanges, RigidBodyType};
 use crate::{
     core::{
-        algebra::Vector3,
+        algebra::Vector2,
         inspect::{Inspect, PropertyInfo},
         parking_lot::Mutex,
         pool::Handle,
         visitor::prelude::*,
     },
-    physics2d, physics3d,
-    physics3d::rapier::{dynamics, prelude::RigidBodyHandle},
+    physics2d::rapier::prelude::RigidBodyHandle,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
     },
 };
-use bitflags::bitflags;
 use std::{
     cell::Cell,
     collections::VecDeque,
@@ -32,98 +31,19 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-/// A set of possible types of rigid body.
-#[derive(Copy, Clone, Debug, Inspect, Visit, PartialEq, Eq, Hash)]
-#[repr(u32)]
-pub enum RigidBodyType {
-    /// Dynamic rigid bodies can be affected by external forces.
-    Dynamic = 0,
-    /// Static rigid bodies cannot be affected by external forces.
-    Static = 1,
-    /// Kinematic rigid body cannot be affected by external forces, but can push other rigid bodies.
-    /// It also does not have any dynamic, you are able to control the position manually.
-    KinematicPositionBased = 2,
-    /// Kinematic rigid body cannot be affected by external forces, but can push other rigid bodies.
-    /// It also does not have any dynamic, you are able to control the position by changing velocity.
-    KinematicVelocityBased = 3,
-}
-
-impl Default for RigidBodyType {
-    fn default() -> Self {
-        Self::Dynamic
-    }
-}
-
-impl From<dynamics::RigidBodyType> for RigidBodyType {
-    fn from(s: dynamics::RigidBodyType) -> Self {
-        match s {
-            dynamics::RigidBodyType::Dynamic => Self::Dynamic,
-            dynamics::RigidBodyType::Static => Self::Static,
-            dynamics::RigidBodyType::KinematicPositionBased => Self::KinematicPositionBased,
-            dynamics::RigidBodyType::KinematicVelocityBased => Self::KinematicVelocityBased,
-        }
-    }
-}
-
-impl From<RigidBodyType> for physics3d::rapier::dynamics::RigidBodyType {
-    fn from(v: RigidBodyType) -> Self {
-        match v {
-            RigidBodyType::Dynamic => physics3d::rapier::dynamics::RigidBodyType::Dynamic,
-            RigidBodyType::Static => physics3d::rapier::dynamics::RigidBodyType::Static,
-            RigidBodyType::KinematicPositionBased => {
-                physics3d::rapier::dynamics::RigidBodyType::KinematicPositionBased
-            }
-            RigidBodyType::KinematicVelocityBased => {
-                physics3d::rapier::dynamics::RigidBodyType::KinematicVelocityBased
-            }
-        }
-    }
-}
-
-impl From<RigidBodyType> for physics2d::rapier::dynamics::RigidBodyType {
-    fn from(v: RigidBodyType) -> Self {
-        match v {
-            RigidBodyType::Dynamic => physics2d::rapier::dynamics::RigidBodyType::Dynamic,
-            RigidBodyType::Static => physics2d::rapier::dynamics::RigidBodyType::Static,
-            RigidBodyType::KinematicPositionBased => {
-                physics2d::rapier::dynamics::RigidBodyType::KinematicPositionBased
-            }
-            RigidBodyType::KinematicVelocityBased => {
-                physics2d::rapier::dynamics::RigidBodyType::KinematicVelocityBased
-            }
-        }
-    }
-}
-
-bitflags! {
-    pub(crate) struct RigidBodyChanges: u32 {
-        const NONE = 0;
-        const LIN_VEL = 0b0000_0001;
-        const ANG_VEL = 0b0000_0010;
-        const BODY_TYPE = 0b0000_0100;
-        const ROTATION_LOCKED = 0b0000_1000;
-        const TRANSLATION_LOCKED = 0b0001_0000;
-        const MASS = 0b0010_0000;
-        const ANG_DAMPING = 0b0100_0000;
-        const LIN_DAMPING = 0b1000_0000;
-        const CCD_STATE = 0b0001_0000_0000;
-        const CAN_SLEEP = 0b0010_0000_0000;
-    }
-}
-
 #[derive(Debug)]
 pub(crate) enum ApplyAction {
-    Force(Vector3<f32>),
-    Torque(Vector3<f32>),
+    Force(Vector2<f32>),
+    Torque(f32),
     ForceAtPoint {
-        force: Vector3<f32>,
-        point: Vector3<f32>,
+        force: Vector2<f32>,
+        point: Vector2<f32>,
     },
-    Impulse(Vector3<f32>),
-    TorqueImpulse(Vector3<f32>),
+    Impulse(Vector2<f32>),
+    TorqueImpulse(f32),
     ImpulseAtPoint {
-        impulse: Vector3<f32>,
-        point: Vector3<f32>,
+        impulse: Vector2<f32>,
+        point: Vector2<f32>,
     },
     WakeUp,
 }
@@ -138,8 +58,8 @@ pub(crate) enum ApplyAction {
 #[derive(Visit, Inspect)]
 pub struct RigidBody {
     base: Base,
-    pub(crate) lin_vel: Vector3<f32>,
-    pub(crate) ang_vel: Vector3<f32>,
+    pub(crate) lin_vel: Vector2<f32>,
+    pub(crate) ang_vel: f32,
     pub(crate) lin_damping: f32,
     pub(crate) ang_damping: f32,
     #[visit(skip)]
@@ -148,9 +68,7 @@ pub struct RigidBody {
     body_type: RigidBodyType,
     #[inspect(min_value = 0.0, step = 0.05)]
     mass: f32,
-    x_rotation_locked: bool,
-    y_rotation_locked: bool,
-    z_rotation_locked: bool,
+    rotation_locked: bool,
     translation_locked: bool,
     ccd_enabled: bool,
     can_sleep: bool,
@@ -182,9 +100,7 @@ impl Default for RigidBody {
             sleeping: false,
             body_type: RigidBodyType::Dynamic,
             mass: 1.0,
-            x_rotation_locked: false,
-            y_rotation_locked: false,
-            z_rotation_locked: false,
+            rotation_locked: false,
             translation_locked: false,
             ccd_enabled: false,
             can_sleep: true,
@@ -221,9 +137,7 @@ impl RigidBody {
             sleeping: self.sleeping,
             body_type: self.body_type,
             mass: self.mass,
-            x_rotation_locked: self.x_rotation_locked,
-            y_rotation_locked: self.y_rotation_locked,
-            z_rotation_locked: self.z_rotation_locked,
+            rotation_locked: self.rotation_locked,
             translation_locked: self.translation_locked,
             ccd_enabled: self.ccd_enabled,
             can_sleep: self.can_sleep,
@@ -236,25 +150,25 @@ impl RigidBody {
 
     /// Sets new linear velocity of the rigid body. Changing this parameter will wake up the rigid
     /// body!
-    pub fn set_lin_vel(&mut self, lin_vel: Vector3<f32>) {
+    pub fn set_lin_vel(&mut self, lin_vel: Vector2<f32>) {
         self.lin_vel = lin_vel;
         self.changes.get_mut().insert(RigidBodyChanges::LIN_VEL);
     }
 
     /// Returns current linear velocity of the rigid body.
-    pub fn lin_vel(&self) -> Vector3<f32> {
+    pub fn lin_vel(&self) -> Vector2<f32> {
         self.lin_vel
     }
 
     /// Sets new angular velocity of the rigid body. Changing this parameter will wake up the rigid
     /// body!
-    pub fn set_ang_vel(&mut self, ang_vel: Vector3<f32>) {
+    pub fn set_ang_vel(&mut self, ang_vel: f32) {
         self.ang_vel = ang_vel;
         self.changes.get_mut().insert(RigidBodyChanges::ANG_VEL);
     }
 
     /// Returns current angular velocity of the rigid body.
-    pub fn ang_vel(&self) -> Vector3<f32> {
+    pub fn ang_vel(&self) -> f32 {
         self.ang_vel
     }
 
@@ -294,53 +208,17 @@ impl RigidBody {
         self.lin_damping
     }
 
-    /// Locks rotations around X axis in world coordinates.
-    pub fn lock_x_rotations(&mut self, state: bool) {
-        self.x_rotation_locked = state;
+    /// Locks rotations
+    pub fn lock_rotations(&mut self, state: bool) {
+        self.rotation_locked = state;
         self.changes
             .get_mut()
             .insert(RigidBodyChanges::ROTATION_LOCKED);
     }
 
-    /// Returns true if rotation around X axis is locked, false - otherwise.
-    pub fn is_x_rotation_locked(&self) -> bool {
-        self.x_rotation_locked
-    }
-
-    /// Locks rotations around Y axis in world coordinates.
-    pub fn lock_y_rotations(&mut self, state: bool) {
-        self.y_rotation_locked = state;
-        self.changes
-            .get_mut()
-            .insert(RigidBodyChanges::ROTATION_LOCKED);
-    }
-
-    /// Returns true if rotation around Y axis is locked, false - otherwise.    
-    pub fn is_y_rotation_locked(&self) -> bool {
-        self.y_rotation_locked
-    }
-
-    /// Locks rotations around Z axis in world coordinates.
-    pub fn lock_z_rotations(&mut self, state: bool) {
-        self.z_rotation_locked = state;
-        self.changes
-            .get_mut()
-            .insert(RigidBodyChanges::ROTATION_LOCKED);
-    }
-
-    /// Returns true if rotation around Z axis is locked, false - otherwise.    
-    pub fn is_z_rotation_locked(&self) -> bool {
-        self.z_rotation_locked
-    }
-
-    /// Locks or unlocks rotations around all axes at once.
-    pub fn lock_rotations(&mut self, locked: bool) {
-        self.x_rotation_locked = locked;
-        self.y_rotation_locked = locked;
-        self.z_rotation_locked = locked;
-        self.changes
-            .get_mut()
-            .insert(RigidBodyChanges::ROTATION_LOCKED);
+    /// Returns true if rotation is locked, false - otherwise.
+    pub fn is_rotation_locked(&self) -> bool {
+        self.rotation_locked
     }
 
     /// Locks translation in world coordinates.
@@ -387,13 +265,13 @@ impl RigidBody {
 
     /// Applies a force at the center-of-mass of this rigid-body. The force will be applied in the
     /// next simulation step. This does nothing on non-dynamic bodies.
-    pub fn apply_force(&mut self, force: Vector3<f32>) {
+    pub fn apply_force(&mut self, force: Vector2<f32>) {
         self.actions.get_mut().push_back(ApplyAction::Force(force))
     }
 
     /// Applies a torque at the center-of-mass of this rigid-body. The torque will be applied in
     /// the next simulation step. This does nothing on non-dynamic bodies.
-    pub fn apply_torque(&mut self, torque: Vector3<f32>) {
+    pub fn apply_torque(&mut self, torque: f32) {
         self.actions
             .get_mut()
             .push_back(ApplyAction::Torque(torque))
@@ -401,7 +279,7 @@ impl RigidBody {
 
     /// Applies a force at the given world-space point of this rigid-body. The force will be applied
     /// in the next simulation step. This does nothing on non-dynamic bodies.
-    pub fn apply_force_at_point(&mut self, force: Vector3<f32>, point: Vector3<f32>) {
+    pub fn apply_force_at_point(&mut self, force: Vector2<f32>, point: Vector2<f32>) {
         self.actions
             .get_mut()
             .push_back(ApplyAction::ForceAtPoint { force, point })
@@ -409,7 +287,7 @@ impl RigidBody {
 
     /// Applies an impulse at the center-of-mass of this rigid-body. The impulse is applied right
     /// away, changing the linear velocity. This does nothing on non-dynamic bodies.
-    pub fn apply_impulse(&mut self, impulse: Vector3<f32>) {
+    pub fn apply_impulse(&mut self, impulse: Vector2<f32>) {
         self.actions
             .get_mut()
             .push_back(ApplyAction::Impulse(impulse))
@@ -417,7 +295,7 @@ impl RigidBody {
 
     /// Applies an angular impulse at the center-of-mass of this rigid-body. The impulse is applied
     /// right away, changing the angular velocity. This does nothing on non-dynamic bodies.
-    pub fn apply_torque_impulse(&mut self, torque_impulse: Vector3<f32>) {
+    pub fn apply_torque_impulse(&mut self, torque_impulse: f32) {
         self.actions
             .get_mut()
             .push_back(ApplyAction::TorqueImpulse(torque_impulse))
@@ -426,7 +304,7 @@ impl RigidBody {
     /// Applies an impulse at the given world-space point of this rigid-body. The impulse is applied
     /// right away, changing the linear and/or angular velocities. This does nothing on non-dynamic
     /// bodies.
-    pub fn apply_impulse_at_point(&mut self, impulse: Vector3<f32>, point: Vector3<f32>) {
+    pub fn apply_impulse_at_point(&mut self, impulse: Vector2<f32>, point: Vector2<f32>) {
         self.actions
             .get_mut()
             .push_back(ApplyAction::ImpulseAtPoint { impulse, point })
@@ -453,16 +331,14 @@ impl RigidBody {
 /// Allows you to create rigid body in declarative manner.
 pub struct RigidBodyBuilder {
     base_builder: BaseBuilder,
-    lin_vel: Vector3<f32>,
-    ang_vel: Vector3<f32>,
+    lin_vel: Vector2<f32>,
+    ang_vel: f32,
     lin_damping: f32,
     ang_damping: f32,
     sleeping: bool,
     body_type: RigidBodyType,
     mass: f32,
-    x_rotation_locked: bool,
-    y_rotation_locked: bool,
-    z_rotation_locked: bool,
+    rotation_locked: bool,
     translation_locked: bool,
     ccd_enabled: bool,
     can_sleep: bool,
@@ -480,9 +356,7 @@ impl RigidBodyBuilder {
             sleeping: false,
             body_type: RigidBodyType::Dynamic,
             mass: 1.0,
-            x_rotation_locked: false,
-            y_rotation_locked: false,
-            z_rotation_locked: false,
+            rotation_locked: false,
             translation_locked: false,
             ccd_enabled: false,
             can_sleep: true,
@@ -508,13 +382,13 @@ impl RigidBodyBuilder {
     }
 
     /// Sets desired linear velocity.
-    pub fn with_lin_vel(mut self, lin_vel: Vector3<f32>) -> Self {
+    pub fn with_lin_vel(mut self, lin_vel: Vector2<f32>) -> Self {
         self.lin_vel = lin_vel;
         self
     }
 
     /// Sets desired angular velocity.
-    pub fn with_ang_vel(mut self, ang_vel: Vector3<f32>) -> Self {
+    pub fn with_ang_vel(mut self, ang_vel: f32) -> Self {
         self.ang_vel = ang_vel;
         self
     }
@@ -532,34 +406,14 @@ impl RigidBodyBuilder {
     }
 
     /// Sets whether the rotation around X axis of the body should be locked or not.
-    pub fn with_x_rotation_locked(mut self, x_rotation_locked: bool) -> Self {
-        self.x_rotation_locked = x_rotation_locked;
-        self
-    }
-
-    /// Sets whether the rotation around Y axis of the body should be locked or not.
-    pub fn with_y_rotation_locked(mut self, y_rotation_locked: bool) -> Self {
-        self.y_rotation_locked = y_rotation_locked;
-        self
-    }
-
-    /// Sets whether the rotation around Z axis of the body should be locked or not.
-    pub fn with_z_rotation_locked(mut self, z_rotation_locked: bool) -> Self {
-        self.z_rotation_locked = z_rotation_locked;
+    pub fn with_rotation_locked(mut self, rotation_locked: bool) -> Self {
+        self.rotation_locked = rotation_locked;
         self
     }
 
     /// Sets whether the translation of the body should be locked or not.
     pub fn with_translation_locked(mut self, translation_locked: bool) -> Self {
         self.translation_locked = translation_locked;
-        self
-    }
-
-    /// Locks or unlocks rotations of the rigid body.
-    pub fn with_locked_rotations(mut self, locked: bool) -> Self {
-        self.x_rotation_locked = locked;
-        self.y_rotation_locked = locked;
-        self.z_rotation_locked = locked;
         self
     }
 
@@ -586,9 +440,7 @@ impl RigidBodyBuilder {
             sleeping: self.sleeping,
             body_type: self.body_type,
             mass: self.mass,
-            x_rotation_locked: self.x_rotation_locked,
-            y_rotation_locked: self.y_rotation_locked,
-            z_rotation_locked: self.z_rotation_locked,
+            rotation_locked: self.rotation_locked,
             translation_locked: self.translation_locked,
             ccd_enabled: self.ccd_enabled,
             can_sleep: self.can_sleep,
@@ -597,7 +449,7 @@ impl RigidBodyBuilder {
             actions: Default::default(),
         };
 
-        Node::RigidBody(rigid_body)
+        Node::RigidBody2D(rigid_body)
     }
 
     /// Creates RigidBody node and adds it to the graph.
