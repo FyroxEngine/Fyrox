@@ -678,8 +678,6 @@ impl Graph {
                                     .set_scaling_pivot(**resource_local_transform.scaling_pivot());
                             }
 
-                            drop(local_transform);
-
                             if let (Node::Mesh(mesh), Node::Mesh(resource_mesh)) =
                                 (node, resource_node)
                             {

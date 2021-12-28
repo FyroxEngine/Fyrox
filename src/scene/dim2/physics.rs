@@ -490,7 +490,7 @@ impl PhysicsWorld {
         new_global_transform: &Matrix4<f32>,
     ) {
         if let Some(native) = self.bodies.set.get_mut(rigid_body.native.get()) {
-            let global_rotation = UnitComplex::from_angle(rotation_angle(&new_global_transform));
+            let global_rotation = UnitComplex::from_angle(rotation_angle(new_global_transform));
             let global_position = Vector2::new(new_global_transform[12], new_global_transform[13]);
 
             native.set_position(

@@ -56,7 +56,7 @@ impl Default for BallJoint {
 
 /// A fixed joint ensures that two rigid bodies does not move relative to each other. There is no
 /// straightforward real-world example, but it can be thought as two bodies were "welded" together.
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, Inspect, Default)]
 pub struct FixedJoint {
     /// Local translation for the first body.
     pub local_anchor1_translation: Vector3<f32>,
@@ -66,17 +66,6 @@ pub struct FixedJoint {
     pub local_anchor2_translation: Vector3<f32>,
     /// Local rotation for the second body.
     pub local_anchor2_rotation: UnitQuaternion<f32>,
-}
-
-impl Default for FixedJoint {
-    fn default() -> Self {
-        Self {
-            local_anchor1_translation: Default::default(),
-            local_anchor1_rotation: Default::default(),
-            local_anchor2_translation: Default::default(),
-            local_anchor2_rotation: Default::default(),
-        }
-    }
 }
 
 /// Prismatic joint prevents any relative movement between two rigid-bodies, except for relative

@@ -210,7 +210,7 @@ fn main() {
                         .make_ray(mouse_position, engine.renderer.get_frame_bounds());
 
                     let mut buffer = ArrayVec::<Intersection, 64>::new();
-                    scene.graph.cast_ray(
+                    scene.graph.physics.cast_ray(
                         RayCastOptions {
                             ray_origin: Point3::from(ray.origin),
                             ray_direction: ray.dir,

@@ -178,7 +178,7 @@ impl Renderer2d {
         let quad = self.geometry_cache.get(state, &self.quad);
 
         self.batch_storage
-            .generate_batches(state, graph, texture_cache, white_dummy.clone());
+            .generate_batches(state, graph, texture_cache, white_dummy);
 
         let view_projection = camera.view_projection_matrix();
 

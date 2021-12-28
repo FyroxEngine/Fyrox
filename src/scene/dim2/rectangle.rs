@@ -14,21 +14,11 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-#[derive(Visit, Inspect, Debug)]
+#[derive(Visit, Inspect, Debug, Default)]
 pub struct Rectangle {
     base: Base,
     texture: Option<Texture>,
     color: Color,
-}
-
-impl Default for Rectangle {
-    fn default() -> Self {
-        Self {
-            base: Default::default(),
-            texture: None,
-            color: Default::default(),
-        }
-    }
 }
 
 impl Deref for Rectangle {
