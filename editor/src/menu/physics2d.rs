@@ -1,32 +1,33 @@
 use crate::{menu::create_menu_item, scene::commands::graph::AddNodeCommand, Message};
-use rg3d::scene::node::Node;
 use rg3d::{
     core::{algebra::Vector3, pool::Handle},
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
-    scene::{base::BaseBuilder, collider::*, joint::*, rigidbody::RigidBodyBuilder},
+    scene::{
+        base::BaseBuilder,
+        dim2::{collider::*, joint::*, rigidbody::RigidBodyBuilder},
+        node::Node,
+    },
 };
 use std::sync::mpsc::Sender;
 
-pub struct PhysicsMenu {
+pub struct Physics2dMenu {
     pub menu: Handle<UiNode>,
     create_rigid_body: Handle<UiNode>,
-    create_revolute_joint: Handle<UiNode>,
     create_ball_joint: Handle<UiNode>,
     create_prismatic_joint: Handle<UiNode>,
     create_fixed_joint: Handle<UiNode>,
     create_collider: Handle<UiNode>,
 }
 
-impl PhysicsMenu {
+impl Physics2dMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let create_rigid_body;
         let create_collider;
-        let create_revolute_joint;
         let create_ball_joint;
         let create_prismatic_joint;
         let create_fixed_joint;
         let menu = create_menu_item(
-            "Physics",
+            "Physics 2D",
             vec![
                 {
                     create_rigid_body = create_menu_item("Rigid Body", vec![], ctx);
@@ -35,10 +36,6 @@ impl PhysicsMenu {
                 {
                     create_collider = create_menu_item("Collider", vec![], ctx);
                     create_collider
-                },
-                {
-                    create_revolute_joint = create_menu_item("Revolute Joint", vec![], ctx);
-                    create_revolute_joint
                 },
                 {
                     create_ball_joint = create_menu_item("Ball Joint", vec![], ctx);
@@ -59,7 +56,6 @@ impl PhysicsMenu {
         Self {
             menu,
             create_rigid_body,
-            create_revolute_joint,
             create_ball_joint,
             create_prismatic_joint,
             create_fixed_joint,
@@ -82,15 +78,6 @@ impl PhysicsMenu {
                         parent,
                     )))
                     .unwrap();
-            } else if message.destination() == self.create_revolute_joint {
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(
-                        JointBuilder::new(BaseBuilder::new().with_name("Revolute Joint"))
-                            .with_params(JointParams::RevoluteJoint(Default::default()))
-                            .build_node(),
-                        parent,
-                    )))
-                    .unwrap()
             } else if message.destination() == self.create_ball_joint {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(

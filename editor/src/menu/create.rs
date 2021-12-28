@@ -1,4 +1,5 @@
 use crate::menu::dim2::Dim2Menu;
+use crate::menu::physics2d::Physics2dMenu;
 use crate::{
     create_terrain_layer_material,
     menu::{create_menu_item, create_root_menu_item, physics::PhysicsMenu},
@@ -74,6 +75,7 @@ pub struct CreateEntityMenu {
     create_sound_source: Handle<UiNode>,
     create_spatial_sound_source: Handle<UiNode>,
     physics_menu: PhysicsMenu,
+    physics2d_menu: Physics2dMenu,
     dim2_menu: Dim2Menu,
 }
 
@@ -97,6 +99,7 @@ impl CreateEntityMenu {
         let create_spatial_sound_source;
 
         let physics_menu = PhysicsMenu::new(ctx);
+        let physics2d_menu = Physics2dMenu::new(ctx);
         let dim2_menu = Dim2Menu::new(ctx);
 
         let items = vec![
@@ -164,6 +167,7 @@ impl CreateEntityMenu {
                 ctx,
             ),
             physics_menu.menu,
+            physics2d_menu.menu,
             dim2_menu.menu,
             {
                 create_camera = create_menu_item("Camera", vec![], ctx);
@@ -206,6 +210,7 @@ impl CreateEntityMenu {
                 create_spatial_sound_source,
                 create_decal,
                 physics_menu,
+                physics2d_menu,
                 dim2_menu,
             },
             items,
@@ -219,6 +224,8 @@ impl CreateEntityMenu {
         parent: Handle<Node>,
     ) {
         self.physics_menu.handle_ui_message(message, sender, parent);
+        self.physics2d_menu
+            .handle_ui_message(message, sender, parent);
         self.dim2_menu.handle_ui_message(message, sender, parent);
 
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
