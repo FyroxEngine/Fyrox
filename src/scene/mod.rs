@@ -231,6 +231,9 @@ pub struct PerformanceStatistics {
     /// Physics performance statistics.
     pub physics: PhysicsPerformanceStatistics,
 
+    /// 2D Physics performance statistics.
+    pub physics2d: PhysicsPerformanceStatistics,
+
     /// A time (in seconds) which was required to update graph.
     pub graph_update_time: f32,
 
@@ -739,6 +742,7 @@ impl Scene {
         let last = instant::Instant::now();
         self.graph.update(frame_size, dt);
         self.performance_statistics.physics = self.graph.physics.performance_statistics.clone();
+        self.performance_statistics.physics2d = self.graph.physics2d.performance_statistics.clone();
         self.performance_statistics.graph_update_time =
             (instant::Instant::now() - last).as_secs_f32();
 

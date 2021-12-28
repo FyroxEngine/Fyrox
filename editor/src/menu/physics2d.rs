@@ -1,6 +1,6 @@
 use crate::{menu::create_menu_item, scene::commands::graph::AddNodeCommand, Message};
 use rg3d::{
-    core::{algebra::Vector3, pool::Handle},
+    core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
     scene::{
         base::BaseBuilder,

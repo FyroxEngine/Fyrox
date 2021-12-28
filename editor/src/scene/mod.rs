@@ -41,6 +41,7 @@ impl EditorScene {
 
         // Prevent physics simulation in while editing scene.
         scene.graph.physics.enabled = false;
+        scene.graph.physics2d.enabled = false;
 
         let mut navmeshes = Pool::new();
 

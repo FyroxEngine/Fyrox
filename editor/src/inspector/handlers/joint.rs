@@ -1,6 +1,7 @@
 use crate::{
-    inspector::handlers::node::base::handle_base_property_changed, make_command,
-    scene::commands::joint::*, SceneCommand,
+    handle_properties, handle_property_changed,
+    inspector::handlers::node::base::handle_base_property_changed, scene::commands::joint::*,
+    SceneCommand,
 };
 use rg3d::{
     core::pool::Handle,
@@ -15,26 +16,22 @@ pub fn handle_joint_property_changed(
     joint: &Joint,
 ) -> Option<SceneCommand> {
     match args.value {
-        FieldKind::Object(ref value) => match args.name.as_ref() {
-            Joint::BODY_1 => {
-                make_command!(SetJointBody1Command, handle, value)
-            }
-            Joint::BODY_2 => {
-                make_command!(SetJointBody2Command, handle, value)
-            }
-            _ => None,
-        },
+        FieldKind::Object(ref value) => {
+            handle_properties!(args.name.as_ref(), handle, value,
+                Joint::BODY_1 => SetJointBody1Command,
+                Joint::BODY_2 => SetJointBody2Command
+            )
+        }
         FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
             Joint::PARAMS => {
-                let params = joint.params();
                 if inner.owner_type_id == TypeId::of::<BallJoint>() {
-                    handle_ball_joint_property_changed(inner, handle, params)
+                    handle_ball_joint(inner, handle)
                 } else if inner.owner_type_id == TypeId::of::<RevoluteJoint>() {
-                    handle_revolute_joint_property_changed(inner, handle, params)
+                    handle_revolute_joint(inner, handle)
                 } else if inner.owner_type_id == TypeId::of::<FixedJoint>() {
-                    handle_fixed_joint_property_changed(inner, handle, params)
+                    handle_fixed_joint(inner, handle)
                 } else if inner.owner_type_id == TypeId::of::<PrismaticJoint>() {
-                    handle_prismatic_joint_property_changed(inner, handle, params)
+                    handle_prismatic_joint(inner, handle)
                 } else {
                     None
                 }
@@ -46,118 +43,39 @@ pub fn handle_joint_property_changed(
     }
 }
 
-pub fn handle_ball_joint_property_changed(
-    args: &PropertyChanged,
-    handle: Handle<Node>,
-    params: &JointParams,
-) -> Option<SceneCommand> {
-    if let JointParams::BallJoint(_) = params {
-        match args.value {
-            FieldKind::Object(ref value) => match args.name.as_ref() {
-                BallJoint::LOCAL_ANCHOR_1 => Some(SceneCommand::new(
-                    SetBallJointAnchor1Command::new(handle, value.cast_value().cloned()?),
-                )),
-                BallJoint::LOCAL_ANCHOR_2 => Some(SceneCommand::new(
-                    SetBallJointAnchor2Command::new(handle, value.cast_value().cloned()?),
-                )),
-                _ => None,
-            },
-            _ => None,
-        }
-    } else {
-        None
-    }
+pub fn handle_ball_joint(args: &PropertyChanged, handle: Handle<Node>) -> Option<SceneCommand> {
+    handle_property_changed!(args, handle,
+        BallJoint::LOCAL_ANCHOR_1 => SetBallJointAnchor1Command,
+        BallJoint::LOCAL_ANCHOR_2 => SetBallJointAnchor2Command
+    )
 }
 
-pub fn handle_revolute_joint_property_changed(
-    args: &PropertyChanged,
-    handle: Handle<Node>,
-    params: &JointParams,
-) -> Option<SceneCommand> {
-    if let JointParams::RevoluteJoint(_) = params {
-        match args.value {
-            FieldKind::Object(ref value) => match args.name.as_ref() {
-                RevoluteJoint::LOCAL_ANCHOR_1 => Some(SceneCommand::new(
-                    SetRevoluteJointAnchor1Command::new(handle, value.cast_value().cloned()?),
-                )),
-                RevoluteJoint::LOCAL_ANCHOR_2 => Some(SceneCommand::new(
-                    SetRevoluteJointAnchor2Command::new(handle, value.cast_value().cloned()?),
-                )),
-                RevoluteJoint::LOCAL_AXIS_1 => Some(SceneCommand::new(
-                    SetRevoluteJointAxis1Command::new(handle, value.cast_value().cloned()?),
-                )),
-                RevoluteJoint::LOCAL_AXIS_2 => Some(SceneCommand::new(
-                    SetRevoluteJointAxis2Command::new(handle, value.cast_value().cloned()?),
-                )),
-                _ => None,
-            },
-            _ => None,
-        }
-    } else {
-        None
-    }
+pub fn handle_revolute_joint(args: &PropertyChanged, handle: Handle<Node>) -> Option<SceneCommand> {
+    handle_property_changed!(args, handle,
+        RevoluteJoint::LOCAL_ANCHOR_1 => SetRevoluteJointAnchor1Command,
+        RevoluteJoint::LOCAL_ANCHOR_2 => SetRevoluteJointAnchor2Command,
+        RevoluteJoint::LOCAL_AXIS_1 => SetRevoluteJointAxis1Command,
+        RevoluteJoint::LOCAL_AXIS_2 => SetRevoluteJointAxis2Command
+    )
 }
 
-pub fn handle_prismatic_joint_property_changed(
+pub fn handle_prismatic_joint(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    params: &JointParams,
 ) -> Option<SceneCommand> {
-    if let JointParams::PrismaticJoint(_) = params {
-        match args.value {
-            FieldKind::Object(ref value) => match args.name.as_ref() {
-                PrismaticJoint::LOCAL_ANCHOR_1 => Some(SceneCommand::new(
-                    SetPrismaticJointAnchor1Command::new(handle, value.cast_value().cloned()?),
-                )),
-                PrismaticJoint::LOCAL_ANCHOR_2 => Some(SceneCommand::new(
-                    SetPrismaticJointAnchor2Command::new(handle, value.cast_value().cloned()?),
-                )),
-                PrismaticJoint::LOCAL_AXIS_1 => Some(SceneCommand::new(
-                    SetPrismaticJointAxis1Command::new(handle, value.cast_value().cloned()?),
-                )),
-                PrismaticJoint::LOCAL_AXIS_2 => Some(SceneCommand::new(
-                    SetPrismaticJointAxis2Command::new(handle, value.cast_value().cloned()?),
-                )),
-                _ => None,
-            },
-            _ => None,
-        }
-    } else {
-        None
-    }
+    handle_property_changed!(args, handle,
+        PrismaticJoint::LOCAL_ANCHOR_1 => SetPrismaticJointAnchor1Command,
+        PrismaticJoint::LOCAL_ANCHOR_2 => SetPrismaticJointAnchor2Command,
+        PrismaticJoint::LOCAL_AXIS_1 => SetPrismaticJointAxis1Command,
+        PrismaticJoint::LOCAL_AXIS_2 => SetPrismaticJointAxis2Command
+    )
 }
 
-pub fn handle_fixed_joint_property_changed(
-    args: &PropertyChanged,
-    handle: Handle<Node>,
-    params: &JointParams,
-) -> Option<SceneCommand> {
-    if let JointParams::FixedJoint(_) = params {
-        match args.value {
-            FieldKind::Object(ref value) => match args.name.as_ref() {
-                FixedJoint::LOCAL_ANCHOR_1_TRANSLATION => Some(SceneCommand::new(
-                    SetFixedJointAnchor1TranslationCommand::new(
-                        handle,
-                        value.cast_value().cloned()?,
-                    ),
-                )),
-                FixedJoint::LOCAL_ANCHOR_2_TRANSLATION => Some(SceneCommand::new(
-                    SetFixedJointAnchor2TranslationCommand::new(
-                        handle,
-                        value.cast_value().cloned()?,
-                    ),
-                )),
-                FixedJoint::LOCAL_ANCHOR_1_ROTATION => Some(SceneCommand::new(
-                    SetFixedJointAnchor1RotationCommand::new(handle, value.cast_value().cloned()?),
-                )),
-                FixedJoint::LOCAL_ANCHOR_2_ROTATION => Some(SceneCommand::new(
-                    SetFixedJointAnchor2RotationCommand::new(handle, value.cast_value().cloned()?),
-                )),
-                _ => None,
-            },
-            _ => None,
-        }
-    } else {
-        None
-    }
+pub fn handle_fixed_joint(args: &PropertyChanged, handle: Handle<Node>) -> Option<SceneCommand> {
+    handle_property_changed!(args, handle,
+         FixedJoint::LOCAL_ANCHOR_1_TRANSLATION => SetFixedJointAnchor1TranslationCommand,
+         FixedJoint::LOCAL_ANCHOR_2_TRANSLATION => SetFixedJointAnchor2TranslationCommand,
+         FixedJoint::LOCAL_ANCHOR_1_ROTATION => SetFixedJointAnchor1RotationCommand,
+         FixedJoint::LOCAL_ANCHOR_2_ROTATION => SetFixedJointAnchor2RotationCommand
+    )
 }

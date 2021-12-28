@@ -1,12 +1,15 @@
-use crate::inspector::handlers::node::base::handle_base_property_changed;
-use crate::{make_command, scene::commands::collider::*, SceneCommand};
-use rg3d::gui::inspector::CollectionChanged;
-use rg3d::scene::collider::Collider;
-use rg3d::scene::node::Node;
+use crate::{
+    handle_properties, handle_property_changed,
+    inspector::handlers::node::base::handle_base_property_changed, scene::commands::collider::*,
+    SceneCommand,
+};
 use rg3d::{
     core::pool::Handle,
-    gui::inspector::{FieldKind, PropertyChanged},
-    scene::collider::*,
+    gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
+    scene::{
+        collider::{Collider, *},
+        node::Node,
+    },
 };
 use std::any::TypeId;
 
@@ -16,24 +19,15 @@ pub fn handle_collider_property_changed(
     collider: &Collider,
 ) -> Option<SceneCommand> {
     match args.value {
-        FieldKind::Object(ref value) => match args.name.as_ref() {
-            Collider::FRICTION => {
-                make_command!(SetColliderFrictionCommand, handle, value)
-            }
-            Collider::RESTITUTION => {
-                make_command!(SetColliderRestitutionCommand, handle, value)
-            }
-            Collider::IS_SENSOR => {
-                make_command!(SetColliderIsSensorCommand, handle, value)
-            }
-            Collider::DENSITY => {
-                make_command!(SetColliderDensityCommand, handle, value)
-            }
-            Collider::SHAPE => {
-                make_command!(SetColliderShapeCommand, handle, value)
-            }
-            _ => None,
-        },
+        FieldKind::Object(ref value) => {
+            handle_properties!(args.name.as_ref(), handle, value,
+                Collider::FRICTION => SetColliderFrictionCommand,
+                Collider::RESTITUTION => SetColliderRestitutionCommand,
+                Collider::IS_SENSOR => SetColliderIsSensorCommand,
+                Collider::DENSITY => SetColliderDensityCommand,
+                Collider::SHAPE => SetColliderShapeCommand
+            )
+        }
         FieldKind::Inspectable(ref inner_property) => match args.name.as_ref() {
             Collider::COLLISION_GROUPS => match inner_property.value {
                 FieldKind::Object(ref value) => match inner_property.name.as_ref() {
@@ -77,21 +71,21 @@ pub fn handle_collider_property_changed(
             },
             Collider::SHAPE => {
                 if inner_property.owner_type_id == TypeId::of::<CuboidShape>() {
-                    handle_cuboid_desc_property_changed(handle, collider, inner_property)
+                    handle_cuboid(handle, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<BallShape>() {
-                    handle_ball_desc_property_changed(handle, collider, inner_property)
+                    handle_ball(handle, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<CylinderShape>() {
-                    handle_cylinder_desc_property_changed(handle, collider, inner_property)
+                    handle_cylinder(handle, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<ConeShape>() {
-                    handle_cone_desc_property_changed(handle, collider, inner_property)
+                    handle_cone(handle, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<CapsuleShape>() {
-                    handle_capsule_desc_property_changed(handle, collider, inner_property)
+                    handle_capsule(handle, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<SegmentShape>() {
-                    handle_segment_desc_property_changed(handle, collider, inner_property)
+                    handle_segment(handle, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<TriangleShape>() {
-                    handle_triangle_desc_property_changed(handle, collider, inner_property)
+                    handle_triangle(handle, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<TrimeshShape>() {
-                    handle_trimesh_desc_property_changed(handle, collider, inner_property)
+                    handle_trimesh(handle, inner_property)
                 } else {
                     None
                 }
@@ -103,187 +97,88 @@ pub fn handle_collider_property_changed(
     }
 }
 
-fn handle_ball_desc_property_changed(
-    handle: Handle<Node>,
-    collider: &Collider,
-    property_changed: &PropertyChanged,
-) -> Option<SceneCommand> {
-    if let ColliderShape::Ball(_) = collider.shape() {
-        match property_changed.value {
-            FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                BallShape::RADIUS => make_command!(SetBallRadiusCommand, handle, value),
-                _ => None,
-            },
-            _ => None,
-        }
-    } else {
-        None
-    }
+fn handle_ball(handle: Handle<Node>, args: &PropertyChanged) -> Option<SceneCommand> {
+    handle_property_changed!(args, handle,
+        BallShape::RADIUS => SetBallRadiusCommand
+    )
 }
 
-fn handle_cuboid_desc_property_changed(
+fn handle_cuboid(handle: Handle<Node>, args: &PropertyChanged) -> Option<SceneCommand> {
+    handle_property_changed!(args, handle,
+         CuboidShape::HALF_EXTENTS => SetCuboidHalfExtentsCommand
+    )
+}
+
+fn handle_cylinder(handle: Handle<Node>, args: &PropertyChanged) -> Option<SceneCommand> {
+    handle_property_changed!(args, handle,
+         CylinderShape::HALF_HEIGHT => SetCylinderHalfHeightCommand,
+         CylinderShape::RADIUS => SetCylinderRadiusCommand
+    )
+}
+
+fn handle_cone(handle: Handle<Node>, args: &PropertyChanged) -> Option<SceneCommand> {
+    handle_property_changed!(args, handle,
+        ConeShape::HALF_HEIGHT => SetConeHalfHeightCommand,
+        ConeShape::RADIUS => SetConeRadiusCommand
+    )
+}
+
+fn handle_capsule(handle: Handle<Node>, args: &PropertyChanged) -> Option<SceneCommand> {
+    handle_property_changed!(args, handle,
+        CapsuleShape::BEGIN => SetCapsuleBeginCommand,
+        CapsuleShape::END => SetCapsuleEndCommand,
+        CapsuleShape::RADIUS => SetCapsuleRadiusCommand
+    )
+}
+
+fn handle_segment(handle: Handle<Node>, args: &PropertyChanged) -> Option<SceneCommand> {
+    handle_property_changed!(args, handle,
+        SegmentShape::BEGIN => SetSegmentBeginCommand,
+        SegmentShape::END => SetSegmentEndCommand
+    )
+}
+
+fn handle_triangle(handle: Handle<Node>, args: &PropertyChanged) -> Option<SceneCommand> {
+    handle_property_changed!(args, handle,
+        TriangleShape::A => SetTriangleACommand,
+        TriangleShape::B => SetTriangleBCommand,
+        TriangleShape::C => SetTriangleCCommand
+    )
+}
+
+fn handle_trimesh(
     handle: Handle<Node>,
-    collider: &Collider,
     property_changed: &PropertyChanged,
 ) -> Option<SceneCommand> {
-    if let ColliderShape::Cuboid(_) = collider.shape() {
-        match property_changed.value {
-            FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                CuboidShape::HALF_EXTENTS => {
-                    make_command!(SetCuboidHalfExtentsCommand, handle, value)
+    match property_changed.name.as_ref() {
+        TrimeshShape::SOURCES => match property_changed.value {
+            FieldKind::Collection(ref collection_changed) => match **collection_changed {
+                CollectionChanged::Add => {
+                    Some(SceneCommand::new(AddTrimeshGeometrySourceCommand {
+                        node: handle,
+                        source: Default::default(),
+                    }))
                 }
-                _ => None,
-            },
-            _ => None,
-        }
-    } else {
-        None
-    }
-}
-
-fn handle_cylinder_desc_property_changed(
-    handle: Handle<Node>,
-    collider: &Collider,
-    property_changed: &PropertyChanged,
-) -> Option<SceneCommand> {
-    if let ColliderShape::Cylinder(_) = collider.shape() {
-        match property_changed.value {
-            FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                CylinderShape::HALF_HEIGHT => {
-                    make_command!(SetCylinderHalfHeightCommand, handle, value)
-                }
-                CylinderShape::RADIUS => {
-                    make_command!(SetCylinderRadiusCommand, handle, value)
-                }
-                _ => None,
-            },
-            _ => None,
-        }
-    } else {
-        None
-    }
-}
-
-fn handle_cone_desc_property_changed(
-    handle: Handle<Node>,
-    collider: &Collider,
-    property_changed: &PropertyChanged,
-) -> Option<SceneCommand> {
-    if let ColliderShape::Cone(_) = collider.shape() {
-        match property_changed.value {
-            FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                ConeShape::HALF_HEIGHT => {
-                    make_command!(SetConeHalfHeightCommand, handle, value)
-                }
-                ConeShape::RADIUS => make_command!(SetConeRadiusCommand, handle, value),
-                _ => None,
-            },
-            _ => None,
-        }
-    } else {
-        None
-    }
-}
-
-fn handle_capsule_desc_property_changed(
-    handle: Handle<Node>,
-    collider: &Collider,
-    property_changed: &PropertyChanged,
-) -> Option<SceneCommand> {
-    if let ColliderShape::Capsule(_) = collider.shape() {
-        match property_changed.value {
-            FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                CapsuleShape::BEGIN => make_command!(SetCapsuleBeginCommand, handle, value),
-                CapsuleShape::END => make_command!(SetCapsuleEndCommand, handle, value),
-                CapsuleShape::RADIUS => {
-                    make_command!(SetCapsuleRadiusCommand, handle, value)
-                }
-                _ => None,
-            },
-            _ => None,
-        }
-    } else {
-        None
-    }
-}
-
-fn handle_segment_desc_property_changed(
-    handle: Handle<Node>,
-    collider: &Collider,
-    property_changed: &PropertyChanged,
-) -> Option<SceneCommand> {
-    if let ColliderShape::Segment(_) = collider.shape() {
-        match property_changed.value {
-            FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                SegmentShape::BEGIN => make_command!(SetSegmentBeginCommand, handle, value),
-                SegmentShape::END => make_command!(SetSegmentEndCommand, handle, value),
-                _ => None,
-            },
-            _ => None,
-        }
-    } else {
-        None
-    }
-}
-
-fn handle_triangle_desc_property_changed(
-    handle: Handle<Node>,
-    collider: &Collider,
-    property_changed: &PropertyChanged,
-) -> Option<SceneCommand> {
-    if let ColliderShape::Triangle(_) = collider.shape() {
-        match property_changed.value {
-            FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                TriangleShape::A => make_command!(SetTriangleACommand, handle, value),
-                TriangleShape::B => make_command!(SetTriangleBCommand, handle, value),
-                TriangleShape::C => make_command!(SetTriangleCCommand, handle, value),
-                _ => None,
-            },
-            _ => None,
-        }
-    } else {
-        None
-    }
-}
-
-fn handle_trimesh_desc_property_changed(
-    handle: Handle<Node>,
-    collider: &Collider,
-    property_changed: &PropertyChanged,
-) -> Option<SceneCommand> {
-    if let ColliderShape::Trimesh(_) = collider.shape() {
-        match property_changed.name.as_ref() {
-            TrimeshShape::SOURCES => match property_changed.value {
-                FieldKind::Collection(ref collection_changed) => match **collection_changed {
-                    CollectionChanged::Add => {
-                        Some(SceneCommand::new(AddTrimeshGeometrySourceCommand {
-                            node: handle,
-                            source: Default::default(),
-                        }))
+                CollectionChanged::Remove(_) => None,
+                CollectionChanged::ItemChanged {
+                    index,
+                    ref property,
+                } => {
+                    if let FieldKind::Object(ref value) = property.value {
+                        Some(SceneCommand::new(
+                            SetTrimeshColliderGeometrySourceValueCommand {
+                                node: handle,
+                                index,
+                                value: GeometrySource(value.cast_clone()?),
+                            },
+                        ))
+                    } else {
+                        None
                     }
-                    CollectionChanged::Remove(_) => None,
-                    CollectionChanged::ItemChanged {
-                        index,
-                        ref property,
-                    } => {
-                        if let FieldKind::Object(ref value) = property.value {
-                            Some(SceneCommand::new(
-                                SetTrimeshColliderGeometrySourceValueCommand {
-                                    node: handle,
-                                    index,
-                                    value: GeometrySource(value.cast_clone()?),
-                                },
-                            ))
-                        } else {
-                            None
-                        }
-                    }
-                },
-                _ => None,
+                }
             },
             _ => None,
-        }
-    } else {
-        None
+        },
+        _ => None,
     }
 }

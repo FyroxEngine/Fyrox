@@ -1,9 +1,8 @@
 use crate::{menu::create_menu_item, scene::commands::graph::AddNodeCommand, Message};
-use rg3d::scene::node::Node;
 use rg3d::{
-    core::{algebra::Vector3, pool::Handle},
+    core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
-    scene::{base::BaseBuilder, collider::*, joint::*, rigidbody::RigidBodyBuilder},
+    scene::{base::BaseBuilder, collider::*, joint::*, node::Node, rigidbody::RigidBodyBuilder},
 };
 use std::sync::mpsc::Sender;
 

@@ -70,6 +70,35 @@ macro_rules! make_command {
     };
 }
 
+#[macro_export]
+macro_rules! handle_properties {
+    ($name:expr, $handle:expr, $value:expr, $($prop:path => $cmd:ty),*) => {
+        match $name {
+            $($prop => {
+                crate::make_command!($cmd, $handle, $value)
+            })*
+            _ => None,
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! handle_property_changed {
+    ($args:expr, $handle:expr, $($prop:path => $cmd:ty),*) => {
+        match $args.value {
+            FieldKind::Object(ref value) => {
+                match $args.name.as_ref() {
+                    $($prop => {
+                        crate::make_command!($cmd, $handle, value)
+                    })*
+                    _ => None,
+                }
+            }
+            _ => None
+        }
+    }
+}
+
 impl Inspector {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let property_editors = make_property_editors_container(sender);
