@@ -1,16 +1,12 @@
 use std::any::TypeId;
 
 use crate::{
-    inspector::handlers::{
-        collider::handle_collider_property_changed,
-        joint::handle_joint_property_changed,
-        node::{
-            base::handle_base_property_changed, camera::handle_camera_property_changed,
-            decal::handle_decal_property_changed, light::*, mesh::handle_mesh_property_changed,
-            particle_system::ParticleSystemHandler, sprite::handle_sprite_property_changed,
-            terrain::handle_terrain_property_changed,
-        },
-        rigid_body::handle_rigid_body_property_changed,
+    inspector::handlers::node::{
+        base::handle_base_property_changed, camera::handle_camera_property_changed,
+        collider::handle_collider_property_changed, decal::handle_decal_property_changed,
+        joint::handle_joint_property_changed, light::*, mesh::handle_mesh_property_changed,
+        particle_system::ParticleSystemHandler, rigid_body::handle_rigid_body_property_changed,
+        sprite::handle_sprite_property_changed, terrain::handle_terrain_property_changed,
     },
     SceneCommand,
 };
@@ -36,10 +32,13 @@ use rg3d::{
 
 pub mod base;
 pub mod camera;
+pub mod collider;
 pub mod decal;
+pub mod joint;
 pub mod light;
 pub mod mesh;
 pub mod particle_system;
+pub mod rigid_body;
 pub mod sprite;
 pub mod terrain;
 pub mod transform;
