@@ -271,7 +271,7 @@ impl CameraController {
                     .local_transform_mut()
                     .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 0.0));
 
-                let mut local_transform = graph[self.pivot].local_transform_mut();
+                let local_transform = graph[self.pivot].local_transform_mut();
 
                 let mut new_position = **local_transform.position();
                 new_position.z = DEFAULT_Z_OFFSET;
