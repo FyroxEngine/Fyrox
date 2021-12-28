@@ -28,6 +28,7 @@ pub mod material;
 pub mod mesh;
 pub mod navmesh;
 pub mod particle_system;
+pub mod rectangle;
 pub mod rigidbody;
 pub mod rigidbody2d;
 pub mod sound;

@@ -40,6 +40,10 @@ impl Rectangle {
         self.texture.as_ref()
     }
 
+    pub fn texture_value(&self) -> Option<Texture> {
+        self.texture.clone()
+    }
+
     pub fn set_texture(&mut self, texture: Option<Texture>) {
         self.texture = texture;
     }

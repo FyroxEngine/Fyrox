@@ -1,5 +1,6 @@
 use std::any::TypeId;
 
+use crate::inspector::handlers::node::rectangle::handle_rectangle_property_changed;
 use crate::{
     inspector::handlers::node::{
         base::handle_base_property_changed, camera::handle_camera_property_changed,
@@ -43,6 +44,7 @@ pub mod joint2d;
 pub mod light;
 pub mod mesh;
 pub mod particle_system;
+pub mod rectangle;
 pub mod rigid_body;
 pub mod rigid_body2d;
 pub mod sprite;
@@ -94,6 +96,8 @@ impl SceneNodePropertyChangedHandler {
             handle_joint_property_changed(args, handle, node.as_joint())
         } else if args.owner_type_id == TypeId::of::<dim2::joint::Joint>() {
             handle_joint2d_property_changed(args, handle, node.as_joint2d())
+        } else if args.owner_type_id == TypeId::of::<dim2::rectangle::Rectangle>() {
+            handle_rectangle_property_changed(args, handle, node)
         } else {
             None
         }

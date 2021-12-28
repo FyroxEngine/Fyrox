@@ -365,6 +365,12 @@ impl Scene {
                         layer.material.lock().resolve(resource_manager.clone());
                     }
                 }
+                Node::Rectangle(rectangle) => {
+                    rectangle.set_texture(map_texture(
+                        rectangle.texture_value(),
+                        resource_manager.clone(),
+                    ));
+                }
                 Node::Decal(decal) => {
                     decal.set_diffuse_texture(map_texture(
                         decal.diffuse_texture_value(),
