@@ -57,7 +57,10 @@ pub mod physics;
 pub struct Graph {
     /// Backing physics "world". It is responsible for the physics simulation.
     pub physics: PhysicsWorld,
+
+    /// Backing 2D physics "world". It is responsible for the 2D physics simulation.
     pub physics2d: dim2::physics::PhysicsWorld,
+
     root: Handle<Node>,
     pool: Pool<Node>,
     stack: Vec<Handle<Node>>,

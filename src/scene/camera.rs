@@ -36,12 +36,20 @@ use std::{
     sync::Arc,
 };
 
+/// Perspective projection make parallel lines to converge at some point. Objects will be smaller
+/// with increasing distance. This the projection type "used" by human eyes, photographic lens and
+/// it looks most realistic.
 #[derive(Inspect, Clone, Debug, PartialEq, Visit)]
 pub struct PerspectiveProjection {
+    /// Horizontal angle between look axis and a side of the viewing frustum. Larger values will
+    /// increase field of view and create fish-eye effect, smaller values could be used to create
+    /// "binocular" effect or scope effect.  
     #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1)]
     pub fov: f32,
+    /// Location of the near clipping plane.
     #[inspect(min_value = 0.0, step = 0.1)]
     pub z_near: f32,
+    /// Location of the far clipping plane.
     #[inspect(min_value = 0.0, step = 0.1)]
     pub z_far: f32,
 }
@@ -57,6 +65,7 @@ impl Default for PerspectiveProjection {
 }
 
 impl PerspectiveProjection {
+    /// Returns perspective projection matrix.
     #[inline]
     pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
         Matrix4::new_perspective(
@@ -68,13 +77,18 @@ impl PerspectiveProjection {
     }
 }
 
-/// Parallel projection.
+/// Parallel projection. Object's size won't be affected by distance from the viewer, it can be
+/// used for 2D games.
 #[derive(Inspect, Clone, Debug, PartialEq, Visit)]
 pub struct OrthographicProjection {
+    /// Location of the near clipping plane.
     #[inspect(min_value = 0.0, step = 0.1)]
     pub z_near: f32,
+    /// Location of the far clipping plane.
     #[inspect(min_value = 0.0, step = 0.1)]
     pub z_far: f32,
+    /// Vertical size of the "view box". Horizontal size is derived value and depends on the aspect
+    /// ratio of the viewport.
     #[inspect(step = 0.1)]
     pub vertical_size: f32,
 }
@@ -90,6 +104,7 @@ impl Default for OrthographicProjection {
 }
 
 impl OrthographicProjection {
+    /// Returns orthographic projection matrix.
     #[inline]
     pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
         let aspect = frame_size.x / frame_size.y;
@@ -103,13 +118,22 @@ impl OrthographicProjection {
     }
 }
 
+/// A method of projection. Different projection types suitable for different purposes:
+///
+/// 1) Perspective projection most useful for 3D games, it makes a scene to look most natural,
+/// objects will look smaller with increasing distance.
+/// 2) Orthographic projection most useful for 2D games, objects won't look smaller with increasing
+/// distance.  
 #[derive(Inspect, Clone, Debug, PartialEq, Visit)]
 pub enum Projection {
+    /// See [`PerspectiveProjection`] docs.
     Perspective(PerspectiveProjection),
+    /// See [`OrthographicProjection`] docs.
     Orthographic(OrthographicProjection),
 }
 
 impl Projection {
+    /// Sets the new value for the near clipping plane.
     #[inline]
     #[must_use]
     pub fn with_z_near(mut self, z_near: f32) -> Self {
@@ -120,6 +144,7 @@ impl Projection {
         self
     }
 
+    /// Sets the new value for the far clipping plane.
     #[inline]
     #[must_use]
     pub fn with_z_far(mut self, z_far: f32) -> Self {
@@ -130,6 +155,7 @@ impl Projection {
         self
     }
 
+    /// Sets the new value for the near clipping plane.
     #[inline]
     pub fn set_z_near(&mut self, z_near: f32) {
         match self {
@@ -138,6 +164,7 @@ impl Projection {
         }
     }
 
+    /// Sets the new value for the far clipping plane.
     #[inline]
     pub fn set_z_far(&mut self, z_far: f32) {
         match self {
@@ -146,6 +173,7 @@ impl Projection {
         }
     }
 
+    /// Returns near clipping plane distance.
     #[inline]
     pub fn z_near(&self) -> f32 {
         match self {
@@ -154,6 +182,7 @@ impl Projection {
         }
     }
 
+    /// Returns far clipping plane distance.
     #[inline]
     pub fn z_far(&self) -> f32 {
         match self {
@@ -162,6 +191,7 @@ impl Projection {
         }
     }
 
+    /// Returns projection matrix.
     #[inline]
     pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
         match self {
