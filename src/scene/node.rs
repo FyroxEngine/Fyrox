@@ -311,4 +311,7 @@ impl Node {
     define_is_as!(Node : RigidBody -> ref RigidBody => fn is_rigid_body, fn as_rigid_body, fn as_rigid_body_mut);
     define_is_as!(Node : Collider -> ref Collider => fn is_collider, fn as_collider, fn as_collider_mut);
     define_is_as!(Node : Joint -> ref Joint => fn is_joint, fn as_joint, fn as_joint_mut);
+    define_is_as!(Node : RigidBody2D -> ref dim2::rigidbody::RigidBody => fn is_rigid_body2d, fn as_rigid_body2d, fn as_rigid_body2d_mut);
+    define_is_as!(Node : Collider2D -> ref dim2::collider::Collider => fn is_collider2d, fn as_collider2d, fn as_collider2d_mut);
+    define_is_as!(Node : Joint2D -> ref dim2::joint::Joint => fn is_joint2d, fn as_joint2d, fn as_joint2d_mut);
 }

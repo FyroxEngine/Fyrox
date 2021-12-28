@@ -73,7 +73,7 @@ impl Physics2dMenu {
             if message.destination() == self.create_rigid_body {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
-                        RigidBodyBuilder::new(BaseBuilder::new().with_name("Rigid Body"))
+                        RigidBodyBuilder::new(BaseBuilder::new().with_name("Rigid Body 2D"))
                             .build_node(),
                         parent,
                     )))
@@ -81,7 +81,7 @@ impl Physics2dMenu {
             } else if message.destination() == self.create_ball_joint {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
-                        JointBuilder::new(BaseBuilder::new().with_name("Ball Joint"))
+                        JointBuilder::new(BaseBuilder::new().with_name("Ball Joint 2D"))
                             .with_params(JointParams::BallJoint(Default::default()))
                             .build_node(),
                         parent,
@@ -90,7 +90,7 @@ impl Physics2dMenu {
             } else if message.destination() == self.create_prismatic_joint {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
-                        JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint"))
+                        JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint 2D"))
                             .with_params(JointParams::PrismaticJoint(Default::default()))
                             .build_node(),
                         parent,
@@ -99,7 +99,7 @@ impl Physics2dMenu {
             } else if message.destination() == self.create_fixed_joint {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
-                        JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint"))
+                        JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint 2D"))
                             .with_params(JointParams::FixedJoint(Default::default()))
                             .build_node(),
                         parent,
@@ -108,7 +108,7 @@ impl Physics2dMenu {
             } else if message.destination == self.create_collider {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
-                        ColliderBuilder::new(BaseBuilder::new().with_name("Collider"))
+                        ColliderBuilder::new(BaseBuilder::new().with_name("Collider 2D"))
                             .with_shape(ColliderShape::Cuboid(Default::default()))
                             .build_node(),
                         parent,
