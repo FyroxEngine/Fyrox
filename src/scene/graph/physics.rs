@@ -1116,10 +1116,12 @@ impl PhysicsWorld {
                         changes.remove(RigidBodyChanges::CAN_SLEEP);
                     }
                     if changes.contains(RigidBodyChanges::ROTATION_LOCKED) {
+                        // Logic is inverted here:
+                        // See https://github.com/dimforge/rapier/pull/265
                         native.restrict_rotations(
-                            !rigid_body_node.is_x_rotation_locked(),
-                            !rigid_body_node.is_y_rotation_locked(),
-                            !rigid_body_node.is_z_rotation_locked(),
+                            rigid_body_node.is_x_rotation_locked(),
+                            rigid_body_node.is_y_rotation_locked(),
+                            rigid_body_node.is_z_rotation_locked(),
                             true,
                         );
                         changes.remove(RigidBodyChanges::ROTATION_LOCKED);

@@ -36,7 +36,7 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
-use rg3d_core::algebra::{Isometry3, Point3, Translation3};
+use rg3d_core::algebra::{Isometry3, Point3, Rotation3, Translation3};
 use rg3d_core::color::Color;
 use rg3d_physics2d::rapier::geometry::TriMesh;
 use std::{
@@ -272,13 +272,9 @@ fn collider_shape_into_native_shape(shape: &ColliderShape) -> Option<SharedShape
     }
 }
 
-fn rotation_angle(m: &Matrix4<f32>) -> f32 {
-    m[4].atan2(m[0])
-}
-
 fn isometry2_to_mat4(isometry: &Isometry2<f32>) -> Matrix4<f32> {
     Isometry3 {
-        rotation: UnitQuaternion::from_euler_angles(isometry.rotation.angle(), 0.0, 0.0),
+        rotation: UnitQuaternion::from_euler_angles(0.0, 0.0, isometry.rotation.angle()),
         translation: Translation3 {
             vector: Vector3::new(isometry.translation.x, isometry.translation.y, 0.0),
         },
@@ -578,7 +574,11 @@ impl PhysicsWorld {
         new_global_transform: &Matrix4<f32>,
     ) {
         if let Some(native) = self.bodies.set.get_mut(rigid_body.native.get()) {
-            let global_rotation = UnitComplex::from_angle(rotation_angle(new_global_transform));
+            let global_rotation = UnitComplex::from_angle(
+                Rotation3::from_matrix(&new_global_transform.basis())
+                    .euler_angles()
+                    .2,
+            );
             let global_position = Vector2::new(new_global_transform[12], new_global_transform[13]);
 
             native.set_position(
@@ -676,10 +676,12 @@ impl PhysicsWorld {
                         changes.remove(RigidBodyChanges::CAN_SLEEP);
                     }
                     if changes.contains(RigidBodyChanges::ROTATION_LOCKED) {
+                        // Logic is inverted here:
+                        // See https://github.com/dimforge/rapier/pull/265
                         native.restrict_rotations(
-                            true,
-                            true,
-                            !rigid_body_node.is_rotation_locked(),
+                            rigid_body_node.is_rotation_locked(),
+                            rigid_body_node.is_rotation_locked(),
+                            rigid_body_node.is_rotation_locked(),
                             false,
                         );
                         changes.remove(RigidBodyChanges::ROTATION_LOCKED);
@@ -725,7 +727,7 @@ impl PhysicsWorld {
                             .local_transform()
                             .rotation()
                             .euler_angles()
-                            .0,
+                            .2,
                     ),
                     translation: Translation2 {
                         vector: rigid_body_node.local_transform().position().xy(),
@@ -745,7 +747,15 @@ impl PhysicsWorld {
             }
 
             let mut body = builder.build();
-            body.restrict_rotations(true, true, !rigid_body_node.is_rotation_locked(), false);
+
+            // Logic is inverted here:
+            // See https://github.com/dimforge/rapier/pull/265
+            body.restrict_rotations(
+                rigid_body_node.is_rotation_locked(),
+                rigid_body_node.is_rotation_locked(),
+                rigid_body_node.is_rotation_locked(),
+                false,
+            );
 
             rigid_body_node.native.set(self.add_body(handle, body));
 
@@ -779,7 +789,7 @@ impl PhysicsWorld {
                     if collider_node.transform_modified.get() {
                         native.set_position_wrt_parent(Isometry2 {
                             rotation: UnitComplex::from_angle(
-                                collider_node.local_transform().rotation().euler_angles().0,
+                                collider_node.local_transform().rotation().euler_angles().2,
                             ),
                             translation: Translation2 {
                                 vector: collider_node.local_transform().position().xy(),
@@ -853,7 +863,7 @@ impl PhysicsWorld {
                     let mut builder = ColliderBuilder::new(shape)
                         .position(Isometry2 {
                             rotation: UnitComplex::from_angle(
-                                collider_node.local_transform().rotation().euler_angles().0,
+                                collider_node.local_transform().rotation().euler_angles().2,
                             ),
                             translation: Translation2 {
                                 vector: collider_node.local_transform().position().xy(),
