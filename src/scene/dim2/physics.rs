@@ -1,5 +1,6 @@
 //! Scene physics module.
 
+use crate::scene::debug::{Line, SceneDrawingContext};
 use crate::{
     core::{
         algebra::{
@@ -35,7 +36,9 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
-use rg3d_core::algebra::{Isometry3, Translation3};
+use rg3d_core::algebra::{Isometry3, Point3, Translation3};
+use rg3d_core::color::Color;
+use rg3d_physics2d::rapier::geometry::TriMesh;
 use std::{
     cell::RefCell,
     cmp::Ordering,
@@ -273,6 +276,16 @@ fn rotation_angle(m: &Matrix4<f32>) -> f32 {
     m[4].atan2(m[0])
 }
 
+fn isometry2_to_mat4(isometry: &Isometry2<f32>) -> Matrix4<f32> {
+    Isometry3 {
+        rotation: UnitQuaternion::from_euler_angles(isometry.rotation.angle(), 0.0, 0.0),
+        translation: Translation3 {
+            vector: Vector3::new(isometry.translation.x, isometry.translation.y, 0.0),
+        },
+    }
+    .to_homogeneous()
+}
+
 /// Physics world is responsible for physics simulation in the engine. There is a very few public
 /// methods, mostly for ray casting. You should add physical entities using scene graph nodes, such
 /// as RigidBody, Collider, Joint.
@@ -429,6 +442,81 @@ impl PhysicsWorld {
             .remove(handle, &mut self.islands, &mut self.bodies.set, false);
     }
 
+    /// Draws physics world. Very useful for debugging, it allows you to see where are
+    /// rigid bodies, which colliders they have and so on.
+    pub fn draw(&self, context: &mut SceneDrawingContext) {
+        for (_, body) in self.bodies.set.iter() {
+            context.draw_transform(isometry2_to_mat4(body.position()));
+        }
+
+        for (_, collider) in self.colliders.set.iter() {
+            let body = self.bodies.set.get(collider.parent().unwrap()).unwrap();
+            let collider_local_transform =
+                isometry2_to_mat4(collider.position_wrt_parent().unwrap());
+            let transform = isometry2_to_mat4(body.position()) * collider_local_transform;
+            if let Some(trimesh) = collider.shape().as_trimesh() {
+                let trimesh: &TriMesh = trimesh;
+                for triangle in trimesh.triangles() {
+                    let a = transform
+                        .transform_point(&Point3::from(triangle.a.to_homogeneous()))
+                        .coords;
+                    let b = transform
+                        .transform_point(&Point3::from(triangle.b.to_homogeneous()))
+                        .coords;
+                    let c = transform
+                        .transform_point(&Point3::from(triangle.c.to_homogeneous()))
+                        .coords;
+                    context.draw_triangle(a, b, c, Color::opaque(200, 200, 200));
+                }
+            } else if let Some(cuboid) = collider.shape().as_cuboid() {
+                context.draw_rectangle(
+                    cuboid.half_extents.x,
+                    cuboid.half_extents.y,
+                    transform,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(ball) = collider.shape().as_ball() {
+                context.draw_circle(
+                    body.position().translation.vector.to_homogeneous(),
+                    ball.radius,
+                    10,
+                    transform,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(triangle) = collider.shape().as_triangle() {
+                context.draw_triangle(
+                    triangle.a.to_homogeneous(),
+                    triangle.b.to_homogeneous(),
+                    triangle.c.to_homogeneous(),
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(capsule) = collider.shape().as_capsule() {
+                context.draw_segment_flat_capsule(
+                    capsule.segment.a.coords,
+                    capsule.segment.b.coords,
+                    capsule.radius,
+                    10,
+                    transform,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(heightfield) = collider.shape().as_heightfield() {
+                for segment in heightfield.segments() {
+                    let a = transform
+                        .transform_point(&Point3::from(segment.a.to_homogeneous()))
+                        .coords;
+                    let b = transform
+                        .transform_point(&Point3::from(segment.b.to_homogeneous()))
+                        .coords;
+                    context.add_line(Line {
+                        begin: a,
+                        end: b,
+                        color: Color::opaque(200, 200, 200),
+                    });
+                }
+            }
+        }
+    }
+
     /// Casts a ray with given options.
     pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
         let time = instant::Instant::now();
@@ -512,22 +600,10 @@ impl PhysicsWorld {
     ) {
         if let Some(native) = self.bodies.set.get(rigid_body.native.get()) {
             if native.body_type() == RigidBodyType::Dynamic {
-                let translation2 = native.position().translation;
-                let isometry3 = Isometry3 {
-                    rotation: UnitQuaternion::from_euler_angles(
-                        native.position().rotation.angle(),
-                        0.0,
-                        0.0,
-                    ),
-                    translation: Translation3 {
-                        vector: Vector3::new(translation2.x, translation2.y, 0.0),
-                    },
-                };
-
                 let local_transform: Matrix4<f32> = parent_transform
                     .try_inverse()
                     .unwrap_or_else(Matrix4::identity)
-                    * isometry3.to_homogeneous();
+                    * isometry2_to_mat4(native.position());
 
                 let local_rotation = UnitQuaternion::from_matrix(&local_transform.basis());
                 let local_position = Vector3::new(local_transform[12], local_transform[13], 0.0);
