@@ -378,6 +378,8 @@ impl SceneDrawingContext {
         });
     }
 
+    /// Draws a circle at given world-space position with given radius. `segments` could be used
+    /// to control quality of the circle.
     pub fn draw_circle(
         &mut self,
         position: Vector3<f32>,
@@ -401,6 +403,8 @@ impl SceneDrawingContext {
         }
     }
 
+    /// Draws a circle segment between two given angles. Center of the segment is defined by `position`,
+    /// `segments` defines quality of the shape.
     pub fn draw_circle_segment(
         &mut self,
         position: Vector3<f32>,
@@ -429,6 +433,7 @@ impl SceneDrawingContext {
         }
     }
 
+    /// Draws a rectangle with given width and height.
     pub fn draw_rectangle(
         &mut self,
         half_width: f32,
@@ -722,6 +727,7 @@ impl SceneDrawingContext {
         }
     }
 
+    /// Draws a flat capsule with given height and radius. `segments` defines quality of the shape.
     pub fn draw_flat_capsule(
         &mut self,
         radius: f32,
@@ -807,6 +813,8 @@ impl SceneDrawingContext {
         }
     }
 
+    /// Draws a flat capsule between two points with given radius. `segments` defines quality of
+    /// the shape.
     pub fn draw_segment_flat_capsule(
         &mut self,
         begin: Vector2<f32>,
