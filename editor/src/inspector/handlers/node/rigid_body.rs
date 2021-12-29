@@ -23,7 +23,9 @@ pub fn handle_rigid_body_property_changed(
                 RigidBody::X_ROTATION_LOCKED => SetBodyXRotationLockedCommand,
                 RigidBody::Y_ROTATION_LOCKED => SetBodyYRotationLockedCommand,
                 RigidBody::Z_ROTATION_LOCKED => SetBodyZRotationLockedCommand,
-                RigidBody::TRANSLATION_LOCKED => SetBodyTranslationLockedCommand
+                RigidBody::TRANSLATION_LOCKED => SetBodyTranslationLockedCommand,
+                RigidBody::CAN_SLEEP => SetBodyCanSleepCommand,
+                RigidBody::CCD_ENABLED => SetBodyCcdEnabledCommand
             )
         }
         FieldKind::Inspectable(ref inner) => match args.name.as_ref() {

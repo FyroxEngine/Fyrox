@@ -27,3 +27,11 @@ define_node_command!(SetBodyRotationLockedCommand("Set 2D Body Rotation Locked",
 define_node_command!(SetBodyTranslationLockedCommand("Set 2D Body Translation Locked", bool) where fn swap(self, node) {
     get_set_swap!(self, node.as_rigid_body2d_mut(), is_translation_locked, lock_translation)
 });
+
+define_node_command!(SetBodyCanSleepCommand("Set 2D Body Can Sleep", bool) where fn swap(self, node) {
+    get_set_swap!(self, node.as_rigid_body2d_mut(), is_can_sleep, set_can_sleep)
+});
+
+define_node_command!(SetBodyCcdEnabledCommand("Set 2D Body Ccd Enabled", bool) where fn swap(self, node) {
+    get_set_swap!(self, node.as_rigid_body2d_mut(), is_ccd_enabled, enable_ccd)
+});
