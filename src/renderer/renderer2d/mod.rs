@@ -246,7 +246,7 @@ impl Renderer2d {
 
             let shader = &self.sprite_shader;
             stats += frame_buffer.draw_instances(
-                batch.instances.len(),
+                self.instance_data_set.len(),
                 quad,
                 state,
                 viewport,
