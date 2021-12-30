@@ -244,37 +244,39 @@ impl Renderer2d {
 
             quad.set_buffer_data(state, 1, &self.instance_data_set);
 
-            let shader = &self.sprite_shader;
-            stats += frame_buffer.draw_instances(
-                self.instance_data_set.len(),
-                quad,
-                state,
-                viewport,
-                &shader.program,
-                &DrawParameters {
-                    cull_face: None,
-                    color_write: Default::default(),
-                    depth_write: false,
-                    stencil_test: None,
-                    depth_test: false,
-                    blend: Some(BlendFunc {
-                        sfactor: BlendFactor::SrcAlpha,
-                        dfactor: BlendFactor::OneMinusSrcAlpha,
-                    }),
-                    stencil_op: Default::default(),
-                },
-                |mut program_binding| {
-                    program_binding
-                        .set_matrix4(&shader.wvp_matrix, &view_projection)
-                        .set_texture(&shader.diffuse_texture, &batch.texture)
-                        .set_i32(&shader.light_count, light_count as i32)
-                        .set_vector4_slice(&shader.light_color_radius, &light_color_radius)
-                        .set_vector3_slice(&shader.light_direction, &light_direction)
-                        .set_vector3_slice(&shader.light_position, &light_position)
-                        .set_vector2_slice(&shader.light_parameters, &light_parameters)
-                        .set_vector3(&shader.ambient_light_color, &ambient_color.as_frgb());
-                },
-            );
+            if !self.instance_data_set.is_empty() {
+                let shader = &self.sprite_shader;
+                stats += frame_buffer.draw_instances(
+                    self.instance_data_set.len(),
+                    quad,
+                    state,
+                    viewport,
+                    &shader.program,
+                    &DrawParameters {
+                        cull_face: None,
+                        color_write: Default::default(),
+                        depth_write: false,
+                        stencil_test: None,
+                        depth_test: false,
+                        blend: Some(BlendFunc {
+                            sfactor: BlendFactor::SrcAlpha,
+                            dfactor: BlendFactor::OneMinusSrcAlpha,
+                        }),
+                        stencil_op: Default::default(),
+                    },
+                    |mut program_binding| {
+                        program_binding
+                            .set_matrix4(&shader.wvp_matrix, &view_projection)
+                            .set_texture(&shader.diffuse_texture, &batch.texture)
+                            .set_i32(&shader.light_count, light_count as i32)
+                            .set_vector4_slice(&shader.light_color_radius, &light_color_radius)
+                            .set_vector3_slice(&shader.light_direction, &light_direction)
+                            .set_vector3_slice(&shader.light_position, &light_position)
+                            .set_vector2_slice(&shader.light_parameters, &light_parameters)
+                            .set_vector3(&shader.ambient_light_color, &ambient_color.as_frgb());
+                    },
+                );
+            }
         }
 
         Ok(stats)
