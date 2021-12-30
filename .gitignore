@@ -11,7 +11,7 @@
 /rg3d-core/test.txt
 /rg3d-core-derive/test_output
 /test_output
-
+history.bin
 
 # from https://github.com/github/gitignore/blob/master/Global/VisualStudioCode.gitignore
 .vscode/*

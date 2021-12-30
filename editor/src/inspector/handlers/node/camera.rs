@@ -1,6 +1,7 @@
 use crate::{
-    inspector::handlers::node::base::handle_base_property_changed, make_command,
-    scene::commands::camera::*, SceneCommand,
+    handle_properties, handle_property_changed,
+    inspector::handlers::node::base::handle_base_property_changed, scene::commands::camera::*,
+    SceneCommand,
 };
 use rg3d::{
     core::{futures::executor::block_on, pool::Handle},
@@ -93,34 +94,18 @@ pub fn handle_camera_property_changed(
 ) -> Option<SceneCommand> {
     if let Node::Camera(camera) = node {
         match args.value {
-            FieldKind::Object(ref value) => match args.name.as_ref() {
-                Camera::EXPOSURE => Some(SceneCommand::new(SetExposureCommand::new(
-                    handle,
-                    *value.cast_value::<Exposure>()?,
-                ))),
-                Camera::PROJECTION => {
-                    make_command!(SetProjectionCommand, handle, value)
-                }
-                Camera::VIEWPORT => {
-                    make_command!(SetViewportCommand, handle, value)
-                }
-                Camera::ENABLED => {
-                    make_command!(SetCameraPreviewCommand, handle, value)
-                }
-                Camera::SKY_BOX => {
-                    make_command!(SetSkyBoxCommand, handle, value)
-                }
-                Camera::ENVIRONMENT => {
-                    make_command!(SetEnvironmentMap, handle, value)
-                }
-                Camera::COLOR_GRADING_LUT => {
-                    make_command!(SetColorGradingLutCommand, handle, value)
-                }
-                Camera::COLOR_GRADING_ENABLED => {
-                    make_command!(SetColorGradingEnabledCommand, handle, value)
-                }
-                _ => None,
-            },
+            FieldKind::Object(ref value) => {
+                handle_properties!(args.name.as_ref(), handle, value,
+                    Camera::EXPOSURE => SetExposureCommand,
+                    Camera::PROJECTION => SetProjectionCommand,
+                    Camera::VIEWPORT => SetViewportCommand,
+                    Camera::ENABLED => SetCameraPreviewCommand,
+                    Camera::SKY_BOX => SetSkyBoxCommand,
+                    Camera::ENVIRONMENT => SetEnvironmentMap,
+                    Camera::COLOR_GRADING_LUT => SetColorGradingLutCommand,
+                    Camera::COLOR_GRADING_ENABLED => SetColorGradingEnabledCommand
+                )
+            }
             FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
                 Camera::EXPOSURE => {
                     if let FieldKind::Object(ref value) = inner.value {
@@ -256,42 +241,20 @@ pub fn handle_perspective_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
 ) -> Option<SceneCommand> {
-    if let FieldKind::Object(ref value) = args.value {
-        match args.name.as_ref() {
-            PerspectiveProjection::Z_NEAR => {
-                make_command!(SetPerspectiveZNear, handle, value)
-            }
-            PerspectiveProjection::Z_FAR => {
-                make_command!(SetPerspectiveZFar, handle, value)
-            }
-            PerspectiveProjection::FOV => {
-                make_command!(SetPerspectiveFov, handle, value)
-            }
-            _ => None,
-        }
-    } else {
-        None
-    }
+    handle_property_changed!(args, handle,
+        PerspectiveProjection::Z_NEAR => SetPerspectiveZNear,
+        PerspectiveProjection::Z_FAR => SetPerspectiveZFar,
+        PerspectiveProjection::FOV => SetPerspectiveFov
+    )
 }
 
 pub fn handle_ortho_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
 ) -> Option<SceneCommand> {
-    if let FieldKind::Object(ref value) = args.value {
-        match args.name.as_ref() {
-            OrthographicProjection::Z_NEAR => {
-                make_command!(SetOrthoZNear, handle, value)
-            }
-            OrthographicProjection::Z_FAR => {
-                make_command!(SetOrthoZFar, handle, value)
-            }
-            OrthographicProjection::VERTICAL_SIZE => {
-                make_command!(SetOrthoVerticalSize, handle, value)
-            }
-            _ => None,
-        }
-    } else {
-        None
-    }
+    handle_property_changed!(args, handle,
+        OrthographicProjection::Z_NEAR => SetOrthoZNear,
+        OrthographicProjection::Z_FAR => SetOrthoZFar,
+        OrthographicProjection::VERTICAL_SIZE => SetOrthoVerticalSize
+    )
 }

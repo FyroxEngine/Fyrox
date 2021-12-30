@@ -1,5 +1,5 @@
 use crate::{
-    inspector::handlers::node::base::handle_base_property_changed, make_command,
+    handle_properties, inspector::handlers::node::base::handle_base_property_changed,
     scene::commands::mesh::*, SceneCommand,
 };
 use rg3d::{
@@ -15,18 +15,13 @@ pub fn handle_mesh_property_changed(
 ) -> Option<SceneCommand> {
     if let Node::Mesh(_) = node {
         match args.value {
-            FieldKind::Object(ref value) => match args.name.as_ref() {
-                Mesh::CAST_SHADOWS => {
-                    make_command!(SetMeshCastShadowsCommand, handle, value)
-                }
-                Mesh::RENDER_PATH => {
-                    make_command!(SetMeshRenderPathCommand, handle, value)
-                }
-                Mesh::DECAL_LAYER_INDEX => {
-                    make_command!(SetMeshDecalLayerIndexCommand, handle, value)
-                }
-                _ => None,
-            },
+            FieldKind::Object(ref value) => {
+                handle_properties!(args.name.as_ref(), handle, value,
+                    Mesh::CAST_SHADOWS => SetMeshCastShadowsCommand,
+                    Mesh::RENDER_PATH => SetMeshRenderPathCommand,
+                    Mesh::DECAL_LAYER_INDEX => SetMeshDecalLayerIndexCommand
+                )
+            }
             FieldKind::Collection(ref args) => match **args {
                 CollectionChanged::Add => {
                     // TODO
