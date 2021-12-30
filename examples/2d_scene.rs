@@ -7,8 +7,9 @@
 use rg3d::{
     core::{algebra::Vector3, color::Color, futures::executor::block_on, pool::Handle},
     engine::{
-        framework::prelude::*, resource_manager::MaterialSearchOptions,
-        resource_manager::ResourceManager, Engine,
+        framework::prelude::*,
+        resource_manager::{MaterialSearchOptions, ResourceManager, TextureImportOptions},
+        Engine,
     },
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
@@ -18,12 +19,11 @@ use rg3d::{
         widget::WidgetBuilder,
         UiNode,
     },
+    resource::texture::TextureWrapMode,
     scene::{
         base::BaseBuilder,
         camera::{CameraBuilder, OrthographicProjection, Projection},
-        dim2::rectangle::RectangleBuilder,
         node::Node,
-        transform::TransformBuilder,
         Scene,
     },
 };
@@ -79,6 +79,13 @@ impl GameState for Game {
     where
         Self: Sized,
     {
+        // Prevent seams on tiles.
+        engine.resource_manager.state().set_textures_import_options(
+            TextureImportOptions::default()
+                .with_s_wrap_mode(TextureWrapMode::ClampToEdge)
+                .with_t_wrap_mode(TextureWrapMode::ClampToEdge),
+        );
+
         // Create test scene.
         let loader = SceneLoader::load_with(engine.resource_manager.clone());
 
