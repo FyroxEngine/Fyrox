@@ -20,9 +20,11 @@ use rg3d::{
 use std::sync::mpsc::Sender;
 
 pub mod create;
+pub mod dim2;
 pub mod edit;
 pub mod file;
 pub mod physics;
+pub mod physics2d;
 pub mod utils;
 pub mod view;
 

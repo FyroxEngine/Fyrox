@@ -4,6 +4,7 @@ use crate::{
     scene::{EditorScene, Selection},
     set_mesh_diffuse_color, GameEngine,
 };
+use rg3d::scene::transform::Transform;
 use rg3d::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -13,7 +14,7 @@ use rg3d::{
         pool::Handle,
     },
     scene::{
-        base::{BaseBuilder, LocalTransformRefMut},
+        base::BaseBuilder,
         graph::Graph,
         mesh::{
             surface::{SurfaceBuilder, SurfaceData},
@@ -52,7 +53,6 @@ fn make_move_axis(
                 arrow = MeshBuilder::new(
                     BaseBuilder::new()
                         .with_name(name_prefix.to_owned() + "Arrow")
-                        .with_depth_offset(0.5)
                         .with_local_transform(
                             TransformBuilder::new()
                                 .with_local_position(Vector3::new(0.0, 1.0, 0.0))
@@ -70,7 +70,6 @@ fn make_move_axis(
                 arrow
             }])
             .with_name(name_prefix.to_owned() + "Axis")
-            .with_depth_offset(0.5)
             .with_local_transform(
                 TransformBuilder::new()
                     .with_local_rotation(rotation)
@@ -96,14 +95,11 @@ fn create_quad_plane(
     name: &str,
 ) -> Handle<Node> {
     MeshBuilder::new(
-        BaseBuilder::new()
-            .with_name(name)
-            .with_depth_offset(0.5)
-            .with_local_transform(
-                TransformBuilder::new()
-                    .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
-                    .build(),
-            ),
+        BaseBuilder::new().with_name(name).with_local_transform(
+            TransformBuilder::new()
+                .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
+                .build(),
+        ),
     )
     .with_render_path(RenderPath::Forward)
     .with_cast_shadows(false)
@@ -249,7 +245,7 @@ impl MoveGizmo {
         mode
     }
 
-    pub fn transform<'a>(&self, graph: &'a mut Graph) -> LocalTransformRefMut<'a> {
+    pub fn transform<'a>(&self, graph: &'a mut Graph) -> &'a mut Transform {
         graph[self.origin].local_transform_mut()
     }
 

@@ -20,6 +20,7 @@
       <sourceFolder url="file://$MODULE_DIR$/rg3d-resource/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/editor/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
+      <excludeFolder url="file://$MODULE_DIR$/examples/wasm/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -23,7 +23,7 @@ use std::{
 /// Ball joint locks any translational moves between two objects on the axis between objects, but
 /// allows rigid bodies to perform relative rotations. The real world example is a human shoulder,
 /// pendulum, etc.
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, Inspect)]
 pub struct BallJoint {
     /// Where the prismatic joint is attached on the first body, expressed in the local space of the
     /// first attached body.
@@ -41,9 +41,22 @@ pub struct BallJoint {
     pub limits_angle: f32,
 }
 
+impl Default for BallJoint {
+    fn default() -> Self {
+        Self {
+            local_anchor1: Default::default(),
+            local_anchor2: Default::default(),
+            limits_enabled: false,
+            limits_local_axis1: Default::default(),
+            limits_local_axis2: Default::default(),
+            limits_angle: f32::MAX,
+        }
+    }
+}
+
 /// A fixed joint ensures that two rigid bodies does not move relative to each other. There is no
 /// straightforward real-world example, but it can be thought as two bodies were "welded" together.
-#[derive(Clone, Debug, Default, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, Inspect, Default)]
 pub struct FixedJoint {
     /// Local translation for the first body.
     pub local_anchor1_translation: Vector3<f32>,
@@ -57,7 +70,7 @@ pub struct FixedJoint {
 
 /// Prismatic joint prevents any relative movement between two rigid-bodies, except for relative
 /// translations along one axis. The real world example is a sliders that used to support drawers.
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, Inspect)]
 pub struct PrismaticJoint {
     /// Where the prismatic joint is attached on the first body, expressed in the local space of the
     /// first attached body.
@@ -77,10 +90,23 @@ pub struct PrismaticJoint {
     pub limits: [f32; 2],
 }
 
+impl Default for PrismaticJoint {
+    fn default() -> Self {
+        Self {
+            local_anchor1: Default::default(),
+            local_axis1: Vector3::y(),
+            local_anchor2: Default::default(),
+            local_axis2: Vector3::x(),
+            limits_enabled: false,
+            limits: [f32::MIN, f32::MAX],
+        }
+    }
+}
+
 /// Revolute joint prevents any relative movement between two rigid bodies, except relative rotation
 /// along one axis. The real world example is wheels, fans, etc. It can also be used to simulate door
 /// hinge.
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, Inspect)]
 pub struct RevoluteJoint {
     /// Where the prismatic joint is attached on the first body, expressed in the local space of the
     /// first attached body.
@@ -98,6 +124,19 @@ pub struct RevoluteJoint {
     pub limits_enabled: bool,
     /// The min an max relative position of the attached bodies along this joint's axis.
     pub limits: [f32; 2],
+}
+
+impl Default for RevoluteJoint {
+    fn default() -> Self {
+        Self {
+            local_anchor1: Default::default(),
+            local_axis1: Vector3::y(),
+            local_anchor2: Default::default(),
+            local_axis2: Vector3::x(),
+            limits_enabled: false,
+            limits: [f32::MIN, f32::MAX],
+        }
+    }
 }
 
 /// The exact kind of the joint.
@@ -140,7 +179,7 @@ bitflags! {
 }
 
 /// Joint is used to restrict motion of two rigid bodies. There are numerous examples of joints in
-/// real life: hinge
+/// real life: door hinge, ball joints in human arms, etc.
 #[derive(Visit, Inspect, Debug)]
 pub struct Joint {
     base: Base,

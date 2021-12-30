@@ -29,6 +29,23 @@ pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<U
     .build(ctx)
 }
 
+pub fn make_dropdown_list_option_with_height(
+    ctx: &mut BuildContext,
+    name: &str,
+    height: f32,
+) -> Handle<UiNode> {
+    DecoratorBuilder::new(BorderBuilder::new(
+        WidgetBuilder::new().with_height(height).with_child(
+            TextBuilder::new(WidgetBuilder::new())
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                .with_text(name)
+                .build(ctx),
+        ),
+    ))
+    .build(ctx)
+}
+
 impl AssetItemMessage {
     define_constructor!(AssetItemMessage:Select => fn select(bool), layout: false);
 }

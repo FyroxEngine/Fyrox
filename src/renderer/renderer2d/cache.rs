@@ -15,10 +15,11 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use rg3d_core::algebra::Vector3;
 
 #[repr(C)]
 pub struct Vertex {
-    position: Vector2<f32>,
+    position: Vector3<f32>,
     tex_coord: Vector2<f32>,
 }
 
@@ -31,20 +32,20 @@ impl Mesh {
     pub fn new_unit_quad() -> Self {
         let vertices = vec![
             Vertex {
-                position: Vector2::new(0.0, 0.0),
-                tex_coord: Vector2::new(0.0, 0.0),
-            },
-            Vertex {
-                position: Vector2::new(1.0, 0.0),
+                position: Vector3::new(-0.5, 0.5, 0.0),
                 tex_coord: Vector2::new(1.0, 0.0),
             },
             Vertex {
-                position: Vector2::new(1.0, 1.0),
-                tex_coord: Vector2::new(1.0, 1.0),
+                position: Vector3::new(0.5, 0.5, 0.0),
+                tex_coord: Vector2::new(0.0, 0.0),
             },
             Vertex {
-                position: Vector2::new(0.0, 1.0),
+                position: Vector3::new(0.5, -0.5, 0.0),
                 tex_coord: Vector2::new(0.0, 1.0),
+            },
+            Vertex {
+                position: Vector3::new(-0.5, -0.5, 0.0),
+                tex_coord: Vector2::new(1.0, 1.0),
             },
         ];
 
@@ -85,7 +86,7 @@ impl GeometryCache {
                     .with_attribute(AttributeDefinition {
                         location: 0,
                         divisor: 0,
-                        kind: AttributeKind::Float2,
+                        kind: AttributeKind::Float3,
                         normalized: false,
                     })
                     .with_attribute(AttributeDefinition {

@@ -58,7 +58,7 @@ pub use web_sys;
 /// Defines as_(variant), as_mut_(variant) and is_(variant) methods.
 #[macro_export]
 macro_rules! define_is_as {
-    ($typ:tt : $kind:ident -> ref $result:ty => fn $is:ident, fn $as_ref:ident, fn $as_mut:ident) => {
+    ($typ:tt : $kind:ident -> ref $result:path => fn $is:ident, fn $as_ref:ident, fn $as_mut:ident) => {
         /// Returns true if node is instance of given type.
         pub fn $is(&self) -> bool {
             match self {

@@ -1,6 +1,6 @@
 use crate::{
+    handle_properties,
     inspector::handlers::node::transform::handle_transform_property_changed,
-    make_command,
     scene::commands::{graph::*, lod::*},
     SceneCommand,
 };
@@ -20,30 +20,17 @@ pub fn handle_base_property_changed(
     base: &Base,
 ) -> Option<SceneCommand> {
     match args.value {
-        FieldKind::Object(ref value) => match args.name.as_ref() {
-            Base::NAME => {
-                make_command!(SetNameCommand, handle, value)
-            }
-            Base::TAG => {
-                make_command!(SetTagCommand, handle, value)
-            }
-            Base::VISIBILITY => {
-                make_command!(SetVisibleCommand, handle, value)
-            }
-            Base::MOBILITY => {
-                make_command!(SetMobilityCommand, handle, value)
-            }
-            Base::LIFETIME => {
-                make_command!(SetLifetimeCommand, handle, value)
-            }
-            Base::DEPTH_OFFSET => {
-                make_command!(SetDepthOffsetCommand, handle, value)
-            }
-            Base::LOD_GROUP => {
-                make_command!(SetLodGroupCommand, handle, value)
-            }
-            _ => None,
-        },
+        FieldKind::Object(ref value) => {
+            handle_properties!(args.name.as_ref(), handle, value,
+                Base::NAME => SetNameCommand,
+                Base::TAG => SetTagCommand,
+                Base::VISIBILITY => SetVisibleCommand,
+                Base::MOBILITY => SetMobilityCommand,
+                Base::LIFETIME => SetLifetimeCommand,
+                Base::DEPTH_OFFSET => SetDepthOffsetCommand,
+                Base::LOD_GROUP => SetLodGroupCommand
+            )
+        }
         FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
             Base::PROPERTIES => match **collection_changed {
                 CollectionChanged::Add => Some(SceneCommand::new(AddPropertyCommand {

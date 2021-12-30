@@ -171,7 +171,7 @@ impl InteractionMode for RotateInteractionMode {
                     frame_size,
                 );
                 for &node in selection.nodes().iter() {
-                    let mut transform =
+                    let transform =
                         engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
                     let rotation = **transform.rotation();
                     let final_rotation = rotation * rotation_delta;

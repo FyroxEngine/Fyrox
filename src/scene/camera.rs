@@ -14,11 +14,11 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
-use crate::core::math::aabb::AxisAlignedBoundingBox;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         inspect::{Inspect, PropertyInfo},
+        math::aabb::AxisAlignedBoundingBox,
         math::{ray::Ray, Rect},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
@@ -35,6 +35,177 @@ use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
 };
+
+/// Perspective projection make parallel lines to converge at some point. Objects will be smaller
+/// with increasing distance. This the projection type "used" by human eyes, photographic lens and
+/// it looks most realistic.
+#[derive(Inspect, Clone, Debug, PartialEq, Visit)]
+pub struct PerspectiveProjection {
+    /// Horizontal angle between look axis and a side of the viewing frustum. Larger values will
+    /// increase field of view and create fish-eye effect, smaller values could be used to create
+    /// "binocular" effect or scope effect.  
+    #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1)]
+    pub fov: f32,
+    /// Location of the near clipping plane.
+    #[inspect(min_value = 0.0, step = 0.1)]
+    pub z_near: f32,
+    /// Location of the far clipping plane.
+    #[inspect(min_value = 0.0, step = 0.1)]
+    pub z_far: f32,
+}
+
+impl Default for PerspectiveProjection {
+    fn default() -> Self {
+        Self {
+            fov: 75.0f32.to_radians(),
+            z_near: 0.025,
+            z_far: 2048.0,
+        }
+    }
+}
+
+impl PerspectiveProjection {
+    /// Returns perspective projection matrix.
+    #[inline]
+    pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
+        Matrix4::new_perspective(
+            frame_size.x / frame_size.y,
+            self.fov,
+            self.z_near,
+            self.z_far,
+        )
+    }
+}
+
+/// Parallel projection. Object's size won't be affected by distance from the viewer, it can be
+/// used for 2D games.
+#[derive(Inspect, Clone, Debug, PartialEq, Visit)]
+pub struct OrthographicProjection {
+    /// Location of the near clipping plane.
+    #[inspect(min_value = 0.0, step = 0.1)]
+    pub z_near: f32,
+    /// Location of the far clipping plane.
+    #[inspect(min_value = 0.0, step = 0.1)]
+    pub z_far: f32,
+    /// Vertical size of the "view box". Horizontal size is derived value and depends on the aspect
+    /// ratio of the viewport.
+    #[inspect(step = 0.1)]
+    pub vertical_size: f32,
+}
+
+impl Default for OrthographicProjection {
+    fn default() -> Self {
+        Self {
+            z_near: 0.0,
+            z_far: 2048.0,
+            vertical_size: 5.0,
+        }
+    }
+}
+
+impl OrthographicProjection {
+    /// Returns orthographic projection matrix.
+    #[inline]
+    pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
+        let aspect = frame_size.x / frame_size.y;
+        let horizontal_size = aspect * self.vertical_size;
+
+        let left = -horizontal_size;
+        let top = self.vertical_size;
+        let right = horizontal_size;
+        let bottom = -self.vertical_size;
+        Matrix4::new_orthographic(left, right, bottom, top, self.z_near, self.z_far)
+    }
+}
+
+/// A method of projection. Different projection types suitable for different purposes:
+///
+/// 1) Perspective projection most useful for 3D games, it makes a scene to look most natural,
+/// objects will look smaller with increasing distance.
+/// 2) Orthographic projection most useful for 2D games, objects won't look smaller with increasing
+/// distance.  
+#[derive(Inspect, Clone, Debug, PartialEq, Visit)]
+pub enum Projection {
+    /// See [`PerspectiveProjection`] docs.
+    Perspective(PerspectiveProjection),
+    /// See [`OrthographicProjection`] docs.
+    Orthographic(OrthographicProjection),
+}
+
+impl Projection {
+    /// Sets the new value for the near clipping plane.
+    #[inline]
+    #[must_use]
+    pub fn with_z_near(mut self, z_near: f32) -> Self {
+        match self {
+            Projection::Perspective(ref mut v) => v.z_near = z_near,
+            Projection::Orthographic(ref mut v) => v.z_near = z_near,
+        }
+        self
+    }
+
+    /// Sets the new value for the far clipping plane.
+    #[inline]
+    #[must_use]
+    pub fn with_z_far(mut self, z_far: f32) -> Self {
+        match self {
+            Projection::Perspective(ref mut v) => v.z_far = z_far,
+            Projection::Orthographic(ref mut v) => v.z_far = z_far,
+        }
+        self
+    }
+
+    /// Sets the new value for the near clipping plane.
+    #[inline]
+    pub fn set_z_near(&mut self, z_near: f32) {
+        match self {
+            Projection::Perspective(v) => v.z_near = z_near,
+            Projection::Orthographic(v) => v.z_near = z_near,
+        }
+    }
+
+    /// Sets the new value for the far clipping plane.
+    #[inline]
+    pub fn set_z_far(&mut self, z_far: f32) {
+        match self {
+            Projection::Perspective(v) => v.z_far = z_far,
+            Projection::Orthographic(v) => v.z_far = z_far,
+        }
+    }
+
+    /// Returns near clipping plane distance.
+    #[inline]
+    pub fn z_near(&self) -> f32 {
+        match self {
+            Projection::Perspective(v) => v.z_near,
+            Projection::Orthographic(v) => v.z_near,
+        }
+    }
+
+    /// Returns far clipping plane distance.
+    #[inline]
+    pub fn z_far(&self) -> f32 {
+        match self {
+            Projection::Perspective(v) => v.z_far,
+            Projection::Orthographic(v) => v.z_far,
+        }
+    }
+
+    /// Returns projection matrix.
+    #[inline]
+    pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
+        match self {
+            Projection::Perspective(v) => v.matrix(frame_size),
+            Projection::Orthographic(v) => v.matrix(frame_size),
+        }
+    }
+}
+
+impl Default for Projection {
+    fn default() -> Self {
+        Self::Perspective(PerspectiveProjection::default())
+    }
+}
 
 /// Exposure is a parameter that describes how many light should be collected for one
 /// frame. The higher the value, the more brighter the final frame will be and vice versa.
@@ -76,12 +247,8 @@ impl Default for Exposure {
 #[derive(Debug, Visit, Inspect)]
 pub struct Camera {
     base: Base,
-    #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1)]
-    fov: f32,
-    #[inspect(min_value = 0.0, step = 0.1)]
-    z_near: f32,
-    #[inspect(min_value = 0.0, step = 0.1)]
-    z_far: f32,
+    #[visit(optional)] // Backward compatibility
+    projection: Projection,
     viewport: Rect<f32>,
     #[visit(skip)]
     #[inspect(skip)]
@@ -134,11 +301,7 @@ impl Camera {
         let up = self.base.up_vector();
 
         self.view_matrix = Matrix4::look_at_rh(&Point3::from(pos), &Point3::from(pos + look), &up);
-
-        let viewport = self.viewport_pixels(frame_size);
-        let aspect = viewport.w() as f32 / viewport.h() as f32;
-        self.projection_matrix =
-            Matrix4::new_perspective(aspect, self.fov, self.z_near, self.z_far);
+        self.projection_matrix = self.projection.matrix(frame_size);
     }
 
     /// Sets new viewport in resolution-independent format. In other words
@@ -205,43 +368,28 @@ impl Camera {
         self.view_matrix.try_inverse()
     }
 
-    /// Sets far projection plane.
+    /// Returns current projection mode.
     #[inline]
-    pub fn set_z_far(&mut self, z_far: f32) -> &mut Self {
-        self.z_far = z_far;
-        self
+    pub fn projection(&self) -> &Projection {
+        &self.projection
     }
 
-    /// Returns far projection plane.
+    /// Returns current projection mode.
     #[inline]
-    pub fn z_far(&self) -> f32 {
-        self.z_far
+    pub fn projection_value(&self) -> Projection {
+        self.projection.clone()
     }
 
-    /// Sets near projection plane. Typical values: 0.01 - 0.04.
+    /// Returns current projection mode as mutable reference.
     #[inline]
-    pub fn set_z_near(&mut self, z_near: f32) -> &mut Self {
-        self.z_near = z_near;
-        self
+    pub fn projection_mut(&mut self) -> &mut Projection {
+        &mut self.projection
     }
 
-    /// Returns near projection plane.
+    /// Sets current projection mode.
     #[inline]
-    pub fn z_near(&self) -> f32 {
-        self.z_near
-    }
-
-    /// Sets camera field of view in radians.
-    #[inline]
-    pub fn set_fov(&mut self, fov: f32) -> &mut Self {
-        self.fov = fov;
-        self
-    }
-
-    /// Returns camera field of view in radians.
-    #[inline]
-    pub fn fov(&self) -> f32 {
-        self.fov
+    pub fn set_projection(&mut self, projection: Projection) {
+        self.projection = projection;
     }
 
     /// Returns state of camera: enabled or not.
@@ -356,9 +504,7 @@ impl Camera {
     pub fn raw_copy(&self) -> Self {
         Self {
             base: self.base.raw_copy(),
-            fov: self.fov,
-            z_near: self.z_near,
-            z_far: self.z_far,
+            projection: self.projection.clone(),
             viewport: self.viewport,
             view_matrix: self.view_matrix,
             projection_matrix: self.projection_matrix,
@@ -595,6 +741,7 @@ pub struct CameraBuilder {
     exposure: Exposure,
     color_grading_lut: Option<ColorGradingLut>,
     color_grading_enabled: bool,
+    projection: Projection,
 }
 
 impl CameraBuilder {
@@ -612,6 +759,7 @@ impl CameraBuilder {
             exposure: Exposure::Manual(std::f32::consts::E),
             color_grading_lut: None,
             color_grading_enabled: false,
+            projection: Projection::default(),
         }
     }
 
@@ -675,14 +823,18 @@ impl CameraBuilder {
         self
     }
 
+    /// Sets desired projection mode.
+    pub fn with_projection(mut self, projection: Projection) -> Self {
+        self.projection = projection;
+        self
+    }
+
     /// Creates new instance of camera.
     pub fn build_camera(self) -> Camera {
         Camera {
             enabled: self.enabled,
             base: self.base_builder.build_base(),
-            fov: self.fov,
-            z_near: self.z_near,
-            z_far: self.z_far,
+            projection: self.projection,
             viewport: self.viewport,
             // No need to calculate these matrices - they'll be automatically
             // recalculated before rendering.

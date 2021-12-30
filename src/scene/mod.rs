@@ -10,6 +10,7 @@ pub mod camera;
 pub mod collider;
 pub mod debug;
 pub mod decal;
+pub mod dim2;
 pub mod graph;
 pub mod joint;
 pub mod legacy_physics;
@@ -24,6 +25,7 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
+use crate::scene::base::legacy::PhysicsBinding;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -39,7 +41,7 @@ use crate::{
         PhysicsBinder,
     },
     material::{shader::SamplerFallback, PropertyValue},
-    physics3d::RigidBodyHandle,
+    physics3d::legacy::RigidBodyHandle,
     resource::texture::Texture,
     scene::{
         base::BaseBuilder,
@@ -62,7 +64,6 @@ use crate::{
         rigidbody::{RigidBodyBuilder, RigidBodyType},
         transform::TransformBuilder,
     },
-    scene2d::PhysicsBinding,
     sound::{context::SoundContext, engine::SoundEngine},
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
@@ -230,6 +231,9 @@ pub struct PerformanceStatistics {
     /// Physics performance statistics.
     pub physics: PhysicsPerformanceStatistics,
 
+    /// 2D Physics performance statistics.
+    pub physics2d: PhysicsPerformanceStatistics,
+
     /// A time (in seconds) which was required to update graph.
     pub graph_update_time: f32,
 
@@ -360,6 +364,12 @@ impl Scene {
                     for layer in terrain.layers() {
                         layer.material.lock().resolve(resource_manager.clone());
                     }
+                }
+                Node::Rectangle(rectangle) => {
+                    rectangle.set_texture(map_texture(
+                        rectangle.texture_value(),
+                        resource_manager.clone(),
+                    ));
                 }
                 Node::Decal(decal) => {
                     decal.set_diffuse_texture(map_texture(
@@ -500,24 +510,22 @@ impl Scene {
                 }
 
                 let collider_handle = ColliderBuilder::new(
-                    BaseBuilder::new()
-                        .with_name(name)
-                        .with_local_transform(
-                            TransformBuilder::new()
-                                .with_local_position(
-                                    collider_ref
-                                        .position_wrt_parent()
-                                        .map(|p| p.translation.vector)
-                                        .unwrap_or_default(),
-                                )
-                                .with_local_rotation(
-                                    collider_ref
-                                        .position_wrt_parent()
-                                        .map(|p| p.rotation)
-                                        .unwrap_or_default(),
-                                )
-                                .build(),
-                        ),
+                    BaseBuilder::new().with_name(name).with_local_transform(
+                        TransformBuilder::new()
+                            .with_local_position(
+                                collider_ref
+                                    .position_wrt_parent()
+                                    .map(|p| p.translation.vector)
+                                    .unwrap_or_default(),
+                            )
+                            .with_local_rotation(
+                                collider_ref
+                                    .position_wrt_parent()
+                                    .map(|p| p.rotation)
+                                    .unwrap_or_default(),
+                            )
+                            .build(),
+                    ),
                 )
                 .with_friction_combine_rule(collider_ref.friction_combine_rule().into())
                 .with_restitution_combine_rule(collider_ref.restitution_combine_rule().into())
@@ -740,6 +748,7 @@ impl Scene {
         let last = instant::Instant::now();
         self.graph.update(frame_size, dt);
         self.performance_statistics.physics = self.graph.physics.performance_statistics.clone();
+        self.performance_statistics.physics2d = self.graph.physics2d.performance_statistics.clone();
         self.performance_statistics.graph_update_time =
             (instant::Instant::now() - last).as_secs_f32();
 

@@ -76,7 +76,6 @@ use crate::{
     },
     resource::texture::{Texture, TextureKind},
     scene::{camera::Camera, mesh::surface::SurfaceData, node::Node, Scene, SceneContainer},
-    scene2d::Scene2dContainer,
 };
 use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -1305,7 +1304,6 @@ impl Renderer {
         &mut self,
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,
-        scenes2d: &Scene2dContainer,
     ) -> Result<(), FrameworkError> {
         scope_profile!();
 
@@ -1479,6 +1477,17 @@ impl Renderer {
                     textures: &mut self.texture_cache,
                 });
 
+                self.statistics += self.renderer2d.render(
+                    state,
+                    camera,
+                    &mut scene_associated_data.hdr_scene_framebuffer,
+                    viewport,
+                    graph,
+                    &mut self.texture_cache,
+                    self.white_dummy.clone(),
+                    scene.ambient_lighting_color,
+                )?;
+
                 self.statistics += self.forward_renderer.render(ForwardRenderContext {
                     state,
                     camera,
@@ -1571,31 +1580,21 @@ impl Renderer {
                     &scene.drawing_context,
                     camera,
                 );
+            }
 
-                // Optionally render everything into back buffer.
-                if scene.render_target.is_none() {
-                    let quad = &self.quad;
-                    self.statistics.geometry += blit_pixels(
-                        state,
-                        &mut self.backbuffer,
-                        scene_associated_data.ldr_scene_frame_texture(),
-                        &self.flat_shader,
-                        viewport,
-                        quad,
-                    );
-                }
+            // Optionally render everything into back buffer.
+            if scene.render_target.is_none() {
+                let quad = &self.quad;
+                self.statistics.geometry += blit_pixels(
+                    state,
+                    &mut self.backbuffer,
+                    scene_associated_data.ldr_scene_frame_texture(),
+                    &self.flat_shader,
+                    window_viewport,
+                    quad,
+                );
             }
         }
-
-        // TODO: 2D renderer requires its own HDR pipeline.
-        self.statistics += self.renderer2d.render(
-            &mut self.state,
-            &mut self.backbuffer,
-            Vector2::new(backbuffer_width, backbuffer_height),
-            scenes2d,
-            &mut self.texture_cache,
-            self.white_dummy.clone(),
-        )?;
 
         // Render UI on top of everything without gamma correction.
         self.statistics += self.ui_renderer.render(UiRenderContext {
@@ -1617,10 +1616,9 @@ impl Renderer {
         &mut self,
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,
-        scenes2d: &Scene2dContainer,
         context: &glutin::WindowedContext<glutin::PossiblyCurrent>,
     ) -> Result<(), FrameworkError> {
-        self.render_frame(scenes, drawing_context, scenes2d)?;
+        self.render_frame(scenes, drawing_context)?;
         self.statistics.end_frame();
         context.swap_buffers()?;
         self.state.check_error();
@@ -1634,9 +1632,8 @@ impl Renderer {
         &mut self,
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,
-        scenes2d: &Scene2dContainer,
     ) -> Result<(), FrameworkError> {
-        self.render_frame(scenes, drawing_context, scenes2d)?;
+        self.render_frame(scenes, drawing_context)?;
         self.statistics.end_frame();
         self.state.check_error();
         self.statistics.finalize();

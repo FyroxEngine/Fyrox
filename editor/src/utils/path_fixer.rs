@@ -408,10 +408,19 @@ impl PathFixer {
                                             }
                                         }
                                     }
+                                    Node::Rectangle(sprite) => {
+                                        if let Some(texture) = sprite.texture() {
+                                            scene_resources
+                                                .insert(SceneResource::Texture(texture.clone()));
+                                        }
+                                    }
                                     Node::Base(_)
                                     | Node::RigidBody(_)
                                     | Node::Collider(_)
-                                    | Node::Joint(_) => {
+                                    | Node::Joint(_)
+                                    | Node::RigidBody2D(_)
+                                    | Node::Collider2D(_)
+                                    | Node::Joint2D(_) => {
                                         // Nothing
                                     }
                                 }

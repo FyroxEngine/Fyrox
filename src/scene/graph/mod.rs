@@ -22,6 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::scene::dim2;
 use crate::{
     asset::ResourceState,
     core::{
@@ -34,15 +35,12 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
         VecExtensions,
     },
+    physics2d,
     physics3d::rapier::geometry::ColliderHandle,
     resource::model::NodeMapping,
     scene::{
-        base::PropertyValue,
-        collider::ColliderShape,
-        graph::physics::{PhysicsWorld, QueryResultsStorage, RayCastOptions},
-        node::Node,
-        transform::TransformBuilder,
-        visibility::VisibilityCache,
+        base::PropertyValue, collider::ColliderShape, graph::physics::PhysicsWorld, node::Node,
+        transform::TransformBuilder, visibility::VisibilityCache,
     },
     utils::log::{Log, MessageKind},
 };
@@ -59,6 +57,10 @@ pub mod physics;
 pub struct Graph {
     /// Backing physics "world". It is responsible for the physics simulation.
     pub physics: PhysicsWorld,
+
+    /// Backing 2D physics "world". It is responsible for the 2D physics simulation.
+    pub physics2d: dim2::physics::PhysicsWorld,
+
     root: Handle<Node>,
     pool: Pool<Node>,
     stack: Vec<Handle<Node>>,
@@ -68,6 +70,7 @@ impl Default for Graph {
     fn default() -> Self {
         Self {
             physics: PhysicsWorld::new(),
+            physics2d: dim2::physics::PhysicsWorld::new(),
             root: Handle::NONE,
             pool: Pool::new(),
             stack: Vec::new(),
@@ -189,6 +192,7 @@ impl Graph {
             stack: Vec::new(),
             root,
             pool,
+            physics2d: Default::default(),
         }
     }
 
@@ -279,6 +283,15 @@ impl Graph {
                 Node::Joint(joint) => {
                     self.physics.remove_joint(joint.native.get());
                 }
+                Node::RigidBody2D(body) => {
+                    self.physics2d.remove_body(body.native.get());
+                }
+                Node::Collider2D(collider) => {
+                    self.physics2d.remove_collider(collider.native.get());
+                }
+                Node::Joint2D(joint) => {
+                    self.physics2d.remove_joint(joint.native.get());
+                }
                 _ => (),
             }
         }
@@ -296,10 +309,17 @@ impl Graph {
             }
         }
 
+        let node_ref = &mut self.pool[node_handle];
         // Remove native collider when detaching a collider node from rigid body node.
-        if let Node::Collider(ref mut collider) = self.pool[node_handle] {
+        if let Node::Collider(collider) = node_ref {
             if self.physics.remove_collider(collider.native.get()) {
                 collider.native.set(ColliderHandle::invalid());
+            }
+        } else if let Node::Collider2D(ref mut collider2d) = node_ref {
+            if self.physics2d.remove_collider(collider2d.native.get()) {
+                collider2d
+                    .native
+                    .set(physics2d::rapier::geometry::ColliderHandle::invalid());
             }
         }
     }
@@ -557,11 +577,6 @@ impl Graph {
         model_root_handle
     }
 
-    /// Casts a ray with given options.
-    pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
-        self.physics.cast_ray(opts, query_buffer)
-    }
-
     pub(in crate) fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Resolving graph...".to_owned());
 
@@ -610,7 +625,7 @@ impl Graph {
 
                             // Check if we can sync transform of the nodes with resource.
                             let resource_local_transform = resource_node.local_transform();
-                            let mut local_transform = node.local_transform_mut();
+                            let local_transform = node.local_transform_mut();
 
                             // Position.
                             if !local_transform.position().is_custom() {
@@ -665,8 +680,6 @@ impl Graph {
                                 local_transform
                                     .set_scaling_pivot(**resource_local_transform.scaling_pivot());
                             }
-
-                            drop(local_transform);
 
                             if let (Node::Mesh(mesh), Node::Mesh(resource_mesh)) =
                                 (node, resource_node)
@@ -858,9 +871,16 @@ impl Graph {
     /// need to know global transform of nodes before entering update loop, then you can call
     /// this method.
     pub fn update_hierarchical_data(&mut self) {
+        fn m4x4_approx_eq(a: &Matrix4<f32>, b: &Matrix4<f32>) -> bool {
+            a.iter()
+                .zip(b.iter())
+                .all(|(a, b)| (*a - *b).abs() <= 0.001)
+        }
+
         fn update_recursively(
             nodes: &Pool<Node>,
             physics: &mut PhysicsWorld,
+            physics2d: &mut dim2::physics::PhysicsWorld,
             node_handle: Handle<Node>,
         ) {
             let node = &nodes[node_handle];
@@ -874,14 +894,14 @@ impl Graph {
 
             let new_global_transform = parent_global_transform * node.local_transform().matrix();
 
+            // TODO: Detect changes from user code here.
             if let Node::RigidBody(rigid_body) = node {
-                // TODO: Detect changes from user code here.
-                let changed = new_global_transform
-                    .iter()
-                    .zip(node.global_transform().iter())
-                    .any(|(a, b)| (*a - *b).abs() >= 0.001);
-                if changed {
+                if !m4x4_approx_eq(&new_global_transform, &node.global_transform()) {
                     physics.set_rigid_body_position(rigid_body, &new_global_transform);
+                }
+            } else if let Node::RigidBody2D(rigid_body) = node {
+                if !m4x4_approx_eq(&new_global_transform, &node.global_transform()) {
+                    physics2d.set_rigid_body_position(rigid_body, &new_global_transform);
                 }
             }
 
@@ -890,11 +910,16 @@ impl Graph {
                 .set(parent_visibility && node.visibility());
 
             for &child in node.children() {
-                update_recursively(nodes, physics, child);
+                update_recursively(nodes, physics, physics2d, child);
             }
         }
 
-        update_recursively(&self.pool, &mut self.physics, self.root);
+        update_recursively(
+            &self.pool,
+            &mut self.physics,
+            &mut self.physics2d,
+            self.root,
+        );
     }
 
     /// Checks whether given node handle is valid or not.
@@ -915,6 +940,16 @@ impl Graph {
                 Node::Joint(joint) => {
                     self.physics.sync_to_joint_node(&self.pool, handle, joint);
                 }
+                Node::RigidBody2D(rigid_body) => {
+                    self.physics2d.sync_to_rigid_body_node(handle, rigid_body);
+                }
+                Node::Collider2D(collider) => {
+                    self.physics2d
+                        .sync_to_collider_node(&self.pool, handle, collider);
+                }
+                Node::Joint2D(joint) => {
+                    self.physics2d.sync_to_joint_node(&self.pool, handle, joint);
+                }
                 _ => (),
             }
         }
@@ -923,6 +958,7 @@ impl Graph {
     /// Updates nodes in graph using given delta time. There is no need to call it manually.
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
         self.physics.performance_statistics.reset();
+        self.physics2d.performance_statistics.reset();
 
         let this = unsafe { &*(self as *const Graph) };
 
@@ -931,6 +967,7 @@ impl Graph {
         self.update_hierarchical_data();
 
         self.physics.update();
+        self.physics2d.update();
 
         for i in 0..self.pool.get_capacity() {
             let handle = self.pool.handle_from_index(i);
@@ -955,8 +992,8 @@ impl Graph {
                             let old_cache = camera.visibility_cache.invalidate();
                             let mut new_cache = VisibilityCache::from(old_cache);
                             let observer_position = camera.global_position();
-                            let z_near = camera.z_near();
-                            let z_far = camera.z_far();
+                            let z_near = camera.projection().z_near();
+                            let z_far = camera.projection().z_far();
                             let frustum =
                                 Frustum::from(camera.view_projection_matrix()).unwrap_or_default();
                             new_cache.update(
@@ -982,6 +1019,10 @@ impl Graph {
                         // We have to sync rigid body parameters back after each physics step, hopefully there is
                         // not many data that has to be synced.
                         Node::RigidBody(rigid_body) => self.physics.sync_rigid_body_node(
+                            rigid_body,
+                            this.pool[rigid_body.parent].global_transform(),
+                        ),
+                        Node::RigidBody2D(rigid_body) => self.physics2d.sync_rigid_body_node(
                             rigid_body,
                             this.pool[rigid_body.parent].global_transform(),
                         ),

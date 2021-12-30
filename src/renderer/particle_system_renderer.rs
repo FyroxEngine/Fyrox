@@ -158,7 +158,7 @@ impl ParticleSystemRenderer {
         let camera_side = inv_view.side();
 
         let inv_screen_size = Vector2::new(1.0 / frame_width, 1.0 / frame_height);
-        let proj_params = Vector2::new(camera.z_far(), camera.z_near());
+        let proj_params = Vector2::new(camera.projection().z_far(), camera.projection().z_near());
 
         for node in graph.linear_iter() {
             let particle_system = if let Node::ParticleSystem(particle_system) = node {

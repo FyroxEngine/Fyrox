@@ -1,16 +1,15 @@
 use std::any::TypeId;
 
+use crate::inspector::handlers::node::rectangle::handle_rectangle_property_changed;
 use crate::{
-    inspector::handlers::{
-        collider::handle_collider_property_changed,
-        joint::handle_joint_property_changed,
-        node::{
-            base::handle_base_property_changed, camera::handle_camera_property_changed,
-            decal::handle_decal_property_changed, light::*, mesh::handle_mesh_property_changed,
-            particle_system::ParticleSystemHandler, sprite::handle_sprite_property_changed,
-            terrain::handle_terrain_property_changed,
-        },
-        rigid_body::handle_rigid_body_property_changed,
+    inspector::handlers::node::{
+        base::handle_base_property_changed, camera::handle_camera_property_changed,
+        collider::handle_collider_property_changed, collider2d::handle_collider2d_property_changed,
+        decal::handle_decal_property_changed, joint::handle_joint_property_changed,
+        joint2d::handle_joint2d_property_changed, light::*, mesh::handle_mesh_property_changed,
+        particle_system::ParticleSystemHandler, rigid_body::handle_rigid_body_property_changed,
+        rigid_body2d::handle_rigid_body2d_property_changed, sprite::handle_sprite_property_changed,
+        terrain::handle_terrain_property_changed,
     },
     SceneCommand,
 };
@@ -22,6 +21,7 @@ use rg3d::{
         camera::Camera,
         collider::Collider,
         decal::Decal,
+        dim2,
         joint::Joint,
         light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         mesh::Mesh,
@@ -36,10 +36,17 @@ use rg3d::{
 
 pub mod base;
 pub mod camera;
+pub mod collider;
+pub mod collider2d;
 pub mod decal;
+pub mod joint;
+pub mod joint2d;
 pub mod light;
 pub mod mesh;
 pub mod particle_system;
+pub mod rectangle;
+pub mod rigid_body;
+pub mod rigid_body2d;
 pub mod sprite;
 pub mod terrain;
 pub mod transform;
@@ -79,10 +86,18 @@ impl SceneNodePropertyChangedHandler {
             handle_mesh_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<RigidBody>() {
             handle_rigid_body_property_changed(args, handle, node.as_rigid_body())
+        } else if args.owner_type_id == TypeId::of::<dim2::rigidbody::RigidBody>() {
+            handle_rigid_body2d_property_changed(args, handle, node.as_rigid_body2d())
         } else if args.owner_type_id == TypeId::of::<Collider>() {
             handle_collider_property_changed(args, handle, node.as_collider())
+        } else if args.owner_type_id == TypeId::of::<dim2::collider::Collider>() {
+            handle_collider2d_property_changed(args, handle, node.as_collider2d())
         } else if args.owner_type_id == TypeId::of::<Joint>() {
             handle_joint_property_changed(args, handle, node.as_joint())
+        } else if args.owner_type_id == TypeId::of::<dim2::joint::Joint>() {
+            handle_joint2d_property_changed(args, handle, node.as_joint2d())
+        } else if args.owner_type_id == TypeId::of::<dim2::rectangle::Rectangle>() {
+            handle_rectangle_property_changed(args, handle, node)
         } else {
             None
         }

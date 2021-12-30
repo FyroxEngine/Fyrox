@@ -167,7 +167,7 @@ impl InteractionMode for ScaleInteractionMode {
                     frame_size,
                 );
                 for &node in selection.nodes().iter() {
-                    let mut transform =
+                    let transform =
                         engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
                     let initial_scale = transform.scale();
                     let sx = (initial_scale.x * (1.0 + scale_delta.x)).max(std::f32::EPSILON);

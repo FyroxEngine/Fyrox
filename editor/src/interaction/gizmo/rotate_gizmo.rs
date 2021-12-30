@@ -44,14 +44,11 @@ fn make_rotation_ribbon(
     name: &str,
 ) -> Handle<Node> {
     MeshBuilder::new(
-        BaseBuilder::new()
-            .with_name(name)
-            .with_depth_offset(0.5)
-            .with_local_transform(
-                TransformBuilder::new()
-                    .with_local_rotation(rotation)
-                    .build(),
-            ),
+        BaseBuilder::new().with_name(name).with_local_transform(
+            TransformBuilder::new()
+                .with_local_rotation(rotation)
+                .build(),
+        ),
     )
     .with_render_path(RenderPath::Forward)
     .with_cast_shadows(false)
@@ -77,7 +74,6 @@ impl RotationGizmo {
         let origin = MeshBuilder::new(
             BaseBuilder::new()
                 .with_name("Origin")
-                .with_depth_offset(0.5)
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)

@@ -18,7 +18,6 @@ pub mod material;
 pub mod renderer;
 pub mod resource;
 pub mod scene;
-pub mod scene2d;
 pub mod utils;
 
 pub use crate::core::rand;

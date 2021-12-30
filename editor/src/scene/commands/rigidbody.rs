@@ -35,3 +35,11 @@ define_node_command!(SetBodyZRotationLockedCommand("Set Body Z Rotation Locked",
 define_node_command!(SetBodyTranslationLockedCommand("Set Body Translation Locked", bool) where fn swap(self, node) {
     get_set_swap!(self, node.as_rigid_body_mut(), is_translation_locked, lock_translation)
 });
+
+define_node_command!(SetBodyCanSleepCommand("Set Body Can Sleep", bool) where fn swap(self, node) {
+    get_set_swap!(self, node.as_rigid_body_mut(), is_can_sleep, set_can_sleep)
+});
+
+define_node_command!(SetBodyCcdEnabledCommand("Set Body Ccd Enabled", bool) where fn swap(self, node) {
+    get_set_swap!(self, node.as_rigid_body_mut(), is_ccd_enabled, enable_ccd)
+});

@@ -2,7 +2,7 @@
 //!
 //! For more info see [`Base`]
 
-use crate::scene2d::PhysicsBinding;
+use self::legacy::PhysicsBinding;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -18,6 +18,60 @@ use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
 };
+
+pub(crate) mod legacy {
+    use crate::core::{
+        inspect::{Inspect, PropertyInfo},
+        visitor::{Visit, VisitResult, Visitor},
+    };
+
+    /// Defines a kind of binding between rigid body and a scene node. Check variants
+    /// for more info.
+    #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Inspect)]
+    #[repr(u32)]
+    pub enum PhysicsBinding {
+        /// Forces engine to sync transform of a node with its associated rigid body.
+        /// This is default binding.
+        NodeWithBody = 0,
+
+        /// Forces engine to sync transform of a rigid body with its associated node. This could be useful for
+        /// specific situations like add "hit boxes" to a character.
+        ///
+        /// # Use cases
+        ///
+        /// This option has limited usage, but the most common is to create hit boxes. To do that create kinematic
+        /// rigid bodies with appropriate colliders and set [`PhysicsBinding::BodyWithNode`] binding to make them
+        /// move together with parent nodes.
+        BodyWithNode = 1,
+    }
+
+    impl Default for PhysicsBinding {
+        fn default() -> Self {
+            Self::NodeWithBody
+        }
+    }
+
+    impl PhysicsBinding {
+        fn from_id(id: u32) -> Result<Self, String> {
+            match id {
+                0 => Ok(Self::NodeWithBody),
+                1 => Ok(Self::BodyWithNode),
+                _ => Err(format!("Invalid physics binding id {}!", id)),
+            }
+        }
+    }
+
+    impl Visit for PhysicsBinding {
+        fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+            let mut id = *self as u32;
+            id.visit(name, visitor)?;
+            if visitor.is_reading() {
+                *self = Self::from_id(id)?;
+            }
+            Ok(())
+        }
+    }
+}
 
 /// A handle to scene node that will be controlled by LOD system.
 #[derive(Inspect, Default, Debug, Clone, Copy, PartialEq, Hash)]
@@ -238,31 +292,6 @@ pub struct Property {
     pub value: PropertyValue,
 }
 
-#[doc(hidden)]
-pub struct LocalTransformRefMut<'a> {
-    parent: &'a mut Base,
-}
-
-impl<'a> Drop for LocalTransformRefMut<'a> {
-    fn drop(&mut self) {
-        self.parent.transform_modified.set(true);
-    }
-}
-
-impl<'a> Deref for LocalTransformRefMut<'a> {
-    type Target = Transform;
-
-    fn deref(&self) -> &Self::Target {
-        &self.parent.local_transform
-    }
-}
-
-impl<'a> DerefMut for LocalTransformRefMut<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.parent.local_transform
-    }
-}
-
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -355,8 +384,9 @@ impl Base {
 
     /// Returns mutable reference to local transform of a node, can be used to set
     /// some local spatial properties, such as position, rotation, scale, etc.
-    pub fn local_transform_mut(&mut self) -> LocalTransformRefMut {
-        LocalTransformRefMut { parent: self }
+    pub fn local_transform_mut(&mut self) -> &mut Transform {
+        self.transform_modified.set(true);
+        &mut self.local_transform
     }
 
     /// Sets new local transform of a node.

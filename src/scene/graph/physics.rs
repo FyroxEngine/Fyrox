@@ -1,38 +1,43 @@
 //! Scene physics module.
 
-use crate::scene::collider;
 use crate::{
     core::{
         algebra::{
             DMatrix, Dynamic, Isometry3, Matrix4, Point3, Translation3, Unit, UnitQuaternion,
-            VecStorage, Vector2, Vector3,
+            UnitVector3, VecStorage, Vector2, Vector3,
         },
         arrayvec::ArrayVec,
         color::Color,
+        inspect::{Inspect, PropertyInfo},
         instant,
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{Handle, Pool},
         visitor::prelude::*,
         BiDirHashMap,
     },
-    physics3d::rapier::{
-        dynamics::{
-            self, BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager,
-            JointHandle, JointParams, JointSet, PrismaticJoint, RevoluteJoint, RigidBody,
-            RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
+    physics2d,
+    physics3d::{
+        self,
+        rapier::dynamics::RigidBodyActivation,
+        rapier::{
+            dynamics::{
+                BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager,
+                JointHandle, JointParams, JointSet, PrismaticJoint, RevoluteJoint, RigidBody,
+                RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
+            },
+            geometry::{
+                BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
+                InteractionGroups, NarrowPhase, Ray, Segment, Shape, SharedShape, TriMesh,
+            },
+            pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
         },
-        geometry::{
-            self, BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
-            InteractionGroups, NarrowPhase, Ray, Segment, Shape, SharedShape, TriMesh,
-        },
-        pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
     },
     scene::{
         self,
-        collider::ColliderChanges,
         collider::{
-            BallShape, CapsuleShape, ColliderShape, ConeShape, CuboidShape, CylinderShape,
-            GeometrySource, HeightfieldShape, SegmentShape, TriangleShape, TrimeshShape,
+            self, BallShape, CapsuleShape, ColliderChanges, ColliderShape, ConeShape, CuboidShape,
+            CylinderShape, GeometrySource, HeightfieldShape, SegmentShape, TriangleShape,
+            TrimeshShape,
         },
         debug::SceneDrawingContext,
         graph::isometric_global_transform,
@@ -47,8 +52,6 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use rg3d_core::algebra::UnitVector3;
-use rg3d_physics3d::rapier::dynamics::RigidBodyActivation;
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
@@ -71,13 +74,23 @@ pub enum FeatureId {
     Unknown,
 }
 
-impl From<geometry::FeatureId> for FeatureId {
-    fn from(v: geometry::FeatureId) -> Self {
+impl From<physics3d::rapier::geometry::FeatureId> for FeatureId {
+    fn from(v: physics3d::rapier::geometry::FeatureId) -> Self {
         match v {
-            geometry::FeatureId::Vertex(v) => FeatureId::Vertex(v),
-            geometry::FeatureId::Edge(v) => FeatureId::Edge(v),
-            geometry::FeatureId::Face(v) => FeatureId::Face(v),
-            geometry::FeatureId::Unknown => FeatureId::Unknown,
+            physics3d::rapier::geometry::FeatureId::Vertex(v) => FeatureId::Vertex(v),
+            physics3d::rapier::geometry::FeatureId::Edge(v) => FeatureId::Edge(v),
+            physics3d::rapier::geometry::FeatureId::Face(v) => FeatureId::Face(v),
+            physics3d::rapier::geometry::FeatureId::Unknown => FeatureId::Unknown,
+        }
+    }
+}
+
+impl From<physics2d::rapier::geometry::FeatureId> for FeatureId {
+    fn from(v: physics2d::rapier::geometry::FeatureId) -> Self {
+        match v {
+            physics2d::rapier::geometry::FeatureId::Vertex(v) => FeatureId::Vertex(v),
+            physics2d::rapier::geometry::FeatureId::Face(v) => FeatureId::Face(v),
+            physics2d::rapier::geometry::FeatureId::Unknown => FeatureId::Unknown,
         }
     }
 }
@@ -89,7 +102,7 @@ impl From<geometry::FeatureId> for FeatureId {
 /// This is used to determine the effective restitution and friction coefficients for a contact
 /// between two colliders. Each collider has its combination rule of type `CoefficientCombineRule`,
 /// the rule actually used is given by `max(first_combine_rule, second_combine_rule)`.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit, Inspect)]
 #[repr(u32)]
 pub enum CoefficientCombineRule {
     /// The two coefficients are averaged.
@@ -108,24 +121,47 @@ impl Default for CoefficientCombineRule {
     }
 }
 
-impl From<dynamics::CoefficientCombineRule> for CoefficientCombineRule {
-    fn from(v: dynamics::CoefficientCombineRule) -> Self {
+impl From<physics3d::rapier::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
+    fn from(v: physics3d::rapier::dynamics::CoefficientCombineRule) -> Self {
         match v {
-            dynamics::CoefficientCombineRule::Average => CoefficientCombineRule::Average,
-            dynamics::CoefficientCombineRule::Min => CoefficientCombineRule::Min,
-            dynamics::CoefficientCombineRule::Multiply => CoefficientCombineRule::Multiply,
-            dynamics::CoefficientCombineRule::Max => CoefficientCombineRule::Max,
+            physics3d::rapier::dynamics::CoefficientCombineRule::Average => {
+                CoefficientCombineRule::Average
+            }
+            physics3d::rapier::dynamics::CoefficientCombineRule::Min => CoefficientCombineRule::Min,
+            physics3d::rapier::dynamics::CoefficientCombineRule::Multiply => {
+                CoefficientCombineRule::Multiply
+            }
+            physics3d::rapier::dynamics::CoefficientCombineRule::Max => CoefficientCombineRule::Max,
         }
     }
 }
 
-impl Into<dynamics::CoefficientCombineRule> for CoefficientCombineRule {
-    fn into(self) -> dynamics::CoefficientCombineRule {
+impl Into<physics3d::rapier::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
+    fn into(self) -> physics3d::rapier::dynamics::CoefficientCombineRule {
         match self {
-            CoefficientCombineRule::Average => dynamics::CoefficientCombineRule::Average,
-            CoefficientCombineRule::Min => dynamics::CoefficientCombineRule::Min,
-            CoefficientCombineRule::Multiply => dynamics::CoefficientCombineRule::Multiply,
-            CoefficientCombineRule::Max => dynamics::CoefficientCombineRule::Max,
+            CoefficientCombineRule::Average => {
+                physics3d::rapier::dynamics::CoefficientCombineRule::Average
+            }
+            CoefficientCombineRule::Min => physics3d::rapier::dynamics::CoefficientCombineRule::Min,
+            CoefficientCombineRule::Multiply => {
+                physics3d::rapier::dynamics::CoefficientCombineRule::Multiply
+            }
+            CoefficientCombineRule::Max => physics3d::rapier::dynamics::CoefficientCombineRule::Max,
+        }
+    }
+}
+
+impl Into<physics2d::rapier::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
+    fn into(self) -> physics2d::rapier::dynamics::CoefficientCombineRule {
+        match self {
+            CoefficientCombineRule::Average => {
+                physics2d::rapier::dynamics::CoefficientCombineRule::Average
+            }
+            CoefficientCombineRule::Min => physics2d::rapier::dynamics::CoefficientCombineRule::Min,
+            CoefficientCombineRule::Multiply => {
+                physics2d::rapier::dynamics::CoefficientCombineRule::Multiply
+            }
+            CoefficientCombineRule::Max => physics2d::rapier::dynamics::CoefficientCombineRule::Max,
         }
     }
 }
@@ -1080,10 +1116,12 @@ impl PhysicsWorld {
                         changes.remove(RigidBodyChanges::CAN_SLEEP);
                     }
                     if changes.contains(RigidBodyChanges::ROTATION_LOCKED) {
+                        // Logic is inverted here:
+                        // See https://github.com/dimforge/rapier/pull/265
                         native.restrict_rotations(
-                            !rigid_body_node.is_x_rotation_locked(),
-                            !rigid_body_node.is_y_rotation_locked(),
-                            !rigid_body_node.is_z_rotation_locked(),
+                            rigid_body_node.is_x_rotation_locked(),
+                            rigid_body_node.is_y_rotation_locked(),
+                            rigid_body_node.is_z_rotation_locked(),
                             true,
                         );
                         changes.remove(RigidBodyChanges::ROTATION_LOCKED);

@@ -16,6 +16,7 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
+    physics2d, physics3d,
     physics3d::rapier::{dynamics, prelude::RigidBodyHandle},
     scene::{
         base::{Base, BaseBuilder},
@@ -64,16 +65,31 @@ impl From<dynamics::RigidBodyType> for RigidBodyType {
     }
 }
 
-impl From<RigidBodyType> for dynamics::RigidBodyType {
+impl From<RigidBodyType> for physics3d::rapier::dynamics::RigidBodyType {
     fn from(v: RigidBodyType) -> Self {
         match v {
-            RigidBodyType::Dynamic => dynamics::RigidBodyType::Dynamic,
-            RigidBodyType::Static => dynamics::RigidBodyType::Static,
+            RigidBodyType::Dynamic => physics3d::rapier::dynamics::RigidBodyType::Dynamic,
+            RigidBodyType::Static => physics3d::rapier::dynamics::RigidBodyType::Static,
             RigidBodyType::KinematicPositionBased => {
-                dynamics::RigidBodyType::KinematicPositionBased
+                physics3d::rapier::dynamics::RigidBodyType::KinematicPositionBased
             }
             RigidBodyType::KinematicVelocityBased => {
-                dynamics::RigidBodyType::KinematicVelocityBased
+                physics3d::rapier::dynamics::RigidBodyType::KinematicVelocityBased
+            }
+        }
+    }
+}
+
+impl From<RigidBodyType> for physics2d::rapier::dynamics::RigidBodyType {
+    fn from(v: RigidBodyType) -> Self {
+        match v {
+            RigidBodyType::Dynamic => physics2d::rapier::dynamics::RigidBodyType::Dynamic,
+            RigidBodyType::Static => physics2d::rapier::dynamics::RigidBodyType::Static,
+            RigidBodyType::KinematicPositionBased => {
+                physics2d::rapier::dynamics::RigidBodyType::KinematicPositionBased
+            }
+            RigidBodyType::KinematicVelocityBased => {
+                physics2d::rapier::dynamics::RigidBodyType::KinematicVelocityBased
             }
         }
     }

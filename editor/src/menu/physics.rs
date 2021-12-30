@@ -1,9 +1,8 @@
 use crate::{menu::create_menu_item, scene::commands::graph::AddNodeCommand, Message};
-use rg3d::scene::node::Node;
 use rg3d::{
-    core::{algebra::Vector3, pool::Handle},
+    core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
-    scene::{base::BaseBuilder, collider::*, joint::*, rigidbody::RigidBodyBuilder},
+    scene::{base::BaseBuilder, collider::*, joint::*, node::Node, rigidbody::RigidBodyBuilder},
 };
 use std::sync::mpsc::Sender;
 
@@ -86,14 +85,7 @@ impl PhysicsMenu {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
                         JointBuilder::new(BaseBuilder::new().with_name("Revolute Joint"))
-                            .with_params(JointParams::RevoluteJoint(RevoluteJoint {
-                                local_anchor1: Default::default(),
-                                local_axis1: Vector3::y(),
-                                local_anchor2: Default::default(),
-                                local_axis2: Vector3::x(),
-                                limits_enabled: false,
-                                limits: [f32::MIN, f32::MAX],
-                            }))
+                            .with_params(JointParams::RevoluteJoint(Default::default()))
                             .build_node(),
                         parent,
                     )))
@@ -102,14 +94,7 @@ impl PhysicsMenu {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
                         JointBuilder::new(BaseBuilder::new().with_name("Ball Joint"))
-                            .with_params(JointParams::BallJoint(BallJoint {
-                                local_anchor1: Default::default(),
-                                local_anchor2: Default::default(),
-                                limits_enabled: false,
-                                limits_local_axis1: Default::default(),
-                                limits_local_axis2: Default::default(),
-                                limits_angle: 0.0,
-                            }))
+                            .with_params(JointParams::BallJoint(Default::default()))
                             .build_node(),
                         parent,
                     )))
@@ -118,14 +103,7 @@ impl PhysicsMenu {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
                         JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint"))
-                            .with_params(JointParams::PrismaticJoint(PrismaticJoint {
-                                local_anchor1: Default::default(),
-                                local_axis1: Vector3::y(),
-                                local_anchor2: Default::default(),
-                                local_axis2: Vector3::x(),
-                                limits_enabled: false,
-                                limits: [f32::MIN, f32::MAX],
-                            }))
+                            .with_params(JointParams::PrismaticJoint(Default::default()))
                             .build_node(),
                         parent,
                     )))
@@ -134,12 +112,7 @@ impl PhysicsMenu {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(
                         JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint"))
-                            .with_params(JointParams::FixedJoint(FixedJoint {
-                                local_anchor1_translation: Default::default(),
-                                local_anchor1_rotation: Default::default(),
-                                local_anchor2_translation: Default::default(),
-                                local_anchor2_rotation: Default::default(),
-                            }))
+                            .with_params(JointParams::FixedJoint(Default::default()))
                             .build_node(),
                         parent,
                     )))
