@@ -83,7 +83,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly # Check on nightly because it sometimes has more lints.
+          toolchain: stable # Check on stable because nightly sometimes has faulty lints that makes CI fail
           profile: minimal
           components: clippy
           override: true
