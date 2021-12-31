@@ -194,7 +194,8 @@ impl MoveContext {
             |plane_point, gizmo_inv_transform, gizmo_origin| {
                 selection
                     .sources()
-                    .iter().filter_map(|&source_handle| {
+                    .iter()
+                    .filter_map(|&source_handle| {
                         let source = state.source(source_handle);
                         match source {
                             SoundSource::Generic(_) => None,
@@ -363,7 +364,8 @@ impl InteractionMode for MoveInteractionMode {
                 let commands = CommandGroup::from(
                     move_context
                         .objects
-                        .iter().filter_map(|initial_state| match initial_state.entity {
+                        .iter()
+                        .filter_map(|initial_state| match initial_state.entity {
                             MovableEntity::Node(node) => {
                                 Some(SceneCommand::new(MoveNodeCommand::new(
                                     node,
