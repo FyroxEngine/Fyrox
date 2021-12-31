@@ -4,7 +4,7 @@ use crate::{
 };
 use rg3d_core::{
     parking_lot::{Mutex, RwLock},
-    wasm_bindgen::{self, prelude::*, JsCast},
+    wasm_bindgen::{prelude::*, JsCast},
     web_sys::{AudioContext, AudioContextOptions},
 };
 use std::{mem::size_of, sync::Arc};

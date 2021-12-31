@@ -42,10 +42,7 @@ use rg3d::{
         transform::TransformBuilder,
         Scene,
     },
-    sound::{
-        buffer::SoundBufferResource,
-        source::{generic::GenericSourceBuilder, Status},
-    },
+    sound::source::{generic::GenericSourceBuilder, Status},
     utils::translate_event,
 };
 use std::{panic, sync::Arc};
@@ -412,7 +409,7 @@ pub fn main_js() {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
-                        engine.set_frame_size(size.into());
+                        engine.set_frame_size(size.into()).unwrap();
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)

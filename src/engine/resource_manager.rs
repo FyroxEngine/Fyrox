@@ -3,7 +3,7 @@
 use crate::resource::curve::{CurveResource, CurveResourceState};
 use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
-    core::{futures::executor::ThreadPool, instant, visitor::prelude::*, VecExtensions},
+    core::{instant, visitor::prelude::*, VecExtensions},
     material::shader::{Shader, ShaderState},
     renderer::TextureUploadSender,
     resource::{
@@ -23,6 +23,9 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard},
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::core::futures::executor::ThreadPool;
 
 /// Lifetime of orphaned resource in seconds (with only one strong ref which is resource manager itself)
 pub const DEFAULT_RESOURCE_LIFETIME: f32 = 60.0;
