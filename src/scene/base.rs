@@ -658,7 +658,7 @@ impl Visit for Base {
         self.tag.visit("Tag", visitor)?;
         let _ = self.properties.visit("Properties", visitor);
         let _ = self.physics_binding.visit("PhysicsBinding", visitor);
-        self.frustum_culling.visit("FrustumCulling", visitor);
+        let _ = self.frustum_culling.visit("FrustumCulling", visitor);
 
         visitor.leave_region()
     }
