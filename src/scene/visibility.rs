@@ -77,7 +77,7 @@ impl VisibilityCache {
             // make it visible again if lod group hid it.
             self.map.entry(handle).or_insert_with(|| {
                 let mut visibility = node.global_visibility();
-                if visibility {
+                if visibility && node.frustum_culling() {
                     // If a node globally visible, check it with each frustum (if any).
                     if let Some(frustums) = frustums {
                         let mut visible_by_any_frustum = false;
