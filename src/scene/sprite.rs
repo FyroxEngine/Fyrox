@@ -54,7 +54,7 @@ use std::ops::{Deref, DerefMut};
 ///
 /// fn create_smoke(resource_manager: ResourceManager, graph: &mut Graph) -> Handle<Node> {
 ///     SpriteBuilder::new(BaseBuilder::new())
-///         .with_texture(resource_manager.request_texture("smoke.png", None))
+///         .with_texture(resource_manager.request_texture("smoke.png"))
 ///         .build(graph)
 /// }
 /// ```

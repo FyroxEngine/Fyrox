@@ -31,6 +31,7 @@ use crate::{
 use ddsfile::{Caps2, D3DFormat};
 use fxhash::FxHasher;
 use image::{ColorType, DynamicImage, GenericImageView, ImageError, ImageFormat};
+use serde::Deserialize;
 use std::{
     borrow::Cow,
     fmt::{Debug, Formatter},
@@ -265,6 +266,89 @@ impl Default for TextureData {
     }
 }
 
+/// Allows you to define a set of parameters for a texture resource.
+///
+/// # Details
+///
+/// Usually the content of this structure is stored in a separate file with .options extension.
+#[derive(Clone, Deserialize)]
+pub struct TextureImportOptions {
+    #[serde(default)]
+    pub(crate) minification_filter: TextureMinificationFilter,
+    #[serde(default)]
+    pub(crate) magnification_filter: TextureMagnificationFilter,
+    #[serde(default)]
+    pub(crate) s_wrap_mode: TextureWrapMode,
+    #[serde(default)]
+    pub(crate) t_wrap_mode: TextureWrapMode,
+    #[serde(default)]
+    pub(crate) anisotropy: f32,
+    #[serde(default)]
+    pub(crate) compression: CompressionOptions,
+}
+
+impl Default for TextureImportOptions {
+    fn default() -> Self {
+        Self {
+            minification_filter: TextureMinificationFilter::LinearMipMapLinear,
+            magnification_filter: TextureMagnificationFilter::Linear,
+            s_wrap_mode: TextureWrapMode::Repeat,
+            t_wrap_mode: TextureWrapMode::Repeat,
+            anisotropy: 16.0,
+            compression: CompressionOptions::Quality,
+        }
+    }
+}
+
+impl TextureImportOptions {
+    /// Sets new minification filter which will be applied to every imported texture as
+    /// default value.
+    pub fn with_minification_filter(
+        mut self,
+        minification_filter: TextureMinificationFilter,
+    ) -> Self {
+        self.minification_filter = minification_filter;
+        self
+    }
+
+    /// Sets new magnification filter which will be applied to every imported texture as
+    /// default value.
+    pub fn with_magnification_filter(
+        mut self,
+        magnification_filter: TextureMagnificationFilter,
+    ) -> Self {
+        self.magnification_filter = magnification_filter;
+        self
+    }
+
+    /// Sets new S coordinate wrap mode which will be applied to every imported texture as
+    /// default value.
+    pub fn with_s_wrap_mode(mut self, s_wrap_mode: TextureWrapMode) -> Self {
+        self.s_wrap_mode = s_wrap_mode;
+        self
+    }
+
+    /// Sets new T coordinate wrap mode which will be applied to every imported texture as
+    /// default value.
+    pub fn with_t_wrap_mode(mut self, t_wrap_mode: TextureWrapMode) -> Self {
+        self.t_wrap_mode = t_wrap_mode;
+        self
+    }
+
+    /// Sets new anisotropy level which will be applied to every imported texture as
+    /// default value.
+    pub fn with_anisotropy(mut self, anisotropy: f32) -> Self {
+        self.anisotropy = anisotropy.min(1.0);
+        self
+    }
+
+    /// Sets desired texture compression.
+    pub fn with_compression(mut self, compression: CompressionOptions) -> Self {
+        self.compression = compression;
+        self
+    }
+}
+
 define_new_resource!(
     /// See module docs.
     Texture<TextureData, TextureError>
@@ -338,7 +422,7 @@ impl Texture {
 
 /// The texture magnification function is used when the pixel being textured maps to an area
 /// less than or equal to one texture element.
-#[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq)]
+#[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq, Deserialize)]
 #[repr(u32)]
 pub enum TextureMagnificationFilter {
     /// Returns the value of the texture element that is nearest to the center of the pixel
@@ -348,6 +432,12 @@ pub enum TextureMagnificationFilter {
     /// Returns the weighted average of the four texture elements that are closest to the
     /// center of the pixel being textured.
     Linear = 1,
+}
+
+impl Default for TextureMagnificationFilter {
+    fn default() -> Self {
+        Self::Linear
+    }
 }
 
 impl Visit for TextureMagnificationFilter {
@@ -376,7 +466,7 @@ impl Visit for TextureMagnificationFilter {
 
 /// The texture minifying function is used whenever the pixel being textured maps to an area
 /// greater than one texture element.
-#[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq)]
+#[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq, Deserialize)]
 #[repr(u32)]
 pub enum TextureMinificationFilter {
     /// Returns the value of the texture element that is nearest to the center of the pixel
@@ -410,6 +500,12 @@ pub enum TextureMinificationFilter {
     LinearMipMapLinear = 5,
 }
 
+impl Default for TextureMinificationFilter {
+    fn default() -> Self {
+        Self::LinearMipMapLinear
+    }
+}
+
 impl Visit for TextureMinificationFilter {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -439,7 +535,7 @@ impl Visit for TextureMinificationFilter {
 }
 
 /// Defines a law of texture coordinate modification.
-#[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq)]
+#[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq, Deserialize)]
 #[repr(u32)]
 pub enum TextureWrapMode {
     /// Causes the integer part of a coordinate to be ignored; GPU uses only the fractional part,
@@ -463,6 +559,12 @@ pub enum TextureWrapMode {
     /// Causes a coordinate to be repeated as for MirroredRepeat for one repetition of the texture, at
     /// which point the coordinate to be clamped as in ClampToEdge.
     MirrorClampToEdge = 4,
+}
+
+impl Default for TextureWrapMode {
+    fn default() -> Self {
+        Self::Repeat
+    }
 }
 
 impl Visit for TextureWrapMode {
@@ -616,24 +718,31 @@ fn ceil_div_4(x: u32) -> u32 {
 /// Try to avoid using compression for normal maps, normals maps usually has smooth
 /// gradients, but compression algorithms used by rg3d cannot preserve good quality
 /// of such gradients.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Deserialize)]
+#[repr(u32)]
 pub enum CompressionOptions {
     /// An image will be stored without compression if it is not already compressed.
-    NoCompression,
+    NoCompression = 0,
 
     /// An image will be encoded via DXT1 (BC1) compression with low quality if is not
     /// already compressed.
     /// Compression ratio is 1:8 (without alpha) or 1:6 (with 1-bit alpha).
     /// This option provides maximum speed by having lowest requirements of memory
     /// bandwidth.
-    Speed,
+    Speed = 1,
 
     /// An image will be encoded via DXT5 (BC5) compression with high quality if it is
     /// not already compressed.
     /// Compression ratio is 1:4 (including alpha)
     /// This option is faster than `NoCompression` speed by lower requirements of memory
     /// bandwidth.
-    Quality,
+    Quality = 2,
+}
+
+impl Default for CompressionOptions {
+    fn default() -> Self {
+        Self::Quality
+    }
 }
 
 fn transmute_slice<T>(bytes: &[u8]) -> &'_ [T] {

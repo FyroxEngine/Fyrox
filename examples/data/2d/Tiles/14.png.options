@@ -1,0 +1,4 @@
+(
+	t_wrap_mode: ClampToEdge,
+	s_wrap_mode: ClampToEdge,
+)

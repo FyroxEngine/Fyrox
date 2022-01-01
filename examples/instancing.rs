@@ -146,9 +146,7 @@ impl SceneLoader {
             .set_property(
                 &ImmutableString::new("diffuseTexture"),
                 PropertyValue::Sampler {
-                    value: Some(
-                        resource_manager.request_texture("examples/data/concrete2.dds", None),
-                    ),
+                    value: Some(resource_manager.request_texture("examples/data/concrete2.dds")),
                     fallback: SamplerFallback::White,
                 },
             )

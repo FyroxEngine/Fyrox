@@ -294,7 +294,7 @@ impl Default for PropertyValue {
 ///     material.set_property(
 ///         &ImmutableString::new("diffuseTexture"),
 ///         PropertyValue::Sampler {
-///             value: Some(resource_manager.request_texture("Brick_DiffuseTexture.jpg", None)),
+///             value: Some(resource_manager.request_texture("Brick_DiffuseTexture.jpg")),
 ///             fallback: SamplerFallback::White
 ///         })
 ///         .unwrap();
@@ -393,7 +393,7 @@ impl Material {
     ///     material.set_property(
     ///         &ImmutableString::new("diffuseTexture"),
     ///         PropertyValue::Sampler {
-    ///             value: Some(resource_manager.request_texture("Brick_DiffuseTexture.jpg", None)),
+    ///             value: Some(resource_manager.request_texture("Brick_DiffuseTexture.jpg")),
     ///             fallback: SamplerFallback::White
     ///         })
     ///         .unwrap();
@@ -466,9 +466,7 @@ impl Material {
                     fallback: usage,
                 } => PropertyValue::Sampler {
                     value: default.as_ref().and_then(|path| {
-                        resource_manager
-                            .clone()
-                            .map(|rm| rm.request_texture(path, None))
+                        resource_manager.clone().map(|rm| rm.request_texture(path))
                     }),
                     fallback: *usage,
                 },
@@ -508,13 +506,13 @@ impl Material {
                     // Try to reload texture even if it failed to load.
                     ResourceState::LoadError { .. } => {
                         drop(data);
-                        *texture = resource_manager.request_texture(path, None);
+                        *texture = resource_manager.request_texture(path);
                     }
                     ResourceState::Ok(texture_state) => {
                         // Do not resolve procedural textures.
                         if !texture_state.is_procedural() {
                             drop(data);
-                            *texture = resource_manager.request_texture(path, None);
+                            *texture = resource_manager.request_texture(path);
                         }
                     }
                     ResourceState::Pending { .. } => {}

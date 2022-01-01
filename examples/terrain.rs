@@ -49,7 +49,7 @@ fn setup_layer_material(
         .set_property(
             &ImmutableString::new("diffuseTexture"),
             PropertyValue::Sampler {
-                value: Some(resource_manager.request_texture(diffuse_texture, None)),
+                value: Some(resource_manager.request_texture(diffuse_texture)),
                 fallback: SamplerFallback::White,
             },
         )
@@ -58,7 +58,7 @@ fn setup_layer_material(
         .set_property(
             &ImmutableString::new("normalTexture"),
             PropertyValue::Sampler {
-                value: Some(resource_manager.request_texture(normal_texture, None)),
+                value: Some(resource_manager.request_texture(normal_texture)),
                 fallback: SamplerFallback::Normal,
             },
         )

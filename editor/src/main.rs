@@ -81,10 +81,7 @@ use rg3d::{
         sstorage::ImmutableString,
     },
     dpi::LogicalSize,
-    engine::{
-        resource_manager::{MaterialSearchOptions, TextureImportOptions},
-        Engine,
-    },
+    engine::{resource_manager::MaterialSearchOptions, Engine},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -1239,7 +1236,7 @@ impl Editor {
                                             {
                                                 let tex = engine
                                                     .resource_manager
-                                                    .request_texture(&relative_path, None);
+                                                    .request_texture(&relative_path);
                                                 let texture = tex.clone();
                                                 let texture = texture.state();
                                                 if let TextureState::Ok(_) = *texture {
@@ -1835,10 +1832,6 @@ fn main() {
         .with_resizable(true);
 
     let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
-
-    engine.resource_manager.state().set_textures_import_options(
-        TextureImportOptions::default().with_compression(CompressionOptions::NoCompression),
-    );
 
     let overlay_pass = OverlayRenderPass::new(engine.renderer.pipeline_state());
     engine.renderer.add_render_pass(overlay_pass);

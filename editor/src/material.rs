@@ -747,8 +747,7 @@ impl MaterialEditor {
                     {
                         let relative_path = make_relative_path(&asset_item.path);
 
-                        let texture =
-                            Some(engine.resource_manager.request_texture(relative_path, None));
+                        let texture = Some(engine.resource_manager.request_texture(relative_path));
 
                         engine.user_interface.send_message(ImageMessage::texture(
                             message.destination(),

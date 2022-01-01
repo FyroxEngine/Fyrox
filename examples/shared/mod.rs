@@ -58,30 +58,17 @@ pub async fn create_camera(
 ) -> Handle<Node> {
     // Load skybox textures in parallel.
     let (front, back, left, right, top, bottom) = rg3d::core::futures::join!(
-        resource_manager.request_texture(
-            "examples/data/skyboxes/DarkStormy/DarkStormyFront2048.png",
-            None
-        ),
-        resource_manager.request_texture(
-            "examples/data/skyboxes/DarkStormy/DarkStormyBack2048.png",
-            None
-        ),
-        resource_manager.request_texture(
-            "examples/data/skyboxes/DarkStormy/DarkStormyLeft2048.png",
-            None
-        ),
-        resource_manager.request_texture(
-            "examples/data/skyboxes/DarkStormy/DarkStormyRight2048.png",
-            None
-        ),
-        resource_manager.request_texture(
-            "examples/data/skyboxes/DarkStormy/DarkStormyUp2048.png",
-            None
-        ),
-        resource_manager.request_texture(
-            "examples/data/skyboxes/DarkStormy/DarkStormyDown2048.png",
-            None
-        )
+        resource_manager
+            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyFront2048.png"),
+        resource_manager
+            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyBack2048.png"),
+        resource_manager
+            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyLeft2048.png"),
+        resource_manager
+            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyRight2048.png"),
+        resource_manager.request_texture("examples/data/skyboxes/DarkStormy/DarkStormyUp2048.png"),
+        resource_manager
+            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyDown2048.png")
     );
 
     // Unwrap everything.

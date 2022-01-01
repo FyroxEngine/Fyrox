@@ -20,6 +20,7 @@ pub use uuid;
 
 use crate::visitor::{Visit, VisitResult, Visitor};
 use fxhash::FxHashMap;
+use std::ffi::OsString;
 use std::{
     borrow::Borrow,
     hash::Hash,
@@ -115,6 +116,36 @@ pub fn replace_slashes<P: AsRef<Path>>(path: P) -> PathBuf {
     {
         path.as_ref().to_owned()
     }
+}
+
+/// Appends specified extension to the path.
+///
+/// # Examples
+///
+/// ```rust
+/// # use std::path::Path;
+/// # use rg3d_core::append_extension;
+/// let path = Path::new("foo.bar");
+/// let new_path = append_extension(path, "baz");
+/// assert_eq!(new_path, Path::new("foo.bar.baz"))
+/// ```
+#[must_use]
+pub fn append_extension<P: AsRef<Path>, E: AsRef<str>>(
+    path: P,
+    additional_extension: E,
+) -> PathBuf {
+    let mut final_path = path.as_ref().to_path_buf();
+    let new_extension = final_path
+        .extension()
+        .map(|e| {
+            let mut ext = e.to_owned();
+            ext.push(".");
+            ext.push(additional_extension.as_ref());
+            ext
+        })
+        .unwrap_or_else(|| OsString::from(additional_extension.as_ref()));
+    final_path.set_extension(new_extension);
+    final_path
 }
 
 #[derive(Clone, Debug)]

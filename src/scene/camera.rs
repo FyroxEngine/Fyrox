@@ -609,17 +609,20 @@ impl ColorGradingLut {
     ///
     /// ```no_run
     /// use rg3d::scene::camera::ColorGradingLut;
-    /// use rg3d::engine::resource_manager::{TextureImportOptions, ResourceManager};
-    /// use rg3d::resource::texture::CompressionOptions;
+    /// use rg3d::engine::resource_manager::{ResourceManager};
+    /// use rg3d::resource::texture::{CompressionOptions};
     ///
     /// async fn create_lut(resource_manager: ResourceManager) -> ColorGradingLut {
+    ///     // Make sure you have `your_lut.jpg.options` with texture compression off, otherwise this
+    ///     // method will panic. You should have something like this
+    ///     //
+    ///     // (
+    ///     //     compression: NoCompression
+    ///     // )
+    ///     //
+    ///     // Alternatively you can use rusty-editor to create such file, use asset browser for that.
     ///     ColorGradingLut::new(resource_manager.request_texture(
-    ///         "examples/data/warm_color_lut.jpg",
-    ///         Some(
-    ///            // It is important to prevent engine from automatic texture compression.
-    ///            // LUT can be constructed **only** from uncompressed RGB8/RGBA8 texture.
-    ///             TextureImportOptions::default().with_compression(CompressionOptions::NoCompression),
-    ///         ),
+    ///         "your_lut.jpg",
     ///     ))
     ///     .await
     ///     .unwrap()

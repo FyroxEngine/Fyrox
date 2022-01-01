@@ -1,16 +1,19 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::resource::curve::{CurveResource, CurveResourceState};
 use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
-    core::{instant, visitor::prelude::*, VecExtensions},
+    core::{
+        append_extension, futures::executor::ThreadPool, instant, io, visitor::prelude::*,
+        VecExtensions,
+    },
     material::shader::{Shader, ShaderState},
     renderer::TextureUploadSender,
     resource::{
+        curve::{CurveResource, CurveResourceState},
         model::{Model, ModelData},
         texture::{
-            CompressionOptions, Texture, TextureData, TextureError, TextureMagnificationFilter,
-            TextureMinificationFilter, TexturePixelKind, TextureState, TextureWrapMode,
+            CompressionOptions, Texture, TextureData, TextureError, TextureImportOptions,
+            TexturePixelKind, TextureState,
         },
     },
     sound::buffer::{
@@ -23,9 +26,6 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard},
 };
-
-#[cfg(not(target_arch = "wasm32"))]
-use crate::core::futures::executor::ThreadPool;
 
 /// Lifetime of orphaned resource in seconds (with only one strong ref which is resource manager itself)
 pub const DEFAULT_RESOURCE_LIFETIME: f32 = 60.0;
@@ -271,79 +271,6 @@ pub struct ResourceManager {
     state: Option<Arc<Mutex<ResourceManagerState>>>,
 }
 
-/// Allows you to define a set of defaults for every imported texture.
-#[derive(Clone)]
-pub struct TextureImportOptions {
-    minification_filter: TextureMinificationFilter,
-    magnification_filter: TextureMagnificationFilter,
-    s_wrap_mode: TextureWrapMode,
-    t_wrap_mode: TextureWrapMode,
-    anisotropy: f32,
-    compression: CompressionOptions,
-}
-
-impl Default for TextureImportOptions {
-    fn default() -> Self {
-        Self {
-            minification_filter: TextureMinificationFilter::LinearMipMapLinear,
-            magnification_filter: TextureMagnificationFilter::Linear,
-            s_wrap_mode: TextureWrapMode::Repeat,
-            t_wrap_mode: TextureWrapMode::Repeat,
-            anisotropy: 16.0,
-            compression: CompressionOptions::Quality,
-        }
-    }
-}
-
-impl TextureImportOptions {
-    /// Sets new minification filter which will be applied to every imported texture as
-    /// default value.
-    pub fn with_minification_filter(
-        mut self,
-        minification_filter: TextureMinificationFilter,
-    ) -> Self {
-        self.minification_filter = minification_filter;
-        self
-    }
-
-    /// Sets new magnification filter which will be applied to every imported texture as
-    /// default value.
-    pub fn with_magnification_filter(
-        mut self,
-        magnification_filter: TextureMagnificationFilter,
-    ) -> Self {
-        self.magnification_filter = magnification_filter;
-        self
-    }
-
-    /// Sets new S coordinate wrap mode which will be applied to every imported texture as
-    /// default value.
-    pub fn with_s_wrap_mode(mut self, s_wrap_mode: TextureWrapMode) -> Self {
-        self.s_wrap_mode = s_wrap_mode;
-        self
-    }
-
-    /// Sets new T coordinate wrap mode which will be applied to every imported texture as
-    /// default value.
-    pub fn with_t_wrap_mode(mut self, t_wrap_mode: TextureWrapMode) -> Self {
-        self.t_wrap_mode = t_wrap_mode;
-        self
-    }
-
-    /// Sets new anisotropy level which will be applied to every imported texture as
-    /// default value.
-    pub fn with_anisotropy(mut self, anisotropy: f32) -> Self {
-        self.anisotropy = anisotropy.min(1.0);
-        self
-    }
-
-    /// Sets desired texture compression.
-    pub fn with_compression(mut self, compression: CompressionOptions) -> Self {
-        self.compression = compression;
-        self
-    }
-}
-
 /// An error that may occur during texture registration.
 #[derive(Debug, thiserror::Error)]
 pub enum TextureRegistrationError {
@@ -364,25 +291,64 @@ impl From<TextureError> for TextureRegistrationError {
     }
 }
 
+async fn try_get_texture_import_settings(texture_path: &Path) -> Option<TextureImportOptions> {
+    let settings_path = append_extension(texture_path, "options");
+
+    match io::load_file(&settings_path).await {
+        Ok(bytes) => match ron::de::from_bytes::<TextureImportOptions>(&bytes) {
+            Ok(options) => Some(options),
+            Err(e) => {
+                Log::writeln(
+                    MessageKind::Error,
+                    format!(
+                        "Malformed options file for {} texture! Reason: {:?}",
+                        texture_path.display(),
+                        e
+                    ),
+                );
+
+                None
+            }
+        },
+        Err(e) => {
+            Log::writeln(
+                MessageKind::Warning,
+                format!(
+                    "Unable to load options file {} for {} texture, fallback to defaults! Reason: {:?}",
+                    settings_path.display(),
+                    texture_path.display(),
+                    e
+                ),
+            );
+
+            None
+        }
+    }
+}
+
 async fn load_texture(
     texture: Texture,
     path: PathBuf,
-    options: TextureImportOptions,
+    default_options: TextureImportOptions,
     upload_sender: TextureUploadSender,
 ) {
+    let import_options = try_get_texture_import_settings(&path)
+        .await
+        .unwrap_or(default_options);
+
     let time = instant::Instant::now();
-    match TextureData::load_from_file(&path, options.compression).await {
+    match TextureData::load_from_file(&path, import_options.compression).await {
         Ok(mut raw_texture) => {
             Log::writeln(
                 MessageKind::Information,
                 format!("Texture {:?} is loaded in {:?}!", path, time.elapsed()),
             );
 
-            raw_texture.set_magnification_filter(options.magnification_filter);
-            raw_texture.set_minification_filter(options.minification_filter);
-            raw_texture.set_anisotropy_level(options.anisotropy);
-            raw_texture.set_s_wrap_mode(options.s_wrap_mode);
-            raw_texture.set_t_wrap_mode(options.t_wrap_mode);
+            raw_texture.set_magnification_filter(import_options.magnification_filter);
+            raw_texture.set_minification_filter(import_options.minification_filter);
+            raw_texture.set_anisotropy_level(import_options.anisotropy);
+            raw_texture.set_s_wrap_mode(import_options.s_wrap_mode);
+            raw_texture.set_t_wrap_mode(import_options.t_wrap_mode);
 
             texture.state().commit(ResourceState::Ok(raw_texture));
 
@@ -601,10 +567,24 @@ impl ResourceManager {
     /// # Import options
     ///
     /// It is possible to define custom import options. Using import options you could set desired compression quality,
-    /// filtering, wrapping, etc. **IMPORTANT:** Import options take effect **only** at first loading of a texture,
-    /// this means that if you try to pass options when requesting loaded texture, they won't take effect.
+    /// filtering, wrapping, etc. Import options should be defined in a separate file with the same name as the source
+    /// texture, but with additional extension `options`. For example you have a `foo.jpg` texture, a file with import
+    /// options should be called `foo.jpg.options`. It's content may look something like this:
     ///
-    /// If None is passed as import options, then default import options from resource manager will be used.
+    /// ```text
+    /// (
+    ///     minification_filter: Linear,
+    ///     magnification_filter: Linear,
+    ///     s_wrap_mode: Repeat,
+    ///     t_wrap_mode: ClampToEdge,
+    ///     anisotropy: 8.0,
+    ///     compression: NoCompression,    
+    /// )
+    /// ```
+    ///
+    /// Usually there is no need to change this file manually, it can be modified from the editor using the Asset Browser.
+    /// When there is no import options file, the engine will use texture import options defined in the resource manager.
+    /// See [set_textures_import_options](ResourceManagerState::set_textures_import_options) for more info.
     ///
     /// # Async/.await
     ///
@@ -612,27 +592,24 @@ impl ResourceManager {
     ///
     /// # Supported formats
     ///
-    /// To load images and decode them, rg3d uses image create which supports following image
-    /// formats: png, tga, bmp, dds, jpg, gif, tiff, dxt.
-    pub fn request_texture<P: AsRef<Path>>(
-        &self,
-        path: P,
-        import_options: Option<TextureImportOptions>,
-    ) -> Texture {
+    /// To load images and decode them, rg3d uses image create which supports following image formats: png, tga, bmp, dds,
+    /// jpg, gif, tiff, dxt.
+    pub fn request_texture<P: AsRef<Path>>(&self, path: P) -> Texture {
+        let path_ref = path.as_ref();
         let mut state = self.state();
 
-        if let Some(texture) = state.textures.find(path.as_ref()) {
+        if let Some(texture) = state.textures.find(path_ref) {
             return texture.clone();
         }
 
         let texture = Texture(Resource::new(ResourceState::new_pending(
-            path.as_ref().to_owned(),
+            path_ref.to_owned(),
         )));
         state.textures.push(texture.clone());
 
         let result = texture.clone();
-        let options = import_options.unwrap_or_else(|| state.textures_import_options.clone());
-        let path = path.as_ref().to_owned();
+        let default_options = state.textures_import_options.clone();
+        let path = path_ref.to_owned();
         let upload_sender = state
             .upload_sender
             .as_ref()
@@ -641,12 +618,12 @@ impl ResourceManager {
 
         #[cfg(target_arch = "wasm32")]
         crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_texture(texture, path, options, upload_sender).await;
+            load_texture(texture, path, default_options, upload_sender).await;
         });
 
         #[cfg(not(target_arch = "wasm32"))]
         state.thread_pool.spawn_ok(async move {
-            load_texture(texture, path, options, upload_sender).await;
+            load_texture(texture, path, default_options, upload_sender).await;
         });
 
         result
