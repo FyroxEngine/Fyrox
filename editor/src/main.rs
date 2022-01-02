@@ -181,7 +181,7 @@ lazy_static! {
 
 pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
     Some(into_gui_texture(
-        Texture::load_from_memory(data, CompressionOptions::NoCompression).ok()?,
+        Texture::load_from_memory(data, CompressionOptions::NoCompression, false).ok()?,
     ))
 }
 

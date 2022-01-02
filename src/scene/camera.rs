@@ -610,17 +610,8 @@ impl ColorGradingLut {
     /// ```no_run
     /// use rg3d::scene::camera::ColorGradingLut;
     /// use rg3d::engine::resource_manager::{ResourceManager};
-    /// use rg3d::resource::texture::{CompressionOptions};
     ///
     /// async fn create_lut(resource_manager: ResourceManager) -> ColorGradingLut {
-    ///     // Make sure you have `your_lut.jpg.options` with texture compression off, otherwise this
-    ///     // method will panic. You should have something like this
-    ///     //
-    ///     // (
-    ///     //     compression: NoCompression
-    ///     // )
-    ///     //
-    ///     // Alternatively you can use rusty-editor to create such file, use asset browser for that.
     ///     ColorGradingLut::new(resource_manager.request_texture(
     ///         "your_lut.jpg",
     ///     ))
@@ -963,6 +954,8 @@ pub struct SkyBox {
 pub enum SkyBoxError {
     /// Texture kind is not TextureKind::Rectangle
     UnsupportedTextureKind(TextureKind),
+    /// Cube map was failed to build.
+    UnableToBuildCubeMap,
 }
 
 impl SkyBox {
@@ -971,9 +964,16 @@ impl SkyBox {
         self.cubemap.clone()
     }
 
-    /// Creates a cubemap using provided faces. If some face has not been
-    /// provided corresponding side will be black.
-    /// It will fail if provided face's kind is not TextureKind::Rectangle
+    /// Returns cubemap texture
+    pub fn cubemap_ref(&self) -> Option<&Texture> {
+        self.cubemap.as_ref()
+    }
+
+    /// Creates a cubemap using provided faces. If some face has not been provided corresponding side will be black.
+    ///
+    /// # Important notes.
+    ///
+    /// It will fail if provided face's kind is not TextureKind::Rectangle.
     pub fn create_cubemap(&mut self) -> Result<(), SkyBoxError> {
         let (kind, pixel_kind, bytes_per_face) =
             self.textures().iter().find(|face| face.is_some()).map_or(
@@ -989,7 +989,11 @@ impl SkyBox {
                     let face = face.clone().unwrap();
                     let data = face.data_ref();
 
-                    (data.kind(), data.pixel_kind(), data.data().len())
+                    (
+                        data.kind(),
+                        data.pixel_kind(),
+                        data.first_mip_level_data().len(),
+                    )
                 },
             );
 
@@ -1001,17 +1005,17 @@ impl SkyBox {
         let mut data = Vec::<u8>::with_capacity(bytes_per_face * 6);
         for face in self.textures().iter() {
             if let Some(f) = face.clone() {
-                data.extend(f.data_ref().data());
+                data.extend(f.data_ref().first_mip_level_data());
             } else {
                 let black_face_data = vec![0; bytes_per_face];
                 data.extend(black_face_data);
             }
         }
 
-        let cubemap =
-            Texture::from_bytes(TextureKind::Cube { width, height }, pixel_kind, data, false);
-
-        self.cubemap = cubemap;
+        self.cubemap = Some(
+            Texture::from_bytes(TextureKind::Cube { width, height }, pixel_kind, data, false)
+                .ok_or(SkyBoxError::UnableToBuildCubeMap)?,
+        );
 
         Ok(())
     }

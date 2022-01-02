@@ -509,6 +509,8 @@ impl Player {
                     },
                 ]),
         )
+        .with_locked_rotations(true)
+        .with_can_sleep(false)
         .with_body_type(RigidBodyType::Dynamic)
         .build(&mut scene.graph);
 

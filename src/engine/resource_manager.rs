@@ -2,10 +2,7 @@
 
 use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
-    core::{
-        append_extension, futures::executor::ThreadPool, instant, io, visitor::prelude::*,
-        VecExtensions,
-    },
+    core::{append_extension, instant, io, visitor::prelude::*, VecExtensions},
     material::shader::{Shader, ShaderState},
     renderer::TextureUploadSender,
     resource::{
@@ -26,6 +23,9 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard},
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::core::futures::executor::ThreadPool;
 
 /// Lifetime of orphaned resource in seconds (with only one strong ref which is resource manager itself)
 pub const DEFAULT_RESOURCE_LIFETIME: f32 = 60.0;
@@ -336,8 +336,10 @@ async fn load_texture(
         .await
         .unwrap_or(default_options);
 
+    let gen_mip_maps = import_options.minification_filter.is_using_mip_mapping();
+
     let time = instant::Instant::now();
-    match TextureData::load_from_file(&path, import_options.compression).await {
+    match TextureData::load_from_file(&path, import_options.compression, gen_mip_maps).await {
         Ok(mut raw_texture) => {
             Log::writeln(
                 MessageKind::Information,
@@ -490,8 +492,13 @@ async fn load_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream:
     }
 }
 
-async fn reload_texture(texture: Texture, path: PathBuf, compression: CompressionOptions) {
-    match TextureData::load_from_file(&path, compression).await {
+async fn reload_texture(
+    texture: Texture,
+    path: PathBuf,
+    compression: CompressionOptions,
+    gen_mip_maps: bool,
+) {
+    match TextureData::load_from_file(&path, compression, gen_mip_maps).await {
         Ok(data) => {
             Log::writeln(
                 MessageKind::Information,
@@ -823,27 +830,32 @@ impl ResourceManager {
 
             for resource in textures.iter().cloned() {
                 let path = resource.state().path().to_path_buf();
-                let compression = if let ResourceState::Ok(ref data) = *resource.state() {
-                    match data.pixel_kind() {
-                        TexturePixelKind::DXT1RGB => CompressionOptions::Speed,
-                        TexturePixelKind::DXT1RGBA => CompressionOptions::Speed,
-                        TexturePixelKind::DXT3RGBA => CompressionOptions::NoCompression, // TODO
-                        TexturePixelKind::DXT5RGBA => CompressionOptions::Quality,
-                        _ => CompressionOptions::NoCompression,
-                    }
-                } else {
-                    CompressionOptions::NoCompression
-                };
+                let (compression, gen_mip_maps) =
+                    if let ResourceState::Ok(ref data) = *resource.state() {
+                        let compression = match data.pixel_kind() {
+                            TexturePixelKind::DXT1RGB => CompressionOptions::Speed,
+                            TexturePixelKind::DXT1RGBA => CompressionOptions::Speed,
+                            TexturePixelKind::DXT3RGBA => CompressionOptions::NoCompression, // TODO
+                            TexturePixelKind::DXT5RGBA => CompressionOptions::Quality,
+                            _ => CompressionOptions::NoCompression,
+                        };
+                        (
+                            compression,
+                            data.minification_filter().is_using_mip_mapping(),
+                        )
+                    } else {
+                        (CompressionOptions::NoCompression, false)
+                    };
                 *resource.state() = ResourceState::new_pending(path.clone());
 
                 #[cfg(target_arch = "wasm32")]
                 crate::core::wasm_bindgen_futures::spawn_local(async move {
-                    reload_texture(resource, path, compression).await;
+                    reload_texture(resource, path, compression, gen_mip_maps).await;
                 });
 
                 #[cfg(not(target_arch = "wasm32"))]
                 state.thread_pool.spawn_ok(async move {
-                    reload_texture(resource, path, compression).await;
+                    reload_texture(resource, path, compression, gen_mip_maps).await;
                 });
             }
 

@@ -67,7 +67,7 @@ impl GpuTextureKind {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum PixelKind {
     F32,
     F16,
@@ -485,12 +485,6 @@ impl<'a> TextureBinding<'a> {
                 min_filter.into_gl_value(),
             );
 
-            if self.texture.min_filter != MinificationFilter::Linear
-                && self.texture.min_filter != MinificationFilter::Nearest
-            {
-                self.state.gl.generate_mipmap(target);
-            }
-
             self.texture.min_filter = min_filter;
         }
         self
@@ -537,15 +531,6 @@ impl<'a> TextureBinding<'a> {
                 glow::TEXTURE_BORDER_COLOR,
                 &color,
             );
-        }
-        self
-    }
-
-    pub fn generate_mip_maps(self) -> Self {
-        unsafe {
-            self.state
-                .gl
-                .generate_mipmap(self.texture.kind.gl_texture_target());
         }
         self
     }
@@ -683,8 +668,10 @@ impl<'a> TextureBinding<'a> {
                 match kind {
                     GpuTextureKind::Line { length } => {
                         if let Some(length) = length.checked_shr(mip as u32) {
-                            let pixels = data.map(|data| &data[mip_byte_offset..]);
                             let size = image_1d_size_bytes(pixel_kind, length) as i32;
+                            let pixels = data.map(|data| {
+                                &data[mip_byte_offset..(mip_byte_offset + size as usize)]
+                            });
 
                             if is_compressed {
                                 self.state.gl.compressed_tex_image_1d(
@@ -720,8 +707,10 @@ impl<'a> TextureBinding<'a> {
                             width.checked_shr(mip as u32),
                             height.checked_shr(mip as u32),
                         ) {
-                            let pixels = data.map(|data| &data[mip_byte_offset..]);
                             let size = image_2d_size_bytes(pixel_kind, width, height) as i32;
+                            let pixels = data.map(|data| {
+                                &data[mip_byte_offset..(mip_byte_offset + size as usize)]
+                            });
 
                             if is_compressed {
                                 self.state.gl.compressed_tex_image_2d(
@@ -808,8 +797,10 @@ impl<'a> TextureBinding<'a> {
                             height.checked_shr(mip as u32),
                             depth.checked_shr(mip as u32),
                         ) {
-                            let pixels = data.map(|data| &data[mip_byte_offset..]);
                             let size = image_3d_size_bytes(pixel_kind, width, height, depth) as i32;
+                            let pixels = data.map(|data| {
+                                &data[mip_byte_offset..(mip_byte_offset + size as usize)]
+                            });
 
                             if is_compressed {
                                 self.state.gl.compressed_tex_image_3d(
@@ -920,16 +911,9 @@ impl GpuTexture {
                 min_filter.into_gl_value(),
             );
 
-            if min_filter != MinificationFilter::Linear
-                && min_filter != MinificationFilter::Nearest
-                && mip_count == 1
-            {
-                state.gl.generate_mipmap(target);
-            } else {
-                state
-                    .gl
-                    .tex_parameter_i32(target, glow::TEXTURE_MAX_LEVEL, mip_count as i32 - 1);
-            }
+            state
+                .gl
+                .tex_parameter_i32(target, glow::TEXTURE_MAX_LEVEL, mip_count as i32 - 1);
 
             state.set_texture(0, target, Default::default());
 
