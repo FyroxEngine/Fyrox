@@ -8,10 +8,7 @@ use crate::{
     resource::{
         curve::{CurveResource, CurveResourceState},
         model::{Model, ModelData},
-        texture::{
-            CompressionOptions, Texture, TextureData, TextureError, TextureImportOptions,
-            TexturePixelKind, TextureState,
-        },
+        texture::{Texture, TextureData, TextureError, TextureImportOptions, TextureState},
     },
     sound::buffer::{
         DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState,
@@ -501,35 +498,6 @@ async fn load_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream:
     }
 }
 
-async fn reload_texture(
-    texture: Texture,
-    path: PathBuf,
-    compression: CompressionOptions,
-    gen_mip_maps: bool,
-) {
-    match TextureData::load_from_file(&path, compression, gen_mip_maps).await {
-        Ok(data) => {
-            Log::writeln(
-                MessageKind::Information,
-                format!("Texture {:?} successfully reloaded!", path,),
-            );
-
-            texture.state().commit(ResourceState::Ok(data));
-        }
-        Err(e) => {
-            Log::writeln(
-                MessageKind::Error,
-                format!("Unable to reload {:?} texture! Reason: {:?}", path, e),
-            );
-
-            texture.state().commit(ResourceState::LoadError {
-                path,
-                error: Some(Arc::new(e)),
-            });
-        }
-    };
-}
-
 async fn reload_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream: bool) {
     if let Ok(data_source) = DataSource::from_file(&path).await {
         let new_sound_buffer = match stream {
@@ -836,32 +804,21 @@ impl ResourceManager {
 
             for resource in textures.iter().cloned() {
                 let path = resource.state().path().to_path_buf();
-                let (compression, gen_mip_maps) =
-                    if let ResourceState::Ok(ref data) = *resource.state() {
-                        let compression = match data.pixel_kind() {
-                            TexturePixelKind::DXT1RGB => CompressionOptions::Speed,
-                            TexturePixelKind::DXT1RGBA => CompressionOptions::Speed,
-                            TexturePixelKind::DXT3RGBA => CompressionOptions::NoCompression, // TODO
-                            TexturePixelKind::DXT5RGBA => CompressionOptions::Quality,
-                            _ => CompressionOptions::NoCompression,
-                        };
-                        (
-                            compression,
-                            data.minification_filter().is_using_mip_mapping(),
-                        )
-                    } else {
-                        (CompressionOptions::NoCompression, false)
-                    };
+                let default_options = state.textures_import_options.clone();
+                let upload_sender = state
+                    .upload_sender
+                    .clone()
+                    .expect("Upload sender must exist at this point!");
                 *resource.state() = ResourceState::new_pending(path.clone());
 
                 #[cfg(target_arch = "wasm32")]
                 crate::core::wasm_bindgen_futures::spawn_local(async move {
-                    reload_texture(resource, path, compression, gen_mip_maps).await;
+                    load_texture(resource, path, default_options, upload_sender).await;
                 });
 
                 #[cfg(not(target_arch = "wasm32"))]
                 state.thread_pool.spawn_ok(async move {
-                    reload_texture(resource, path, compression, gen_mip_maps).await;
+                    load_texture(resource, path, default_options, upload_sender).await;
                 });
             }
 
