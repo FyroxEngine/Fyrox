@@ -1,6 +1,6 @@
 use crate::{
     border::BorderBuilder,
-    core::{algebra::Vector2, pool::Handle},
+    core::{algebra::Vector2, math::Rect, pool::Handle},
     define_constructor,
     message::{ButtonState, MessageDirection, OsEvent, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -18,6 +18,7 @@ pub enum PopupMessage {
     Close,
     Content(Handle<UiNode>),
     Placement(Placement),
+    AdjustPosition,
 }
 
 impl PopupMessage {
@@ -25,6 +26,7 @@ impl PopupMessage {
     define_constructor!(PopupMessage:Close => fn close(), layout: false);
     define_constructor!(PopupMessage:Content => fn content(Handle<UiNode>), layout: false);
     define_constructor!(PopupMessage:Placement => fn placement(Placement), layout: false);
+    define_constructor!(PopupMessage:AdjustPosition => fn adjust_position(), layout: true);
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -72,9 +74,57 @@ pub struct Popup {
     is_open: bool,
     content: Handle<UiNode>,
     body: Handle<UiNode>,
+    smart_placement: bool,
 }
 
 crate::define_widget_deref!(Popup);
+
+fn adjust_placement_position(
+    node_screen_bounds: Rect<f32>,
+    screen_size: Vector2<f32>,
+) -> Vector2<f32> {
+    let mut new_position = node_screen_bounds.position;
+    let right_bottom = node_screen_bounds.right_bottom_corner();
+    if right_bottom.x > screen_size.x {
+        new_position.x -= right_bottom.x - screen_size.x;
+    }
+    if right_bottom.y > screen_size.y {
+        new_position.y -= right_bottom.y - screen_size.y;
+    }
+    new_position
+}
+
+impl Popup {
+    fn left_top_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
+        ui.try_get_node(target)
+            .map(|n| n.screen_position())
+            .unwrap_or_default()
+    }
+
+    fn right_top_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
+        ui.try_get_node(target)
+            .map(|n| n.screen_position() + Vector2::new(n.actual_size().x, 0.0))
+            .unwrap_or_else(|| Vector2::new(ui.screen_size().x - self.widget.actual_size().x, 0.0))
+    }
+
+    fn center_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
+        ui.try_get_node(target)
+            .map(|n| n.screen_position() + n.actual_size().scale(0.5))
+            .unwrap_or_else(|| (ui.screen_size - self.widget.actual_size()).scale(0.5))
+    }
+
+    fn left_bottom_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
+        ui.try_get_node(target)
+            .map(|n| n.screen_position() + Vector2::new(0.0, n.actual_size().y))
+            .unwrap_or_else(|| Vector2::new(0.0, ui.screen_size().y - self.widget.actual_size().y))
+    }
+
+    fn right_bottom_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
+        ui.try_get_node(target)
+            .map(|n| n.screen_position() + n.actual_size())
+            .unwrap_or_else(|| ui.screen_size - self.widget.actual_size())
+    }
+}
 
 impl Control for Popup {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -113,42 +163,15 @@ impl Control for Popup {
                                 MessageDirection::ToWidget,
                             ));
                             let position = match self.placement {
-                                Placement::LeftTop(target) => ui
-                                    .try_get_node(target)
-                                    .map(|n| n.screen_position())
-                                    .unwrap_or_default(),
-                                Placement::RightTop(target) => ui
-                                    .try_get_node(target)
-                                    .map(|n| {
-                                        n.screen_position() + Vector2::new(n.actual_size().x, 0.0)
-                                    })
-                                    .unwrap_or_else(|| {
-                                        Vector2::new(
-                                            ui.screen_size().x - self.widget.actual_size().x,
-                                            0.0,
-                                        )
-                                    }),
-                                Placement::Center(target) => ui
-                                    .try_get_node(target)
-                                    .map(|n| n.screen_position() + n.actual_size().scale(0.5))
-                                    .unwrap_or_else(|| {
-                                        (ui.screen_size - self.widget.actual_size()).scale(0.5)
-                                    }),
-                                Placement::LeftBottom(target) => ui
-                                    .try_get_node(target)
-                                    .map(|n| {
-                                        n.screen_position() + Vector2::new(0.0, n.actual_size().y)
-                                    })
-                                    .unwrap_or_else(|| {
-                                        Vector2::new(
-                                            0.0,
-                                            ui.screen_size().y - self.widget.actual_size().y,
-                                        )
-                                    }),
-                                Placement::RightBottom(target) => ui
-                                    .try_get_node(target)
-                                    .map(|n| n.screen_position() + n.actual_size())
-                                    .unwrap_or_else(|| ui.screen_size - self.widget.actual_size()),
+                                Placement::LeftTop(target) => self.left_top_placement(ui, target),
+                                Placement::RightTop(target) => self.right_top_placement(ui, target),
+                                Placement::Center(target) => self.center_placement(ui, target),
+                                Placement::LeftBottom(target) => {
+                                    self.left_bottom_placement(ui, target)
+                                }
+                                Placement::RightBottom(target) => {
+                                    self.right_bottom_placement(ui, target)
+                                }
                                 Placement::Cursor(_) => ui.cursor_position(),
                                 Placement::Position { position, .. } => position,
                             };
@@ -157,6 +180,12 @@ impl Control for Popup {
                                 MessageDirection::ToWidget,
                                 position,
                             ));
+                            if self.smart_placement {
+                                ui.send_message(PopupMessage::adjust_position(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
                         }
                     }
                     PopupMessage::Close => {
@@ -191,6 +220,18 @@ impl Control for Popup {
                     PopupMessage::Placement(placement) => {
                         self.placement = *placement;
                         self.invalidate_layout();
+                    }
+                    PopupMessage::AdjustPosition => {
+                        let new_position =
+                            adjust_placement_position(self.screen_bounds(), ui.screen_size());
+
+                        if new_position != self.screen_position() {
+                            ui.send_message(WidgetMessage::desired_position(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                                new_position,
+                            ));
+                        }
                     }
                 }
             }
@@ -227,6 +268,7 @@ pub struct PopupBuilder {
     placement: Placement,
     stays_open: bool,
     content: Handle<UiNode>,
+    smart_placement: bool,
 }
 
 impl PopupBuilder {
@@ -236,11 +278,17 @@ impl PopupBuilder {
             placement: Placement::Cursor(Default::default()),
             stays_open: false,
             content: Default::default(),
+            smart_placement: true,
         }
     }
 
     pub fn with_placement(mut self, placement: Placement) -> Self {
         self.placement = placement;
+        self
+    }
+
+    pub fn with_smart_placement(mut self, smart_placement: bool) -> Self {
+        self.smart_placement = smart_placement;
         self
     }
 
@@ -275,6 +323,7 @@ impl PopupBuilder {
             stays_open: self.stays_open,
             is_open: false,
             content: self.content,
+            smart_placement: self.smart_placement,
             body,
         };
 
