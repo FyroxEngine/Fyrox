@@ -1,5 +1,5 @@
 use crate::{
-    asset::AssetItem,
+    asset::item::AssetItem,
     gui::make_dropdown_list_option,
     make_relative_path,
     preview::PreviewPanel,

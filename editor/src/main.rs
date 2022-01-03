@@ -34,7 +34,7 @@ mod utils;
 mod world;
 
 use crate::{
-    asset::{AssetBrowser, AssetItem, AssetKind},
+    asset::{item::AssetItem, item::AssetKind, AssetBrowser},
     command::{panel::CommandStackViewer, Command, CommandStack},
     configurator::Configurator,
     curve_editor::CurveEditorWindow,
