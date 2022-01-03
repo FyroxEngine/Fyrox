@@ -19,12 +19,14 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use std::str::FromStr;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     rc::Rc,
 };
+use strum::VariantNames;
 
 const LOCAL_SYNC_FLAG: u64 = 0xFF;
 
@@ -250,6 +252,41 @@ pub struct EnumPropertyEditorDefinition<T: InspectableEnum> {
     pub variant_generator: fn(usize) -> T,
     pub index_generator: fn(&T) -> usize,
     pub names_generator: fn() -> Vec<String>,
+}
+
+impl<T: InspectableEnum + Default> EnumPropertyEditorDefinition<T> {
+    pub fn new_optional() -> EnumPropertyEditorDefinition<Option<T>> {
+        EnumPropertyEditorDefinition {
+            variant_generator: |i| match i {
+                0 => None,
+                1 => Some(Default::default()),
+                _ => unreachable!(),
+            },
+            index_generator: |v| match v {
+                None => 0,
+                Some(_) => 1,
+            },
+            names_generator: || vec!["None".to_string(), "Some".to_string()],
+        }
+    }
+}
+
+impl<T, E: Debug> EnumPropertyEditorDefinition<T>
+where
+    T: InspectableEnum + VariantNames + AsRef<str> + FromStr<Err = E> + Debug,
+{
+    pub fn new() -> Self {
+        Self {
+            variant_generator: |i| T::from_str(T::VARIANTS[i]).unwrap(),
+            index_generator: |in_var| {
+                T::VARIANTS
+                    .iter()
+                    .position(|v| v == &in_var.as_ref())
+                    .unwrap()
+            },
+            names_generator: || T::VARIANTS.iter().map(|v| v.to_string()).collect(),
+        }
+    }
 }
 
 impl<T: InspectableEnum> Clone for EnumPropertyEditorDefinition<T> {

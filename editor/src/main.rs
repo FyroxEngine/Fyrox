@@ -663,7 +663,8 @@ impl Editor {
         );
 
         self.log.handle_ui_message(message, engine);
-        self.asset_browser.handle_ui_message(message, engine);
+        self.asset_browser
+            .handle_ui_message(message, engine, self.message_sender.clone());
         self.command_stack_viewer.handle_ui_message(message);
         self.curve_editor.handle_ui_message(message, engine);
         self.path_fixer

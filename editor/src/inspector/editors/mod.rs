@@ -10,11 +10,14 @@ use crate::{
     Message,
 };
 use rg3d::{
-    core::{inspect::Inspect, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
+    core::{parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
     gui::inspector::editors::{
         array::ArrayPropertyEditorDefinition, collection::VecCollectionPropertyEditorDefinition,
         enumeration::EnumPropertyEditorDefinition,
         inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
+    },
+    resource::texture::{
+        CompressionOptions, TextureMagnificationFilter, TextureMinificationFilter, TextureWrapMode,
     },
     scene::{
         self,
@@ -41,58 +44,12 @@ use rg3d::{
     },
     sound::source::{generic::GenericSource, Status},
 };
-use std::{fmt::Debug, rc::Rc, sync::mpsc::Sender};
+use std::{rc::Rc, sync::mpsc::Sender};
 
 pub mod handle;
 pub mod material;
 pub mod resource;
 pub mod texture;
-
-pub fn make_mobility_enum_editor_definition() -> EnumPropertyEditorDefinition<Mobility> {
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => Mobility::Static,
-            1 => Mobility::Stationary,
-            2 => Mobility::Dynamic,
-            _ => unreachable!(),
-        },
-        index_generator: |v| *v as usize,
-        names_generator: || {
-            vec![
-                "Static".to_string(),
-                "Stationary".to_string(),
-                "Dynamic".to_string(),
-            ]
-        },
-    }
-}
-
-pub fn make_exposure_enum_editor_definition() -> EnumPropertyEditorDefinition<Exposure> {
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => Exposure::default(),
-            1 => Exposure::Manual(1.0),
-            _ => unreachable!(),
-        },
-        index_generator: |v| match v {
-            Exposure::Auto { .. } => 0,
-            Exposure::Manual(_) => 1,
-        },
-        names_generator: || vec!["Auto".to_string(), "Manual".to_string()],
-    }
-}
-
-pub fn make_render_path_enum_editor_definition() -> EnumPropertyEditorDefinition<RenderPath> {
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => RenderPath::Deferred,
-            1 => RenderPath::Forward,
-            _ => unreachable!(),
-        },
-        index_generator: |v| *v as usize,
-        names_generator: || vec!["Deferred".to_string(), "Forward".to_string()],
-    }
-}
 
 pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Status> {
     EnumPropertyEditorDefinition {
@@ -108,230 +65,6 @@ pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Stat
                 "Stopped".to_string(),
                 "Playing".to_string(),
                 "Paused".to_string(),
-            ]
-        },
-    }
-}
-
-pub fn make_rigid_body_type_editor_definition() -> EnumPropertyEditorDefinition<RigidBodyType> {
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => RigidBodyType::Dynamic,
-            1 => RigidBodyType::Static,
-            2 => RigidBodyType::KinematicPositionBased,
-            3 => RigidBodyType::KinematicVelocityBased,
-            _ => unreachable!(),
-        },
-        index_generator: |v| *v as usize,
-        names_generator: || {
-            vec![
-                "Dynamic".to_string(),
-                "Static".to_string(),
-                "Kinematic (Position Based)".to_string(),
-                "Kinematic (Velocity Based)".to_string(),
-            ]
-        },
-    }
-}
-
-pub fn make_option_editor_definition<T>() -> EnumPropertyEditorDefinition<Option<T>>
-where
-    T: Inspect + Default + Debug + 'static,
-{
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => None,
-            1 => Some(Default::default()),
-            _ => unreachable!(),
-        },
-        index_generator: |v| match v {
-            None => 0,
-            Some(_) => 1,
-        },
-        names_generator: || vec!["None".to_string(), "Some".to_string()],
-    }
-}
-
-pub fn make_projection_editor_definition() -> EnumPropertyEditorDefinition<Projection> {
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => Projection::Perspective(Default::default()),
-            1 => Projection::Orthographic(Default::default()),
-            _ => unreachable!(),
-        },
-        index_generator: |v| match v {
-            Projection::Perspective(_) => 0,
-            Projection::Orthographic(_) => 1,
-        },
-        names_generator: || vec!["Perspective".to_string(), "Orthographic".to_string()],
-    }
-}
-
-pub fn make_coefficient_combine_rule_editor_definition(
-) -> EnumPropertyEditorDefinition<CoefficientCombineRule> {
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => CoefficientCombineRule::Average,
-            1 => CoefficientCombineRule::Min,
-            2 => CoefficientCombineRule::Multiply,
-            3 => CoefficientCombineRule::Max,
-            _ => unreachable!(),
-        },
-        index_generator: |v| *v as usize,
-        names_generator: || {
-            vec![
-                "Average".to_string(),
-                "Min".to_string(),
-                "Multiply".to_string(),
-                "Max".to_string(),
-            ]
-        },
-    }
-}
-
-pub fn make_frustum_split_options_enum_editor_definition(
-) -> EnumPropertyEditorDefinition<FrustumSplitOptions> {
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => FrustumSplitOptions::default(),
-            1 => FrustumSplitOptions::Relative {
-                fractions: [0.33, 0.66, 1.0],
-            },
-            _ => unreachable!(),
-        },
-        index_generator: |v| match v {
-            FrustumSplitOptions::Absolute { .. } => 0,
-            FrustumSplitOptions::Relative { .. } => 1,
-        },
-        names_generator: || vec!["Absolute".to_string(), "Relative".to_string()],
-    }
-}
-
-pub fn make_property_enum_editor_definition() -> EnumPropertyEditorDefinition<PropertyValue> {
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => PropertyValue::NodeHandle(Default::default()),
-            1 => PropertyValue::Handle(Default::default()),
-            2 => PropertyValue::String("".to_owned()),
-            3 => PropertyValue::I64(0),
-            4 => PropertyValue::U64(0),
-            5 => PropertyValue::I32(0),
-            6 => PropertyValue::U32(0),
-            7 => PropertyValue::I16(0),
-            8 => PropertyValue::U16(0),
-            9 => PropertyValue::I8(0),
-            10 => PropertyValue::U8(0),
-            11 => PropertyValue::F32(0.0),
-            12 => PropertyValue::F64(0.0),
-            _ => unreachable!(),
-        },
-        index_generator: |v| match v {
-            PropertyValue::NodeHandle(_) => 0,
-            PropertyValue::Handle(_) => 1,
-            PropertyValue::String(_) => 2,
-            PropertyValue::I64(_) => 3,
-            PropertyValue::U64(_) => 4,
-            PropertyValue::I32(_) => 5,
-            PropertyValue::U32(_) => 6,
-            PropertyValue::I16(_) => 7,
-            PropertyValue::U16(_) => 8,
-            PropertyValue::I8(_) => 9,
-            PropertyValue::U8(_) => 10,
-            PropertyValue::F32(_) => 11,
-            PropertyValue::F64(_) => 12,
-        },
-        names_generator: || {
-            vec![
-                "Node Handle".to_string(),
-                "Handle".to_string(),
-                "String".to_string(),
-                "I64".to_string(),
-                "U64".to_string(),
-                "I32".to_string(),
-                "U32".to_string(),
-                "I16".to_string(),
-                "U16".to_string(),
-                "I8".to_string(),
-                "U8".to_string(),
-                "F32".to_string(),
-                "F64".to_string(),
-            ]
-        },
-    }
-}
-
-pub fn make_shape_property_editor_definition() -> EnumPropertyEditorDefinition<ColliderShape> {
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => ColliderShape::Ball(Default::default()),
-            1 => ColliderShape::Cylinder(Default::default()),
-            2 => ColliderShape::Cone(Default::default()),
-            3 => ColliderShape::Cuboid(Default::default()),
-            4 => ColliderShape::Capsule(Default::default()),
-            5 => ColliderShape::Segment(Default::default()),
-            6 => ColliderShape::Triangle(Default::default()),
-            7 => ColliderShape::Trimesh(Default::default()),
-            8 => ColliderShape::Heightfield(Default::default()),
-            _ => unreachable!(),
-        },
-        index_generator: |v| match v {
-            ColliderShape::Ball(_) => 0,
-            ColliderShape::Cylinder(_) => 1,
-            ColliderShape::Cone(_) => 2,
-            ColliderShape::Cuboid(_) => 3,
-            ColliderShape::Capsule(_) => 4,
-            ColliderShape::Segment(_) => 5,
-            ColliderShape::Triangle(_) => 6,
-            ColliderShape::Trimesh(_) => 7,
-            ColliderShape::Heightfield(_) => 8,
-        },
-        names_generator: || {
-            vec![
-                "Ball".to_string(),
-                "Cylinder".to_string(),
-                "Cone".to_string(),
-                "Cuboid".to_string(),
-                "Capsule".to_string(),
-                "Segment".to_string(),
-                "Triangle".to_string(),
-                "Trimesh".to_string(),
-                "Heightfield".to_string(),
-            ]
-        },
-    }
-}
-
-pub fn make_shape_2d_property_editor_definition(
-) -> EnumPropertyEditorDefinition<dim2::collider::ColliderShape> {
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => dim2::collider::ColliderShape::Ball(Default::default()),
-            1 => dim2::collider::ColliderShape::Cuboid(Default::default()),
-            2 => dim2::collider::ColliderShape::Capsule(Default::default()),
-            3 => dim2::collider::ColliderShape::Segment(Default::default()),
-            4 => dim2::collider::ColliderShape::Triangle(Default::default()),
-            5 => dim2::collider::ColliderShape::Trimesh(Default::default()),
-            6 => dim2::collider::ColliderShape::Heightfield(Default::default()),
-            _ => unreachable!(),
-        },
-        index_generator: |v| match v {
-            dim2::collider::ColliderShape::Ball(_) => 0,
-            dim2::collider::ColliderShape::Cuboid(_) => 1,
-            dim2::collider::ColliderShape::Capsule(_) => 2,
-            dim2::collider::ColliderShape::Segment(_) => 3,
-            dim2::collider::ColliderShape::Triangle(_) => 4,
-            dim2::collider::ColliderShape::Trimesh(_) => 5,
-            dim2::collider::ColliderShape::Heightfield(_) => 6,
-        },
-        names_generator: || {
-            vec![
-                "Ball".to_string(),
-                "Cuboid".to_string(),
-                "Capsule".to_string(),
-                "Segment".to_string(),
-                "Triangle".to_string(),
-                "Trimesh".to_string(),
-                "Heightfield".to_string(),
             ]
         },
     }
@@ -355,14 +88,9 @@ pub fn make_property_editors_container(
     container.insert(VecCollectionPropertyEditorDefinition::<Property>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<LodControlledObject>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<GeometrySource>::new());
-    container.insert(make_mobility_enum_editor_definition());
-    container.insert(make_exposure_enum_editor_definition());
-    container.insert(make_render_path_enum_editor_definition());
     container.insert(make_status_enum_editor_definition());
-    container.insert(make_rigid_body_type_editor_definition());
-    container.insert(make_option_editor_definition::<f32>());
-    container.insert(make_option_editor_definition::<LodGroup>());
-    container.insert(make_property_enum_editor_definition());
+    container.insert(EnumPropertyEditorDefinition::<f32>::new_optional());
+    container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
     container.insert(ModelResourcePropertyEditorDefinition);
     container.insert(SoundBufferResourcePropertyEditorDefinition);
     container.insert(InspectablePropertyEditorDefinition::<InteractionGroups>::new());
@@ -378,16 +106,25 @@ pub fn make_property_editors_container(
     >::new());
     container.insert(InspectablePropertyEditorDefinition::<GenericSource>::new());
     container.insert(InspectablePropertyEditorDefinition::<CsmOptions>::new());
-    container.insert(make_frustum_split_options_enum_editor_definition());
     container.insert(ArrayPropertyEditorDefinition::<f32, 3>::new());
     container.insert(ArrayPropertyEditorDefinition::<f32, 2>::new());
-    container.insert(make_option_editor_definition::<ColorGradingLut>());
-    container.insert(make_option_editor_definition::<Box<SkyBox>>());
+    container.insert(EnumPropertyEditorDefinition::<ColorGradingLut>::new_optional());
+    container.insert(EnumPropertyEditorDefinition::<Box<SkyBox>>::new_optional());
     container.insert(HandlePropertyEditorDefinition::<Node>::new(sender));
-    container.insert(make_shape_property_editor_definition());
-    container.insert(make_shape_2d_property_editor_definition());
-    container.insert(make_projection_editor_definition());
-    container.insert(make_coefficient_combine_rule_editor_definition());
+    container.insert(EnumPropertyEditorDefinition::<dim2::collider::ColliderShape>::new());
+    container.insert(EnumPropertyEditorDefinition::<CoefficientCombineRule>::new());
+    container.insert(EnumPropertyEditorDefinition::<CompressionOptions>::new());
+    container.insert(EnumPropertyEditorDefinition::<TextureWrapMode>::new());
+    container.insert(EnumPropertyEditorDefinition::<TextureMagnificationFilter>::new());
+    container.insert(EnumPropertyEditorDefinition::<TextureMinificationFilter>::new());
+    container.insert(EnumPropertyEditorDefinition::<Projection>::new());
+    container.insert(EnumPropertyEditorDefinition::<ColliderShape>::new());
+    container.insert(EnumPropertyEditorDefinition::<PropertyValue>::new());
+    container.insert(EnumPropertyEditorDefinition::<Mobility>::new());
+    container.insert(EnumPropertyEditorDefinition::<RigidBodyType>::new());
+    container.insert(EnumPropertyEditorDefinition::<Exposure>::new());
+    container.insert(EnumPropertyEditorDefinition::<RenderPath>::new());
+    container.insert(EnumPropertyEditorDefinition::<FrustumSplitOptions>::new());
 
     Rc::new(container)
 }

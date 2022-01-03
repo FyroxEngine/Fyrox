@@ -2,8 +2,12 @@ use crate::{
     asset::{inspector::AssetInspector, item::AssetItemBuilder},
     gui::AssetItemMessage,
     preview::PreviewPanel,
-    AssetItem, AssetKind, GameEngine,
+    AssetItem, AssetKind, GameEngine, Message,
 };
+use rg3d::core::append_extension;
+use rg3d::core::futures::executor::block_on;
+use rg3d::engine::resource_manager::try_get_import_settings;
+use rg3d::resource::texture::TextureImportOptions;
 use rg3d::{
     core::{color::Color, pool::Handle, scope_profile},
     gui::{
@@ -20,6 +24,7 @@ use rg3d::{
         HorizontalAlignment, Orientation, UiNode, UserInterface, VerticalAlignment, BRUSH_DARK,
     },
 };
+use std::sync::mpsc::Sender;
 use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
@@ -43,7 +48,7 @@ pub struct AssetBrowser {
 impl AssetBrowser {
     pub fn new(engine: &mut GameEngine) -> Self {
         let preview = PreviewPanel::new(engine, 250, 250);
-        let mut ctx = &mut engine.user_interface.build_ctx();
+        let ctx = &mut engine.user_interface.build_ctx();
 
         let inspector = AssetInspector::new(ctx, 1, 0);
 
@@ -165,7 +170,12 @@ impl AssetBrowser {
         ));
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        engine: &mut GameEngine,
+        sender: Sender<Message>,
+    ) {
         scope_profile!();
 
         self.preview.handle_message(message, engine);
@@ -192,9 +202,30 @@ impl AssetBrowser {
                 format!("Path: {:?}", item.path),
             ));
 
-            if item.kind == AssetKind::Model {
-                let path = item.path.clone();
-                rg3d::core::futures::executor::block_on(self.preview.load_model(&path, engine));
+            match item.kind {
+                AssetKind::Unknown => {}
+                AssetKind::Model => {
+                    let path = item.path.clone();
+                    block_on(self.preview.load_model(&path, engine));
+                }
+                AssetKind::Texture => {
+                    let options = match block_on(try_get_import_settings(&item.path)) {
+                        Some(options) => options,
+                        None => {
+                            // Create settings.
+                            let options = TextureImportOptions::default();
+                            options.save(&append_extension(&item.path, "options"));
+                            options
+                        }
+                    };
+                    self.inspector.inspect_resource_import_options(
+                        &options,
+                        &mut engine.user_interface,
+                        sender,
+                    )
+                }
+                AssetKind::Sound => {}
+                AssetKind::Shader => {}
             }
         } else if let Some(FileBrowserMessage::Path(path)) = message.data::<FileBrowserMessage>() {
             if message.destination() == self.folder_browser

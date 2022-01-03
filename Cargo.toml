@@ -55,6 +55,8 @@ walkdir = "2.3.2"
 thiserror = "1"
 ron = "0.7.0"
 fxhash = "0.2.1"
+strum = "0.23.0"
+strum_macros = "0.23.1"
 
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]

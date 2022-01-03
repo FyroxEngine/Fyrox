@@ -31,9 +31,12 @@ use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// A set of possible types of rigid body.
-#[derive(Copy, Clone, Debug, Inspect, Visit, PartialEq, Eq, Hash)]
+#[derive(
+    Copy, Clone, Debug, Inspect, Visit, PartialEq, Eq, Hash, AsRefStr, EnumString, EnumVariantNames,
+)]
 #[repr(u32)]
 pub enum RigidBodyType {
     /// Dynamic rigid bodies can be affected by external forces.

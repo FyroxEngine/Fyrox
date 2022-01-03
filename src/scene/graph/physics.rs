@@ -60,6 +60,7 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Shape-dependent identifier.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -102,7 +103,9 @@ impl From<physics2d::rapier::geometry::FeatureId> for FeatureId {
 /// This is used to determine the effective restitution and friction coefficients for a contact
 /// between two colliders. Each collider has its combination rule of type `CoefficientCombineRule`,
 /// the rule actually used is given by `max(first_combine_rule, second_combine_rule)`.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit, Inspect)]
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, Visit, Inspect, EnumVariantNames, EnumString, AsRefStr,
+)]
 #[repr(u32)]
 pub enum CoefficientCombineRule {
     /// The two coefficients are averaged.

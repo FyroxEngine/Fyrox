@@ -18,6 +18,7 @@ use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 pub(crate) mod legacy {
     use crate::core::{
@@ -174,7 +175,19 @@ pub struct LodGroup {
 
 /// Mobility defines a group for scene node which has direct impact on performance
 /// and capabilities of nodes.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Debug, Inspect)]
+#[derive(
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Ord,
+    Eq,
+    Debug,
+    Inspect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 #[repr(u32)]
 pub enum Mobility {
     /// Transform cannot be changed.
@@ -237,7 +250,7 @@ impl Visit for Mobility {
 }
 
 /// A property value.
-#[derive(Debug, Visit, Inspect, Clone)]
+#[derive(Debug, Visit, Inspect, Clone, AsRefStr, EnumString, EnumVariantNames)]
 pub enum PropertyValue {
     /// A node handle.
     ///

@@ -24,6 +24,7 @@ use crate::{
     asset::{define_new_resource, Resource, ResourceData, ResourceState},
     core::{
         futures::io::Error,
+        inspect::{Inspect, PropertyInfo},
         io::{self, FileLoadError},
         visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
     },
@@ -33,15 +34,18 @@ use fxhash::FxHasher;
 use image::{
     imageops::FilterType, ColorType, DynamicImage, GenericImageView, ImageError, ImageFormat,
 };
+use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     fmt::{Debug, Formatter},
+    fs::File,
     hash::{Hash, Hasher},
     io::Cursor,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Texture kind.
 #[derive(Copy, Clone, Debug)]
@@ -285,7 +289,7 @@ impl Default for TextureData {
 ///     compression: NoCompression,    
 /// )
 /// ```
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Inspect)]
 pub struct TextureImportOptions {
     #[serde(default)]
     pub(crate) minification_filter: TextureMinificationFilter,
@@ -315,6 +319,16 @@ impl Default for TextureImportOptions {
 }
 
 impl TextureImportOptions {
+    /// Saves textures import options to a file.
+    pub fn save(&self, path: &Path) -> bool {
+        if let Ok(file) = File::create(path) {
+            if ron::ser::to_writer_pretty(file, self, PrettyConfig::default()).is_ok() {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Sets new minification filter which will be applied to every imported texture as
     /// default value.
     pub fn with_minification_filter(
@@ -437,7 +451,20 @@ impl Texture {
 
 /// The texture magnification function is used when the pixel being textured maps to an area
 /// less than or equal to one texture element.
-#[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq, Deserialize, Serialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Hash,
+    PartialOrd,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    Inspect,
+    EnumVariantNames,
+    EnumString,
+    AsRefStr,
+)]
 #[repr(u32)]
 pub enum TextureMagnificationFilter {
     /// Returns the value of the texture element that is nearest to the center of the pixel
@@ -481,7 +508,20 @@ impl Visit for TextureMagnificationFilter {
 
 /// The texture minifying function is used whenever the pixel being textured maps to an area
 /// greater than one texture element.
-#[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq, Deserialize, Serialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Hash,
+    PartialOrd,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    Inspect,
+    EnumVariantNames,
+    EnumString,
+    AsRefStr,
+)]
 #[repr(u32)]
 pub enum TextureMinificationFilter {
     /// Returns the value of the texture element that is nearest to the center of the pixel
@@ -563,7 +603,20 @@ impl Visit for TextureMinificationFilter {
 }
 
 /// Defines a law of texture coordinate modification.
-#[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq, Deserialize, Serialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Hash,
+    PartialOrd,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    Inspect,
+    EnumVariantNames,
+    EnumString,
+    AsRefStr,
+)]
 #[repr(u32)]
 pub enum TextureWrapMode {
     /// Causes the integer part of a coordinate to be ignored; GPU uses only the fractional part,
@@ -746,7 +799,19 @@ fn ceil_div_4(x: u32) -> u32 {
 /// Try to avoid using compression for normal maps, normals maps usually has smooth
 /// gradients, but compression algorithms used by rg3d cannot preserve good quality
 /// of such gradients.
-#[derive(Copy, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(
+    Copy,
+    Clone,
+    Deserialize,
+    Serialize,
+    PartialEq,
+    Eq,
+    Debug,
+    Inspect,
+    EnumVariantNames,
+    EnumString,
+    AsRefStr,
+)]
 #[repr(u32)]
 pub enum CompressionOptions {
     /// An image will be stored without compression if it is not already compressed.

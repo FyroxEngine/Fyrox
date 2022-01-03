@@ -23,6 +23,7 @@ use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 bitflags! {
     pub(crate) struct ColliderChanges: u32 {
@@ -261,7 +262,7 @@ impl Inspect for ColliderShape {
 }
 
 /// Possible collider shapes.
-#[derive(Clone, Debug, Visit)]
+#[derive(Clone, Debug, Visit, AsRefStr, EnumString, EnumVariantNames)]
 pub enum ColliderShape {
     /// See [`BallShape`] docs.
     Ball(BallShape),

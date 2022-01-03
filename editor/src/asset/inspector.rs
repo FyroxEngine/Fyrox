@@ -1,15 +1,18 @@
-use crate::GridBuilder;
+use crate::{inspector::editors::make_property_editors_container, Message, MSG_SYNC_FLAG};
 use rg3d::{
-    core::pool::Handle,
+    core::{inspect::Inspect, pool::Handle},
     gui::{
         button::ButtonBuilder,
-        grid::{Column, Row},
-        inspector::InspectorBuilder,
+        grid::{Column, GridBuilder, Row},
+        inspector::{InspectorBuilder, InspectorContext, InspectorMessage},
+        message::MessageDirection,
+        scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
+use std::sync::mpsc::Sender;
 
 pub struct AssetInspector {
     pub container: Handle<UiNode>,
@@ -27,11 +30,14 @@ impl AssetInspector {
             WidgetBuilder::new()
                 .on_row(row)
                 .on_column(column)
-                .with_child({
-                    inspector = InspectorBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
-                        .build(ctx);
-                    inspector
-                })
+                .with_child(
+                    ScrollViewerBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
+                        .with_content({
+                            inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
+                            inspector
+                        })
+                        .build(ctx),
+                )
                 .with_child(
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
@@ -70,5 +76,26 @@ impl AssetInspector {
             apply,
             revert,
         }
+    }
+
+    pub fn inspect_resource_import_options(
+        &self,
+        import_options: &dyn Inspect,
+        ui: &mut UserInterface,
+        sender: Sender<Message>,
+    ) {
+        let context = InspectorContext::from_object(
+            import_options,
+            &mut ui.build_ctx(),
+            make_property_editors_container(sender),
+            None,
+            MSG_SYNC_FLAG,
+            0,
+        );
+        ui.send_message(InspectorMessage::context(
+            self.inspector,
+            MessageDirection::ToWidget,
+            context,
+        ));
     }
 }

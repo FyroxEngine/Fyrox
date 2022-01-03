@@ -292,7 +292,8 @@ impl From<TextureError> for TextureRegistrationError {
     }
 }
 
-async fn try_get_import_settings<T: DeserializeOwned>(resource_path: &Path) -> Option<T> {
+/// Tries to load import settings for a resource.
+pub async fn try_get_import_settings<T: DeserializeOwned>(resource_path: &Path) -> Option<T> {
     let settings_path = append_extension(resource_path, "options");
 
     match io::load_file(&settings_path).await {

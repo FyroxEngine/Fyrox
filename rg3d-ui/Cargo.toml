@@ -22,6 +22,8 @@ copypasta = "0.7.1"
 fontdue = "0.6.2"
 notify = "4.0"
 fxhash = "0.2.1"
+strum = "0.23.0"
+strum_macros = "0.23.1"
 
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]
