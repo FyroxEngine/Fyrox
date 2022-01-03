@@ -6,11 +6,7 @@
 
 use rg3d::{
     core::{algebra::Vector3, color::Color, futures::executor::block_on, pool::Handle},
-    engine::{
-        framework::prelude::*,
-        resource_manager::{MaterialSearchOptions, ResourceManager},
-        Engine,
-    },
+    engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -48,12 +44,9 @@ impl SceneLoader {
             .build(&mut scene.graph);
 
         // Load scene.
-        block_on(resource_manager.request_model(
-            "examples/data/2d/scene.rgs",
-            MaterialSearchOptions::UsePathDirectly,
-        ))
-        .unwrap()
-        .instantiate_geometry(&mut scene);
+        block_on(resource_manager.request_model("examples/data/2d/scene.rgs"))
+            .unwrap()
+            .instantiate_geometry(&mut scene);
 
         Self { scene, camera }
     }

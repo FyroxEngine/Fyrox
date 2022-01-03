@@ -38,7 +38,6 @@ use crate::{
     command::{panel::CommandStackViewer, Command, CommandStack},
     configurator::Configurator,
     curve_editor::CurveEditorWindow,
-    gui::make_dropdown_list_option,
     inspector::Inspector,
     interaction::{
         move_mode::MoveInteractionMode,
@@ -68,8 +67,6 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use rg3d::material::shader::Shader;
-use rg3d::scene::camera::Projection;
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -81,32 +78,27 @@ use rg3d::{
         sstorage::ImmutableString,
     },
     dpi::LogicalSize,
-    engine::{resource_manager::MaterialSearchOptions, Engine},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
         brush::Brush,
-        button::{ButtonBuilder, ButtonMessage},
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
         draw,
-        dropdown_list::{DropdownListBuilder, DropdownListMessage},
+        dropdown_list::DropdownListBuilder,
         file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         message::{KeyCode, MessageDirection, MouseButton, UiMessage},
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
-        stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        text_box::{TextBoxBuilder, TextBoxMessage},
         ttf::Font,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
+        BuildContext, UiNode, UserInterface, VerticalAlignment,
     },
-    material::{Material, PropertyValue},
+    material::{shader::Shader, Material, PropertyValue},
     resource::texture::{CompressionOptions, Texture, TextureKind, TextureState},
     scene::{
+        camera::Projection,
         debug::{Line, SceneDrawingContext},
         graph::Graph,
         mesh::{
@@ -243,294 +235,6 @@ pub fn make_relative_path<P: AsRef<Path>>(path: P) -> PathBuf {
     rg3d::core::replace_slashes(relative_path)
 }
 
-pub struct ModelImportDialog {
-    // View
-    pub window: Handle<UiNode>,
-    options: Handle<UiNode>,
-    path_field: Handle<UiNode>,
-    path_selector: Handle<UiNode>,
-    select_path: Handle<UiNode>,
-    ok: Handle<UiNode>,
-    cancel: Handle<UiNode>,
-    path_selection_section: Handle<UiNode>,
-
-    // Data model
-    model_path: PathBuf,
-    material_search_options: MaterialSearchOptions,
-}
-
-impl ModelImportDialog {
-    pub fn new(ctx: &mut BuildContext) -> Self {
-        let options;
-        let select_path;
-        let path_field;
-        let ok;
-        let cancel;
-        let path_selection_section;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(135.0))
-            .open(false)
-            .with_title(WindowTitle::text("Import Model"))
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(0)
-                                    .with_margin(Thickness::uniform(1.0)),
-                            )
-                            .with_text("Please select the material search options.")
-                            .build(ctx),
-                        )
-                        .with_child(
-                            GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(1.0))
-                                    .on_row(1)
-                                    .with_child(
-                                        TextBuilder::new(WidgetBuilder::new().on_column(0))
-                                            .with_text("Options")
-                                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                                            .build(ctx),
-                                    )
-                                    .with_child({
-                                        options = DropdownListBuilder::new(
-                                            WidgetBuilder::new().on_column(1),
-                                        )
-                                        .with_items(vec![
-                                            make_dropdown_list_option(ctx, "Recursive Up"),
-                                            make_dropdown_list_option(ctx, "Materials Directory"),
-                                            make_dropdown_list_option(ctx, "Working Directory"),
-                                        ])
-                                        .with_selected(0)
-                                        .with_close_on_selection(true)
-                                        .build(ctx);
-                                        options
-                                    }),
-                            )
-                            .add_column(Column::strict(100.0))
-                            .add_column(Column::stretch())
-                            .add_row(Row::strict(26.0))
-                            .build(ctx),
-                        )
-                        .with_child({
-                            path_selection_section = GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(1.0))
-                                    .on_row(2)
-                                    .with_visibility(false)
-                                    .with_child({
-                                        path_field = TextBoxBuilder::new(
-                                            WidgetBuilder::new().with_enabled(false).on_column(0),
-                                        )
-                                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                                        .build(ctx);
-                                        path_field
-                                    })
-                                    .with_child({
-                                        select_path =
-                                            ButtonBuilder::new(WidgetBuilder::new().on_column(1))
-                                                .with_text("...")
-                                                .build(ctx);
-                                        select_path
-                                    }),
-                            )
-                            .add_column(Column::stretch())
-                            .add_column(Column::strict(26.0))
-                            .add_row(Row::strict(26.0))
-                            .build(ctx);
-                            path_selection_section
-                        })
-                        .with_child(
-                            StackPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_horizontal_alignment(HorizontalAlignment::Right)
-                                    .on_row(4)
-                                    .with_child({
-                                        ok = ButtonBuilder::new(
-                                            WidgetBuilder::new().with_width(100.0),
-                                        )
-                                        .with_text("OK")
-                                        .build(ctx);
-                                        ok
-                                    })
-                                    .with_child({
-                                        cancel = ButtonBuilder::new(
-                                            WidgetBuilder::new().with_width(100.0),
-                                        )
-                                        .with_text("Cancel")
-                                        .build(ctx);
-                                        cancel
-                                    }),
-                            )
-                            .with_orientation(Orientation::Horizontal)
-                            .build(ctx),
-                        ),
-                )
-                .add_row(Row::auto())
-                .add_row(Row::auto())
-                .add_row(Row::auto())
-                .add_row(Row::stretch())
-                .add_row(Row::strict(26.0))
-                .add_column(Column::stretch())
-                .build(ctx),
-            )
-            .build(ctx);
-
-        let path_selector = FileSelectorBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(500.0))
-                .open(false),
-        )
-        .with_filter(Filter::new(|p: &Path| p.is_dir()))
-        .with_path(".")
-        .build(ctx);
-
-        Self {
-            window,
-            options,
-            ok,
-            cancel,
-            select_path,
-            path_selector,
-            path_field,
-            model_path: Default::default(),
-            path_selection_section,
-            material_search_options: MaterialSearchOptions::RecursiveUp,
-        }
-    }
-
-    pub fn set_working_directory(&mut self, engine: &mut GameEngine, dir: &Path) {
-        assert!(dir.is_dir());
-
-        engine
-            .user_interface
-            .send_message(FileSelectorMessage::root(
-                self.path_selector,
-                MessageDirection::ToWidget,
-                Some(dir.to_owned()),
-            ));
-    }
-
-    pub fn open(&mut self, model_path: PathBuf, ui: &UserInterface) {
-        self.model_path = model_path;
-
-        ui.send_message(WindowMessage::open_modal(
-            self.window,
-            MessageDirection::ToWidget,
-            true,
-        ));
-    }
-
-    pub fn handle_ui_message(
-        &mut self,
-        message: &UiMessage,
-        editor_scene: &EditorScene,
-        engine: &mut Engine,
-        sender: &Sender<Message>,
-    ) {
-        let ui = &engine.user_interface;
-
-        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.ok {
-                ui.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
-
-                // No model was loaded yet, do it.
-                if let Ok(model) =
-                    rg3d::core::futures::executor::block_on(engine.resource_manager.request_model(
-                        self.model_path.clone(),
-                        self.material_search_options.clone(),
-                    ))
-                {
-                    let scene = &mut engine.scenes[editor_scene.scene];
-
-                    // Instantiate the model.
-                    let instance = model.instantiate(scene);
-                    // Enable instantiated animations.
-                    for &animation in instance.animations.iter() {
-                        scene.animations[animation].set_enabled(true);
-                    }
-
-                    // Immediately after extract if from the scene to subgraph. This is required to not violate
-                    // the rule of one place of execution, only commands allowed to modify the scene.
-                    let sub_graph = scene.graph.take_reserve_sub_graph(instance.root);
-                    let animations_container = instance
-                        .animations
-                        .iter()
-                        .map(|&anim| scene.animations.take_reserve(anim))
-                        .collect();
-
-                    let group = vec![
-                        SceneCommand::new(AddModelCommand::new(sub_graph, animations_container)),
-                        // We also want to select newly instantiated model.
-                        SceneCommand::new(ChangeSelectionCommand::new(
-                            Selection::Graph(GraphSelection::single_or_empty(instance.root)),
-                            editor_scene.selection.clone(),
-                        )),
-                    ];
-
-                    sender
-                        .send(Message::do_scene_command(CommandGroup::from(group)))
-                        .unwrap();
-                }
-            } else if message.destination() == self.cancel {
-                ui.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
-            } else if message.destination() == self.select_path {
-                ui.send_message(WindowMessage::open_modal(
-                    self.path_selector,
-                    MessageDirection::ToWidget,
-                    true,
-                ));
-            }
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(value))) =
-            message.data::<DropdownListMessage>()
-        {
-            if message.destination() == self.options {
-                let show_path_selection_options = match *value {
-                    0 => {
-                        self.material_search_options = MaterialSearchOptions::RecursiveUp;
-                        false
-                    }
-                    1 => {
-                        self.material_search_options =
-                            MaterialSearchOptions::MaterialsDirectory(PathBuf::from("."));
-                        true
-                    }
-                    2 => {
-                        self.material_search_options = MaterialSearchOptions::WorkingDirectory;
-                        false
-                    }
-                    _ => unreachable!(),
-                };
-
-                ui.send_message(WidgetMessage::visibility(
-                    self.path_selection_section,
-                    MessageDirection::ToWidget,
-                    show_path_selection_options,
-                ));
-            }
-        } else if let Some(FileSelectorMessage::Commit(path)) =
-            message.data::<FileSelectorMessage>()
-        {
-            if message.destination() == self.path_selector {
-                ui.send_message(TextBoxMessage::text(
-                    self.path_field,
-                    MessageDirection::ToWidget,
-                    path.to_string_lossy().to_string(),
-                ));
-
-                self.material_search_options =
-                    MaterialSearchOptions::MaterialsDirectory(path.clone());
-            }
-        }
-    }
-}
-
 #[derive(Debug)]
 pub enum Message {
     DoSceneCommand(SceneCommand),
@@ -618,7 +322,6 @@ struct Editor {
     validation_message_box: Handle<UiNode>,
     navmesh_panel: NavmeshPanel,
     settings: Settings,
-    model_import_dialog: ModelImportDialog,
     path_fixer: PathFixer,
     material_editor: MaterialEditor,
     inspector: Inspector,
@@ -686,7 +389,6 @@ impl Editor {
         let world_outliner = WorldViewer::new(ctx, message_sender.clone());
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
         let log = Log::new(ctx);
-        let model_import_dialog = ModelImportDialog::new(ctx);
         let inspector = Inspector::new(ctx, message_sender.clone());
 
         let root_grid = GridBuilder::new(
@@ -833,7 +535,6 @@ impl Editor {
             command_stack_viewer,
             validation_message_box,
             settings,
-            model_import_dialog,
             path_fixer,
             material_editor,
             inspector,
@@ -1006,13 +707,6 @@ impl Editor {
 
             self.material_editor
                 .handle_ui_message(message, engine, &self.message_sender);
-
-            self.model_import_dialog.handle_ui_message(
-                message,
-                editor_scene,
-                engine,
-                &self.message_sender,
-            );
 
             let screen_bounds = self.scene_viewer.frame_bounds(&engine.user_interface);
             let frame_size = screen_bounds.size;
@@ -1216,8 +910,58 @@ impl Editor {
 
                                     match item.kind {
                                         AssetKind::Model => {
-                                            self.model_import_dialog
-                                                .open(relative_path, &engine.user_interface);
+                                            // No model was loaded yet, do it.
+                                            if let Ok(model) =
+                                                rg3d::core::futures::executor::block_on(
+                                                    engine
+                                                        .resource_manager
+                                                        .request_model(&item.path),
+                                                )
+                                            {
+                                                let scene = &mut engine.scenes[editor_scene.scene];
+
+                                                // Instantiate the model.
+                                                let instance = model.instantiate(scene);
+                                                // Enable instantiated animations.
+                                                for &animation in instance.animations.iter() {
+                                                    scene.animations[animation].set_enabled(true);
+                                                }
+
+                                                // Immediately after extract if from the scene to subgraph. This is required to not violate
+                                                // the rule of one place of execution, only commands allowed to modify the scene.
+                                                let sub_graph = scene
+                                                    .graph
+                                                    .take_reserve_sub_graph(instance.root);
+                                                let animations_container = instance
+                                                    .animations
+                                                    .iter()
+                                                    .map(|&anim| {
+                                                        scene.animations.take_reserve(anim)
+                                                    })
+                                                    .collect();
+
+                                                let group = vec![
+                                                    SceneCommand::new(AddModelCommand::new(
+                                                        sub_graph,
+                                                        animations_container,
+                                                    )),
+                                                    // We also want to select newly instantiated model.
+                                                    SceneCommand::new(ChangeSelectionCommand::new(
+                                                        Selection::Graph(
+                                                            GraphSelection::single_or_empty(
+                                                                instance.root,
+                                                            ),
+                                                        ),
+                                                        editor_scene.selection.clone(),
+                                                    )),
+                                                ];
+
+                                                self.message_sender
+                                                    .send(Message::do_scene_command(
+                                                        CommandGroup::from(group),
+                                                    ))
+                                                    .unwrap();
+                                            }
                                         }
                                         AssetKind::Texture => {
                                             let cursor_pos =
@@ -1468,7 +1212,6 @@ impl Editor {
                         rg3d::core::futures::executor::block_on(Scene::from_file(
                             &scene_path,
                             engine.resource_manager.clone(),
-                            &MaterialSearchOptions::UsePathDirectly,
                         ))
                     };
                     match result {
@@ -1537,9 +1280,6 @@ impl Editor {
                     engine.renderer.flush();
 
                     self.asset_browser
-                        .set_working_directory(engine, &working_directory);
-
-                    self.model_import_dialog
                         .set_working_directory(engine, &working_directory);
 
                     self.message_sender

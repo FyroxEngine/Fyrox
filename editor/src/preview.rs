@@ -1,5 +1,4 @@
 use crate::GameEngine;
-use rg3d::scene::camera::Projection;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -8,7 +7,6 @@ use rg3d::{
         pool::Handle,
         scope_profile,
     },
-    engine::resource_manager::MaterialSearchOptions,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
@@ -19,7 +17,7 @@ use rg3d::{
     },
     resource::texture::{Texture, TextureKind},
     scene::{
-        base::BaseBuilder, camera::CameraBuilder, debug::Line, node::Node,
+        base::BaseBuilder, camera::CameraBuilder, camera::Projection, debug::Line, node::Node,
         transform::TransformBuilder, Scene,
     },
     utils::into_gui_texture,
@@ -283,11 +281,7 @@ impl PreviewPanel {
 
     pub async fn load_model(&mut self, model: &Path, engine: &mut GameEngine) {
         self.clear(engine);
-        if let Ok(model) = engine
-            .resource_manager
-            .request_model(model, MaterialSearchOptions::RecursiveUp)
-            .await
-        {
+        if let Ok(model) = engine.resource_manager.request_model(model).await {
             let scene = &mut engine.scenes[self.scene];
             self.model = model.instantiate_geometry(scene);
             self.fit_to_model(scene);

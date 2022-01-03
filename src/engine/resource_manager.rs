@@ -18,6 +18,7 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
+use serde::de::DeserializeOwned;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -26,6 +27,7 @@ use std::{
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::core::futures::executor::ThreadPool;
+use crate::resource::model::ModelImportOptions;
 
 /// Lifetime of orphaned resource in seconds (with only one strong ref which is resource manager itself)
 pub const DEFAULT_RESOURCE_LIFETIME: f32 = 60.0;
@@ -244,6 +246,7 @@ pub struct ResourceManagerState {
     shaders: ResourceContainer<Shader>,
     curves: ResourceContainer<CurveResource>,
     textures_import_options: TextureImportOptions,
+    model_import_options: ModelImportOptions,
     #[cfg(not(target_arch = "wasm32"))]
     thread_pool: ThreadPool,
     pub(in crate) upload_sender: Option<TextureUploadSender>,
@@ -258,6 +261,7 @@ impl Default for ResourceManagerState {
             shaders: Default::default(),
             curves: Default::default(),
             textures_import_options: Default::default(),
+            model_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
             upload_sender: None,
@@ -291,18 +295,19 @@ impl From<TextureError> for TextureRegistrationError {
     }
 }
 
-async fn try_get_texture_import_settings(texture_path: &Path) -> Option<TextureImportOptions> {
-    let settings_path = append_extension(texture_path, "options");
+async fn try_get_import_settings<T: DeserializeOwned>(resource_path: &Path) -> Option<T> {
+    let settings_path = append_extension(resource_path, "options");
 
     match io::load_file(&settings_path).await {
-        Ok(bytes) => match ron::de::from_bytes::<TextureImportOptions>(&bytes) {
+        Ok(bytes) => match ron::de::from_bytes::<T>(&bytes) {
             Ok(options) => Some(options),
             Err(e) => {
                 Log::writeln(
                     MessageKind::Error,
                     format!(
-                        "Malformed options file for {} texture! Reason: {:?}",
-                        texture_path.display(),
+                        "Malformed options file {} for {} resource! Reason: {:?}",
+                        settings_path.display(),
+                        resource_path.display(),
                         e
                     ),
                 );
@@ -314,9 +319,9 @@ async fn try_get_texture_import_settings(texture_path: &Path) -> Option<TextureI
             Log::writeln(
                 MessageKind::Warning,
                 format!(
-                    "Unable to load options file {} for {} texture, fallback to defaults! Reason: {:?}",
+                    "Unable to load options file {} for {} resource, fallback to defaults! Reason: {:?}",
                     settings_path.display(),
-                    texture_path.display(),
+                    resource_path.display(),
                     e
                 ),
             );
@@ -332,7 +337,7 @@ async fn load_texture(
     default_options: TextureImportOptions,
     upload_sender: TextureUploadSender,
 ) {
-    let import_options = try_get_texture_import_settings(&path)
+    let import_options = try_get_import_settings(&path)
         .await
         .unwrap_or(default_options);
 
@@ -375,9 +380,13 @@ async fn load_model(
     model: Model,
     path: PathBuf,
     resource_manager: ResourceManager,
-    material_search_options: MaterialSearchOptions,
+    default_import_options: ModelImportOptions,
 ) {
-    match ModelData::load(&path, resource_manager, material_search_options).await {
+    let import_options = try_get_import_settings(&path)
+        .await
+        .unwrap_or(default_import_options);
+
+    match ModelData::load(&path, resource_manager, import_options).await {
         Ok(raw_model) => {
             Log::writeln(
                 MessageKind::Information,
@@ -678,11 +687,7 @@ impl ResourceManager {
     ///
     /// Currently only FBX (common format in game industry for storing complex 3d models)
     /// and RGS (native rusty-editor format) formats are supported.
-    pub fn request_model<P: AsRef<Path>>(
-        &self,
-        path: P,
-        material_search_options: MaterialSearchOptions,
-    ) -> Model {
+    pub fn request_model<P: AsRef<Path>>(&self, path: P) -> Model {
         let mut state = self.state();
 
         if let Some(model) = state.models.find(path.as_ref()) {
@@ -694,18 +699,19 @@ impl ResourceManager {
         )));
         state.models.push(model.clone());
 
+        let default_import_options = state.model_import_options.clone();
         let result = model.clone();
         let path = path.as_ref().to_owned();
         let resource_manager = self.clone();
 
         #[cfg(target_arch = "wasm32")]
         crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_model(model, path, resource_manager, material_search_options).await;
+            load_model(model, path, resource_manager, default_import_options).await;
         });
 
         #[cfg(not(target_arch = "wasm32"))]
         state.thread_pool.spawn_ok(async move {
-            load_model(model, path, resource_manager, material_search_options).await;
+            load_model(model, path, resource_manager, default_import_options).await;
         });
 
         result
@@ -877,17 +883,17 @@ impl ResourceManager {
             for model in models.iter().cloned() {
                 let this = this.clone();
                 let path = model.state().path().to_path_buf();
-                let material_search_options = model.data_ref().material_search_options().clone();
+                let default_import_options = state.model_import_options.clone();
                 *model.state() = ResourceState::new_pending(path.clone());
 
                 #[cfg(target_arch = "wasm32")]
                 crate::core::wasm_bindgen_futures::spawn_local(async move {
-                    load_model(model, path, this, material_search_options).await;
+                    load_model(model, path, this, default_import_options).await;
                 });
 
                 #[cfg(not(target_arch = "wasm32"))]
                 state.thread_pool.spawn_ok(async move {
-                    load_model(model, path, this, material_search_options).await;
+                    load_model(model, path, this, default_import_options).await;
                 })
             }
 
@@ -1026,57 +1032,6 @@ impl ResourceManager {
     }
 }
 
-/// Defines a way of searching materials when loading a model resource.
-#[derive(Clone, Debug, Visit, PartialEq)]
-pub enum MaterialSearchOptions {
-    /// Search in specified materials directory. It is suitable for cases when
-    /// your model resource use shared textures.
-    ///
-    /// # Platform specific
-    ///
-    /// Works on every platform.
-    MaterialsDirectory(PathBuf),
-
-    /// Recursive-up search. It is suitable for cases when textures are placed
-    /// near your model resource. This is default option.
-    ///
-    /// # Platform specific
-    ///
-    /// Works on every platform.
-    RecursiveUp,
-
-    /// Global search starting from working directory. Slowest option with a lot of ambiguities -
-    /// it may load unexpected file in cases when there are two or more files with same name but
-    /// lying in different directories.
-    ///
-    /// # Platform specific
-    ///
-    /// WebAssembly - **not supported** due to lack of file system.
-    WorkingDirectory,
-
-    /// Try to use paths stored in the model resource directly. This options has limited usage,
-    /// it is suitable to load animations, or any other model which does not have any materials.
-    ///
-    /// # Important notes
-    ///
-    /// RGS (native engine scenes) files should be loaded with this option by default, otherwise
-    /// the engine won't be able to correctly find materials.
-    UsePathDirectly,
-}
-
-impl Default for MaterialSearchOptions {
-    fn default() -> Self {
-        Self::RecursiveUp
-    }
-}
-
-impl MaterialSearchOptions {
-    /// A helper to create MaterialsDirectory variant.
-    pub fn materials_directory<P: AsRef<Path>>(path: P) -> Self {
-        Self::MaterialsDirectory(path.as_ref().to_path_buf())
-    }
-}
-
 impl ResourceManagerState {
     pub(in crate::engine) fn new(upload_sender: TextureUploadSender) -> Self {
         Self {
@@ -1086,6 +1041,7 @@ impl ResourceManagerState {
             shaders: Default::default(),
             curves: Default::default(),
             textures_import_options: Default::default(),
+            model_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
             upload_sender: Some(upload_sender),

@@ -18,7 +18,7 @@ use rg3d::{
         sstorage::ImmutableString,
     },
     dpi::LogicalPosition,
-    engine::{resource_manager::MaterialSearchOptions, resource_manager::ResourceManager, Engine},
+    engine::{resource_manager::ResourceManager, Engine},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -81,10 +81,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         ));
 
     resource_manager
-        .request_model(
-            "examples/data/navmesh_scene.rgs",
-            MaterialSearchOptions::RecursiveUp,
-        )
+        .request_model("examples/data/navmesh_scene.rgs")
         .await
         .unwrap()
         .instantiate_geometry(&mut scene);

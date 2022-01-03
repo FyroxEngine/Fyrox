@@ -36,10 +36,7 @@ use crate::{
         sstorage::ImmutableString,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::{
-        resource_manager::{MaterialSearchOptions, ResourceManager},
-        PhysicsBinder,
-    },
+    engine::{resource_manager::ResourceManager, PhysicsBinder},
     material::{shader::SamplerFallback, PropertyValue},
     physics3d::legacy::RigidBodyHandle,
     resource::texture::Texture,
@@ -285,16 +282,9 @@ impl Scene {
 
     /// Tries to load scene from given file. File can contain any scene in native engine format.
     /// Such scenes can be made in rusty editor.
-    ///
-    /// # Important notes
-    ///
-    /// `material_search_options` in most cases should be `MaterialSearchOptions::UsePathDirectly` to be
-    /// able to load materials correctly, any other option will force engine to search materials
-    /// in different locations!
     pub async fn from_file<P: AsRef<Path>>(
         path: P,
         resource_manager: ResourceManager,
-        material_search_options: &MaterialSearchOptions,
     ) -> Result<Self, VisitError> {
         let mut scene = Scene::default();
         {
@@ -306,18 +296,9 @@ impl Scene {
         let mut resources = Vec::new();
         for node in scene.graph.linear_iter_mut() {
             if let Some(shallow_resource) = node.resource.clone() {
-                let search_options =
-                    if material_search_options == &MaterialSearchOptions::UsePathDirectly {
-                        shallow_resource
-                            .data_ref()
-                            .material_search_options()
-                            .clone()
-                    } else {
-                        material_search_options.clone()
-                    };
                 let resource = resource_manager
                     .clone()
-                    .request_model(&shallow_resource.state().path(), search_options);
+                    .request_model(&shallow_resource.state().path());
                 node.resource = Some(resource.clone());
                 resources.push(resource);
             }

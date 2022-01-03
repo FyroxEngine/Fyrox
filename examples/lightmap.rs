@@ -16,10 +16,7 @@ use rg3d::{
         pool::Handle,
         visitor::{Visit, Visitor},
     },
-    engine::{
-        resource_manager::{MaterialSearchOptions, ResourceManager},
-        Engine,
-    },
+    engine::{resource_manager::ResourceManager, Engine},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -236,10 +233,7 @@ fn create_scene_async(
                 // There is no difference between scene created in rusty-editor and any other
                 // model file, so any scene can be used directly as resource.
                 let root = resource_manager
-                    .request_model(
-                        "examples/data/sponza/Sponza.rgs",
-                        MaterialSearchOptions::RecursiveUp,
-                    )
+                    .request_model("examples/data/sponza/Sponza.rgs")
                     .await
                     .unwrap()
                     .instantiate(&mut scene)
@@ -266,13 +260,9 @@ fn create_scene_async(
                     context.lock().unwrap().data = Some(GameScene { scene, root });
                 }
             } else {
-                let scene = Scene::from_file(
-                    LIGHTMAP_SCENE_PATH,
-                    resource_manager,
-                    &MaterialSearchOptions::UsePathDirectly,
-                )
-                .await
-                .unwrap();
+                let scene = Scene::from_file(LIGHTMAP_SCENE_PATH, resource_manager)
+                    .await
+                    .unwrap();
                 let root = scene.graph[scene.graph.get_root()].children()[0];
 
                 context.lock().unwrap().data = Some(GameScene { scene, root });

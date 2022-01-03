@@ -15,10 +15,7 @@ use rg3d::{
         math::SmoothAngle,
         pool::Handle,
     },
-    engine::{
-        resource_manager::{MaterialSearchOptions, ResourceManager},
-        Engine,
-    },
+    engine::{resource_manager::ResourceManager, Engine},
     event::{DeviceEvent, ElementState, VirtualKeyCode},
     event_loop::EventLoop,
     gui::{
@@ -226,7 +223,7 @@ pub async fn load_animation<P: AsRef<Path>>(
     resource_manager: ResourceManager,
 ) -> Handle<Animation> {
     *resource_manager
-        .request_model(path, MaterialSearchOptions::RecursiveUp)
+        .request_model(path)
         .await
         .unwrap()
         .retarget_animations(model, scene)
@@ -460,10 +457,7 @@ impl Player {
         // models it is very efficient because single vertex and index buffer can be used
         // for all models instances, so memory footprint on GPU will be lower.
         let model_resource = resource_manager
-            .request_model(
-                "examples/data/mutant/mutant.FBX",
-                MaterialSearchOptions::RecursiveUp,
-            )
+            .request_model("examples/data/mutant/mutant.FBX")
             .await
             .unwrap();
 
@@ -766,10 +760,7 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
 
             // Load simple map.
             resource_manager
-                .request_model(
-                    "examples/data/sponza/Sponza.rgs",
-                    MaterialSearchOptions::RecursiveUp,
-                )
+                .request_model("examples/data/sponza/Sponza.rgs")
                 .await
                 .unwrap()
                 .instantiate_geometry(&mut scene);

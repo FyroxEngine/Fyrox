@@ -24,11 +24,12 @@ use crate::{
         pool::Handle,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::resource_manager::{MaterialSearchOptions, ResourceManager},
+    engine::resource_manager::ResourceManager,
     resource::fbx::{self, error::FbxError},
     scene::{node::Node, Scene},
     utils::log::{Log, MessageKind},
 };
+use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
@@ -46,7 +47,6 @@ pub(in crate) enum NodeMapping {
 pub struct ModelData {
     pub(in crate) path: PathBuf,
     pub(in crate) mapping: NodeMapping,
-    material_search_options: MaterialSearchOptions,
     scene: Scene,
 }
 
@@ -185,7 +185,6 @@ impl Default for ModelData {
         Self {
             path: PathBuf::new(),
             mapping: NodeMapping::UseNames,
-            material_search_options: Default::default(),
             scene: Scene::new(),
         }
     }
@@ -196,12 +195,92 @@ impl Visit for ModelData {
         visitor.enter_region(name)?;
 
         self.path.visit("Path", visitor)?;
-        let _ = self
-            .material_search_options
-            .visit("MaterialSearchOptions", visitor);
 
         visitor.leave_region()
     }
+}
+
+/// Defines a way of searching materials when loading a model resource from foreign file format such as FBX.
+///
+/// # Motivation
+///
+/// Most 3d model file formats store paths to external resources (textures and other things) as absolute paths,
+/// which makes it impossible to use with "location-independent" application like games. To fix that issue, the
+/// engine provides few ways of resolving paths to external resources. The engine starts resolving by stripping
+/// everything but file name from an external resource's path, then it uses one of the following methods to find
+/// a texture with the file name. It could look up on folders hierarchy by using [`MaterialSearchOptions::RecursiveUp`]
+/// method, or even use global search starting from the working directory of your game
+/// ([`MaterialSearchOptions::WorkingDirectory`])
+#[derive(Clone, Debug, Visit, PartialEq, Deserialize, Serialize)]
+pub enum MaterialSearchOptions {
+    /// Search in specified materials directory. It is suitable for cases when
+    /// your model resource use shared textures.
+    ///
+    /// # Platform specific
+    ///
+    /// Works on every platform.
+    MaterialsDirectory(PathBuf),
+
+    /// Recursive-up search. It is suitable for cases when textures are placed
+    /// near your model resource. This is **default** option.
+    ///
+    /// # Platform specific
+    ///
+    /// Works on every platform.
+    RecursiveUp,
+
+    /// Global search starting from working directory. Slowest option with a lot of ambiguities -
+    /// it may load unexpected file in cases when there are two or more files with same name but
+    /// lying in different directories.
+    ///
+    /// # Platform specific
+    ///
+    /// WebAssembly - **not supported** due to lack of file system.
+    WorkingDirectory,
+
+    /// Try to use paths stored in the model resource directly. This options has limited usage,
+    /// it is suitable to load animations, or any other model which does not have any materials.
+    ///
+    /// # Important notes
+    ///
+    /// RGS (native engine scenes) files should be loaded with this option by default, otherwise
+    /// the engine won't be able to correctly find materials.
+    UsePathDirectly,
+}
+
+impl Default for MaterialSearchOptions {
+    fn default() -> Self {
+        Self::RecursiveUp
+    }
+}
+
+impl MaterialSearchOptions {
+    /// A helper to create MaterialsDirectory variant.
+    pub fn materials_directory<P: AsRef<Path>>(path: P) -> Self {
+        Self::MaterialsDirectory(path.as_ref().to_path_buf())
+    }
+}
+
+/// A set of options that will be applied to a model resource when loading it from external source.
+///
+/// # Details
+///
+/// The engine has a convenient way of storing import options in a `.options` files. For example you may
+/// have a `foo.fbx` 3d model, to change import options create a new file with additional `.options`
+/// extension: `foo.fbx.options`. The content of an options file could be something like this:
+///
+/// ```text
+/// (
+///     material_search_options: RecursiveUp
+/// )
+/// ```
+///
+/// Check documentation of the field of the structure for more info about each parameter.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+pub struct ModelImportOptions {
+    /// See [`MaterialSearchOptions`] docs for more info.
+    #[serde(default)]
+    pub material_search_options: MaterialSearchOptions,
 }
 
 /// Model instance is a combination of handle to root node of instance in a scene,
@@ -247,7 +326,7 @@ impl ModelData {
     pub(in crate) async fn load<P: AsRef<Path>>(
         path: P,
         resource_manager: ResourceManager,
-        material_search_options: MaterialSearchOptions,
+        model_import_options: ModelImportOptions,
     ) -> Result<Self, ModelLoadError> {
         let extension = path
             .as_ref()
@@ -267,17 +346,17 @@ impl ModelData {
                     &mut scene,
                     resource_manager,
                     path.as_ref(),
-                    &material_search_options,
+                    &model_import_options,
                 )
                 .await?;
                 // Set NodeMapping::UseNames as mapping here because FBX does not have
                 // any persistent unique ids, and we have to use names.
                 (scene, NodeMapping::UseNames)
             }
-            // Scene can be used directly as model resource. Such scenes can be created from
-            // rusty-editor (https://github.com/mrDIMAS/rusty-editor) for example.
+            // Scene can be used directly as model resource. Such scenes can be created in
+            // rusty-editor.
             "rgs" => (
-                Scene::from_file(path.as_ref(), resource_manager, &material_search_options).await?,
+                Scene::from_file(path.as_ref(), resource_manager).await?,
                 NodeMapping::UseHandles,
             ),
             // TODO: Add more formats.
@@ -293,7 +372,6 @@ impl ModelData {
             path: path.as_ref().to_owned(),
             scene,
             mapping,
-            material_search_options,
         })
     }
 
@@ -308,11 +386,5 @@ impl ModelData {
     /// no node was found.
     pub fn find_node_by_name(&self, name: &str) -> Handle<Node> {
         self.scene.graph.find_by_name_from_root(name)
-    }
-
-    /// Returns material search options that were passed during the creation
-    /// of the model resource.
-    pub fn material_search_options(&self) -> &MaterialSearchOptions {
-        &self.material_search_options
     }
 }

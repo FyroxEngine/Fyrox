@@ -15,10 +15,7 @@ use rg3d::{
         color::Color,
         pool::Handle,
     },
-    engine::{
-        resource_manager::{MaterialSearchOptions, ResourceManager},
-        Engine,
-    },
+    engine::{resource_manager::ResourceManager, Engine},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -77,10 +74,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // models it is very efficient because single vertex and index buffer can be used
     // for all models instances, so memory footprint on GPU will be lower.
     let model_resource = resource_manager
-        .request_model(
-            "examples/data/train/train.FBX",
-            MaterialSearchOptions::RecursiveUp,
-        )
+        .request_model("examples/data/train/train.FBX")
         .await
         .unwrap();
 

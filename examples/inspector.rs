@@ -10,10 +10,7 @@ use rg3d::{
         color::Color,
         pool::Handle,
     },
-    engine::{
-        resource_manager::{MaterialSearchOptions, ResourceManager},
-        Engine,
-    },
+    engine::{resource_manager::ResourceManager, Engine},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -88,20 +85,14 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     .await;
 
     let model_resource = resource_manager
-        .request_model(
-            "examples/data/mutant/mutant.FBX",
-            MaterialSearchOptions::RecursiveUp,
-        )
+        .request_model("examples/data/mutant/mutant.FBX")
         .await
         .unwrap();
 
     let model_handle = model_resource.instantiate_geometry(&mut scene);
 
     let walk_animation_resource = resource_manager
-        .request_model(
-            "examples/data/mutant/walk.fbx",
-            MaterialSearchOptions::RecursiveUp,
-        )
+        .request_model("examples/data/mutant/walk.fbx")
         .await
         .unwrap();
 

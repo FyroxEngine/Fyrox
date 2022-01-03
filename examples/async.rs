@@ -18,10 +18,7 @@ use rg3d::{
         futures,
         pool::Handle,
     },
-    engine::{
-        framework::prelude::*, resource_manager::MaterialSearchOptions,
-        resource_manager::ResourceManager, Engine,
-    },
+    engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -131,10 +128,7 @@ impl SceneLoader {
         // models it is very efficient because single vertex and index buffer can be used
         // for all models instances, so memory footprint on GPU will be lower.
         let model_resource = resource_manager
-            .request_model(
-                "examples/data/mutant/mutant.FBX",
-                MaterialSearchOptions::RecursiveUp,
-            )
+            .request_model("examples/data/mutant/mutant.FBX")
             .await
             .unwrap();
 
@@ -156,10 +150,7 @@ impl SceneLoader {
         // Add simple animation for our model. Animations are loaded from model resources -
         // this is because animation is a set of skeleton bones with their own transforms.
         let walk_animation_resource = resource_manager
-            .request_model(
-                "examples/data/mutant/walk.fbx",
-                MaterialSearchOptions::RecursiveUp,
-            )
+            .request_model("examples/data/mutant/walk.fbx")
             .await
             .unwrap();
 
