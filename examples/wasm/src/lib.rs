@@ -15,10 +15,7 @@ use rg3d::{
         wasm_bindgen::{self, prelude::*},
     },
     dpi::LogicalSize,
-    engine::{
-        resource_manager::{MaterialSearchOptions, ResourceManager},
-        Engine,
-    },
+    engine::{resource_manager::ResourceManager, Engine},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -209,9 +206,8 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     .build(&mut scene.graph);
 
     let (model_resource, walk_animation_resource) = rg3d::core::futures::join!(
-        resource_manager
-            .request_model("data/mutant/mutant.FBX", MaterialSearchOptions::RecursiveUp),
-        resource_manager.request_model("data/mutant/walk.fbx", MaterialSearchOptions::RecursiveUp)
+        resource_manager.request_model("data/mutant/mutant.FBX"),
+        resource_manager.request_model("data/mutant/walk.fbx")
     );
 
     // Instantiate model on scene - but only geometry, without any animations.
