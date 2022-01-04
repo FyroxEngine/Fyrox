@@ -28,18 +28,17 @@ use crate::{
         io::{self, FileLoadError},
         visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
     },
+    engine::resource_manager::ImportOptions,
 };
 use ddsfile::{Caps2, D3DFormat};
 use fxhash::FxHasher;
 use image::{
     imageops::FilterType, ColorType, DynamicImage, GenericImageView, ImageError, ImageFormat,
 };
-use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     fmt::{Debug, Formatter},
-    fs::File,
     hash::{Hash, Hasher},
     io::Cursor,
     ops::{Deref, DerefMut},
@@ -318,17 +317,9 @@ impl Default for TextureImportOptions {
     }
 }
 
-impl TextureImportOptions {
-    /// Saves textures import options to a file.
-    pub fn save(&self, path: &Path) -> bool {
-        if let Ok(file) = File::create(path) {
-            if ron::ser::to_writer_pretty(file, self, PrettyConfig::default()).is_ok() {
-                return true;
-            }
-        }
-        false
-    }
+impl ImportOptions for TextureImportOptions {}
 
+impl TextureImportOptions {
     /// Sets new minification filter which will be applied to every imported texture as
     /// default value.
     pub fn with_minification_filter(
@@ -337,6 +328,12 @@ impl TextureImportOptions {
     ) -> Self {
         self.minification_filter = minification_filter;
         self
+    }
+
+    /// Sets new minification filter which will be applied to every imported texture as
+    /// default value.
+    pub fn set_minification_filter(&mut self, minification_filter: TextureMinificationFilter) {
+        self.minification_filter = minification_filter;
     }
 
     /// Sets new magnification filter which will be applied to every imported texture as
@@ -349,11 +346,23 @@ impl TextureImportOptions {
         self
     }
 
+    /// Sets new magnification filter which will be applied to every imported texture as
+    /// default value.
+    pub fn set_magnification_filter(&mut self, magnification_filter: TextureMagnificationFilter) {
+        self.magnification_filter = magnification_filter;
+    }
+
     /// Sets new S coordinate wrap mode which will be applied to every imported texture as
     /// default value.
     pub fn with_s_wrap_mode(mut self, s_wrap_mode: TextureWrapMode) -> Self {
         self.s_wrap_mode = s_wrap_mode;
         self
+    }
+
+    /// Sets new S coordinate wrap mode which will be applied to every imported texture as
+    /// default value.
+    pub fn set_s_wrap_mode(&mut self, s_wrap_mode: TextureWrapMode) {
+        self.s_wrap_mode = s_wrap_mode;
     }
 
     /// Sets new T coordinate wrap mode which will be applied to every imported texture as
@@ -363,6 +372,12 @@ impl TextureImportOptions {
         self
     }
 
+    /// Sets new T coordinate wrap mode which will be applied to every imported texture as
+    /// default value.
+    pub fn set_t_wrap_mode(&mut self, t_wrap_mode: TextureWrapMode) {
+        self.t_wrap_mode = t_wrap_mode;
+    }
+
     /// Sets new anisotropy level which will be applied to every imported texture as
     /// default value.
     pub fn with_anisotropy(mut self, anisotropy: f32) -> Self {
@@ -370,10 +385,21 @@ impl TextureImportOptions {
         self
     }
 
+    /// Sets new anisotropy level which will be applied to every imported texture as
+    /// default value.
+    pub fn set_anisotropy(&mut self, anisotropy: f32) {
+        self.anisotropy = anisotropy.min(1.0);
+    }
+
     /// Sets desired texture compression.
     pub fn with_compression(mut self, compression: CompressionOptions) -> Self {
         self.compression = compression;
         self
+    }
+
+    /// Sets desired texture compression.
+    pub fn set_compression(&mut self, compression: CompressionOptions) {
+        self.compression = compression;
     }
 }
 

@@ -17,10 +17,12 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native rusty-editor format) formats are supported.
+use crate::engine::resource_manager::ImportOptions;
 use crate::{
     animation::Animation,
     asset::{define_new_resource, Resource, ResourceData},
     core::{
+        inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
@@ -34,6 +36,7 @@ use std::{
     borrow::Cow,
     path::{Path, PathBuf},
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(u32)]
@@ -211,7 +214,18 @@ impl Visit for ModelData {
 /// a texture with the file name. It could look up on folders hierarchy by using [`MaterialSearchOptions::RecursiveUp`]
 /// method, or even use global search starting from the working directory of your game
 /// ([`MaterialSearchOptions::WorkingDirectory`])
-#[derive(Clone, Debug, Visit, PartialEq, Deserialize, Serialize)]
+#[derive(
+    Clone,
+    Debug,
+    Visit,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    Inspect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 pub enum MaterialSearchOptions {
     /// Search in specified materials directory. It is suitable for cases when
     /// your model resource use shared textures.
@@ -276,12 +290,14 @@ impl MaterialSearchOptions {
 /// ```
 ///
 /// Check documentation of the field of the structure for more info about each parameter.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, Inspect)]
 pub struct ModelImportOptions {
     /// See [`MaterialSearchOptions`] docs for more info.
     #[serde(default)]
     pub material_search_options: MaterialSearchOptions,
 }
+
+impl ImportOptions for ModelImportOptions {}
 
 /// Model instance is a combination of handle to root node of instance in a scene,
 /// and list of all animations from model which were instantiated on a scene.

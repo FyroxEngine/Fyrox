@@ -9,6 +9,7 @@ use crate::{
     },
     Message,
 };
+use rg3d::resource::model::MaterialSearchOptions;
 use rg3d::{
     core::{parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
     gui::inspector::editors::{
@@ -125,6 +126,7 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<Exposure>::new());
     container.insert(EnumPropertyEditorDefinition::<RenderPath>::new());
     container.insert(EnumPropertyEditorDefinition::<FrustumSplitOptions>::new());
+    container.insert(EnumPropertyEditorDefinition::<MaterialSearchOptions>::new());
 
     Rc::new(container)
 }

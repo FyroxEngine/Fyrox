@@ -1,11 +1,15 @@
-use crate::{inspector::editors::make_property_editors_container, Message, MSG_SYNC_FLAG};
+use crate::{
+    asset::inspector::handlers::ImportOptionsHandler,
+    inspector::editors::make_property_editors_container, Message, MSG_SYNC_FLAG,
+};
 use rg3d::{
-    core::{inspect::Inspect, pool::Handle},
+    core::pool::Handle,
+    engine::Engine,
     gui::{
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
-        inspector::{InspectorBuilder, InspectorContext, InspectorMessage},
-        message::MessageDirection,
+        inspector::{Inspector, InspectorBuilder, InspectorContext, InspectorMessage},
+        message::{MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
@@ -14,11 +18,14 @@ use rg3d::{
 };
 use std::sync::mpsc::Sender;
 
+pub mod handlers;
+
 pub struct AssetInspector {
     pub container: Handle<UiNode>,
     inspector: Handle<UiNode>,
     apply: Handle<UiNode>,
     revert: Handle<UiNode>,
+    handler: Option<Box<dyn ImportOptionsHandler>>,
 }
 
 impl AssetInspector {
@@ -46,7 +53,9 @@ impl AssetInspector {
                             .with_horizontal_alignment(HorizontalAlignment::Right)
                             .with_child({
                                 apply = ButtonBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                    WidgetBuilder::new()
+                                        .with_width(100.0)
+                                        .with_margin(Thickness::uniform(1.0)),
                                 )
                                 .with_text("Apply")
                                 .build(ctx);
@@ -54,7 +63,9 @@ impl AssetInspector {
                             })
                             .with_child({
                                 revert = ButtonBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                    WidgetBuilder::new()
+                                        .with_width(100.0)
+                                        .with_margin(Thickness::uniform(1.0)),
                                 )
                                 .with_text("Revert")
                                 .build(ctx);
@@ -75,17 +86,20 @@ impl AssetInspector {
             inspector,
             apply,
             revert,
+            handler: None,
         }
     }
 
-    pub fn inspect_resource_import_options(
-        &self,
-        import_options: &dyn Inspect,
+    pub fn inspect_resource_import_options<H>(
+        &mut self,
+        handler: H,
         ui: &mut UserInterface,
         sender: Sender<Message>,
-    ) {
+    ) where
+        H: ImportOptionsHandler + 'static,
+    {
         let context = InspectorContext::from_object(
-            import_options,
+            handler.value(),
             &mut ui.build_ctx(),
             make_property_editors_container(sender),
             None,
@@ -97,5 +111,32 @@ impl AssetInspector {
             MessageDirection::ToWidget,
             context,
         ));
+
+        self.handler = Some(Box::new(handler));
+    }
+
+    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
+        if let Some(handler) = self.handler.as_mut() {
+            if let Some(ButtonMessage::Click) = message.data() {
+                if message.destination() == self.revert {
+                    handler.revert();
+                    let context = engine
+                        .user_interface
+                        .node(self.inspector)
+                        .cast::<Inspector>()
+                        .expect("Must be inspector")
+                        .context()
+                        .clone();
+                    context
+                        .sync(handler.value(), &mut engine.user_interface, 0)
+                        .unwrap();
+                } else if message.destination() == self.apply {
+                    handler.apply(engine.resource_manager.clone());
+                }
+            } else if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data()
+            {
+                handler.handle_property_changed(property_changed)
+            }
+        }
     }
 }

@@ -1,15 +1,15 @@
+use crate::asset::inspector::handlers::model::ModelImportOptionsHandler;
 use crate::{
-    asset::{inspector::AssetInspector, item::AssetItemBuilder},
+    asset::{
+        inspector::{handlers::texture::TextureImportOptionsHandler, AssetInspector},
+        item::AssetItemBuilder,
+    },
     gui::AssetItemMessage,
     preview::PreviewPanel,
     AssetItem, AssetKind, GameEngine, Message,
 };
-use rg3d::core::append_extension;
-use rg3d::core::futures::executor::block_on;
-use rg3d::engine::resource_manager::try_get_import_settings;
-use rg3d::resource::texture::TextureImportOptions;
 use rg3d::{
-    core::{color::Color, pool::Handle, scope_profile},
+    core::{color::Color, futures::executor::block_on, pool::Handle, scope_profile},
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -24,10 +24,10 @@ use rg3d::{
         HorizontalAlignment, Orientation, UiNode, UserInterface, VerticalAlignment, BRUSH_DARK,
     },
 };
-use std::sync::mpsc::Sender;
 use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
+    sync::mpsc::Sender,
 };
 
 mod inspector;
@@ -119,7 +119,7 @@ impl AssetBrowser {
                             BorderBuilder::new(
                                 WidgetBuilder::new()
                                     .on_column(2)
-                                    .with_background(Brush::Solid(Color::opaque(80, 80, 80)))
+                                    .with_foreground(Brush::Solid(Color::opaque(80, 80, 80)))
                                     .with_child(
                                         GridBuilder::new(
                                             WidgetBuilder::new()
@@ -178,6 +178,7 @@ impl AssetBrowser {
     ) {
         scope_profile!();
 
+        self.inspector.handle_ui_message(message, engine);
         self.preview.handle_message(message, engine);
 
         let ui = &mut engine.user_interface;
@@ -207,23 +208,18 @@ impl AssetBrowser {
                 AssetKind::Model => {
                     let path = item.path.clone();
                     block_on(self.preview.load_model(&path, engine));
-                }
-                AssetKind::Texture => {
-                    let options = match block_on(try_get_import_settings(&item.path)) {
-                        Some(options) => options,
-                        None => {
-                            // Create settings.
-                            let options = TextureImportOptions::default();
-                            options.save(&append_extension(&item.path, "options"));
-                            options
-                        }
-                    };
+
                     self.inspector.inspect_resource_import_options(
-                        &options,
+                        ModelImportOptionsHandler::new(&path),
                         &mut engine.user_interface,
                         sender,
                     )
                 }
+                AssetKind::Texture => self.inspector.inspect_resource_import_options(
+                    TextureImportOptionsHandler::new(&item.path),
+                    &mut engine.user_interface,
+                    sender,
+                ),
                 AssetKind::Sound => {}
                 AssetKind::Shader => {}
             }
