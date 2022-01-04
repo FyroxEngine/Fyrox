@@ -984,14 +984,19 @@ impl ResourceManagerState {
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
+    fn spawn_task<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + 'static,
+    {
+        crate::core::wasm_bindgen_futures::spawn_local(future);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     fn spawn_task<F>(&self, future: F)
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        #[cfg(target_arch = "wasm32")]
-        crate::core::wasm_bindgen_futures::spawn_local(future);
-
-        #[cfg(not(target_arch = "wasm32"))]
         self.thread_pool.spawn_ok(future);
     }
 
