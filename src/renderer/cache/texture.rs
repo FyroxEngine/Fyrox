@@ -32,22 +32,28 @@ impl TextureCache {
         let texture = texture.state();
 
         if let TextureState::Ok(texture) = texture.deref() {
-            self.map.insert(
-                key,
-                CacheEntry {
-                    value: Rc::new(RefCell::new(GpuTexture::new(
-                        state,
-                        texture.kind().into(),
-                        PixelKind::from(texture.pixel_kind()),
-                        texture.minification_filter().into(),
-                        texture.magnification_filter().into(),
-                        texture.mip_count() as usize,
-                        Some(texture.data()),
-                    )?)),
-                    time_to_live: DEFAULT_RESOURCE_LIFETIME,
-                    value_hash: texture.data_hash(),
-                },
-            );
+            let gpu_texture = GpuTexture::new(
+                state,
+                texture.kind().into(),
+                PixelKind::from(texture.pixel_kind()),
+                texture.minification_filter().into(),
+                texture.magnification_filter().into(),
+                texture.mip_count() as usize,
+                Some(texture.data()),
+            )?;
+
+            match self.map.entry(key) {
+                Entry::Occupied(mut e) => {
+                    *e.get_mut().value.borrow_mut() = gpu_texture;
+                }
+                Entry::Vacant(e) => {
+                    e.insert(CacheEntry {
+                        value: Rc::new(RefCell::new(gpu_texture)),
+                        time_to_live: DEFAULT_RESOURCE_LIFETIME,
+                        value_hash: texture.data_hash(),
+                    });
+                }
+            }
 
             Ok(())
         } else {
@@ -65,6 +71,7 @@ impl TextureCache {
         scope_profile!();
 
         let key = texture.key();
+
         let texture = texture.state();
 
         if let TextureState::Ok(texture) = texture.deref() {
