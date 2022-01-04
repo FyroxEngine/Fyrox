@@ -22,11 +22,11 @@ impl TextureImportOptionsHandler {
 }
 
 impl ImportOptionsHandler for TextureImportOptionsHandler {
-    fn apply(&self, _resource_manager: ResourceManager) {
-        // TODO: Reload texture.
-
+    fn apply(&self, resource_manager: ResourceManager) {
         self.options
             .save(&append_extension(&self.resource_path, "options"));
+
+        resource_manager.reload_texture(resource_manager.request_texture(&self.resource_path));
     }
 
     fn revert(&mut self) {

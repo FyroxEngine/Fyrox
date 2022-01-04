@@ -87,9 +87,7 @@ impl SpriteBatchStorage {
         white_dummy: Rc<RefCell<GpuTexture>>,
     ) {
         self.index_map.clear();
-        for batch in self.batches.iter_mut() {
-            batch.instances.clear();
-        }
+        self.batches.clear();
 
         let mut batch_index = 0;
         for node in graph.linear_iter() {

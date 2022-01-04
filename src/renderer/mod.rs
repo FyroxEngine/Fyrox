@@ -35,6 +35,7 @@ mod ui_renderer;
 
 use crate::renderer::framework::geometry_buffer::GeometryBufferKind;
 use crate::renderer::framework::gpu_program::BuiltInUniform;
+use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -1281,11 +1282,18 @@ impl Renderer {
 
         let mut uploaded = 0;
         while let Ok(texture) = self.texture_upload_receiver.try_recv() {
-            // Just "touch" texture in the cache and it will load texture to GPU.
-            if self.texture_cache.get(&mut self.state, &texture).is_some() {
-                uploaded += 1;
-                if uploaded >= THROUGHPUT {
-                    break;
+            match self.texture_cache.upload(&mut self.state, &texture) {
+                Ok(_) => {
+                    uploaded += 1;
+                    if uploaded >= THROUGHPUT {
+                        break;
+                    }
+                }
+                Err(e) => {
+                    Log::writeln(
+                        MessageKind::Error,
+                        format!("Failed to upload texture to GPU. Reason: {:?}", e),
+                    );
                 }
             }
         }

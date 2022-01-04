@@ -1,3 +1,4 @@
+use crate::renderer::framework::error::FrameworkError;
 use crate::{
     core::scope_profile,
     engine::resource_manager::DEFAULT_RESOURCE_LIFETIME,
@@ -20,6 +21,42 @@ pub struct TextureCache {
 }
 
 impl TextureCache {
+    /// Unconditionally uploads requested texture into GPU memory, previous GPU texture will be automatically
+    /// destroyed.
+    pub fn upload(
+        &mut self,
+        state: &mut PipelineState,
+        texture: &Texture,
+    ) -> Result<(), FrameworkError> {
+        let key = texture.key();
+        let texture = texture.state();
+
+        if let TextureState::Ok(texture) = texture.deref() {
+            self.map.insert(
+                key,
+                CacheEntry {
+                    value: Rc::new(RefCell::new(GpuTexture::new(
+                        state,
+                        texture.kind().into(),
+                        PixelKind::from(texture.pixel_kind()),
+                        texture.minification_filter().into(),
+                        texture.magnification_filter().into(),
+                        texture.mip_count() as usize,
+                        Some(texture.data()),
+                    )?)),
+                    time_to_live: DEFAULT_RESOURCE_LIFETIME,
+                    value_hash: texture.data_hash(),
+                },
+            );
+
+            Ok(())
+        } else {
+            Err(FrameworkError::Custom(
+                "Texture is not loaded yet!".to_string(),
+            ))
+        }
+    }
+
     pub fn get(
         &mut self,
         state: &mut PipelineState,

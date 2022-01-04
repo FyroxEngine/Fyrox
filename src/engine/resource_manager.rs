@@ -19,6 +19,7 @@ use ron::ser::PrettyConfig;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fs::File;
+use std::future::Future;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -621,13 +622,7 @@ impl ResourceManager {
             .expect("Upload sender must be set!")
             .clone();
 
-        #[cfg(target_arch = "wasm32")]
-        crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_texture(texture, path, default_options, upload_sender).await;
-        });
-
-        #[cfg(not(target_arch = "wasm32"))]
-        state.thread_pool.spawn_ok(async move {
+        state.spawn_task(async move {
             load_texture(texture, path, default_options, upload_sender).await;
         });
 
@@ -693,13 +688,7 @@ impl ResourceManager {
         let path = path.as_ref().to_owned();
         let resource_manager = self.clone();
 
-        #[cfg(target_arch = "wasm32")]
-        crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_model(model, path, resource_manager, default_import_options).await;
-        });
-
-        #[cfg(not(target_arch = "wasm32"))]
-        state.thread_pool.spawn_ok(async move {
+        state.spawn_task(async move {
             load_model(model, path, resource_manager, default_import_options).await;
         });
 
@@ -731,13 +720,7 @@ impl ResourceManager {
         let result = resource.clone();
         let path = path.as_ref().to_owned();
 
-        #[cfg(target_arch = "wasm32")]
-        crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_sound_buffer(resource, path, stream).await;
-        });
-
-        #[cfg(not(target_arch = "wasm32"))]
-        state.thread_pool.spawn_ok(async move {
+        state.spawn_task(async move {
             load_sound_buffer(resource, path, stream).await;
         });
 
@@ -766,13 +749,7 @@ impl ResourceManager {
         let result = shader.clone();
         let path = path.as_ref().to_owned();
 
-        #[cfg(target_arch = "wasm32")]
-        crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_shader(shader, path).await;
-        });
-
-        #[cfg(not(target_arch = "wasm32"))]
-        state.thread_pool.spawn_ok(async move {
+        state.spawn_task(async move {
             load_shader(shader, path).await;
         });
 
@@ -801,17 +778,28 @@ impl ResourceManager {
         let result = curve.clone();
         let path = path.as_ref().to_owned();
 
-        #[cfg(target_arch = "wasm32")]
-        crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_curve_resource(curve, path).await;
-        });
-
-        #[cfg(not(target_arch = "wasm32"))]
-        state.thread_pool.spawn_ok(async move {
+        state.spawn_task(async move {
             load_curve_resource(curve, path).await;
         });
 
         result
+    }
+
+    /// Reloads given texture, forces the engine to re-upload the texture to the GPU.
+    pub fn reload_texture(&self, texture: Texture) {
+        let state = self.state();
+
+        let path = texture.state().path().to_path_buf();
+        let default_options = state.textures_import_options.clone();
+        let upload_sender = state
+            .upload_sender
+            .clone()
+            .expect("Upload sender must exist at this point!");
+        *texture.state() = ResourceState::new_pending(path.clone());
+
+        state.spawn_task(async move {
+            load_texture(texture, path, default_options, upload_sender).await;
+        });
     }
 
     /// Reloads every loaded texture. This method is asynchronous, internally it uses thread pool
@@ -832,13 +820,7 @@ impl ResourceManager {
                     .expect("Upload sender must exist at this point!");
                 *resource.state() = ResourceState::new_pending(path.clone());
 
-                #[cfg(target_arch = "wasm32")]
-                crate::core::wasm_bindgen_futures::spawn_local(async move {
-                    load_texture(resource, path, default_options, upload_sender).await;
-                });
-
-                #[cfg(not(target_arch = "wasm32"))]
-                state.thread_pool.spawn_ok(async move {
+                state.spawn_task(async move {
                     load_texture(resource, path, default_options, upload_sender).await;
                 });
             }
@@ -864,13 +846,7 @@ impl ResourceManager {
                 let default_import_options = state.model_import_options.clone();
                 *model.state() = ResourceState::new_pending(path.clone());
 
-                #[cfg(target_arch = "wasm32")]
-                crate::core::wasm_bindgen_futures::spawn_local(async move {
-                    load_model(model, path, this, default_import_options).await;
-                });
-
-                #[cfg(not(target_arch = "wasm32"))]
-                state.thread_pool.spawn_ok(async move {
+                state.spawn_task(async move {
                     load_model(model, path, this, default_import_options).await;
                 })
             }
@@ -898,13 +874,7 @@ impl ResourceManager {
                 let path = shader.state().path().to_path_buf();
                 *shader.state() = ResourceState::new_pending(path.clone());
 
-                #[cfg(target_arch = "wasm32")]
-                crate::core::wasm_bindgen_futures::spawn_local(async move {
-                    load_shader(shader, path).await;
-                });
-
-                #[cfg(not(target_arch = "wasm32"))]
-                state.thread_pool.spawn_ok(async move {
+                state.spawn_task(async move {
                     load_shader(shader, path).await;
                 })
             }
@@ -932,13 +902,7 @@ impl ResourceManager {
                 let path = curve.state().path().to_path_buf();
                 *curve.state() = ResourceState::new_pending(path.clone());
 
-                #[cfg(target_arch = "wasm32")]
-                crate::core::wasm_bindgen_futures::spawn_local(async move {
-                    load_curve_resource(curve, path).await;
-                });
-
-                #[cfg(not(target_arch = "wasm32"))]
-                state.thread_pool.spawn_ok(async move {
+                state.spawn_task(async move {
                     load_curve_resource(curve, path).await;
                 })
             }
@@ -978,13 +942,7 @@ impl ResourceManager {
                 if path != PathBuf::default() {
                     *resource.state() = ResourceState::new_pending(path.clone());
 
-                    #[cfg(target_arch = "wasm32")]
-                    crate::core::wasm_bindgen_futures::spawn_local(async move {
-                        reload_sound_buffer(resource, path, stream).await;
-                    });
-
-                    #[cfg(not(target_arch = "wasm32"))]
-                    state.thread_pool.spawn_ok(async move {
+                    state.spawn_task(async move {
                         reload_sound_buffer(resource, path, stream).await;
                     });
                 }
@@ -1024,6 +982,17 @@ impl ResourceManagerState {
             thread_pool: ThreadPool::new().unwrap(),
             upload_sender: Some(upload_sender),
         }
+    }
+
+    fn spawn_task<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        #[cfg(target_arch = "wasm32")]
+        crate::core::wasm_bindgen_futures::spawn_local(future);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        self.thread_pool.spawn_ok(future);
     }
 
     /// Sets new import options for textures. Previously loaded textures won't be affected by the
