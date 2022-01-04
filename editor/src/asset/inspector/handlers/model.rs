@@ -39,11 +39,8 @@ impl ImportOptionsHandler for ModelImportOptionsHandler {
 
     fn handle_property_changed(&mut self, property_changed: &PropertyChanged) {
         if let FieldKind::Object(ref args) = property_changed.value {
-            match property_changed.name.as_ref() {
-                ModelImportOptions::MATERIAL_SEARCH_OPTIONS => {
-                    self.options.material_search_options = args.cast_clone().unwrap()
-                }
-                _ => (),
+            if let ModelImportOptions::MATERIAL_SEARCH_OPTIONS = property_changed.name.as_ref() {
+                self.options.material_search_options = args.cast_clone().unwrap()
             }
         }
     }

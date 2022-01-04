@@ -70,13 +70,15 @@ pub struct PropertyInfo<'a> {
     pub description: String,
 }
 
-#[allow(clippy::vtable_address_comparisons)]
 impl<'a> PartialEq<Self> for PropertyInfo<'a> {
     fn eq(&self, other: &Self) -> bool {
+        let value_ptr_a = &*self.value as *const _ as *const ();
+        let value_ptr_b = &*other.value as *const _ as *const ();
+
         self.owner_type_id == other.owner_type_id
             && self.name == other.name
             && self.display_name == other.display_name
-            && std::ptr::eq(self.value, other.value)
+            && std::ptr::eq(value_ptr_a, value_ptr_b)
             && self.read_only == other.read_only
             && self.min_value == other.min_value
             && self.max_value == other.max_value
