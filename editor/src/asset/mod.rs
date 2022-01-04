@@ -1,10 +1,13 @@
-use crate::asset::inspector::handlers::model::ModelImportOptionsHandler;
 use crate::{
     asset::{
-        inspector::{handlers::texture::TextureImportOptionsHandler, AssetInspector},
+        inspector::{
+            handlers::{model::ModelImportOptionsHandler, texture::TextureImportOptionsHandler},
+            AssetInspector,
+        },
         item::AssetItemBuilder,
     },
     gui::AssetItemMessage,
+    make_relative_path,
     preview::PreviewPanel,
     AssetItem, AssetKind, GameEngine, Message,
 };
@@ -254,7 +257,7 @@ impl AssetBrowser {
                             )
                         }
 
-                        let entry_path = entry.path();
+                        let entry_path = make_relative_path(entry.path());
                         if !entry_path.is_dir() && entry_path.extension().map_or(false, check_ext) {
                             let asset_item = AssetItemBuilder::new(WidgetBuilder::new())
                                 .with_path(entry_path.clone())
