@@ -1,5 +1,5 @@
 use crate::{
-    inspector::handlers::node::base::handle_base_property_changed, make_command,
+    handle_properties, inspector::handlers::node::base::handle_base_property_changed,
     scene::commands::sprite::*, SceneCommand,
 };
 use rg3d::{
@@ -15,21 +15,14 @@ pub fn handle_sprite_property_changed(
 ) -> Option<SceneCommand> {
     if let Node::Sprite(_) = node {
         match args.value {
-            FieldKind::Object(ref value) => match args.name.as_ref() {
-                Sprite::TEXTURE => {
-                    make_command!(SetSpriteTextureCommand, handle, value)
-                }
-                Sprite::COLOR => {
-                    make_command!(SetSpriteColorCommand, handle, value)
-                }
-                Sprite::SIZE => {
-                    make_command!(SetSpriteSizeCommand, handle, value)
-                }
-                Sprite::ROTATION => {
-                    make_command!(SetSpriteRotationCommand, handle, value)
-                }
-                _ => None,
-            },
+            FieldKind::Object(ref value) => {
+                handle_properties!(args.name.as_ref(), handle, value,
+                    Sprite::TEXTURE => SetSpriteTextureCommand,
+                    Sprite::COLOR => SetSpriteColorCommand,
+                    Sprite::SIZE => SetSpriteSizeCommand,
+                    Sprite::ROTATION => SetSpriteRotationCommand
+                )
+            }
             FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
                 Sprite::BASE => handle_base_property_changed(inner, handle, node),
                 _ => None,

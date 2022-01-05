@@ -62,10 +62,13 @@ pub struct ObjectValue {
     value: Rc<dyn PropertyValue>,
 }
 
-#[allow(clippy::vtable_address_comparisons)]
 impl PartialEq for ObjectValue {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(&*self.value, &*other.value)
+        // Cast fat pointers to thin first.
+        let ptr_a = &*self.value as *const _ as *const ();
+        let ptr_b = &*other.value as *const _ as *const ();
+        // Compare thin pointers.
+        std::ptr::eq(ptr_a, ptr_b)
     }
 }
 
@@ -186,15 +189,16 @@ pub struct ContextEntry {
     pub property_editor: Handle<UiNode>,
 }
 
-#[allow(clippy::vtable_address_comparisons)]
 impl PartialEq for ContextEntry {
     fn eq(&self, other: &Self) -> bool {
+        // Cast fat pointers to thin first.
+        let ptr_a = &*self.property_editor_definition as *const _ as *const ();
+        let ptr_b = &*other.property_editor_definition as *const _ as *const ();
+
         self.property_editor == other.property_editor
             && self.property_name == other.property_name
-            && std::ptr::eq(
-                &*self.property_editor_definition,
-                &*other.property_editor_definition,
-            )
+            // Compare thin pointers.
+            && std::ptr::eq(ptr_a, ptr_b)
     }
 }
 

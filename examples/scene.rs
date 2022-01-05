@@ -15,10 +15,7 @@ use rg3d::{
         color::Color,
         pool::Handle,
     },
-    engine::{
-        resource_manager::{MaterialSearchOptions, ResourceManager},
-        Engine,
-    },
+    engine::{resource_manager::ResourceManager, Engine},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -63,10 +60,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // There is no difference between scene created in rusty-editor and any other
     // model file, so any scene can be used directly as resource.
     resource_manager
-        .request_model(
-            "examples/data/test_scene.rgs",
-            MaterialSearchOptions::RecursiveUp,
-        )
+        .request_model("examples/data/test_scene.rgs")
         .await
         .unwrap()
         .instantiate(&mut scene);

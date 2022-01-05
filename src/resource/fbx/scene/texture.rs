@@ -25,7 +25,7 @@ impl FbxTexture {
             let str_path = relative_file_name_node
                 .get_attrib(0)?
                 .as_string()
-                .replace("\\", "/");
+                .replace('\\', "/");
             texture.filename = PathBuf::from(str_path);
         }
         Ok(texture)

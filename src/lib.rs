@@ -9,13 +9,15 @@
 #![allow(clippy::from_over_into)]
 #![allow(clippy::approx_constant)]
 
+use rg3d_physics2d as physics2d;
+use rg3d_physics3d as physics3d;
+
 pub mod animation;
 pub mod engine;
 pub mod material;
 pub mod renderer;
 pub mod resource;
 pub mod scene;
-pub mod scene2d;
 pub mod utils;
 
 pub use crate::core::rand;
@@ -29,12 +31,6 @@ pub use winit::*;
 
 #[doc(inline)]
 pub use rg3d_core as core;
-
-#[doc(inline)]
-pub use rg3d_physics2d as physics2d;
-
-#[doc(inline)]
-pub use rg3d_physics3d as physics3d;
 
 #[doc(inline)]
 pub use rg3d_resource as asset;

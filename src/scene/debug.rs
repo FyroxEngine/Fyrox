@@ -7,6 +7,7 @@ use crate::core::{
     color::Color,
     math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
 };
+use rg3d_core::algebra::Vector2;
 use std::ops::Range;
 
 /// Colored line between two points.
@@ -377,6 +378,103 @@ impl SceneDrawingContext {
         });
     }
 
+    /// Draws a circle at given world-space position with given radius. `segments` could be used
+    /// to control quality of the circle.
+    pub fn draw_circle(
+        &mut self,
+        position: Vector3<f32>,
+        radius: f32,
+        segments: usize,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        let d_phi = 2.0 * std::f32::consts::PI / segments as f32;
+        for i in 0..segments {
+            let x1 = position.x + radius * (d_phi * i as f32).cos();
+            let y1 = position.y + radius * (d_phi * i as f32).sin();
+            let x2 = position.x + radius * (d_phi * (i + 1) as f32).cos();
+            let y2 = position.y + radius * (d_phi * (i + 1) as f32).sin();
+
+            self.add_line(Line {
+                begin: transform.transform_point(&Point3::new(x1, y1, 0.0)).coords,
+                end: transform.transform_point(&Point3::new(x2, y2, 0.0)).coords,
+                color,
+            })
+        }
+    }
+
+    /// Draws a circle segment between two given angles. Center of the segment is defined by `position`,
+    /// `segments` defines quality of the shape.
+    pub fn draw_circle_segment(
+        &mut self,
+        position: Vector3<f32>,
+        radius: f32,
+        segments: usize,
+        begin_angle: f32,
+        end_angle: f32,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        let d_angle = 2.0 * std::f32::consts::PI / segments as f32;
+        let mut angle = begin_angle;
+        while angle < end_angle {
+            let x1 = position.x + radius * (angle).cos();
+            let y1 = position.y + radius * (angle).sin();
+            let x2 = position.x + radius * (angle + d_angle).cos();
+            let y2 = position.y + radius * (angle + d_angle).sin();
+
+            self.add_line(Line {
+                begin: transform.transform_point(&Point3::new(x1, y1, 0.0)).coords,
+                end: transform.transform_point(&Point3::new(x2, y2, 0.0)).coords,
+                color,
+            });
+
+            angle += d_angle;
+        }
+    }
+
+    /// Draws a rectangle with given width and height.
+    pub fn draw_rectangle(
+        &mut self,
+        half_width: f32,
+        half_height: f32,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        let a = transform
+            .transform_point(&Point3::new(-half_width, half_height, 0.0))
+            .coords;
+        let b = transform
+            .transform_point(&Point3::new(half_width, half_height, 0.0))
+            .coords;
+        let c = transform
+            .transform_point(&Point3::new(half_width, -half_height, 0.0))
+            .coords;
+        let d = transform
+            .transform_point(&Point3::new(-half_width, -half_height, 0.0))
+            .coords;
+        self.add_line(Line {
+            begin: a,
+            end: b,
+            color,
+        });
+        self.add_line(Line {
+            begin: b,
+            end: c,
+            color,
+        });
+        self.add_line(Line {
+            begin: c,
+            end: d,
+            color,
+        });
+        self.add_line(Line {
+            begin: d,
+            end: a,
+            color,
+        });
+    }
+
     /// Draws a wire sphere with given parameters.
     pub fn draw_sphere(
         &mut self,
@@ -629,6 +727,55 @@ impl SceneDrawingContext {
         }
     }
 
+    /// Draws a flat capsule with given height and radius. `segments` defines quality of the shape.
+    pub fn draw_flat_capsule(
+        &mut self,
+        radius: f32,
+        height: f32,
+        segments: usize,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        self.draw_circle_segment(
+            Vector3::new(0.0, height * 0.5, 0.0),
+            radius,
+            segments,
+            0.0,
+            std::f32::consts::PI,
+            transform,
+            color,
+        );
+
+        self.draw_circle_segment(
+            Vector3::new(0.0, -height * 0.5, 0.0),
+            radius,
+            segments,
+            std::f32::consts::PI,
+            std::f32::consts::TAU,
+            transform,
+            color,
+        );
+
+        self.add_line(Line {
+            begin: transform
+                .transform_point(&Point3::new(-radius, height * 0.5, 0.0))
+                .coords,
+            end: transform
+                .transform_point(&Point3::new(-radius, -height * 0.5, 0.0))
+                .coords,
+            color,
+        });
+        self.add_line(Line {
+            begin: transform
+                .transform_point(&Point3::new(radius, height * 0.5, 0.0))
+                .coords,
+            end: transform
+                .transform_point(&Point3::new(radius, -height * 0.5, 0.0))
+                .coords,
+            color,
+        });
+    }
+
     /// Draws vertical capsule with given radius and height and then applies given transform.
     pub fn draw_capsule(
         &mut self,
@@ -664,6 +811,58 @@ impl SceneDrawingContext {
         if cylinder_height > 0.0 {
             self.draw_cylinder(10, radius, cylinder_height, false, transform, color);
         }
+    }
+
+    /// Draws a flat capsule between two points with given radius. `segments` defines quality of
+    /// the shape.
+    pub fn draw_segment_flat_capsule(
+        &mut self,
+        begin: Vector2<f32>,
+        end: Vector2<f32>,
+        radius: f32,
+        segments: usize,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        // Draw as two circles and a rectangle
+        // TODO: Draw this correctly
+        self.draw_circle(
+            Vector3::new(begin.x, begin.y, 0.0),
+            radius,
+            segments,
+            transform,
+            color,
+        );
+        self.draw_circle(
+            Vector3::new(end.x, end.y, 0.0),
+            radius,
+            segments,
+            transform,
+            color,
+        );
+        let perp = (end - begin)
+            .try_normalize(f32::EPSILON)
+            .map(|v| Vector2::new(v.y, -v.x).scale(radius))
+            .unwrap_or_default();
+
+        self.add_line(Line {
+            begin: transform
+                .transform_point(&Point3::from((begin - perp).to_homogeneous()))
+                .coords,
+            end: transform
+                .transform_point(&Point3::from((end - perp).to_homogeneous()))
+                .coords,
+            color,
+        });
+        self.add_line(Line {
+            begin: transform
+                .transform_point(&Point3::from((begin + perp).to_homogeneous()))
+                .coords,
+            end: transform
+                .transform_point(&Point3::from((end + perp).to_homogeneous()))
+                .coords,
+            color,
+        });
     }
 
     /// Draws capsule between two points with given tesselation and then applies given transform to all points.

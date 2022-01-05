@@ -1,5 +1,5 @@
 use crate::{
-    inspector::handlers::node::base::handle_base_property_changed, make_command,
+    handle_properties, inspector::handlers::node::base::handle_base_property_changed,
     scene::commands::particle_system::*, GraphSelection, SceneCommand,
 };
 use rg3d::{
@@ -128,21 +128,14 @@ impl ParticleSystemHandler {
     ) -> Option<SceneCommand> {
         if let Node::ParticleSystem(particle_system) = node {
             match args.value {
-                FieldKind::Object(ref value) => match args.name.as_ref() {
-                    ParticleSystem::TEXTURE => {
-                        make_command!(SetParticleSystemTextureCommand, handle, value)
-                    }
-                    ParticleSystem::ACCELERATION => {
-                        make_command!(SetAccelerationCommand, handle, value)
-                    }
-                    ParticleSystem::ENABLED => {
-                        make_command!(SetParticleSystemEnabledCommand, handle, value)
-                    }
-                    ParticleSystem::SOFT_BOUNDARY_SHARPNESS_FACTOR => {
-                        make_command!(SetSoftBoundarySharpnessFactorCommand, handle, value)
-                    }
-                    _ => None,
-                },
+                FieldKind::Object(ref value) => {
+                    handle_properties!(args.name.as_ref(), handle, value,
+                        ParticleSystem::TEXTURE => SetParticleSystemTextureCommand,
+                        ParticleSystem::ACCELERATION => SetAccelerationCommand,
+                        ParticleSystem::ENABLED => SetParticleSystemEnabledCommand,
+                        ParticleSystem::SOFT_BOUNDARY_SHARPNESS_FACTOR => SetSoftBoundarySharpnessFactorCommand
+                    )
+                }
                 FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
                     ParticleSystem::EMITTERS => match &**collection_changed {
                         CollectionChanged::Add => {

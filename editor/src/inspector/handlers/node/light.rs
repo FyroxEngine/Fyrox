@@ -1,8 +1,7 @@
 use crate::{
-    inspector::handlers::node::base::handle_base_property_changed, make_command,
+    handle_properties, inspector::handlers::node::base::handle_base_property_changed,
     scene::commands::light::*, SceneCommand,
 };
-use rg3d::scene::light::Light;
 use rg3d::{
     core::pool::Handle,
     gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
@@ -11,7 +10,7 @@ use rg3d::{
             directional::{CsmOptions, DirectionalLight, FrustumSplitOptions},
             point::PointLight,
             spot::SpotLight,
-            BaseLight,
+            BaseLight, Light,
         },
         node::Node,
     },
@@ -23,24 +22,15 @@ pub fn handle_base_light_property_changed(
     node: &Node,
 ) -> Option<SceneCommand> {
     match args.value {
-        FieldKind::Object(ref value) => match args.name.as_ref() {
-            BaseLight::COLOR => {
-                make_command!(SetLightColorCommand, handle, value)
-            }
-            BaseLight::CAST_SHADOWS => {
-                make_command!(SetLightCastShadowsCommand, handle, value)
-            }
-            BaseLight::SCATTER => {
-                make_command!(SetLightScatterCommand, handle, value)
-            }
-            BaseLight::SCATTER_ENABLED => {
-                make_command!(SetLightScatterEnabledCommand, handle, value)
-            }
-            BaseLight::INTENSITY => {
-                make_command!(SetLightIntensityCommand, handle, value)
-            }
-            _ => None,
-        },
+        FieldKind::Object(ref value) => {
+            handle_properties!(args.name.as_ref(), handle, value,
+                BaseLight::COLOR => SetLightColorCommand,
+                BaseLight::CAST_SHADOWS => SetLightCastShadowsCommand,
+                BaseLight::SCATTER => SetLightScatterCommand,
+                BaseLight::SCATTER_ENABLED => SetLightScatterEnabledCommand,
+                BaseLight::INTENSITY => SetLightIntensityCommand
+            )
+        }
         FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
             BaseLight::BASE => handle_base_property_changed(inner, handle, node),
             _ => None,
@@ -56,24 +46,15 @@ pub fn handle_spot_light_property_changed(
 ) -> Option<SceneCommand> {
     if let Node::Light(Light::Spot(_)) = node {
         match args.value {
-            FieldKind::Object(ref value) => match args.name.as_ref() {
-                SpotLight::HOTSPOT_CONE_ANGLE => {
-                    make_command!(SetSpotLightHotspotCommand, handle, value)
-                }
-                SpotLight::FALLOFF_ANGLE_DELTA => {
-                    make_command!(SetSpotLightFalloffAngleDeltaCommand, handle, value)
-                }
-                SpotLight::SHADOW_BIAS => {
-                    make_command!(SetSpotLightShadowBiasCommand, handle, value)
-                }
-                SpotLight::DISTANCE => {
-                    make_command!(SetSpotLightDistanceCommand, handle, value)
-                }
-                SpotLight::COOKIE_TEXTURE => {
-                    make_command!(SetSpotLightCookieTextureCommand, handle, value)
-                }
-                _ => None,
-            },
+            FieldKind::Object(ref value) => {
+                handle_properties!(args.name.as_ref(), handle, value,
+                    SpotLight::HOTSPOT_CONE_ANGLE => SetSpotLightHotspotCommand,
+                    SpotLight::FALLOFF_ANGLE_DELTA => SetSpotLightFalloffAngleDeltaCommand,
+                    SpotLight::SHADOW_BIAS => SetSpotLightShadowBiasCommand,
+                    SpotLight::DISTANCE => SetSpotLightDistanceCommand,
+                    SpotLight::COOKIE_TEXTURE => SetSpotLightCookieTextureCommand
+                )
+            }
             FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
                 SpotLight::BASE_LIGHT => handle_base_light_property_changed(inner, handle, node),
                 _ => None,
@@ -92,15 +73,12 @@ pub fn handle_point_light_property_changed(
 ) -> Option<SceneCommand> {
     if let Node::Light(Light::Point(_)) = node {
         match args.value {
-            FieldKind::Object(ref value) => match args.name.as_ref() {
-                PointLight::SHADOW_BIAS => {
-                    make_command!(SetPointLightShadowBiasCommand, handle, value)
-                }
-                PointLight::RADIUS => {
-                    make_command!(SetPointLightRadiusCommand, handle, value)
-                }
-                _ => None,
-            },
+            FieldKind::Object(ref value) => {
+                handle_properties!(args.name.as_ref(), handle, value,
+                    PointLight::SHADOW_BIAS => SetPointLightShadowBiasCommand,
+                    PointLight::RADIUS => SetPointLightRadiusCommand
+                )
+            }
             FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
                 PointLight::BASE_LIGHT => handle_base_light_property_changed(inner, handle, node),
                 _ => None,

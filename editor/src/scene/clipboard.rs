@@ -1,8 +1,4 @@
-use crate::{
-    physics::{Collider, Joint, Physics, RigidBody},
-    scene::GraphSelection,
-    GameEngine,
-};
+use crate::{scene::GraphSelection, GameEngine};
 use rg3d::{
     core::pool::Handle,
     scene::{graph::Graph, node::Node, Scene},
@@ -11,7 +7,6 @@ use std::collections::HashMap;
 
 pub struct Clipboard {
     graph: Graph,
-    physics: Physics,
     empty: bool,
 }
 
@@ -19,7 +14,6 @@ impl Default for Clipboard {
     fn default() -> Self {
         Self {
             graph: Graph::new(),
-            physics: Default::default(),
             empty: true,
         }
     }
@@ -28,18 +22,12 @@ impl Default for Clipboard {
 #[derive(Default, Debug)]
 pub struct DeepCloneResult {
     pub root_nodes: Vec<Handle<Node>>,
-    pub colliders: Vec<Handle<Collider>>,
-    pub bodies: Vec<Handle<RigidBody>>,
-    pub joints: Vec<Handle<Joint>>,
-    pub binder: HashMap<Handle<Node>, Handle<RigidBody>>,
 }
 
 fn deep_clone_nodes(
     root_nodes: &[Handle<Node>],
     source_graph: &Graph,
-    source_physics: &Physics,
     dest_graph: &mut Graph,
-    dest_physics: &mut Physics,
 ) -> DeepCloneResult {
     let mut result = DeepCloneResult::default();
 
@@ -58,40 +46,6 @@ fn deep_clone_nodes(
         .map(|n| *old_new_mapping.get(n).unwrap())
         .collect::<Vec<_>>();
 
-    // Copy associated bodies, colliders, joints.
-    for &root_node in root_nodes.iter() {
-        for descendant in source_graph.traverse_handle_iter(root_node) {
-            // Copy body too if we have any.
-            if let Some(&body) = source_physics.binder.value_of(&descendant) {
-                let body = &source_physics.bodies[body];
-                let mut body_clone = body.clone();
-                body_clone.colliders.clear();
-                let body_clone_handle = dest_physics.bodies.spawn(body_clone);
-
-                result.bodies.push(body_clone_handle);
-
-                // Also copy colliders.
-                for &collider in body.colliders.iter() {
-                    let mut collider_clone = source_physics.colliders[collider.into()].clone();
-                    collider_clone.parent = body_clone_handle.into();
-                    let collider_clone_handle = dest_physics.colliders.spawn(collider_clone);
-                    dest_physics.bodies[body_clone_handle]
-                        .colliders
-                        .push(collider_clone_handle.into());
-
-                    result.colliders.push(collider_clone_handle);
-                }
-
-                let new_node = *old_new_mapping.get(&descendant).unwrap();
-                result.binder.insert(new_node, body_clone_handle);
-                dest_physics.binder.insert(new_node, body_clone_handle);
-            }
-        }
-    }
-
-    // TODO: Add joints.
-    // Joint will be copied only if both of its associated bodies are copied too.
-
     result
 }
 
@@ -100,7 +54,6 @@ impl Clipboard {
         &mut self,
         selection: &GraphSelection,
         scene_handle: Handle<Scene>,
-        physics: &Physics,
         engine: &GameEngine,
     ) {
         self.clear();
@@ -109,26 +62,18 @@ impl Clipboard {
 
         let root_nodes = selection.root_nodes(&scene.graph);
 
-        deep_clone_nodes(
-            &root_nodes,
-            &scene.graph,
-            physics,
-            &mut self.graph,
-            &mut self.physics,
-        );
+        deep_clone_nodes(&root_nodes, &scene.graph, &mut self.graph);
 
         self.empty = false;
     }
 
-    pub fn paste(&mut self, dest_graph: &mut Graph, dest_physics: &mut Physics) -> DeepCloneResult {
+    pub fn paste(&mut self, dest_graph: &mut Graph) -> DeepCloneResult {
         assert!(!self.empty);
 
         deep_clone_nodes(
             self.graph[self.graph.get_root()].children(),
             &self.graph,
-            &self.physics,
             dest_graph,
-            dest_physics,
         )
     }
 
@@ -139,6 +84,5 @@ impl Clipboard {
     pub fn clear(&mut self) {
         self.empty = true;
         self.graph = Graph::new();
-        self.physics = Default::default();
     }
 }

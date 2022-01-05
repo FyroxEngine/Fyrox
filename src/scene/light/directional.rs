@@ -20,12 +20,13 @@ use crate::{
     },
 };
 use std::ops::{Deref, DerefMut};
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Maximum amount of cascades.
 pub const CSM_NUM_CASCADES: usize = 3;
 
 /// Frustum split options defines how to split camera's frustum to generate cascades.
-#[derive(Inspect, Clone, Visit, Debug)]
+#[derive(Inspect, Clone, Visit, Debug, AsRefStr, EnumString, EnumVariantNames)]
 pub enum FrustumSplitOptions {
     /// Camera frustum will be split into a [`CSM_NUM_CASCADES`] splits where each sub-frustum
     /// will have fixed far plane location.

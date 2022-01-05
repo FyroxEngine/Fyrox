@@ -10,6 +10,7 @@ mod document;
 pub mod error;
 mod scene;
 
+use crate::resource::model::{MaterialSearchOptions, ModelImportOptions};
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
     core::{
@@ -21,7 +22,7 @@ use crate::{
         pool::Handle,
         sstorage::ImmutableString,
     },
-    engine::resource_manager::{MaterialSearchOptions, ResourceManager},
+    engine::resource_manager::ResourceManager,
     material::{shader::SamplerFallback, PropertyValue},
     resource::fbx::{
         document::FbxDocument,
@@ -248,7 +249,7 @@ async fn create_surfaces(
     resource_manager: ResourceManager,
     model: &FbxModel,
     model_path: &Path,
-    material_search_options: &MaterialSearchOptions,
+    model_import_options: &ModelImportOptions,
 ) -> Result<Vec<Surface>, FbxError> {
     let mut surfaces = Vec::new();
 
@@ -281,8 +282,8 @@ async fn create_surfaces(
                 let texture = fbx_scene.get(*texture_handle).as_texture()?;
                 let path = texture.get_file_path();
                 if let Some(filename) = path.file_name() {
-                    let texture_path = match material_search_options {
-                        MaterialSearchOptions::MaterialsDirectory(directory) => {
+                    let texture_path = match model_import_options.material_search_options {
+                        MaterialSearchOptions::MaterialsDirectory(ref directory) => {
                             Some(directory.join(filename))
                         }
                         MaterialSearchOptions::RecursiveUp => {
@@ -315,8 +316,7 @@ async fn create_surfaces(
                     };
 
                     if let Some(texture_path) = texture_path {
-                        let texture =
-                            resource_manager.request_texture(texture_path.as_path(), None);
+                        let texture = resource_manager.request_texture(texture_path.as_path());
 
                         // Make up your mind, Autodesk.
                         // Handle all possible combinations of links to auto-import materials.
@@ -370,7 +370,7 @@ async fn create_surfaces(
                             MessageKind::Warning,
                             format!(
                                 "Unable to find a texture {:?} for 3D model {:?} using {:?} option!",
-                                filename, model_path, material_search_options
+                                filename, model_path, model_import_options
                             ),
                         );
                     }
@@ -390,7 +390,7 @@ async fn convert_mesh(
     model: &FbxModel,
     graph: &mut Graph,
     model_path: &Path,
-    material_search_options: &MaterialSearchOptions,
+    model_import_options: &ModelImportOptions,
 ) -> Result<Handle<Node>, FbxError> {
     let geometric_transform = Matrix4::new_translation(&model.geometric_translation)
         * quat_from_euler(model.geometric_rotation).to_homogeneous()
@@ -468,7 +468,7 @@ async fn convert_mesh(
             resource_manager.clone(),
             model,
             model_path,
-            material_search_options,
+            model_import_options,
         )
         .await?;
 
@@ -515,7 +515,7 @@ async fn convert_model(
     animations: &mut AnimationContainer,
     animation_handle: Handle<Animation>,
     model_path: &Path,
-    material_search_options: &MaterialSearchOptions,
+    model_import_options: &ModelImportOptions,
 ) -> Result<Handle<Node>, FbxError> {
     let base = convert_model_to_base(model);
 
@@ -528,7 +528,7 @@ async fn convert_model(
             model,
             graph,
             model_path,
-            material_search_options,
+            model_import_options,
         )
         .await?
     } else if model.light.is_some() {
@@ -616,7 +616,7 @@ async fn convert(
     resource_manager: ResourceManager,
     scene: &mut Scene,
     model_path: &Path,
-    material_search_options: &MaterialSearchOptions,
+    model_import_options: &ModelImportOptions,
 ) -> Result<(), FbxError> {
     let root = scene.graph.get_root();
     let animation_handle = scene.animations.add(Animation::default());
@@ -631,7 +631,7 @@ async fn convert(
                 &mut scene.animations,
                 animation_handle,
                 model_path,
-                material_search_options,
+                model_import_options,
             )
             .await?;
             scene.graph.link_nodes(node, root);
@@ -708,7 +708,7 @@ pub async fn load_to_scene<P: AsRef<Path>>(
     scene: &mut Scene,
     resource_manager: ResourceManager,
     path: P,
-    material_search_options: &MaterialSearchOptions,
+    model_import_options: &ModelImportOptions,
 ) -> Result<(), FbxError> {
     let start_time = Instant::now();
 
@@ -731,7 +731,7 @@ pub async fn load_to_scene<P: AsRef<Path>>(
         resource_manager,
         scene,
         path.as_ref(),
-        material_search_options,
+        model_import_options,
     )
     .await?;
     let conversion_time = now.elapsed().as_millis();

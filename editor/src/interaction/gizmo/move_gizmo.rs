@@ -1,10 +1,10 @@
 use crate::{
     interaction::plane::PlaneKind,
     make_color_material,
-    physics::Physics,
     scene::{EditorScene, Selection},
     set_mesh_diffuse_color, GameEngine,
 };
+use rg3d::scene::transform::Transform;
 use rg3d::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -21,7 +21,7 @@ use rg3d::{
             MeshBuilder, RenderPath,
         },
         node::Node,
-        transform::{Transform, TransformBuilder},
+        transform::TransformBuilder,
         Scene,
     },
 };
@@ -53,7 +53,6 @@ fn make_move_axis(
                 arrow = MeshBuilder::new(
                     BaseBuilder::new()
                         .with_name(name_prefix.to_owned() + "Arrow")
-                        .with_depth_offset(0.5)
                         .with_local_transform(
                             TransformBuilder::new()
                                 .with_local_position(Vector3::new(0.0, 1.0, 0.0))
@@ -71,7 +70,6 @@ fn make_move_axis(
                 arrow
             }])
             .with_name(name_prefix.to_owned() + "Axis")
-            .with_depth_offset(0.5)
             .with_local_transform(
                 TransformBuilder::new()
                     .with_local_rotation(rotation)
@@ -97,14 +95,11 @@ fn create_quad_plane(
     name: &str,
 ) -> Handle<Node> {
     MeshBuilder::new(
-        BaseBuilder::new()
-            .with_name(name)
-            .with_depth_offset(0.5)
-            .with_local_transform(
-                TransformBuilder::new()
-                    .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
-                    .build(),
-            ),
+        BaseBuilder::new().with_name(name).with_local_transform(
+            TransformBuilder::new()
+                .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
+                .build(),
+        ),
     )
     .with_render_path(RenderPath::Forward)
     .with_cast_shadows(false)
@@ -302,13 +297,7 @@ impl MoveGizmo {
         Vector3::default()
     }
 
-    pub fn sync_transform(
-        &self,
-        scene: &mut Scene,
-        selection: &Selection,
-        physics: &Physics,
-        scale: Vector3<f32>,
-    ) {
+    pub fn sync_transform(&self, scene: &mut Scene, selection: &Selection, scale: Vector3<f32>) {
         let graph = &mut scene.graph;
         match selection {
             Selection::Graph(selection) => {
@@ -323,16 +312,6 @@ impl MoveGizmo {
             }
             Selection::Sound(selection) => {
                 if let Some(center) = selection.center(&scene.sound_context) {
-                    graph[self.origin]
-                        .set_visibility(true)
-                        .local_transform_mut()
-                        .set_position(center)
-                        .set_rotation(Default::default())
-                        .set_scale(scale);
-                }
-            }
-            Selection::RigidBody(selection) => {
-                if let Some(center) = selection.center(physics) {
                     graph[self.origin]
                         .set_visibility(true)
                         .local_transform_mut()

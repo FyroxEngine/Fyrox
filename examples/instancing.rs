@@ -17,10 +17,7 @@ use rg3d::{
         pool::Handle,
         sstorage::ImmutableString,
     },
-    engine::{
-        framework::prelude::*, resource_manager::MaterialSearchOptions,
-        resource_manager::ResourceManager, Engine,
-    },
+    engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -75,14 +72,8 @@ impl SceneLoader {
         // of it. In case of models it is very efficient because single vertex and index buffer
         // can be used for all models instances, so memory footprint on GPU will be lower.
         let (model_resource, walk_animation_resource) = rg3d::core::futures::join!(
-            resource_manager.request_model(
-                "examples/data/mutant/mutant.FBX",
-                MaterialSearchOptions::RecursiveUp
-            ),
-            resource_manager.request_model(
-                "examples/data/mutant/walk.fbx",
-                MaterialSearchOptions::RecursiveUp
-            )
+            resource_manager.request_model("examples/data/mutant/mutant.FBX"),
+            resource_manager.request_model("examples/data/mutant/walk.fbx")
         );
 
         let mut animations = Vec::new();
@@ -146,9 +137,7 @@ impl SceneLoader {
             .set_property(
                 &ImmutableString::new("diffuseTexture"),
                 PropertyValue::Sampler {
-                    value: Some(
-                        resource_manager.request_texture("examples/data/concrete2.dds", None),
-                    ),
+                    value: Some(resource_manager.request_texture("examples/data/concrete2.dds")),
                     fallback: SamplerFallback::White,
                 },
             )

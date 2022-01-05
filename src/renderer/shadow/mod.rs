@@ -20,11 +20,14 @@ fn should_cast_shadows(node: &Node, light_frustum: &Frustum) -> bool {
     node.global_visibility() && {
         match node {
             Node::Mesh(mesh) => {
-                mesh.cast_shadows() && light_frustum.is_intersects_aabb(&mesh.world_bounding_box())
+                mesh.cast_shadows()
+                    && (!mesh.frustum_culling()
+                        || light_frustum.is_intersects_aabb(&mesh.world_bounding_box()))
             }
             Node::Terrain(terrain) => {
                 terrain.cast_shadows()
-                    && light_frustum.is_intersects_aabb(&terrain.world_bounding_box())
+                    && (!terrain.frustum_culling()
+                        || light_frustum.is_intersects_aabb(&terrain.world_bounding_box()))
             }
             _ => false,
         }

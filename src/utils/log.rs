@@ -1,11 +1,10 @@
 //! Simple logger, it writes in file and in console at the same time.
 
 use crate::lazy_static::lazy_static;
-use std::fmt::Debug;
-use std::{
-    io::{self, Write},
-    sync::Mutex,
-};
+use std::{fmt::Debug, sync::Mutex};
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::io::{self, Write};
 
 #[cfg(target_arch = "wasm32")]
 use crate::core::wasm_bindgen::{self, prelude::*};

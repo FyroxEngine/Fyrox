@@ -1,4 +1,4 @@
-use crate::{asset::AssetItem, inspector::EditorEnvironment, load_image, make_relative_path};
+use crate::{asset::item::AssetItem, inspector::EditorEnvironment, load_image, make_relative_path};
 use rg3d::{
     asset::{Resource, ResourceData, ResourceLoadError},
     core::{futures::executor::block_on, pool::Handle},

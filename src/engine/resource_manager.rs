@@ -1,28 +1,34 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::resource::curve::{CurveResource, CurveResourceState};
 use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
-    core::{futures::executor::ThreadPool, instant, visitor::prelude::*, VecExtensions},
+    core::{append_extension, instant, io, visitor::prelude::*, VecExtensions},
     material::shader::{Shader, ShaderState},
     renderer::TextureUploadSender,
     resource::{
+        curve::{CurveResource, CurveResourceState},
         model::{Model, ModelData},
-        texture::{
-            CompressionOptions, Texture, TextureData, TextureError, TextureMagnificationFilter,
-            TextureMinificationFilter, TexturePixelKind, TextureState, TextureWrapMode,
-        },
+        texture::{Texture, TextureData, TextureError, TextureImportOptions, TextureState},
     },
     sound::buffer::{
         DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState,
     },
     utils::log::{Log, MessageKind},
 };
+use ron::ser::PrettyConfig;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+use std::fs::File;
+use std::future::Future;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard},
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::core::futures::executor::ThreadPool;
+use crate::resource::model::ModelImportOptions;
 
 /// Lifetime of orphaned resource in seconds (with only one strong ref which is resource manager itself)
 pub const DEFAULT_RESOURCE_LIFETIME: f32 = 60.0;
@@ -241,6 +247,7 @@ pub struct ResourceManagerState {
     shaders: ResourceContainer<Shader>,
     curves: ResourceContainer<CurveResource>,
     textures_import_options: TextureImportOptions,
+    model_import_options: ModelImportOptions,
     #[cfg(not(target_arch = "wasm32"))]
     thread_pool: ThreadPool,
     pub(in crate) upload_sender: Option<TextureUploadSender>,
@@ -255,6 +262,7 @@ impl Default for ResourceManagerState {
             shaders: Default::default(),
             curves: Default::default(),
             textures_import_options: Default::default(),
+            model_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
             upload_sender: None,
@@ -266,79 +274,6 @@ impl Default for ResourceManagerState {
 #[derive(Clone, Visit)]
 pub struct ResourceManager {
     state: Option<Arc<Mutex<ResourceManagerState>>>,
-}
-
-/// Allows you to define a set of defaults for every imported texture.
-#[derive(Clone)]
-pub struct TextureImportOptions {
-    minification_filter: TextureMinificationFilter,
-    magnification_filter: TextureMagnificationFilter,
-    s_wrap_mode: TextureWrapMode,
-    t_wrap_mode: TextureWrapMode,
-    anisotropy: f32,
-    compression: CompressionOptions,
-}
-
-impl Default for TextureImportOptions {
-    fn default() -> Self {
-        Self {
-            minification_filter: TextureMinificationFilter::LinearMipMapLinear,
-            magnification_filter: TextureMagnificationFilter::Linear,
-            s_wrap_mode: TextureWrapMode::Repeat,
-            t_wrap_mode: TextureWrapMode::Repeat,
-            anisotropy: 16.0,
-            compression: CompressionOptions::Quality,
-        }
-    }
-}
-
-impl TextureImportOptions {
-    /// Sets new minification filter which will be applied to every imported texture as
-    /// default value.
-    pub fn with_minification_filter(
-        mut self,
-        minification_filter: TextureMinificationFilter,
-    ) -> Self {
-        self.minification_filter = minification_filter;
-        self
-    }
-
-    /// Sets new magnification filter which will be applied to every imported texture as
-    /// default value.
-    pub fn with_magnification_filter(
-        mut self,
-        magnification_filter: TextureMagnificationFilter,
-    ) -> Self {
-        self.magnification_filter = magnification_filter;
-        self
-    }
-
-    /// Sets new S coordinate wrap mode which will be applied to every imported texture as
-    /// default value.
-    pub fn with_s_wrap_mode(mut self, s_wrap_mode: TextureWrapMode) -> Self {
-        self.s_wrap_mode = s_wrap_mode;
-        self
-    }
-
-    /// Sets new T coordinate wrap mode which will be applied to every imported texture as
-    /// default value.
-    pub fn with_t_wrap_mode(mut self, t_wrap_mode: TextureWrapMode) -> Self {
-        self.t_wrap_mode = t_wrap_mode;
-        self
-    }
-
-    /// Sets new anisotropy level which will be applied to every imported texture as
-    /// default value.
-    pub fn with_anisotropy(mut self, anisotropy: f32) -> Self {
-        self.anisotropy = anisotropy.min(1.0);
-        self
-    }
-
-    /// Sets desired texture compression.
-    pub fn with_compression(mut self, compression: CompressionOptions) -> Self {
-        self.compression = compression;
-        self
-    }
 }
 
 /// An error that may occur during texture registration.
@@ -361,25 +296,85 @@ impl From<TextureError> for TextureRegistrationError {
     }
 }
 
+/// A trait for resource import options. It provides generic functionality shared over all types of import options.
+pub trait ImportOptions: Serialize + DeserializeOwned + Default {
+    /// Saves import options into a specified file.
+    fn save(&self, path: &Path) -> bool {
+        if let Ok(file) = File::create(path) {
+            if ron::ser::to_writer_pretty(file, self, PrettyConfig::default()).is_ok() {
+                return true;
+            }
+        }
+        false
+    }
+}
+
+/// Tries to load import settings for a resource. It is not part of ImportOptions trait because
+/// `async fn` is not yet supported for traits.
+pub async fn try_get_import_settings<T>(resource_path: &Path) -> Option<T>
+where
+    T: ImportOptions,
+{
+    let settings_path = append_extension(resource_path, "options");
+
+    match io::load_file(&settings_path).await {
+        Ok(bytes) => match ron::de::from_bytes::<T>(&bytes) {
+            Ok(options) => Some(options),
+            Err(e) => {
+                Log::writeln(
+                    MessageKind::Error,
+                    format!(
+                        "Malformed options file {} for {} resource! Reason: {:?}",
+                        settings_path.display(),
+                        resource_path.display(),
+                        e
+                    ),
+                );
+
+                None
+            }
+        },
+        Err(e) => {
+            Log::writeln(
+                MessageKind::Warning,
+                format!(
+                    "Unable to load options file {} for {} resource, fallback to defaults! Reason: {:?}",
+                    settings_path.display(),
+                    resource_path.display(),
+                    e
+                ),
+            );
+
+            None
+        }
+    }
+}
+
 async fn load_texture(
     texture: Texture,
     path: PathBuf,
-    options: TextureImportOptions,
+    default_options: TextureImportOptions,
     upload_sender: TextureUploadSender,
 ) {
+    let import_options = try_get_import_settings(&path)
+        .await
+        .unwrap_or(default_options);
+
+    let gen_mip_maps = import_options.minification_filter.is_using_mip_mapping();
+
     let time = instant::Instant::now();
-    match TextureData::load_from_file(&path, options.compression).await {
+    match TextureData::load_from_file(&path, import_options.compression, gen_mip_maps).await {
         Ok(mut raw_texture) => {
             Log::writeln(
                 MessageKind::Information,
                 format!("Texture {:?} is loaded in {:?}!", path, time.elapsed()),
             );
 
-            raw_texture.set_magnification_filter(options.magnification_filter);
-            raw_texture.set_minification_filter(options.minification_filter);
-            raw_texture.set_anisotropy_level(options.anisotropy);
-            raw_texture.set_s_wrap_mode(options.s_wrap_mode);
-            raw_texture.set_t_wrap_mode(options.t_wrap_mode);
+            raw_texture.set_magnification_filter(import_options.magnification_filter);
+            raw_texture.set_minification_filter(import_options.minification_filter);
+            raw_texture.set_anisotropy_level(import_options.anisotropy);
+            raw_texture.set_s_wrap_mode(import_options.s_wrap_mode);
+            raw_texture.set_t_wrap_mode(import_options.t_wrap_mode);
 
             texture.state().commit(ResourceState::Ok(raw_texture));
 
@@ -404,9 +399,13 @@ async fn load_model(
     model: Model,
     path: PathBuf,
     resource_manager: ResourceManager,
-    material_search_options: MaterialSearchOptions,
+    default_import_options: ModelImportOptions,
 ) {
-    match ModelData::load(&path, resource_manager, material_search_options).await {
+    let import_options = try_get_import_settings(&path)
+        .await
+        .unwrap_or(default_import_options);
+
+    match ModelData::load(&path, resource_manager, import_options).await {
         Ok(raw_model) => {
             Log::writeln(
                 MessageKind::Information,
@@ -521,30 +520,6 @@ async fn load_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream:
     }
 }
 
-async fn reload_texture(texture: Texture, path: PathBuf, compression: CompressionOptions) {
-    match TextureData::load_from_file(&path, compression).await {
-        Ok(data) => {
-            Log::writeln(
-                MessageKind::Information,
-                format!("Texture {:?} successfully reloaded!", path,),
-            );
-
-            texture.state().commit(ResourceState::Ok(data));
-        }
-        Err(e) => {
-            Log::writeln(
-                MessageKind::Error,
-                format!("Unable to reload {:?} texture! Reason: {:?}", path, e),
-            );
-
-            texture.state().commit(ResourceState::LoadError {
-                path,
-                error: Some(Arc::new(e)),
-            });
-        }
-    };
-}
-
 async fn reload_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream: bool) {
     if let Ok(data_source) = DataSource::from_file(&path).await {
         let new_sound_buffer = match stream {
@@ -598,10 +573,24 @@ impl ResourceManager {
     /// # Import options
     ///
     /// It is possible to define custom import options. Using import options you could set desired compression quality,
-    /// filtering, wrapping, etc. **IMPORTANT:** Import options take effect **only** at first loading of a texture,
-    /// this means that if you try to pass options when requesting loaded texture, they won't take effect.
+    /// filtering, wrapping, etc. Import options should be defined in a separate file with the same name as the source
+    /// texture, but with additional extension `options`. For example you have a `foo.jpg` texture, a file with import
+    /// options should be called `foo.jpg.options`. It's content may look something like this:
     ///
-    /// If None is passed as import options, then default import options from resource manager will be used.
+    /// ```text
+    /// (
+    ///     minification_filter: Linear,
+    ///     magnification_filter: Linear,
+    ///     s_wrap_mode: Repeat,
+    ///     t_wrap_mode: ClampToEdge,
+    ///     anisotropy: 8.0,
+    ///     compression: NoCompression,    
+    /// )
+    /// ```
+    ///
+    /// Usually there is no need to change this file manually, it can be modified from the editor using the Asset Browser.
+    /// When there is no import options file, the engine will use texture import options defined in the resource manager.
+    /// See [set_textures_import_options](ResourceManagerState::set_textures_import_options) for more info.
     ///
     /// # Async/.await
     ///
@@ -609,41 +598,32 @@ impl ResourceManager {
     ///
     /// # Supported formats
     ///
-    /// To load images and decode them, rg3d uses image create which supports following image
-    /// formats: png, tga, bmp, dds, jpg, gif, tiff, dxt.
-    pub fn request_texture<P: AsRef<Path>>(
-        &self,
-        path: P,
-        import_options: Option<TextureImportOptions>,
-    ) -> Texture {
+    /// To load images and decode them, rg3d uses image create which supports following image formats: png, tga, bmp, dds,
+    /// jpg, gif, tiff, dxt.
+    pub fn request_texture<P: AsRef<Path>>(&self, path: P) -> Texture {
+        let path_ref = path.as_ref();
         let mut state = self.state();
 
-        if let Some(texture) = state.textures.find(path.as_ref()) {
+        if let Some(texture) = state.textures.find(path_ref) {
             return texture.clone();
         }
 
         let texture = Texture(Resource::new(ResourceState::new_pending(
-            path.as_ref().to_owned(),
+            path_ref.to_owned(),
         )));
         state.textures.push(texture.clone());
 
         let result = texture.clone();
-        let options = import_options.unwrap_or_else(|| state.textures_import_options.clone());
-        let path = path.as_ref().to_owned();
+        let default_options = state.textures_import_options.clone();
+        let path = path_ref.to_owned();
         let upload_sender = state
             .upload_sender
             .as_ref()
             .expect("Upload sender must be set!")
             .clone();
 
-        #[cfg(target_arch = "wasm32")]
-        crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_texture(texture, path, options, upload_sender).await;
-        });
-
-        #[cfg(not(target_arch = "wasm32"))]
-        state.thread_pool.spawn_ok(async move {
-            load_texture(texture, path, options, upload_sender).await;
+        state.spawn_task(async move {
+            load_texture(texture, path, default_options, upload_sender).await;
         });
 
         result
@@ -691,11 +671,7 @@ impl ResourceManager {
     ///
     /// Currently only FBX (common format in game industry for storing complex 3d models)
     /// and RGS (native rusty-editor format) formats are supported.
-    pub fn request_model<P: AsRef<Path>>(
-        &self,
-        path: P,
-        material_search_options: MaterialSearchOptions,
-    ) -> Model {
+    pub fn request_model<P: AsRef<Path>>(&self, path: P) -> Model {
         let mut state = self.state();
 
         if let Some(model) = state.models.find(path.as_ref()) {
@@ -707,18 +683,13 @@ impl ResourceManager {
         )));
         state.models.push(model.clone());
 
+        let default_import_options = state.model_import_options.clone();
         let result = model.clone();
         let path = path.as_ref().to_owned();
         let resource_manager = self.clone();
 
-        #[cfg(target_arch = "wasm32")]
-        crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_model(model, path, resource_manager, material_search_options).await;
-        });
-
-        #[cfg(not(target_arch = "wasm32"))]
-        state.thread_pool.spawn_ok(async move {
-            load_model(model, path, resource_manager, material_search_options).await;
+        state.spawn_task(async move {
+            load_model(model, path, resource_manager, default_import_options).await;
         });
 
         result
@@ -749,13 +720,7 @@ impl ResourceManager {
         let result = resource.clone();
         let path = path.as_ref().to_owned();
 
-        #[cfg(target_arch = "wasm32")]
-        crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_sound_buffer(resource, path, stream).await;
-        });
-
-        #[cfg(not(target_arch = "wasm32"))]
-        state.thread_pool.spawn_ok(async move {
+        state.spawn_task(async move {
             load_sound_buffer(resource, path, stream).await;
         });
 
@@ -784,13 +749,7 @@ impl ResourceManager {
         let result = shader.clone();
         let path = path.as_ref().to_owned();
 
-        #[cfg(target_arch = "wasm32")]
-        crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_shader(shader, path).await;
-        });
-
-        #[cfg(not(target_arch = "wasm32"))]
-        state.thread_pool.spawn_ok(async move {
+        state.spawn_task(async move {
             load_shader(shader, path).await;
         });
 
@@ -819,17 +778,28 @@ impl ResourceManager {
         let result = curve.clone();
         let path = path.as_ref().to_owned();
 
-        #[cfg(target_arch = "wasm32")]
-        crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_curve_resource(curve, path).await;
-        });
-
-        #[cfg(not(target_arch = "wasm32"))]
-        state.thread_pool.spawn_ok(async move {
+        state.spawn_task(async move {
             load_curve_resource(curve, path).await;
         });
 
         result
+    }
+
+    /// Reloads given texture, forces the engine to re-upload the texture to the GPU.
+    pub fn reload_texture(&self, texture: Texture) {
+        let state = self.state();
+
+        let path = texture.state().path().to_path_buf();
+        let default_options = state.textures_import_options.clone();
+        let upload_sender = state
+            .upload_sender
+            .clone()
+            .expect("Upload sender must exist at this point!");
+        *texture.state() = ResourceState::new_pending(path.clone());
+
+        state.spawn_task(async move {
+            load_texture(texture, path, default_options, upload_sender).await;
+        });
     }
 
     /// Reloads every loaded texture. This method is asynchronous, internally it uses thread pool
@@ -843,27 +813,15 @@ impl ResourceManager {
 
             for resource in textures.iter().cloned() {
                 let path = resource.state().path().to_path_buf();
-                let compression = if let ResourceState::Ok(ref data) = *resource.state() {
-                    match data.pixel_kind() {
-                        TexturePixelKind::DXT1RGB => CompressionOptions::Speed,
-                        TexturePixelKind::DXT1RGBA => CompressionOptions::Speed,
-                        TexturePixelKind::DXT3RGBA => CompressionOptions::NoCompression, // TODO
-                        TexturePixelKind::DXT5RGBA => CompressionOptions::Quality,
-                        _ => CompressionOptions::NoCompression,
-                    }
-                } else {
-                    CompressionOptions::NoCompression
-                };
+                let default_options = state.textures_import_options.clone();
+                let upload_sender = state
+                    .upload_sender
+                    .clone()
+                    .expect("Upload sender must exist at this point!");
                 *resource.state() = ResourceState::new_pending(path.clone());
 
-                #[cfg(target_arch = "wasm32")]
-                crate::core::wasm_bindgen_futures::spawn_local(async move {
-                    reload_texture(resource, path, compression).await;
-                });
-
-                #[cfg(not(target_arch = "wasm32"))]
-                state.thread_pool.spawn_ok(async move {
-                    reload_texture(resource, path, compression).await;
+                state.spawn_task(async move {
+                    load_texture(resource, path, default_options, upload_sender).await;
                 });
             }
 
@@ -885,17 +843,11 @@ impl ResourceManager {
             for model in models.iter().cloned() {
                 let this = this.clone();
                 let path = model.state().path().to_path_buf();
-                let material_search_options = model.data_ref().material_search_options().clone();
+                let default_import_options = state.model_import_options.clone();
                 *model.state() = ResourceState::new_pending(path.clone());
 
-                #[cfg(target_arch = "wasm32")]
-                crate::core::wasm_bindgen_futures::spawn_local(async move {
-                    load_model(model, path, this, material_search_options).await;
-                });
-
-                #[cfg(not(target_arch = "wasm32"))]
-                state.thread_pool.spawn_ok(async move {
-                    load_model(model, path, this, material_search_options).await;
+                state.spawn_task(async move {
+                    load_model(model, path, this, default_import_options).await;
                 })
             }
 
@@ -922,13 +874,7 @@ impl ResourceManager {
                 let path = shader.state().path().to_path_buf();
                 *shader.state() = ResourceState::new_pending(path.clone());
 
-                #[cfg(target_arch = "wasm32")]
-                crate::core::wasm_bindgen_futures::spawn_local(async move {
-                    load_shader(shader, path).await;
-                });
-
-                #[cfg(not(target_arch = "wasm32"))]
-                state.thread_pool.spawn_ok(async move {
+                state.spawn_task(async move {
                     load_shader(shader, path).await;
                 })
             }
@@ -956,13 +902,7 @@ impl ResourceManager {
                 let path = curve.state().path().to_path_buf();
                 *curve.state() = ResourceState::new_pending(path.clone());
 
-                #[cfg(target_arch = "wasm32")]
-                crate::core::wasm_bindgen_futures::spawn_local(async move {
-                    load_curve_resource(curve, path).await;
-                });
-
-                #[cfg(not(target_arch = "wasm32"))]
-                state.thread_pool.spawn_ok(async move {
+                state.spawn_task(async move {
                     load_curve_resource(curve, path).await;
                 })
             }
@@ -1002,13 +942,7 @@ impl ResourceManager {
                 if path != PathBuf::default() {
                     *resource.state() = ResourceState::new_pending(path.clone());
 
-                    #[cfg(target_arch = "wasm32")]
-                    crate::core::wasm_bindgen_futures::spawn_local(async move {
-                        reload_sound_buffer(resource, path, stream).await;
-                    });
-
-                    #[cfg(not(target_arch = "wasm32"))]
-                    state.thread_pool.spawn_ok(async move {
+                    state.spawn_task(async move {
                         reload_sound_buffer(resource, path, stream).await;
                     });
                 }
@@ -1034,57 +968,6 @@ impl ResourceManager {
     }
 }
 
-/// Defines a way of searching materials when loading a model resource.
-#[derive(Clone, Debug, Visit, PartialEq)]
-pub enum MaterialSearchOptions {
-    /// Search in specified materials directory. It is suitable for cases when
-    /// your model resource use shared textures.
-    ///
-    /// # Platform specific
-    ///
-    /// Works on every platform.
-    MaterialsDirectory(PathBuf),
-
-    /// Recursive-up search. It is suitable for cases when textures are placed
-    /// near your model resource. This is default option.
-    ///
-    /// # Platform specific
-    ///
-    /// Works on every platform.
-    RecursiveUp,
-
-    /// Global search starting from working directory. Slowest option with a lot of ambiguities -
-    /// it may load unexpected file in cases when there are two or more files with same name but
-    /// lying in different directories.
-    ///
-    /// # Platform specific
-    ///
-    /// WebAssembly - **not supported** due to lack of file system.
-    WorkingDirectory,
-
-    /// Try to use paths stored in the model resource directly. This options has limited usage,
-    /// it is suitable to load animations, or any other model which does not have any materials.
-    ///
-    /// # Important notes
-    ///
-    /// RGS (native engine scenes) files should be loaded with this option by default, otherwise
-    /// the engine won't be able to correctly find materials.
-    UsePathDirectly,
-}
-
-impl Default for MaterialSearchOptions {
-    fn default() -> Self {
-        Self::RecursiveUp
-    }
-}
-
-impl MaterialSearchOptions {
-    /// A helper to create MaterialsDirectory variant.
-    pub fn materials_directory<P: AsRef<Path>>(path: P) -> Self {
-        Self::MaterialsDirectory(path.as_ref().to_path_buf())
-    }
-}
-
 impl ResourceManagerState {
     pub(in crate::engine) fn new(upload_sender: TextureUploadSender) -> Self {
         Self {
@@ -1094,10 +977,27 @@ impl ResourceManagerState {
             shaders: Default::default(),
             curves: Default::default(),
             textures_import_options: Default::default(),
+            model_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
             upload_sender: Some(upload_sender),
         }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn spawn_task<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + 'static,
+    {
+        crate::core::wasm_bindgen_futures::spawn_local(future);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn spawn_task<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        self.thread_pool.spawn_ok(future);
     }
 
     /// Sets new import options for textures. Previously loaded textures won't be affected by the

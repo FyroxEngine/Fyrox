@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Base`]
 
+use self::legacy::PhysicsBinding;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -13,53 +14,63 @@ use crate::{
     resource::model::Model,
     scene::{graph::Graph, node::Node, transform::Transform},
 };
-use std::cell::Cell;
-use std::ops::{Deref, DerefMut};
+use std::{
+    cell::Cell,
+    ops::{Deref, DerefMut},
+};
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
-/// Defines a kind of binding between rigid body and a scene node. Check variants
-/// for more info.
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Inspect)]
-#[repr(u32)]
-pub enum PhysicsBinding {
-    /// Forces engine to sync transform of a node with its associated rigid body.
-    /// This is default binding.
-    NodeWithBody = 0,
+pub(crate) mod legacy {
+    use crate::core::{
+        inspect::{Inspect, PropertyInfo},
+        visitor::{Visit, VisitResult, Visitor},
+    };
 
-    /// Forces engine to sync transform of a rigid body with its associated node. This could be useful for
-    /// specific situations like add "hit boxes" to a character.
-    ///
-    /// # Use cases
-    ///
-    /// This option has limited usage, but the most common is to create hit boxes. To do that create kinematic
-    /// rigid bodies with appropriate colliders and set [`PhysicsBinding::BodyWithNode`] binding to make them
-    /// move together with parent nodes.
-    BodyWithNode = 1,
-}
+    /// Defines a kind of binding between rigid body and a scene node. Check variants
+    /// for more info.
+    #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Inspect)]
+    #[repr(u32)]
+    pub enum PhysicsBinding {
+        /// Forces engine to sync transform of a node with its associated rigid body.
+        /// This is default binding.
+        NodeWithBody = 0,
 
-impl Default for PhysicsBinding {
-    fn default() -> Self {
-        Self::NodeWithBody
+        /// Forces engine to sync transform of a rigid body with its associated node. This could be useful for
+        /// specific situations like add "hit boxes" to a character.
+        ///
+        /// # Use cases
+        ///
+        /// This option has limited usage, but the most common is to create hit boxes. To do that create kinematic
+        /// rigid bodies with appropriate colliders and set [`PhysicsBinding::BodyWithNode`] binding to make them
+        /// move together with parent nodes.
+        BodyWithNode = 1,
     }
-}
 
-impl PhysicsBinding {
-    fn from_id(id: u32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::NodeWithBody),
-            1 => Ok(Self::BodyWithNode),
-            _ => Err(format!("Invalid physics binding id {}!", id)),
+    impl Default for PhysicsBinding {
+        fn default() -> Self {
+            Self::NodeWithBody
         }
     }
-}
 
-impl Visit for PhysicsBinding {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut id = *self as u32;
-        id.visit(name, visitor)?;
-        if visitor.is_reading() {
-            *self = Self::from_id(id)?;
+    impl PhysicsBinding {
+        fn from_id(id: u32) -> Result<Self, String> {
+            match id {
+                0 => Ok(Self::NodeWithBody),
+                1 => Ok(Self::BodyWithNode),
+                _ => Err(format!("Invalid physics binding id {}!", id)),
+            }
         }
-        Ok(())
+    }
+
+    impl Visit for PhysicsBinding {
+        fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+            let mut id = *self as u32;
+            id.visit(name, visitor)?;
+            if visitor.is_reading() {
+                *self = Self::from_id(id)?;
+            }
+            Ok(())
+        }
     }
 }
 
@@ -164,7 +175,19 @@ pub struct LodGroup {
 
 /// Mobility defines a group for scene node which has direct impact on performance
 /// and capabilities of nodes.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Debug, Inspect)]
+#[derive(
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Ord,
+    Eq,
+    Debug,
+    Inspect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 #[repr(u32)]
 pub enum Mobility {
     /// Transform cannot be changed.
@@ -227,7 +250,7 @@ impl Visit for Mobility {
 }
 
 /// A property value.
-#[derive(Debug, Visit, Inspect, Clone)]
+#[derive(Debug, Visit, Inspect, Clone, AsRefStr, EnumString, EnumVariantNames)]
 pub enum PropertyValue {
     /// A node handle.
     ///
@@ -304,7 +327,7 @@ pub struct Property {
 #[derive(Debug, Inspect)]
 pub struct Base {
     name: String,
-    local_transform: Transform,
+    pub(crate) local_transform: Transform,
     visibility: bool,
     #[inspect(skip)]
     pub(in crate) global_visibility: Cell<bool>,
@@ -338,10 +361,16 @@ pub struct Base {
     lod_group: Option<LodGroup>,
     mobility: Mobility,
     tag: String,
-    pub(in crate) physics_binding: PhysicsBinding,
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
     pub properties: Vec<Property>,
+    #[inspect(skip)]
+    pub(in crate) transform_modified: Cell<bool>,
+
+    // Legacy.
+    #[inspect(skip)]
+    pub(in crate) physics_binding: PhysicsBinding,
+    frustum_culling: bool,
 }
 
 impl Base {
@@ -370,6 +399,7 @@ impl Base {
     /// Returns mutable reference to local transform of a node, can be used to set
     /// some local spatial properties, such as position, rotation, scale, etc.
     pub fn local_transform_mut(&mut self) -> &mut Transform {
+        self.transform_modified.set(true);
         &mut self.local_transform
     }
 
@@ -574,16 +604,6 @@ impl Base {
         self.tag = tag;
     }
 
-    /// Returns current physics binding kind.
-    pub fn physics_binding(&self) -> PhysicsBinding {
-        self.physics_binding
-    }
-
-    /// Sets new kind of physics binding.
-    pub fn set_physics_binding(&mut self, binding: PhysicsBinding) {
-        self.physics_binding = binding;
-    }
-
     /// Shallow copy of node data. You should never use this directly, shallow copy
     /// will produce invalid node in most cases!
     pub fn raw_copy(&self) -> Self {
@@ -599,7 +619,6 @@ impl Base {
             lifetime: self.lifetime,
             mobility: self.mobility,
             tag: self.tag.clone(),
-            physics_binding: self.physics_binding,
             lod_group: self.lod_group.clone(),
             properties: self.properties.clone(),
 
@@ -608,7 +627,20 @@ impl Base {
             parent: Default::default(),
             children: Default::default(),
             depth_offset: Default::default(),
+            transform_modified: Cell::new(false),
+            physics_binding: Default::default(),
+            frustum_culling: self.frustum_culling,
         }
+    }
+
+    /// Return the frustum_culling flag
+    pub fn frustum_culling(&self) -> bool {
+        self.frustum_culling
+    }
+
+    /// Sets whether to use frustum culling or not
+    pub fn set_frustum_culling(&mut self, frustum_culling: bool) {
+        self.frustum_culling = frustum_culling;
     }
 }
 
@@ -637,8 +669,9 @@ impl Visit for Base {
         self.original_handle_in_resource
             .visit("Original", visitor)?;
         self.tag.visit("Tag", visitor)?;
-        self.physics_binding.visit("PhysicsBinding", visitor)?;
         let _ = self.properties.visit("Properties", visitor);
+        let _ = self.physics_binding.visit("PhysicsBinding", visitor);
+        let _ = self.frustum_culling.visit("FrustumCulling", visitor);
 
         visitor.leave_region()
     }
@@ -656,6 +689,7 @@ pub struct BaseBuilder {
     mobility: Mobility,
     inv_bind_pose_transform: Matrix4<f32>,
     tag: String,
+    frustum_culling: bool,
 }
 
 impl Default for BaseBuilder {
@@ -678,6 +712,7 @@ impl BaseBuilder {
             mobility: Mobility::Dynamic,
             inv_bind_pose_transform: Matrix4::identity(),
             tag: Default::default(),
+            frustum_culling: true,
         }
     }
 
@@ -748,6 +783,12 @@ impl BaseBuilder {
         self
     }
 
+    /// Sets desired frustum_culling flag.
+    pub fn with_frustum_culling(mut self, frustum_culling: bool) -> Self {
+        self.frustum_culling = frustum_culling;
+        self
+    }
+
     pub(in crate) fn build_base(self) -> Base {
         Base {
             name: self.name,
@@ -766,8 +807,10 @@ impl BaseBuilder {
             lod_group: self.lod_group,
             mobility: self.mobility,
             tag: self.tag,
-            physics_binding: PhysicsBinding::NodeWithBody,
             properties: Default::default(),
+            transform_modified: Cell::new(false),
+            physics_binding: Default::default(),
+            frustum_culling: self.frustum_culling,
         }
     }
 

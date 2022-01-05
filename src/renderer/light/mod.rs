@@ -47,6 +47,7 @@ use crate::{
         Scene,
     },
 };
+use rg3d_core::algebra::Vector2;
 use std::{
     cell::RefCell,
     fmt::{Display, Formatter},
@@ -349,11 +350,14 @@ impl DeferredLightRenderer {
 
         // Render skybox (if any).
         if let Some(skybox) = camera.skybox_ref() {
-            let size = camera.z_far() / 2.0f32.sqrt();
+            let size = camera.projection().z_far() / 2.0f32.sqrt();
             let scale = Matrix4::new_scaling(size);
             let wvp = Matrix4::new_translation(&camera.global_position()) * scale;
 
-            if let Some(gpu_texture) = textures.get(state, &skybox.cubemap().unwrap()) {
+            if let Some(gpu_texture) = skybox
+                .cubemap_ref()
+                .and_then(|cube_map| textures.get(state, cube_map))
+            {
                 let shader = &self.skybox_shader;
                 pass_stats += frame_buffer
                     .draw_part(
@@ -554,7 +558,7 @@ impl DeferredLightRenderer {
                     }
                     Light::Directional(directional) if settings.csm_settings.enabled => {
                         pass_stats += self.csm_renderer.render(CsmRenderContext {
-                            aspect: viewport.w() as f32 / viewport.h() as f32,
+                            frame_size: Vector2::new(gbuffer.width as f32, gbuffer.height as f32),
                             state,
                             graph: &scene.graph,
                             light: directional,

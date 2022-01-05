@@ -4,8 +4,9 @@
 //!
 //! This example shows simple 2D scene with light sources.
 
+use rg3d::scene::camera::{OrthographicProjection, Projection};
 use rg3d::{
-    core::{algebra::Vector2, pool::Handle},
+    core::{algebra::Vector3, pool::Handle},
     engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
@@ -15,66 +16,87 @@ use rg3d::{
         widget::WidgetBuilder,
         UiNode,
     },
-    scene2d::{
-        base::BaseBuilder, camera::CameraBuilder, light::point::PointLightBuilder,
-        light::spot::SpotLightBuilder, light::BaseLightBuilder, node::Node, sprite::SpriteBuilder,
-        transform::TransformBuilder, Scene2d,
+    scene::{
+        base::BaseBuilder,
+        camera::CameraBuilder,
+        dim2::rectangle::RectangleBuilder,
+        light::{point::PointLightBuilder, spot::SpotLightBuilder, BaseLightBuilder},
+        node::Node,
+        transform::TransformBuilder,
+        Scene,
     },
 };
+use rg3d_core::algebra::UnitQuaternion;
+use rg3d_core::color::Color;
 
 struct SceneLoader {
-    scene: Scene2d,
+    scene: Scene,
     camera: Handle<Node>,
     spot_light: Handle<Node>,
 }
 
 impl SceneLoader {
     fn load_with(resource_manager: ResourceManager) -> Self {
-        let mut scene = Scene2d::new();
+        let mut scene = Scene::new();
+
+        scene.ambient_lighting_color = Color::opaque(50, 50, 50);
 
         // Create camera first.
-        let camera = CameraBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
+        let camera = CameraBuilder::new(BaseBuilder::new())
+            .with_projection(Projection::Orthographic(OrthographicProjection {
+                z_near: -0.1,
+                z_far: 16.0,
+                vertical_size: 2.0,
+            }))
+            .build(&mut scene.graph);
 
         // Add some sprites.
         for y in 0..10 {
             for x in 0..10 {
-                let sprite_size = 64.0;
-                let spacing = 5.0;
-                SpriteBuilder::new(
+                let sprite_size = 0.35;
+                let spacing = 0.1;
+                RectangleBuilder::new(
                     BaseBuilder::new().with_local_transform(
                         TransformBuilder::new()
-                            .with_position(Vector2::new(
-                                100.0 + x as f32 * (sprite_size + spacing),
-                                100.0 + y as f32 * (sprite_size + spacing),
+                            .with_local_position(Vector3::new(
+                                0.1 + x as f32 * (sprite_size + spacing),
+                                0.1 + y as f32 * (sprite_size + spacing),
+                                0.0, // Keep Z at zero.
                             ))
+                            .with_local_scale(Vector3::new(sprite_size, sprite_size, f32::EPSILON))
                             .build(),
                     ),
                 )
-                .with_texture(resource_manager.request_texture("examples/data/starship.png", None))
-                .with_size(sprite_size)
+                .with_texture(resource_manager.request_texture("examples/data/starship.png"))
                 .build(&mut scene.graph);
             }
         }
 
         // Add some lights.
-        PointLightBuilder::new(BaseLightBuilder::new(
-            BaseBuilder::new().with_local_transform(
-                TransformBuilder::new()
-                    .with_position(Vector2::new(300.0, 200.0))
-                    .build(),
-            ),
-        ))
-        .with_radius(200.0)
+        PointLightBuilder::new(
+            BaseLightBuilder::new(
+                BaseBuilder::new().with_local_transform(
+                    TransformBuilder::new()
+                        .with_local_position(Vector3::new(2.5, 2.5, 0.0))
+                        .build(),
+                ),
+            )
+            .with_scatter_enabled(false),
+        )
+        .with_radius(1.0)
         .build(&mut scene.graph);
 
-        let spot_light = SpotLightBuilder::new(BaseLightBuilder::new(
-            BaseBuilder::new().with_local_transform(
-                TransformBuilder::new()
-                    .with_position(Vector2::new(500.0, 400.0))
-                    .build(),
-            ),
-        ))
-        .with_radius(200.0)
+        let spot_light = SpotLightBuilder::new(
+            BaseLightBuilder::new(
+                BaseBuilder::new().with_local_transform(
+                    TransformBuilder::new()
+                        .with_local_position(Vector3::new(3.0, 1.0, 0.0))
+                        .build(),
+                ),
+            )
+            .with_scatter_enabled(false),
+        )
+        .with_distance(2.0)
         .build(&mut scene.graph);
 
         Self {
@@ -94,7 +116,7 @@ struct InputController {
 
 struct Game {
     input_controller: InputController,
-    scene: Handle<Scene2d>,
+    scene: Handle<Scene>,
     camera: Handle<Node>,
     spot_light: Handle<Node>,
     debug_text: Handle<UiNode>,
@@ -119,7 +141,7 @@ impl GameState for Game {
             // Add scene to engine - engine will take ownership over scene and will return
             // you a handle to scene which can be used later on to borrow it and do some
             // actions you need.
-            scene: engine.scenes2d.add(loader.scene),
+            scene: engine.scenes.add(loader.scene),
             camera: loader.camera,
             spot_light: loader.spot_light,
             // Create simple user interface that will show some useful info.
@@ -129,29 +151,32 @@ impl GameState for Game {
     }
 
     fn on_tick(&mut self, engine: &mut Engine, _dt: f32, _: &mut ControlFlow) {
-        let mut offset = Vector2::default();
+        let mut offset = Vector3::default();
         if self.input_controller.move_forward {
-            offset.y -= 10.0
+            offset.y += 1.0
         }
         if self.input_controller.move_backward {
-            offset.y += 10.0
+            offset.y -= 1.0
         }
         if self.input_controller.move_left {
-            offset.x -= 10.0
+            offset.x += 1.0
         }
         if self.input_controller.move_right {
-            offset.x += 10.0
+            offset.x -= 1.0
         }
 
-        let graph = &mut engine.scenes2d[self.scene].graph;
+        let graph = &mut engine.scenes[self.scene].graph;
 
         if let Some(offset) = offset.try_normalize(f32::EPSILON) {
-            graph[self.camera].local_transform_mut().offset(offset);
+            graph[self.camera]
+                .local_transform_mut()
+                .offset(offset.scale(0.1));
         }
 
-        graph[self.spot_light]
-            .local_transform_mut()
-            .turn(10.0f32.to_radians());
+        let local_transform = graph[self.spot_light].local_transform_mut();
+        let new_rotation = **local_transform.rotation()
+            * UnitQuaternion::from_euler_angles(0.0, 0.0, 1.0f32.to_radians());
+        local_transform.set_rotation(new_rotation);
 
         engine.user_interface.send_message(TextMessage::text(
             self.debug_text,

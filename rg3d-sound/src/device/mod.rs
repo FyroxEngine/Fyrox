@@ -1,3 +1,7 @@
+// WASM does not use some portions of the code, so compiler will complain about this,
+// here we just suppress the warning.
+#![allow(dead_code)]
+
 //! Device module.
 //!
 //! # Overview
@@ -41,18 +45,6 @@ pub struct MixContext<'a> {
     callback: &'a mut FeedCallback,
 }
 
-fn sample_to_i16(sample: f32) -> i16 {
-    const SCALE: f32 = i16::MAX as f32;
-    let clamped = if sample > 1.0 {
-        1.0
-    } else if sample < -1.0 {
-        -1.0
-    } else {
-        sample
-    };
-    (clamped * SCALE) as i16
-}
-
 trait Device {
     fn get_mix_context(&mut self) -> Option<MixContext>;
 
@@ -74,6 +66,18 @@ trait Device {
             for ((left, right), ref mut out_sample) in
                 context.mix_buffer.iter().zip(context.out_data)
             {
+                fn sample_to_i16(sample: f32) -> i16 {
+                    const SCALE: f32 = i16::MAX as f32;
+                    let clamped = if sample > 1.0 {
+                        1.0
+                    } else if sample < -1.0 {
+                        -1.0
+                    } else {
+                        sample
+                    };
+                    (clamped * SCALE) as i16
+                }
+
                 out_sample.left = sample_to_i16(*left);
                 out_sample.right = sample_to_i16(*right);
             }

@@ -69,11 +69,13 @@ impl OverlayRenderPass {
             sound_icon: Texture::load_from_memory(
                 include_bytes!("../resources/embed/sound_source.png"),
                 CompressionOptions::NoCompression,
+                false,
             )
             .unwrap(),
             light_icon: Texture::load_from_memory(
                 include_bytes!("../resources/embed/light_source.png"),
                 CompressionOptions::NoCompression,
+                false,
             )
             .unwrap(),
         }))

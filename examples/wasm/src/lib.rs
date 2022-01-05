@@ -15,10 +15,7 @@ use rg3d::{
         wasm_bindgen::{self, prelude::*},
     },
     dpi::LogicalSize,
-    engine::{
-        resource_manager::{MaterialSearchOptions, ResourceManager, TextureImportOptions},
-        Engine,
-    },
+    engine::{resource_manager::ResourceManager, Engine},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -28,7 +25,7 @@ use rg3d::{
     },
     gui::{BuildContext, UiNode},
     material::{shader::SamplerFallback, Material, PropertyValue},
-    resource::texture::{CompressionOptions, TextureWrapMode},
+    resource::texture::TextureWrapMode,
     scene::{
         base::BaseBuilder,
         camera::{CameraBuilder, SkyBoxBuilder},
@@ -42,10 +39,7 @@ use rg3d::{
         transform::TransformBuilder,
         Scene,
     },
-    sound::{
-        buffer::SoundBufferResource,
-        source::{generic::GenericSourceBuilder, Status},
-    },
+    sound::source::{generic::GenericSourceBuilder, Status},
     utils::translate_event,
 };
 use std::{panic, sync::Arc};
@@ -135,12 +129,12 @@ pub async fn create_camera(
 ) -> Handle<Node> {
     // Load skybox textures in parallel.
     let (front, back, left, right, top, bottom) = rg3d::core::futures::join!(
-        resource_manager.request_texture("data/textures/DarkStormyFront.jpg", None),
-        resource_manager.request_texture("data/textures/DarkStormyBack.jpg", None),
-        resource_manager.request_texture("data/textures/DarkStormyLeft.jpg", None),
-        resource_manager.request_texture("data/textures/DarkStormyRight.jpg", None),
-        resource_manager.request_texture("data/textures/DarkStormyUp.jpg", None),
-        resource_manager.request_texture("data/textures/DarkStormyDown.jpg", None)
+        resource_manager.request_texture("data/textures/DarkStormyFront.jpg"),
+        resource_manager.request_texture("data/textures/DarkStormyBack.jpg"),
+        resource_manager.request_texture("data/textures/DarkStormyLeft.jpg"),
+        resource_manager.request_texture("data/textures/DarkStormyRight.jpg"),
+        resource_manager.request_texture("data/textures/DarkStormyUp.jpg"),
+        resource_manager.request_texture("data/textures/DarkStormyDown.jpg")
     );
 
     // Unwrap everything.
@@ -212,9 +206,8 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     .build(&mut scene.graph);
 
     let (model_resource, walk_animation_resource) = rg3d::core::futures::join!(
-        resource_manager
-            .request_model("data/mutant/mutant.FBX", MaterialSearchOptions::RecursiveUp),
-        resource_manager.request_model("data/mutant/walk.fbx", MaterialSearchOptions::RecursiveUp)
+        resource_manager.request_model("data/mutant/mutant.FBX"),
+        resource_manager.request_model("data/mutant/walk.fbx")
     );
 
     // Instantiate model on scene - but only geometry, without any animations.
@@ -244,7 +237,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
         .set_property(
             &ImmutableString::new("diffuseTexture"),
             PropertyValue::Sampler {
-                value: Some(resource_manager.request_texture("data/textures/concrete.jpg", None)),
+                value: Some(resource_manager.request_texture("data/textures/concrete.jpg")),
                 fallback: SamplerFallback::White,
             },
         )
@@ -296,11 +289,6 @@ pub fn main_js() {
     engine
         .renderer
         .set_backbuffer_clear_color(Color::opaque(150, 150, 255));
-
-    // Configure resource manager.
-    engine.resource_manager.state().set_textures_import_options(
-        TextureImportOptions::default().with_compression(CompressionOptions::NoCompression),
-    );
 
     let load_context = Arc::new(Mutex::new(SceneContext { data: None }));
 
@@ -412,7 +400,7 @@ pub fn main_js() {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
-                        engine.set_frame_size(size.into());
+                        engine.set_frame_size(size.into()).unwrap();
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)

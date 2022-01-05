@@ -1,4 +1,4 @@
-use crate::{asset::AssetItem, inspector::EditorEnvironment, make_relative_path};
+use crate::{asset::item::AssetItem, inspector::EditorEnvironment, make_relative_path};
 use rg3d::{
     asset::core::pool::Handle,
     engine::resource_manager::ResourceManager,
@@ -83,7 +83,7 @@ impl Control for TextureEditor {
                     ui.send_message(TextureEditorMessage::texture(
                         self.handle(),
                         MessageDirection::ToWidget,
-                        Some(self.resource_manager.request_texture(relative_path, None)),
+                        Some(self.resource_manager.request_texture(relative_path)),
                     ));
                 }
             }

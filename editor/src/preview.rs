@@ -7,7 +7,6 @@ use rg3d::{
         pool::Handle,
         scope_profile,
     },
-    engine::resource_manager::MaterialSearchOptions,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
@@ -18,7 +17,7 @@ use rg3d::{
     },
     resource::texture::{Texture, TextureKind},
     scene::{
-        base::BaseBuilder, camera::CameraBuilder, debug::Line, node::Node,
+        base::BaseBuilder, camera::CameraBuilder, camera::Projection, debug::Line, node::Node,
         transform::TransformBuilder, Scene,
     },
     utils::into_gui_texture,
@@ -195,9 +194,11 @@ impl PreviewPanel {
         self.yaw = 0.0;
         self.pitch = -45.0;
 
-        let fov = scene.graph[self.camera].as_camera().fov();
-        self.xz_position = bounding_box.center().xz();
-        self.distance = (bounding_box.max - bounding_box.min).norm() * (fov * 0.5).tan();
+        if let Projection::Perspective(proj) = scene.graph[self.camera].as_camera().projection() {
+            let fov = proj.fov;
+            self.xz_position = bounding_box.center().xz();
+            self.distance = (bounding_box.max - bounding_box.min).norm() * (fov * 0.5).tan();
+        }
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
@@ -280,11 +281,7 @@ impl PreviewPanel {
 
     pub async fn load_model(&mut self, model: &Path, engine: &mut GameEngine) {
         self.clear(engine);
-        if let Ok(model) = engine
-            .resource_manager
-            .request_model(model, MaterialSearchOptions::RecursiveUp)
-            .await
-        {
+        if let Ok(model) = engine.resource_manager.request_model(model).await {
             let scene = &mut engine.scenes[self.scene];
             self.model = model.instantiate_geometry(scene);
             self.fit_to_model(scene);

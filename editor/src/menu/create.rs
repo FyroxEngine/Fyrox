@@ -1,3 +1,5 @@
+use crate::menu::dim2::Dim2Menu;
+use crate::menu::physics2d::Physics2dMenu;
 use crate::{
     create_terrain_layer_material,
     menu::{create_menu_item, create_root_menu_item, physics::PhysicsMenu},
@@ -31,8 +33,31 @@ use rg3d::{
 };
 use std::sync::{mpsc::Sender, Arc};
 
-pub struct CreateEntityMenu {
+pub struct CreateEntityRootMenu {
     pub menu: Handle<UiNode>,
+    pub sub_menus: CreateEntityMenu,
+}
+
+impl CreateEntityRootMenu {
+    pub fn new(ctx: &mut BuildContext) -> Self {
+        let (sub_menus, root_items) = CreateEntityMenu::new(ctx);
+
+        let menu = create_root_menu_item("Create", root_items, ctx);
+
+        Self { menu, sub_menus }
+    }
+
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        sender: &Sender<Message>,
+        parent: Handle<Node>,
+    ) {
+        self.sub_menus.handle_ui_message(message, sender, parent)
+    }
+}
+
+pub struct CreateEntityMenu {
     create_pivot: Handle<UiNode>,
     create_cube: Handle<UiNode>,
     create_cone: Handle<UiNode>,
@@ -50,10 +75,12 @@ pub struct CreateEntityMenu {
     create_sound_source: Handle<UiNode>,
     create_spatial_sound_source: Handle<UiNode>,
     physics_menu: PhysicsMenu,
+    physics2d_menu: Physics2dMenu,
+    dim2_menu: Dim2Menu,
 }
 
 impl CreateEntityMenu {
-    pub fn new(ctx: &mut BuildContext) -> Self {
+    pub fn new(ctx: &mut BuildContext) -> (Self, Vec<Handle<UiNode>>) {
         let create_cube;
         let create_cone;
         let create_sphere;
@@ -72,123 +99,134 @@ impl CreateEntityMenu {
         let create_spatial_sound_source;
 
         let physics_menu = PhysicsMenu::new(ctx);
+        let physics2d_menu = Physics2dMenu::new(ctx);
+        let dim2_menu = Dim2Menu::new(ctx);
 
-        let menu = create_root_menu_item(
-            "Create",
-            vec![
-                {
-                    create_pivot = create_menu_item("Pivot", vec![], ctx);
-                    create_pivot
-                },
-                create_menu_item(
-                    "Mesh",
-                    vec![
-                        {
-                            create_cube = create_menu_item("Cube", vec![], ctx);
-                            create_cube
-                        },
-                        {
-                            create_sphere = create_menu_item("Sphere", vec![], ctx);
-                            create_sphere
-                        },
-                        {
-                            create_cylinder = create_menu_item("Cylinder", vec![], ctx);
-                            create_cylinder
-                        },
-                        {
-                            create_cone = create_menu_item("Cone", vec![], ctx);
-                            create_cone
-                        },
-                        {
-                            create_quad = create_menu_item("Quad", vec![], ctx);
-                            create_quad
-                        },
-                    ],
-                    ctx,
-                ),
-                create_menu_item(
-                    "Sound",
-                    vec![
-                        {
-                            create_sound_source = create_menu_item("2D Source", vec![], ctx);
-                            create_sound_source
-                        },
-                        {
-                            create_spatial_sound_source =
-                                create_menu_item("3D Source", vec![], ctx);
-                            create_spatial_sound_source
-                        },
-                    ],
-                    ctx,
-                ),
-                create_menu_item(
-                    "Light",
-                    vec![
-                        {
-                            create_directional_light =
-                                create_menu_item("Directional Light", vec![], ctx);
-                            create_directional_light
-                        },
-                        {
-                            create_spot_light = create_menu_item("Spot Light", vec![], ctx);
-                            create_spot_light
-                        },
-                        {
-                            create_point_light = create_menu_item("Point Light", vec![], ctx);
-                            create_point_light
-                        },
-                    ],
-                    ctx,
-                ),
-                physics_menu.menu,
-                {
-                    create_camera = create_menu_item("Camera", vec![], ctx);
-                    create_camera
-                },
-                {
-                    create_sprite = create_menu_item("Sprite", vec![], ctx);
-                    create_sprite
-                },
-                {
-                    create_particle_system = create_menu_item("Particle System", vec![], ctx);
-                    create_particle_system
-                },
-                {
-                    create_terrain = create_menu_item("Terrain", vec![], ctx);
-                    create_terrain
-                },
-                {
-                    create_decal = create_menu_item("Decal", vec![], ctx);
-                    create_decal
-                },
-            ],
-            ctx,
-        );
+        let items = vec![
+            {
+                create_pivot = create_menu_item("Pivot", vec![], ctx);
+                create_pivot
+            },
+            create_menu_item(
+                "Mesh",
+                vec![
+                    {
+                        create_cube = create_menu_item("Cube", vec![], ctx);
+                        create_cube
+                    },
+                    {
+                        create_sphere = create_menu_item("Sphere", vec![], ctx);
+                        create_sphere
+                    },
+                    {
+                        create_cylinder = create_menu_item("Cylinder", vec![], ctx);
+                        create_cylinder
+                    },
+                    {
+                        create_cone = create_menu_item("Cone", vec![], ctx);
+                        create_cone
+                    },
+                    {
+                        create_quad = create_menu_item("Quad", vec![], ctx);
+                        create_quad
+                    },
+                ],
+                ctx,
+            ),
+            create_menu_item(
+                "Sound",
+                vec![
+                    {
+                        create_sound_source = create_menu_item("2D Source", vec![], ctx);
+                        create_sound_source
+                    },
+                    {
+                        create_spatial_sound_source = create_menu_item("3D Source", vec![], ctx);
+                        create_spatial_sound_source
+                    },
+                ],
+                ctx,
+            ),
+            create_menu_item(
+                "Light",
+                vec![
+                    {
+                        create_directional_light =
+                            create_menu_item("Directional Light", vec![], ctx);
+                        create_directional_light
+                    },
+                    {
+                        create_spot_light = create_menu_item("Spot Light", vec![], ctx);
+                        create_spot_light
+                    },
+                    {
+                        create_point_light = create_menu_item("Point Light", vec![], ctx);
+                        create_point_light
+                    },
+                ],
+                ctx,
+            ),
+            physics_menu.menu,
+            physics2d_menu.menu,
+            dim2_menu.menu,
+            {
+                create_camera = create_menu_item("Camera", vec![], ctx);
+                create_camera
+            },
+            {
+                create_sprite = create_menu_item("Sprite", vec![], ctx);
+                create_sprite
+            },
+            {
+                create_particle_system = create_menu_item("Particle System", vec![], ctx);
+                create_particle_system
+            },
+            {
+                create_terrain = create_menu_item("Terrain", vec![], ctx);
+                create_terrain
+            },
+            {
+                create_decal = create_menu_item("Decal", vec![], ctx);
+                create_decal
+            },
+        ];
 
-        Self {
-            menu,
-            create_cube,
-            create_cone,
-            create_sphere,
-            create_cylinder,
-            create_quad,
-            create_point_light,
-            create_spot_light,
-            create_directional_light,
-            create_camera,
-            create_sprite,
-            create_particle_system,
-            create_pivot,
-            create_terrain,
-            create_sound_source,
-            create_spatial_sound_source,
-            create_decal,
-            physics_menu,
-        }
+        (
+            Self {
+                create_cube,
+                create_cone,
+                create_sphere,
+                create_cylinder,
+                create_quad,
+                create_point_light,
+                create_spot_light,
+                create_directional_light,
+                create_camera,
+                create_sprite,
+                create_particle_system,
+                create_pivot,
+                create_terrain,
+                create_sound_source,
+                create_spatial_sound_source,
+                create_decal,
+                physics_menu,
+                physics2d_menu,
+                dim2_menu,
+            },
+            items,
+        )
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, sender: &Sender<Message>) {
-        self.physics_menu.handle_ui_message(message, sender);
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        sender: &Sender<Message>,
+        parent: Handle<Node>,
+    ) {
+        self.physics_menu.handle_ui_message(message, sender, parent);
+        self.physics2d_menu
+            .handle_ui_message(message, sender, parent);
+        self.dim2_menu.handle_ui_message(message, sender, parent);
 
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.create_cube {
@@ -199,7 +237,7 @@ impl CreateEntityMenu {
                 )))));
                 let node = Node::Mesh(mesh);
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
                     .unwrap();
             } else if message.destination() == self.create_spot_light {
                 let node = SpotLightBuilder::new(BaseLightBuilder::new(
@@ -211,13 +249,13 @@ impl CreateEntityMenu {
                 .build_node();
 
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
                     .unwrap();
             } else if message.destination() == self.create_pivot {
                 let node = BaseBuilder::new().with_name("Pivot").build_node();
 
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
                     .unwrap();
             } else if message.destination() == self.create_point_light {
                 let node = PointLightBuilder::new(BaseLightBuilder::new(
@@ -227,7 +265,7 @@ impl CreateEntityMenu {
                 .build_node();
 
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
                     .unwrap();
             } else if message.destination() == self.create_directional_light {
                 let node = DirectionalLightBuilder::new(BaseLightBuilder::new(
@@ -236,7 +274,7 @@ impl CreateEntityMenu {
                 .build_node();
 
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
                     .unwrap();
             } else if message.destination() == self.create_cone {
                 let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
@@ -245,7 +283,7 @@ impl CreateEntityMenu {
                     )))])
                     .build_node();
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(mesh)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(mesh, parent)))
                     .unwrap();
             } else if message.destination() == self.create_cylinder {
                 let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
@@ -254,7 +292,7 @@ impl CreateEntityMenu {
                     )))])
                     .build_node();
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(mesh)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(mesh, parent)))
                     .unwrap();
             } else if message.destination() == self.create_sphere {
                 let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
@@ -263,7 +301,7 @@ impl CreateEntityMenu {
                     )))])
                     .build_node();
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(mesh)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(mesh, parent)))
                     .unwrap();
             } else if message.destination() == self.create_quad {
                 let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
@@ -272,7 +310,7 @@ impl CreateEntityMenu {
                     )))])
                     .build_node();
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(mesh)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(mesh, parent)))
                     .unwrap();
             } else if message.destination() == self.create_camera {
                 let node = CameraBuilder::new(BaseBuilder::new().with_name("Camera"))
@@ -280,13 +318,13 @@ impl CreateEntityMenu {
                     .build_node();
 
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
                     .unwrap();
             } else if message.destination() == self.create_sprite {
                 let node = SpriteBuilder::new(BaseBuilder::new().with_name("Sprite")).build_node();
 
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
                     .unwrap();
             } else if message.destination() == self.create_sound_source {
                 let source = GenericSourceBuilder::new()
@@ -326,7 +364,7 @@ impl CreateEntityMenu {
                         .build_node();
 
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
                     .unwrap();
             } else if message.destination() == self.create_terrain {
                 let node = TerrainBuilder::new(BaseBuilder::new().with_name("Terrain"))
@@ -338,13 +376,13 @@ impl CreateEntityMenu {
                     .build_node();
 
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
                     .unwrap();
             } else if message.destination() == self.create_decal {
                 let node = DecalBuilder::new(BaseBuilder::new().with_name("Decal")).build_node();
 
                 sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node)))
+                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
                     .unwrap();
             }
         }

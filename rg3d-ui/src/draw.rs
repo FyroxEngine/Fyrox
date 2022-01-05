@@ -1,7 +1,7 @@
-use crate::core::algebra::Vector2;
 use crate::{
     brush::Brush,
     core::{
+        algebra::Vector2,
         color::Color,
         math::{self, Rect, TriangleDefinition},
     },
@@ -9,7 +9,7 @@ use crate::{
     ttf::SharedFont,
     Thickness,
 };
-use std::{any::Any, ops::Deref, ops::Range, sync::Arc};
+use std::{any::Any, ops::Range, sync::Arc};
 
 #[derive(Clone)]
 #[repr(C)]
@@ -40,10 +40,13 @@ impl<T: Any + Sync + Send> From<Arc<T>> for SharedTexture {
     }
 }
 
-#[allow(clippy::vtable_address_comparisons)]
 impl PartialEq for SharedTexture {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.0.deref(), other.0.deref())
+        // Cast fat pointers to thin first.
+        let ptr_a = &*self.0 as *const _ as *const ();
+        let ptr_b = &*other.0 as *const _ as *const ();
+        // Compare thin pointers.
+        std::ptr::eq(ptr_a, ptr_b)
     }
 }
 

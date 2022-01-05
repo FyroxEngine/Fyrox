@@ -408,7 +408,19 @@ impl PathFixer {
                                             }
                                         }
                                     }
-                                    Node::Base(_) => {
+                                    Node::Rectangle(sprite) => {
+                                        if let Some(texture) = sprite.texture() {
+                                            scene_resources
+                                                .insert(SceneResource::Texture(texture.clone()));
+                                        }
+                                    }
+                                    Node::Base(_)
+                                    | Node::RigidBody(_)
+                                    | Node::Collider(_)
+                                    | Node::Joint(_)
+                                    | Node::RigidBody2D(_)
+                                    | Node::Collider2D(_)
+                                    | Node::Joint2D(_) => {
                                         // Nothing
                                     }
                                 }
@@ -433,7 +445,7 @@ impl PathFixer {
                                                     .with_foreground(Brush::Solid(Color::RED)),
                                             )
                                             .with_vertical_text_alignment(VerticalAlignment::Center)
-                                            .with_text(r.path().to_string_lossy().to_string())
+                                            .with_text(&r.path().to_string_lossy())
                                             .build(ctx),
                                         ),
                                     ))

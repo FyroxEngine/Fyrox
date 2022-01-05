@@ -65,7 +65,7 @@
 //!                 .with_radius(0.01)
 //!                 .build()
 //!         ])
-//!         .with_texture(resource_manager.request_texture(Path::new("data/particles/smoke_04.tga"), None))
+//!         .with_texture(resource_manager.request_texture(Path::new("data/particles/smoke_04.tga")))
 //!         .build(graph);
 //! }
 //! ```

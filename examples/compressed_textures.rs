@@ -3,12 +3,11 @@
 //! Just shows two textures with compression. Engine compresses textures automatically,
 //! based on compression options.
 
-use rg3d::engine::Engine;
 use rg3d::{
     core::{algebra::Vector2, color::Color},
-    engine::{framework::prelude::*, resource_manager::TextureImportOptions},
+    engine::{framework::prelude::*, Engine},
     gui::{image::ImageBuilder, widget::WidgetBuilder},
-    resource::texture::CompressionOptions,
+    resource::texture::{CompressionOptions, TextureImportOptions},
     utils::into_gui_texture,
 };
 
@@ -38,7 +37,7 @@ impl GameState for Game {
         .with_texture(into_gui_texture(
             engine
                 .resource_manager
-                .request_texture("examples/data/MetalMesh_Base_Color.png", None),
+                .request_texture("examples/data/MetalMesh_Base_Color.png"),
         ))
         .build(&mut engine.user_interface.build_ctx());
 
@@ -51,7 +50,7 @@ impl GameState for Game {
         .with_texture(into_gui_texture(
             engine
                 .resource_manager
-                .request_texture("examples/data/R8Texture.png", None),
+                .request_texture("examples/data/R8Texture.png"),
         ))
         .build(&mut engine.user_interface.build_ctx());
 

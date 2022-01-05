@@ -24,13 +24,18 @@ use crate::{
     asset::{define_new_resource, Resource, ResourceData, ResourceState},
     core::{
         futures::io::Error,
+        inspect::{Inspect, PropertyInfo},
         io::{self, FileLoadError},
         visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
     },
+    engine::resource_manager::ImportOptions,
 };
 use ddsfile::{Caps2, D3DFormat};
 use fxhash::FxHasher;
-use image::{ColorType, DynamicImage, GenericImageView, ImageError, ImageFormat};
+use image::{
+    imageops::FilterType, ColorType, DynamicImage, GenericImageView, ImageError, ImageFormat,
+};
+use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     fmt::{Debug, Formatter},
@@ -39,6 +44,7 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Texture kind.
 #[derive(Copy, Clone, Debug)]
@@ -265,6 +271,138 @@ impl Default for TextureData {
     }
 }
 
+/// Allows you to define a set of parameters for a texture resource.
+///
+/// # Details
+///
+/// Usually the content of this structure is stored in a separate file with .options extension. Typical content of
+/// a settings file should look like this:
+///
+/// ```text
+/// (
+///     minification_filter: Linear,
+///     magnification_filter: Linear,
+///     s_wrap_mode: Repeat,
+///     t_wrap_mode: ClampToEdge,
+///     anisotropy: 8.0,
+///     compression: NoCompression,    
+/// )
+/// ```
+#[derive(Clone, Deserialize, Serialize, Inspect)]
+pub struct TextureImportOptions {
+    #[serde(default)]
+    pub(crate) minification_filter: TextureMinificationFilter,
+    #[serde(default)]
+    pub(crate) magnification_filter: TextureMagnificationFilter,
+    #[serde(default)]
+    pub(crate) s_wrap_mode: TextureWrapMode,
+    #[serde(default)]
+    pub(crate) t_wrap_mode: TextureWrapMode,
+    #[serde(default)]
+    pub(crate) anisotropy: f32,
+    #[serde(default)]
+    pub(crate) compression: CompressionOptions,
+}
+
+impl Default for TextureImportOptions {
+    fn default() -> Self {
+        Self {
+            minification_filter: TextureMinificationFilter::LinearMipMapLinear,
+            magnification_filter: TextureMagnificationFilter::Linear,
+            s_wrap_mode: TextureWrapMode::Repeat,
+            t_wrap_mode: TextureWrapMode::Repeat,
+            anisotropy: 16.0,
+            compression: CompressionOptions::Quality,
+        }
+    }
+}
+
+impl ImportOptions for TextureImportOptions {}
+
+impl TextureImportOptions {
+    /// Sets new minification filter which will be applied to every imported texture as
+    /// default value.
+    pub fn with_minification_filter(
+        mut self,
+        minification_filter: TextureMinificationFilter,
+    ) -> Self {
+        self.minification_filter = minification_filter;
+        self
+    }
+
+    /// Sets new minification filter which will be applied to every imported texture as
+    /// default value.
+    pub fn set_minification_filter(&mut self, minification_filter: TextureMinificationFilter) {
+        self.minification_filter = minification_filter;
+    }
+
+    /// Sets new magnification filter which will be applied to every imported texture as
+    /// default value.
+    pub fn with_magnification_filter(
+        mut self,
+        magnification_filter: TextureMagnificationFilter,
+    ) -> Self {
+        self.magnification_filter = magnification_filter;
+        self
+    }
+
+    /// Sets new magnification filter which will be applied to every imported texture as
+    /// default value.
+    pub fn set_magnification_filter(&mut self, magnification_filter: TextureMagnificationFilter) {
+        self.magnification_filter = magnification_filter;
+    }
+
+    /// Sets new S coordinate wrap mode which will be applied to every imported texture as
+    /// default value.
+    pub fn with_s_wrap_mode(mut self, s_wrap_mode: TextureWrapMode) -> Self {
+        self.s_wrap_mode = s_wrap_mode;
+        self
+    }
+
+    /// Sets new S coordinate wrap mode which will be applied to every imported texture as
+    /// default value.
+    pub fn set_s_wrap_mode(&mut self, s_wrap_mode: TextureWrapMode) {
+        self.s_wrap_mode = s_wrap_mode;
+    }
+
+    /// Sets new T coordinate wrap mode which will be applied to every imported texture as
+    /// default value.
+    pub fn with_t_wrap_mode(mut self, t_wrap_mode: TextureWrapMode) -> Self {
+        self.t_wrap_mode = t_wrap_mode;
+        self
+    }
+
+    /// Sets new T coordinate wrap mode which will be applied to every imported texture as
+    /// default value.
+    pub fn set_t_wrap_mode(&mut self, t_wrap_mode: TextureWrapMode) {
+        self.t_wrap_mode = t_wrap_mode;
+    }
+
+    /// Sets new anisotropy level which will be applied to every imported texture as
+    /// default value.
+    pub fn with_anisotropy(mut self, anisotropy: f32) -> Self {
+        self.anisotropy = anisotropy.min(1.0);
+        self
+    }
+
+    /// Sets new anisotropy level which will be applied to every imported texture as
+    /// default value.
+    pub fn set_anisotropy(&mut self, anisotropy: f32) {
+        self.anisotropy = anisotropy.min(1.0);
+    }
+
+    /// Sets desired texture compression.
+    pub fn with_compression(mut self, compression: CompressionOptions) -> Self {
+        self.compression = compression;
+        self
+    }
+
+    /// Sets desired texture compression.
+    pub fn set_compression(&mut self, compression: CompressionOptions) {
+        self.compression = compression;
+    }
+}
+
 define_new_resource!(
     /// See module docs.
     Texture<TextureData, TextureError>
@@ -316,9 +454,10 @@ impl Texture {
     pub fn load_from_memory(
         data: &[u8],
         compression: CompressionOptions,
+        gen_mip_maps: bool,
     ) -> Result<Self, TextureError> {
         Ok(Self(Resource::new(TextureState::Ok(
-            TextureData::load_from_memory(data, compression)?,
+            TextureData::load_from_memory(data, compression, gen_mip_maps)?,
         ))))
     }
 
@@ -338,7 +477,20 @@ impl Texture {
 
 /// The texture magnification function is used when the pixel being textured maps to an area
 /// less than or equal to one texture element.
-#[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Hash,
+    PartialOrd,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    Inspect,
+    EnumVariantNames,
+    EnumString,
+    AsRefStr,
+)]
 #[repr(u32)]
 pub enum TextureMagnificationFilter {
     /// Returns the value of the texture element that is nearest to the center of the pixel
@@ -348,6 +500,12 @@ pub enum TextureMagnificationFilter {
     /// Returns the weighted average of the four texture elements that are closest to the
     /// center of the pixel being textured.
     Linear = 1,
+}
+
+impl Default for TextureMagnificationFilter {
+    fn default() -> Self {
+        Self::Linear
+    }
 }
 
 impl Visit for TextureMagnificationFilter {
@@ -376,7 +534,20 @@ impl Visit for TextureMagnificationFilter {
 
 /// The texture minifying function is used whenever the pixel being textured maps to an area
 /// greater than one texture element.
-#[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Hash,
+    PartialOrd,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    Inspect,
+    EnumVariantNames,
+    EnumString,
+    AsRefStr,
+)]
 #[repr(u32)]
 pub enum TextureMinificationFilter {
     /// Returns the value of the texture element that is nearest to the center of the pixel
@@ -410,6 +581,25 @@ pub enum TextureMinificationFilter {
     LinearMipMapLinear = 5,
 }
 
+impl TextureMinificationFilter {
+    /// Returns true if minification filter is using mip mapping, false - otherwise.
+    pub fn is_using_mip_mapping(self) -> bool {
+        match self {
+            TextureMinificationFilter::Nearest | TextureMinificationFilter::Linear => false,
+            TextureMinificationFilter::NearestMipMapNearest
+            | TextureMinificationFilter::LinearMipMapLinear
+            | TextureMinificationFilter::NearestMipMapLinear
+            | TextureMinificationFilter::LinearMipMapNearest => true,
+        }
+    }
+}
+
+impl Default for TextureMinificationFilter {
+    fn default() -> Self {
+        Self::LinearMipMapLinear
+    }
+}
+
 impl Visit for TextureMinificationFilter {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -439,7 +629,20 @@ impl Visit for TextureMinificationFilter {
 }
 
 /// Defines a law of texture coordinate modification.
-#[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Hash,
+    PartialOrd,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    Inspect,
+    EnumVariantNames,
+    EnumString,
+    AsRefStr,
+)]
 #[repr(u32)]
 pub enum TextureWrapMode {
     /// Causes the integer part of a coordinate to be ignored; GPU uses only the fractional part,
@@ -463,6 +666,12 @@ pub enum TextureWrapMode {
     /// Causes a coordinate to be repeated as for MirroredRepeat for one repetition of the texture, at
     /// which point the coordinate to be clamped as in ClampToEdge.
     MirrorClampToEdge = 4,
+}
+
+impl Default for TextureWrapMode {
+    fn default() -> Self {
+        Self::Repeat
+    }
 }
 
 impl Visit for TextureWrapMode {
@@ -616,24 +825,43 @@ fn ceil_div_4(x: u32) -> u32 {
 /// Try to avoid using compression for normal maps, normals maps usually has smooth
 /// gradients, but compression algorithms used by rg3d cannot preserve good quality
 /// of such gradients.
-#[derive(Copy, Clone)]
+#[derive(
+    Copy,
+    Clone,
+    Deserialize,
+    Serialize,
+    PartialEq,
+    Eq,
+    Debug,
+    Inspect,
+    EnumVariantNames,
+    EnumString,
+    AsRefStr,
+)]
+#[repr(u32)]
 pub enum CompressionOptions {
     /// An image will be stored without compression if it is not already compressed.
-    NoCompression,
+    NoCompression = 0,
 
     /// An image will be encoded via DXT1 (BC1) compression with low quality if is not
     /// already compressed.
     /// Compression ratio is 1:8 (without alpha) or 1:6 (with 1-bit alpha).
     /// This option provides maximum speed by having lowest requirements of memory
     /// bandwidth.
-    Speed,
+    Speed = 1,
 
     /// An image will be encoded via DXT5 (BC5) compression with high quality if it is
     /// not already compressed.
     /// Compression ratio is 1:4 (including alpha)
     /// This option is faster than `NoCompression` speed by lower requirements of memory
     /// bandwidth.
-    Quality,
+    Quality = 2,
+}
+
+impl Default for CompressionOptions {
+    fn default() -> Self {
+        Self::Quality
+    }
 }
 
 fn transmute_slice<T>(bytes: &[u8]) -> &'_ [T] {
@@ -673,33 +901,132 @@ fn data_hash(data: &[u8]) -> u64 {
     hasher.finish()
 }
 
+fn try_compress(
+    image: &DynamicImage,
+    w: usize,
+    h: usize,
+    compression: CompressionOptions,
+) -> Option<(Vec<u8>, TexturePixelKind)> {
+    let bytes = image.as_bytes();
+    match (image, compression) {
+        (DynamicImage::ImageRgb8(_), CompressionOptions::Speed) => Some((
+            compress_bc1::<tbc::color::Rgb8>(bytes, w, h),
+            TexturePixelKind::DXT1RGB,
+        )),
+        (DynamicImage::ImageRgb8(_), CompressionOptions::Quality) => Some((
+            compress_bc3::<tbc::color::Rgb8>(bytes, w, h),
+            TexturePixelKind::DXT5RGBA,
+        )),
+        (DynamicImage::ImageRgba8(_), CompressionOptions::Speed) => Some((
+            compress_bc1::<tbc::color::Rgba8>(bytes, w, h),
+            TexturePixelKind::DXT1RGBA,
+        )),
+        (DynamicImage::ImageRgba8(_), CompressionOptions::Quality) => Some((
+            compress_bc3::<tbc::color::Rgba8>(bytes, w, h),
+            TexturePixelKind::DXT5RGBA,
+        )),
+        (DynamicImage::ImageLuma8(_), CompressionOptions::Speed)
+        | (DynamicImage::ImageLuma8(_), CompressionOptions::Quality) => Some((
+            compress_r8_bc4::<tbc::color::Red8>(bytes, w, h),
+            TexturePixelKind::R8RGTC,
+        )),
+        (DynamicImage::ImageLumaA8(_), CompressionOptions::Speed)
+        | (DynamicImage::ImageLumaA8(_), CompressionOptions::Quality) => Some((
+            compress_rg8_bc4::<tbc::color::RedGreen8>(bytes, w, h),
+            TexturePixelKind::RG8RGTC,
+        )),
+        _ => None,
+    }
+}
+
+fn bytes_in_first_mip(kind: TextureKind, pixel_kind: TexturePixelKind) -> u32 {
+    let pixel_count = match kind {
+        TextureKind::Line { length } => length,
+        TextureKind::Rectangle { width, height } => width * height,
+        TextureKind::Cube { width, height } => 6 * width * height,
+        TextureKind::Volume {
+            width,
+            height,
+            depth,
+        } => width * height * depth,
+    };
+    match pixel_kind {
+        // Uncompressed formats.
+        TexturePixelKind::R8 => pixel_count,
+        TexturePixelKind::R16 | TexturePixelKind::RG8 => 2 * pixel_count,
+        TexturePixelKind::RGB8 | TexturePixelKind::BGR8 => 3 * pixel_count,
+        TexturePixelKind::RGBA8 | TexturePixelKind::BGRA8 | TexturePixelKind::RG16 => {
+            4 * pixel_count
+        }
+        TexturePixelKind::RGB16 => 6 * pixel_count,
+        TexturePixelKind::RGBA16 => 8 * pixel_count,
+
+        // Compressed formats.
+        TexturePixelKind::DXT1RGB
+        | TexturePixelKind::DXT1RGBA
+        | TexturePixelKind::DXT3RGBA
+        | TexturePixelKind::DXT5RGBA
+        | TexturePixelKind::R8RGTC
+        | TexturePixelKind::RG8RGTC => {
+            let block_size = match pixel_kind {
+                TexturePixelKind::DXT1RGB
+                | TexturePixelKind::DXT1RGBA
+                | TexturePixelKind::R8RGTC => 8,
+                TexturePixelKind::DXT3RGBA
+                | TexturePixelKind::DXT5RGBA
+                | TexturePixelKind::RG8RGTC => 16,
+                _ => unreachable!(),
+            };
+            match kind {
+                TextureKind::Line { length } => ceil_div_4(length) * block_size,
+                TextureKind::Rectangle { width, height } => {
+                    ceil_div_4(width) * ceil_div_4(height) * block_size
+                }
+                TextureKind::Cube { width, height } => {
+                    6 * ceil_div_4(width) * ceil_div_4(height) * block_size
+                }
+                TextureKind::Volume {
+                    width,
+                    height,
+                    depth,
+                } => ceil_div_4(width) * ceil_div_4(height) * ceil_div_4(depth) * block_size,
+            }
+        }
+    }
+}
+
 impl TextureData {
-    /// Tries to load a texture from given data. Use this method if you want to
-    /// load a texture from embedded data.
+    /// Tries to load a texture from given data in one of the following formats: PNG, BMP, TGA, JPG, DDS, GIF. Use
+    /// this method if you want to load a texture from embedded data.
     ///
-    /// # On-demand compression
+    /// # On-demand compression and mip-map generation
     ///
-    /// The data can be compressed if needed to improve performance on GPU side.
+    /// The data can be compressed if needed to improve performance on GPU side. Mip-maps can be generated as well.
+    /// **CAVEAT:** Compression and mip-map generation **won't** be taken into account in case of **DDS** textures,
+    /// because DDS can already contain such data, you should generate mips and compress DDS textures manually using
+    /// some offline tool like DirectXTexTool or similar.
     ///
     /// # Important notes
     ///
-    /// Textures loaded with this method won't be correctly serialized! It means
-    /// that if you'll made a scene with textures loaded with this method, and then
-    /// save a scene, then the engine won't be able to restore the textures if you'll
-    /// try to load the saved scene. This is essential limitation of this method,
-    /// because the engine does not know where to get the data of the texture at
-    /// loading. You should use `ResourceManager::request_texture` in majority of cases!
+    /// Textures loaded with this method won't be correctly serialized! It means that if you'll made a scene with
+    /// textures loaded with this method, and then save a scene, then the engine won't be able to restore the textures
+    /// if you'll try to load the saved scene. This is essential limitation of this method, because the engine does
+    /// not know where to get the data of the texture at loading. You should use `ResourceManager::request_texture`
+    /// in majority of cases!
+    ///
+    /// # Use cases
     ///
     /// Main use cases for this method are: procedural textures, icons for GUI.
     pub fn load_from_memory(
         data: &[u8],
         compression: CompressionOptions,
+        gen_mip_maps: bool,
     ) -> Result<Self, TextureError> {
         // DDS is special. It can contain various kinds of textures as well as textures with
         // various pixel formats.
         //
         // TODO: Add support for DXGI formats.
-        let mut texture = if let Ok(dds) = ddsfile::Dds::read(&mut Cursor::new(data)) {
+        if let Ok(dds) = ddsfile::Dds::read(&mut Cursor::new(data)) {
             let d3dformat = dds
                 .get_d3d_format()
                 .ok_or(TextureError::UnsupportedFormat)?;
@@ -751,7 +1078,7 @@ impl TextureData {
                 _ => return Err(TextureError::UnsupportedFormat),
             };
 
-            Self {
+            Ok(Self {
                 pixel_kind,
                 data_hash: data_hash(&bytes),
                 minification_filter: TextureMinificationFilter::LinearMipMapLinear,
@@ -778,7 +1105,7 @@ impl TextureData {
                     }
                 },
                 ..Default::default()
-            }
+            })
         } else {
             // Commonly used formats are all rectangle textures.
             let dyn_img = image::load_from_memory(data)
@@ -790,7 +1117,7 @@ impl TextureData {
             let width = dyn_img.width();
             let height = dyn_img.height();
 
-            let kind = match dyn_img {
+            let mut pixel_kind = match dyn_img {
                 DynamicImage::ImageLuma8(_) => TexturePixelKind::R8,
                 DynamicImage::ImageLumaA8(_) => TexturePixelKind::RG8,
                 DynamicImage::ImageRgb8(_) => TexturePixelKind::RGB8,
@@ -803,56 +1130,66 @@ impl TextureData {
                 DynamicImage::ImageRgba16(_) => TexturePixelKind::RGBA16,
             };
 
-            let bytes = dyn_img.to_bytes();
+            let mut mip_count = 0;
+            let mut bytes = Vec::new();
 
-            Self {
-                pixel_kind: kind,
+            if gen_mip_maps {
+                let mut level_width = width;
+                let mut level_height = height;
+                let mut current_level = dyn_img;
+
+                while level_width != 0 && level_height != 0 {
+                    if mip_count != 0 {
+                        current_level = current_level.resize_exact(
+                            level_width,
+                            level_height,
+                            FilterType::Lanczos3,
+                        );
+                    }
+
+                    mip_count += 1;
+
+                    if compression == CompressionOptions::NoCompression {
+                        bytes.extend_from_slice(current_level.as_bytes())
+                    } else if let Some((compressed_data, new_pixel_kind)) = try_compress(
+                        &current_level,
+                        level_width as usize,
+                        level_height as usize,
+                        compression,
+                    ) {
+                        pixel_kind = new_pixel_kind;
+                        bytes.extend_from_slice(&compressed_data);
+                    } else {
+                        bytes.extend_from_slice(current_level.as_bytes())
+                    }
+
+                    level_width = level_width.checked_shr(1).unwrap_or_default();
+                    level_height = level_height.checked_shr(1).unwrap_or_default();
+                }
+            } else {
+                mip_count = 1;
+
+                if compression == CompressionOptions::NoCompression {
+                    bytes.extend_from_slice(dyn_img.as_bytes());
+                } else if let Some((compressed_data, new_pixel_kind)) =
+                    try_compress(&dyn_img, width as usize, height as usize, compression)
+                {
+                    pixel_kind = new_pixel_kind;
+                    bytes.extend_from_slice(&compressed_data);
+                } else {
+                    bytes.extend_from_slice(dyn_img.as_bytes())
+                }
+            }
+
+            Ok(Self {
+                pixel_kind,
                 kind: TextureKind::Rectangle { width, height },
                 data_hash: data_hash(&bytes),
                 bytes: bytes.into(),
+                mip_count,
                 ..Default::default()
-            }
-        };
-
-        // Try compress if needed.
-        if let TextureKind::Rectangle { width, height } = texture.kind {
-            let w = width as usize;
-            let h = height as usize;
-
-            match (texture.pixel_kind, compression) {
-                (TexturePixelKind::RGB8, CompressionOptions::Speed) => {
-                    texture.bytes = compress_bc1::<tbc::color::Rgb8>(&texture.bytes, w, h).into();
-                    texture.pixel_kind = TexturePixelKind::DXT1RGB;
-                }
-                (TexturePixelKind::RGB8, CompressionOptions::Quality) => {
-                    texture.bytes = compress_bc3::<tbc::color::Rgb8>(&texture.bytes, w, h).into();
-                    texture.pixel_kind = TexturePixelKind::DXT5RGBA;
-                }
-                (TexturePixelKind::RGBA8, CompressionOptions::Speed) => {
-                    texture.bytes = compress_bc1::<tbc::color::Rgba8>(&texture.bytes, w, h).into();
-                    texture.pixel_kind = TexturePixelKind::DXT1RGBA;
-                }
-                (TexturePixelKind::RGBA8, CompressionOptions::Quality) => {
-                    texture.bytes = compress_bc3::<tbc::color::Rgba8>(&texture.bytes, w, h).into();
-                    texture.pixel_kind = TexturePixelKind::DXT5RGBA;
-                }
-                (TexturePixelKind::R8, CompressionOptions::Speed)
-                | (TexturePixelKind::R8, CompressionOptions::Quality) => {
-                    texture.bytes =
-                        compress_r8_bc4::<tbc::color::Red8>(&texture.bytes, w, h).into();
-                    texture.pixel_kind = TexturePixelKind::R8RGTC;
-                }
-                (TexturePixelKind::RG8, CompressionOptions::Speed)
-                | (TexturePixelKind::RG8, CompressionOptions::Quality) => {
-                    texture.bytes =
-                        compress_rg8_bc4::<tbc::color::RedGreen8>(&texture.bytes, w, h).into();
-                    texture.pixel_kind = TexturePixelKind::RG8RGTC;
-                }
-                _ => (),
-            }
+            })
         }
-
-        Ok(texture)
     }
 
     /// Tries to load a texture from a file.
@@ -864,74 +1201,26 @@ impl TextureData {
     pub(in crate) async fn load_from_file<P: AsRef<Path>>(
         path: P,
         compression: CompressionOptions,
+        gen_mip_maps: bool,
     ) -> Result<Self, TextureError> {
         let data = io::load_file(path.as_ref()).await?;
-        let mut texture = Self::load_from_memory(&data, compression)?;
+        let mut texture = Self::load_from_memory(&data, compression, gen_mip_maps)?;
         texture.path = path.as_ref().to_path_buf();
         Ok(texture)
     }
 
     /// Creates new texture instance from given parameters.
+    ///
+    /// # Limitations
+    ///
+    /// Currently textures with only one mip level are supported!
     pub fn from_bytes(
         kind: TextureKind,
         pixel_kind: TexturePixelKind,
         bytes: Vec<u8>,
         serialize_content: bool,
     ) -> Option<Self> {
-        let pixel_count = match kind {
-            TextureKind::Line { length } => length,
-            TextureKind::Rectangle { width, height } => width * height,
-            TextureKind::Cube { width, height } => 6 * width * height,
-            TextureKind::Volume {
-                width,
-                height,
-                depth,
-            } => width * height * depth,
-        };
-        let required_bytes = match pixel_kind {
-            // Uncompressed formats.
-            TexturePixelKind::R8 => pixel_count,
-            TexturePixelKind::R16 | TexturePixelKind::RG8 => 2 * pixel_count,
-            TexturePixelKind::RGB8 | TexturePixelKind::BGR8 => 3 * pixel_count,
-            TexturePixelKind::RGBA8 | TexturePixelKind::BGRA8 | TexturePixelKind::RG16 => {
-                4 * pixel_count
-            }
-            TexturePixelKind::RGB16 => 6 * pixel_count,
-            TexturePixelKind::RGBA16 => 8 * pixel_count,
-
-            // Compressed formats.
-            TexturePixelKind::DXT1RGB
-            | TexturePixelKind::DXT1RGBA
-            | TexturePixelKind::DXT3RGBA
-            | TexturePixelKind::DXT5RGBA
-            | TexturePixelKind::R8RGTC
-            | TexturePixelKind::RG8RGTC => {
-                let block_size = match pixel_kind {
-                    TexturePixelKind::DXT1RGB
-                    | TexturePixelKind::DXT1RGBA
-                    | TexturePixelKind::R8RGTC => 8,
-                    TexturePixelKind::DXT3RGBA
-                    | TexturePixelKind::DXT5RGBA
-                    | TexturePixelKind::RG8RGTC => 16,
-                    _ => unreachable!(),
-                };
-                match kind {
-                    TextureKind::Line { length } => ceil_div_4(length) * block_size,
-                    TextureKind::Rectangle { width, height } => {
-                        ceil_div_4(width) * ceil_div_4(height) * block_size
-                    }
-                    TextureKind::Cube { width, height } => {
-                        6 * ceil_div_4(width) * ceil_div_4(height) * block_size
-                    }
-                    TextureKind::Volume {
-                        width,
-                        height,
-                        depth,
-                    } => ceil_div_4(width) * ceil_div_4(height) * ceil_div_4(depth) * block_size,
-                }
-            }
-        };
-        if required_bytes != bytes.len() as u32 {
+        if bytes_in_first_mip(kind, pixel_kind) != bytes.len() as u32 {
             None
         } else {
             Some(Self {
@@ -1009,6 +1298,11 @@ impl TextureData {
     /// Returns current data as immutable slice.
     pub fn data(&self) -> &[u8] {
         &self.bytes
+    }
+
+    /// Returns data of the first mip level.
+    pub fn first_mip_level_data(&self) -> &[u8] {
+        &self.bytes[0..bytes_in_first_mip(self.kind, self.pixel_kind) as usize]
     }
 
     /// Returns true if the texture is procedural, false - otherwise.

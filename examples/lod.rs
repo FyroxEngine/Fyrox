@@ -15,10 +15,7 @@ use rg3d::{
         color::Color,
         pool::Handle,
     },
-    engine::{
-        resource_manager::{MaterialSearchOptions, ResourceManager},
-        Engine,
-    },
+    engine::{resource_manager::ResourceManager, Engine},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -64,7 +61,10 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     .await;
 
     // Set small z far for the sake of example.
-    scene.graph[camera].as_camera_mut().set_z_far(32.0);
+    scene.graph[camera]
+        .as_camera_mut()
+        .projection_mut()
+        .set_z_far(32.0);
 
     // Load model resource. Is does *not* adds anything to our scene - it just loads a
     // resource then can be used later on to instantiate models from it on scene. Why
@@ -74,10 +74,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // models it is very efficient because single vertex and index buffer can be used
     // for all models instances, so memory footprint on GPU will be lower.
     let model_resource = resource_manager
-        .request_model(
-            "examples/data/train/train.FBX",
-            MaterialSearchOptions::RecursiveUp,
-        )
+        .request_model("examples/data/train/train.FBX")
         .await
         .unwrap();
 

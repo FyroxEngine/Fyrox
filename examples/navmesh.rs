@@ -18,7 +18,7 @@ use rg3d::{
         sstorage::ImmutableString,
     },
     dpi::LogicalPosition,
-    engine::{resource_manager::MaterialSearchOptions, resource_manager::ResourceManager, Engine},
+    engine::{resource_manager::ResourceManager, Engine},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -28,10 +28,10 @@ use rg3d::{
         BuildContext, UiNode,
     },
     material::{Material, PropertyValue},
-    physics3d::{Intersection, RayCastOptions},
     scene::{
         base::BaseBuilder,
         debug::Line,
+        graph::physics::{Intersection, RayCastOptions},
         mesh::{
             surface::{SurfaceBuilder, SurfaceData},
             MeshBuilder,
@@ -81,10 +81,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         ));
 
     resource_manager
-        .request_model(
-            "examples/data/navmesh_scene.rgs",
-            MaterialSearchOptions::RecursiveUp,
-        )
+        .request_model("examples/data/navmesh_scene.rgs")
         .await
         .unwrap()
         .instantiate_geometry(&mut scene);
@@ -210,7 +207,7 @@ fn main() {
                         .make_ray(mouse_position, engine.renderer.get_frame_bounds());
 
                     let mut buffer = ArrayVec::<Intersection, 64>::new();
-                    scene.physics.cast_ray(
+                    scene.graph.physics.cast_ray(
                         RayCastOptions {
                             ray_origin: Point3::from(ray.origin),
                             ray_direction: ray.dir,

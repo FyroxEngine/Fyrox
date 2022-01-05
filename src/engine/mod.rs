@@ -20,7 +20,6 @@ use crate::{
     renderer::{framework::error::FrameworkError, Renderer},
     resource::texture::TextureKind,
     scene::SceneContainer,
-    scene2d::Scene2dContainer,
     sound::engine::SoundEngine,
     window::{Window, WindowBuilder},
 };
@@ -59,8 +58,6 @@ pub struct Engine {
     /// for such statistics, probably it is best to make separate structure to hold all
     /// such data.
     pub ui_time: Duration,
-    /// All available 2d scenes.
-    pub scenes2d: Scene2dContainer,
 }
 
 impl Engine {
@@ -151,7 +148,6 @@ impl Engine {
             resource_manager: ResourceManager::new(renderer.upload_sender()),
             renderer,
             scenes: SceneContainer::new(sound_engine.clone()),
-            scenes2d: Scene2dContainer::new(sound_engine.clone()),
             sound_engine,
             user_interface: UserInterface::new(client_size),
             ui_time: Default::default(),
@@ -210,18 +206,6 @@ impl Engine {
             scene.update(frame_size, dt);
         }
 
-        for scene in self.scenes2d.iter_mut().filter(|s| s.enabled) {
-            let render_target_size = scene.render_target.as_ref().map_or(window_size, |rt| {
-                if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
-                    Vector2::new(width as f32, height as f32)
-                } else {
-                    panic!("only rectangle textures can be used as render target!");
-                }
-            });
-
-            scene.update(render_target_size, dt);
-        }
-
         let time = instant::Instant::now();
         self.user_interface.update(window_size, dt);
         self.ui_time = instant::Instant::now() - time;
@@ -238,17 +222,13 @@ impl Engine {
             self.renderer.render_and_swap_buffers(
                 &self.scenes,
                 self.user_interface.get_drawing_context(),
-                &self.scenes2d,
                 &self.context,
             )
         }
         #[cfg(target_arch = "wasm32")]
         {
-            self.renderer.render_and_swap_buffers(
-                &self.scenes,
-                &self.user_interface.get_drawing_context(),
-                &self.scenes2d,
-            )
+            self.renderer
+                .render_and_swap_buffers(&self.scenes, &self.user_interface.get_drawing_context())
         }
     }
 }
@@ -261,13 +241,11 @@ impl Visit for Engine {
             self.renderer.flush();
             self.resource_manager.state().update(0.0);
             self.scenes.clear();
-            self.scenes2d.clear();
         }
 
         self.resource_manager.visit("ResourceManager", visitor)?;
         self.sound_engine.visit("SoundEngine", visitor)?;
         self.scenes.visit("Scenes", visitor)?;
-        self.scenes2d.visit("Scenes2d", visitor)?;
 
         if visitor.is_reading() {
             self.resource_manager.state().upload_sender = Some(self.renderer.upload_sender());
@@ -275,10 +253,6 @@ impl Visit for Engine {
             crate::core::futures::executor::block_on(self.resource_manager.reload_resources());
             for scene in self.scenes.iter_mut() {
                 scene.resolve();
-            }
-
-            for scene2d in self.scenes2d.iter_mut() {
-                scene2d.resolve();
             }
         }
 

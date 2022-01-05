@@ -1,14 +1,16 @@
 use crate::rg3d::core::math::Matrix4Ext;
-use rg3d::scene::camera::Exposure;
 use rg3d::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
-        math::plane::Plane,
+        math::{aabb::AxisAlignedBoundingBox, plane::Plane},
         pool::Handle,
     },
     gui::message::{KeyCode, MouseButton},
     scene::{
-        base::BaseBuilder, camera::CameraBuilder, graph::Graph, node::Node,
+        base::BaseBuilder,
+        camera::{CameraBuilder, Exposure, Projection},
+        graph::Graph,
+        node::Node,
         transform::TransformBuilder,
     },
 };
@@ -16,6 +18,8 @@ use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
 };
+
+const DEFAULT_Z_OFFSET: f32 = -3.0;
 
 pub struct CameraController {
     pub pivot: Handle<Node>,
@@ -67,7 +71,7 @@ impl CameraController {
             .with_name("EditorCameraPivot")
             .with_local_transform(
                 TransformBuilder::new()
-                    .with_local_position(Vector3::new(0.0, 1.0, -3.0))
+                    .with_local_position(Vector3::new(0.0, 1.0, DEFAULT_Z_OFFSET))
                     .build(),
             )
             .build(graph);
@@ -96,6 +100,12 @@ impl CameraController {
         }
     }
 
+    pub fn set_projection(&self, graph: &mut Graph, projection: Projection) {
+        graph[self.camera]
+            .as_camera_mut()
+            .set_projection(projection)
+    }
+
     pub fn on_mouse_move(&mut self, delta: Vector2<f32>) {
         if self.rotate {
             self.yaw -= delta.x as f32 * 0.01;
@@ -115,12 +125,18 @@ impl CameraController {
     }
 
     pub fn on_mouse_wheel(&mut self, delta: f32, graph: &mut Graph) {
-        let camera = &mut graph[self.camera];
+        let camera = graph[self.camera].as_camera_mut();
 
-        let look = camera.global_transform().look();
-
-        if let Node::Base(pivot) = &mut graph[self.pivot] {
-            pivot.local_transform_mut().offset(look.scale(delta));
+        match *camera.projection_mut() {
+            Projection::Perspective(_) => {
+                let look = camera.global_transform().look();
+                graph[self.pivot]
+                    .local_transform_mut()
+                    .offset(look.scale(delta));
+            }
+            Projection::Orthographic(ref mut ortho) => {
+                ortho.vertical_size = (ortho.vertical_size - delta).max(f32::EPSILON);
+            }
         }
     }
 
@@ -176,52 +192,100 @@ impl CameraController {
     }
 
     pub fn update(&mut self, graph: &mut Graph, dt: f32) {
-        let camera = &mut graph[self.camera];
+        let camera = graph[self.camera].as_camera_mut();
 
-        let global_transform = camera.global_transform();
-        let look = global_transform.look();
-        let side = global_transform.side();
-        let up = global_transform.up();
+        match camera.projection_value() {
+            Projection::Perspective(_) => {
+                let global_transform = camera.global_transform();
+                let look = global_transform.look();
+                let side = global_transform.side();
+                let up = global_transform.up();
 
-        let mut move_vec = Vector3::default();
-        if self.move_forward {
-            move_vec += look;
-        }
-        if self.move_backward {
-            move_vec -= look;
-        }
-        if self.move_left {
-            move_vec += side;
-        }
-        if self.move_right {
-            move_vec -= side;
-        }
-        if self.move_up {
-            move_vec += up;
-        }
-        if self.move_down {
-            move_vec -= up;
-        }
-        if let Some(v) = move_vec.try_normalize(std::f32::EPSILON) {
-            move_vec = v.scale(self.speed_factor * 10.0 * dt);
+                let mut move_vec = Vector3::default();
+
+                if self.move_forward {
+                    move_vec += look;
+                }
+                if self.move_backward {
+                    move_vec -= look;
+                }
+                if self.move_left {
+                    move_vec += side;
+                }
+                if self.move_right {
+                    move_vec -= side;
+                }
+                if self.move_up {
+                    move_vec += up;
+                }
+                if self.move_down {
+                    move_vec -= up;
+                }
+
+                move_vec += side * self.drag_side;
+                move_vec.y += self.drag_up;
+
+                if let Some(v) = move_vec.try_normalize(std::f32::EPSILON) {
+                    move_vec = v.scale(self.speed_factor * 10.0 * dt);
+                }
+
+                camera
+                    .local_transform_mut()
+                    .set_rotation(UnitQuaternion::from_axis_angle(
+                        &Vector3::x_axis(),
+                        self.pitch,
+                    ));
+
+                graph[self.pivot]
+                    .local_transform_mut()
+                    .set_rotation(UnitQuaternion::from_axis_angle(
+                        &Vector3::y_axis(),
+                        self.yaw,
+                    ))
+                    .offset(move_vec);
+            }
+            Projection::Orthographic(_) => {
+                let mut move_vec = Vector2::<f32>::default();
+
+                if self.move_left {
+                    move_vec.x += 1.0;
+                }
+                if self.move_right {
+                    move_vec.x -= 1.0;
+                }
+                if self.move_forward {
+                    move_vec.y += 1.0;
+                }
+                if self.move_backward {
+                    move_vec.y -= 1.0;
+                }
+
+                move_vec.x += self.drag_side;
+                move_vec.y += self.drag_up;
+
+                if let Some(v) = move_vec.try_normalize(f32::EPSILON) {
+                    move_vec = v.scale(self.speed_factor * 10.0 * dt);
+                }
+
+                camera
+                    .local_transform_mut()
+                    .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 0.0));
+
+                let local_transform = graph[self.pivot].local_transform_mut();
+
+                let mut new_position = **local_transform.position();
+                new_position.z = DEFAULT_Z_OFFSET;
+                new_position.x += move_vec.x;
+                new_position.y += move_vec.y;
+
+                local_transform
+                    .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::y_axis(), 0.0))
+                    .set_position(new_position);
+            }
         }
 
-        move_vec += side * self.drag_side;
-        move_vec.y += self.drag_up;
         self.drag_side = 0.0;
         self.drag_up = 0.0;
-
-        if let Node::Camera(camera) = camera {
-            let pitch = UnitQuaternion::from_axis_angle(&Vector3::x_axis(), self.pitch);
-            camera.local_transform_mut().set_rotation(pitch);
-        }
-        if let Node::Base(pivot) = &mut graph[self.pivot] {
-            let yaw = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), self.yaw);
-            pivot
-                .local_transform_mut()
-                .set_rotation(yaw)
-                .offset(move_vec);
-        }
     }
 
     pub fn pick<F>(
@@ -270,10 +334,16 @@ impl CameraController {
                 if handle != graph.get_root() {
                     let object_space_ray =
                         ray.transform(node.global_transform().try_inverse().unwrap_or_default());
+
+                    let aabb = if handle == graph.get_root() {
+                        // Prevent root selection.
+                        AxisAlignedBoundingBox::default()
+                    } else {
+                        node.local_bounding_box()
+                    };
+
                     // Do coarse intersection test with bounding box.
-                    if let Some(points) =
-                        object_space_ray.aabb_intersection_points(&node.local_bounding_box())
-                    {
+                    if let Some(points) = object_space_ray.aabb_intersection_points(&aabb) {
                         // TODO: Do fine intersection test with surfaces if any
 
                         let da = points[0].metric_distance(&object_space_ray.origin);

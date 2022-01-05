@@ -1,3 +1,4 @@
+use crate::renderer::framework::error::FrameworkError;
 use crate::{
     core::scope_profile,
     engine::resource_manager::DEFAULT_RESOURCE_LIFETIME,
@@ -20,6 +21,48 @@ pub struct TextureCache {
 }
 
 impl TextureCache {
+    /// Unconditionally uploads requested texture into GPU memory, previous GPU texture will be automatically
+    /// destroyed.
+    pub fn upload(
+        &mut self,
+        state: &mut PipelineState,
+        texture: &Texture,
+    ) -> Result<(), FrameworkError> {
+        let key = texture.key();
+        let texture = texture.state();
+
+        if let TextureState::Ok(texture) = texture.deref() {
+            let gpu_texture = GpuTexture::new(
+                state,
+                texture.kind().into(),
+                PixelKind::from(texture.pixel_kind()),
+                texture.minification_filter().into(),
+                texture.magnification_filter().into(),
+                texture.mip_count() as usize,
+                Some(texture.data()),
+            )?;
+
+            match self.map.entry(key) {
+                Entry::Occupied(mut e) => {
+                    *e.get_mut().value.borrow_mut() = gpu_texture;
+                }
+                Entry::Vacant(e) => {
+                    e.insert(CacheEntry {
+                        value: Rc::new(RefCell::new(gpu_texture)),
+                        time_to_live: DEFAULT_RESOURCE_LIFETIME,
+                        value_hash: texture.data_hash(),
+                    });
+                }
+            }
+
+            Ok(())
+        } else {
+            Err(FrameworkError::Custom(
+                "Texture is not loaded yet!".to_string(),
+            ))
+        }
+    }
+
     pub fn get(
         &mut self,
         state: &mut PipelineState,
@@ -28,6 +71,7 @@ impl TextureCache {
         scope_profile!();
 
         let key = texture.key();
+
         let texture = texture.state();
 
         if let TextureState::Ok(texture) = texture.deref() {
