@@ -80,7 +80,7 @@ fn main() {
 
     // Get a file
     let mut file = mla_read
-        .get_file("simple".to_string())
+        .get_file("mutant/Mutant.FBX".to_string())
         .unwrap() // An error can be raised (I/O, decryption, etc.)
         .unwrap(); // Option(file), as the file might not exist in the archive
 
