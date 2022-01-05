@@ -70,7 +70,7 @@ impl PerspectiveProjection {
     #[inline]
     pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
         Matrix4::new_perspective(
-            frame_size.x / frame_size.y,
+            (frame_size.x / frame_size.y).max(f32::EPSILON),
             self.fov,
             self.z_near,
             self.z_far,
@@ -108,7 +108,7 @@ impl OrthographicProjection {
     /// Returns orthographic projection matrix.
     #[inline]
     pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
-        let aspect = frame_size.x / frame_size.y;
+        let aspect = (frame_size.x / frame_size.y).max(f32::EPSILON);
         let horizontal_size = aspect * self.vertical_size;
 
         let left = -horizontal_size;
