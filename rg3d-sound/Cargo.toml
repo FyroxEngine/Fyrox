@@ -1,6 +1,6 @@
 [package]
 name = "rg3d-sound"
-version = "0.25.0"
+version = "0.26.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
@@ -16,8 +16,8 @@ resolver = "2"
 rust-version = "1.56"
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.18.0" }
-rg3d-resource = { path = "../rg3d-resource", version = "0.2.0" }
+rg3d-core = { path = "../rg3d-core", version = "0.19.0" }
+rg3d-resource = { path = "../rg3d-resource", version = "0.3.0" }
 lewton = "0.10.2"
 hrtf = "0.7.0"
 hound = "3.4.0"

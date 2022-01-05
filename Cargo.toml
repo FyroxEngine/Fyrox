@@ -36,12 +36,12 @@ opt-level = 3
 debug = true
 
 [dependencies]
-rg3d-core = { path = "rg3d-core", version = "0.18.0", features = ["serde"] }
-rg3d-sound = { path = "rg3d-sound", version = "0.25.0" }
-rg3d-ui = { path = "rg3d-ui", version = "0.14.0" }
-rg3d-resource = { path = "rg3d-resource", version = "0.2.0" }
-rg3d-physics2d = { path = "rg3d-physics/build/rg3d-physics2d", version = "0.1.0" }
-rg3d-physics3d = { path = "rg3d-physics/build/rg3d-physics3d", version = "0.1.0" }
+rg3d-core = { path = "rg3d-core", version = "0.19.0", features = ["serde"] }
+rg3d-sound = { path = "rg3d-sound", version = "0.26.0" }
+rg3d-ui = { path = "rg3d-ui", version = "0.15.0" }
+rg3d-resource = { path = "rg3d-resource", version = "0.3.0" }
+rg3d-physics2d = { path = "rg3d-physics/build/rg3d-physics2d", version = "0.2.0" }
+rg3d-physics3d = { path = "rg3d-physics/build/rg3d-physics3d", version = "0.2.0" }
 image = { version = "0.23.13", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
 inflate = "0.4.5"
 serde = { version = "1", features = ["derive"] }
@@ -57,6 +57,7 @@ ron = "0.7.0"
 fxhash = "0.2.1"
 strum = "0.23.0"
 strum_macros = "0.23.1"
+mla = "1.2.0"
 
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]
