@@ -1,6 +1,6 @@
 [package]
 name = "rg3d-ui"
-version = "0.15.0"
+version = "0.14.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
@@ -16,7 +16,7 @@ resolver = "2"
 rust-version = "1.56"
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.19.0" }
+rg3d-core = { path = "../rg3d-core", version = "0.18.0" }
 lazy_static = "1.4.0"
 copypasta = "0.7.1"
 fontdue = "0.6.2"

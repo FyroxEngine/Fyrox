@@ -1,6 +1,6 @@
 [package]
 name = "rg3d-resource"
-version = "0.3.0"
+version = "0.2.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
@@ -15,4 +15,4 @@ resolver = "2"
 rust-version = "1.56"
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.19.0" }
+rg3d-core = { path = "../rg3d-core", version = "0.18.0" }

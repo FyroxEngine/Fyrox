@@ -25,6 +25,9 @@ settings.ron
 # Local History for Visual Studio Code
 .history/
 
+# Vim
+[._]*.un~
+*~
 
 # from https://github.com/github/gitignore/blob/master/Global/JetBrains.gitignore:
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
