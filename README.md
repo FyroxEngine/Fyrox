@@ -81,13 +81,16 @@ first game.
 - Lightmapping.
 - Soft particles.
 - Fully customizable vertex format.
+- Compressed textures support.
+- High-quality mip-map on-demand generation.
 
 ### Scene
 
 - Multiple scenes.
 - Full-featured scene graph.
 - Level-of-detail (LOD) support.
-- Various scene nodes.
+- GPU Skinning.
+- Various scene nodes:
   - Pivot.
   - Camera.
   - Decal.
@@ -95,7 +98,10 @@ first game.
   - Particle system.
   - Sprite.
   - Multilayer terrain.
-- Skinning.
+  - Rectangle (2D Sprites)
+  - Rigid body + Rigid Body 2D
+  - Collider + Collider 2D
+  - Joint + Joint 2D
 
 ### Sound
 
@@ -103,8 +109,7 @@ first game.
 - Generic and spatial sound sources.
 - Built-in streaming for large sounds.
 - Raw samples playback support.
-- WAV format support.
-- Vorbis/ogg support.
+- WAV/OGG format support.
 - HRTF support for excellent positioning and binaural effects.
 - Reverb effect.
 
@@ -186,6 +191,7 @@ first game.
 - Joints.
 - Ray cast.
 - Many other useful features.
+- 2D support.
 
 ## Screenshots
 
