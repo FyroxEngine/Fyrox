@@ -28,6 +28,21 @@ struct SceneLoader {
     camera: Handle<Node>,
 }
 
+mod kek {
+    use rg3d::{core::algebra::Vector3, scene::rigidbody::RigidBody};
+
+    fn apply_force_and_torque(rigid_body: &mut RigidBody) {
+        // Push rigid body forward at the center of mass.
+        rigid_body.apply_force(Vector3::new(0.0, 0.0, 1.0));
+
+        // Kick rigid body at the side (this will also make it rotate)
+        rigid_body.apply_force_at_point(Vector3::new(0.0, 0.0, 1.0), Vector3::new(1.0, 0.0, 0.0));
+
+        // Turn rigid body around center of mass.
+        rigid_body.apply_torque(Vector3::new(0.0, 3.0, 0.0));
+    }
+}
+
 impl SceneLoader {
     fn load_with(resource_manager: ResourceManager) -> Self {
         let mut scene = Scene::new();

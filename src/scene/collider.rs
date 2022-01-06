@@ -194,6 +194,13 @@ pub struct HeightfieldShape {
     pub geometry_source: GeometrySource,
 }
 
+/// Arbitrary convex polyhedron shape.
+#[derive(Default, Clone, Debug, Visit, Inspect)]
+pub struct ConvexPolyhedronShape {
+    /// A handle to a mesh node.
+    pub geometry_source: GeometrySource,
+}
+
 /// Pairwise filtering using bit masks.
 ///
 /// This filtering method is based on two 32-bit values:
@@ -257,6 +264,7 @@ impl Inspect for ColliderShape {
             ColliderShape::Triangle(v) => v.properties(),
             ColliderShape::Trimesh(v) => v.properties(),
             ColliderShape::Heightfield(v) => v.properties(),
+            ColliderShape::Polyhedron(v) => v.properties(),
         }
     }
 }
@@ -282,6 +290,8 @@ pub enum ColliderShape {
     Trimesh(TrimeshShape),
     /// See [`HeightfieldShape`] docs.
     Heightfield(HeightfieldShape),
+    /// See [`ConvexPolyhedronShape`] docs.
+    Polyhedron(ConvexPolyhedronShape),
 }
 
 impl Default for ColliderShape {

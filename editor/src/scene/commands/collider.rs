@@ -100,6 +100,14 @@ define_collider_variant_command!(SetBallRadiusCommand("Set Ball Radius", f32) wh
     std::mem::swap(&mut ball.radius, &mut self.value);
 });
 
+define_collider_variant_command!(SetHeightfieldSourceCommand("Set Heightfield Polyhedron Source", Handle<Node>) where fn swap(self, physics, Heightfield, hf) {
+    std::mem::swap(&mut hf.geometry_source.0, &mut self.value);
+});
+
+define_collider_variant_command!(SetPolyhedronSourceCommand("Set Polyhedron Source", Handle<Node>) where fn swap(self, physics, Polyhedron, ph) {
+    std::mem::swap(&mut ph.geometry_source.0, &mut self.value);
+});
+
 #[derive(Debug)]
 pub struct AddTrimeshGeometrySourceCommand {
     pub node: Handle<Node>,

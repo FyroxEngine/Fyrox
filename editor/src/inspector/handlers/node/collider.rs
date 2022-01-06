@@ -86,6 +86,10 @@ pub fn handle_collider_property_changed(
                     handle_triangle(handle, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<TrimeshShape>() {
                     handle_trimesh(handle, inner_property)
+                } else if inner_property.owner_type_id == TypeId::of::<HeightfieldShape>() {
+                    handle_heightfield(handle, inner_property)
+                } else if inner_property.owner_type_id == TypeId::of::<ConvexPolyhedronShape>() {
+                    handle_convex_polyhedron(handle, inner_property)
                 } else {
                     None
                 }
@@ -181,4 +185,36 @@ fn handle_trimesh(
         },
         _ => None,
     }
+}
+
+fn handle_heightfield(handle: Handle<Node>, args: &PropertyChanged) -> Option<SceneCommand> {
+    if args.name == HeightfieldShape::GEOMETRY_SOURCE {
+        if let FieldKind::Inspectable(ref inner) = args.value {
+            if inner.name == GeometrySource::F_0 {
+                if let FieldKind::Object(ref val) = inner.value {
+                    return Some(SceneCommand::new(SetHeightfieldSourceCommand::new(
+                        handle,
+                        val.cast_clone()?,
+                    )));
+                }
+            }
+        }
+    }
+    None
+}
+
+fn handle_convex_polyhedron(handle: Handle<Node>, args: &PropertyChanged) -> Option<SceneCommand> {
+    if args.name == ConvexPolyhedronShape::GEOMETRY_SOURCE {
+        if let FieldKind::Inspectable(ref inner) = args.value {
+            if inner.name == GeometrySource::F_0 {
+                if let FieldKind::Object(ref val) = inner.value {
+                    return Some(SceneCommand::new(SetPolyhedronSourceCommand::new(
+                        handle,
+                        val.cast_clone()?,
+                    )));
+                }
+            }
+        }
+    }
+    None
 }

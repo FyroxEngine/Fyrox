@@ -472,6 +472,7 @@ impl Scene {
                     ColliderShape::Triangle(_) => "Triangle Collider",
                     ColliderShape::Trimesh(_) => "Trimesh Collider",
                     ColliderShape::Heightfield(_) => "Heightfield Collider",
+                    ColliderShape::Polyhedron(_) => "Convex Polyhedron",
                 };
 
                 // Trimesh and heightfield needs extra care.

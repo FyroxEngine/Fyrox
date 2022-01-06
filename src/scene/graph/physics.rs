@@ -39,10 +39,13 @@ use crate::{
             CylinderShape, GeometrySource, HeightfieldShape, SegmentShape, TriangleShape,
             TrimeshShape,
         },
-        debug::SceneDrawingContext,
+        debug::{Line, SceneDrawingContext},
         graph::isometric_global_transform,
         joint::JointChanges,
-        mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
+        mesh::{
+            buffer::{VertexAttributeUsage, VertexReadTrait},
+            Mesh,
+        },
         node::Node,
         rigidbody::{ApplyAction, RigidBodyChanges},
         terrain::Terrain,
@@ -599,6 +602,83 @@ fn make_trimesh(
     }
 }
 
+/// Creates new convex polyhedron collider shape from given mesh node. It also bakes scale into
+/// vertices of trimesh because rapier does not support collider scaling yet.
+fn make_polyhedron_shape(owner_inv_transform: Matrix4<f32>, mesh: &Mesh) -> SharedShape {
+    let mut mesh_builder = RawMeshBuilder::new(0, 0);
+
+    // Create inverse transform that will discard rotation and translation, but leave scaling and
+    // other parameters of global transform.
+    // When global transform of node is combined with this transform, we'll get relative transform
+    // with scale baked in. We need to do this because root's transform will be synced with body's
+    // but we don't want to bake entire transform including root's transform.
+    let root_inv_transform = owner_inv_transform;
+
+    let global_transform = root_inv_transform * mesh.global_transform();
+
+    for surface in mesh.surfaces() {
+        let shared_data = surface.data();
+        let shared_data = shared_data.lock();
+
+        let vertices = &shared_data.vertex_buffer;
+        for triangle in shared_data.geometry_buffer.iter() {
+            let a = RawVertex::from(
+                global_transform
+                    .transform_point(&Point3::from(
+                        vertices
+                            .get(triangle[0] as usize)
+                            .unwrap()
+                            .read_3_f32(VertexAttributeUsage::Position)
+                            .unwrap(),
+                    ))
+                    .coords,
+            );
+            let b = RawVertex::from(
+                global_transform
+                    .transform_point(&Point3::from(
+                        vertices
+                            .get(triangle[1] as usize)
+                            .unwrap()
+                            .read_3_f32(VertexAttributeUsage::Position)
+                            .unwrap(),
+                    ))
+                    .coords,
+            );
+            let c = RawVertex::from(
+                global_transform
+                    .transform_point(&Point3::from(
+                        vertices
+                            .get(triangle[2] as usize)
+                            .unwrap()
+                            .read_3_f32(VertexAttributeUsage::Position)
+                            .unwrap(),
+                    ))
+                    .coords,
+            );
+
+            mesh_builder.insert(a);
+            mesh_builder.insert(b);
+            mesh_builder.insert(c);
+        }
+    }
+
+    let raw_mesh = mesh_builder.build();
+
+    let vertices: Vec<Point3<f32>> = raw_mesh
+        .vertices
+        .into_iter()
+        .map(|v| Point3::new(v.x, v.y, v.z))
+        .collect();
+
+    let indices = raw_mesh
+        .triangles
+        .into_iter()
+        .map(|t| [t.0[0], t.0[1], t.0[2]])
+        .collect::<Vec<_>>();
+
+    SharedShape::convex_decomposition(&vertices, &indices)
+}
+
 /// Creates height field shape from given terrain.
 fn make_heightfield(terrain: &Terrain) -> SharedShape {
     assert!(!terrain.chunks_ref().is_empty());
@@ -694,6 +774,13 @@ fn collider_shape_into_native_shape(
                 None
             }
         }
+        ColliderShape::Polyhedron(polyhedron) => {
+            if let Some(Node::Mesh(mesh)) = pool.try_borrow(polyhedron.geometry_source.0) {
+                Some(make_polyhedron_shape(owner_inv_global_transform, mesh))
+            } else {
+                None
+            }
+        }
     }
 }
 
@@ -736,6 +823,103 @@ pub struct PhysicsWorld {
 
     /// Performance statistics of a single simulation step.
     pub performance_statistics: PhysicsPerformanceStatistics,
+}
+
+fn draw_shape(shape: &dyn Shape, transform: Matrix4<f32>, context: &mut SceneDrawingContext) {
+    if let Some(trimesh) = shape.as_trimesh() {
+        let trimesh: &TriMesh = trimesh;
+        for triangle in trimesh.triangles() {
+            let a = transform.transform_point(&triangle.a);
+            let b = transform.transform_point(&triangle.b);
+            let c = transform.transform_point(&triangle.c);
+            context.draw_triangle(a.coords, b.coords, c.coords, Color::opaque(200, 200, 200));
+        }
+    } else if let Some(cuboid) = shape.as_cuboid() {
+        let min = -cuboid.half_extents;
+        let max = cuboid.half_extents;
+        context.draw_oob(
+            &AxisAlignedBoundingBox::from_min_max(min, max),
+            transform,
+            Color::opaque(200, 200, 200),
+        );
+    } else if let Some(ball) = shape.as_ball() {
+        context.draw_sphere(
+            Vector3::new(transform[12], transform[13], transform[14]),
+            10,
+            10,
+            ball.radius,
+            Color::opaque(200, 200, 200),
+        );
+    } else if let Some(cone) = shape.as_cone() {
+        context.draw_cone(
+            10,
+            cone.radius,
+            cone.half_height * 2.0,
+            transform,
+            Color::opaque(200, 200, 200),
+        );
+    } else if let Some(cylinder) = shape.as_cylinder() {
+        context.draw_cylinder(
+            10,
+            cylinder.radius,
+            cylinder.half_height * 2.0,
+            true,
+            transform,
+            Color::opaque(200, 200, 200),
+        );
+    } else if let Some(round_cylinder) = shape.as_round_cylinder() {
+        context.draw_cylinder(
+            10,
+            round_cylinder.base_shape.radius,
+            round_cylinder.base_shape.half_height * 2.0,
+            false,
+            transform,
+            Color::opaque(200, 200, 200),
+        );
+    } else if let Some(triangle) = shape.as_triangle() {
+        context.draw_triangle(
+            triangle.a.coords,
+            triangle.b.coords,
+            triangle.c.coords,
+            Color::opaque(200, 200, 200),
+        );
+    } else if let Some(capsule) = shape.as_capsule() {
+        context.draw_segment_capsule(
+            capsule.segment.a.coords,
+            capsule.segment.b.coords,
+            capsule.radius,
+            10,
+            10,
+            transform,
+            Color::opaque(200, 200, 200),
+        );
+    } else if let Some(heightfield) = shape.as_heightfield() {
+        for triangle in heightfield.triangles() {
+            let a = transform.transform_point(&triangle.a);
+            let b = transform.transform_point(&triangle.b);
+            let c = transform.transform_point(&triangle.c);
+            context.draw_triangle(a.coords, b.coords, c.coords, Color::opaque(200, 200, 200));
+        }
+    } else if let Some(polyhedron) = shape.as_convex_polyhedron() {
+        for edge in polyhedron.edges() {
+            let ia = edge.vertices.x as usize;
+            let ib = edge.vertices.y as usize;
+
+            let pa = transform.transform_point(&polyhedron.points()[ia]).coords;
+            let pb = transform.transform_point(&polyhedron.points()[ib]).coords;
+
+            context.add_line(Line {
+                begin: pa,
+                end: pb,
+                color: Color::opaque(200, 200, 200),
+            })
+        }
+    } else if let Some(compound) = shape.as_compound() {
+        for (isometry, shape) in compound.shapes() {
+            let child_transform = isometry.to_homogeneous() * transform;
+            draw_shape(&**shape, child_transform, context);
+        }
+    }
 }
 
 impl PhysicsWorld {
@@ -864,91 +1048,7 @@ impl PhysicsWorld {
             let body = self.bodies.set.get(collider.parent().unwrap()).unwrap();
             let collider_local_transform = collider.position_wrt_parent().unwrap().to_homogeneous();
             let transform = body.position().to_homogeneous() * collider_local_transform;
-            if let Some(trimesh) = collider.shape().as_trimesh() {
-                let trimesh: &TriMesh = trimesh;
-                for triangle in trimesh.triangles() {
-                    let a = transform.transform_point(&triangle.a);
-                    let b = transform.transform_point(&triangle.b);
-                    let c = transform.transform_point(&triangle.c);
-                    context.draw_triangle(
-                        a.coords,
-                        b.coords,
-                        c.coords,
-                        Color::opaque(200, 200, 200),
-                    );
-                }
-            } else if let Some(cuboid) = collider.shape().as_cuboid() {
-                let min = -cuboid.half_extents;
-                let max = cuboid.half_extents;
-                context.draw_oob(
-                    &AxisAlignedBoundingBox::from_min_max(min, max),
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(ball) = collider.shape().as_ball() {
-                context.draw_sphere(
-                    body.position().translation.vector,
-                    10,
-                    10,
-                    ball.radius,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(cone) = collider.shape().as_cone() {
-                context.draw_cone(
-                    10,
-                    cone.radius,
-                    cone.half_height * 2.0,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(cylinder) = collider.shape().as_cylinder() {
-                context.draw_cylinder(
-                    10,
-                    cylinder.radius,
-                    cylinder.half_height * 2.0,
-                    true,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(round_cylinder) = collider.shape().as_round_cylinder() {
-                context.draw_cylinder(
-                    10,
-                    round_cylinder.base_shape.radius,
-                    round_cylinder.base_shape.half_height * 2.0,
-                    false,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(triangle) = collider.shape().as_triangle() {
-                context.draw_triangle(
-                    triangle.a.coords,
-                    triangle.b.coords,
-                    triangle.c.coords,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(capsule) = collider.shape().as_capsule() {
-                context.draw_segment_capsule(
-                    capsule.segment.a.coords,
-                    capsule.segment.b.coords,
-                    capsule.radius,
-                    10,
-                    10,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(heightfield) = collider.shape().as_heightfield() {
-                for triangle in heightfield.triangles() {
-                    let a = transform.transform_point(&triangle.a);
-                    let b = transform.transform_point(&triangle.b);
-                    let c = transform.transform_point(&triangle.c);
-                    context.draw_triangle(
-                        a.coords,
-                        b.coords,
-                        c.coords,
-                        Color::opaque(200, 200, 200),
-                    );
-                }
-            }
+            draw_shape(collider.shape(), transform, context);
         }
     }
 

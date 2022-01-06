@@ -96,6 +96,7 @@ pub fn make_property_editors_container(
     container.insert(SoundBufferResourcePropertyEditorDefinition);
     container.insert(InspectablePropertyEditorDefinition::<InteractionGroups>::new());
     container.insert(InspectablePropertyEditorDefinition::<ColliderShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<GeometrySource>::new());
     container.insert(InspectablePropertyEditorDefinition::<JointParams>::new());
     container.insert(InspectablePropertyEditorDefinition::<Base>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseLight>::new());
