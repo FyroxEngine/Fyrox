@@ -107,13 +107,14 @@ pub fn calculate_gizmo_distance_scaling(
     camera: Handle<Node>,
     gizmo_origin: Handle<Node>,
 ) -> Vector3<f32> {
-    let s = if let Projection::Perspective(proj) = graph[camera].as_camera().projection() {
-        distance_scale_factor(proj.fov)
-            * graph[gizmo_origin]
-                .global_position()
-                .metric_distance(&graph[camera].global_position())
-    } else {
-        1.0
+    let s = match graph[camera].as_camera().projection() {
+        Projection::Perspective(proj) => {
+            distance_scale_factor(proj.fov)
+                * graph[gizmo_origin]
+                    .global_position()
+                    .metric_distance(&graph[camera].global_position())
+        }
+        Projection::Orthographic(ortho) => 0.4 * ortho.vertical_size,
     };
 
     Vector3::new(s, s, s)
