@@ -693,26 +693,26 @@ impl UserInterface {
                 .nodes
                 .try_borrow_dependant_mut(node_handle, |n| n.parent());
 
-            let widget = widget.unwrap();
+            if let Some(widget) = widget {
+                self.stack.extend_from_slice(widget.children());
 
-            self.stack.extend_from_slice(widget.children());
+                let visibility = if let Some(parent) = parent {
+                    widget.visibility() && parent.is_globally_visible()
+                } else {
+                    widget.visibility()
+                };
 
-            let visibility = if let Some(parent) = parent {
-                widget.visibility() && parent.is_globally_visible()
-            } else {
-                widget.visibility()
-            };
+                if widget.prev_global_visibility != visibility {
+                    let _ = self
+                        .layout_events_sender
+                        .send(LayoutEvent::MeasurementInvalidated(node_handle));
+                    let _ = self
+                        .layout_events_sender
+                        .send(LayoutEvent::ArrangementInvalidated(node_handle));
+                }
 
-            if widget.prev_global_visibility != visibility {
-                let _ = self
-                    .layout_events_sender
-                    .send(LayoutEvent::MeasurementInvalidated(node_handle));
-                let _ = self
-                    .layout_events_sender
-                    .send(LayoutEvent::ArrangementInvalidated(node_handle));
+                widget.set_global_visibility(visibility);
             }
-
-            widget.set_global_visibility(visibility);
         }
     }
 
