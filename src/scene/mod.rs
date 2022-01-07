@@ -26,6 +26,7 @@ pub mod variable;
 pub mod visibility;
 
 use crate::scene::base::legacy::PhysicsBinding;
+use crate::scene::legacy_physics::dim3::RigidBodyHandle;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -38,7 +39,6 @@ use crate::{
     },
     engine::{resource_manager::ResourceManager, PhysicsBinder},
     material::{shader::SamplerFallback, PropertyValue},
-    physics3d::legacy::RigidBodyHandle,
     resource::texture::Texture,
     scene::{
         base::BaseBuilder,

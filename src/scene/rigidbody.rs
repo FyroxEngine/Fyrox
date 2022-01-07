@@ -16,8 +16,6 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
-    physics2d, physics3d,
-    physics3d::rapier::{dynamics, prelude::RigidBodyHandle},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -25,6 +23,7 @@ use crate::{
     },
 };
 use bitflags::bitflags;
+use rapier3d::{dynamics, prelude::RigidBodyHandle};
 use std::{
     cell::Cell,
     collections::VecDeque,
@@ -68,31 +67,31 @@ impl From<dynamics::RigidBodyType> for RigidBodyType {
     }
 }
 
-impl From<RigidBodyType> for physics3d::rapier::dynamics::RigidBodyType {
+impl From<RigidBodyType> for rapier3d::dynamics::RigidBodyType {
     fn from(v: RigidBodyType) -> Self {
         match v {
-            RigidBodyType::Dynamic => physics3d::rapier::dynamics::RigidBodyType::Dynamic,
-            RigidBodyType::Static => physics3d::rapier::dynamics::RigidBodyType::Static,
+            RigidBodyType::Dynamic => rapier3d::dynamics::RigidBodyType::Dynamic,
+            RigidBodyType::Static => rapier3d::dynamics::RigidBodyType::Static,
             RigidBodyType::KinematicPositionBased => {
-                physics3d::rapier::dynamics::RigidBodyType::KinematicPositionBased
+                rapier3d::dynamics::RigidBodyType::KinematicPositionBased
             }
             RigidBodyType::KinematicVelocityBased => {
-                physics3d::rapier::dynamics::RigidBodyType::KinematicVelocityBased
+                rapier3d::dynamics::RigidBodyType::KinematicVelocityBased
             }
         }
     }
 }
 
-impl From<RigidBodyType> for physics2d::rapier::dynamics::RigidBodyType {
+impl From<RigidBodyType> for rapier2d::dynamics::RigidBodyType {
     fn from(v: RigidBodyType) -> Self {
         match v {
-            RigidBodyType::Dynamic => physics2d::rapier::dynamics::RigidBodyType::Dynamic,
-            RigidBodyType::Static => physics2d::rapier::dynamics::RigidBodyType::Static,
+            RigidBodyType::Dynamic => rapier2d::dynamics::RigidBodyType::Dynamic,
+            RigidBodyType::Static => rapier2d::dynamics::RigidBodyType::Static,
             RigidBodyType::KinematicPositionBased => {
-                physics2d::rapier::dynamics::RigidBodyType::KinematicPositionBased
+                rapier2d::dynamics::RigidBodyType::KinematicPositionBased
             }
             RigidBodyType::KinematicVelocityBased => {
-                physics2d::rapier::dynamics::RigidBodyType::KinematicVelocityBased
+                rapier2d::dynamics::RigidBodyType::KinematicVelocityBased
             }
         }
     }

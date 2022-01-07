@@ -1,21 +1,21 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
-use crate::scene::joint::JointChanges;
 use crate::{
+    core::algebra::UnitComplex,
     core::{
         algebra::Vector2,
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::prelude::*,
     },
-    physics2d::rapier::dynamics::JointHandle,
+    scene::joint::JointChanges,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
     },
 };
-use rg3d_core::algebra::UnitComplex;
+use rapier2d::dynamics::JointHandle;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},

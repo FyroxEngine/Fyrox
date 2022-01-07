@@ -1,20 +1,10 @@
 //! A container for colliders.
 
 use crate::{
-    legacy::body::RigidBodyContainer, legacy::ColliderHandle, legacy::RigidBodyHandle,
-    NativeColliderHandle,
+    scene::legacy_physics::dim3::ColliderHandle, scene::legacy_physics::dim3::NativeColliderHandle,
 };
-#[cfg(feature = "dim2")]
-use rapier2d::{
-    dynamics::IslandManager,
-    geometry::{Collider, ColliderSet},
-};
-#[cfg(feature = "dim3")]
-use rapier3d::{
-    dynamics::IslandManager,
-    geometry::{Collider, ColliderSet},
-};
-use rg3d_core::{uuid::Uuid, BiDirHashMap};
+use rapier3d::geometry::{Collider, ColliderSet};
+use rg3d_core::BiDirHashMap;
 
 /// See module docs.
 pub struct ColliderContainer {
@@ -56,39 +46,6 @@ impl ColliderContainer {
         }
 
         Ok(Self { set, handle_map })
-    }
-
-    /// Adds new collider to the container.
-    pub(super) fn add(
-        &mut self,
-        collider: Collider,
-        parent: &RigidBodyHandle,
-        container: &mut RigidBodyContainer,
-    ) -> ColliderHandle {
-        let handle = self.set.insert_with_parent(
-            collider,
-            container.handle_map().value_of(parent).cloned().unwrap(),
-            &mut container.set,
-        );
-        let id = ColliderHandle::from(Uuid::new_v4());
-        self.handle_map.insert(id, handle);
-        id
-    }
-
-    /// Removes a collider from the container.
-    pub(super) fn remove(
-        &mut self,
-        collider_handle: &ColliderHandle,
-        rigid_body_container: &mut RigidBodyContainer,
-        islands: &mut IslandManager,
-    ) -> Option<Collider> {
-        let colliders = &mut self.set;
-        let result = self
-            .handle_map
-            .value_of(collider_handle)
-            .and_then(|&h| colliders.remove(h, islands, &mut rigid_body_container.set, true));
-        self.handle_map.remove_by_key(collider_handle);
-        result
     }
 
     /// Tries to borrow a collider from the container.

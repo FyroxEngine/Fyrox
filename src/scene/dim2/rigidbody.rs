@@ -8,7 +8,6 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
-use crate::scene::rigidbody::{RigidBodyChanges, RigidBodyType};
 use crate::{
     core::{
         algebra::Vector2,
@@ -17,13 +16,14 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
-    physics2d::rapier::prelude::RigidBodyHandle,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
+        rigidbody::{RigidBodyChanges, RigidBodyType},
     },
 };
+use rapier2d::prelude::RigidBodyHandle;
 use std::{
     cell::Cell,
     collections::VecDeque,

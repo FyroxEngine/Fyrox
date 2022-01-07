@@ -22,7 +22,6 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::dim2;
 use crate::{
     asset::ResourceState,
     core::{
@@ -35,16 +34,15 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
         VecExtensions,
     },
-    physics2d,
-    physics3d::rapier::geometry::ColliderHandle,
     resource::model::NodeMapping,
     scene::{
-        base::PropertyValue, collider::ColliderShape, graph::physics::PhysicsWorld, node::Node,
-        transform::TransformBuilder, visibility::VisibilityCache,
+        base::PropertyValue, collider::ColliderShape, dim2, graph::physics::PhysicsWorld,
+        node::Node, transform::TransformBuilder, visibility::VisibilityCache,
     },
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
+use rapier3d::geometry::ColliderHandle;
 use std::{
     fmt::Debug,
     ops::{Index, IndexMut},
@@ -319,7 +317,7 @@ impl Graph {
             if self.physics2d.remove_collider(collider2d.native.get()) {
                 collider2d
                     .native
-                    .set(physics2d::rapier::geometry::ColliderHandle::invalid());
+                    .set(rapier2d::geometry::ColliderHandle::invalid());
             }
         }
     }

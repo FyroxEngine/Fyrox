@@ -1,14 +1,10 @@
 //! A container for joints.
 
 use crate::{
-    legacy::body::RigidBodyContainer, legacy::JointHandle, legacy::RigidBodyHandle,
-    NativeJointHandle,
+    scene::legacy_physics::dim3::JointHandle, scene::legacy_physics::dim3::NativeJointHandle,
 };
-#[cfg(feature = "dim2")]
-use rapier2d::dynamics::{IslandManager, Joint, JointParams, JointSet};
-#[cfg(feature = "dim3")]
-use rapier3d::dynamics::{IslandManager, Joint, JointParams, JointSet};
-use rg3d_core::{uuid::Uuid, BiDirHashMap};
+use rapier3d::dynamics::{Joint, JointSet};
+use rg3d_core::BiDirHashMap;
 
 /// See module docs.
 pub struct JointContainer {
@@ -48,43 +44,6 @@ impl JointContainer {
         }
 
         Ok(Self { set, handle_map })
-    }
-
-    /// Adds new joint.
-    pub(super) fn add<J>(
-        &mut self,
-        body1: &RigidBodyHandle,
-        body2: &RigidBodyHandle,
-        joint_params: J,
-        bodies: &mut RigidBodyContainer,
-    ) -> JointHandle
-    where
-        J: Into<JointParams>,
-    {
-        let body1 = *bodies.handle_map().value_of(body1).unwrap();
-        let body2 = *bodies.handle_map().value_of(body2).unwrap();
-
-        let handle = self.set.insert(body1, body2, joint_params);
-        let id = JointHandle::from(Uuid::new_v4());
-        self.handle_map.insert(id, handle);
-        id
-    }
-
-    /// Removes a joint.
-    pub(super) fn remove(
-        &mut self,
-        joint_handle: &JointHandle,
-        bodies: &mut RigidBodyContainer,
-        islands: &mut IslandManager,
-        wake_up: bool,
-    ) -> Option<Joint> {
-        let joints = &mut self.set;
-        let result = self
-            .handle_map
-            .value_of(joint_handle)
-            .and_then(|&h| joints.remove(h, islands, &mut bodies.set, wake_up));
-        self.handle_map.remove_by_key(joint_handle);
-        result
     }
 
     /// Tries to borrow a joint from the container.

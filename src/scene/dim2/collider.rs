@@ -1,7 +1,6 @@
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
 
-use crate::scene::collider::{ColliderChanges, InteractionGroups};
 use crate::{
     core::{
         algebra::Vector2,
@@ -9,14 +8,15 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
-    physics2d::rapier::geometry::ColliderHandle,
     scene::{
         base::{Base, BaseBuilder},
+        collider::{ColliderChanges, InteractionGroups},
         dim2::physics::{ContactPair, PhysicsWorld},
         graph::{physics::CoefficientCombineRule, Graph},
         node::Node,
     },
 };
+use rapier2d::geometry::ColliderHandle;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},

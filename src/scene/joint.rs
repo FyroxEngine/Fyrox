@@ -7,7 +7,6 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
-    physics3d::rapier::dynamics::JointHandle,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -15,6 +14,7 @@ use crate::{
     },
 };
 use bitflags::bitflags;
+use rapier3d::dynamics::JointHandle;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},

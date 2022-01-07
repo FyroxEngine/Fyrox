@@ -1,14 +1,11 @@
 //! A container for rigid bodies.
 
 use crate::{
-    legacy::collider::ColliderContainer, legacy::joint::JointContainer, legacy::RigidBodyHandle,
-    NativeRigidBodyHandle,
+    scene::legacy_physics::dim3::NativeRigidBodyHandle,
+    scene::legacy_physics::dim3::RigidBodyHandle,
 };
-#[cfg(feature = "dim2")]
-use rapier2d::dynamics::{IslandManager, RigidBody, RigidBodySet};
-#[cfg(feature = "dim3")]
-use rapier3d::dynamics::{IslandManager, RigidBody, RigidBodySet};
-use rg3d_core::{uuid::Uuid, BiDirHashMap};
+use rapier3d::dynamics::{RigidBody, RigidBodySet};
+use rg3d_core::BiDirHashMap;
 
 /// See module docs.
 pub struct RigidBodyContainer {
@@ -50,36 +47,6 @@ impl RigidBodyContainer {
         }
 
         Ok(Self { set, handle_map })
-    }
-
-    /// Adds new rigid body to the container.
-    pub(super) fn add(&mut self, rigid_body: RigidBody) -> RigidBodyHandle {
-        let handle = self.set.insert(rigid_body);
-        let id = RigidBodyHandle::from(Uuid::new_v4());
-        self.handle_map.insert(id, handle);
-        id
-    }
-
-    /// Removes a rigid body from the container.
-    pub(super) fn remove(
-        &mut self,
-        rigid_body: &RigidBodyHandle,
-        colliders: &mut ColliderContainer,
-        joints: &mut JointContainer,
-        islands: &mut IslandManager,
-    ) -> Option<RigidBody> {
-        let bodies = &mut self.set;
-        let result = self
-            .handle_map
-            .value_of(rigid_body)
-            .and_then(|&h| bodies.remove(h, islands, &mut colliders.set, &mut joints.set));
-        if let Some(body) = result.as_ref() {
-            for collider in body.colliders() {
-                colliders.handle_map.remove_by_value(collider);
-            }
-            self.handle_map.remove_by_key(rigid_body);
-        }
-        result
     }
 
     /// Tries to borrow a rigid body from the container.

@@ -8,7 +8,6 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
-    physics3d::rapier::geometry::{self, ColliderHandle},
     scene::{
         base::{Base, BaseBuilder},
         graph::{
@@ -19,6 +18,7 @@ use crate::{
     },
 };
 use bitflags::bitflags;
+use rapier3d::geometry::{self, ColliderHandle};
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},

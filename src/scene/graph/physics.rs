@@ -15,23 +15,6 @@ use crate::{
         visitor::prelude::*,
         BiDirHashMap,
     },
-    physics2d,
-    physics3d::{
-        self,
-        rapier::dynamics::RigidBodyActivation,
-        rapier::{
-            dynamics::{
-                BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager,
-                JointHandle, JointParams, JointSet, PrismaticJoint, RevoluteJoint, RigidBody,
-                RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
-            },
-            geometry::{
-                BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
-                InteractionGroups, NarrowPhase, Ray, Segment, Shape, SharedShape, TriMesh,
-            },
-            pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
-        },
-    },
     scene::{
         self,
         collider::{
@@ -54,6 +37,18 @@ use crate::{
         log::{Log, MessageKind},
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
+};
+use rapier3d::{
+    dynamics::{
+        BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager, JointHandle,
+        JointParams, JointSet, PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyActivation,
+        RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
+    },
+    geometry::{
+        BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
+        InteractionGroups, NarrowPhase, Ray, Segment, Shape, SharedShape, TriMesh,
+    },
+    pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
 use std::{
     cell::{Cell, RefCell},
@@ -78,23 +73,23 @@ pub enum FeatureId {
     Unknown,
 }
 
-impl From<physics3d::rapier::geometry::FeatureId> for FeatureId {
-    fn from(v: physics3d::rapier::geometry::FeatureId) -> Self {
+impl From<rapier3d::geometry::FeatureId> for FeatureId {
+    fn from(v: rapier3d::geometry::FeatureId) -> Self {
         match v {
-            physics3d::rapier::geometry::FeatureId::Vertex(v) => FeatureId::Vertex(v),
-            physics3d::rapier::geometry::FeatureId::Edge(v) => FeatureId::Edge(v),
-            physics3d::rapier::geometry::FeatureId::Face(v) => FeatureId::Face(v),
-            physics3d::rapier::geometry::FeatureId::Unknown => FeatureId::Unknown,
+            rapier3d::geometry::FeatureId::Vertex(v) => FeatureId::Vertex(v),
+            rapier3d::geometry::FeatureId::Edge(v) => FeatureId::Edge(v),
+            rapier3d::geometry::FeatureId::Face(v) => FeatureId::Face(v),
+            rapier3d::geometry::FeatureId::Unknown => FeatureId::Unknown,
         }
     }
 }
 
-impl From<physics2d::rapier::geometry::FeatureId> for FeatureId {
-    fn from(v: physics2d::rapier::geometry::FeatureId) -> Self {
+impl From<rapier2d::geometry::FeatureId> for FeatureId {
+    fn from(v: rapier2d::geometry::FeatureId) -> Self {
         match v {
-            physics2d::rapier::geometry::FeatureId::Vertex(v) => FeatureId::Vertex(v),
-            physics2d::rapier::geometry::FeatureId::Face(v) => FeatureId::Face(v),
-            physics2d::rapier::geometry::FeatureId::Unknown => FeatureId::Unknown,
+            rapier2d::geometry::FeatureId::Vertex(v) => FeatureId::Vertex(v),
+            rapier2d::geometry::FeatureId::Face(v) => FeatureId::Face(v),
+            rapier2d::geometry::FeatureId::Unknown => FeatureId::Unknown,
         }
     }
 }
@@ -127,47 +122,41 @@ impl Default for CoefficientCombineRule {
     }
 }
 
-impl From<physics3d::rapier::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
-    fn from(v: physics3d::rapier::dynamics::CoefficientCombineRule) -> Self {
+impl From<rapier3d::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
+    fn from(v: rapier3d::dynamics::CoefficientCombineRule) -> Self {
         match v {
-            physics3d::rapier::dynamics::CoefficientCombineRule::Average => {
-                CoefficientCombineRule::Average
-            }
-            physics3d::rapier::dynamics::CoefficientCombineRule::Min => CoefficientCombineRule::Min,
-            physics3d::rapier::dynamics::CoefficientCombineRule::Multiply => {
+            rapier3d::dynamics::CoefficientCombineRule::Average => CoefficientCombineRule::Average,
+            rapier3d::dynamics::CoefficientCombineRule::Min => CoefficientCombineRule::Min,
+            rapier3d::dynamics::CoefficientCombineRule::Multiply => {
                 CoefficientCombineRule::Multiply
             }
-            physics3d::rapier::dynamics::CoefficientCombineRule::Max => CoefficientCombineRule::Max,
+            rapier3d::dynamics::CoefficientCombineRule::Max => CoefficientCombineRule::Max,
         }
     }
 }
 
-impl Into<physics3d::rapier::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
-    fn into(self) -> physics3d::rapier::dynamics::CoefficientCombineRule {
+impl Into<rapier3d::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
+    fn into(self) -> rapier3d::dynamics::CoefficientCombineRule {
         match self {
-            CoefficientCombineRule::Average => {
-                physics3d::rapier::dynamics::CoefficientCombineRule::Average
-            }
-            CoefficientCombineRule::Min => physics3d::rapier::dynamics::CoefficientCombineRule::Min,
+            CoefficientCombineRule::Average => rapier3d::dynamics::CoefficientCombineRule::Average,
+            CoefficientCombineRule::Min => rapier3d::dynamics::CoefficientCombineRule::Min,
             CoefficientCombineRule::Multiply => {
-                physics3d::rapier::dynamics::CoefficientCombineRule::Multiply
+                rapier3d::dynamics::CoefficientCombineRule::Multiply
             }
-            CoefficientCombineRule::Max => physics3d::rapier::dynamics::CoefficientCombineRule::Max,
+            CoefficientCombineRule::Max => rapier3d::dynamics::CoefficientCombineRule::Max,
         }
     }
 }
 
-impl Into<physics2d::rapier::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
-    fn into(self) -> physics2d::rapier::dynamics::CoefficientCombineRule {
+impl Into<rapier2d::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
+    fn into(self) -> rapier2d::dynamics::CoefficientCombineRule {
         match self {
-            CoefficientCombineRule::Average => {
-                physics2d::rapier::dynamics::CoefficientCombineRule::Average
-            }
-            CoefficientCombineRule::Min => physics2d::rapier::dynamics::CoefficientCombineRule::Min,
+            CoefficientCombineRule::Average => rapier2d::dynamics::CoefficientCombineRule::Average,
+            CoefficientCombineRule::Min => rapier2d::dynamics::CoefficientCombineRule::Min,
             CoefficientCombineRule::Multiply => {
-                physics2d::rapier::dynamics::CoefficientCombineRule::Multiply
+                rapier2d::dynamics::CoefficientCombineRule::Multiply
             }
-            CoefficientCombineRule::Max => physics2d::rapier::dynamics::CoefficientCombineRule::Max,
+            CoefficientCombineRule::Max => rapier2d::dynamics::CoefficientCombineRule::Max,
         }
     }
 }

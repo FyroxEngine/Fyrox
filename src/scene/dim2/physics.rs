@@ -1,7 +1,8 @@
 //! Scene physics module.
 
-use crate::scene::debug::{Line, SceneDrawingContext};
 use crate::{
+    core::algebra::{Isometry3, Point3, Rotation3, Translation3},
+    core::color::Color,
     core::{
         algebra::{
             Isometry2, Matrix4, Point2, Translation2, Unit, UnitComplex, UnitQuaternion,
@@ -13,18 +14,7 @@ use crate::{
         pool::{Handle, Pool},
         BiDirHashMap,
     },
-    physics2d::rapier::{
-        dynamics::{
-            BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager, JointHandle,
-            JointParams, JointSet, PrismaticJoint, RigidBody, RigidBodyActivation,
-            RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
-        },
-        geometry::{
-            BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
-            InteractionGroups, NarrowPhase, Ray, SharedShape,
-        },
-        pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
-    },
+    scene::debug::{Line, SceneDrawingContext},
     scene::{
         self,
         collider::{self, ColliderChanges},
@@ -36,9 +26,18 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
-use rg3d_core::algebra::{Isometry3, Point3, Rotation3, Translation3};
-use rg3d_core::color::Color;
-use rg3d_physics2d::rapier::geometry::TriMesh;
+use rapier2d::{
+    dynamics::{
+        BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager, JointHandle,
+        JointParams, JointSet, PrismaticJoint, RigidBody, RigidBodyActivation, RigidBodyBuilder,
+        RigidBodyHandle, RigidBodySet, RigidBodyType,
+    },
+    geometry::{
+        BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
+        InteractionGroups, NarrowPhase, Ray, SharedShape, TriMesh,
+    },
+    pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
+};
 use std::{
     cell::RefCell,
     cmp::Ordering,

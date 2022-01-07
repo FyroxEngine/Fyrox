@@ -3,31 +3,30 @@
 use crate::{
     core::{pool::Handle, visitor::prelude::*},
     engine::PhysicsBinder,
-    physics3d::{
-        legacy::body::RigidBodyContainer,
-        legacy::collider::ColliderContainer,
-        legacy::desc::{ColliderShapeDesc, PhysicsDesc},
-        legacy::joint::JointContainer,
-        legacy::PhysicsWorld,
-        legacy::RigidBodyHandle,
-        rapier::{
-            dynamics::{JointSet, RigidBodySet},
-            geometry::{Collider, ColliderBuilder, ColliderSet},
-            na::{
-                DMatrix, Dynamic, Isometry3, Point3, Translation, UnitQuaternion, VecStorage,
-                Vector3,
-            },
-            parry::shape::SharedShape,
-        },
+    scene::legacy_physics::dim3::{
+        body::RigidBodyContainer,
+        collider::ColliderContainer,
+        desc::{ColliderShapeDesc, PhysicsDesc},
+        joint::JointContainer,
+        PhysicsWorld, RigidBodyHandle,
     },
     scene::{graph::Graph, node::Node},
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
+use rapier3d::{
+    dynamics::{JointSet, RigidBodySet},
+    geometry::{Collider, ColliderBuilder, ColliderSet},
+    na::{DMatrix, Dynamic, Isometry3, Point3, Translation, UnitQuaternion, VecStorage, Vector3},
+    parry::shape::SharedShape,
+};
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
+
+#[doc(hidden)]
+pub mod dim3;
 
 /// Physics world.
 #[derive(Debug)]

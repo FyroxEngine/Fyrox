@@ -9,9 +9,6 @@
 #![allow(clippy::from_over_into)]
 #![allow(clippy::approx_constant)]
 
-use rg3d_physics2d as physics2d;
-use rg3d_physics3d as physics3d;
-
 pub mod animation;
 pub mod engine;
 pub mod material;
