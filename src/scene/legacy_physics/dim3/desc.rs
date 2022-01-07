@@ -381,26 +381,24 @@ impl ColliderShapeDesc {
             ColliderShapeDesc::Trimesh(TrimeshDesc)
         } else if shape.as_heightfield().is_some() {
             ColliderShapeDesc::Heightfield(HeightfieldDesc)
+        } else if let Some(cylinder) = shape.as_cylinder() {
+            ColliderShapeDesc::Cylinder(CylinderDesc {
+                half_height: cylinder.half_height,
+                radius: cylinder.radius,
+            })
+        } else if let Some(round_cylinder) = shape.as_round_cylinder() {
+            ColliderShapeDesc::RoundCylinder(RoundCylinderDesc {
+                half_height: round_cylinder.base_shape.half_height,
+                radius: round_cylinder.base_shape.radius,
+                border_radius: round_cylinder.border_radius,
+            })
+        } else if let Some(cone) = shape.as_cone() {
+            ColliderShapeDesc::Cone(ConeDesc {
+                half_height: cone.half_height,
+                radius: cone.radius,
+            })
         } else {
-            if let Some(cylinder) = shape.as_cylinder() {
-                ColliderShapeDesc::Cylinder(CylinderDesc {
-                    half_height: cylinder.half_height,
-                    radius: cylinder.radius,
-                })
-            } else if let Some(round_cylinder) = shape.as_round_cylinder() {
-                ColliderShapeDesc::RoundCylinder(RoundCylinderDesc {
-                    half_height: round_cylinder.base_shape.half_height,
-                    radius: round_cylinder.base_shape.radius,
-                    border_radius: round_cylinder.border_radius,
-                })
-            } else if let Some(cone) = shape.as_cone() {
-                ColliderShapeDesc::Cone(ConeDesc {
-                    half_height: cone.half_height,
-                    radius: cone.radius,
-                })
-            } else {
-                unreachable!()
-            }
+            unreachable!()
         }
     }
 
