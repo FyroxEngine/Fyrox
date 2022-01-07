@@ -19,9 +19,10 @@ use crate::{
         RenderPassStatistics, TextureCache,
     },
     scene::{camera::Camera, graph::Graph, light::Light, node::Node},
+    utils::value_as_u8_slice,
 };
-use fxhash::FxHashMap;
-use std::{cell::RefCell, rc::Rc};
+use fxhash::{FxHashMap, FxHasher};
+use std::{cell::RefCell, cmp::Ordering, hash::Hasher, rc::Rc};
 
 mod cache;
 
@@ -87,7 +88,9 @@ impl SpriteBatchStorage {
         white_dummy: Rc<RefCell<GpuTexture>>,
     ) {
         self.index_map.clear();
-        self.batches.clear();
+        for batch in self.batches.iter_mut() {
+            batch.instances.clear();
+        }
 
         let mut batch_index = 0;
         for node in graph.linear_iter() {
@@ -105,8 +108,16 @@ impl SpriteBatchStorage {
                     },
                 );
 
-                let texture_id = &*texture.borrow() as *const _ as u64;
-                let index = *self.index_map.entry(texture_id).or_insert_with(|| {
+                let z = rectangle.global_position().z;
+
+                let mut hasher = FxHasher::default();
+                // Objects with different Z coordinate will go into separate batches.
+                hasher.write(value_as_u8_slice(&z));
+                // Objects with different textures will go into separate batches.
+                hasher.write_u64(&*texture.borrow() as *const _ as u64);
+                let batch_id = hasher.finish();
+
+                let index = *self.index_map.entry(batch_id).or_insert_with(|| {
                     let index = batch_index;
                     batch_index += 1;
                     index as usize
@@ -115,11 +126,13 @@ impl SpriteBatchStorage {
                 // Reuse old batches to prevent redundant memory allocations
                 let batch = if let Some(batch) = self.batches.get_mut(index) {
                     batch.texture = texture.clone();
+                    batch.z = z;
                     batch
                 } else {
                     self.batches.push(Batch {
                         instances: Default::default(),
                         texture: texture.clone(),
+                        z,
                     });
                     self.batches.last_mut().unwrap()
                 };
@@ -133,6 +146,17 @@ impl SpriteBatchStorage {
                 });
             }
         }
+
+        // Sort back-to-front for correct blending.
+        self.batches.sort_by(|a, b| {
+            if a.z < b.z {
+                Ordering::Greater
+            } else if a.z > b.z {
+                Ordering::Less
+            } else {
+                Ordering::Equal
+            }
+        })
     }
 }
 
@@ -144,6 +168,7 @@ struct Instance {
 struct Batch {
     instances: Vec<Instance>,
     texture: Rc<RefCell<GpuTexture>>,
+    z: f32,
 }
 
 impl Renderer2d {
@@ -253,9 +278,9 @@ impl Renderer2d {
                     &DrawParameters {
                         cull_face: None,
                         color_write: Default::default(),
-                        depth_write: false,
+                        depth_write: true,
                         stencil_test: None,
-                        depth_test: false,
+                        depth_test: true,
                         blend: Some(BlendFunc {
                             sfactor: BlendFactor::SrcAlpha,
                             dfactor: BlendFactor::OneMinusSrcAlpha,
