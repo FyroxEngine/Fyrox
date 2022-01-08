@@ -11,9 +11,10 @@ homepage = "https://github.com/rg3dengine/rusty-editor"
 keywords = ["rg3d", "game engine", "editor", "rust", "rusty-editor"]
 repository = "https://github.com/rg3dengine/rusty-editor"
 readme = "README.md"
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/resources/**/*"]
 
 [dependencies]
-rg3d = { path = ".." }
+rg3d = { version = "0.24", path = ".." }
 lazy_static = "1.4.0"
 ron = "0.7.0"
 serde = "^1.0.0"
