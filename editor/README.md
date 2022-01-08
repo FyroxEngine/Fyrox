@@ -17,6 +17,12 @@ To install the latest stable version from crates.io use:
 cargo install rusty-editor
 ```
 
+After that, you can run the editor by simply calling:
+
+```shell
+rusty-editor
+```
+
 If you're on Linux, please make sure that the following dependencies are installed:
 
 ```shell
