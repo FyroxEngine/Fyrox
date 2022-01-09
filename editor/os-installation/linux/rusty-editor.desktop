@@ -1,10 +1,10 @@
 [Desktop Entry]
 Name=Rusty Editor
 Version=0.7.0
-Comment=Scene editor for rg3d
+Comment=Scene editor for Fyrox Engine
 GenericName=Rusty Editor
-Exec=rusty-editor
-Icon=rusty-editor-icon
+Exec=Fyroxed
+Icon=Fyroxed-icon
 Type=Application
 Terminal=false
 Categories=Editors

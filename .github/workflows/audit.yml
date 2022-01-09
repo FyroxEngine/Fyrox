@@ -31,5 +31,5 @@ jobs:
       # RUSTSEC-2020-0097: xcb - Soundness issue with base::Error
       # RUSTSEC-2021-0019: xcb - Multiple soundness issues
       # RUSTSEC-2021-0119: nix - Out-of-bounds write in nix::unistd::getgrouplist - waiting for new winit release
-      # For more info: https://github.com/rg3dengine/rg3d/issues/208
+      # For more info: https://github.com/FyroxEngine/Fyrox/issues/208
       - run: cargo audit --deny warnings --ignore RUSTSEC-2020-0016 --ignore RUSTSEC-2020-0056 --ignore RUSTSEC-2020-0097 --ignore RUSTSEC-2021-0019 --ignore RUSTSEC-2021-0119

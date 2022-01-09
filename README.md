@@ -6,14 +6,14 @@
   <h1>Rust Game engine 3D (and 2D)</h1>
 </div>
 
-[![License (MIT)](https://img.shields.io/crates/l/rg3d)](https://github.com/mrDIMAS/rg3d/blob/master/LICENSE.md)
-[![CI Status](https://github.com/rg3dengine/rg3d/actions/workflows/ci.yml/badge.svg)](https://github.com/rg3dengine/rg3d/actions/workflows/ci.yml)
-[![audit](https://github.com/rg3dengine/rg3d/actions/workflows/audit.yml/badge.svg)](https://github.com/rg3dengine/rg3d/actions/workflows/audit.yml)
-[![Dependency status](https://deps.rs/repo/github/rg3dengine/rg3d/status.svg)](https://deps.rs/repo/github/rg3dengine/rg3d)
+[![License (MIT)](https://img.shields.io/crates/l/rg3d)](https://github.com/FyroxEngine/Fyrox/blob/master/LICENSE.md)
+[![CI Status](https://github.com/FyroxEngine/Fyrox/actions/workflows/ci.yml/badge.svg)](https://github.com/FyroxEngine/Fyrox/actions/workflows/ci.yml)
+[![audit](https://github.com/FyroxEngine/Fyrox/actions/workflows/audit.yml/badge.svg)](https://github.com/FyroxEngine/Fyrox/actions/workflows/audit.yml)
+[![Dependency status](https://deps.rs/repo/github/FyroxEngine/Fyrox/status.svg)](https://deps.rs/repo/github/FyroxEngine/Fyrox)
 [![Crates.io](https://img.shields.io/crates/v/rg3d)](https://crates.io/crates/rg3d)
-[![docs.rs](https://img.shields.io/badge/docs-website-blue)](https://docs.rs/rg3d/)
+[![docs.rs](https://img.shields.io/badge/docs-website-blue)](https://docs.rs/Fyrox/)
 [![Discord](https://img.shields.io/discord/756573453561102427)](https://discord.gg/xENF5Uh)
-[![Lines of code](https://tokei.rs/b1/github/mrDIMAS/rg3d)](https://github.com/mrDIMAS/rg3d)
+[![Lines of code](https://tokei.rs/b1/github/FyroxEngine/Fyrox)](https://github.com/FyroxEngine/Fyrox)
 
 A feature-rich, production-ready, general purpose 2D/3D game engine written in Rust with a scene editor.
 
@@ -46,7 +46,7 @@ first game.
 - Comprehensive [documentation](https://docs.rs/rg3d).
 - [Guide book](https://rg3d-book.github.io) 
 - 2D support.
-- [Scene editor](https://github.com/rg3dengine/rg3d/tree/master/editor).
+- [Scene editor](https://github.com/FyroxEngine/Fyrox/tree/master/editor).
 - Fast iterative compilation.
 - Classic object-oriented design.
 - Lots of examples.
@@ -105,7 +105,7 @@ first game.
 
 ### Sound
 
-- [High quality binaural sound with HRTF support](https://github.com/rg3dengine/rg3d/tree/master/fyrox-sound).
+- [High quality binaural sound with HRTF support](https://github.com/FyroxEngine/Fyrox/tree/master/fyrox-sound).
 - Generic and spatial sound sources.
 - Built-in streaming for large sounds.
 - Raw samples playback support.
@@ -141,7 +141,7 @@ first game.
 
 ### User Interface (UI)
 
-- [Advanced node-based UI](https://github.com/mrDIMAS/rg3d/tree/master/fyrox-ui) with lots of widgets.
+- [Advanced node-based UI](https://github.com/FyroxEngine/Fyrox/tree/master/fyrox-ui) with lots of widgets.
 - More than 32 widgets
 - Powerful layout system.
 - Full TTF/OTF fonts support.
@@ -210,13 +210,13 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 
 ![5](pics/5.jpg?raw=true "Game 5")
 
-## [Examples](https://github.com/mrDIMAS/rg3d/tree/master/examples)
+## [Examples](https://github.com/FyroxEngine/Fyrox/tree/master/examples)
 
 There are many examples covering various aspects of the engine. Also don't hesitate to create an issue or ask on Discord if you need help!
 
-## [Editor](https://github.com/rg3dengine/rg3d/tree/master/editor)
+## [Editor](https://github.com/FyroxEngine/Fyrox/tree/master/editor)
 
-[![editor](https://raw.githubusercontent.com/rg3dengine/rg3d/master/editor/screenshots/latest.png)](https://github.com/rg3dengine/rg3d/tree/master/editor)
+[![editor](https://raw.githubusercontent.com/FyroxEngine/Fyrox/master/editor/screenshots/latest.png)](https://github.com/FyroxEngine/Fyrox/tree/master/editor)
 
 ## Dependencies
 
@@ -230,7 +230,7 @@ sudo apt install libxcb-shape0-dev libxcb-xfixes0-dev libxcb1-dev libxkbcommon-d
 
 Contributions are very welcome! Feel free to open Issues and Pull Requests.
 
-Check the [good first issue](https://github.com/mrDIMAS/rg3d/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) label to see where you can help.
+Check the [good first issue](https://github.com/FyroxEngine/Fyrox/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) label to see where you can help.
 
 ## Sponsors
 

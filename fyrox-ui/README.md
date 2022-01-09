@@ -66,7 +66,7 @@ fyrox-ui uses a bit unusual way of styling - you have to replace entire sub-grap
 
 ## Screenshots
 
-[![editor](https://raw.githubusercontent.com/rg3dengine/rusty-editor/master/screenshots/latest.png)](https://github.com/mrDIMAS/rusty-editor/)
+[![editor](https://raw.githubusercontent.com/FyroxEngine/Fyrox/master/screenshots/latest.png)](https://github.com/FyroxEngine/Fyrox/)
 
 ## Contributing
 
@@ -82,7 +82,7 @@ TODO.
 
 There are two projects using this UI library:
 
-- [rusty-editor](https://github.com/mrDIMAS/rusty-editor/)
+- [Fyroxed](https://github.com/FyroxEngine/Fyrox/)
 - [rusty-shooter](https://github.com/mrDIMAS/rusty-shooter)
 
 However, it can be too difficult to understand how to use the library from those projects, so standalone samples should be added. This is still a TODO.

@@ -670,7 +670,7 @@ impl ResourceManager {
     /// # Supported formats
     ///
     /// Currently only FBX (common format in game industry for storing complex 3d models)
-    /// and RGS (native rusty-editor format) formats are supported.
+    /// and RGS (native Fyroxed format) formats are supported.
     pub fn request_model<P: AsRef<Path>>(&self, path: P) -> Model {
         let mut state = self.state();
 

@@ -2,7 +2,7 @@
 //!
 //! Difficulty: Easy.
 //!
-//! This example shows how to load simple scene made in [rusty-editor](https://github.com/mrDIMAS/rusty-editor)
+//! This example shows how to load simple scene made in [Fyroxed](https://github.com/FyroxEngine/Fyrox)
 //!
 //! It is almost the same as Example 01, even easier.
 
@@ -57,7 +57,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         .await])
         .build(&mut scene.graph);
 
-    // There is no difference between scene created in rusty-editor and any other
+    // There is no difference between scene created in Fyroxed and any other
     // model file, so any scene can be used directly as resource.
     resource_manager
         .request_model("examples/data/test_scene.rgs")

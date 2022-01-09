@@ -24,7 +24,7 @@ that you are working with good old structures which are placed in contiguous mem
 object was placed in a pool, you get a handle to the object which can be used to access (borrow) the object
 when you need. Such approach allows you to make any relations between the objects - handle is just a pair of 
 numbers, it won't cause issues with borrow checker. For more info check 
-[pool.rs](https://github.com/mrDIMAS/rg3d/blob/master/fyrox-core/src/pool.rs).
+[pool.rs](https://github.com/FyroxEngine/Fyrox/blob/master/fyrox-core/src/pool.rs).
 
 ### Core
 
@@ -49,7 +49,7 @@ instance) or a hardware (OpenGL, DirectX, Vulkan, Metal, etc.).
 
 ### Sound
 
-Fyrox uses software sound engine [fyrox-sound](https://github.com/mrDIMAS/rg3d/tree/master/fyrox-sound).
+Fyrox uses software sound engine [fyrox-sound](https://github.com/FyroxEngine/Fyrox/tree/master/fyrox-sound).
 The sound engine provides support for binaural sound rendering using HRTF, which gives excellent sound 
 spatialization. 
 

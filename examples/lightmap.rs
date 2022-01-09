@@ -2,7 +2,7 @@
 //!
 //! Difficulty: Easy.
 //!
-//! This example shows how to load simple scene made in [rusty-editor](https://github.com/mrDIMAS/rusty-editor)
+//! This example shows how to load simple scene made in [Fyroxed](https://github.com/FyroxEngine/Fyrox)
 //! and generate lightmap for it. Lightmaps are still in active development and not meant to be used.
 
 pub mod shared;
@@ -230,7 +230,7 @@ fn create_scene_async(
                 )
                 .await;
 
-                // There is no difference between scene created in rusty-editor and any other
+                // There is no difference between scene created in Fyroxed and any other
                 // model file, so any scene can be used directly as resource.
                 let root = resource_manager
                     .request_model("examples/data/sponza/Sponza.rgs")

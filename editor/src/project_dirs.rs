@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use crate::TEST_EXISTENCE;
 
 fn project_dir() -> ProjectDirs {
-    ProjectDirs::from("org", "rg3dengine", "rusty-editor").unwrap()
+    ProjectDirs::from("org", "FyroxEngine", "Fyroxed").unwrap()
 }
 
 pub fn working_config_dir(filename: &str) -> PathBuf {
@@ -42,5 +42,5 @@ pub fn data_dir(filename: &str) -> PathBuf {
 }
 
 pub fn resources_dir(filename: &str) -> PathBuf {
-    PathBuf::from("/usr/lib/rusty-editor/").join(filename)
+    PathBuf::from("/usr/lib/Fyroxed/").join(filename)
 }

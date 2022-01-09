@@ -1271,10 +1271,9 @@ impl Editor {
 
                     std::env::set_current_dir(working_directory.clone()).unwrap();
 
-                    engine.get_window().set_title(&format!(
-                        "rusty-editor: {}",
-                        working_directory.to_string_lossy()
-                    ));
+                    engine
+                        .get_window()
+                        .set_title(&format!("Fyroxed: {}", working_directory.to_string_lossy()));
 
                     engine.resource_manager.state().destroy_unused_resources();
 

@@ -43,7 +43,7 @@ This example shows how to use the user interface system of the engine. It is bas
 
 ## Example 05 - Scene
 
-This example shows how to load a simple scene made in [rusty-editor](https://github.com/mrDIMAS/rusty-editor)
+This example shows how to load a simple scene made in [Fyroxed](https://github.com/FyroxEngine/Fyrox)
 
 ![Example 05](screenshots/scene.png?raw=true "Example 05")
 
@@ -65,7 +65,7 @@ TODO: It still should be improved, it needs to use a more high poly model to sho
 ## Example 09 - Lightmap
 
 Lightmap is a texture with precomputed light. This example shows how to load a simple scene made in 
-[rusty-editor](https://github.com/mrDIMAS/rusty-editor) and generate a lightmap for it. Lightmaps are still in
+[Fyroxed](https://github.com/FyroxEngine/Fyrox) and generate a lightmap for it. Lightmaps are still in
 active development and not meant to be used.
 
 ![Example 09](screenshots/lightmap.png?raw=true "Example 09")

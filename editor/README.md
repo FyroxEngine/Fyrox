@@ -1,6 +1,6 @@
 # rusty editor
 
-Scene editor for [Fyrox engine](https://github.com/rg3dengine/rg3d).
+Scene editor for [Fyrox engine](https://github.com/FyroxEngine/Fyrox).
 
 ## Limitations
 

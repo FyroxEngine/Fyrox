@@ -16,7 +16,7 @@
 //! # Supported formats
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
-//! and RGS (native rusty-editor format) formats are supported.
+//! and RGS (native Fyroxed format) formats are supported.
 use crate::engine::resource_manager::ImportOptions;
 use crate::{
     animation::Animation,
@@ -370,7 +370,7 @@ impl ModelData {
                 (scene, NodeMapping::UseNames)
             }
             // Scene can be used directly as model resource. Such scenes can be created in
-            // rusty-editor.
+            // Fyroxed.
             "rgs" => (
                 Scene::from_file(path.as_ref(), resource_manager).await?,
                 NodeMapping::UseHandles,
