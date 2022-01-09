@@ -3,7 +3,7 @@ use crate::{
     inspector::handlers::node::base::handle_base_property_changed, scene::commands::joint2d::*,
     SceneCommand,
 };
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     gui::inspector::{FieldKind, PropertyChanged},
     scene::{dim2::joint::*, node::Node},

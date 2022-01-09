@@ -9,7 +9,7 @@
 use crate::core::algebra::Vector3;
 use crate::core::math::{self, PositionProvider};
 use crate::core::visitor::Visit;
-use rg3d_core::visitor::{VisitResult, Visitor};
+use fyrox_core::visitor::{VisitResult, Visitor};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 enum PathVertexState {

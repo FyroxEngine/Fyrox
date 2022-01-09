@@ -4,8 +4,8 @@
 //!
 //! This example shows simple 2D scene with light sources.
 
-use rg3d::scene::camera::{OrthographicProjection, Projection};
-use rg3d::{
+use fyrox::scene::camera::{OrthographicProjection, Projection};
+use fyrox::{
     core::{algebra::Vector3, pool::Handle},
     engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
     event::{ElementState, VirtualKeyCode, WindowEvent},
@@ -26,8 +26,8 @@ use rg3d::{
         Scene,
     },
 };
-use rg3d_core::algebra::UnitQuaternion;
-use rg3d_core::color::Color;
+use fyrox_core::algebra::UnitQuaternion;
+use fyrox_core::color::Color;
 
 struct SceneLoader {
     scene: Scene,

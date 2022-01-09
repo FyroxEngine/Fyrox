@@ -1,6 +1,6 @@
 use crate::{scene::EditorScene, settings::Settings, GameEngine};
-use rg3d::scene::camera::Projection;
-use rg3d::{
+use fyrox::scene::camera::Projection;
+use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
         pool::Handle,

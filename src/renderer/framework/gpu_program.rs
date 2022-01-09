@@ -399,19 +399,19 @@ fn fetch_built_in_uniform_locations(
     let mut locations = [INIT; BuiltInUniform::Count as usize];
 
     locations[BuiltInUniform::WorldMatrix as usize] =
-        fetch_uniform_location(state, program, "rg3d_worldMatrix");
+        fetch_uniform_location(state, program, "fyrox_worldMatrix");
     locations[BuiltInUniform::WorldViewProjectionMatrix as usize] =
-        fetch_uniform_location(state, program, "rg3d_worldViewProjection");
+        fetch_uniform_location(state, program, "fyrox_worldViewProjection");
     locations[BuiltInUniform::BoneMatrices as usize] =
-        fetch_uniform_location(state, program, "rg3d_boneMatrices");
+        fetch_uniform_location(state, program, "fyrox_boneMatrices");
     locations[BuiltInUniform::UseSkeletalAnimation as usize] =
-        fetch_uniform_location(state, program, "rg3d_useSkeletalAnimation");
+        fetch_uniform_location(state, program, "fyrox_useSkeletalAnimation");
     locations[BuiltInUniform::CameraPosition as usize] =
-        fetch_uniform_location(state, program, "rg3d_cameraPosition");
+        fetch_uniform_location(state, program, "fyrox_cameraPosition");
     locations[BuiltInUniform::UsePOM as usize] =
-        fetch_uniform_location(state, program, "rg3d_usePOM");
+        fetch_uniform_location(state, program, "fyrox_usePOM");
     locations[BuiltInUniform::LightPosition as usize] =
-        fetch_uniform_location(state, program, "rg3d_lightPosition");
+        fetch_uniform_location(state, program, "fyrox_lightPosition");
 
     locations
 }

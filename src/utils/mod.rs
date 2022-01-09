@@ -22,7 +22,7 @@ use crate::{
 use std::hash::Hasher;
 use std::{any::Any, sync::Arc};
 
-/// Translated key code to rg3d-ui key code.
+/// Translated key code to fyrox-ui key code.
 pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
     match key {
         VirtualKeyCode::Key1 => KeyCode::Key1,
@@ -191,7 +191,7 @@ pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
     }
 }
 
-/// Translates cursor icon from rg3d-ui library to glutin format.
+/// Translates cursor icon from fyrox-ui library to glutin format.
 pub fn translate_cursor_icon(icon: crate::gui::message::CursorIcon) -> crate::window::CursorIcon {
     match icon {
         crate::gui::message::CursorIcon::Default => crate::window::CursorIcon::Default,
@@ -232,7 +232,7 @@ pub fn translate_cursor_icon(icon: crate::gui::message::CursorIcon) -> crate::wi
     }
 }
 
-/// Translates window mouse button into rg3d-ui mouse button.
+/// Translates window mouse button into fyrox-ui mouse button.
 pub fn translate_button(button: crate::event::MouseButton) -> crate::gui::message::MouseButton {
     match button {
         crate::event::MouseButton::Left => crate::gui::message::MouseButton::Left,
@@ -242,7 +242,7 @@ pub fn translate_button(button: crate::event::MouseButton) -> crate::gui::messag
     }
 }
 
-/// Translates library button state into rg3d-ui button state.
+/// Translates library button state into fyrox-ui button state.
 pub fn translate_state(state: ElementState) -> ButtonState {
     match state {
         ElementState::Pressed => ButtonState::Pressed,
@@ -250,7 +250,7 @@ pub fn translate_state(state: ElementState) -> ButtonState {
     }
 }
 
-/// Translates window event to rg3d-ui event.
+/// Translates window event to fyrox-ui event.
 pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
     match event {
         WindowEvent::ReceivedCharacter(c) => Some(OsEvent::Character(*c)),
@@ -280,7 +280,7 @@ pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
     }
 }
 
-/// Translates keyboard modifiers to rg3d-ui keyboard modifiers.
+/// Translates keyboard modifiers to fyrox-ui keyboard modifiers.
 pub fn translate_keyboard_modifiers(modifiers: ModifiersState) -> KeyboardModifiers {
     KeyboardModifiers {
         alt: modifiers.alt(),
@@ -471,7 +471,7 @@ pub fn into_any_arc<T: Any + Send + Sync>(
     }
 }
 
-/// Converts engine's optional texture "pointer" to rg3d-ui's.
+/// Converts engine's optional texture "pointer" to fyrox-ui's.
 pub fn into_gui_texture(this: Texture) -> draw::SharedTexture {
     draw::SharedTexture(this.0.into_inner())
 }

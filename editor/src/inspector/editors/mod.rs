@@ -9,8 +9,8 @@ use crate::{
     },
     Message,
 };
-use rg3d::resource::model::MaterialSearchOptions;
-use rg3d::{
+use fyrox::resource::model::MaterialSearchOptions;
+use fyrox::{
     core::{parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
     gui::inspector::editors::{
         array::ArrayPropertyEditorDefinition, collection::VecCollectionPropertyEditorDefinition,

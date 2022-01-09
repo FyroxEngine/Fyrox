@@ -42,10 +42,10 @@
 
             uniform float time;
 
-            // Define uniforms with reserved names. rg3d will automatically provide
+            // Define uniforms with reserved names. Fyrox will automatically provide
             // required data to these uniforms.
-            uniform mat4 rg3d_worldMatrix;
-            uniform mat4 rg3d_worldViewProjection;
+            uniform mat4 fyrox_worldMatrix;
+            uniform mat4 fyrox_worldViewProjection;
 
             out vec3 position;
             out vec3 normal;
@@ -61,8 +61,8 @@
             void main()
             {
                 texCoord = vertexTexCoord;
-                normal = normalize(mat3(rg3d_worldMatrix) * vertexNormal);
-                gl_Position = rg3d_worldViewProjection * vec4(Wave(vertexPosition), 1.0);
+                normal = normalize(mat3(fyrox_worldMatrix) * vertexNormal);
+                gl_Position = fyrox_worldViewProjection * vec4(Wave(vertexPosition), 1.0);
             }
             "#,
 
@@ -121,7 +121,7 @@
 
             uniform float time;
 
-            uniform mat4 rg3d_worldViewProjection;
+            uniform mat4 fyrox_worldViewProjection;
 
             out vec2 texCoord;
 
@@ -134,7 +134,7 @@
 
             void main()
             {
-                gl_Position = rg3d_worldViewProjection * vec4(Wave(vertexPosition), 1.0);
+                gl_Position = fyrox_worldViewProjection * vec4(Wave(vertexPosition), 1.0);
                 texCoord = vertexTexCoord;
             }
             "#,
@@ -179,8 +179,8 @@
             layout(location = 0) in vec3 vertexPosition;
             layout(location = 1) in vec2 vertexTexCoord;
 
-            uniform mat4 rg3d_worldMatrix;
-            uniform mat4 rg3d_worldViewProjection;
+            uniform mat4 fyrox_worldMatrix;
+            uniform mat4 fyrox_worldViewProjection;
 
             uniform float time;
 
@@ -196,8 +196,8 @@
 
             void main()
             {
-                gl_Position = rg3d_worldViewProjection * vec4(Wave(vertexPosition), 1.0);
-                worldPosition = (rg3d_worldMatrix * vec4(vertexPosition, 1.0)).xyz;
+                gl_Position = fyrox_worldViewProjection * vec4(Wave(vertexPosition), 1.0);
+                worldPosition = (fyrox_worldMatrix * vec4(vertexPosition, 1.0)).xyz;
                 texCoord = vertexTexCoord;
             }
             "#,
@@ -206,7 +206,7 @@
             r#"
             uniform sampler2D diffuseTexture;
 
-            uniform vec3 rg3d_lightPosition;
+            uniform vec3 fyrox_lightPosition;
 
             in vec2 texCoord;
             in vec3 worldPosition;
@@ -216,7 +216,7 @@
             void main()
             {
                 if (texture(diffuseTexture, texCoord).a < 0.2) discard;
-                depth = length(rg3d_lightPosition - worldPosition);
+                depth = length(fyrox_lightPosition - worldPosition);
             }
             "#,
         )

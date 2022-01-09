@@ -1,5 +1,5 @@
 use crate::{asset::item::AssetItem, inspector::EditorEnvironment, make_relative_path};
-use rg3d::{
+use fyrox::{
     asset::core::pool::Handle,
     engine::resource_manager::ResourceManager,
     gui::{

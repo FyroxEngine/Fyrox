@@ -1,5 +1,5 @@
 use crate::{GameEngine, Message};
-use rg3d::{
+use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
         button::{ButtonBuilder, ButtonMessage},

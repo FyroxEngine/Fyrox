@@ -3,7 +3,7 @@ use crate::{
     scene::{commands::make_delete_selection_command, EditorScene, Selection},
     GameEngine, Message,
 };
-use rg3d::{
+use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
         menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},

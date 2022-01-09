@@ -1,6 +1,6 @@
 use crate::{make_command, scene::commands::graph::*, SceneCommand};
-use rg3d::scene::base::Base;
-use rg3d::{
+use fyrox::scene::base::Base;
+use fyrox::{
     core::pool::Handle,
     gui::inspector::{FieldKind, PropertyChanged},
     scene::node::Node,

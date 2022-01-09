@@ -11,7 +11,7 @@ use crate::{
     settings::Settings,
     GameEngine, Message,
 };
-use rg3d::{
+use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
         pool::Handle,

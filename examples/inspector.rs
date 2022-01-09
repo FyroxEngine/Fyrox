@@ -3,7 +3,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::{
+use fyrox::{
     animation::Animation,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -111,7 +111,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 fn main() {
     let event_loop = EventLoop::new();
 
-    let window_builder = rg3d::window::WindowBuilder::new()
+    let window_builder = fyrox::window::WindowBuilder::new()
         .with_title("Example - User Interface")
         .with_resizable(true);
 
@@ -125,7 +125,7 @@ fn main() {
         scene,
         model_handle,
         walk_animation,
-    } = rg3d::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
+    } = fyrox::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     let inspector_context = InspectorContext::from_object(
         &scene.graph[model_handle],

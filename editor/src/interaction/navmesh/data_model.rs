@@ -1,5 +1,5 @@
-use rg3d::core::algebra::Vector3;
-use rg3d::core::pool::{Handle, Pool};
+use fyrox::core::algebra::Vector3;
+use fyrox::core::pool::{Handle, Pool};
 
 #[derive(Debug, Clone)]
 pub struct NavmeshVertex {

@@ -2,29 +2,29 @@
 
 ** WORK IN PROGRESS **
 
-This document describes high-level architecture and basic concepts of rg3d. It should help you to understand
+This document describes high-level architecture and basic concepts of Fyrox. It should help you to understand
 basics of the engine's architecture and find a right place for your modifications.
 
 ## Overview
 
-rg3d is a monolithic game engine with very few replaceable parts. This means that rg3d itself has relatively
+Fyrox is a monolithic game engine with very few replaceable parts. This means that Fyrox itself has relatively
 strong coupling between modules. However, some of its parts can be used as standalone crates - core, UI and 
 sound are independent of the engine. Internal coupling is one-way in most of the places, this means that, for
 instance, a renderer **is** dependent on a scene, but scene does **not** know anything about the renderer.
 This fact makes changes in the engine very easy even for beginners.
 
-rg3d consists of the four crates - rg3d-core, rg3d-sound, rg3d-ui, and rg3d itself. rg3d-core, rg3d-sound and
-rg3d-ui are **standalone** crates and can be used separately, the only place where these three are meet is the
-rg3d. Previously each crate had a separate repository, but then I decided to put everything in single repository
+Fyrox consists of the four crates - fyrox-core, fyrox-sound, fyrox-ui, and Fyrox itself. fyrox-core, fyrox-sound and
+fyrox-ui are **standalone** crates and can be used separately, the only place where these three are meet is the
+Fyrox. Previously each crate had a separate repository, but then I decided to put everything in single repository
 because it was too much of a pain to build any project that uses the engine.
 
-Another important fact is that rg3d **does not** use ECS, instead it uses generational arenas (pools in rg3d's
+Another important fact is that Fyrox **does not** use ECS, instead it uses generational arenas (pools in Fyrox's
 terminology) for efficient memory management (fast allocation/deallocation, CPU cache efficiency). This means
 that you are working with good old structures which are placed in contiguous memory block (pool). Once an
 object was placed in a pool, you get a handle to the object which can be used to access (borrow) the object
 when you need. Such approach allows you to make any relations between the objects - handle is just a pair of 
 numbers, it won't cause issues with borrow checker. For more info check 
-[pool.rs](https://github.com/mrDIMAS/rg3d/blob/master/rg3d-core/src/pool.rs).
+[pool.rs](https://github.com/mrDIMAS/rg3d/blob/master/fyrox-core/src/pool.rs).
 
 ### Core
 
@@ -34,14 +34,14 @@ It contains linear algebra, accelerating structures, color-space functions, etc.
 
 ### Renderer
 
-rg3d uses a combination of deferred + forward renderers. The deferred renderer is used to render opaque objects,
+Fyrox uses a combination of deferred + forward renderers. The deferred renderer is used to render opaque objects,
 when the forward renderer is used to render transparent objects. The renderer provides lots of very common 
 graphical effects. The renderer is suitable for most of the needs, however it is not flexible enough yet and 
 there is no way of using custom shaders yet.
 
 ### User Interface
 
-rg3d uses custom user interface library. It is node-based, has very powerful layout system, uses messages
+Fyrox uses custom user interface library. It is node-based, has very powerful layout system, uses messages
 to communicate between widgets, supports styling. The library has 30+ widgets (including docking manager,
 windows, file browsers, etc). Please keep in mind that the library does not render anything, instead it
 just prepares a set of drawing commands which can be used with any kind of renderer - a software (GDI for
@@ -49,7 +49,7 @@ instance) or a hardware (OpenGL, DirectX, Vulkan, Metal, etc.).
 
 ### Sound
 
-rg3d uses software sound engine [rg3d-sound](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-sound).
+Fyrox uses software sound engine [fyrox-sound](https://github.com/mrDIMAS/rg3d/tree/master/fyrox-sound).
 The sound engine provides support for binaural sound rendering using HRTF, which gives excellent sound 
 spatialization. 
 
@@ -58,19 +58,19 @@ spatialization.
 Code map should help you find a right place for your modifications. This is the most boring part of the 
 document, here is the table of contents for your comfort:
 
-- [rg3d-core](#rg3d-core)
+- [fyrox-core](#fyrox-core)
     - [math](#mathmodrs)
-- [rg3d-ui](#rg3d-ui)
+- [fyrox-ui](#fyrox-ui)
     - [widgets](#borderrs)
-- [rg3d-sound](#rg3d-sound)
+- [fyrox-sound](#fyrox-sound)
     - [buffer](#buffermodrs)
     - [decoder](#decodermodrs)
     - [device](#devicemodrs)
-- [rg3d](#rg3d)
+- [Fyrox](#fyrox)
 
-### rg3d-core
+### fyrox-core
 
-As it was already said up above, rg3d-core is just a set of useful algorithms. If you want to add a thing
+As it was already said up above, fyrox-core is just a set of useful algorithms. If you want to add a thing
 that will be used in dependent crates then you're in the right place. Here is the very brief description
 of each module.
 
@@ -152,9 +152,9 @@ The module contains node-based serializer/deserializer (visitor). Everything in 
 this serializer. It supports serialization of basic types, many std types (including
 Rc/Arc) and user-defined types.
 
-### rg3d-ui
+### fyrox-ui
 
-rg3d-ui is a standalone, graphics API-agnostic, node-based, general-purpose user interface library.
+fyrox-ui is a standalone, graphics API-agnostic, node-based, general-purpose user interface library.
 
 #### lib.rs
 
@@ -287,9 +287,9 @@ The module contains all supported messages for every widget in the library.
 
 #### wrap_panel.rs
 
-### rg3d-sound
+### fyrox-sound
 
-rg3d-sound is a standalone sound engine with multiple renderers and high-quality sound. The sound engine
+fyrox-sound is a standalone sound engine with multiple renderers and high-quality sound. The sound engine
 provides support for binaural sound rendering using HRTF, which gives excellent sound spatialization.
 
 #### buffer/mod.rs
@@ -314,7 +314,7 @@ provides support for binaural sound rendering using HRTF, which gives excellent 
 
 #### device/dummy.rs
 
-### rg3d
+### Fyrox
 
 The engine itself. It has: a renderer, resource manager, animations, scenes, and various utilities like 
 lightmapper, uv-mapper, navigation mesh, logger, pathfinder.

@@ -8,7 +8,7 @@ use crate::{
     settings::Settings,
     GameEngine, Message, MSG_SYNC_FLAG,
 };
-use rg3d::{
+use fyrox::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         arrayvec::ArrayVec,

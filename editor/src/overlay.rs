@@ -1,7 +1,7 @@
-use rg3d::core::sstorage::ImmutableString;
-use rg3d::renderer::framework::geometry_buffer::{GeometryBuffer, GeometryBufferKind};
-use rg3d::renderer::framework::state::{BlendFactor, BlendFunc};
-use rg3d::{
+use fyrox::core::sstorage::ImmutableString;
+use fyrox::renderer::framework::geometry_buffer::{GeometryBuffer, GeometryBufferKind};
+use fyrox::renderer::framework::state::{BlendFactor, BlendFunc};
+use fyrox::{
     core::{algebra::Matrix4, math::Matrix4Ext},
     renderer::{
         framework::{

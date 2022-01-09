@@ -2,7 +2,7 @@ use crate::{
     handle_properties, inspector::handlers::node::base::handle_base_property_changed,
     scene::commands::rigidbody::*, SceneCommand,
 };
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     gui::inspector::{FieldKind, PropertyChanged},
     scene::{node::Node, rigidbody::RigidBody},

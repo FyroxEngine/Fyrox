@@ -1,6 +1,6 @@
 use crate::{command::Command, scene::commands::SceneContext};
-use rg3d::core::sstorage::ImmutableString;
-use rg3d::{
+use fyrox::core::sstorage::ImmutableString;
+use fyrox::{
     core::parking_lot::Mutex,
     material::{shader::Shader, Material, PropertyValue},
 };

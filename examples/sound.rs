@@ -9,7 +9,7 @@
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
-use rg3d::{
+use fyrox::{
     animation::AnimationSignal,
     core::algebra::Vector2,
     event::{Event, VirtualKeyCode, WindowEvent},
@@ -56,8 +56,8 @@ fn main() {
     ];
 
     // Request foot step sound buffer from resources directory.
-    let footstep_buffers = rg3d::core::futures::executor::block_on(
-        rg3d::core::futures::future::join_all(footstep_paths.iter().map(|&path| {
+    let footstep_buffers = fyrox::core::futures::executor::block_on(
+        fyrox::core::futures::future::join_all(footstep_paths.iter().map(|&path| {
             game.engine
                 .resource_manager
                 .request_sound_buffer(path, false)
@@ -163,7 +163,7 @@ fn main() {
                             let mut position = scene.graph[game_scene.player.pivot].global_position();
                             position.y -= 0.5;
 
-                            let foot_step = footstep_buffers[rg3d::rand::thread_rng().gen_range(0.. footstep_buffers.len())].clone();
+                            let foot_step = footstep_buffers[fyrox::rand::thread_rng().gen_range(0.. footstep_buffers.len())].clone();
 
                             // Create new temporary foot step sound source.
                             let source = ctx
@@ -171,7 +171,7 @@ fn main() {
                                     SpatialSourceBuilder::new(
                                         GenericSourceBuilder::new()
                                             .with_buffer(foot_step)
-                                            // rg3d-sound provides built-in way to create temporary sounds that will die immediately
+                                            // fyrox-sound provides built-in way to create temporary sounds that will die immediately
                                             // after first play. This is very useful for foot step sounds.
                                             .with_play_once(true)
                                             // Every sound source must be explicitly set to Playing status, otherwise it will be stopped.
@@ -227,7 +227,7 @@ fn main() {
                 game.engine.render().unwrap();
             }
             Event::LoopDestroyed => {
-                println!("{:?}", rg3d::core::profiler::print());
+                println!("{:?}", fyrox::core::profiler::print());
             }
             Event::WindowEvent { event, .. } => {
                 match event {

@@ -1,5 +1,5 @@
 use crate::asset::inspector::handlers::ImportOptionsHandler;
-use rg3d::{
+use fyrox::{
     core::{append_extension, futures::executor::block_on, inspect::Inspect},
     engine::resource_manager::{try_get_import_settings, ImportOptions, ResourceManager},
     gui::inspector::{FieldKind, PropertyChanged},

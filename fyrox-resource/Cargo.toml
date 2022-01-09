@@ -1,0 +1,18 @@
+[package]
+name = "fyrox-resource"
+version = "0.3.0"
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
+edition = "2021"
+license = "MIT"
+description = "Asset management crate for the Fyrox engine"
+keywords = ["asset", "resource"]
+categories = ["game-development"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE"]
+homepage = "https://rg3d.rs"
+documentation = "https://docs.rs/fyrox-resource"
+repository = "https://github.com/mrDIMAS/rg3d"
+resolver = "2"
+rust-version = "1.56"
+
+[dependencies]
+fyrox-core = { path = "../fyrox-core", version = "0.19.0" }

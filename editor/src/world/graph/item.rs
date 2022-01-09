@@ -1,4 +1,4 @@
-use rg3d::{
+use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     gui::{
         brush::Brush,
@@ -200,7 +200,7 @@ impl<T: 'static> SceneItemBuilder<T> {
                         WidgetBuilder::new()
                             .with_foreground(
                                 self.text_brush
-                                    .unwrap_or(Brush::Solid(rg3d::gui::COLOR_FOREGROUND)),
+                                    .unwrap_or(Brush::Solid(fyrox::gui::COLOR_FOREGROUND)),
                             )
                             .with_margin(Thickness::uniform(1.0))
                             .on_column(1)

@@ -1,4 +1,4 @@
-use rg3d::{
+use fyrox::{
     engine::{framework::prelude::*, Engine},
     gui::{
         button::ButtonBuilder,

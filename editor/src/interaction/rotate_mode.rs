@@ -10,8 +10,8 @@ use crate::{
     world::graph::selection::GraphSelection,
     GameEngine, Message,
 };
-use rg3d::core::math::round_to_step;
-use rg3d::{
+use fyrox::core::math::round_to_step;
+use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2},
         pool::Handle,

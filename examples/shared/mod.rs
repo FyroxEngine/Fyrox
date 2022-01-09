@@ -4,7 +4,7 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
-use rg3d::{
+use fyrox::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
         Animation, AnimationSignal,
@@ -54,7 +54,7 @@ pub async fn create_camera(
     graph: &mut Graph,
 ) -> Handle<Node> {
     // Load skybox textures in parallel.
-    let (front, back, left, right, top, bottom) = rg3d::core::futures::join!(
+    let (front, back, left, right, top, bottom) = fyrox::core::futures::join!(
         resource_manager
             .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyFront2048.png"),
         resource_manager
@@ -110,7 +110,7 @@ impl Game {
     pub fn new(title: &str) -> (Self, EventLoop<()>) {
         let event_loop = EventLoop::new();
 
-        let window_builder = rg3d::window::WindowBuilder::new()
+        let window_builder = fyrox::window::WindowBuilder::new()
             .with_title(title)
             .with_resizable(true);
 
@@ -702,7 +702,7 @@ impl Player {
         }
     }
 
-    pub fn handle_key_event(&mut self, key: &rg3d::event::KeyboardInput, _dt: f32) {
+    pub fn handle_key_event(&mut self, key: &fyrox::event::KeyboardInput, _dt: f32) {
         if let Some(key_code) = key.virtual_keycode {
             match key_code {
                 VirtualKeyCode::W => {
@@ -733,7 +733,7 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
 
     // Spawn separate thread which will create scene by loading various assets.
     std::thread::spawn(move || {
-        rg3d::core::futures::executor::block_on(async move {
+        fyrox::core::futures::executor::block_on(async move {
             let mut scene = Scene::new();
 
             // Set ambient light.
@@ -742,16 +742,16 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
             // Create reverb effect for more natural sound - our player walks in some sort of cathedral,
             // so there will be pretty decent echo.
             let mut base_effect = BaseEffect::default();
-            // Make sure it won't be too loud - rg3d-sound doesn't care about energy conservation law, it
+            // Make sure it won't be too loud - fyrox-sound doesn't care about energy conservation law, it
             // just makes requested calculation.
             base_effect.set_gain(0.7);
-            let mut reverb = rg3d::sound::effects::reverb::Reverb::new(base_effect);
+            let mut reverb = fyrox::sound::effects::reverb::Reverb::new(base_effect);
             // Set reverb time to ~3 seconds - the more time the deeper the echo.
             reverb.set_decay_time(Duration::from_secs_f32(3.0));
             let reverb_effect = scene
                 .sound_context
                 .state()
-                .add_effect(rg3d::sound::effects::Effect::Reverb(reverb));
+                .add_effect(fyrox::sound::effects::Effect::Reverb(reverb));
 
             context
                 .lock()

@@ -4,8 +4,8 @@ use crate::{
     scene::{EditorScene, Selection},
     set_mesh_diffuse_color, GameEngine,
 };
-use rg3d::scene::transform::Transform;
-use rg3d::{
+use fyrox::scene::transform::Transform;
+use fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,

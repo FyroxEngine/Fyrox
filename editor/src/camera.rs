@@ -1,5 +1,5 @@
-use crate::rg3d::core::math::Matrix4Ext;
-use rg3d::{
+use crate::fyrox::core::math::Matrix4Ext;
+use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
         math::{aabb::AxisAlignedBoundingBox, plane::Plane},

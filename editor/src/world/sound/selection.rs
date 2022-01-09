@@ -1,8 +1,8 @@
 use crate::utils;
-use rg3d::core::algebra::Vector3;
-use rg3d::core::pool::Handle;
-use rg3d::sound::context::SoundContext;
-use rg3d::sound::source::SoundSource;
+use fyrox::core::algebra::Vector3;
+use fyrox::core::pool::Handle;
+use fyrox::sound::context::SoundContext;
+use fyrox::sound::source::SoundSource;
 
 #[derive(Debug, Clone)]
 pub struct SoundSelection {

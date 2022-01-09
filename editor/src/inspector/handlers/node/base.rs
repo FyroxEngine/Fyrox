@@ -4,8 +4,8 @@ use crate::{
     scene::commands::{graph::*, lod::*},
     SceneCommand,
 };
-use rg3d::scene::base::{LodControlledObject, LodGroup};
-use rg3d::{
+use fyrox::scene::base::{LodControlledObject, LodGroup};
+use fyrox::{
     core::pool::Handle,
     gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
     scene::{

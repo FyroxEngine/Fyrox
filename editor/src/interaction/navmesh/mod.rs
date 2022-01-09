@@ -23,7 +23,7 @@ use crate::{
     settings::Settings,
     GameEngine, Message, MSG_SYNC_FLAG,
 };
-use rg3d::{
+use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
         color::Color,
@@ -623,7 +623,7 @@ impl InteractionMode for EditNavmeshMode {
 
                 for triangle in navmesh.triangles.iter() {
                     for edge in &triangle.edges() {
-                        scene.drawing_context.add_line(rg3d::scene::debug::Line {
+                        scene.drawing_context.add_line(fyrox::scene::debug::Line {
                             begin: navmesh.vertices[edge.begin].position,
                             end: navmesh.vertices[edge.end].position,
                             color: if navmesh_selection.contains_edge(*edge) {
@@ -656,14 +656,14 @@ impl InteractionMode for EditNavmeshMode {
                 let oe = navmesh.vertices[opposite_edge.end].position;
                 let ne = vertices[1].position;
 
-                scene.drawing_context.add_line(rg3d::scene::debug::Line {
+                scene.drawing_context.add_line(fyrox::scene::debug::Line {
                     begin: nb,
                     end: ne,
                     color: Color::RED,
                 });
 
                 for &(begin, end) in &[(ob, oe), (ob, nb), (nb, oe), (oe, ne)] {
-                    scene.drawing_context.add_line(rg3d::scene::debug::Line {
+                    scene.drawing_context.add_line(fyrox::scene::debug::Line {
                         begin,
                         end,
                         color: Color::GREEN,

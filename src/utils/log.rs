@@ -21,7 +21,7 @@ extern "C" {
 lazy_static! {
     static ref LOG: Mutex<Log> = Mutex::new(Log {
         #[cfg(not(target_arch = "wasm32"))]
-        file: std::fs::File::create("rg3d.log").unwrap(),
+        file: std::fs::File::create("fyrox.log").unwrap(),
         verbosity: MessageKind::Information
     });
 }

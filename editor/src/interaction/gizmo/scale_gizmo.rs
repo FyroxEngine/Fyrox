@@ -2,7 +2,7 @@ use crate::{
     make_color_material, scene::EditorScene, set_mesh_diffuse_color,
     world::graph::selection::GraphSelection, GameEngine,
 };
-use rg3d::{
+use fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,

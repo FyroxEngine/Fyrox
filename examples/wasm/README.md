@@ -1,6 +1,6 @@
 ## WebAssembly Example
 
-Simple example showing how to use rg3d with WebAssembly.
+Simple example showing how to use Fyrox with WebAssembly.
 
 ### Build instructions
 

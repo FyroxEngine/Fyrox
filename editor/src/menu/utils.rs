@@ -1,5 +1,5 @@
 use crate::menu::{create_menu_item, create_root_menu_item, Panels};
-use rg3d::{
+use fyrox::{
     asset::core::pool::Handle,
     gui::{
         menu::MenuItemMessage,

@@ -2,7 +2,7 @@ use crate::{
     inspector::handlers::node::base::handle_base_property_changed, make_command,
     scene::commands::terrain::*, SceneCommand,
 };
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
     scene::{graph::Graph, node::Node, terrain::Layer, terrain::Terrain},

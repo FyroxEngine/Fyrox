@@ -1,9 +1,9 @@
 use crate::get_set_swap;
 use crate::{command::Command, scene::commands::SceneContext};
-use rg3d::core::algebra::Vector3;
-use rg3d::sound::buffer::SoundBufferResource;
-use rg3d::sound::context::SoundContext;
-use rg3d::{
+use fyrox::core::algebra::Vector3;
+use fyrox::sound::buffer::SoundBufferResource;
+use fyrox::sound::context::SoundContext;
+use fyrox::{
     core::pool::{Handle, Ticket},
     sound::source::SoundSource,
 };

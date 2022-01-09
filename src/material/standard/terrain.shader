@@ -92,10 +92,10 @@
                 layout(location = 5) in vec4 boneIndices;
                 layout(location = 6) in vec2 vertexSecondTexCoord;
 
-                // Define uniforms with reserved names. rg3d will automatically provide
+                // Define uniforms with reserved names. Fyrox will automatically provide
                 // required data to these uniforms.
-                uniform mat4 rg3d_worldMatrix;
-                uniform mat4 rg3d_worldViewProjection;
+                uniform mat4 fyrox_worldMatrix;
+                uniform mat4 fyrox_worldViewProjection;
 
                 out vec3 position;
                 out vec3 normal;
@@ -106,14 +106,14 @@
 
                 void main()
                 {
-                    mat3 nm = mat3(rg3d_worldMatrix);
+                    mat3 nm = mat3(fyrox_worldMatrix);
                     normal = normalize(nm * vertexNormal);
                     tangent = normalize(nm * vertexTangent.xyz);
                     binormal = normalize(vertexTangent.w * cross(tangent, normal));
                     texCoord = vertexTexCoord;
-                    position = vec3(rg3d_worldMatrix * vec4(vertexPosition, 1.0));
+                    position = vec3(fyrox_worldMatrix * vec4(vertexPosition, 1.0));
                     secondTexCoord = vertexSecondTexCoord;
-                    gl_Position = rg3d_worldViewProjection * vec4(vertexPosition, 1.0);
+                    gl_Position = fyrox_worldViewProjection * vec4(vertexPosition, 1.0);
                 }
                 "#,
             fragment_shader:
@@ -139,10 +139,10 @@
                 uniform sampler2D maskTexture;
                 uniform vec4 diffuseColor;
 
-                // Define uniforms with reserved names. rg3d will automatically provide
+                // Define uniforms with reserved names. Fyrox will automatically provide
                 // required data to these uniforms.
-                uniform vec3 rg3d_cameraPosition;
-                uniform bool rg3d_usePOM;
+                uniform vec3 fyrox_cameraPosition;
+                uniform bool fyrox_usePOM;
 
                 in vec3 position;
                 in vec3 normal;
@@ -154,10 +154,10 @@
                 void main()
                 {
                     mat3 tangentSpace = mat3(tangent, binormal, normal);
-                    vec3 toFragment = normalize(position - rg3d_cameraPosition);
+                    vec3 toFragment = normalize(position - fyrox_cameraPosition);
 
                     vec2 tc;
-                    if (rg3d_usePOM) {
+                    if (fyrox_usePOM) {
                         vec3 toFragmentTangentSpace = normalize(transpose(tangentSpace) * toFragment);
                         tc = S_ComputeParallaxTextureCoordinates(heightTexture, toFragmentTangentSpace, texCoord * texCoordScale, normal);
                     } else {
@@ -217,14 +217,14 @@
                 layout(location = 0) in vec3 vertexPosition;
                 layout(location = 1) in vec2 vertexTexCoord;
 
-                uniform mat4 rg3d_worldViewProjection;
+                uniform mat4 fyrox_worldViewProjection;
 
                 out vec3 position;
                 out vec2 texCoord;
 
                 void main()
                 {
-                    gl_Position = rg3d_worldViewProjection * vec4(vertexPosition, 1.0);
+                    gl_Position = fyrox_worldViewProjection * vec4(vertexPosition, 1.0);
                     texCoord = vertexTexCoord;
                 }
                "#,
@@ -272,13 +272,13 @@
                 layout(location = 0) in vec3 vertexPosition;
                 layout(location = 1) in vec2 vertexTexCoord;
 
-                uniform mat4 rg3d_worldViewProjection;
+                uniform mat4 fyrox_worldViewProjection;
 
                 out vec2 texCoord;
 
                 void main()
                 {
-                    gl_Position = rg3d_worldViewProjection * vec4(vertexPosition, 1.0);
+                    gl_Position = fyrox_worldViewProjection * vec4(vertexPosition, 1.0);
                     texCoord = vertexTexCoord;
                 }
                 "#,
@@ -323,13 +323,13 @@
                 layout(location = 0) in vec3 vertexPosition;
                 layout(location = 1) in vec2 vertexTexCoord;
 
-                uniform mat4 rg3d_worldViewProjection;
+                uniform mat4 fyrox_worldViewProjection;
 
                 out vec2 texCoord;
 
                 void main()
                 {
-                    gl_Position = rg3d_worldViewProjection * vec4(vertexPosition, 1.0);
+                    gl_Position = fyrox_worldViewProjection * vec4(vertexPosition, 1.0);
                     texCoord = vertexTexCoord;
                 }
                 "#,
@@ -374,16 +374,16 @@
                 layout(location = 0) in vec3 vertexPosition;
                 layout(location = 1) in vec2 vertexTexCoord;
 
-                uniform mat4 rg3d_worldMatrix;
-                uniform mat4 rg3d_worldViewProjection;
+                uniform mat4 fyrox_worldMatrix;
+                uniform mat4 fyrox_worldViewProjection;
 
                 out vec2 texCoord;
                 out vec3 worldPosition;
 
                 void main()
                 {
-                    gl_Position = rg3d_worldViewProjection * vec4(vertexPosition, 1.0);
-                    worldPosition = (rg3d_worldMatrix * vec4(vertexPosition, 1.0)).xyz;
+                    gl_Position = fyrox_worldViewProjection * vec4(vertexPosition, 1.0);
+                    worldPosition = (fyrox_worldMatrix * vec4(vertexPosition, 1.0)).xyz;
                     texCoord = vertexTexCoord;
                 }
                 "#,
@@ -392,7 +392,7 @@
                 r#"
                 uniform sampler2D diffuseTexture;
 
-                uniform vec3 rg3d_lightPosition;
+                uniform vec3 fyrox_lightPosition;
 
                 in vec2 texCoord;
                 in vec3 worldPosition;
@@ -402,7 +402,7 @@
                 void main()
                 {
                     if (texture(diffuseTexture, texCoord).a < 0.2) discard;
-                    depth = length(rg3d_lightPosition - worldPosition);
+                    depth = length(fyrox_lightPosition - worldPosition);
                 }
                 "#,
         )

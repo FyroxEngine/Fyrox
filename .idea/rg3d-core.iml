@@ -19,6 +19,13 @@
       <sourceFolder url="file://$MODULE_DIR$/rg3d-core-derive/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/rg3d-resource/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/editor/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fyrox-core-derive/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fyrox-core-derive/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/fyrox-core/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fyrox-resource/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fyrox-sound/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fyrox-sound/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fyrox-ui/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/examples/wasm/target" />
     </content>

@@ -1,5 +1,5 @@
 use crate::{menu::create_menu_item, scene::commands::graph::AddNodeCommand, Message};
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
     scene::{base::BaseBuilder, collider::*, joint::*, node::Node, rigidbody::RigidBodyBuilder},

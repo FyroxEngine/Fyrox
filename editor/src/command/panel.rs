@@ -1,7 +1,7 @@
 use crate::{
     command::CommandStack, load_image, scene::commands::SceneContext, send_sync_message, Message,
 };
-use rg3d::{
+use fyrox::{
     core::{color::Color, pool::Handle, scope_profile},
     gui::{
         brush::Brush,

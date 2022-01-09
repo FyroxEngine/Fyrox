@@ -2,7 +2,7 @@ use crate::{
     inspector::handlers::node::base::handle_base_property_changed, make_command,
     scene::commands::rectangle::*, SceneCommand,
 };
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     gui::inspector::{FieldKind, PropertyChanged},
     scene::{dim2::rectangle::Rectangle, node::Node},

@@ -2,7 +2,7 @@
 //! moved a resource in a file system, but a scene has old path.
 
 use crate::{make_scene_file_filter, Message};
-use rg3d::{
+use fyrox::{
     asset::ResourceData,
     core::{
         color::Color,
@@ -103,7 +103,7 @@ impl Eq for SceneResource {}
 
 fn find_file(name: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
-    for dir in rg3d::walkdir::WalkDir::new(".").into_iter().flatten() {
+    for dir in fyrox::walkdir::WalkDir::new(".").into_iter().flatten() {
         let path = dir.path();
         if let Some(file_name) = path.file_name() {
             if file_name == name {

@@ -2,8 +2,8 @@ use crate::{
     define_node_command, get_set_swap,
     scene::commands::{Command, SceneContext},
 };
-use rg3d::scene::camera::Projection;
-use rg3d::{
+use fyrox::scene::camera::Projection;
+use fyrox::{
     core::{math::Rect, pool::Handle},
     resource::texture::Texture,
     scene::{

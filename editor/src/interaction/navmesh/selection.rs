@@ -1,6 +1,6 @@
 use crate::interaction::navmesh::data_model::{Navmesh, NavmeshEdge};
 use crate::interaction::navmesh::{NavmeshEntity, NavmeshVertex};
-use rg3d::core::pool::Handle;
+use fyrox::core::pool::Handle;
 use std::collections::HashSet;
 
 #[derive(PartialEq, Clone, Debug, Eq)]

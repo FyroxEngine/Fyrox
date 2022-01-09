@@ -47,7 +47,7 @@ use crate::{
         Scene,
     },
 };
-use rg3d_core::algebra::Vector2;
+use fyrox_core::algebra::Vector2;
 use std::{
     cell::RefCell,
     fmt::{Display, Formatter},

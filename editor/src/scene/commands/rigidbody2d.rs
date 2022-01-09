@@ -1,5 +1,5 @@
 use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
-use rg3d::{
+use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     scene::{graph::Graph, node::Node, rigidbody::RigidBodyType},
 };

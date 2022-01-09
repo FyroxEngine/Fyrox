@@ -85,12 +85,12 @@
                 layout(location = 5) in vec4 boneIndices;
                 layout(location = 6) in vec2 vertexSecondTexCoord;
 
-                // Define uniforms with reserved names. rg3d will automatically provide
+                // Define uniforms with reserved names. Fyrox will automatically provide
                 // required data to these uniforms.
-                uniform mat4 rg3d_worldMatrix;
-                uniform mat4 rg3d_worldViewProjection;
-                uniform mat4 rg3d_boneMatrices[60];
-                uniform bool rg3d_useSkeletalAnimation;
+                uniform mat4 fyrox_worldMatrix;
+                uniform mat4 fyrox_worldViewProjection;
+                uniform mat4 fyrox_boneMatrices[60];
+                uniform bool fyrox_useSkeletalAnimation;
 
                 out vec3 position;
                 out vec3 normal;
@@ -105,7 +105,7 @@
                     vec3 localNormal = vec3(0);
                     vec3 localTangent = vec3(0);
 
-                    if (rg3d_useSkeletalAnimation)
+                    if (fyrox_useSkeletalAnimation)
                     {
                         vec4 vertex = vec4(vertexPosition, 1.0);
 
@@ -114,10 +114,10 @@
                         int i2 = int(boneIndices.z);
                         int i3 = int(boneIndices.w);
 
-                        mat4 m0 = rg3d_boneMatrices[i0];
-                        mat4 m1 = rg3d_boneMatrices[i1];
-                        mat4 m2 = rg3d_boneMatrices[i2];
-                        mat4 m3 = rg3d_boneMatrices[i3];
+                        mat4 m0 = fyrox_boneMatrices[i0];
+                        mat4 m1 = fyrox_boneMatrices[i1];
+                        mat4 m2 = fyrox_boneMatrices[i2];
+                        mat4 m3 = fyrox_boneMatrices[i3];
 
                         localPosition += m0 * vertex * boneWeights.x;
                         localPosition += m1 * vertex * boneWeights.y;
@@ -141,15 +141,15 @@
                         localTangent = vertexTangent.xyz;
                     }
 
-                    mat3 nm = mat3(rg3d_worldMatrix);
+                    mat3 nm = mat3(fyrox_worldMatrix);
                     normal = normalize(nm * localNormal);
                     tangent = normalize(nm * localTangent);
                     binormal = normalize(vertexTangent.w * cross(tangent, normal));
                     texCoord = vertexTexCoord;
-                    position = vec3(rg3d_worldMatrix * localPosition);
+                    position = vec3(fyrox_worldMatrix * localPosition);
                     secondTexCoord = vertexSecondTexCoord;
 
-                    gl_Position = rg3d_worldViewProjection * localPosition;
+                    gl_Position = fyrox_worldViewProjection * localPosition;
                 }
                 "#,
             fragment_shader:
@@ -174,10 +174,10 @@
                 uniform vec3 emissionStrength;
                 uniform vec4 diffuseColor;
 
-                // Define uniforms with reserved names. rg3d will automatically provide
+                // Define uniforms with reserved names. Fyrox will automatically provide
                 // required data to these uniforms.
-                uniform vec3 rg3d_cameraPosition;
-                uniform bool rg3d_usePOM;
+                uniform vec3 fyrox_cameraPosition;
+                uniform bool fyrox_usePOM;
 
                 in vec3 position;
                 in vec3 normal;
@@ -189,10 +189,10 @@
                 void main()
                 {
                     mat3 tangentSpace = mat3(tangent, binormal, normal);
-                    vec3 toFragment = normalize(position - rg3d_cameraPosition);
+                    vec3 toFragment = normalize(position - fyrox_cameraPosition);
 
                     vec2 tc;
-                    if (rg3d_usePOM) {
+                    if (fyrox_usePOM) {
                         vec3 toFragmentTangentSpace = normalize(transpose(tangentSpace) * toFragment);
                         tc = S_ComputeParallaxTextureCoordinates(heightTexture, toFragmentTangentSpace, texCoord * texCoordScale, normal);
                     } else {
@@ -253,9 +253,9 @@
                 layout(location = 5) in vec4 boneWeights;
                 layout(location = 6) in vec4 boneIndices;
 
-                uniform mat4 rg3d_worldViewProjection;
-                uniform bool rg3d_useSkeletalAnimation;
-                uniform mat4 rg3d_boneMatrices[60];
+                uniform mat4 fyrox_worldViewProjection;
+                uniform bool fyrox_useSkeletalAnimation;
+                uniform mat4 fyrox_boneMatrices[60];
 
                 out vec3 position;
                 out vec2 texCoord;
@@ -263,7 +263,7 @@
                 void main()
                 {
                     vec4 localPosition = vec4(0);
-                    if (rg3d_useSkeletalAnimation)
+                    if (fyrox_useSkeletalAnimation)
                     {
                         vec4 vertex = vec4(vertexPosition, 1.0);
 
@@ -272,16 +272,16 @@
                         int i2 = int(boneIndices.z);
                         int i3 = int(boneIndices.w);
 
-                        localPosition += rg3d_boneMatrices[i0] * vertex * boneWeights.x;
-                        localPosition += rg3d_boneMatrices[i1] * vertex * boneWeights.y;
-                        localPosition += rg3d_boneMatrices[i2] * vertex * boneWeights.z;
-                        localPosition += rg3d_boneMatrices[i3] * vertex * boneWeights.w;
+                        localPosition += fyrox_boneMatrices[i0] * vertex * boneWeights.x;
+                        localPosition += fyrox_boneMatrices[i1] * vertex * boneWeights.y;
+                        localPosition += fyrox_boneMatrices[i2] * vertex * boneWeights.z;
+                        localPosition += fyrox_boneMatrices[i3] * vertex * boneWeights.w;
                     }
                     else
                     {
                         localPosition = vec4(vertexPosition, 1.0);
                     }
-                    gl_Position = rg3d_worldViewProjection * localPosition;
+                    gl_Position = fyrox_worldViewProjection * localPosition;
                     texCoord = vertexTexCoord;
                 }
                "#,
@@ -331,9 +331,9 @@
                 layout(location = 4) in vec4 boneWeights;
                 layout(location = 5) in vec4 boneIndices;
 
-                uniform mat4 rg3d_worldViewProjection;
-                uniform bool rg3d_useSkeletalAnimation;
-                uniform mat4 rg3d_boneMatrices[60];
+                uniform mat4 fyrox_worldViewProjection;
+                uniform bool fyrox_useSkeletalAnimation;
+                uniform mat4 fyrox_boneMatrices[60];
 
                 out vec2 texCoord;
 
@@ -341,21 +341,21 @@
                 {
                     vec4 localPosition = vec4(0);
 
-                    if (rg3d_useSkeletalAnimation)
+                    if (fyrox_useSkeletalAnimation)
                     {
                         vec4 vertex = vec4(vertexPosition, 1.0);
 
-                        localPosition += rg3d_boneMatrices[int(boneIndices.x)] * vertex * boneWeights.x;
-                        localPosition += rg3d_boneMatrices[int(boneIndices.y)] * vertex * boneWeights.y;
-                        localPosition += rg3d_boneMatrices[int(boneIndices.z)] * vertex * boneWeights.z;
-                        localPosition += rg3d_boneMatrices[int(boneIndices.w)] * vertex * boneWeights.w;
+                        localPosition += fyrox_boneMatrices[int(boneIndices.x)] * vertex * boneWeights.x;
+                        localPosition += fyrox_boneMatrices[int(boneIndices.y)] * vertex * boneWeights.y;
+                        localPosition += fyrox_boneMatrices[int(boneIndices.z)] * vertex * boneWeights.z;
+                        localPosition += fyrox_boneMatrices[int(boneIndices.w)] * vertex * boneWeights.w;
                     }
                     else
                     {
                         localPosition = vec4(vertexPosition, 1.0);
                     }
 
-                    gl_Position = rg3d_worldViewProjection * localPosition;
+                    gl_Position = fyrox_worldViewProjection * localPosition;
                     texCoord = vertexTexCoord;
                 }
                 "#,
@@ -402,9 +402,9 @@
                 layout(location = 4) in vec4 boneWeights;
                 layout(location = 5) in vec4 boneIndices;
 
-                uniform mat4 rg3d_worldViewProjection;
-                uniform bool rg3d_useSkeletalAnimation;
-                uniform mat4 rg3d_boneMatrices[60];
+                uniform mat4 fyrox_worldViewProjection;
+                uniform bool fyrox_useSkeletalAnimation;
+                uniform mat4 fyrox_boneMatrices[60];
 
                 out vec2 texCoord;
 
@@ -412,21 +412,21 @@
                 {
                     vec4 localPosition = vec4(0);
 
-                    if (rg3d_useSkeletalAnimation)
+                    if (fyrox_useSkeletalAnimation)
                     {
                         vec4 vertex = vec4(vertexPosition, 1.0);
 
-                        localPosition += rg3d_boneMatrices[int(boneIndices.x)] * vertex * boneWeights.x;
-                        localPosition += rg3d_boneMatrices[int(boneIndices.y)] * vertex * boneWeights.y;
-                        localPosition += rg3d_boneMatrices[int(boneIndices.z)] * vertex * boneWeights.z;
-                        localPosition += rg3d_boneMatrices[int(boneIndices.w)] * vertex * boneWeights.w;
+                        localPosition += fyrox_boneMatrices[int(boneIndices.x)] * vertex * boneWeights.x;
+                        localPosition += fyrox_boneMatrices[int(boneIndices.y)] * vertex * boneWeights.y;
+                        localPosition += fyrox_boneMatrices[int(boneIndices.z)] * vertex * boneWeights.z;
+                        localPosition += fyrox_boneMatrices[int(boneIndices.w)] * vertex * boneWeights.w;
                     }
                     else
                     {
                         localPosition = vec4(vertexPosition, 1.0);
                     }
 
-                    gl_Position = rg3d_worldViewProjection * localPosition;
+                    gl_Position = fyrox_worldViewProjection * localPosition;
                     texCoord = vertexTexCoord;
                 }
                 "#,
@@ -473,10 +473,10 @@
                 layout(location = 4) in vec4 boneWeights;
                 layout(location = 5) in vec4 boneIndices;
 
-                uniform mat4 rg3d_worldMatrix;
-                uniform mat4 rg3d_worldViewProjection;
-                uniform bool rg3d_useSkeletalAnimation;
-                uniform mat4 rg3d_boneMatrices[60];
+                uniform mat4 fyrox_worldMatrix;
+                uniform mat4 fyrox_worldViewProjection;
+                uniform bool fyrox_useSkeletalAnimation;
+                uniform mat4 fyrox_boneMatrices[60];
 
                 out vec2 texCoord;
                 out vec3 worldPosition;
@@ -485,22 +485,22 @@
                 {
                     vec4 localPosition = vec4(0);
 
-                    if (rg3d_useSkeletalAnimation)
+                    if (fyrox_useSkeletalAnimation)
                     {
                         vec4 vertex = vec4(vertexPosition, 1.0);
 
-                        localPosition += rg3d_boneMatrices[int(boneIndices.x)] * vertex * boneWeights.x;
-                        localPosition += rg3d_boneMatrices[int(boneIndices.y)] * vertex * boneWeights.y;
-                        localPosition += rg3d_boneMatrices[int(boneIndices.z)] * vertex * boneWeights.z;
-                        localPosition += rg3d_boneMatrices[int(boneIndices.w)] * vertex * boneWeights.w;
+                        localPosition += fyrox_boneMatrices[int(boneIndices.x)] * vertex * boneWeights.x;
+                        localPosition += fyrox_boneMatrices[int(boneIndices.y)] * vertex * boneWeights.y;
+                        localPosition += fyrox_boneMatrices[int(boneIndices.z)] * vertex * boneWeights.z;
+                        localPosition += fyrox_boneMatrices[int(boneIndices.w)] * vertex * boneWeights.w;
                     }
                     else
                     {
                         localPosition = vec4(vertexPosition, 1.0);
                     }
 
-                    gl_Position = rg3d_worldViewProjection * localPosition;
-                    worldPosition = (rg3d_worldMatrix * localPosition).xyz;
+                    gl_Position = fyrox_worldViewProjection * localPosition;
+                    worldPosition = (fyrox_worldMatrix * localPosition).xyz;
                     texCoord = vertexTexCoord;
                 }
                 "#,
@@ -509,7 +509,7 @@
                 r#"
                 uniform sampler2D diffuseTexture;
 
-                uniform vec3 rg3d_lightPosition;
+                uniform vec3 fyrox_lightPosition;
 
                 in vec2 texCoord;
                 in vec3 worldPosition;
@@ -519,7 +519,7 @@
                 void main()
                 {
                     if (texture(diffuseTexture, texCoord).a < 0.2) discard;
-                    depth = length(rg3d_lightPosition - worldPosition);
+                    depth = length(fyrox_lightPosition - worldPosition);
                 }
                 "#,
         )

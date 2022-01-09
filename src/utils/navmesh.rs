@@ -143,8 +143,8 @@ impl Navmesh {
     ///
     /// Example:
     /// ```
-    /// use rg3d::scene::Scene;
-    /// use rg3d::utils::navmesh::Navmesh;
+    /// use fyrox::scene::Scene;
+    /// use fyrox::utils::navmesh::Navmesh;
     ///
     /// fn make_navmesh(scene: &Scene, navmesh_name: &str) -> Navmesh {
     ///     // Find mesh node in existing scene and create navigation mesh from it.
@@ -248,9 +248,9 @@ impl Navmesh {
     /// Example:
     ///
     /// ```
-    /// use rg3d::utils::navmesh::Navmesh;
-    /// use rg3d::core::algebra::Vector3;
-    /// use rg3d::utils::astar::{PathKind, PathError};
+    /// use fyrox::utils::navmesh::Navmesh;
+    /// use fyrox::core::algebra::Vector3;
+    /// use fyrox::utils::astar::{PathKind, PathError};
     ///
     /// fn find_path(navmesh: &mut Navmesh, begin: Vector3<f32>, end: Vector3<f32>, path: &mut Vec<Vector3<f32>>) -> Result<PathKind, PathError> {
     ///     if let Some(begin_index) = navmesh.query_closest(begin) {

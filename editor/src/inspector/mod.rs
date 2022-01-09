@@ -9,7 +9,7 @@ use crate::{
     scene::{EditorScene, Selection},
     Brush, CommandGroup, GameEngine, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
-use rg3d::{
+use fyrox::{
     core::{color::Color, inspect::Inspect, pool::Handle},
     engine::resource_manager::ResourceManager,
     gui::{
@@ -158,7 +158,7 @@ impl Inspector {
     fn sync_to(&mut self, obj: &dyn Inspect, ui: &mut UserInterface) {
         let ctx = ui
             .node(self.inspector)
-            .cast::<rg3d::gui::inspector::Inspector>()
+            .cast::<fyrox::gui::inspector::Inspector>()
             .unwrap()
             .context()
             .clone();

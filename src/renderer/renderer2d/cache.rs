@@ -15,7 +15,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use rg3d_core::algebra::Vector3;
+use fyrox_core::algebra::Vector3;
 
 #[repr(C)]
 pub struct Vertex {

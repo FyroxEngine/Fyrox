@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://rg3d.rs/">
-    <img src="pics/logo.png" alt="RG3D" />
+    <img src="pics/logo.png" alt="Fyrox" />
   </a>
 
   <h1>Rust Game engine 3D (and 2D)</h1>
@@ -30,7 +30,7 @@ use my savings to drive development forward, I'm looking for any financial suppo
 
 ## [Learning materials](https://rg3d-book.github.io)
 
-[Read the official rg3d book here.](https://rg3d-book.github.io) It is in early development stage, but it should
+[Read the official Fyrox book here.](https://rg3d-book.github.io) It is in early development stage, but it should
 help you start using the engine, also the book contains a series of tutorials that should help you to create your
 first game.
 
@@ -105,7 +105,7 @@ first game.
 
 ### Sound
 
-- [High quality binaural sound with HRTF support](https://github.com/rg3dengine/rg3d/tree/master/rg3d-sound).
+- [High quality binaural sound with HRTF support](https://github.com/rg3dengine/rg3d/tree/master/fyrox-sound).
 - Generic and spatial sound sources.
 - Built-in streaming for large sounds.
 - Raw samples playback support.
@@ -141,7 +141,7 @@ first game.
 
 ### User Interface (UI)
 
-- [Advanced node-based UI](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-ui) with lots of widgets.
+- [Advanced node-based UI](https://github.com/mrDIMAS/rg3d/tree/master/fyrox-ui) with lots of widgets.
 - More than 32 widgets
 - Powerful layout system.
 - Full TTF/OTF fonts support.

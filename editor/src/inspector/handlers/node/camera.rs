@@ -3,7 +3,7 @@ use crate::{
     inspector::handlers::node::base::handle_base_property_changed, scene::commands::camera::*,
     SceneCommand,
 };
-use rg3d::{
+use fyrox::{
     core::{futures::executor::block_on, pool::Handle},
     gui::inspector::{FieldKind, PropertyChanged},
     resource::texture::{Texture, TextureWrapMode},

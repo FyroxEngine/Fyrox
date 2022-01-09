@@ -1,7 +1,7 @@
 use crate::{
     define_command_stack, send_sync_message, MessageBoxButtons, MessageBoxMessage, MSG_SYNC_FLAG,
 };
-use rg3d::{
+use fyrox::{
     asset::{Resource, ResourceData, ResourceState},
     core::{
         color::Color, curve::Curve, futures::executor::block_on, pool::Handle, visitor::prelude::*,

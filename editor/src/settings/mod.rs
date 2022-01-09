@@ -8,7 +8,7 @@ use crate::{
     },
     GameEngine, Message, CONFIG_DIR,
 };
-use rg3d::{
+use fyrox::{
     core::{pool::Handle, scope_profile},
     gui::{
         border::BorderBuilder,

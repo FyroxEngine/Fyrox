@@ -4,7 +4,7 @@
 //!
 //! Warning - Work in progress!
 
-use rg3d::{
+use fyrox::{
     animation::Animation,
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
@@ -128,7 +128,7 @@ pub async fn create_camera(
     graph: &mut Graph,
 ) -> Handle<Node> {
     // Load skybox textures in parallel.
-    let (front, back, left, right, top, bottom) = rg3d::core::futures::join!(
+    let (front, back, left, right, top, bottom) = fyrox::core::futures::join!(
         resource_manager.request_texture("data/textures/DarkStormyFront.jpg"),
         resource_manager.request_texture("data/textures/DarkStormyBack.jpg"),
         resource_manager.request_texture("data/textures/DarkStormyLeft.jpg"),
@@ -205,7 +205,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     .with_radius(20.0)
     .build(&mut scene.graph);
 
-    let (model_resource, walk_animation_resource) = rg3d::core::futures::join!(
+    let (model_resource, walk_animation_resource) = fyrox::core::futures::join!(
         resource_manager.request_model("data/mutant/mutant.FBX"),
         resource_manager.request_model("data/mutant/walk.fbx")
     );
@@ -280,7 +280,7 @@ pub fn main_js() {
 
     let event_loop = EventLoop::new();
 
-    let window_builder = rg3d::window::WindowBuilder::new()
+    let window_builder = fyrox::window::WindowBuilder::new()
         .with_inner_size(LogicalSize::new(800, 600))
         .with_title("Example - WASM")
         .with_resizable(true);
@@ -292,7 +292,7 @@ pub fn main_js() {
 
     let load_context = Arc::new(Mutex::new(SceneContext { data: None }));
 
-    rg3d::core::wasm_bindgen_futures::spawn_local(create_scene(
+    fyrox::core::wasm_bindgen_futures::spawn_local(create_scene(
         engine.resource_manager.clone(),
         load_context.clone(),
     ));
@@ -304,7 +304,7 @@ pub fn main_js() {
     // Create simple user interface that will show some useful info.
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());
 
-    let clock = rg3d::core::instant::Instant::now();
+    let clock = fyrox::core::instant::Instant::now();
     let fixed_timestep = 1.0 / 60.0;
     let mut elapsed_time = 0.0;
 

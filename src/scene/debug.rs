@@ -7,7 +7,7 @@ use crate::core::{
     color::Color,
     math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
 };
-use rg3d_core::algebra::Vector2;
+use fyrox_core::algebra::Vector2;
 use std::ops::Range;
 
 /// Colored line between two points.
@@ -41,9 +41,9 @@ pub struct Line {
 /// So typical usage would be:
 ///
 /// ```
-/// # use rg3d::scene::debug::SceneDrawingContext;
-/// # use rg3d::core::algebra::Matrix4;
-/// # use rg3d::core::color::Color;
+/// # use fyrox::scene::debug::SceneDrawingContext;
+/// # use fyrox::core::algebra::Matrix4;
+/// # use fyrox::core::color::Color;
 ///
 /// fn draw_debug_objects(ctx: &mut SceneDrawingContext) {
 ///     // Clear at the beginning of the frame.

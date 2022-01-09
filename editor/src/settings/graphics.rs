@@ -3,7 +3,7 @@ use crate::{
     settings::{make_bool_input_field, make_text_mark},
     GameEngine,
 };
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     gui::{
         check_box::CheckBoxMessage,

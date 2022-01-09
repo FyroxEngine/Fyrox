@@ -2,7 +2,7 @@ use crate::{
     asset::inspector::handlers::ImportOptionsHandler,
     inspector::editors::make_property_editors_container, Message, MSG_SYNC_FLAG,
 };
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     engine::Engine,
     gui::{

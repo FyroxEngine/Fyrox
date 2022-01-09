@@ -5,7 +5,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     GameEngine, Message,
 };
-use rg3d::{
+use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     gui::{message::MessageDirection, widget::WidgetMessage, UiNode},
     scene::node::Node,

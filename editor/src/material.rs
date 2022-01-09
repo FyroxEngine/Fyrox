@@ -6,7 +6,7 @@ use crate::{
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, GameEngine, Message,
 };
-use rg3d::{
+use fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
         futures::executor::block_on,
@@ -330,7 +330,7 @@ impl MaterialEditor {
         self.shaders_list
             .extend_from_slice(&Shader::standard_shaders());
 
-        for dir in rg3d::walkdir::WalkDir::new(".").into_iter().flatten() {
+        for dir in fyrox::walkdir::WalkDir::new(".").into_iter().flatten() {
             let path = dir.path();
             if let Some(extension) = path.extension() {
                 if extension == "shader" {
@@ -341,7 +341,7 @@ impl MaterialEditor {
         }
 
         // Wait all shaders to load.
-        block_on(rg3d::core::futures::future::join_all(
+        block_on(fyrox::core::futures::future::join_all(
             self.shaders_list.iter().cloned(),
         ));
     }

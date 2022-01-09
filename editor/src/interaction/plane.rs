@@ -1,4 +1,4 @@
-use rg3d::core::{algebra::Vector3, math::plane::Plane};
+use fyrox::core::{algebra::Vector3, math::plane::Plane};
 
 #[derive(Copy, Clone, Debug)]
 pub enum PlaneKind {

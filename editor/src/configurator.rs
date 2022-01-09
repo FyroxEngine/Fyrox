@@ -1,5 +1,5 @@
 use crate::{GameEngine, Message, CONFIG_DIR};
-use rg3d::{
+use fyrox::{
     core::{
         algebra::Vector2,
         pool::Handle,
@@ -95,7 +95,7 @@ impl Configurator {
 
         // Load history.
         let mut history: Vec<HistoryEntry> = Vec::new();
-        if let Ok(mut visitor) = rg3d::core::futures::executor::block_on(Visitor::load_binary(
+        if let Ok(mut visitor) = fyrox::core::futures::executor::block_on(Visitor::load_binary(
             CONFIG_DIR.lock().join(HISTORY_PATH),
         )) {
             history.visit("History", &mut visitor).unwrap();

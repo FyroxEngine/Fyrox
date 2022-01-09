@@ -2,7 +2,7 @@ use crate::{
     command::Command, create_terrain_layer_material, define_node_command, get_set_swap,
     scene::commands::SceneContext,
 };
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     scene::{graph::Graph, node::Node, terrain::Layer},
 };

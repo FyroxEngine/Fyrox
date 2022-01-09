@@ -1,8 +1,8 @@
 use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
-use rg3d::core::sstorage::ImmutableString;
-use rg3d::material::shader::SamplerFallback;
-use rg3d::material::PropertyValue;
-use rg3d::{
+use fyrox::core::sstorage::ImmutableString;
+use fyrox::material::shader::SamplerFallback;
+use fyrox::material::PropertyValue;
+use fyrox::{
     core::pool::Handle,
     resource::texture::Texture,
     scene::{

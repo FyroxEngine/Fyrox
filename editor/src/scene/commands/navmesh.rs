@@ -5,8 +5,8 @@ use crate::interaction::navmesh::data_model::{
 use crate::interaction::navmesh::selection::NavmeshSelection;
 use crate::scene::commands::SceneContext;
 use crate::scene::Selection;
-use rg3d::core::algebra::Vector3;
-use rg3d::core::pool::{Handle, Ticket};
+use fyrox::core::algebra::Vector3;
+use fyrox::core::pool::{Handle, Ticket};
 
 #[derive(Debug)]
 pub struct AddNavmeshEdgeCommand {

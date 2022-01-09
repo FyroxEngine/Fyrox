@@ -1,5 +1,5 @@
 use crate::Message;
-use rg3d::{
+use fyrox::{
     asset::core::pool::Handle,
     core::parking_lot::Mutex,
     gui::{

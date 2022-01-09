@@ -1,4 +1,4 @@
-use rg3d::{
+use fyrox::{
     core::inspect::Inspect, engine::resource_manager::ResourceManager,
     gui::inspector::PropertyChanged,
 };

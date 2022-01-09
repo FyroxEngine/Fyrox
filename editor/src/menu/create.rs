@@ -6,7 +6,7 @@ use crate::{
     scene::commands::{graph::AddNodeCommand, sound::AddSoundSourceCommand},
     Message,
 };
-use rg3d::{
+use fyrox::{
     core::{algebra::Matrix4, parking_lot::Mutex, pool::Handle},
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
     scene::{

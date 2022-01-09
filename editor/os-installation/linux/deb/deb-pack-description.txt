@@ -1,1 +1,1 @@
-A scene editor for rg3d game engine
+A scene editor for Fyrox game engine

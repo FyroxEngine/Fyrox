@@ -27,13 +27,13 @@ pub use walkdir;
 pub use winit::*;
 
 #[doc(inline)]
-pub use rg3d_core as core;
+pub use fyrox_core as core;
 
 #[doc(inline)]
-pub use rg3d_resource as asset;
+pub use fyrox_resource as asset;
 
 #[doc(inline)]
-pub use rg3d_sound as sound;
+pub use fyrox_sound as sound;
 
 #[doc(inline)]
-pub use rg3d_ui as gui;
+pub use fyrox_ui as gui;

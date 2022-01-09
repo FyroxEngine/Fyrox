@@ -598,7 +598,7 @@ impl ResourceManager {
     ///
     /// # Supported formats
     ///
-    /// To load images and decode them, rg3d uses image create which supports following image formats: png, tga, bmp, dds,
+    /// To load images and decode them, Fyrox uses image create which supports following image formats: png, tga, bmp, dds,
     /// jpg, gif, tiff, dxt.
     pub fn request_texture<P: AsRef<Path>>(&self, path: P) -> Texture {
         let path_ref = path.as_ref();

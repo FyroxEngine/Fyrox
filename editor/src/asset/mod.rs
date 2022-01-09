@@ -11,7 +11,7 @@ use crate::{
     preview::PreviewPanel,
     AssetItem, AssetKind, GameEngine, Message,
 };
-use rg3d::{
+use fyrox::{
     core::{color::Color, futures::executor::block_on, pool::Handle, scope_profile},
     gui::{
         border::BorderBuilder,

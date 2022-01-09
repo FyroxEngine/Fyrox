@@ -6,7 +6,7 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::{
+use fyrox::{
     engine::resource_manager::ResourceManager,
     scene::{graph::SubGraph, Scene},
 };

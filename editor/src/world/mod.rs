@@ -16,8 +16,8 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::core::pool::ErasedHandle;
-use rg3d::{
+use fyrox::core::pool::ErasedHandle;
+use fyrox::{
     core::{
         color::Color,
         pool::{Handle, Pool},
@@ -103,7 +103,7 @@ fn make_graph_node_item(
     .with_text_brush(if node.resource().is_some() {
         Brush::Solid(Color::opaque(160, 160, 200))
     } else {
-        Brush::Solid(rg3d::gui::COLOR_FOREGROUND)
+        Brush::Solid(fyrox::gui::COLOR_FOREGROUND)
     })
     .with_name(node.name().to_owned())
     .with_entity_handle(handle)

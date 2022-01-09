@@ -1,4 +1,4 @@
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     gui::{
         border::BorderBuilder,

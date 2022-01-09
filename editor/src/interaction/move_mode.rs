@@ -15,7 +15,7 @@ use crate::{
     world::{graph::selection::GraphSelection, sound::selection::SoundSelection},
     GameEngine, Message,
 };
-use rg3d::{
+use fyrox::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         math::plane::Plane,

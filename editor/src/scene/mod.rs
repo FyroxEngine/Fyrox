@@ -6,9 +6,9 @@ use crate::{
     world::{graph::selection::GraphSelection, sound::selection::SoundSelection},
     GameEngine,
 };
-use rg3d::engine::Engine;
-use rg3d::scene::base::BaseBuilder;
-use rg3d::{
+use fyrox::engine::Engine;
+use fyrox::scene::base::BaseBuilder;
+use fyrox::{
     core::{
         pool::{Handle, Pool},
         visitor::{Visit, Visitor},
@@ -129,7 +129,7 @@ impl EditorScene {
 
                 pure_scene
                     .navmeshes
-                    .add(rg3d::utils::navmesh::Navmesh::new(&triangles, &vertices));
+                    .add(fyrox::utils::navmesh::Navmesh::new(&triangles, &vertices));
             }
 
             let mut visitor = Visitor::new();

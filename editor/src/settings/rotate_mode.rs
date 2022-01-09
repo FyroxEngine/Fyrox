@@ -1,5 +1,5 @@
 use crate::settings::{make_bool_input_field, make_f32_input_field, make_text_mark};
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     gui::{
         check_box::CheckBoxMessage,

@@ -7,9 +7,9 @@
 /examples/data/lightmaps
 /save.bin
 /examples/data/lightmap_scene.rgs
-/rg3d-core/test.bin
-/rg3d-core/test.txt
-/rg3d-core-derive/test_output
+/fyrox-core/test.bin
+/fyrox-core/test.txt
+/fyrox-core-derive/test_output
 /test_output
 history.bin
 settings.ron

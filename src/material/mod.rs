@@ -281,7 +281,7 @@ impl Default for PropertyValue {
 /// method to create a material with standard shader:
 ///
 /// ```no_run
-/// use rg3d::{
+/// use fyrox::{
 ///     material::shader::{Shader, SamplerFallback},
 ///     engine::resource_manager::ResourceManager,
 ///     material::{Material, PropertyValue},
@@ -314,7 +314,7 @@ impl Default for PropertyValue {
 /// and then create the material and populate it with a set of property values.
 ///
 /// ```no_run
-/// use rg3d::{
+/// use fyrox::{
 ///     engine::resource_manager::ResourceManager,
 ///     material::{Material, PropertyValue},
 ///     core::{sstorage::ImmutableString, algebra::Vector3}
@@ -380,7 +380,7 @@ impl Material {
     /// # Example
     ///
     /// ```no_run
-    /// use rg3d::{
+    /// use fyrox::{
     ///     material::shader::{Shader, SamplerFallback},
     ///     engine::resource_manager::ResourceManager,
     ///     material::{Material, PropertyValue},
@@ -421,7 +421,7 @@ impl Material {
     /// # Example
     ///
     /// ```no_run
-    /// use rg3d::{
+    /// use fyrox::{
     ///     engine::resource_manager::ResourceManager,
     ///     material::{Material, PropertyValue},
     ///     core::{sstorage::ImmutableString, algebra::Vector3}
@@ -530,8 +530,8 @@ impl Material {
     /// # Examples
     ///
     /// ```no_run
-    /// # use rg3d::core::sstorage::ImmutableString;
-    /// use rg3d::material::Material;
+    /// # use fyrox::core::sstorage::ImmutableString;
+    /// use fyrox::material::Material;
     ///
     /// let mut material = Material::standard();
     ///
@@ -553,9 +553,9 @@ impl Material {
     /// # Example
     ///
     /// ```no_run
-    /// # use rg3d::material::{Material, PropertyValue};
-    /// # use rg3d::core::color::Color;
-    /// # use rg3d::core::sstorage::ImmutableString;
+    /// # use fyrox::material::{Material, PropertyValue};
+    /// # use fyrox::core::color::Color;
+    /// # use fyrox::core::sstorage::ImmutableString;
     ///
     /// let mut material = Material::standard();
     ///

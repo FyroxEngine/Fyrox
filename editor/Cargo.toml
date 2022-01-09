@@ -1,20 +1,20 @@
 [package]
-name = "rusty-editor"
+name = "fyroxed"
 license = "MIT"
 version = "0.12.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 rust-version = "1.56"
-description = "A scene editor for rg3d game engine"
+description = "A scene editor for Fyrox game engine"
 documentation = "https://github.com/rg3dengine/rusty-editor"
 homepage = "https://github.com/rg3dengine/rusty-editor"
-keywords = ["rg3d", "editor", "rust"]
+keywords = ["fyrox", "editor", "rust"]
 repository = "https://github.com/rg3dengine/rusty-editor"
 readme = "README.md"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/resources/**/*"]
 
 [dependencies]
-rg3d = { version = "0.25", path = ".." }
+fyrox = { version = "0.25", path = ".." }
 lazy_static = "1.4.0"
 ron = "0.7.0"
 serde = "^1.0.0"
@@ -25,7 +25,7 @@ strum_macros = "0.23.1"
 
 [package.metadata.deb]
 maintainer = "Voodlaz <visotnik666@gmail.com>"
-copyright = "2021, rg3dengine developers."
+copyright = "2021, Fyroxengine developers."
 license-file = ["LICENSE", "2"]
 
 # description probably would be bigger in future, so we use a file
@@ -53,4 +53,4 @@ assets = [
 ]
 
 [features]
-enable_profiler = ["rg3d/enable_profiler"]
+enable_profiler = ["fyrox/enable_profiler"]

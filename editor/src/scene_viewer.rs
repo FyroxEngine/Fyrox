@@ -2,7 +2,7 @@ use crate::{
     gui::make_dropdown_list_option_with_height, load_image, DropdownListBuilder, GameEngine,
     InteractionModeKind, Message, SettingsSectionKind,
 };
-use rg3d::{
+use fyrox::{
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     gui::{
         border::BorderBuilder,

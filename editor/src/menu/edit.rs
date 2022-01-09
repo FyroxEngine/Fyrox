@@ -3,7 +3,7 @@ use crate::{
     scene::{commands::PasteCommand, EditorScene, Selection},
     GameEngine, Message,
 };
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
 };

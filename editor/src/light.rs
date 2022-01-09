@@ -1,5 +1,5 @@
 use crate::{scene::EditorScene, GameEngine};
-use rg3d::{
+use fyrox::{
     core::{pool::Handle, scope_profile},
     gui::{
         button::{ButtonBuilder, ButtonMessage},

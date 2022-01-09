@@ -37,11 +37,11 @@
                r#"
                 layout(location = 0) in vec3 vertexPosition;
 
-                uniform mat4 rg3d_worldViewProjection;
+                uniform mat4 fyrox_worldViewProjection;
 
                 void main()
                 {
-                    gl_Position = rg3d_worldViewProjection * vec4(vertexPosition, 1.0);
+                    gl_Position = fyrox_worldViewProjection * vec4(vertexPosition, 1.0);
                 }
                "#,
 

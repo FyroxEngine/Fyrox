@@ -5,7 +5,7 @@ use crate::{
     settings::{Settings, SettingsWindow},
     GameEngine, Message,
 };
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     gui::{
         file_browser::{FileSelectorBuilder, FileSelectorMessage},

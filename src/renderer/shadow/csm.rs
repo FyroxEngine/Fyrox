@@ -26,7 +26,7 @@ use crate::{
         node::Node,
     },
 };
-use rg3d_core::algebra::Vector2;
+use fyrox_core::algebra::Vector2;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct Cascade {

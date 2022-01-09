@@ -2,7 +2,7 @@ use crate::{
     define_node_command, get_set_swap,
     scene::commands::{Command, SceneContext},
 };
-use rg3d::{
+use fyrox::{
     core::{algebra::Vector3, color::Color, pool::Handle},
     resource::texture::Texture,
     scene::{graph::Graph, node::Node},

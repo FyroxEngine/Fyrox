@@ -1,8 +1,8 @@
 use crate::{
     world::graph::item::SceneItem, Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
-use rg3d::gui::button::ButtonMessage;
-use rg3d::{
+use fyrox::gui::button::ButtonMessage;
+use fyrox::{
     core::pool::Handle,
     gui::{
         button::ButtonBuilder,

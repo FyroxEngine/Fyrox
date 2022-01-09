@@ -8,7 +8,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::{
+use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
@@ -282,7 +282,7 @@ struct InputController {
 fn main() {
     let event_loop = EventLoop::new();
 
-    let window_builder = rg3d::window::WindowBuilder::new()
+    let window_builder = fyrox::window::WindowBuilder::new()
         .with_title("Example 09 - Lightmap")
         .with_resizable(true);
 

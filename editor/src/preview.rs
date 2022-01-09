@@ -1,5 +1,5 @@
 use crate::GameEngine;
-use rg3d::{
+use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,

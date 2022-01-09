@@ -8,7 +8,7 @@ use crate::{
     settings::Settings,
     CurveEditorWindow, GameEngine, Message,
 };
-use rg3d::{
+use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},

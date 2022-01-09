@@ -13,7 +13,7 @@ use crate::{
     },
     SceneCommand,
 };
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     gui::{inspector::PropertyChanged, UserInterface},
     scene::{

@@ -10,7 +10,7 @@ previously it was possible to have rigid bodies attached only on root scene node
 - New `Inspector` widget + tons of built-in property editors (with the ability to add custom editors)
 - `Inspect` trait + proc macro for lightweight reflection
 - UI now using dynamic dispatch allowing you to add custom nodes and messages easily
-- rg3d-sound optimizations (30% faster)
+- fyrox-sound optimizations (30% faster)
 - Linear interpolation for sound samples when sampling rate != 1.0 (much better quality than before)
 - Color fields in material editor now editable
 - Window client area is now correctly filled by the renderer on every OS, not just Windows.
@@ -151,7 +151,7 @@ This section will help you to migrate to new physics.
 Rigid body and colliders now can be created like so:
 
 ```rust
-use rg3d::{
+use fyrox::{
     core::{algebra::Vector3, pool::Handle},
     scene::{
         base::BaseBuilder,

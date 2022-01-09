@@ -1,5 +1,5 @@
 use crate::{scene::GraphSelection, GameEngine};
-use rg3d::{
+use fyrox::{
     core::pool::Handle,
     scene::{graph::Graph, node::Node, Scene},
 };

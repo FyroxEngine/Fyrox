@@ -363,14 +363,14 @@ define_new_resource!(
     ///                 layout(location = 0) in vec3 vertexPosition;
     ///                 layout(location = 1) in vec2 vertexTexCoord;
     ///
-    ///                 uniform mat4 rg3d_worldViewProjection;
+    ///                 uniform mat4 fyrox_worldViewProjection;
     ///
     ///                 out vec2 texCoord;
     ///
     ///                 void main()
     ///                 {
     ///                     texCoord = vertexTexCoord;
-    ///                     gl_Position = rg3d_worldViewProjection * vertexPosition;
+    ///                     gl_Position = fyrox_worldViewProjection * vertexPosition;
     ///                 }
     ///                 "#;
     ///
@@ -430,23 +430,23 @@ define_new_resource!(
     ///
     /// # Built-in variables
     ///
-    /// There are number of build-in variables that rg3d pass to each shader automatically:
+    /// There are number of build-in variables that Fyrox pass to each shader automatically:
     ///
     /// | Name                      | Type            | Description
     /// |---------------------------|-----------------|--------------------------------------------
-    /// | rg3d_worldMatrix          | `Matrix4`       | Local-to-world transformation.
-    /// | rg3d_worldViewProjection  | `Matrix4`       | Local-to-clip-space transform.
-    /// | rg3d_boneMatrices         | `[Matrix4; 60]` | Array of bone matrices.
-    /// | rg3d_useSkeletalAnimation | `Vector3`       | Whether skinned meshes is rendering or not.
-    /// | rg3d_cameraPosition       | `Vector3`       | Position of the camera.
-    /// | rg3d_usePOM               | `bool`          | Whether to use parallax mapping or not.
-    /// | rg3d_lightPosition        | `Vector3`       | Light position.
+    /// | fyrox_worldMatrix          | `Matrix4`       | Local-to-world transformation.
+    /// | fyrox_worldViewProjection  | `Matrix4`       | Local-to-clip-space transform.
+    /// | fyrox_boneMatrices         | `[Matrix4; 60]` | Array of bone matrices.
+    /// | fyrox_useSkeletalAnimation | `Vector3`       | Whether skinned meshes is rendering or not.
+    /// | fyrox_cameraPosition       | `Vector3`       | Position of the camera.
+    /// | fyrox_usePOM               | `bool`          | Whether to use parallax mapping or not.
+    /// | fyrox_lightPosition        | `Vector3`       | Light position.
     ///
     /// To use any of the variables, just define a uniform with appropriate name:
     ///
     /// ```glsl
-    /// uniform mat4 rg3d_worldMatrix;
-    /// uniform vec3 rg3d_cameraPosition;
+    /// uniform mat4 fyrox_worldMatrix;
+    /// uniform vec3 fyrox_cameraPosition;
     /// ```
     ///
     /// This list will be extended in future releases.
@@ -494,11 +494,11 @@ define_new_resource!(
     ///
     /// # Standard shader
     ///
-    /// By default rg3d uses standard material for rendering, it covers 95% of uses cases and it is very
+    /// By default Fyrox uses standard material for rendering, it covers 95% of uses cases and it is very
     /// flexible. To get standard shader instance, use [`Shader::standard`]
     ///
     /// ```no_run
-    /// # use rg3d::material::shader::Shader;
+    /// # use fyrox::material::shader::Shader;
     ///
     /// let standard_shader = Shader::standard();
     /// ```

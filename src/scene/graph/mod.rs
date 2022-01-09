@@ -84,7 +84,7 @@ impl Default for Graph {
 /// command. Sub-graph allows you to do this without invalidating handles to nodes.
 #[derive(Debug)]
 pub struct SubGraph {
-    /// A root node and its [ticket](/rg3d-core/model/struct.Ticket.html).
+    /// A root node and its [ticket](/fyrox-core/model/struct.Ticket.html).
     pub root: (Ticket<Node>, Node),
 
     /// A set of descendant nodes with their tickets.
@@ -1035,8 +1035,8 @@ impl Graph {
     /// available indices and try to convert them to handles.
     ///
     /// ```
-    /// use rg3d::scene::node::Node;
-    /// use rg3d::scene::graph::Graph;
+    /// use fyrox::scene::node::Node;
+    /// use fyrox::scene::graph::Graph;
     /// let mut graph = Graph::new();
     /// graph.add_node(Node::Base(Default::default()));
     /// graph.add_node(Node::Base(Default::default()));
@@ -1056,8 +1056,8 @@ impl Graph {
     /// or point to a vacant pool entry.
     ///
     /// ```
-    /// use rg3d::scene::node::Node;
-    /// use rg3d::scene::graph::Graph;
+    /// use fyrox::scene::node::Node;
+    /// use fyrox::scene::graph::Graph;
     /// let mut graph = Graph::new();
     /// graph.add_node(Node::Base(Default::default()));
     /// graph.add_node(Node::Base(Default::default()));

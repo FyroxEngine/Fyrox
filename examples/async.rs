@@ -10,7 +10,7 @@ pub mod shared;
 use std::sync::{Arc, Mutex};
 
 use crate::shared::create_camera;
-use rg3d::{
+use fyrox::{
     animation::Animation,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},

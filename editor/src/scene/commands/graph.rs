@@ -1,6 +1,6 @@
 use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
-use rg3d::scene::base::{Property, PropertyValue};
-use rg3d::{
+use fyrox::scene::base::{Property, PropertyValue};
+use fyrox::{
     animation::Animation,
     core::{
         algebra::{UnitQuaternion, Vector3},

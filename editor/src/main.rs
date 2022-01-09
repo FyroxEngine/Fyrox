@@ -7,7 +7,7 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::inconsistent_struct_constructor)]
 
-extern crate rg3d;
+extern crate fyrox;
 #[macro_use]
 extern crate lazy_static;
 extern crate directories;
@@ -67,7 +67,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use rg3d::{
+use fyrox::{
     core::{
         algebra::{Point3, Vector2},
         color::Color,
@@ -130,7 +130,7 @@ pub fn send_sync_message(ui: &UserInterface, mut msg: UiMessage) {
     ui.send_message(msg);
 }
 
-type GameEngine = rg3d::engine::Engine;
+type GameEngine = fyrox::engine::Engine;
 
 lazy_static! {
     // This checks release.toml debug handle and at
@@ -232,7 +232,7 @@ pub fn make_relative_path<P: AsRef<Path>>(path: P) -> PathBuf {
         .unwrap()
         .to_owned();
 
-    rg3d::core::replace_slashes(relative_path)
+    fyrox::core::replace_slashes(relative_path)
 }
 
 #[derive(Debug)]
@@ -332,7 +332,7 @@ impl Editor {
     fn new(engine: &mut GameEngine) -> Self {
         let (message_sender, message_receiver) = mpsc::channel();
 
-        *rg3d::gui::DEFAULT_FONT.0.lock().unwrap() = Font::from_memory(
+        *fyrox::gui::DEFAULT_FONT.0.lock().unwrap() = Font::from_memory(
             include_bytes!("../resources/embed/arial.ttf").to_vec(),
             14.0,
             Font::default_char_set(),
@@ -913,7 +913,7 @@ impl Editor {
                                         AssetKind::Model => {
                                             // No model was loaded yet, do it.
                                             if let Ok(model) =
-                                                rg3d::core::futures::executor::block_on(
+                                                fyrox::core::futures::executor::block_on(
                                                     engine
                                                         .resource_manager
                                                         .request_model(&item.path),
@@ -1210,7 +1210,7 @@ impl Editor {
                 }
                 Message::LoadScene(scene_path) => {
                     let result = {
-                        rg3d::core::futures::executor::block_on(Scene::from_file(
+                        fyrox::core::futures::executor::block_on(Scene::from_file(
                             &scene_path,
                             engine.resource_manager.clone(),
                         ))
@@ -1567,7 +1567,7 @@ fn main() {
         LogicalSize::new(1024.0, 768.0)
     };
 
-    let window_builder = rg3d::window::WindowBuilder::new()
+    let window_builder = fyrox::window::WindowBuilder::new()
         .with_inner_size(inner_size)
         .with_title("rusty editor")
         .with_resizable(true);
@@ -1609,7 +1609,7 @@ fn main() {
                 }
                 WindowEvent::Resized(size) => {
                     if let Err(e) = engine.set_frame_size(size.into()) {
-                        rg3d::utils::log::Log::writeln(
+                        fyrox::utils::log::Log::writeln(
                             MessageKind::Error,
                             format!("Failed to set renderer size! Reason: {:?}", e),
                         );
@@ -1633,7 +1633,7 @@ fn main() {
             }
         }
         Event::LoopDestroyed => {
-            if let Ok(profiling_results) = rg3d::core::profiler::print() {
+            if let Ok(profiling_results) = fyrox::core::profiler::print() {
                 if let Ok(mut file) =
                     fs::File::create(project_dirs::working_data_dir("profiling.log"))
                 {
