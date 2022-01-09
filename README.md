@@ -16,6 +16,7 @@
 [![Lines of code](https://tokei.rs/b1/github/FyroxEngine/Fyrox)](https://github.com/FyroxEngine/Fyrox)
 
 A feature-rich, production-ready, general purpose 2D/3D game engine written in Rust with a scene editor.
+_Formerly known as rg3d_
 
 ## Support
 
