@@ -2,7 +2,6 @@
 //!
 //! For more info see [`Base`]
 
-use self::legacy::PhysicsBinding;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -19,60 +18,6 @@ use std::{
     ops::{Deref, DerefMut},
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
-
-pub(crate) mod legacy {
-    use crate::core::{
-        inspect::{Inspect, PropertyInfo},
-        visitor::{Visit, VisitResult, Visitor},
-    };
-
-    /// Defines a kind of binding between rigid body and a scene node. Check variants
-    /// for more info.
-    #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Inspect)]
-    #[repr(u32)]
-    pub enum PhysicsBinding {
-        /// Forces engine to sync transform of a node with its associated rigid body.
-        /// This is default binding.
-        NodeWithBody = 0,
-
-        /// Forces engine to sync transform of a rigid body with its associated node. This could be useful for
-        /// specific situations like add "hit boxes" to a character.
-        ///
-        /// # Use cases
-        ///
-        /// This option has limited usage, but the most common is to create hit boxes. To do that create kinematic
-        /// rigid bodies with appropriate colliders and set [`PhysicsBinding::BodyWithNode`] binding to make them
-        /// move together with parent nodes.
-        BodyWithNode = 1,
-    }
-
-    impl Default for PhysicsBinding {
-        fn default() -> Self {
-            Self::NodeWithBody
-        }
-    }
-
-    impl PhysicsBinding {
-        fn from_id(id: u32) -> Result<Self, String> {
-            match id {
-                0 => Ok(Self::NodeWithBody),
-                1 => Ok(Self::BodyWithNode),
-                _ => Err(format!("Invalid physics binding id {}!", id)),
-            }
-        }
-    }
-
-    impl Visit for PhysicsBinding {
-        fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-            let mut id = *self as u32;
-            id.visit(name, visitor)?;
-            if visitor.is_reading() {
-                *self = Self::from_id(id)?;
-            }
-            Ok(())
-        }
-    }
-}
 
 /// A handle to scene node that will be controlled by LOD system.
 #[derive(Inspect, Default, Debug, Clone, Copy, PartialEq, Hash)]
@@ -366,10 +311,6 @@ pub struct Base {
     pub properties: Vec<Property>,
     #[inspect(skip)]
     pub(in crate) transform_modified: Cell<bool>,
-
-    // Legacy.
-    #[inspect(skip)]
-    pub(in crate) physics_binding: PhysicsBinding,
     frustum_culling: bool,
 }
 
@@ -628,7 +569,6 @@ impl Base {
             children: Default::default(),
             depth_offset: Default::default(),
             transform_modified: Cell::new(false),
-            physics_binding: Default::default(),
             frustum_culling: self.frustum_culling,
         }
     }
@@ -670,7 +610,6 @@ impl Visit for Base {
             .visit("Original", visitor)?;
         self.tag.visit("Tag", visitor)?;
         let _ = self.properties.visit("Properties", visitor);
-        let _ = self.physics_binding.visit("PhysicsBinding", visitor);
         let _ = self.frustum_culling.visit("FrustumCulling", visitor);
 
         visitor.leave_region()
@@ -809,7 +748,6 @@ impl BaseBuilder {
             tag: self.tag,
             properties: Default::default(),
             transform_modified: Cell::new(false),
-            physics_binding: Default::default(),
             frustum_culling: self.frustum_culling,
         }
     }

@@ -17,11 +17,7 @@ use crate::{
     },
     scene::{
         self,
-        collider::{
-            self, BallShape, CapsuleShape, ColliderChanges, ColliderShape, ConeShape, CuboidShape,
-            CylinderShape, GeometrySource, HeightfieldShape, SegmentShape, TriangleShape,
-            TrimeshShape,
-        },
+        collider::{self, ColliderChanges, ColliderShape, GeometrySource},
         debug::{Line, SceneDrawingContext},
         graph::isometric_global_transform,
         joint::JointChanges,
@@ -46,7 +42,7 @@ use rapier3d::{
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
-        InteractionGroups, NarrowPhase, Ray, Segment, Shape, SharedShape, TriMesh,
+        InteractionGroups, NarrowPhase, Ray, Shape, SharedShape, TriMesh,
     },
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
@@ -396,100 +392,6 @@ fn convert_joint_params(params: scene::joint::JointParams) -> JointParams {
 
             JointParams::from(revolute_joint)
         }
-    }
-}
-
-// LEGACY. Will be removed in future versions.
-pub(crate) fn joint_params_from_native(params: &JointParams) -> scene::joint::JointParams {
-    match params {
-        JointParams::BallJoint(v) => {
-            scene::joint::JointParams::BallJoint(scene::joint::BallJoint {
-                local_anchor1: v.local_anchor1.coords,
-                local_anchor2: v.local_anchor2.coords,
-                limits_enabled: false,
-                limits_local_axis1: Default::default(),
-                limits_local_axis2: Default::default(),
-                limits_angle: 0.0,
-            })
-        }
-        JointParams::FixedJoint(v) => {
-            scene::joint::JointParams::FixedJoint(scene::joint::FixedJoint {
-                local_anchor1_translation: v.local_frame1.translation.vector,
-                local_anchor1_rotation: v.local_frame1.rotation,
-                local_anchor2_translation: v.local_frame2.translation.vector,
-                local_anchor2_rotation: v.local_frame2.rotation,
-            })
-        }
-        JointParams::PrismaticJoint(v) => {
-            scene::joint::JointParams::PrismaticJoint(scene::joint::PrismaticJoint {
-                local_anchor1: v.local_anchor1.coords,
-                local_axis1: v.local_axis1().into_inner(),
-                local_anchor2: v.local_anchor2.coords,
-                local_axis2: v.local_axis2().into_inner(),
-                limits_enabled: false,
-                limits: [0.0, 0.0],
-            })
-        }
-        JointParams::RevoluteJoint(v) => {
-            scene::joint::JointParams::RevoluteJoint(scene::joint::RevoluteJoint {
-                local_anchor1: v.local_anchor1.coords,
-                local_axis1: v.local_axis1.into_inner(),
-                local_anchor2: v.local_anchor2.coords,
-                local_axis2: v.local_axis2.into_inner(),
-                limits_enabled: false,
-                limits: [0.0, 0.0],
-            })
-        }
-    }
-}
-
-// LEGACY. Will be removed in future versions.
-pub(crate) fn collider_shape_from_native_collider(shape: &dyn Shape) -> ColliderShape {
-    if let Some(ball) = shape.as_ball() {
-        ColliderShape::Ball(BallShape {
-            radius: ball.radius,
-        })
-    } else if let Some(cuboid) = shape.as_cuboid() {
-        ColliderShape::Cuboid(CuboidShape {
-            half_extents: cuboid.half_extents,
-        })
-    } else if let Some(capsule) = shape.as_capsule() {
-        ColliderShape::Capsule(CapsuleShape {
-            begin: capsule.segment.a.coords,
-            end: capsule.segment.b.coords,
-            radius: capsule.radius,
-        })
-    } else if let Some(segment) = shape.downcast_ref::<Segment>() {
-        ColliderShape::Segment(SegmentShape {
-            begin: segment.a.coords,
-            end: segment.b.coords,
-        })
-    } else if let Some(triangle) = shape.as_triangle() {
-        ColliderShape::Triangle(TriangleShape {
-            a: triangle.a.coords,
-            b: triangle.b.coords,
-            c: triangle.c.coords,
-        })
-    } else if shape.as_trimesh().is_some() {
-        ColliderShape::Trimesh(TrimeshShape {
-            sources: Default::default(),
-        })
-    } else if shape.as_heightfield().is_some() {
-        ColliderShape::Heightfield(HeightfieldShape {
-            geometry_source: Default::default(),
-        })
-    } else if let Some(cylinder) = shape.as_cylinder() {
-        ColliderShape::Cylinder(CylinderShape {
-            half_height: cylinder.half_height,
-            radius: cylinder.radius,
-        })
-    } else if let Some(cone) = shape.as_cone() {
-        ColliderShape::Cone(ConeShape {
-            half_height: cone.half_height,
-            radius: cone.radius,
-        })
-    } else {
-        unreachable!()
     }
 }
 

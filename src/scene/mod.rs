@@ -13,7 +13,6 @@ pub mod decal;
 pub mod dim2;
 pub mod graph;
 pub mod joint;
-pub mod legacy_physics;
 pub mod light;
 pub mod mesh;
 pub mod node;
@@ -25,41 +24,27 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
-use crate::scene::base::legacy::PhysicsBinding;
-use crate::scene::legacy_physics::dim3::RigidBodyHandle;
 use crate::{
     animation::AnimationContainer,
     core::{
-        algebra::{UnitQuaternion, Vector2},
+        algebra::Vector2,
         color::Color,
         instant,
         pool::{Handle, Pool, PoolIterator, PoolIteratorMut, Ticket},
         sstorage::ImmutableString,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::{resource_manager::ResourceManager, PhysicsBinder},
+    engine::resource_manager::ResourceManager,
     material::{shader::SamplerFallback, PropertyValue},
     resource::texture::Texture,
     scene::{
-        base::BaseBuilder,
-        collider::{ColliderBuilder, ColliderShape, GeometrySource},
         debug::SceneDrawingContext,
-        graph::{
-            physics::{
-                collider_shape_from_native_collider, joint_params_from_native,
-                PhysicsPerformanceStatistics,
-            },
-            Graph,
-        },
-        joint::JointBuilder,
-        legacy_physics::LegacyPhysics,
+        graph::{physics::PhysicsPerformanceStatistics, Graph},
         mesh::buffer::{
             VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
             VertexWriteTrait,
         },
         node::Node,
-        rigidbody::{RigidBodyBuilder, RigidBodyType},
-        transform::TransformBuilder,
     },
     sound::{context::SoundContext, engine::SoundEngine},
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
@@ -186,12 +171,6 @@ pub struct Scene {
     /// to false for menu's scene and when you need to open a menu - set it to true and
     /// set `enabled` flag to false for level's scene.
     pub enabled: bool,
-
-    // Legacy physics world.
-    legacy_physics: LegacyPhysics,
-
-    // Legacy physics binder.
-    legacy_physics_binder: PhysicsBinder<Node, RigidBodyHandle>,
 }
 
 impl Default for Scene {
@@ -199,8 +178,6 @@ impl Default for Scene {
         Self {
             graph: Default::default(),
             animations: Default::default(),
-            legacy_physics: Default::default(),
-            legacy_physics_binder: Default::default(),
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
@@ -266,9 +243,7 @@ impl Scene {
         Self {
             // Graph must be created with `new` method because it differs from `default`
             graph: Graph::new(),
-            legacy_physics: Default::default(),
             animations: Default::default(),
-            legacy_physics_binder: Default::default(),
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
@@ -414,180 +389,12 @@ impl Scene {
         self.graph.remove_node(handle)
     }
 
-    fn convert_legacy_physics(&mut self) {
-        // Convert rigid bodies and colliders.
-        let mut body_map = FxHashMap::default();
-        for (node, body_handle) in self.legacy_physics_binder.forward_map() {
-            let body_ref = if let Some(body_ref) = self.legacy_physics.bodies.get(body_handle) {
-                body_ref
-            } else {
-                continue;
-            };
-
-            let [x_rotation_locked, y_rotation_locked, z_rotation_locked] =
-                body_ref.is_rotation_locked();
-
-            let body_node_handle = RigidBodyBuilder::new(
-                BaseBuilder::new()
-                    .with_name("Rigid Body")
-                    .with_local_transform(
-                        TransformBuilder::new()
-                            .with_local_position(body_ref.position().translation.vector)
-                            .with_local_rotation(body_ref.position().rotation)
-                            .build(),
-                    ),
-            )
-            .with_body_type(RigidBodyType::from(body_ref.body_type()))
-            .with_mass(body_ref.mass())
-            .with_ang_vel(*body_ref.angvel())
-            .with_lin_vel(*body_ref.linvel())
-            .with_lin_damping(body_ref.linear_damping())
-            .with_ang_damping(body_ref.angular_damping())
-            .with_x_rotation_locked(x_rotation_locked)
-            .with_y_rotation_locked(y_rotation_locked)
-            .with_z_rotation_locked(z_rotation_locked)
-            .with_translation_locked(body_ref.is_translation_locked())
-            .with_ccd_enabled(body_ref.is_ccd_enabled())
-            .build(&mut self.graph);
-
-            body_map.insert(body_handle, body_node_handle);
-
-            for c in body_ref.colliders() {
-                let collider_ref =
-                    if let Some(collider_ref) = self.legacy_physics.colliders.native_ref(*c) {
-                        collider_ref
-                    } else {
-                        continue;
-                    };
-
-                let mut shape = collider_shape_from_native_collider(collider_ref.shape());
-
-                let name = match shape {
-                    ColliderShape::Ball(_) => "Ball Collider",
-                    ColliderShape::Cylinder(_) => "Cylinder Collider",
-                    ColliderShape::Cone(_) => "Cone Collider",
-                    ColliderShape::Cuboid(_) => "Cuboid Collider",
-                    ColliderShape::Capsule(_) => "Capsule Collider",
-                    ColliderShape::Segment(_) => "Segment Collider",
-                    ColliderShape::Triangle(_) => "Triangle Collider",
-                    ColliderShape::Trimesh(_) => "Trimesh Collider",
-                    ColliderShape::Heightfield(_) => "Heightfield Collider",
-                    ColliderShape::Polyhedron(_) => "Convex Polyhedron",
-                };
-
-                // Trimesh and heightfield needs extra care.
-                match shape {
-                    ColliderShape::Trimesh(ref mut trimesh) => {
-                        trimesh.sources = self
-                            .graph
-                            .traverse_handle_iter(*node)
-                            .filter(|h| self.graph[*h].is_mesh())
-                            .map(GeometrySource)
-                            .collect::<Vec<_>>();
-                    }
-                    ColliderShape::Heightfield(ref mut heightfield) => {
-                        heightfield.geometry_source = GeometrySource(*node);
-                    }
-                    _ => (),
-                }
-
-                let collider_handle = ColliderBuilder::new(
-                    BaseBuilder::new().with_name(name).with_local_transform(
-                        TransformBuilder::new()
-                            .with_local_position(
-                                collider_ref
-                                    .position_wrt_parent()
-                                    .map(|p| p.translation.vector)
-                                    .unwrap_or_default(),
-                            )
-                            .with_local_rotation(
-                                collider_ref
-                                    .position_wrt_parent()
-                                    .map(|p| p.rotation)
-                                    .unwrap_or_default(),
-                            )
-                            .build(),
-                    ),
-                )
-                .with_friction_combine_rule(collider_ref.friction_combine_rule().into())
-                .with_restitution_combine_rule(collider_ref.restitution_combine_rule().into())
-                .with_shape(shape)
-                .with_sensor(collider_ref.is_sensor())
-                .with_restitution(collider_ref.restitution())
-                .with_density(collider_ref.density())
-                .with_collision_groups(collider_ref.collision_groups().into())
-                .with_solver_groups(collider_ref.solver_groups().into())
-                .with_friction(collider_ref.friction())
-                .build(&mut self.graph);
-
-                self.graph.link_nodes(collider_handle, body_node_handle);
-            }
-
-            let node_ref = &mut self.graph[*node];
-            node_ref
-                .local_transform_mut()
-                .set_position(Default::default())
-                .set_rotation(UnitQuaternion::default());
-            let parent = node_ref.parent();
-
-            match node_ref.physics_binding {
-                PhysicsBinding::NodeWithBody => {
-                    self.graph.link_nodes(*node, body_node_handle);
-                    self.graph.link_nodes(body_node_handle, parent);
-                }
-                PhysicsBinding::BodyWithNode => {
-                    self.graph.link_nodes(body_node_handle, *node);
-                }
-            }
-        }
-
-        // Convert joints.
-        for joint in self.legacy_physics.joints.iter() {
-            let body1 = if let Some(body1) = self
-                .legacy_physics
-                .bodies
-                .handle_map()
-                .key_of(&joint.body1)
-                .and_then(|h| body_map.get(h))
-            {
-                *body1
-            } else {
-                continue;
-            };
-
-            let body2 = if let Some(body2) = self
-                .legacy_physics
-                .bodies
-                .handle_map()
-                .key_of(&joint.body2)
-                .and_then(|h| body_map.get(h))
-            {
-                *body2
-            } else {
-                continue;
-            };
-
-            let joint_handle = JointBuilder::new(BaseBuilder::new())
-                .with_params(joint_params_from_native(&joint.params))
-                .with_body1(body1)
-                .with_body2(body2)
-                .build(&mut self.graph);
-
-            self.graph.link_nodes(joint_handle, body1);
-        }
-    }
-
     pub(in crate) fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Starting resolve...".to_owned());
 
         self.graph.resolve();
         self.animations.resolve(&self.graph);
-
         self.graph.update_hierarchical_data();
-        self.legacy_physics
-            .resolve(&self.legacy_physics_binder, &self.graph, None);
-
-        self.convert_legacy_physics();
 
         // Re-apply lightmap if any. This has to be done after resolve because we must patch surface
         // data at this stage, but if we'd do this before we wouldn't be able to do this because
@@ -761,8 +568,6 @@ impl Scene {
             Self {
                 graph,
                 animations,
-                legacy_physics: Default::default(),
-                legacy_physics_binder: Default::default(),
                 // Render target is intentionally not copied, because it does not makes sense - a copy
                 // will redraw frame completely.
                 render_target: Default::default(),
@@ -790,11 +595,6 @@ impl Visit for Scene {
         self.ambient_lighting_color
             .visit("AmbientLightingColor", visitor)?;
         self.enabled.visit("Enabled", visitor)?;
-        // Load legacy stuff for backward compatibility.
-        if visitor.is_reading() {
-            let _ = self.legacy_physics.visit("Physics", visitor);
-            let _ = self.legacy_physics_binder.visit("PhysicsBinder", visitor);
-        }
         visitor.leave_region()
     }
 }
