@@ -3,7 +3,7 @@
     <img src="pics/logo.png" alt="Fyrox" />
   </a>
 
-  <h1>Rust Game engine 3D (and 2D)</h1>
+  <h1>Fyrox - a modern Rust game engine</h1>
 </div>
 
 [![License (MIT)](https://img.shields.io/crates/l/rg3d)](https://github.com/FyroxEngine/Fyrox/blob/master/LICENSE.md)
