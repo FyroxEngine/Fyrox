@@ -246,7 +246,9 @@ impl Control for FileBrowser {
                                         Some(path) => path.clone(),
                                         None => self.path.clone(),
                                     };
-                                    let _ = watcher.unwatch(current_root);
+                                    if current_root.exists() {
+                                        let _ = watcher.unwatch(current_root);
+                                    }
                                     let new_root = match &root {
                                         Some(path) => path.clone(),
                                         None => self.path.clone(),
