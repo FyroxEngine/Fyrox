@@ -72,6 +72,18 @@ previously it was possible to have rigid bodies attached only on root scene node
 There are lots of breaking changes in this version, however all of them mostly related to the code and scenes made in
 previous version _should_ still be loadable.
 
+### Convert old scenes to new format
+
+At first, install the rusty-editor from crates.io and run it:
+
+```shell
+cargo install rusty-editor
+rusty-editor
+```
+
+And then just re-save your scenes one-by-one. After this all your scenes will be converted to the newest version.
+Keep in mind that the editor from GitHub repo (0.25+) is not longer have backward compatibility/conversion code!
+
 ### 2D scenes
 
 2D scene were completely removed and almost every 2D node were removed, there is only one "2D" node left - Rectangle.
