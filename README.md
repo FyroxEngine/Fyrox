@@ -29,9 +29,9 @@ use my savings to drive development forward, I'm looking for any financial suppo
 
 [Join the Discord server](https://discord.gg/xENF5Uh)
 
-## [Learning materials](https://rg3d-book.github.io)
+## [Learning materials](https://fyrox-book.github.io/)
 
-[Read the official Fyrox book here.](https://rg3d-book.github.io) It is in early development stage, but it should
+[Read the official Fyrox book here.](https://fyrox-book.github.io/) It is in early development stage, but it should
 help you start using the engine, also the book contains a series of tutorials that should help you to create your
 first game.
 
