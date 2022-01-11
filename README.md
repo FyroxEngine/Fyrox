@@ -235,6 +235,53 @@ Check the [good first issue](https://github.com/FyroxEngine/Fyrox/issues?q=is%3A
 
 ## Sponsors
 
+The engine is supported by very generous people, their donations provides sustainable development of the engine:
+
+### Bronze patrons
+
+[Brandon Thomas](https://www.patreon.com/user?u=34951681)  
+[Taylor C. Richberger](https://www.patreon.com/user/creators?u=60141723)
+
+### Patrons
+
+[Avery Wagar](https://www.patreon.com/user?u=41863848)
+[George Atkinson](https://www.patreon.com/user?u=61771027)
+[Erlend Sogge Heggen](https://www.patreon.com/amethystengine/creators)  
+[Mitch Skinner](https://www.patreon.com/user/creators?u=60141723)  
+[ozkriff](https://www.patreon.com/ozkriff)  
+[Taylor Gerpheide](https://www.patreon.com/user/creators?u=32274918)  
+[zrkn](https://www.patreon.com/user/creators?u=23413376)  
+[Aleks Row](https://www.patreon.com/user/creators?u=51907853)  
+[Edward L](https://www.patreon.com/user/creators?u=53507198)  
+[L.apz](https://www.patreon.com/user/creators?u=5448832)  
+[Luke Jones](https://www.patreon.com/flukejones)  
+[toyboot4e](https://www.patreon.com/user/creators?u=53758973)  
+[Vish Vadlamani](https://www.patreon.com/user/creators?u=42768509)  
+[Alexey Kuznetsov](https://www.patreon.com/user?u=39375025)  
+[Daniel Simon](https://www.patreon.com/user/creators?u=43754885)  
+[Jesper Nordenberg](https://www.patreon.com/jesnor)  
+[Kornel](https://www.patreon.com/user?u=59867)  
+[Parham Gholami](https://www.patreon.com/user?u=33009238)  
+[Yuki Ishii](https://www.patreon.com/user/creators?u=9564103)  
+[Joseph Catrambone](https://www.patreon.com/user?u=4738580)  
+[MGlolenstine](https://github.com/MGlolenstine)  
+[zamar lomax](https://www.patreon.com/user?u=65928523)
+[Gheorghe Ugrik](https://www.patreon.com/user?u=54846813)
+[Anton Zelenin](https://www.patreon.com/user?u=62378966)
+[Barugon](https://www.patreon.com/user?u=11344465)
+
+### Former patrons
+
+[Tom Leys](https://www.patreon.com/user?u=222856)
+[Jay Sistar](https://www.patreon.com/user?u=284041)
+[tc](https://www.patreon.com/user?u=11268466)  
+[false](https://www.patreon.com/user?u=713537)  
+[BlueSkye](https://www.patreon.com/EmotionalSnow)  
+[Ben Anderson](https://www.patreon.com/user/creators?u=14436239)  
+[Thomas](https://www.patreon.com/user?u=317826)
+[Iulian Radu](https://www.patreon.com/user?u=8698230)
+[Vitaliy (ArcticNoise) Chernyshev](https://www.patreon.com/user?u=2601918)
+
 ### JetBrains
 
 JetBrains provided an open-source all-products license for their products which drastically helps in development of the engine.
