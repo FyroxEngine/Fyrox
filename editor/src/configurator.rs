@@ -25,7 +25,7 @@ use fyrox::{
 };
 use std::{
     path::{Path, PathBuf},
-    sync::mpsc::Sender,
+    sync::mpsc::Sender, env,
 };
 
 #[derive(Default, Eq, PartialEq)]
@@ -82,6 +82,8 @@ impl Configurator {
         let select_work_dir;
         let ok;
         let tb_work_dir;
+        
+        let current_path =    env::current_dir().unwrap();
 
         let filter = Filter::new(|p: &Path| p.is_dir());
 
@@ -153,6 +155,7 @@ impl Configurator {
                                             .on_column(1)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
+                                        .with_text((current_path.clone()).into_os_string().into_string().unwrap())
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
                                     .build(ctx);
                                     tb_work_dir
@@ -205,7 +208,7 @@ impl Configurator {
                                 .with_child({
                                     ok = ButtonBuilder::new(
                                         WidgetBuilder::new()
-                                            .with_enabled(false) // Disabled by default.
+                                            .with_enabled(true) // Enabled by default.
                                             .with_width(80.0)
                                             .with_height(25.0)
                                             .with_margin(Thickness::uniform(1.0)),
@@ -236,7 +239,7 @@ impl Configurator {
             ok,
             sender,
             tb_work_dir,
-            work_dir: Default::default(),
+            work_dir: current_path,
             lv_history,
             history,
         }
