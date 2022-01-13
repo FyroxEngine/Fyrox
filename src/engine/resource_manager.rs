@@ -336,7 +336,7 @@ where
         },
         Err(e) => {
             Log::writeln(
-                MessageKind::Warning,
+                MessageKind::Information,
                 format!(
                     "Unable to load options file {} for {} resource, fallback to defaults! Reason: {:?}",
                     settings_path.display(),
