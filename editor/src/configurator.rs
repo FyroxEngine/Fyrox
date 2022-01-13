@@ -153,7 +153,8 @@ impl Configurator {
                                         WidgetBuilder::new()
                                             .on_row(0)
                                             .on_column(1)
-                                            .with_margin(Thickness::uniform(1.0)),
+                                            .with_margin(Thickness::uniform(1.0))
+                                            .with_enabled(false)
                                     )
                                         .with_text((current_path.clone()).into_os_string().into_string().unwrap())
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
