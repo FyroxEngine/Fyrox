@@ -6,11 +6,11 @@
   <h1>Fyrox - a modern Rust game engine</h1>
 </div>
 
-[![License (MIT)](https://img.shields.io/crates/l/rg3d)](https://github.com/FyroxEngine/Fyrox/blob/master/LICENSE.md)
+[![License (MIT)](https://img.shields.io/crates/l/fyrox)](https://github.com/FyroxEngine/Fyrox/blob/master/LICENSE.md)
 [![CI Status](https://github.com/FyroxEngine/Fyrox/actions/workflows/ci.yml/badge.svg)](https://github.com/FyroxEngine/Fyrox/actions/workflows/ci.yml)
 [![audit](https://github.com/FyroxEngine/Fyrox/actions/workflows/audit.yml/badge.svg)](https://github.com/FyroxEngine/Fyrox/actions/workflows/audit.yml)
 [![Dependency status](https://deps.rs/repo/github/FyroxEngine/Fyrox/status.svg)](https://deps.rs/repo/github/FyroxEngine/Fyrox)
-[![Crates.io](https://img.shields.io/crates/v/rg3d)](https://crates.io/crates/rg3d)
+[![Crates.io](https://img.shields.io/crates/v/fyrox)](https://crates.io/crates/fyrox)
 [![docs.rs](https://img.shields.io/badge/docs-website-blue)](https://docs.rs/Fyrox/)
 [![Discord](https://img.shields.io/discord/756573453561102427)](https://discord.gg/xENF5Uh)
 [![Lines of code](https://tokei.rs/b1/github/FyroxEngine/Fyrox)](https://github.com/FyroxEngine/Fyrox)
@@ -44,8 +44,8 @@ first game.
 - Exceptional safety, reliability, and speed.
 - PC (Windows, Linux, macOS) and [Web (WebAssembly) support](https://rg3d.rs/assets/webexample/index.html).
 - Modern 3D rendering pipeline.
-- Comprehensive [documentation](https://docs.rs/rg3d).
-- [Guide book](https://rg3d-book.github.io) 
+- Comprehensive [documentation](https://docs.rs/Fyrox).
+- [Guide book](https://fyrox-book.github.io)
 - 2D support.
 - [Scene editor](https://github.com/FyroxEngine/Fyrox/tree/master/editor).
 - Fast iterative compilation.
