@@ -1,20 +1,21 @@
-use crate::interaction::navmesh::data_model::{NavmeshTriangle, NavmeshVertex};
 use crate::{
     camera::CameraController,
-    interaction::navmesh::{data_model::Navmesh, selection::NavmeshSelection},
+    interaction::navmesh::{
+        data_model::{Navmesh, NavmeshTriangle, NavmeshVertex},
+        selection::NavmeshSelection,
+    },
     scene::clipboard::Clipboard,
-    world::{graph::selection::GraphSelection, sound::selection::SoundSelection},
+    world::graph::selection::GraphSelection,
     GameEngine,
 };
-use fyrox::engine::Engine;
-use fyrox::scene::base::BaseBuilder;
 use fyrox::{
     core::{
+        math::TriangleDefinition,
         pool::{Handle, Pool},
         visitor::{Visit, Visitor},
     },
-    scene::{node::Node, Scene},
-    sound::math::TriangleDefinition,
+    engine::Engine,
+    scene::{base::BaseBuilder, node::Node, Scene},
 };
 use std::{collections::HashMap, fmt::Write, path::PathBuf};
 

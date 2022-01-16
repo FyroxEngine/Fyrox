@@ -18,6 +18,9 @@ use std::{
 
 pub mod context;
 
+use crate::scene::base::BaseBuilder;
+use crate::scene::graph::Graph;
+use crate::scene::node::Node;
 pub use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
     engine::SoundEngine,
@@ -279,5 +282,128 @@ impl Sound {
     /// Returns max distance.
     pub fn max_distance(&self) -> f32 {
         self.max_distance
+    }
+}
+
+pub struct SoundBuilder {
+    base_builder: BaseBuilder,
+    buffer: Option<SoundBufferResource>,
+    play_once: bool,
+    gain: f32,
+    panning: f32,
+    status: Status,
+    looping: bool,
+    pitch: f64,
+    radius: f32,
+    max_distance: f32,
+    rolloff_factor: f32,
+    playback_time: Duration,
+}
+
+// TODO: Move to crate root.
+macro_rules! define_with {
+    ($(#[$attr:meta])* fn $name:ident($field:ident: $ty:ty)) => {
+        $(#[$attr])*
+        pub fn $name(mut self, value: $ty) -> Self {
+            self.$field = value;
+            self
+        }
+    };
+}
+
+impl SoundBuilder {
+    pub fn new(base_builder: BaseBuilder) -> Self {
+        Self {
+            base_builder,
+            buffer: None,
+            play_once: false,
+            gain: 1.0,
+            panning: 0.0,
+            status: Status::Stopped,
+            looping: false,
+            pitch: 1.0,
+            radius: 10.0,
+            max_distance: f32::MAX,
+            rolloff_factor: 1.0,
+            playback_time: Default::default(),
+        }
+    }
+
+    define_with!(
+        ///
+        fn with_buffer(buffer: Option<SoundBufferResource>)
+    );
+
+    define_with!(
+        ///
+        fn with_play_once(play_once: bool)
+    );
+
+    define_with!(
+        ///
+        fn with_gain(gain: f32)
+    );
+
+    define_with!(
+        ///
+        fn with_panning(panning: f32)
+    );
+
+    define_with!(
+        ///
+        fn with_status(status: Status)
+    );
+
+    define_with!(
+        ///
+        fn with_looping(looping: bool)
+    );
+
+    define_with!(
+        ///
+        fn with_pitch(pitch: f64)
+    );
+
+    define_with!(
+        ///
+        fn with_radius(radius: f32)
+    );
+
+    define_with!(
+        ///
+        fn with_max_distance(max_distance: f32)
+    );
+
+    define_with!(
+        ///
+        fn with_rolloff_factor(rolloff_factor: f32)
+    );
+
+    define_with!(
+        ///
+        fn with_playback_time(playback_time: Duration)
+    );
+
+    pub fn build_node(self) -> Node {
+        Node::Sound(Sound {
+            base: self.base_builder.build_base(),
+            buffer: self.buffer,
+            play_once: self.play_once,
+            gain: self.gain,
+            panning: self.panning,
+            status: self.status,
+            looping: self.looping,
+            pitch: self.pitch,
+            radius: self.radius,
+            max_distance: self.max_distance,
+            rolloff_factor: self.rolloff_factor,
+            playback_time: self.playback_time,
+            native: Default::default(),
+            changes: Cell::new(SoundChanges::NONE),
+        })
+    }
+
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }

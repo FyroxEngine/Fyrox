@@ -56,9 +56,8 @@ use crate::{
     scene::{
         commands::{
             graph::AddModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
-            particle_system::SetParticleSystemTextureCommand, sound::DeleteSoundSourceCommand,
-            sprite::SetSpriteTextureCommand, ChangeSelectionCommand, CommandGroup, PasteCommand,
-            SceneCommand, SceneContext,
+            particle_system::SetParticleSystemTextureCommand, sprite::SetSpriteTextureCommand,
+            ChangeSelectionCommand, CommandGroup, PasteCommand, SceneCommand, SceneContext,
         },
         EditorScene, Selection,
     },
@@ -865,31 +864,6 @@ impl Editor {
                                                             editor_scene,
                                                             engine,
                                                         ),
-                                                    ))
-                                                    .unwrap();
-                                            }
-                                            Selection::Sound(ref selection) => {
-                                                let mut commands = selection
-                                                    .sources()
-                                                    .iter()
-                                                    .map(|&source| {
-                                                        SceneCommand::new(
-                                                            DeleteSoundSourceCommand::new(source),
-                                                        )
-                                                    })
-                                                    .collect::<Vec<_>>();
-
-                                                commands.insert(
-                                                    0,
-                                                    SceneCommand::new(ChangeSelectionCommand::new(
-                                                        Selection::None,
-                                                        editor_scene.selection.clone(),
-                                                    )),
-                                                );
-
-                                                self.message_sender
-                                                    .send(Message::do_scene_command(
-                                                        CommandGroup::from(commands),
                                                     ))
                                                     .unwrap();
                                             }

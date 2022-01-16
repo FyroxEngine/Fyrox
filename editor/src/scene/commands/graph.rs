@@ -212,7 +212,10 @@ impl Command for DeleteNodeCommand {
 
     fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
-            context.scene.graph.forget_ticket(ticket)
+            context
+                .scene
+                .graph
+                .forget_ticket(ticket, self.node.take().unwrap());
         }
     }
 }
@@ -377,7 +380,10 @@ impl Command for AddNodeCommand {
 
     fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
-            context.scene.graph.forget_ticket(ticket)
+            context
+                .scene
+                .graph
+                .forget_ticket(ticket, self.node.take().unwrap());
         }
     }
 }

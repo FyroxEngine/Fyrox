@@ -20,6 +20,7 @@ use fyrox::{
     resource::texture::{
         CompressionOptions, TextureMagnificationFilter, TextureMinificationFilter, TextureWrapMode,
     },
+    scene::sound::Status,
     scene::{
         self,
         base::{
@@ -43,7 +44,6 @@ use fyrox::{
         rigidbody::RigidBodyType,
         terrain::Layer,
     },
-    sound::source::{generic::GenericSource, Status},
 };
 use std::{rc::Rc, sync::mpsc::Sender};
 
@@ -106,7 +106,6 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<
         scene::transform::Transform,
     >::new());
-    container.insert(InspectablePropertyEditorDefinition::<GenericSource>::new());
     container.insert(InspectablePropertyEditorDefinition::<CsmOptions>::new());
     container.insert(ArrayPropertyEditorDefinition::<f32, 3>::new());
     container.insert(ArrayPropertyEditorDefinition::<f32, 2>::new());

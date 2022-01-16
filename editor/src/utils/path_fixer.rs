@@ -414,6 +414,9 @@ impl PathFixer {
                                                 .insert(SceneResource::Texture(texture.clone()));
                                         }
                                     }
+                                    Node::Sound(_) => {
+                                        // TODO
+                                    }
                                     Node::Base(_)
                                     | Node::RigidBody(_)
                                     | Node::Collider(_)

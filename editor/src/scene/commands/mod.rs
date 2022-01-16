@@ -187,7 +187,6 @@ impl ChangeSelectionCommand {
                 Selection::None => "Change Selection: None",
                 Selection::Graph(_) => "Change Selection: Graph",
                 Selection::Navmesh(_) => "Change Selection: Navmesh",
-                Selection::Sound(_) => "Change Selection: Sound",
             }
             .to_owned(),
             new_selection,

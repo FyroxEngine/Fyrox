@@ -310,16 +310,6 @@ impl MoveGizmo {
                         .set_scale(scale);
                 }
             }
-            Selection::Sound(selection) => {
-                if let Some(center) = selection.center(&scene.sound_context) {
-                    graph[self.origin]
-                        .set_visibility(true)
-                        .local_transform_mut()
-                        .set_position(center)
-                        .set_rotation(Default::default())
-                        .set_scale(scale);
-                }
-            }
             _ => (),
         }
     }

@@ -1,10 +1,7 @@
 use crate::{
     inspector::{
         editors::make_property_editors_container,
-        handlers::{
-            node::{particle_system::ParticleSystemHandler, SceneNodePropertyChangedHandler},
-            sound::*,
-        },
+        handlers::node::{particle_system::ParticleSystemHandler, SceneNodePropertyChangedHandler},
     },
     scene::{EditorScene, Selection},
     Brush, CommandGroup, GameEngine, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
@@ -25,14 +22,9 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
-    sound::source::{generic::GenericSource, spatial::SpatialSource},
     utils::log::{Log, MessageKind},
 };
-use std::{
-    any::{Any, TypeId},
-    rc::Rc,
-    sync::mpsc::Sender,
-};
+use std::{any::Any, rc::Rc, sync::mpsc::Sender};
 
 pub mod editors;
 pub mod handlers;
@@ -178,16 +170,11 @@ impl Inspector {
 
         if self.needs_sync {
             if editor_scene.selection.is_single_selection() {
-                let ctx = scene.sound_context.state();
                 let obj: Option<&dyn Inspect> = match &editor_scene.selection {
                     Selection::Graph(selection) => scene
                         .graph
                         .try_get(selection.nodes()[0])
                         .map(|n| n as &dyn Inspect),
-                    Selection::Sound(selection) => ctx
-                        .sources()
-                        .try_borrow(selection.sources()[0])
-                        .map(|s| s as &dyn Inspect),
                     _ => None,
                 };
 
@@ -303,23 +290,6 @@ impl Inspector {
                                     &scene.graph[node_handle],
                                     &engine.user_interface,
                                     scene,
-                                )
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>(),
-                    Selection::Sound(selection) => selection
-                        .sources
-                        .iter()
-                        .filter_map(|&source_handle| {
-                            if args.owner_type_id == TypeId::of::<GenericSource>() {
-                                handle_generic_source_property_changed(args, source_handle)
-                            } else if args.owner_type_id == TypeId::of::<SpatialSource>() {
-                                handle_spatial_source_property_changed(
-                                    args,
-                                    source_handle,
-                                    scene.sound_context.state().source(source_handle),
                                 )
                             } else {
                                 None

@@ -7,8 +7,7 @@ use crate::{
 };
 use fyrox_sound::{
     context::SoundContext,
-    source::SoundSource,
-    source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, Status},
+    source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
 };
 use std::time::Duration;
 
@@ -124,6 +123,11 @@ impl SoundScene {
             .build_source();
 
             sound.native.set(self.native.state().add_source(source));
+
+            Log::writeln(
+                MessageKind::Information,
+                format!("Native sound source was created for node: {}", sound.name()),
+            );
         }
     }
 }

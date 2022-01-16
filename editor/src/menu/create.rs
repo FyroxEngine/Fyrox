@@ -3,9 +3,10 @@ use crate::menu::physics2d::Physics2dMenu;
 use crate::{
     create_terrain_layer_material,
     menu::{create_menu_item, create_root_menu_item, physics::PhysicsMenu},
-    scene::commands::{graph::AddNodeCommand, sound::AddSoundSourceCommand},
+    scene::commands::graph::AddNodeCommand,
     Message,
 };
+use fyrox::scene::sound::SoundBuilder;
 use fyrox::{
     core::{algebra::Matrix4, parking_lot::Mutex, pool::Handle},
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
@@ -29,7 +30,6 @@ use fyrox::{
         sprite::SpriteBuilder,
         terrain::{LayerDefinition, TerrainBuilder},
     },
-    sound::source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder},
 };
 use std::sync::{mpsc::Sender, Arc};
 
@@ -73,7 +73,6 @@ pub struct CreateEntityMenu {
     create_sprite: Handle<UiNode>,
     create_particle_system: Handle<UiNode>,
     create_sound_source: Handle<UiNode>,
-    create_spatial_sound_source: Handle<UiNode>,
     physics_menu: PhysicsMenu,
     physics2d_menu: Physics2dMenu,
     dim2_menu: Dim2Menu,
@@ -96,7 +95,6 @@ impl CreateEntityMenu {
         let create_terrain;
         let create_pivot;
         let create_sound_source;
-        let create_spatial_sound_source;
 
         let physics_menu = PhysicsMenu::new(ctx);
         let physics2d_menu = Physics2dMenu::new(ctx);
@@ -135,16 +133,10 @@ impl CreateEntityMenu {
             ),
             create_menu_item(
                 "Sound",
-                vec![
-                    {
-                        create_sound_source = create_menu_item("2D Source", vec![], ctx);
-                        create_sound_source
-                    },
-                    {
-                        create_spatial_sound_source = create_menu_item("3D Source", vec![], ctx);
-                        create_spatial_sound_source
-                    },
-                ],
+                vec![{
+                    create_sound_source = create_menu_item("2D Source", vec![], ctx);
+                    create_sound_source
+                }],
                 ctx,
             ),
             create_menu_item(
@@ -207,7 +199,6 @@ impl CreateEntityMenu {
                 create_pivot,
                 create_terrain,
                 create_sound_source,
-                create_spatial_sound_source,
                 create_decal,
                 physics_menu,
                 physics2d_menu,
@@ -327,29 +318,10 @@ impl CreateEntityMenu {
                     .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
                     .unwrap();
             } else if message.destination() == self.create_sound_source {
-                let source = GenericSourceBuilder::new()
-                    .with_name("2D Source")
-                    .build_source()
-                    .unwrap();
+                let node = SoundBuilder::new(BaseBuilder::new().with_name("Sound")).build_node();
 
                 sender
-                    .send(Message::do_scene_command(AddSoundSourceCommand::new(
-                        source,
-                    )))
-                    .unwrap();
-            } else if message.destination() == self.create_spatial_sound_source {
-                let source = SpatialSourceBuilder::new(
-                    GenericSourceBuilder::new()
-                        .with_name("3D Source")
-                        .build()
-                        .unwrap(),
-                )
-                .build_source();
-
-                sender
-                    .send(Message::do_scene_command(AddSoundSourceCommand::new(
-                        source,
-                    )))
+                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
                     .unwrap();
             } else if message.destination() == self.create_particle_system {
                 let node =

@@ -274,30 +274,69 @@ impl Graph {
 
             // Remove associated entities.
             let node = self.pool.free(handle);
-            match node {
-                Node::RigidBody(body) => {
-                    self.physics.remove_body(body.native.get());
-                }
-                Node::Collider(collider) => {
-                    self.physics.remove_collider(collider.native.get());
-                }
-                Node::Joint(joint) => {
-                    self.physics.remove_joint(joint.native.get());
-                }
-                Node::RigidBody2D(body) => {
-                    self.physics2d.remove_body(body.native.get());
-                }
-                Node::Collider2D(collider) => {
-                    self.physics2d.remove_collider(collider.native.get());
-                }
-                Node::Joint2D(joint) => {
-                    self.physics2d.remove_joint(joint.native.get());
-                }
-                Node::Sound(sound) => {
-                    self.sound_scene.remove_sound(sound.native.get());
-                }
-                _ => (),
+            self.clean_up_for_node(&node);
+        }
+    }
+
+    fn clean_up_for_node(&mut self, node: &Node) {
+        match node {
+            Node::RigidBody(body) => {
+                self.physics.remove_body(body.native.get());
+
+                Log::info(format!(
+                    "Native rigid body was removed for node: {}",
+                    body.name()
+                ));
             }
+            Node::Collider(collider) => {
+                self.physics.remove_collider(collider.native.get());
+
+                Log::info(format!(
+                    "Native collider was removed for node: {}",
+                    collider.name()
+                ));
+            }
+            Node::Joint(joint) => {
+                self.physics.remove_joint(joint.native.get());
+
+                Log::info(format!(
+                    "Native joint was removed for node: {}",
+                    joint.name()
+                ));
+            }
+            Node::RigidBody2D(body) => {
+                self.physics2d.remove_body(body.native.get());
+
+                Log::info(format!(
+                    "Native rigid body was removed for node: {}",
+                    body.name()
+                ));
+            }
+            Node::Collider2D(collider) => {
+                self.physics2d.remove_collider(collider.native.get());
+
+                Log::info(format!(
+                    "Native collider 2D was removed for node: {}",
+                    collider.name()
+                ));
+            }
+            Node::Joint2D(joint) => {
+                self.physics2d.remove_joint(joint.native.get());
+
+                Log::info(format!(
+                    "Native joint 2D was removed for node: {}",
+                    joint.name()
+                ));
+            }
+            Node::Sound(sound) => {
+                self.sound_scene.remove_sound(sound.native.get());
+
+                Log::info(format!(
+                    "Native sound source was removed for node: {}",
+                    sound.name()
+                ));
+            }
+            _ => (),
         }
     }
 
@@ -1118,8 +1157,10 @@ impl Graph {
     }
 
     /// Makes node handle vacant again.
-    pub fn forget_ticket(&mut self, ticket: Ticket<Node>) {
-        self.pool.forget_ticket(ticket)
+    pub fn forget_ticket(&mut self, ticket: Ticket<Node>, node: Node) -> Node {
+        self.pool.forget_ticket(ticket);
+        self.clean_up_for_node(&node);
+        node
     }
 
     /// Extracts sub-graph starting from a given node. All handles to extracted nodes
@@ -1160,11 +1201,13 @@ impl Graph {
 
     /// Forgets the entire sub-graph making handles to nodes invalid.
     pub fn forget_sub_graph(&mut self, sub_graph: SubGraph) {
-        for (ticket, _) in sub_graph.descendants {
+        for (ticket, node) in sub_graph.descendants {
             self.pool.forget_ticket(ticket);
+            self.clean_up_for_node(&node);
         }
-        let (ticket, _) = sub_graph.root;
+        let (ticket, root) = sub_graph.root;
         self.pool.forget_ticket(ticket);
+        self.clean_up_for_node(&root);
     }
 
     /// Returns the number of nodes in the graph.
