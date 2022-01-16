@@ -38,6 +38,7 @@ use crate::{
     engine::resource_manager::ResourceManager,
     material::{shader::SamplerFallback, PropertyValue},
     resource::texture::Texture,
+    scene::sound::SoundEngine,
     scene::{
         debug::SceneDrawingContext,
         graph::{physics::PhysicsPerformanceStatistics, Graph},
@@ -47,7 +48,6 @@ use crate::{
         },
         node::Node,
     },
-    sound::engine::SoundEngine,
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::FxHashMap;

@@ -1,13 +1,18 @@
+//! Sound scene.
+
 use crate::{
+    core::pool::Handle,
     scene::sound::{Sound, SoundChanges},
     utils::log::{Log, MessageKind},
 };
 use fyrox_sound::{
     context::SoundContext,
+    source::SoundSource,
     source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, Status},
 };
 use std::time::Duration;
 
+/// Sound scene.
 #[derive(Default, Debug)]
 pub struct SoundScene {
     pub(crate) native: SoundContext,
@@ -20,8 +25,13 @@ impl SoundScene {
         }
     }
 
+    /// Returns amount of time context spent on rendering all sound sources.
     pub fn full_render_duration(&self) -> Duration {
         self.native.state().full_render_duration()
+    }
+
+    pub(crate) fn remove_sound(&mut self, sound: Handle<SoundSource>) {
+        self.native.state().remove_source(sound);
     }
 
     pub(crate) fn sync_sound(&mut self, sound: &Sound) {

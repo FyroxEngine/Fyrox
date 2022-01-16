@@ -244,16 +244,11 @@ impl Inspector {
                 ));
 
             if !editor_scene.selection.is_empty() {
-                let ctx = scene.sound_context.state();
                 let obj: Option<&dyn Inspect> = match &editor_scene.selection {
                     Selection::Graph(selection) => scene
                         .graph
                         .try_get(selection.nodes()[0])
                         .map(|n| n as &dyn Inspect),
-                    Selection::Sound(selection) => ctx
-                        .sources()
-                        .try_borrow(selection.sources()[0])
-                        .map(|s| s as &dyn Inspect),
                     _ => None,
                 };
 

@@ -152,7 +152,6 @@ pub enum Selection {
     None,
     Graph(GraphSelection),
     Navmesh(NavmeshSelection),
-    Sound(SoundSelection),
 }
 
 impl Default for Selection {
@@ -167,7 +166,6 @@ impl Selection {
             Selection::None => true,
             Selection::Graph(graph) => graph.is_empty(),
             Selection::Navmesh(navmesh) => navmesh.is_empty(),
-            Selection::Sound(sound) => sound.sources().is_empty(),
         }
     }
 
@@ -176,7 +174,6 @@ impl Selection {
             Selection::None => 0,
             Selection::Graph(graph) => graph.len(),
             Selection::Navmesh(navmesh) => navmesh.len(),
-            Selection::Sound(sound) => sound.len(),
         }
     }
 

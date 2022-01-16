@@ -1,6 +1,6 @@
 //! All possible errors that can happen in the engine.
 
-use crate::{renderer::framework::error::FrameworkError, sound::error::SoundError};
+use crate::{renderer::framework::error::FrameworkError, scene::sound::SoundError};
 
 /// See module docs.
 #[derive(Debug, thiserror::Error)]

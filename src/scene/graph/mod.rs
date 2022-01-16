@@ -293,6 +293,9 @@ impl Graph {
                 Node::Joint2D(joint) => {
                     self.physics2d.remove_joint(joint.native.get());
                 }
+                Node::Sound(sound) => {
+                    self.sound_scene.remove_sound(sound.native.get());
+                }
                 _ => (),
             }
         }
@@ -928,7 +931,7 @@ impl Graph {
         self.pool.is_valid_handle(node_handle)
     }
 
-    fn sync_native_physics(&mut self) {
+    fn sync_native(&mut self) {
         for (handle, node) in self.pool.pair_iter() {
             match node {
                 Node::RigidBody(rigid_body) => {
@@ -951,6 +954,7 @@ impl Graph {
                 Node::Joint2D(joint) => {
                     self.physics2d.sync_to_joint_node(&self.pool, handle, joint);
                 }
+                Node::Sound(sound) => self.sound_scene.sync_sound(sound),
                 _ => (),
             }
         }
@@ -963,7 +967,7 @@ impl Graph {
 
         let this = unsafe { &*(self as *const Graph) };
 
-        self.sync_native_physics();
+        self.sync_native();
 
         self.update_hierarchical_data();
 

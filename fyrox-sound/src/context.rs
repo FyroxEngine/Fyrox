@@ -204,6 +204,11 @@ impl State {
         self.sources.spawn(source)
     }
 
+    /// Removes sound source from the context.
+    pub fn remove_source(&mut self, source: Handle<SoundSource>) {
+        self.sources.free(source);
+    }
+
     /// Returns shared reference to a pool with all sound sources.
     pub fn sources(&self) -> &Pool<SoundSource> {
         &self.sources

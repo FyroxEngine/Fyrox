@@ -19,8 +19,8 @@ use crate::{
     gui::UserInterface,
     renderer::{framework::error::FrameworkError, Renderer},
     resource::texture::TextureKind,
+    scene::sound::SoundEngine,
     scene::SceneContainer,
-    sound::engine::SoundEngine,
     window::{Window, WindowBuilder},
 };
 use fxhash::FxHashMap;
@@ -39,15 +39,13 @@ pub struct Engine {
     /// Current renderer. You should call at least [render](Self::render) method to see your scene on
     /// screen.
     pub renderer: Renderer,
-    /// User interface allows you to build interface of any kind. UI itself is *not* thread-safe,
-    /// but it uses messages to "talk" with outside world and message queue (MPSC) *is* thread-safe
-    /// so its sender part can be shared across threads.
+    /// User interface allows you to build interface of any kind.
     pub user_interface: UserInterface,
     /// Sound context control all sound sources in the engine. It is wrapped into Arc<Mutex<>>
     /// because internally sound engine spawns separate thread to mix and send data to sound
     /// device. For more info see docs for Context.
     pub sound_engine: Arc<Mutex<SoundEngine>>,
-    /// Current resource manager. Resource manager wrapped into Arc<Mutex<>> to be able to
+    /// Current resource manager. Resource manager can be cloned (it does clone only ref) to be able to
     /// use resource manager from any thread, this is useful to load resources from multiple
     /// threads to decrease loading times of your game by utilizing all available power of
     /// your CPU.

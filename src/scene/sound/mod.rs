@@ -9,7 +9,7 @@ use crate::{
     scene::base::Base,
 };
 use bitflags::bitflags;
-use fyrox_sound::{buffer::SoundBufferResource, source::SoundSource};
+use fyrox_sound::source::SoundSource;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -18,7 +18,12 @@ use std::{
 
 pub mod context;
 
-pub use fyrox_sound::source::Status;
+pub use fyrox_sound::{
+    buffer::{DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
+    engine::SoundEngine,
+    error::SoundError,
+    source::Status,
+};
 
 bitflags! {
     pub(crate) struct SoundChanges: u32 {
@@ -37,6 +42,7 @@ bitflags! {
     }
 }
 
+/// Sound source.
 #[derive(Visit, Inspect, Debug)]
 pub struct Sound {
     base: Base,
