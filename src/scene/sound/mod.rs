@@ -26,8 +26,11 @@ use crate::{
 // Re-export some the fyrox_sound entities.
 pub use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
+    context::DistanceModel,
     engine::SoundEngine,
     error::SoundError,
+    listener::Listener,
+    renderer::{hrtf::*, Renderer},
     source::Status,
 };
 

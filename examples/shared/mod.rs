@@ -39,12 +39,12 @@ use fyrox::{
         transform::TransformBuilder,
         Scene,
     },
-    sound::effects::{BaseEffect, Effect},
+    //sound::effects::{BaseEffect, Effect},
 };
 use std::{
     path::Path,
     sync::{Arc, Mutex},
-    time::Duration,
+    //time::Duration,
 };
 
 /// Creates a camera at given position with a skybox.
@@ -191,14 +191,14 @@ pub fn create_ui(ui: &mut BuildContext, screen_size: Vector2<f32>) -> Interface 
 pub struct SceneLoadResult {
     pub scene: Scene,
     pub player: Player,
-    pub reverb_effect: Handle<Effect>,
+    // pub reverb_effect: Handle<Effect>,
 }
 
 #[derive(Default)]
 pub struct GameScene {
     pub scene: Handle<Scene>,
     pub player: Player,
-    pub reverb_effect: Handle<Effect>,
+    // pub reverb_effect: Handle<Effect>,
 }
 
 pub struct SceneLoadContext {
@@ -739,6 +739,9 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
             // Set ambient light.
             scene.ambient_lighting_color = Color::opaque(80, 80, 80);
 
+            /*
+
+
             // Create reverb effect for more natural sound - our player walks in some sort of cathedral,
             // so there will be pretty decent echo.
             let mut base_effect = BaseEffect::default();
@@ -752,6 +755,9 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
                 .sound_context
                 .state()
                 .add_effect(fyrox::sound::effects::Effect::Reverb(reverb));
+
+
+             */
 
             context
                 .lock()
@@ -775,7 +781,7 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
             context.lock().unwrap().scene_data = Some(SceneLoadResult {
                 scene,
                 player,
-                reverb_effect,
+                //reverb_effect,
             });
         })
     });

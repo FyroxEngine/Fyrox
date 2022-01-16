@@ -6,7 +6,9 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fyrox_sound::{
-    context::SoundContext,
+    context::{DistanceModel, SoundContext},
+    listener::Listener,
+    renderer::Renderer,
     source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
 };
 use std::time::Duration;
@@ -24,9 +26,61 @@ impl SoundScene {
         }
     }
 
+    /// Pause/unpause the sound context. Paused context won't play any sounds.
+    pub fn pause(&mut self, pause: bool) {
+        self.native.state().pause(pause);
+    }
+
+    /// Returns true if the sound context is paused, false - otherwise.
+    pub fn is_paused(&self) -> bool {
+        self.native.state().is_paused()
+    }
+
+    /// Sets new distance model.
+    pub fn set_distance_model(&mut self, distance_model: DistanceModel) {
+        self.native.state().set_distance_model(distance_model);
+    }
+
+    /// Returns current distance model.
+    pub fn distance_model(&self) -> DistanceModel {
+        self.native.state().distance_model()
+    }
+
+    /// Normalizes given frequency using context's sampling rate. Normalized frequency then can be used
+    /// to create filters.
+    pub fn normalize_frequency(&self, f: f32) -> f32 {
+        self.native.state().normalize_frequency(f)
+    }
+
     /// Returns amount of time context spent on rendering all sound sources.
     pub fn full_render_duration(&self) -> Duration {
         self.native.state().full_render_duration()
+    }
+
+    /// Sets new renderer.
+    pub fn set_renderer(&mut self, renderer: Renderer) -> Renderer {
+        self.native.state().set_renderer(renderer)
+    }
+
+    /// Sets new master gain. Master gain is used to control total sound volume that will be passed to output
+    /// device.
+    pub fn set_master_gain(&mut self, gain: f32) {
+        self.native.state().set_master_gain(gain)
+    }
+
+    /// Returns master gain.
+    pub fn master_gain(&self) -> f32 {
+        self.native.state().master_gain()
+    }
+
+    /// Returns current listener.
+    pub fn listener(&self) -> Listener {
+        self.native.state().listener().clone()
+    }
+
+    /// Sets new listener.
+    pub fn set_listener(&mut self, listener: Listener) {
+        *self.native.state().listener_mut() = listener;
     }
 
     pub(crate) fn remove_sound(&mut self, sound: Handle<SoundSource>) {

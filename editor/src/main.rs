@@ -856,18 +856,15 @@ impl Editor {
                                 }
                                 KeyCode::Delete => {
                                     if !editor_scene.selection.is_empty() {
-                                        match editor_scene.selection {
-                                            Selection::Graph(_) => {
-                                                self.message_sender
-                                                    .send(Message::DoSceneCommand(
-                                                        make_delete_selection_command(
-                                                            editor_scene,
-                                                            engine,
-                                                        ),
-                                                    ))
-                                                    .unwrap();
-                                            }
-                                            _ => (),
+                                        if let Selection::Graph(_) = editor_scene.selection {
+                                            self.message_sender
+                                                .send(Message::DoSceneCommand(
+                                                    make_delete_selection_command(
+                                                        editor_scene,
+                                                        engine,
+                                                    ),
+                                                ))
+                                                .unwrap();
                                         }
                                     }
                                 }
