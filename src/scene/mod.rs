@@ -18,6 +18,7 @@ pub mod mesh;
 pub mod node;
 pub mod particle_system;
 pub mod rigidbody;
+pub mod sound;
 pub mod sprite;
 pub mod terrain;
 pub mod transform;
