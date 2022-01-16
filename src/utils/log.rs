@@ -99,7 +99,7 @@ impl Log {
     ///
     /// Typical use case for this method is that when you _can_ ignore errors, but want them to
     /// be in the log.
-    pub fn verify<E>(result: Result<(), E>)
+    pub fn verify<T, E>(result: Result<T, E>)
     where
         E: Debug,
     {

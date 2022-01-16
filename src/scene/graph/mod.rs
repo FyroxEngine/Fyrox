@@ -22,6 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::scene::sound::context::SoundScene;
 use crate::{
     asset::ResourceState,
     core::{
@@ -53,15 +54,15 @@ pub mod physics;
 /// See module docs.
 #[derive(Debug)]
 pub struct Graph {
-    /// Backing physics "world". It is responsible for the physics simulation.
-    pub physics: PhysicsWorld,
-
-    /// Backing 2D physics "world". It is responsible for the 2D physics simulation.
-    pub physics2d: dim2::physics::PhysicsWorld,
-
     root: Handle<Node>,
     pool: Pool<Node>,
     stack: Vec<Handle<Node>>,
+    /// Backing physics "world". It is responsible for the physics simulation.
+    pub physics: PhysicsWorld,
+    /// Backing 2D physics "world". It is responsible for the 2D physics simulation.
+    pub physics2d: dim2::physics::PhysicsWorld,
+    /// Backing sound scene. It is responsible for sound rendering.
+    pub sound_scene: SoundScene,
 }
 
 impl Default for Graph {
@@ -72,6 +73,7 @@ impl Default for Graph {
             root: Handle::NONE,
             pool: Pool::new(),
             stack: Vec::new(),
+            sound_scene: Default::default(),
         }
     }
 }
@@ -191,6 +193,7 @@ impl Graph {
             root,
             pool,
             physics2d: Default::default(),
+            sound_scene: SoundScene::new(),
         }
     }
 

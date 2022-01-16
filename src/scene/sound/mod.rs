@@ -1,18 +1,23 @@
 //! Everything related to sound in the engine.
 
-use crate::core::{
-    inspect::{Inspect, PropertyInfo},
-    pool::Handle,
-    visitor::prelude::*,
+use crate::{
+    core::{
+        inspect::{Inspect, PropertyInfo},
+        pool::Handle,
+        visitor::prelude::*,
+    },
+    scene::base::Base,
 };
 use bitflags::bitflags;
 use fyrox_sound::{buffer::SoundBufferResource, source::SoundSource};
 use std::{
+    cell::Cell,
     ops::{Deref, DerefMut},
     time::Duration,
 };
 
-use crate::scene::base::Base;
+pub mod context;
+
 pub use fyrox_sound::source::Status;
 
 bitflags! {
@@ -54,10 +59,10 @@ pub struct Sound {
     playback_time: Duration,
     #[inspect(skip)]
     #[visit(skip)]
-    pub(crate) native: Handle<SoundSource>,
+    pub(crate) native: Cell<Handle<SoundSource>>,
     #[inspect(skip)]
     #[visit(skip)]
-    pub(crate) changes: SoundChanges,
+    pub(crate) changes: Cell<SoundChanges>,
 }
 
 impl Deref for Sound {
@@ -90,7 +95,7 @@ impl Default for Sound {
             rolloff_factor: 1.0,
             playback_time: Default::default(),
             native: Default::default(),
-            changes: SoundChanges::NONE,
+            changes: Cell::new(SoundChanges::NONE),
         }
     }
 }
@@ -113,7 +118,7 @@ impl Sound {
             playback_time: self.playback_time,
             // Do not copy.
             native: Default::default(),
-            changes: SoundChanges::NONE,
+            changes: Cell::new(SoundChanges::NONE),
         }
     }
 
@@ -121,7 +126,7 @@ impl Sound {
     /// position will be discarded.
     pub fn set_buffer(&mut self, buffer: Option<SoundBufferResource>) {
         self.buffer = buffer;
-        self.changes.insert(SoundChanges::BUFFER);
+        self.changes.get_mut().insert(SoundChanges::BUFFER);
     }
 
     /// Returns current buffer if any.
@@ -138,7 +143,7 @@ impl Sound {
     /// because their playback never stops.
     pub fn set_play_once(&mut self, play_once: bool) {
         self.play_once = play_once;
-        self.changes.insert(SoundChanges::PLAY_ONCE);
+        self.changes.get_mut().insert(SoundChanges::PLAY_ONCE);
     }
 
     /// Returns true if this source is marked for single play, false - otherwise.
@@ -155,7 +160,7 @@ impl Sound {
     /// will be different if logarithmic scale was used.
     pub fn set_gain(&mut self, gain: f32) {
         self.gain = gain;
-        self.changes.insert(SoundChanges::GAIN);
+        self.changes.get_mut().insert(SoundChanges::GAIN);
     }
 
     /// Returns current gain (volume) of sound. Value is in 0..1 range.
@@ -167,7 +172,7 @@ impl Sound {
     /// 0 - both, +1 - only right.
     pub fn set_panning(&mut self, panning: f32) {
         self.panning = panning.max(-1.0).min(1.0);
-        self.changes.insert(SoundChanges::PANNING);
+        self.changes.get_mut().insert(SoundChanges::PANNING);
     }
 
     /// Returns current panning coefficient in -1..+1 range. For more info see `set_panning`. Default value is 0.
@@ -183,20 +188,20 @@ impl Sound {
     /// Changes status to `Playing`.
     pub fn play(&mut self) {
         self.status = Status::Playing;
-        self.changes.insert(SoundChanges::STATUS);
+        self.changes.get_mut().insert(SoundChanges::STATUS);
     }
 
     /// Changes status to `Paused`
     pub fn pause(&mut self) {
         self.status = Status::Paused;
-        self.changes.insert(SoundChanges::STATUS);
+        self.changes.get_mut().insert(SoundChanges::STATUS);
     }
 
     /// Enabled or disables sound looping. Looping sound will never stop by itself, but can be stopped or paused
     /// by calling `stop` or `pause` methods. Useful for music, ambient sounds, etc.
     pub fn set_looping(&mut self, looping: bool) {
         self.looping = looping;
-        self.changes.insert(SoundChanges::LOOPING);
+        self.changes.get_mut().insert(SoundChanges::LOOPING);
     }
 
     /// Returns looping status.
@@ -207,7 +212,7 @@ impl Sound {
     /// Sets sound pitch. Defines "tone" of sounds. Default value is 1.0
     pub fn set_pitch(&mut self, pitch: f64) {
         self.pitch = pitch.abs();
-        self.changes.insert(SoundChanges::PITCH);
+        self.changes.get_mut().insert(SoundChanges::PITCH);
     }
 
     /// Returns pitch of sound source.
@@ -218,7 +223,7 @@ impl Sound {
     /// Stops sound source. Automatically rewinds streaming buffers.
     pub fn stop(&mut self) {
         self.status = Status::Stopped;
-        self.changes.insert(SoundChanges::STATUS);
+        self.changes.get_mut().insert(SoundChanges::STATUS);
     }
 
     /// Returns playback duration.
@@ -229,13 +234,13 @@ impl Sound {
     /// Sets playback duration.
     pub fn set_playback_time(&mut self, time: Duration) {
         self.playback_time = time;
-        self.changes.insert(SoundChanges::PLAYBACK_TIME);
+        self.changes.get_mut().insert(SoundChanges::PLAYBACK_TIME);
     }
 
     /// Sets radius of imaginable sphere around source in which no distance attenuation is applied.
     pub fn set_radius(&mut self, radius: f32) {
         self.radius = radius;
-        self.changes.insert(SoundChanges::RADIUS);
+        self.changes.get_mut().insert(SoundChanges::RADIUS);
     }
 
     /// Returns radius of source.
@@ -248,7 +253,7 @@ impl Sound {
     /// distance models. See DistanceModel docs for formulae.
     pub fn set_rolloff_factor(&mut self, rolloff_factor: f32) {
         self.rolloff_factor = rolloff_factor;
-        self.changes.insert(SoundChanges::ROLLOFF_FACTOR);
+        self.changes.get_mut().insert(SoundChanges::ROLLOFF_FACTOR);
     }
 
     /// Returns rolloff factor.
@@ -262,7 +267,7 @@ impl Sound {
     /// if distance continue to grow.
     pub fn set_max_distance(&mut self, max_distance: f32) {
         self.max_distance = max_distance;
-        self.changes.insert(SoundChanges::MAX_DISTANCE);
+        self.changes.get_mut().insert(SoundChanges::MAX_DISTANCE);
     }
 
     /// Returns max distance.

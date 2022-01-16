@@ -566,7 +566,7 @@ impl Visit for GenericSource {
 pub struct GenericSourceBuilder {
     buffer: Option<SoundBufferResource>,
     gain: f32,
-    pitch: f32,
+    pitch: f64,
     name: String,
     panning: f32,
     looping: bool,
@@ -601,6 +601,12 @@ impl GenericSourceBuilder {
         self
     }
 
+    /// Sets desired sound buffer to play.
+    pub fn with_opt_buffer(mut self, buffer: Option<SoundBufferResource>) -> Self {
+        self.buffer = buffer;
+        self
+    }
+
     /// See `set_gain` of GenericSource
     pub fn with_gain(mut self, gain: f32) -> Self {
         self.gain = gain;
@@ -608,7 +614,7 @@ impl GenericSourceBuilder {
     }
 
     /// See `set_pitch` of GenericSource
-    pub fn with_pitch(mut self, pitch: f32) -> Self {
+    pub fn with_pitch(mut self, pitch: f64) -> Self {
         self.pitch = pitch;
         self
     }
@@ -648,7 +654,7 @@ impl GenericSourceBuilder {
         let mut source = GenericSource {
             buffer: self.buffer.clone(),
             gain: self.gain,
-            pitch: self.pitch as f64,
+            pitch: self.pitch,
             play_once: self.play_once,
             panning: self.panning,
             status: self.status,
