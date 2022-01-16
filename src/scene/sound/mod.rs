@@ -1,3 +1,5 @@
+//! Everything related to sound in the engine.
+
 use crate::core::{
     inspect::{Inspect, PropertyInfo},
     pool::Handle,
@@ -5,8 +7,12 @@ use crate::core::{
 };
 use bitflags::bitflags;
 use fyrox_sound::{buffer::SoundBufferResource, source::SoundSource};
-use std::time::Duration;
+use std::{
+    ops::{Deref, DerefMut},
+    time::Duration,
+};
 
+use crate::scene::base::Base;
 pub use fyrox_sound::source::Status;
 
 bitflags! {
@@ -26,8 +32,9 @@ bitflags! {
     }
 }
 
-#[derive(Visit, Inspect)]
+#[derive(Visit, Inspect, Debug)]
 pub struct Sound {
+    base: Base,
     buffer: Option<SoundBufferResource>,
     play_once: bool,
     #[inspect(min_value = 0.0, step = 0.05)]
@@ -53,9 +60,24 @@ pub struct Sound {
     pub(crate) changes: SoundChanges,
 }
 
+impl Deref for Sound {
+    type Target = Base;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl DerefMut for Sound {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
+    }
+}
+
 impl Default for Sound {
     fn default() -> Self {
         Self {
+            base: Default::default(),
             buffer: None,
             play_once: false,
             gain: 1.0,
@@ -74,6 +96,27 @@ impl Default for Sound {
 }
 
 impl Sound {
+    /// Creates a raw copy of this node. For internal use only.
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base: self.base.raw_copy(),
+            buffer: self.buffer.clone(),
+            play_once: self.play_once,
+            gain: self.gain,
+            panning: self.panning,
+            status: self.status,
+            looping: self.looping,
+            pitch: self.pitch,
+            radius: self.radius,
+            max_distance: self.max_distance,
+            rolloff_factor: self.rolloff_factor,
+            playback_time: self.playback_time,
+            // Do not copy.
+            native: Default::default(),
+            changes: SoundChanges::NONE,
+        }
+    }
+
     /// Changes buffer of source. Source will continue playing from beginning, old
     /// position will be discarded.
     pub fn set_buffer(&mut self, buffer: Option<SoundBufferResource>) {
