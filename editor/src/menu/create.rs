@@ -134,7 +134,7 @@ impl CreateEntityMenu {
             create_menu_item(
                 "Sound",
                 vec![{
-                    create_sound_source = create_menu_item("2D Source", vec![], ctx);
+                    create_sound_source = create_menu_item("Source", vec![], ctx);
                     create_sound_source
                 }],
                 ctx,

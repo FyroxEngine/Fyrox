@@ -34,3 +34,15 @@ pub use fyrox_resource as asset;
 
 #[doc(inline)]
 pub use fyrox_ui as gui;
+
+/// Defines a builder's `with_xxx` method.
+#[macro_export]
+macro_rules! define_with {
+    ($(#[$attr:meta])* fn $name:ident($field:ident: $ty:ty)) => {
+        $(#[$attr])*
+        pub fn $name(mut self, value: $ty) -> Self {
+            self.$field = value;
+            self
+        }
+    };
+}

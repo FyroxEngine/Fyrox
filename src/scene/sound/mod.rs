@@ -1,13 +1,5 @@
 //! Everything related to sound in the engine.
 
-use crate::{
-    core::{
-        inspect::{Inspect, PropertyInfo},
-        pool::Handle,
-        visitor::prelude::*,
-    },
-    scene::base::Base,
-};
 use bitflags::bitflags;
 use fyrox_sound::source::SoundSource;
 use std::{
@@ -18,9 +10,20 @@ use std::{
 
 pub mod context;
 
-use crate::scene::base::BaseBuilder;
-use crate::scene::graph::Graph;
-use crate::scene::node::Node;
+use crate::{
+    core::{
+        inspect::{Inspect, PropertyInfo},
+        pool::Handle,
+        visitor::prelude::*,
+    },
+    define_with,
+    scene::base::Base,
+    scene::base::BaseBuilder,
+    scene::graph::Graph,
+    scene::node::Node,
+};
+
+// Re-export some the fyrox_sound entities.
 pub use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
     engine::SoundEngine,
@@ -285,6 +288,7 @@ impl Sound {
     }
 }
 
+/// Sound builder, allows you to create a new [`Sound`] instance.
 pub struct SoundBuilder {
     base_builder: BaseBuilder,
     buffer: Option<SoundBufferResource>,
@@ -300,18 +304,8 @@ pub struct SoundBuilder {
     playback_time: Duration,
 }
 
-// TODO: Move to crate root.
-macro_rules! define_with {
-    ($(#[$attr:meta])* fn $name:ident($field:ident: $ty:ty)) => {
-        $(#[$attr])*
-        pub fn $name(mut self, value: $ty) -> Self {
-            self.$field = value;
-            self
-        }
-    };
-}
-
 impl SoundBuilder {
+    /// Creates new sound builder.
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
@@ -330,60 +324,62 @@ impl SoundBuilder {
     }
 
     define_with!(
-        ///
+        /// Sets desired buffer. See [`Sound::set_buffer`] for more info.
         fn with_buffer(buffer: Option<SoundBufferResource>)
     );
 
     define_with!(
-        ///
+        /// Sets play-once mode. See [`Sound::set_play_once`] for more info.
         fn with_play_once(play_once: bool)
     );
 
     define_with!(
-        ///
+        /// Sets desired gain. See [`Sound::set_gain`] for more info.
         fn with_gain(gain: f32)
     );
 
     define_with!(
-        ///
+        /// Sets desired panning. See [`Sound::set_panning`] for more info.
         fn with_panning(panning: f32)
     );
 
     define_with!(
-        ///
+        /// Sets desired status. See [`Sound::play`], [`Sound::stop`], [`Sound::stop`] for more info.
         fn with_status(status: Status)
     );
 
     define_with!(
-        ///
+        /// Sets desired looping. See [`Sound::set_looping`] for more info.
         fn with_looping(looping: bool)
     );
 
     define_with!(
-        ///
+        /// Sets desired pitch. See [`Sound::set_pitch`] for more info.
         fn with_pitch(pitch: f64)
     );
 
     define_with!(
-        ///
+        /// Sets desired radius. See [`Sound::set_radius`] for more info.
         fn with_radius(radius: f32)
     );
 
     define_with!(
-        ///
+        /// Sets desired max distance. See [`Sound::set_max_distance`] for more info.
         fn with_max_distance(max_distance: f32)
     );
 
     define_with!(
-        ///
+        /// Sets desired rolloff factor. See [`Sound::set_rolloff_factor`] for more info.
         fn with_rolloff_factor(rolloff_factor: f32)
     );
 
     define_with!(
-        ///
+        /// Sets desired playback time. See [`Sound::set_playback_time`] for more info.
         fn with_playback_time(playback_time: Duration)
     );
 
+    /// Creates a new [`Sound`] node.
+    #[must_use]
     pub fn build_node(self) -> Node {
         Node::Sound(Sound {
             base: self.base_builder.build_base(),
@@ -403,6 +399,7 @@ impl SoundBuilder {
         })
     }
 
+    /// Create a new [`Sound`] node and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
     }
