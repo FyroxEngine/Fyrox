@@ -107,7 +107,7 @@ impl SoundScene {
             let source = SpatialSourceBuilder::new(
                 GenericSourceBuilder::new()
                     .with_gain(sound.gain())
-                    .with_opt_buffer(sound.buffer().clone())
+                    .with_opt_buffer(sound.buffer())
                     .with_looping(sound.is_looping())
                     .with_panning(sound.panning())
                     .with_pitch(sound.pitch())
