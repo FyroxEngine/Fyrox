@@ -22,7 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::sound::context::SoundScene;
+use crate::scene::sound::context::SoundContext;
 use crate::{
     asset::ResourceState,
     core::{
@@ -62,7 +62,7 @@ pub struct Graph {
     /// Backing 2D physics "world". It is responsible for the 2D physics simulation.
     pub physics2d: dim2::physics::PhysicsWorld,
     /// Backing sound scene. It is responsible for sound rendering.
-    pub sound_scene: SoundScene,
+    pub sound_scene: SoundContext,
 }
 
 impl Default for Graph {
@@ -193,7 +193,7 @@ impl Graph {
             root,
             pool,
             physics2d: Default::default(),
-            sound_scene: SoundScene::new(),
+            sound_scene: SoundContext::new(),
         }
     }
 
@@ -994,6 +994,12 @@ impl Graph {
                     self.physics2d.sync_to_joint_node(&self.pool, handle, joint);
                 }
                 Node::Sound(sound) => self.sound_scene.sync_sound(sound),
+                Node::Listener(listener) => {
+                    let mut state = self.sound_scene.native.state();
+                    let native = state.listener_mut();
+                    native.set_position(listener.global_position());
+                    native.set_basis(listener.global_transform().basis());
+                }
                 _ => (),
             }
         }

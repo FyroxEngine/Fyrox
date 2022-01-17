@@ -423,7 +423,8 @@ impl PathFixer {
                                     | Node::Joint(_)
                                     | Node::RigidBody2D(_)
                                     | Node::Collider2D(_)
-                                    | Node::Joint2D(_) => {
+                                    | Node::Joint2D(_)
+                                    | Node::Listener(_) => {
                                         // Nothing
                                     }
                                 }

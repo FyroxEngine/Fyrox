@@ -4,6 +4,7 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
+use fyrox::scene::sound::listener::ListenerBuilder;
 use fyrox::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
@@ -90,11 +91,16 @@ pub async fn create_camera(
 
     // Camera is our eyes in the world - you won't see anything without it.
     CameraBuilder::new(
-        BaseBuilder::new().with_local_transform(
-            TransformBuilder::new()
-                .with_local_position(position)
-                .build(),
-        ),
+        BaseBuilder::new()
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_position(position)
+                    .build(),
+            )
+            .with_children(&[
+                // Create sound listener, otherwise we'd heat sound as if we'd be in (0,0,0)
+                ListenerBuilder::new(BaseBuilder::new()).build(graph),
+            ]),
     )
     .with_skybox(skybox)
     .build(graph)

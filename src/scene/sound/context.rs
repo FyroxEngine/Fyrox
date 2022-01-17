@@ -6,8 +6,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fyrox_sound::{
-    context::{DistanceModel, SoundContext},
-    listener::Listener,
+    context::DistanceModel,
     renderer::Renderer,
     source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
 };
@@ -15,14 +14,14 @@ use std::time::Duration;
 
 /// Sound scene.
 #[derive(Default, Debug)]
-pub struct SoundScene {
-    pub(crate) native: SoundContext,
+pub struct SoundContext {
+    pub(crate) native: fyrox_sound::context::SoundContext,
 }
 
-impl SoundScene {
+impl SoundContext {
     pub(crate) fn new() -> Self {
         Self {
-            native: SoundContext::new(),
+            native: fyrox_sound::context::SoundContext::new(),
         }
     }
 
@@ -71,16 +70,6 @@ impl SoundScene {
     /// Returns master gain.
     pub fn master_gain(&self) -> f32 {
         self.native.state().master_gain()
-    }
-
-    /// Returns current listener.
-    pub fn listener(&self) -> Listener {
-        self.native.state().listener().clone()
-    }
-
-    /// Sets new listener.
-    pub fn set_listener(&mut self, listener: Listener) {
-        *self.native.state().listener_mut() = listener;
     }
 
     pub(crate) fn remove_sound(&mut self, sound: Handle<SoundSource>) {

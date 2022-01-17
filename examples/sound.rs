@@ -183,13 +183,6 @@ fn main() {
                             //    .effect_mut(game_scene.reverb_effect)
                             //    .add_input(EffectInput::direct(source));
                         }
-
-                        // Final, and very important step - sync sound listener with active camera.
-                        let camera = &scene.graph[game_scene.player.camera];
-                        let mut listener = scene.graph.sound_scene.listener();
-                        listener.set_position(camera.global_position());
-                        listener.set_orientation_lh(camera.look_vector(), camera.up_vector());
-                        scene.graph.sound_scene.set_listener(listener);
                     }
 
                     let fps = game.engine.renderer.get_statistics().frames_per_second;
