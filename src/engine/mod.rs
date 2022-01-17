@@ -41,10 +41,6 @@ pub struct Engine {
     pub renderer: Renderer,
     /// User interface allows you to build interface of any kind.
     pub user_interface: UserInterface,
-    /// Sound context control all sound sources in the engine. It is wrapped into Arc<Mutex<>>
-    /// because internally sound engine spawns separate thread to mix and send data to sound
-    /// device. For more info see docs for Context.
-    pub sound_engine: Arc<Mutex<SoundEngine>>,
     /// Current resource manager. Resource manager can be cloned (it does clone only ref) to be able to
     /// use resource manager from any thread, this is useful to load resources from multiple
     /// threads to decrease loading times of your game by utilizing all available power of
@@ -56,6 +52,11 @@ pub struct Engine {
     /// for such statistics, probably it is best to make separate structure to hold all
     /// such data.
     pub ui_time: Duration,
+
+    // Sound context control all sound sources in the engine. It is wrapped into Arc<Mutex<>>
+    // because internally sound engine spawns separate thread to mix and send data to sound
+    // device. For more info see docs for Context.
+    sound_engine: Arc<Mutex<SoundEngine>>,
 }
 
 impl Engine {
@@ -245,7 +246,6 @@ impl Visit for Engine {
         }
 
         self.resource_manager.visit("ResourceManager", visitor)?;
-        self.sound_engine.visit("SoundEngine", visitor)?;
         self.scenes.visit("Scenes", visitor)?;
 
         if visitor.is_reading() {
@@ -253,6 +253,11 @@ impl Visit for Engine {
 
             crate::core::futures::executor::block_on(self.resource_manager.reload_resources());
             for scene in self.scenes.iter_mut() {
+                self.sound_engine
+                    .lock()
+                    .unwrap()
+                    .add_context(scene.graph.sound_context.native.clone());
+
                 scene.resolve();
             }
         }

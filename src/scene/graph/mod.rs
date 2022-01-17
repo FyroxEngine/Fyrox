@@ -22,7 +22,6 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::sound::context::SoundContext;
 use crate::{
     asset::ResourceState,
     core::{
@@ -38,7 +37,8 @@ use crate::{
     resource::model::NodeMapping,
     scene::{
         base::PropertyValue, collider::ColliderShape, dim2, graph::physics::PhysicsWorld,
-        node::Node, transform::TransformBuilder, visibility::VisibilityCache,
+        node::Node, sound::context::SoundContext, transform::TransformBuilder,
+        visibility::VisibilityCache,
     },
     utils::log::{Log, MessageKind},
 };
@@ -61,8 +61,8 @@ pub struct Graph {
     pub physics: PhysicsWorld,
     /// Backing 2D physics "world". It is responsible for the 2D physics simulation.
     pub physics2d: dim2::physics::PhysicsWorld,
-    /// Backing sound scene. It is responsible for sound rendering.
-    pub sound_scene: SoundContext,
+    /// Backing sound context. It is responsible for sound rendering.
+    pub sound_context: SoundContext,
 }
 
 impl Default for Graph {
@@ -73,7 +73,7 @@ impl Default for Graph {
             root: Handle::NONE,
             pool: Pool::new(),
             stack: Vec::new(),
-            sound_scene: Default::default(),
+            sound_context: Default::default(),
         }
     }
 }
@@ -193,7 +193,7 @@ impl Graph {
             root,
             pool,
             physics2d: Default::default(),
-            sound_scene: SoundContext::new(),
+            sound_context: SoundContext::new(),
         }
     }
 
@@ -329,7 +329,7 @@ impl Graph {
                 ));
             }
             Node::Sound(sound) => {
-                self.sound_scene.remove_sound(sound.native.get());
+                self.sound_context.remove_sound(sound.native.get());
 
                 Log::info(format!(
                     "Native sound source was removed for node: {}",
@@ -993,9 +993,9 @@ impl Graph {
                 Node::Joint2D(joint) => {
                     self.physics2d.sync_to_joint_node(&self.pool, handle, joint);
                 }
-                Node::Sound(sound) => self.sound_scene.sync_sound(sound),
+                Node::Sound(sound) => self.sound_context.sync_sound(sound),
                 Node::Listener(listener) => {
-                    let mut state = self.sound_scene.native.state();
+                    let mut state = self.sound_context.native.state();
                     let native = state.listener_mut();
                     native.set_position(listener.global_position());
                     native.set_basis(listener.global_transform().basis());
@@ -1409,8 +1409,10 @@ impl Visit for Graph {
 
         self.root.visit("Root", visitor)?;
         self.pool.visit("Pool", visitor)?;
-        // self.physics is not serialized intentionally! The data of physics entities stored
-        // inside graph nodes and corresponding physic entities will be re-created on first
+        // Backward compatibility
+        let _ = self.sound_context.visit("SoundContext", visitor);
+        // self.physics/self.physics2d is not serialized intentionally! The data of physics entities
+        // stored inside graph nodes and corresponding physic entities will be re-created on first
         // update iteration.
 
         visitor.leave_region()

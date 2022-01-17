@@ -10,21 +10,20 @@
 //! once the level is loaded you just set master gain of main menu context and it will no longer produce any
 //! sounds, only your level will do.
 
-use crate::pool::Ticket;
 use crate::{
     effects::{Effect, EffectRenderTrait},
     listener::Listener,
+    pool::Ticket,
     renderer::{render_source_default, Renderer},
     source::{SoundSource, Status},
 };
-use fyrox_core::visitor::VisitError;
 use fyrox_core::{
+    inspect::{Inspect, PropertyInfo},
     pool::{Handle, Pool},
-    visitor::{Visit, VisitResult, Visitor},
+    visitor::prelude::*,
 };
-use std::sync::MutexGuard;
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
     time::Duration,
 };
 
@@ -33,7 +32,7 @@ use std::{
 pub const SAMPLE_RATE: u32 = 44100;
 
 /// Distance model defines how volume of sound will decay when distance to listener changes.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Inspect, Visit)]
 #[repr(u32)]
 pub enum DistanceModel {
     /// No distance attenuation at all.

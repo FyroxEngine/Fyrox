@@ -1,7 +1,11 @@
-//! Sound scene.
+//! Sound context.
 
 use crate::{
-    core::pool::Handle,
+    core::{
+        inspect::{Inspect, PropertyInfo},
+        pool::Handle,
+        visitor::prelude::*,
+    },
     scene::sound::{Sound, SoundChanges},
     utils::log::{Log, MessageKind},
 };
@@ -12,37 +16,49 @@ use fyrox_sound::{
 };
 use std::time::Duration;
 
-/// Sound scene.
-#[derive(Default, Debug)]
+/// Sound context.
+#[derive(Default, Debug, Visit, Inspect)]
 pub struct SoundContext {
+    master_gain: f32,
+    renderer: Renderer,
+    distance_model: DistanceModel,
+    paused: bool,
+    #[visit(skip)]
+    #[inspect(skip)]
     pub(crate) native: fyrox_sound::context::SoundContext,
 }
 
 impl SoundContext {
     pub(crate) fn new() -> Self {
         Self {
+            master_gain: 1.0,
+            renderer: Default::default(),
+            distance_model: Default::default(),
+            paused: false,
             native: fyrox_sound::context::SoundContext::new(),
         }
     }
 
     /// Pause/unpause the sound context. Paused context won't play any sounds.
     pub fn pause(&mut self, pause: bool) {
-        self.native.state().pause(pause);
+        self.paused = pause;
+        self.native.state().pause(self.paused);
     }
 
     /// Returns true if the sound context is paused, false - otherwise.
     pub fn is_paused(&self) -> bool {
-        self.native.state().is_paused()
+        self.paused
     }
 
     /// Sets new distance model.
     pub fn set_distance_model(&mut self, distance_model: DistanceModel) {
-        self.native.state().set_distance_model(distance_model);
+        self.distance_model = distance_model;
+        self.native.state().set_distance_model(self.distance_model);
     }
 
     /// Returns current distance model.
     pub fn distance_model(&self) -> DistanceModel {
-        self.native.state().distance_model()
+        self.distance_model
     }
 
     /// Normalizes given frequency using context's sampling rate. Normalized frequency then can be used
@@ -64,12 +80,13 @@ impl SoundContext {
     /// Sets new master gain. Master gain is used to control total sound volume that will be passed to output
     /// device.
     pub fn set_master_gain(&mut self, gain: f32) {
-        self.native.state().set_master_gain(gain)
+        self.master_gain = gain;
+        self.native.state().set_master_gain(self.master_gain)
     }
 
     /// Returns master gain.
     pub fn master_gain(&self) -> f32 {
-        self.native.state().master_gain()
+        self.master_gain
     }
 
     pub(crate) fn remove_sound(&mut self, sound: Handle<SoundSource>) {

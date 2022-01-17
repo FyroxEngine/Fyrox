@@ -537,8 +537,11 @@ impl Scene {
         self.performance_statistics.graph_update_time =
             (instant::Instant::now() - last).as_secs_f32();
 
-        self.performance_statistics.sound_update_time =
-            self.graph.sound_scene.full_render_duration().as_secs_f32();
+        self.performance_statistics.sound_update_time = self
+            .graph
+            .sound_context
+            .full_render_duration()
+            .as_secs_f32();
     }
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
@@ -633,7 +636,7 @@ impl SceneContainer {
         self.sound_engine
             .lock()
             .unwrap()
-            .add_context(scene.graph.sound_scene.native.clone());
+            .add_context(scene.graph.sound_context.native.clone());
         self.pool.spawn(scene)
     }
 
@@ -649,7 +652,7 @@ impl SceneContainer {
         self.sound_engine
             .lock()
             .unwrap()
-            .remove_context(self.pool[handle].graph.sound_scene.native.clone());
+            .remove_context(self.pool[handle].graph.sound_context.native.clone());
         self.pool.free(handle);
     }
 
