@@ -31,7 +31,6 @@ pub use fyrox_sound::{
     context::DistanceModel,
     engine::SoundEngine,
     error::SoundError,
-    listener::Listener,
     renderer::{hrtf::*, Renderer},
     source::Status,
 };
