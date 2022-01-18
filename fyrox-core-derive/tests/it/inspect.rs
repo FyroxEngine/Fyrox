@@ -4,6 +4,21 @@ use std::any::TypeId;
 
 use fyrox_core::inspect::{Inspect, PropertyInfo};
 
+fn default_prop() -> PropertyInfo<'static> {
+    PropertyInfo {
+        owner_type_id: TypeId::of::<()>(),
+        name: "",
+        display_name: "",
+        value: &(),
+        read_only: false,
+        min_value: None,
+        max_value: None,
+        step: None,
+        precision: None,
+        description: "".to_string(),
+    }
+}
+
 #[test]
 fn inspect_default() {
     #[derive(Debug, Default, Inspect)]
@@ -20,24 +35,14 @@ fn inspect_default() {
             name: "the_field",
             display_name: "The Field",
             value: &data.the_field,
-            read_only: false,
-            min_value: None,
-            max_value: None,
-            step: None,
-            precision: None,
-            description: "".to_string(),
+            ..default_prop()
         },
         PropertyInfo {
             owner_type_id: TypeId::of::<Data>(),
             name: "another_field",
             display_name: "Another Field",
             value: &data.another_field,
-            read_only: false,
-            min_value: None,
-            max_value: None,
-            step: None,
-            precision: None,
-            description: "".to_string(),
+            ..default_prop()
         },
     ];
 
@@ -82,12 +87,7 @@ fn inspect_attributes() {
             name: "the_x",
             display_name: "Super X",
             value: &data.x,
-            read_only: false,
-            min_value: None,
-            max_value: None,
-            step: None,
-            precision: None,
-            description: "".to_string(),
+            ..default_prop()
         },
         PropertyInfo {
             owner_type_id: TypeId::of::<Data>(),
@@ -135,24 +135,14 @@ fn inspect_struct() {
                 name: "0",
                 display_name: "0",
                 value: &x.0,
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Tuple>(),
                 name: "1",
                 display_name: "1",
                 value: &x.1,
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
         ]
     );
@@ -195,12 +185,7 @@ fn inspect_enum() {
                     Data::Named { ref x, .. } => x,
                     _ => unreachable!(),
                 },
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -210,12 +195,7 @@ fn inspect_enum() {
                     Data::Named { ref y, .. } => y,
                     _ => unreachable!(),
                 },
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -225,12 +205,7 @@ fn inspect_enum() {
                     Data::Named { ref z, .. } => z,
                     _ => unreachable!(),
                 },
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
         ]
     );
@@ -248,12 +223,7 @@ fn inspect_enum() {
                     Data::Tuple(ref f0, ref _f1) => f0,
                     _ => unreachable!(),
                 },
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -263,12 +233,7 @@ fn inspect_enum() {
                     Data::Tuple(ref _f0, ref f1) => f1,
                     _ => unreachable!(),
                 },
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
         ]
     );
@@ -319,4 +284,34 @@ fn inspect_prop_key_constants() {
 
     // variant itself it not a property
     // assert_eq!(E::UNIT, "unit");
+}
+
+#[test]
+fn inspect_with_custom_getter() {
+    use std::ops::Deref;
+
+    struct D<T>(T);
+
+    impl<T> Deref for D<T> {
+        type Target = T;
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    #[derive(Inspect)]
+    struct A(#[inspect(getter = "Deref::deref")] D<u32>);
+
+    let a = A(D(10));
+
+    assert_eq!(
+        a.properties(),
+        vec![PropertyInfo {
+            owner_type_id: TypeId::of::<A>(),
+            name: "0",
+            display_name: "0",
+            value: &*a.0,
+            ..default_prop()
+        }]
+    );
 }
