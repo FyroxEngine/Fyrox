@@ -35,24 +35,14 @@ fn inspect_default() {
             name: "the_field",
             display_name: "The Field",
             value: &data.the_field,
-            read_only: false,
-            min_value: None,
-            max_value: None,
-            step: None,
-            precision: None,
-            description: "".to_string(),
+            ..default_prop()
         },
         PropertyInfo {
             owner_type_id: TypeId::of::<Data>(),
             name: "another_field",
             display_name: "Another Field",
             value: &data.another_field,
-            read_only: false,
-            min_value: None,
-            max_value: None,
-            step: None,
-            precision: None,
-            description: "".to_string(),
+            ..default_prop()
         },
     ];
 
@@ -97,12 +87,7 @@ fn inspect_attributes() {
             name: "the_x",
             display_name: "Super X",
             value: &data.x,
-            read_only: false,
-            min_value: None,
-            max_value: None,
-            step: None,
-            precision: None,
-            description: "".to_string(),
+            ..default_prop()
         },
         PropertyInfo {
             owner_type_id: TypeId::of::<Data>(),
@@ -150,24 +135,14 @@ fn inspect_struct() {
                 name: "0",
                 display_name: "0",
                 value: &x.0,
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Tuple>(),
                 name: "1",
                 display_name: "1",
                 value: &x.1,
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
         ]
     );
@@ -210,12 +185,7 @@ fn inspect_enum() {
                     Data::Named { ref x, .. } => x,
                     _ => unreachable!(),
                 },
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -225,12 +195,7 @@ fn inspect_enum() {
                     Data::Named { ref y, .. } => y,
                     _ => unreachable!(),
                 },
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -240,12 +205,7 @@ fn inspect_enum() {
                     Data::Named { ref z, .. } => z,
                     _ => unreachable!(),
                 },
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
         ]
     );
@@ -263,12 +223,7 @@ fn inspect_enum() {
                     Data::Tuple(ref f0, ref _f1) => f0,
                     _ => unreachable!(),
                 },
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -278,12 +233,7 @@ fn inspect_enum() {
                     Data::Tuple(ref _f0, ref f1) => f1,
                     _ => unreachable!(),
                 },
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "".to_string()
+                ..default_prop()
             },
         ]
     );
