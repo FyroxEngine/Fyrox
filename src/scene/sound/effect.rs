@@ -1,17 +1,25 @@
+//! Everything related to effects.
+
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::prelude::*,
     },
-    scene::variable::TemplateVariable,
+    scene::{node::Node, variable::TemplateVariable},
 };
-use std::cell::Cell;
-use std::ops::{Deref, DerefMut};
+use std::{
+    cell::Cell,
+    ops::{Deref, DerefMut},
+};
 
+/// Base effect contains common properties for every effect (gain, inputs, etc.)
 #[derive(Visit, Inspect, Debug)]
 pub struct BaseEffect {
+    #[inspect(getter = "Deref::deref")]
     pub(crate) gain: TemplateVariable<f32>,
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) inputs: TemplateVariable<Vec<Handle<Node>>>,
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) native: Cell<Handle<fyrox_sound::effects::Effect>>,
@@ -27,19 +35,32 @@ impl BaseEffect {
     pub fn set_gain(&mut self, gain: f32) {
         self.gain.set(gain);
     }
+
+    /// Returns shared reference to the inputs array.
+    pub fn inputs(&self) -> &Vec<Handle<Node>> {
+        &self.inputs
+    }
+
+    /// Returns mutable reference to the inputs array.
+    pub fn inputs_mut(&mut self) -> &mut Vec<Handle<Node>> {
+        self.inputs.get_mut()
+    }
 }
 
 impl Default for BaseEffect {
     fn default() -> Self {
         Self {
             gain: TemplateVariable::new(1.0),
+            inputs: Default::default(),
             native: Default::default(),
         }
     }
 }
 
+/// All possible effects in the engine.
 #[derive(Visit, Inspect, Debug)]
 pub enum Effect {
+    /// See [`ReverbEffect`] docs.
     Reverb(ReverbEffect),
 }
 
@@ -67,12 +88,17 @@ impl Default for Effect {
     }
 }
 
+/// Reverb effect gives you multiple echoes.
 #[derive(Visit, Inspect, Debug)]
 pub struct ReverbEffect {
     pub(crate) base: BaseEffect,
+    #[inspect(getter = "Deref::deref")]
     pub(crate) dry: TemplateVariable<f32>,
+    #[inspect(getter = "Deref::deref")]
     pub(crate) wet: TemplateVariable<f32>,
+    #[inspect(getter = "Deref::deref")]
     pub(crate) fc: TemplateVariable<f32>,
+    #[inspect(getter = "Deref::deref")]
     pub(crate) decay_time: TemplateVariable<f32>,
 }
 

@@ -13,10 +13,10 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
-use fyrox_sound::effects::reverb::Reverb;
-use fyrox_sound::effects::BaseEffect;
+use fyrox_sound::effects::EffectInput;
 use fyrox_sound::{
     context::DistanceModel,
+    effects::{reverb::Reverb, BaseEffect},
     renderer::Renderer,
     source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
 };
@@ -124,6 +124,15 @@ impl SoundContext {
                         reverb.wet.try_sync_model(|v| native_reverb.set_wet(v));
                         reverb.dry.try_sync_model(|v| native_reverb.set_dry(v));
                         reverb.fc.try_sync_model(|v| native_reverb.set_fc(v));
+                        reverb.inputs.try_sync_model(|v| {
+                            native_reverb.clear_inputs();
+                            for input in v.iter() {
+                                if let Some(Node::Sound(sound)) = nodes.try_borrow(*input) {
+                                    native_reverb
+                                        .add_input(EffectInput::direct(sound.native.get()));
+                                }
+                            }
+                        })
                     }
                     _ => (),
                 }
@@ -136,6 +145,11 @@ impl SoundContext {
                         native_reverb.set_decay_time(Duration::from_secs_f32(reverb.decay_time()));
                         native_reverb.set_dry(reverb.dry());
                         native_reverb.set_wet(reverb.wet());
+                        for input in reverb.inputs.iter() {
+                            if let Some(Node::Sound(sound)) = nodes.try_borrow(*input) {
+                                native_reverb.add_input(EffectInput::direct(sound.native.get()));
+                            }
+                        }
                         let native =
                             state.add_effect(fyrox_sound::effects::Effect::Reverb(native_reverb));
                         reverb.native.set(native);

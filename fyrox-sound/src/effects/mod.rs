@@ -238,6 +238,11 @@ impl BaseEffect {
         self.inputs.push(input)
     }
 
+    /// Removes all inputs.
+    pub fn clear_inputs(&mut self) {
+        self.inputs.clear()
+    }
+
     /// Returns shared reference to filter.
     pub fn filter(&self, handle: Handle<InputFilter>) -> &InputFilter {
         self.filters.borrow(handle)

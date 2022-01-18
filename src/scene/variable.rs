@@ -110,9 +110,7 @@ impl<T> TemplateVariable<T> {
 
     /// Replaces value and also raises the [`VariableFlags::MODIFIED`] flag.
     pub fn set(&mut self, value: T) -> T {
-        self.flags
-            .get_mut()
-            .insert(VariableFlags::MODIFIED | VariableFlags::NEED_SYNC);
+        self.mark_modified();
         std::mem::replace(&mut self.value, value)
     }
 
@@ -126,9 +124,25 @@ impl<T> TemplateVariable<T> {
         &self.value
     }
 
+    /// Returns a mutable reference to the wrapped value.
+    ///
+    /// # Important notes.
+    ///
+    /// The method raises `modified` flag, no matter if actual modification was made!
+    pub fn get_mut(&mut self) -> &mut T {
+        self.mark_modified();
+        &mut self.value
+    }
+
     /// Returns true if value was modified.
     pub fn is_modified(&self) -> bool {
         self.flags.get().contains(VariableFlags::MODIFIED)
+    }
+
+    fn mark_modified(&mut self) {
+        self.flags
+            .get_mut()
+            .insert(VariableFlags::MODIFIED | VariableFlags::NEED_SYNC);
     }
 }
 
