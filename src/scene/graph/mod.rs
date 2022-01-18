@@ -1018,6 +1018,7 @@ impl Graph {
 
         self.physics.update();
         self.physics2d.update();
+        self.sound_context.update(&self.pool);
 
         for i in 0..self.pool.get_capacity() {
             let handle = self.pool.handle_from_index(i);

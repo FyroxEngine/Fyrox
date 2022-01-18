@@ -6,12 +6,15 @@ use crate::{
         pool::{Handle, Pool},
         visitor::prelude::*,
     },
+    resource::model::Model,
     scene::{
         node::Node,
         sound::{effect::Effect, Sound},
     },
     utils::log::{Log, MessageKind},
 };
+use fyrox_sound::effects::reverb::Reverb;
+use fyrox_sound::effects::BaseEffect;
 use fyrox_sound::{
     context::DistanceModel,
     renderer::Renderer,
@@ -27,6 +30,8 @@ pub struct SoundContext {
     distance_model: DistanceModel,
     paused: bool,
     effects: Pool<Effect>,
+    // A model resource from which this context was instantiated from.
+    pub(crate) resource: Option<Model>,
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) native: fyrox_sound::context::SoundContext,
@@ -40,6 +45,7 @@ impl Default for SoundContext {
             distance_model: Default::default(),
             paused: false,
             effects: Default::default(),
+            resource: None,
             native: fyrox_sound::context::SoundContext::new(),
         }
     }
@@ -47,14 +53,7 @@ impl Default for SoundContext {
 
 impl SoundContext {
     pub(crate) fn new() -> Self {
-        Self {
-            master_gain: 1.0,
-            renderer: Default::default(),
-            distance_model: Default::default(),
-            paused: false,
-            effects: Default::default(),
-            native: fyrox_sound::context::SoundContext::new(),
-        }
+        Default::default()
     }
 
     /// Pause/unpause the sound context. Paused context won't play any sounds.
@@ -107,7 +106,44 @@ impl SoundContext {
         self.master_gain
     }
 
-    pub(crate) fn update(&mut self, nodes: &Pool<Node>) {}
+    pub(crate) fn update(&mut self, nodes: &Pool<Node>) {
+        let mut state = self.native.state();
+
+        for effect in self.effects.iter() {
+            if effect.native.get().is_some() {
+                let native_effect = state.effect_mut(effect.native.get());
+                match (native_effect, effect) {
+                    (
+                        fyrox_sound::effects::Effect::Reverb(native_reverb),
+                        Effect::Reverb(reverb),
+                    ) => {
+                        reverb.decay_time.try_sync_model(|v| {
+                            native_reverb.set_decay_time(Duration::from_secs_f32(v))
+                        });
+                        reverb.gain.try_sync_model(|v| native_reverb.set_gain(v));
+                        reverb.wet.try_sync_model(|v| native_reverb.set_wet(v));
+                        reverb.dry.try_sync_model(|v| native_reverb.set_dry(v));
+                        reverb.fc.try_sync_model(|v| native_reverb.set_fc(v));
+                    }
+                    _ => (),
+                }
+            } else {
+                match effect {
+                    Effect::Reverb(reverb) => {
+                        let mut native_reverb = Reverb::new(BaseEffect::default());
+                        native_reverb.set_gain(reverb.gain());
+                        native_reverb.set_fc(reverb.fc());
+                        native_reverb.set_decay_time(Duration::from_secs_f32(reverb.decay_time()));
+                        native_reverb.set_dry(reverb.dry());
+                        native_reverb.set_wet(reverb.wet());
+                        let native =
+                            state.add_effect(fyrox_sound::effects::Effect::Reverb(native_reverb));
+                        reverb.native.set(native);
+                    }
+                }
+            }
+        }
+    }
 
     pub(crate) fn remove_sound(&mut self, sound: Handle<SoundSource>) {
         self.native.state().remove_source(sound);

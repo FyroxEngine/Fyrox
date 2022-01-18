@@ -7,10 +7,6 @@ use std::{
     time::Duration,
 };
 
-pub mod context;
-pub mod effect;
-pub mod listener;
-
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -18,14 +14,15 @@ use crate::{
         visitor::prelude::*,
     },
     define_with,
-    scene::base::Base,
-    scene::base::BaseBuilder,
-    scene::graph::Graph,
-    scene::node::Node,
+    scene::{
+        base::{Base, BaseBuilder},
+        graph::Graph,
+        node::Node,
+        variable::TemplateVariable,
+    },
 };
 
 // Re-export some the fyrox_sound entities.
-use crate::scene::variable::TemplateVariable;
 pub use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
     context::DistanceModel,
@@ -34,6 +31,10 @@ pub use fyrox_sound::{
     renderer::{hrtf::*, Renderer},
     source::Status,
 };
+
+pub mod context;
+pub mod effect;
+pub mod listener;
 
 /// Sound source.
 #[derive(Visit, Inspect, Debug)]
