@@ -671,55 +671,55 @@ impl Graph {
                             let local_transform = node.local_transform_mut();
 
                             // Position.
-                            if !local_transform.position().is_custom() {
+                            if !local_transform.position().is_modified() {
                                 local_transform.set_position(**resource_local_transform.position());
                             }
 
                             // Rotation.
-                            if !local_transform.rotation().is_custom() {
+                            if !local_transform.rotation().is_modified() {
                                 local_transform.set_rotation(**resource_local_transform.rotation());
                             }
 
                             // Scale.
-                            if !local_transform.scale().is_custom() {
+                            if !local_transform.scale().is_modified() {
                                 local_transform.set_scale(**resource_local_transform.scale());
                             }
 
                             // Pre-Rotation.
-                            if !local_transform.pre_rotation().is_custom() {
+                            if !local_transform.pre_rotation().is_modified() {
                                 local_transform
                                     .set_pre_rotation(**resource_local_transform.pre_rotation());
                             }
 
                             // Post-Rotation.
-                            if !local_transform.post_rotation().is_custom() {
+                            if !local_transform.post_rotation().is_modified() {
                                 local_transform
                                     .set_post_rotation(**resource_local_transform.post_rotation());
                             }
 
                             // Rotation Offset.
-                            if !local_transform.rotation_offset().is_custom() {
+                            if !local_transform.rotation_offset().is_modified() {
                                 local_transform.set_rotation_offset(
                                     **resource_local_transform.rotation_offset(),
                                 );
                             }
 
                             // Rotation Pivot.
-                            if !local_transform.rotation_pivot().is_custom() {
+                            if !local_transform.rotation_pivot().is_modified() {
                                 local_transform.set_rotation_pivot(
                                     **resource_local_transform.rotation_pivot(),
                                 );
                             }
 
                             // Scaling Offset.
-                            if !local_transform.scaling_offset().is_custom() {
+                            if !local_transform.scaling_offset().is_modified() {
                                 local_transform.set_scaling_offset(
                                     **resource_local_transform.scaling_offset(),
                                 );
                             }
 
                             // Scaling Pivot.
-                            if !local_transform.scaling_pivot().is_custom() {
+                            if !local_transform.scaling_pivot().is_modified() {
                                 local_transform
                                     .set_scaling_pivot(**resource_local_transform.scaling_pivot());
                             }

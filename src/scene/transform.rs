@@ -211,7 +211,7 @@ fn compatibility_visit<T: Default + Visit>(
         // Try visit inner value.
         let mut inner = T::default();
         inner.visit(name, visitor)?;
-        *value = TemplateVariable::new_custom(inner);
+        *value = TemplateVariable::new_modified(inner);
     }
     Ok(())
 }

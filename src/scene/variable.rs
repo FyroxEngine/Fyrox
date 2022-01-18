@@ -2,8 +2,21 @@
 //!
 //! For more info see [`TemplateVariable`]
 
-use crate::core::visitor::{Visit, VisitResult, Visitor};
-use std::ops::Deref;
+use crate::core::visitor::prelude::*;
+use bitflags::bitflags;
+use std::{cell::Cell, ops::Deref};
+
+bitflags! {
+    /// A set of possible variable flags.
+    pub struct VariableFlags: u8 {
+        /// Nothing.
+        const NONE = 0;
+        /// A variable was externally modified.
+        const MODIFIED = 0b0000_0001;
+        /// A variable must be synced with respective variable from data model.
+        const NEED_SYNC = 0b0000_0010;
+    }
+}
 
 /// A wrapper for a variable that hold additional flag that tells that initial value was changed in runtime.
 ///
@@ -20,18 +33,15 @@ use std::ops::Deref;
 /// will stay on its new position instead of changed.
 #[derive(Debug)]
 pub struct TemplateVariable<T> {
-    // Actual value.
     value: T,
-
-    // A marker that tells that initial value was changed.
-    custom: bool,
+    flags: Cell<VariableFlags>,
 }
 
 impl<T: Clone> Clone for TemplateVariable<T> {
     fn clone(&self) -> Self {
         Self {
             value: self.value.clone(),
-            custom: self.custom,
+            flags: self.flags.clone(),
         }
     }
 }
@@ -45,13 +55,11 @@ impl<T: PartialEq> PartialEq for TemplateVariable<T> {
 
 impl<T: Eq> Eq for TemplateVariable<T> {}
 
-impl<T: Copy> Copy for TemplateVariable<T> {}
-
 impl<T: Default> Default for TemplateVariable<T> {
     fn default() -> Self {
         Self {
             value: T::default(),
-            custom: false,
+            flags: Cell::new(VariableFlags::NONE),
         }
     }
 }
@@ -64,36 +72,45 @@ impl<T: Clone> TemplateVariable<T> {
 }
 
 impl<T> TemplateVariable<T> {
-    /// Creates new non-custom variable from given value.
+    /// Creates new non-modified variable from given value.
     pub fn new(value: T) -> Self {
         Self {
             value,
-            custom: false,
+            flags: Cell::new(VariableFlags::NONE),
         }
     }
 
-    /// Creates new custom variable from given value.
-    pub fn new_custom(value: T) -> Self {
+    /// Creates new variable from given value and marks it with [`VariableFlags::MODIFIED`] flag.
+    pub fn new_modified(value: T) -> Self {
         Self {
             value,
-            custom: true,
+            flags: Cell::new(VariableFlags::MODIFIED),
         }
     }
 
-    /// Replaces value and also raises the `custom` flag.
+    /// Replaces value and also raises the [`VariableFlags::MODIFIED`] flag.
     pub fn set(&mut self, value: T) -> T {
-        self.custom = true;
+        self.flags
+            .get_mut()
+            .insert(VariableFlags::MODIFIED | VariableFlags::NEED_SYNC);
         std::mem::replace(&mut self.value, value)
     }
 
-    /// Returns a reference to wrapped value.
+    /// Resets [`VariableFlags::NEED_SYNC`] flag.
+    pub fn mark_synced(&self) {
+        let mut flags = self.flags.get();
+        flags.remove(VariableFlags::NEED_SYNC);
+        self.flags.set(flags);
+    }
+
+    /// Returns a reference to the wrapped value.
     pub fn get(&self) -> &T {
         &self.value
     }
 
-    /// Returns true if value has changed.
-    pub fn is_custom(&self) -> bool {
-        self.custom
+    /// Returns true if value was modified.
+    pub fn is_modified(&self) -> bool {
+        self.flags.get().contains(VariableFlags::MODIFIED)
     }
 }
 
@@ -113,7 +130,20 @@ where
         visitor.enter_region(name)?;
 
         self.value.visit("Value", visitor)?;
-        self.custom.visit("IsCustom", visitor)?;
+
+        // Backward compatibility. Convert bool -> VariableFlags
+        let mut old = false;
+        if visitor.is_reading() {
+            let mut is_custom = false;
+            if is_custom.visit("IsCustom", visitor).is_ok() {
+                self.flags.get_mut().insert(VariableFlags::MODIFIED);
+                old = true;
+            }
+        }
+
+        if !old {
+            self.flags.get_mut().bits.visit("Flags", visitor)?;
+        }
 
         visitor.leave_region()
     }

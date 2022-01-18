@@ -3,10 +3,13 @@
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
-        pool::Handle,
+        pool::{Handle, Pool},
         visitor::prelude::*,
     },
-    scene::sound::{Sound, SoundChanges},
+    scene::{
+        node::Node,
+        sound::{effect::Effect, Sound, SoundChanges},
+    },
     utils::log::{Log, MessageKind},
 };
 use fyrox_sound::{
@@ -17,15 +20,29 @@ use fyrox_sound::{
 use std::time::Duration;
 
 /// Sound context.
-#[derive(Default, Debug, Visit, Inspect)]
+#[derive(Debug, Visit, Inspect)]
 pub struct SoundContext {
     master_gain: f32,
     renderer: Renderer,
     distance_model: DistanceModel,
     paused: bool,
+    effects: Pool<Effect>,
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) native: fyrox_sound::context::SoundContext,
+}
+
+impl Default for SoundContext {
+    fn default() -> Self {
+        Self {
+            master_gain: 1.0,
+            renderer: Default::default(),
+            distance_model: Default::default(),
+            paused: false,
+            effects: Default::default(),
+            native: fyrox_sound::context::SoundContext::new(),
+        }
+    }
 }
 
 impl SoundContext {
@@ -35,6 +52,7 @@ impl SoundContext {
             renderer: Default::default(),
             distance_model: Default::default(),
             paused: false,
+            effects: Default::default(),
             native: fyrox_sound::context::SoundContext::new(),
         }
     }
@@ -88,6 +106,8 @@ impl SoundContext {
     pub fn master_gain(&self) -> f32 {
         self.master_gain
     }
+
+    pub(crate) fn update(&mut self, nodes: &Pool<Node>) {}
 
     pub(crate) fn remove_sound(&mut self, sound: Handle<SoundSource>) {
         self.native.state().remove_source(sound);
