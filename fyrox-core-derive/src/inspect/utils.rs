@@ -11,7 +11,7 @@ use convert_case::*;
 
 use crate::inspect::args;
 
-/// Handles struct/enum variant field style diferences in syntax
+/// Handles struct/enum variant field style differences in syntax
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FieldPrefix {
     /// Struct | Enum
@@ -216,6 +216,15 @@ fn quote_field_prop(
     };
 
     let field_ref = field_prefix.quote_field_ref(nth_field, field, style);
+    let getter = match &field.getter {
+        // use custom getter function to retrieve the target reference
+        Some(getter) => {
+            let getter: Path = parse_str(getter).expect("can't parse as a path");
+            quote! { #getter(#field_ref) }
+        }
+        // default: get reference of the field
+        None => field_ref,
+    };
 
     // consider #[inspect(name = ..)]
     let field_name = field
@@ -259,7 +268,7 @@ fn quote_field_prop(
             owner_type_id: std::any::TypeId::of::<Self>(),
             name: #field_name,
             display_name: #display_name,
-            value: #field_ref,
+            value: #getter,
             read_only: #read_only,
             min_value: #min_value,
             max_value: #max_value,

@@ -4,6 +4,21 @@ use std::any::TypeId;
 
 use fyrox_core::inspect::{Inspect, PropertyInfo};
 
+fn default_prop() -> PropertyInfo<'static> {
+    PropertyInfo {
+        owner_type_id: TypeId::of::<()>(),
+        name: "",
+        display_name: "",
+        value: &(),
+        read_only: false,
+        min_value: None,
+        max_value: None,
+        step: None,
+        precision: None,
+        description: "".to_string(),
+    }
+}
+
 #[test]
 fn inspect_default() {
     #[derive(Debug, Default, Inspect)]
@@ -319,4 +334,34 @@ fn inspect_prop_key_constants() {
 
     // variant itself it not a property
     // assert_eq!(E::UNIT, "unit");
+}
+
+#[test]
+fn inspect_with_custom_getter() {
+    use std::ops::Deref;
+
+    struct D<T>(T);
+
+    impl<T> Deref for D<T> {
+        type Target = T;
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    #[derive(Inspect)]
+    struct A(#[inspect(getter = "Deref::deref")] D<u32>);
+
+    let a = A(D(10));
+
+    assert_eq!(
+        a.properties(),
+        vec![PropertyInfo {
+            owner_type_id: TypeId::of::<A>(),
+            name: "0",
+            display_name: "0",
+            value: &*a.0,
+            ..default_prop()
+        }]
+    );
 }
