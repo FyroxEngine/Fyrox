@@ -56,6 +56,12 @@ pub struct FieldArgs {
     #[darling(default)]
     pub expand_subtree: bool,
 
+    /// `#[inspect(getter = "<path>")]`
+    ///
+    /// Convert the field reference to another reference
+    #[darling(default)]
+    pub getter: Option<String>,
+
     /// `#[inspect(read_only)]`
     ///
     /// The field is not meant to be edited.

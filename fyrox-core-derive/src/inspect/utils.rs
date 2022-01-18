@@ -11,9 +11,7 @@ use convert_case::*;
 
 use crate::inspect::args;
 
-/// Handles struct/enum field style combinations
-///
-/// Struct fields are referred to as `self.<field>`, while enum variants are decomposed in `match` arm.
+/// Handles struct/enum variant field style differences in syntax
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FieldPrefix {
     /// Struct | Enum
@@ -37,6 +35,15 @@ impl FieldPrefix {
         }
     }
 
+    // Returns syntax for binding an enum variant's field on match:
+    // ```
+    // match x {
+    //     X::Struct { a, b, c } => { .. }
+    // //             ~~~ use "field_name"
+    //     X::Tuple(f0, f1, f2) => { .. }
+    // //          ~~~ use "f<index>"
+    // }
+    // ```
     pub fn field_match_ident(self, i: usize, field: &args::FieldArgs, style: ast::Style) -> Ident {
         assert!(!self.is_struct);
 
@@ -52,6 +59,8 @@ impl FieldPrefix {
         }
     }
 
+    // Returns syntax that corresponds to  `&self.field` for struct, `&variant.field` for structural
+    // enum variant, and `&variant.i` for tuple enum variant.
     fn quote_field_ref(self, i: usize, field: &args::FieldArgs, style: ast::Style) -> TokenStream2 {
         match style {
             ast::Style::Struct => {
@@ -60,6 +69,7 @@ impl FieldPrefix {
                 if self.is_struct {
                     quote! { (&self.#field_ident) }
                 } else {
+                    // The `field` is of an enum variant
                     quote!(#field_ident)
                 }
             }
@@ -69,6 +79,7 @@ impl FieldPrefix {
                 if self.is_struct {
                     quote! { (&self.#index) }
                 } else {
+                    // The `field` is of an enum variant
                     let ident = format_ident!("f{}", index);
                     quote!(#ident)
                 }
@@ -205,6 +216,15 @@ fn quote_field_prop(
     };
 
     let field_ref = field_prefix.quote_field_ref(nth_field, field, style);
+    let getter = match &field.getter {
+        // use custom getter function to retrieve the target reference
+        Some(getter) => {
+            let getter: Path = parse_str(getter).expect("can't parse as a path");
+            quote! { #getter(#field_ref) }
+        }
+        // default: get reference of the field
+        None => field_ref,
+    };
 
     // consider #[inspect(name = ..)]
     let field_name = field
@@ -248,7 +268,7 @@ fn quote_field_prop(
             owner_type_id: std::any::TypeId::of::<Self>(),
             name: #field_name,
             display_name: #display_name,
-            value: #field_ref,
+            value: #getter,
             read_only: #read_only,
             min_value: #min_value,
             max_value: #max_value,
