@@ -56,6 +56,26 @@ impl SoundContext {
         Default::default()
     }
 
+    /// Adds new effect and returns its handle.
+    pub fn add_effect(&mut self, effect: Effect) -> Handle<Effect> {
+        self.effects.spawn(effect)
+    }
+
+    /// Removes specified effect.
+    pub fn remove_effect(&mut self, effect: Handle<Effect>) -> Effect {
+        self.effects.free(effect)
+    }
+
+    /// Borrows effects.
+    pub fn effect(&self, handle: Handle<Effect>) -> &Effect {
+        &self.effects[handle]
+    }
+
+    /// Borrows effects as mutable.
+    pub fn effect_mut(&mut self, handle: Handle<Effect>) -> &mut Effect {
+        &mut self.effects[handle]
+    }
+
     /// Pause/unpause the sound context. Paused context won't play any sounds.
     pub fn pause(&mut self, pause: bool) {
         self.paused = pause;
@@ -112,29 +132,26 @@ impl SoundContext {
         for effect in self.effects.iter() {
             if effect.native.get().is_some() {
                 let native_effect = state.effect_mut(effect.native.get());
-                match (native_effect, effect) {
-                    (
-                        fyrox_sound::effects::Effect::Reverb(native_reverb),
-                        Effect::Reverb(reverb),
-                    ) => {
-                        reverb.decay_time.try_sync_model(|v| {
-                            native_reverb.set_decay_time(Duration::from_secs_f32(v))
-                        });
-                        reverb.gain.try_sync_model(|v| native_reverb.set_gain(v));
-                        reverb.wet.try_sync_model(|v| native_reverb.set_wet(v));
-                        reverb.dry.try_sync_model(|v| native_reverb.set_dry(v));
-                        reverb.fc.try_sync_model(|v| native_reverb.set_fc(v));
-                        reverb.inputs.try_sync_model(|v| {
-                            native_reverb.clear_inputs();
-                            for input in v.iter() {
-                                if let Some(Node::Sound(sound)) = nodes.try_borrow(*input) {
-                                    native_reverb
-                                        .add_input(EffectInput::direct(sound.native.get()));
-                                }
+                if let (
+                    fyrox_sound::effects::Effect::Reverb(native_reverb),
+                    Effect::Reverb(reverb),
+                ) = (native_effect, effect)
+                {
+                    reverb.decay_time.try_sync_model(|v| {
+                        native_reverb.set_decay_time(Duration::from_secs_f32(v))
+                    });
+                    reverb.gain.try_sync_model(|v| native_reverb.set_gain(v));
+                    reverb.wet.try_sync_model(|v| native_reverb.set_wet(v));
+                    reverb.dry.try_sync_model(|v| native_reverb.set_dry(v));
+                    reverb.fc.try_sync_model(|v| native_reverb.set_fc(v));
+                    reverb.inputs.try_sync_model(|v| {
+                        native_reverb.clear_inputs();
+                        for input in v.iter() {
+                            if let Some(Node::Sound(sound)) = nodes.try_borrow(*input) {
+                                native_reverb.add_input(EffectInput::direct(sound.native.get()));
                             }
-                        })
-                    }
-                    _ => (),
+                        }
+                    })
                 }
             } else {
                 match effect {

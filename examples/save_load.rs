@@ -169,7 +169,7 @@ fn main() {
                             game.game_scene = Some(GameScene {
                                 scene: game.engine.scenes.add(load_result.scene),
                                 player: load_result.player,
-                                //reverb_effect: load_result.reverb_effect
+                                reverb_effect: load_result.reverb_effect
                             });
 
                             // Once scene is loaded, we should hide progress bar and text.

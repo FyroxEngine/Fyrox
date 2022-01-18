@@ -4,6 +4,7 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
+use fyrox::scene::sound::effect::{BaseEffectBuilder, Effect, ReverbEffectBuilder};
 use fyrox::scene::sound::listener::ListenerBuilder;
 use fyrox::{
     animation::{
@@ -40,12 +41,10 @@ use fyrox::{
         transform::TransformBuilder,
         Scene,
     },
-    //sound::effects::{BaseEffect, Effect},
 };
 use std::{
     path::Path,
     sync::{Arc, Mutex},
-    //time::Duration,
 };
 
 /// Creates a camera at given position with a skybox.
@@ -197,14 +196,14 @@ pub fn create_ui(ui: &mut BuildContext, screen_size: Vector2<f32>) -> Interface 
 pub struct SceneLoadResult {
     pub scene: Scene,
     pub player: Player,
-    // pub reverb_effect: Handle<Effect>,
+    pub reverb_effect: Handle<Effect>,
 }
 
 #[derive(Default)]
 pub struct GameScene {
     pub scene: Handle<Scene>,
     pub player: Player,
-    // pub reverb_effect: Handle<Effect>,
+    pub reverb_effect: Handle<Effect>,
 }
 
 pub struct SceneLoadContext {
@@ -745,25 +744,17 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
             // Set ambient light.
             scene.ambient_lighting_color = Color::opaque(80, 80, 80);
 
-            /*
-
-
             // Create reverb effect for more natural sound - our player walks in some sort of cathedral,
             // so there will be pretty decent echo.
-            let mut base_effect = BaseEffect::default();
-            // Make sure it won't be too loud - fyrox-sound doesn't care about energy conservation law, it
-            // just makes requested calculation.
-            base_effect.set_gain(0.7);
-            let mut reverb = fyrox::sound::effects::reverb::Reverb::new(base_effect);
+            let reverb_effect = ReverbEffectBuilder::new(
+                BaseEffectBuilder::new()
+                    // Make sure it won't be too loud - fyrox-sound doesn't care about energy conservation law, it
+                    // just makes requested calculation.
+                    .with_gain(0.7),
+            )
             // Set reverb time to ~3 seconds - the more time the deeper the echo.
-            reverb.set_decay_time(Duration::from_secs_f32(3.0));
-            let reverb_effect = scene
-                .sound_context
-                .state()
-                .add_effect(fyrox::sound::effects::Effect::Reverb(reverb));
-
-
-             */
+            .with_decay_time(3.0)
+            .build(&mut scene.graph.sound_context);
 
             context
                 .lock()
@@ -787,7 +778,7 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
             context.lock().unwrap().scene_data = Some(SceneLoadResult {
                 scene,
                 player,
-                //reverb_effect,
+                reverb_effect,
             });
         })
     });

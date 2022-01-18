@@ -105,7 +105,7 @@ fn main() {
                             game.game_scene = Some(GameScene {
                                 scene: game.engine.scenes.add(load_result.scene),
                                 player: load_result.player,
-                                //reverb_effect: load_result.reverb_effect
+                                reverb_effect: load_result.reverb_effect
                             });
 
                             // Once scene is loaded, we should hide progress bar and text.
@@ -165,7 +165,7 @@ fn main() {
                             let foot_step = footstep_buffers[fyrox::rand::thread_rng().gen_range(0.. footstep_buffers.len())].clone();
 
                             // Create new temporary foot step sound source.
-                            SoundBuilder::new(BaseBuilder::new()
+                            let source = SoundBuilder::new(BaseBuilder::new()
                                 .with_local_transform(TransformBuilder::new()
                                     .with_local_position(position).build()))
                                 // Fyrox provides built-in way to create temporary sounds that will die immediately
@@ -176,12 +176,10 @@ fn main() {
                                 .with_status(Status::Playing)
                                 .build(&mut scene.graph);
 
-                            // TODO: Fix
+
                             // Once foot step sound source was created, it must be attached to reverb effect, otherwise no reverb
                             // will be added to the source.
-                            // ctx
-                            //    .effect_mut(game_scene.reverb_effect)
-                            //    .add_input(EffectInput::direct(source));
+                            scene.graph.sound_context.effect_mut(game_scene.reverb_effect).inputs_mut().push(source);
                         }
                     }
 

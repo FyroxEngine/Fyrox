@@ -1,17 +1,21 @@
 //! Everything related to effects.
 
+use crate::scene::sound::context::SoundContext;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::prelude::*,
     },
+    define_with,
     scene::{node::Node, variable::TemplateVariable},
 };
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
 };
+
+const DEFAULT_FC: f32 = 0.25615; // 11296 Hz at 44100 Hz sample rate
 
 /// Base effect contains common properties for every effect (gain, inputs, etc.)
 #[derive(Visit, Inspect, Debug)]
@@ -88,6 +92,47 @@ impl Default for Effect {
     }
 }
 
+/// Base effect builder allows you to build an effect.
+pub struct BaseEffectBuilder {
+    gain: f32,
+    inputs: Vec<Handle<Node>>,
+}
+
+impl Default for BaseEffectBuilder {
+    fn default() -> Self {
+        BaseEffectBuilder::new()
+    }
+}
+
+impl BaseEffectBuilder {
+    /// Creates new base effect builder.
+    pub fn new() -> Self {
+        Self {
+            gain: 1.0,
+            inputs: vec![],
+        }
+    }
+
+    define_with!(
+        /// Sets desired gain of the effect.
+        fn with_gain(gain: f32)
+    );
+
+    define_with!(
+        /// Sets desired inputs of the effect.
+        fn with_inputs(inputs: Vec<Handle<Node>>)
+    );
+
+    /// Creates new base effect.
+    pub fn build(self) -> BaseEffect {
+        BaseEffect {
+            gain: self.gain.into(),
+            inputs: self.inputs.into(),
+            native: Default::default(),
+        }
+    }
+}
+
 /// Reverb effect gives you multiple echoes.
 #[derive(Visit, Inspect, Debug)]
 pub struct ReverbEffect {
@@ -108,7 +153,7 @@ impl Default for ReverbEffect {
             base: Default::default(),
             dry: TemplateVariable::new(1.0),
             wet: TemplateVariable::new(1.0),
-            fc: TemplateVariable::new(0.25615), // 11296 Hz at 44100 Hz sample rate
+            fc: TemplateVariable::new(DEFAULT_FC),
             decay_time: TemplateVariable::new(3.0),
         }
     }
@@ -183,5 +228,58 @@ impl ReverbEffect {
     /// Returns cutoff frequency of lowpass filter in comb filters.
     pub fn fc(&self) -> f32 {
         *self.fc
+    }
+}
+
+/// Allows you to create a new reverb effect.
+pub struct ReverbEffectBuilder {
+    base_builder: BaseEffectBuilder,
+    dry: f32,
+    wet: f32,
+    fc: f32,
+    decay_time: f32,
+}
+
+impl ReverbEffectBuilder {
+    /// Creates new reverb effect builder.
+    pub fn new(base_builder: BaseEffectBuilder) -> Self {
+        Self {
+            base_builder,
+            dry: 1.0,
+            wet: 1.0,
+            fc: DEFAULT_FC,
+            decay_time: 3.0,
+        }
+    }
+
+    define_with!(
+        /// Sets desired dry coefficient.
+        fn with_dry(dry: f32)
+    );
+
+    define_with!(
+        /// Sets desired wet coefficient.
+        fn with_wet(wet: f32)
+    );
+
+    define_with!(
+        /// Sets desired cutoff frequency.
+        fn with_fc(fc: f32)
+    );
+
+    define_with!(
+        /// Sets desired decay time (in seconds).
+        fn with_decay_time(decay_time: f32)
+    );
+
+    /// Creates new reverb effect.
+    pub fn build(self, context: &mut SoundContext) -> Handle<Effect> {
+        context.add_effect(Effect::Reverb(ReverbEffect {
+            base: self.base_builder.build(),
+            dry: self.dry.into(),
+            wet: self.wet.into(),
+            fc: self.fc.into(),
+            decay_time: self.decay_time.into(),
+        }))
     }
 }
