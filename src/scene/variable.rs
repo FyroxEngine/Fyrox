@@ -46,6 +46,12 @@ impl<T: Clone> Clone for TemplateVariable<T> {
     }
 }
 
+impl<T> From<T> for TemplateVariable<T> {
+    fn from(v: T) -> Self {
+        TemplateVariable::new(v)
+    }
+}
+
 impl<T: PartialEq> PartialEq for TemplateVariable<T> {
     fn eq(&self, other: &Self) -> bool {
         // `custom` flag intentionally ignored!
@@ -68,6 +74,20 @@ impl<T: Clone> TemplateVariable<T> {
     /// Clones wrapped value.
     pub fn clone_inner(&self) -> T {
         self.value.clone()
+    }
+
+    /// Tries to sync a value in a data model with a value in the template variable. The value
+    /// will be synced only if it was marked as needs sync.
+    pub fn try_sync_model<S: FnOnce(T)>(&self, setter: S) {
+        if self.need_sync() {
+            // Drop flag first.
+            let mut flags = self.flags.get();
+            flags.remove(VariableFlags::NEED_SYNC);
+            self.flags.set(flags);
+
+            // Set new value in a data model.
+            (setter)(self.value.clone())
+        }
     }
 }
 
@@ -96,11 +116,9 @@ impl<T> TemplateVariable<T> {
         std::mem::replace(&mut self.value, value)
     }
 
-    /// Resets [`VariableFlags::NEED_SYNC`] flag.
-    pub fn mark_synced(&self) {
-        let mut flags = self.flags.get();
-        flags.remove(VariableFlags::NEED_SYNC);
-        self.flags.set(flags);
+    /// Returns true if the respective data model's variable must be synced.
+    pub fn need_sync(&self) -> bool {
+        self.flags.get().contains(VariableFlags::NEED_SYNC)
     }
 
     /// Returns a reference to the wrapped value.

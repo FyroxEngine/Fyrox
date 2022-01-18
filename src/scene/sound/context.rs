@@ -8,7 +8,7 @@ use crate::{
     },
     scene::{
         node::Node,
-        sound::{effect::Effect, Sound, SoundChanges},
+        sound::{effect::Effect, Sound},
     },
     utils::log::{Log, MessageKind},
 };
@@ -115,74 +115,47 @@ impl SoundContext {
 
     pub(crate) fn sync_sound(&mut self, sound: &Sound) {
         if sound.native.get().is_some() {
-            let mut changes = sound.changes.get();
-            if !changes.is_empty() {
-                let mut state = self.native.state();
-                let spatial = state.source_mut(sound.native.get()).spatial_mut();
+            let mut state = self.native.state();
+            let spatial = state.source_mut(sound.native.get()).spatial_mut();
 
-                if changes.contains(SoundChanges::MAX_DISTANCE) {
-                    spatial.set_max_distance(sound.max_distance);
-                    changes.remove(SoundChanges::MAX_DISTANCE);
+            sound.max_distance.try_sync_model(|v| {
+                spatial.set_max_distance(v);
+            });
+            sound.rolloff_factor.try_sync_model(|v| {
+                spatial.set_rolloff_factor(v);
+            });
+            sound.radius.try_sync_model(|v| {
+                spatial.set_radius(v);
+            });
+            sound.playback_time.try_sync_model(|v| {
+                spatial.set_playback_time(v);
+            });
+            sound.pitch.try_sync_model(|v| {
+                spatial.set_pitch(v);
+            });
+            sound.looping.try_sync_model(|v| {
+                spatial.set_looping(v);
+            });
+            sound.panning.try_sync_model(|v| {
+                spatial.set_panning(v);
+            });
+            sound.gain.try_sync_model(|v| {
+                spatial.set_gain(v);
+            });
+            sound.buffer.try_sync_model(|v| {
+                Log::verify(spatial.set_buffer(v));
+            });
+            sound.status.try_sync_model(|v| match v {
+                Status::Stopped => {
+                    Log::verify(spatial.stop());
                 }
-                if changes.contains(SoundChanges::ROLLOFF_FACTOR) {
-                    spatial.set_rolloff_factor(sound.rolloff_factor);
-                    changes.remove(SoundChanges::ROLLOFF_FACTOR);
+                Status::Playing => {
+                    spatial.play();
                 }
-                if changes.contains(SoundChanges::RADIUS) {
-                    spatial.set_radius(sound.radius);
-                    changes.remove(SoundChanges::RADIUS);
+                Status::Paused => {
+                    spatial.pause();
                 }
-                if changes.contains(SoundChanges::PLAYBACK_TIME) {
-                    spatial.set_playback_time(sound.playback_time);
-                    changes.remove(SoundChanges::PLAYBACK_TIME);
-                }
-                if changes.contains(SoundChanges::STATUS) {
-                    match sound.status {
-                        Status::Stopped => {
-                            Log::verify(spatial.stop());
-                        }
-                        Status::Playing => {
-                            spatial.play();
-                        }
-                        Status::Paused => {
-                            spatial.pause();
-                        }
-                    }
-                    changes.remove(SoundChanges::STATUS);
-                }
-                if changes.contains(SoundChanges::PITCH) {
-                    spatial.set_pitch(sound.pitch);
-                    changes.remove(SoundChanges::PITCH);
-                }
-                if changes.contains(SoundChanges::LOOPING) {
-                    spatial.set_looping(sound.looping);
-                    changes.remove(SoundChanges::LOOPING);
-                }
-                if changes.contains(SoundChanges::PANNING) {
-                    spatial.set_panning(sound.panning);
-                    changes.remove(SoundChanges::PANNING);
-                }
-                if changes.contains(SoundChanges::GAIN) {
-                    spatial.set_gain(sound.gain);
-                    changes.remove(SoundChanges::GAIN);
-                }
-                if changes.contains(SoundChanges::BUFFER) {
-                    Log::verify(spatial.set_buffer(sound.buffer()));
-                    changes.remove(SoundChanges::BUFFER);
-                }
-
-                if !changes.is_empty() {
-                    Log::writeln(
-                        MessageKind::Warning,
-                        format!(
-                            "Some changes were not applied to sound! Changes: {}",
-                            changes.bits
-                        ),
-                    )
-                }
-
-                sound.changes.set(changes);
-            }
+            });
         } else {
             let source = SpatialSourceBuilder::new(
                 GenericSourceBuilder::new()
