@@ -20,6 +20,7 @@ use fyrox::{
     },
     scene::sound::effect::{BaseEffectBuilder, Effect, ReverbEffectBuilder},
 };
+use std::cmp::Ordering;
 use std::{rc::Rc, sync::mpsc::Sender};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -177,38 +178,43 @@ impl AudioPanel {
             .expect("Must be ListView!")
             .items()
             .to_vec();
-        if (context.effects_count() as usize) < items.len() {
-            for item in items {
-                let effect_handle = item_effect(item, ui);
-                if context.effects().all(|(e, _)| e != effect_handle) {
-                    ui.send_message(ListViewMessage::remove_item(
-                        self.effects,
-                        MessageDirection::ToWidget,
-                        item,
-                    ));
-                }
-            }
-        } else if (context.effects_count() as usize) > items.len() {
-            for (effect_handle, effect) in context.effects() {
-                if items.iter().all(|i| item_effect(*i, ui) != effect_handle) {
-                    let item = DecoratorBuilder::new(BorderBuilder::new(
-                        WidgetBuilder::new()
-                            .with_user_data(Rc::new(effect_handle))
-                            .with_child(
-                                TextBuilder::new(WidgetBuilder::new())
-                                    .with_text(effect.name())
-                                    .build(&mut ui.build_ctx()),
-                            ),
-                    ))
-                    .build(&mut ui.build_ctx());
 
-                    ui.send_message(ListViewMessage::add_item(
-                        self.effects,
-                        MessageDirection::ToWidget,
-                        item,
-                    ));
+        match (context.effects_count() as usize).cmp(&items.len()) {
+            Ordering::Less => {
+                for item in items {
+                    let effect_handle = item_effect(item, ui);
+                    if context.effects().all(|(e, _)| e != effect_handle) {
+                        ui.send_message(ListViewMessage::remove_item(
+                            self.effects,
+                            MessageDirection::ToWidget,
+                            item,
+                        ));
+                    }
                 }
             }
+            Ordering::Greater => {
+                for (effect_handle, effect) in context.effects() {
+                    if items.iter().all(|i| item_effect(*i, ui) != effect_handle) {
+                        let item = DecoratorBuilder::new(BorderBuilder::new(
+                            WidgetBuilder::new()
+                                .with_user_data(Rc::new(effect_handle))
+                                .with_child(
+                                    TextBuilder::new(WidgetBuilder::new())
+                                        .with_text(effect.name())
+                                        .build(&mut ui.build_ctx()),
+                                ),
+                        ))
+                        .build(&mut ui.build_ctx());
+
+                        ui.send_message(ListViewMessage::add_item(
+                            self.effects,
+                            MessageDirection::ToWidget,
+                            item,
+                        ));
+                    }
+                }
+            }
+            _ => (),
         }
     }
 }

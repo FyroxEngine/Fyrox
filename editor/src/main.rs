@@ -691,12 +691,8 @@ impl Editor {
             .handle_ui_message(message, &mut engine.user_interface);
 
         if let Some(editor_scene) = self.scene.as_mut() {
-            self.audio_panel.handle_ui_message(
-                message,
-                editor_scene,
-                &self.message_sender,
-                &engine,
-            );
+            self.audio_panel
+                .handle_ui_message(message, editor_scene, &self.message_sender, engine);
 
             self.navmesh_panel.handle_message(
                 message,
