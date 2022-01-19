@@ -1,3 +1,4 @@
+use crate::audio::EffectSelection;
 use crate::{
     camera::CameraController,
     interaction::navmesh::{
@@ -151,8 +152,10 @@ impl EditorScene {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Selection {
     None,
+    SoundContext,
     Graph(GraphSelection),
     Navmesh(NavmeshSelection),
+    Effect(EffectSelection),
 }
 
 impl Default for Selection {
@@ -167,6 +170,8 @@ impl Selection {
             Selection::None => true,
             Selection::Graph(graph) => graph.is_empty(),
             Selection::Navmesh(navmesh) => navmesh.is_empty(),
+            Selection::SoundContext => false,
+            Selection::Effect(effect) => effect.is_empty(),
         }
     }
 
@@ -175,6 +180,8 @@ impl Selection {
             Selection::None => 0,
             Selection::Graph(graph) => graph.len(),
             Selection::Navmesh(navmesh) => navmesh.len(),
+            Selection::SoundContext => 1,
+            Selection::Effect(effect) => effect.len(),
         }
     }
 

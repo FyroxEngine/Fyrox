@@ -175,6 +175,12 @@ impl Inspector {
                         .graph
                         .try_get(selection.nodes()[0])
                         .map(|n| n as &dyn Inspect),
+                    Selection::SoundContext => Some(&scene.graph.sound_context as &dyn Inspect),
+                    Selection::Effect(selection) => scene
+                        .graph
+                        .sound_context
+                        .try_get_effect(selection.effects[0])
+                        .map(|e| e as &dyn Inspect),
                     _ => None,
                 };
 
@@ -236,6 +242,12 @@ impl Inspector {
                         .graph
                         .try_get(selection.nodes()[0])
                         .map(|n| n as &dyn Inspect),
+                    Selection::SoundContext => Some(&scene.graph.sound_context as &dyn Inspect),
+                    Selection::Effect(selection) => scene
+                        .graph
+                        .sound_context
+                        .try_get_effect(selection.effects[0])
+                        .map(|e| e as &dyn Inspect),
                     _ => None,
                 };
 

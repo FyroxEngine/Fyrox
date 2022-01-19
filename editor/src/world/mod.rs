@@ -342,29 +342,23 @@ impl WorldViewer {
             send_sync_message(ui, WidgetMessage::remove(child, MessageDirection::ToWidget));
         }
 
-        match &editor_scene.selection {
-            Selection::Graph(selection) => {
-                if let Some(&first_selected) = selection.nodes().first() {
-                    let mut item = first_selected;
-                    while item.is_some() {
-                        let node = &scene.graph[item];
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            if let Some(&first_selected) = selection.nodes().first() {
+                let mut item = first_selected;
+                while item.is_some() {
+                    let node = &scene.graph[item];
 
-                        let view = ui.find_by_criteria_down(self.graph_folder, &|n| {
-                            n.cast::<SceneItem<Node>>()
-                                .map(|i| i.entity_handle == item)
-                                .unwrap_or_default()
-                        });
-                        assert!(view.is_some());
-                        self.build_breadcrumb(node.name(), view, ui);
+                    let view = ui.find_by_criteria_down(self.graph_folder, &|n| {
+                        n.cast::<SceneItem<Node>>()
+                            .map(|i| i.entity_handle == item)
+                            .unwrap_or_default()
+                    });
+                    assert!(view.is_some());
+                    self.build_breadcrumb(node.name(), view, ui);
 
-                        item = node.parent();
-                    }
+                    item = node.parent();
                 }
             }
-            Selection::Navmesh(_) => {
-                // TODO
-            }
-            Selection::None => {}
         }
     }
 
@@ -757,7 +751,7 @@ impl WorldViewer {
             Selection::Graph(selection) => {
                 map_selection(selection.nodes(), self.graph_folder, &engine.user_interface)
             }
-            Selection::None | Selection::Navmesh(_) => Default::default(),
+            _ => Default::default(),
         }
     }
 

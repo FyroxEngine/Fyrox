@@ -9,7 +9,6 @@ use crate::{
     },
     Message,
 };
-use fyrox::resource::model::MaterialSearchOptions;
 use fyrox::{
     core::{parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
     gui::inspector::editors::{
@@ -17,10 +16,13 @@ use fyrox::{
         enumeration::EnumPropertyEditorDefinition,
         inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
-    resource::texture::{
-        CompressionOptions, TextureMagnificationFilter, TextureMinificationFilter, TextureWrapMode,
+    resource::{
+        model::MaterialSearchOptions,
+        texture::{
+            CompressionOptions, TextureMagnificationFilter, TextureMinificationFilter,
+            TextureWrapMode,
+        },
     },
-    scene::sound::Status,
     scene::{
         self,
         base::{
@@ -42,6 +44,7 @@ use fyrox::{
         node::Node,
         particle_system::emitter::{base::BaseEmitter, Emitter},
         rigidbody::RigidBodyType,
+        sound::{effect::BaseEffect, Status},
         terrain::Layer,
     },
 };
@@ -99,6 +102,7 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<GeometrySource>::new());
     container.insert(InspectablePropertyEditorDefinition::<JointParams>::new());
     container.insert(InspectablePropertyEditorDefinition::<Base>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BaseEffect>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseLight>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseEmitter>::new());
     container.insert(InspectablePropertyEditorDefinition::<PerspectiveProjection>::new());

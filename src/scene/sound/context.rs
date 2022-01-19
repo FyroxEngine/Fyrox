@@ -13,6 +13,7 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
+use fyrox_core::pool::Ticket;
 use fyrox_sound::{
     context::DistanceModel,
     effects::{reverb::Reverb, BaseEffect, EffectInput},
@@ -28,7 +29,9 @@ pub struct SoundContext {
     renderer: Renderer,
     distance_model: DistanceModel,
     paused: bool,
+    #[inspect(skip)]
     effects: Pool<Effect>,
+    #[inspect(read_only)]
     // A model resource from which this context was instantiated from.
     pub(crate) resource: Option<Model>,
     #[visit(skip)]
@@ -65,14 +68,49 @@ impl SoundContext {
         self.effects.free(effect)
     }
 
-    /// Borrows effects.
+    /// Borrows an effect.
     pub fn effect(&self, handle: Handle<Effect>) -> &Effect {
         &self.effects[handle]
     }
 
-    /// Borrows effects as mutable.
+    /// Borrows an effect as mutable.
     pub fn effect_mut(&mut self, handle: Handle<Effect>) -> &mut Effect {
         &mut self.effects[handle]
+    }
+
+    /// Puts effect back using its ticket.
+    pub fn put_effect_back(&mut self, ticket: Ticket<Effect>, effect: Effect) -> Handle<Effect> {
+        self.effects.put_back(ticket, effect)
+    }
+
+    /// Extracts effect from the context with a promise that it'll be returned back.
+    pub fn take_reserve_effect(&mut self, handle: Handle<Effect>) -> (Ticket<Effect>, Effect) {
+        self.effects.take_reserve(handle)
+    }
+
+    /// Makes effect's entry vacant again.
+    pub fn forget_effect_ticket(&mut self, ticket: Ticket<Effect>) {
+        self.effects.forget_ticket(ticket)
+    }
+
+    /// Borrows an effect.
+    pub fn try_get_effect(&self, handle: Handle<Effect>) -> Option<&Effect> {
+        self.effects.try_borrow(handle)
+    }
+
+    /// Borrows an effect as mutable.
+    pub fn try_get_effect_mut(&mut self, handle: Handle<Effect>) -> Option<&mut Effect> {
+        self.effects.try_borrow_mut(handle)
+    }
+
+    /// Returns an iterator over all effects.
+    pub fn effects(&self) -> impl Iterator<Item = (Handle<Effect>, &Effect)> {
+        self.effects.pair_iter()
+    }
+
+    /// Returns total amount of effects.
+    pub fn effects_count(&self) -> u32 {
+        self.effects.alive_count()
     }
 
     /// Pause/unpause the sound context. Paused context won't play any sounds.

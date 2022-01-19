@@ -20,6 +20,8 @@ const DEFAULT_FC: f32 = 0.25615; // 11296 Hz at 44100 Hz sample rate
 #[derive(Visit, Inspect, Debug)]
 pub struct BaseEffect {
     #[inspect(getter = "Deref::deref")]
+    pub(crate) name: TemplateVariable<String>,
+    #[inspect(getter = "Deref::deref")]
     pub(crate) gain: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
     pub(crate) inputs: TemplateVariable<Vec<Handle<Node>>>,
@@ -48,11 +50,27 @@ impl BaseEffect {
     pub fn inputs_mut(&mut self) -> &mut Vec<Handle<Node>> {
         self.inputs.get_mut()
     }
+
+    /// Returns shared reference to the current name of the effect.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns current name of the effect.
+    pub fn name_owned(&self) -> String {
+        self.name.get().clone()
+    }
+
+    /// Sets new name of the effect.
+    pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
+        self.name.set(name.as_ref().to_owned());
+    }
 }
 
 impl Default for BaseEffect {
     fn default() -> Self {
         Self {
+            name: TemplateVariable::new("".to_string()),
             gain: TemplateVariable::new(1.0),
             inputs: Default::default(),
             native: Default::default(),
@@ -61,10 +79,18 @@ impl Default for BaseEffect {
 }
 
 /// All possible effects in the engine.
-#[derive(Visit, Inspect, Debug)]
+#[derive(Visit, Debug)]
 pub enum Effect {
     /// See [`ReverbEffect`] docs.
     Reverb(ReverbEffect),
+}
+
+impl Inspect for Effect {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        match self {
+            Effect::Reverb(v) => v.properties(),
+        }
+    }
 }
 
 impl Deref for Effect {
@@ -95,6 +121,7 @@ impl Default for Effect {
 pub struct BaseEffectBuilder {
     gain: f32,
     inputs: Vec<Handle<Node>>,
+    name: String,
 }
 
 impl Default for BaseEffectBuilder {
@@ -109,8 +136,14 @@ impl BaseEffectBuilder {
         Self {
             gain: 1.0,
             inputs: vec![],
+            name: "".to_owned(),
         }
     }
+
+    define_with!(
+        /// Sets desired name of the effect.
+        fn with_name(name: String)
+    );
 
     define_with!(
         /// Sets desired gain of the effect.
@@ -125,6 +158,7 @@ impl BaseEffectBuilder {
     /// Creates new base effect.
     pub fn build(self) -> BaseEffect {
         BaseEffect {
+            name: self.name.into(),
             gain: self.gain.into(),
             inputs: self.inputs.into(),
             native: Default::default(),
@@ -272,13 +306,18 @@ impl ReverbEffectBuilder {
     );
 
     /// Creates new reverb effect.
-    pub fn build(self, context: &mut SoundContext) -> Handle<Effect> {
-        context.add_effect(Effect::Reverb(ReverbEffect {
+    pub fn build_effect(self) -> Effect {
+        Effect::Reverb(ReverbEffect {
             base: self.base_builder.build(),
             dry: self.dry.into(),
             wet: self.wet.into(),
             fc: self.fc.into(),
             decay_time: self.decay_time.into(),
-        }))
+        })
+    }
+
+    /// Creates new reverb effect and adds it to the context.
+    pub fn build(self, context: &mut SoundContext) -> Handle<Effect> {
+        context.add_effect(self.build_effect())
     }
 }

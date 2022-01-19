@@ -13,6 +13,7 @@ extern crate lazy_static;
 extern crate directories;
 
 mod asset;
+mod audio;
 mod camera;
 mod command;
 mod configurator;
@@ -35,6 +36,7 @@ mod world;
 
 use crate::{
     asset::{item::AssetItem, item::AssetKind, AssetBrowser},
+    audio::AudioPanel,
     command::{panel::CommandStackViewer, Command, CommandStack},
     configurator::Configurator,
     curve_editor::CurveEditorWindow,
@@ -325,6 +327,7 @@ struct Editor {
     material_editor: MaterialEditor,
     inspector: Inspector,
     curve_editor: CurveEditorWindow,
+    audio_panel: AudioPanel,
 }
 
 impl Editor {
@@ -382,6 +385,7 @@ impl Editor {
         let asset_browser = AssetBrowser::new(engine);
         let menu = Menu::new(engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(engine);
+        let audio_panel = AudioPanel::new(engine);
 
         let ctx = &mut engine.user_interface.build_ctx();
         let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
@@ -461,9 +465,25 @@ impl Editor {
                                                                 ))
                                                                 .build(ctx),
                                                             TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(TileContent::Window(
-                                                                    navmesh_panel.window,
-                                                                ))
+                                                                .with_content(
+                                                                    TileContent::HorizontalTiles {
+                                                                        splitter: 0.5,
+                                                                        tiles: [
+                                                                            TileBuilder::new(
+                                                                                WidgetBuilder::new(
+                                                                                ),
+                                                                            )
+                                                                            .with_content(
+                                                                                TileContent::Window(
+                                                                                    navmesh_panel
+                                                                                        .window,
+                                                                                ),
+                                                                            )
+                                                                            .build(ctx),
+                                                                            audio_panel.window,
+                                                                        ],
+                                                                    },
+                                                                )
                                                                 .build(ctx),
                                                         ],
                                                     })
@@ -538,6 +558,7 @@ impl Editor {
             material_editor,
             inspector,
             curve_editor,
+            audio_panel,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -670,6 +691,13 @@ impl Editor {
             .handle_ui_message(message, &mut engine.user_interface);
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.audio_panel.handle_ui_message(
+                message,
+                editor_scene,
+                &self.message_sender,
+                &engine,
+            );
+
             self.navmesh_panel.handle_message(
                 message,
                 editor_scene,
@@ -1063,6 +1091,7 @@ impl Editor {
             self.world_viewer.sync_to_model(editor_scene, engine);
             self.material_editor
                 .sync_to_model(&mut engine.user_interface);
+            self.audio_panel.sync_to_model(editor_scene, engine);
             self.command_stack_viewer.sync_to_model(
                 &mut self.command_stack,
                 &SceneContext {
