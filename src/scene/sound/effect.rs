@@ -1,6 +1,5 @@
 //! Everything related to effects.
 
-use crate::scene::sound::context::SoundContext;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -8,7 +7,7 @@ use crate::{
         visitor::prelude::*,
     },
     define_with,
-    scene::{node::Node, variable::TemplateVariable},
+    scene::{node::Node, sound::context::SoundContext, variable::TemplateVariable},
 };
 use std::{
     cell::Cell,

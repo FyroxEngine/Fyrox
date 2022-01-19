@@ -13,10 +13,9 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
-use fyrox_sound::effects::EffectInput;
 use fyrox_sound::{
     context::DistanceModel,
-    effects::{reverb::Reverb, BaseEffect},
+    effects::{reverb::Reverb, BaseEffect, EffectInput},
     renderer::Renderer,
     source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
 };
@@ -186,6 +185,7 @@ impl SoundContext {
         {
             // Sync back.
             sound.status.set_silent(spatial.status());
+            sound.playback_time.set_silent(spatial.playback_time());
         }
     }
 
