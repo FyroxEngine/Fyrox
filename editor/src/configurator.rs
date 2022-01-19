@@ -24,8 +24,9 @@ use fyrox::{
     },
 };
 use std::{
+    env,
     path::{Path, PathBuf},
-    sync::mpsc::Sender, env,
+    sync::mpsc::Sender,
 };
 
 #[derive(Default, Eq, PartialEq)]
@@ -82,8 +83,8 @@ impl Configurator {
         let select_work_dir;
         let ok;
         let tb_work_dir;
-        
-        let current_path =    env::current_dir().unwrap();
+
+        let current_path = env::current_dir().unwrap();
 
         let filter = Filter::new(|p: &Path| p.is_dir());
 
@@ -154,9 +155,14 @@ impl Configurator {
                                             .on_row(0)
                                             .on_column(1)
                                             .with_margin(Thickness::uniform(1.0))
-                                            .with_enabled(false)
+                                            .with_enabled(false),
                                     )
-                                        .with_text((current_path.clone()).into_os_string().into_string().unwrap())
+                                    .with_text(
+                                        (current_path.clone())
+                                            .into_os_string()
+                                            .into_string()
+                                            .unwrap(),
+                                    )
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
                                     .build(ctx);
                                     tb_work_dir
