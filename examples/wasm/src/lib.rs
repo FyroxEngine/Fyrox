@@ -4,6 +4,7 @@
 //!
 //! Warning - Work in progress!
 
+use fyrox::scene::sound::{SoundBuilder, Status};
 use fyrox::{
     animation::Animation,
     core::{
@@ -39,7 +40,6 @@ use fyrox::{
         transform::TransformBuilder,
         Scene,
     },
-    sound::source::{generic::GenericSourceBuilder, Status},
     utils::translate_event,
 };
 use std::{panic, sync::Arc};
@@ -172,19 +172,16 @@ pub async fn create_camera(
 async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<SceneContext>>) {
     let mut scene = Scene::new();
 
-    let music = GenericSourceBuilder::new()
+    // Add music.
+    SoundBuilder::new(BaseBuilder::new())
         .with_buffer(
             resource_manager
                 .request_sound_buffer("data/music.ogg", false)
                 .await
-                .unwrap()
-                .into(),
+                .ok(),
         )
         .with_status(Status::Playing)
-        .build_source()
-        .unwrap();
-
-    scene.sound_context.state().add_source(music);
+        .build(&mut scene.graph);
 
     scene.ambient_lighting_color = Color::opaque(200, 200, 200);
 
