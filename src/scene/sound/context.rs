@@ -151,7 +151,7 @@ impl SoundContext {
                                 native_reverb.add_input(EffectInput::direct(sound.native.get()));
                             }
                         }
-                    })
+                    });
                 }
             } else {
                 match effect {
@@ -180,7 +180,16 @@ impl SoundContext {
         self.native.state().remove_source(sound);
     }
 
-    pub(crate) fn sync_sound(&mut self, sound: &Sound) {
+    pub(crate) fn sync_with_sound(&self, sound: &mut Sound) {
+        if let Some(SoundSource::Spatial(spatial)) =
+            self.native.state().try_get_source_mut(sound.native.get())
+        {
+            // Sync back.
+            sound.status.set_silent(spatial.status());
+        }
+    }
+
+    pub(crate) fn sync_to_sound(&mut self, sound: &Sound) {
         if sound.native.get().is_some() {
             let mut state = self.native.state();
             let spatial = state.source_mut(sound.native.get()).spatial_mut();
@@ -231,7 +240,6 @@ impl SoundContext {
                     .with_looping(sound.is_looping())
                     .with_panning(sound.panning())
                     .with_pitch(sound.pitch())
-                    .with_play_once(sound.is_play_once())
                     .with_status(sound.status())
                     .build()
                     .unwrap(),

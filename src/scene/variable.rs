@@ -78,7 +78,7 @@ impl<T: Clone> TemplateVariable<T> {
 
     /// Tries to sync a value in a data model with a value in the template variable. The value
     /// will be synced only if it was marked as needs sync.
-    pub fn try_sync_model<S: FnOnce(T)>(&self, setter: S) {
+    pub fn try_sync_model<S: FnOnce(T)>(&self, setter: S) -> bool {
         if self.need_sync() {
             // Drop flag first.
             let mut flags = self.flags.get();
@@ -86,7 +86,11 @@ impl<T: Clone> TemplateVariable<T> {
             self.flags.set(flags);
 
             // Set new value in a data model.
-            (setter)(self.value.clone())
+            (setter)(self.value.clone());
+
+            true
+        } else {
+            false
         }
     }
 }
@@ -111,6 +115,11 @@ impl<T> TemplateVariable<T> {
     /// Replaces value and also raises the [`VariableFlags::MODIFIED`] flag.
     pub fn set(&mut self, value: T) -> T {
         self.mark_modified();
+        std::mem::replace(&mut self.value, value)
+    }
+
+    /// Replaces current value without marking the variable modified.
+    pub fn set_silent(&mut self, value: T) -> T {
         std::mem::replace(&mut self.value, value)
     }
 

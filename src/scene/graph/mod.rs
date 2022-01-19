@@ -43,6 +43,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
+use fyrox_sound::source::Status;
 use rapier3d::geometry::ColliderHandle;
 use std::{
     fmt::Debug,
@@ -993,7 +994,7 @@ impl Graph {
                 Node::Joint2D(joint) => {
                     self.physics2d.sync_to_joint_node(&self.pool, handle, joint);
                 }
-                Node::Sound(sound) => self.sound_context.sync_sound(sound),
+                Node::Sound(sound) => self.sound_context.sync_to_sound(sound),
                 Node::Listener(listener) => {
                     let mut state = self.sound_context.native.state();
                     let native = state.listener_mut();
@@ -1024,12 +1025,16 @@ impl Graph {
             let handle = self.pool.handle_from_index(i);
 
             if let Some(node) = self.pool.at_mut(i) {
-                let remove = if let Some(lifetime) = node.lifetime.as_mut() {
+                let mut remove = if let Some(lifetime) = node.lifetime.as_mut() {
                     *lifetime -= dt;
                     *lifetime <= 0.0
                 } else {
                     false
                 };
+
+                if let Node::Sound(sound) = node {
+                    remove |= sound.status() == Status::Stopped && sound.is_play_once()
+                }
 
                 if remove {
                     self.remove_node(handle);
@@ -1077,6 +1082,7 @@ impl Graph {
                             rigid_body,
                             this.pool[rigid_body.parent].global_transform(),
                         ),
+                        Node::Sound(sound) => self.sound_context.sync_with_sound(sound),
                         _ => (),
                     }
                 }

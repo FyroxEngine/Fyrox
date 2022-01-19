@@ -233,6 +233,11 @@ impl State {
         self.sources.borrow_mut(handle)
     }
 
+    /// Returns mutable reference to sound source at given handle. If handle is invalid, this method will panic.
+    pub fn try_get_source_mut(&mut self, handle: Handle<SoundSource>) -> Option<&mut SoundSource> {
+        self.sources.try_borrow_mut(handle)
+    }
+
     /// Returns shared reference to listener. Engine has only one listener.
     pub fn listener(&self) -> &Listener {
         &self.listener

@@ -49,7 +49,7 @@ pub struct Sound {
     #[inspect(min_value = -1.0, max_value = 1.0, step = 0.05, getter = "Deref::deref")]
     panning: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
-    status: TemplateVariable<Status>,
+    pub(crate) status: TemplateVariable<Status>,
     #[inspect(getter = "Deref::deref")]
     looping: TemplateVariable<bool>,
     #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
