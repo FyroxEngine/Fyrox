@@ -133,6 +133,13 @@ impl DirectionalLight {
             csm_options: self.csm_options.clone(),
         }
     }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        self.base_light.inherit(parent);
+
+        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+    }
 }
 
 /// Allows you to build directional light in declarative manner.

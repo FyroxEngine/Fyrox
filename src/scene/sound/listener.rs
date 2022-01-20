@@ -39,6 +39,11 @@ impl Listener {
             base: self.base.raw_copy(),
         }
     }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        self.base.inherit_properties(parent);
+    }
 }
 
 pub struct ListenerBuilder {

@@ -554,6 +554,13 @@ impl Camera {
     pub fn exposure(&self) -> Exposure {
         self.exposure
     }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        self.base.inherit_properties(parent);
+
+        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+    }
 }
 
 /// All possible error that may occur during color grading look-up table creation.

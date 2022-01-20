@@ -56,6 +56,30 @@ macro_rules! static_dispatch {
     };
 }
 
+macro_rules! static_dispatch_inherit {
+    ($self:ident, $arg:expr) => {
+        match $self {
+            Node::Base(v) => v.inherit_properties($arg),
+            Node::Mesh(v) => v.inherit($arg),
+            Node::Camera(v) => v.inherit($arg),
+            Node::Light(v) => v.inherit($arg),
+            Node::ParticleSystem(v) => v.inherit($arg),
+            Node::Sprite(v) => v.inherit($arg),
+            Node::Terrain(v) => v.inherit($arg),
+            Node::Decal(v) => v.inherit($arg),
+            Node::RigidBody(v) => v.inherit($arg),
+            Node::Collider(v) => v.inherit($arg),
+            Node::Joint(v) => v.inherit($arg),
+            Node::Rectangle(v) => v.inherit($arg),
+            Node::RigidBody2D(v) => v.inherit($arg),
+            Node::Collider2D(v) => v.inherit($arg),
+            Node::Joint2D(v) => v.inherit($arg),
+            Node::Sound(v) => v.inherit($arg),
+            Node::Listener(v) => v.inherit($arg),
+        }
+    };
+}
+
 impl Visit for Node {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut kind_id = self.id();
@@ -253,6 +277,11 @@ impl Node {
     /// Returns axis-aligned bounding box in **world space** of the node.
     pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         static_dispatch!(self, world_bounding_box,)
+    }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        static_dispatch_inherit!(self, parent)
     }
 
     /// Creates new Node based on variant id.

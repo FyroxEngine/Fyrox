@@ -582,6 +582,13 @@ impl Base {
     pub fn set_frustum_culling(&mut self, frustum_culling: bool) {
         self.frustum_culling = frustum_culling;
     }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit_properties(&mut self, parent: &Base) {
+        self.local_transform.inherit(parent.local_transform());
+
+        // TODO: Add inheritance for other properties.
+    }
 }
 
 impl Default for Base {

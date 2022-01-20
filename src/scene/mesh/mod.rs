@@ -326,6 +326,21 @@ impl Mesh {
             decal_layer_index: self.decal_layer_index,
         }
     }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        self.base.inherit_properties(parent);
+
+        // Inherit surfaces.
+        if let Node::Mesh(parent) = parent {
+            self.clear_surfaces();
+            for parent_surface in parent.surfaces() {
+                self.add_surface(parent_surface.clone());
+            }
+        }
+
+        // TODO: Add rest of properties. https://github.com/FyroxEngine/Fyrox/issues/282
+    }
 }
 
 /// Mesh builder allows you to construct mesh in declarative manner.

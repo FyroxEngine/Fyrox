@@ -260,6 +260,24 @@ impl Sound {
     pub fn max_distance(&self) -> f32 {
         *self.max_distance
     }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        self.base.inherit_properties(parent);
+        if let Node::Sound(parent) = parent {
+            self.status.try_inherit(&parent.status);
+            self.buffer.try_inherit(&parent.buffer);
+            self.play_once.try_inherit(&parent.play_once);
+            self.gain.try_inherit(&parent.gain);
+            self.panning.try_inherit(&parent.panning);
+            self.looping.try_inherit(&parent.looping);
+            self.pitch.try_inherit(&parent.pitch);
+            self.radius.try_inherit(&parent.radius);
+            self.max_distance.try_inherit(&parent.max_distance);
+            self.rolloff_factor.try_inherit(&parent.rolloff_factor);
+            self.playback_time.try_inherit(&parent.playback_time);
+        }
+    }
 }
 
 /// Sound builder, allows you to create a new [`Sound`] instance.

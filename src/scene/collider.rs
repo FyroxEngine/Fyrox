@@ -652,6 +652,13 @@ impl Collider {
     ) -> impl Iterator<Item = ContactPair> + 'a {
         physics.contacts_with(self.native.get())
     }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        self.base.inherit_properties(parent);
+
+        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+    }
 }
 
 /// Collider builder allows you to build a collider node in declarative mannner.

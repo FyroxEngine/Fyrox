@@ -93,6 +93,17 @@ impl<T: Clone> TemplateVariable<T> {
             false
         }
     }
+
+    /// Tries to inherit a value from parent. It will succeed only if the current variable is
+    /// not marked as modified.
+    pub fn try_inherit(&mut self, parent: &Self) -> bool {
+        if !self.is_modified() {
+            self.value = parent.value.clone();
+            true
+        } else {
+            false
+        }
+    }
 }
 
 impl<T> TemplateVariable<T> {

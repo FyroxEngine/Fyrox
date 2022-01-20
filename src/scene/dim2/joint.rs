@@ -233,6 +233,13 @@ impl Joint {
     pub fn body2(&self) -> Handle<Node> {
         self.body2
     }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        self.base.inherit_properties(parent);
+
+        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+    }
 }
 
 /// Joint builder allows you to build Joint node in a declarative manner.

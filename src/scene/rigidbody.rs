@@ -450,6 +450,13 @@ impl RigidBody {
     pub fn wake_up(&mut self) {
         self.actions.get_mut().push_back(ApplyAction::WakeUp)
     }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        self.base.inherit_properties(parent);
+
+        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+    }
 }
 
 /// Allows you to create rigid body in declarative manner.

@@ -573,6 +573,54 @@ impl Transform {
         }
         self.matrix.get()
     }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Transform) {
+        // Position.
+        if !self.position().is_modified() {
+            self.set_position(**parent.position());
+        }
+
+        // Rotation.
+        if !self.rotation().is_modified() {
+            self.set_rotation(**parent.rotation());
+        }
+
+        // Scale.
+        if !self.scale().is_modified() {
+            self.set_scale(**parent.scale());
+        }
+
+        // Pre-Rotation.
+        if !self.pre_rotation().is_modified() {
+            self.set_pre_rotation(**parent.pre_rotation());
+        }
+
+        // Post-Rotation.
+        if !self.post_rotation().is_modified() {
+            self.set_post_rotation(**parent.post_rotation());
+        }
+
+        // Rotation Offset.
+        if !self.rotation_offset().is_modified() {
+            self.set_rotation_offset(**parent.rotation_offset());
+        }
+
+        // Rotation Pivot.
+        if !self.rotation_pivot().is_modified() {
+            self.set_rotation_pivot(**parent.rotation_pivot());
+        }
+
+        // Scaling Offset.
+        if !self.scaling_offset().is_modified() {
+            self.set_scaling_offset(**parent.scaling_offset());
+        }
+
+        // Scaling Pivot.
+        if !self.scaling_pivot().is_modified() {
+            self.set_scaling_pivot(**parent.scaling_pivot());
+        }
+    }
 }
 
 /// Transform builder allows you to construct transform in declarative manner.

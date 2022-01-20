@@ -63,6 +63,13 @@ impl Rectangle {
             color: self.color,
         }
     }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        self.base.inherit_properties(parent);
+
+        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+    }
 }
 
 pub struct RectangleBuilder {
