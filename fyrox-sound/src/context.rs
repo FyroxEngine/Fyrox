@@ -26,13 +26,16 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
     time::Duration,
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Sample rate for output device.
 /// TODO: Make this configurable, for now its set to most commonly used sample rate of 44100 Hz.
 pub const SAMPLE_RATE: u32 = 44100;
 
 /// Distance model defines how volume of sound will decay when distance to listener changes.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Inspect, Visit)]
+#[derive(
+    Copy, Clone, Debug, Eq, PartialEq, Inspect, Visit, AsRefStr, EnumString, EnumVariantNames,
+)]
 #[repr(u32)]
 pub enum DistanceModel {
     /// No distance attenuation at all.

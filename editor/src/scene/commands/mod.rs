@@ -33,6 +33,7 @@ pub mod rectangle;
 pub mod rigidbody;
 pub mod rigidbody2d;
 pub mod sound;
+pub mod sound_context;
 pub mod sprite;
 pub mod terrain;
 

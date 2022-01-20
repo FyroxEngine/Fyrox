@@ -9,6 +9,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::scene::sound::DistanceModel;
 use fyrox::{
     core::{parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
     gui::inspector::editors::{
@@ -131,6 +132,7 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<RenderPath>::new());
     container.insert(EnumPropertyEditorDefinition::<FrustumSplitOptions>::new());
     container.insert(EnumPropertyEditorDefinition::<MaterialSearchOptions>::new());
+    container.insert(EnumPropertyEditorDefinition::<DistanceModel>::new());
 
     Rc::new(container)
 }

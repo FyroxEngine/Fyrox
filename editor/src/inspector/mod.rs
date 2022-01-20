@@ -1,3 +1,4 @@
+use crate::inspector::handlers::sound_context::handle_sound_context_property_changed;
 use crate::{
     inspector::{
         editors::make_property_editors_container,
@@ -308,6 +309,9 @@ impl Inspector {
                             }
                         })
                         .collect::<Vec<_>>(),
+                    Selection::SoundContext => handle_sound_context_property_changed(args)
+                        .map(|c| vec![c])
+                        .unwrap_or_default(),
                     _ => vec![],
                 };
 

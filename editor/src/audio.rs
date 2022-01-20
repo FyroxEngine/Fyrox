@@ -20,8 +20,7 @@ use fyrox::{
     },
     scene::sound::effect::{BaseEffectBuilder, Effect, ReverbEffectBuilder},
 };
-use std::cmp::Ordering;
-use std::{rc::Rc, sync::mpsc::Sender};
+use std::{cmp::Ordering, rc::Rc, sync::mpsc::Sender};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EffectSelection {
