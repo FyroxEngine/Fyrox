@@ -1,4 +1,6 @@
-use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
+use crate::{
+    command::Command, define_node_command, define_swap_command, scene::commands::SceneContext,
+};
 use fyrox::{
     core::{algebra::Vector3, pool::Handle},
     scene::{collider::*, graph::Graph, node::Node},
@@ -16,33 +18,16 @@ macro_rules! define_collider_variant_command {
     };
 }
 
-define_node_command!(SetColliderShapeCommand("Set Collider Shape", ColliderShape) where fn swap(self, node) {
-    get_set_swap!(self, node.as_collider_mut(), shape_value, set_shape)
-});
-
-define_node_command!(SetColliderFrictionCommand("Set Collider Friction", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_collider_mut(), friction, set_friction)
-});
-
-define_node_command!(SetColliderRestitutionCommand("Set Collider Restitution", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_collider_mut(), restitution, set_restitution)
-});
-
-define_node_command!(SetColliderIsSensorCommand("Set Collider Is Sensor", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_collider_mut(), is_sensor, set_is_sensor)
-});
-
-define_node_command!(SetColliderDensityCommand("Set Collider Density", Option<f32>) where fn swap(self,node) {
-    get_set_swap!(self, node.as_collider_mut(), density, set_density)
-});
-
-define_node_command!(SetColliderCollisionGroupsCommand("Set Collider Collision Groups", InteractionGroups) where fn swap(self, node) {
-    get_set_swap!(self, node.as_collider_mut(), collision_groups, set_collision_groups)
-});
-
-define_node_command!(SetColliderSolverGroupsCommand("Set Collider Solver Groups", InteractionGroups) where fn swap(self, node) {
-    get_set_swap!(self, node.as_collider_mut(), solver_groups, set_solver_groups)
-});
+define_swap_command! {
+    Node::as_collider_mut,
+    SetColliderShapeCommand(ColliderShape): shape_value, set_shape, "Set Collider Shape";
+    SetColliderFrictionCommand(f32): friction, set_friction, "Set Collider Friction";
+    SetColliderRestitutionCommand(f32): restitution, set_restitution, "Set Collider Restitution";
+    SetColliderIsSensorCommand(bool): is_sensor, set_is_sensor, "Set Collider Is Sensor";
+    SetColliderDensityCommand(Option<f32>): density, set_density, "Set Collider Density";
+    SetColliderCollisionGroupsCommand(InteractionGroups): collision_groups, set_collision_groups, "Set Collider Collision Groups";
+    SetColliderSolverGroupsCommand(InteractionGroups): solver_groups, set_solver_groups, "Set Collider Solver Groups";
+}
 
 define_collider_variant_command!(SetCylinderHalfHeightCommand("Set Cylinder Half Height", f32) where fn swap(self, node, Cylinder, cylinder) {
     std::mem::swap(&mut cylinder.half_height, &mut self.value);

@@ -1,4 +1,4 @@
-use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
+use crate::{command::Command, define_swap_command, get_set_swap, scene::commands::SceneContext};
 use fyrox::{
     core::{algebra::Vector3, pool::Handle},
     resource::texture::Texture,
@@ -130,21 +130,13 @@ macro_rules! define_emitter_command {
     };
 }
 
-define_node_command!(SetParticleSystemTextureCommand("Set Particle System Texture", Option<Texture>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_particle_system_mut(), texture, set_texture);
-});
-
-define_node_command!(SetAccelerationCommand("Set Particle System Acceleration", Vector3<f32>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_particle_system_mut(), acceleration, set_acceleration);
-});
-
-define_node_command!(SetParticleSystemEnabledCommand("Set Particle System Enabled", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_particle_system_mut(), is_enabled, set_enabled);
-});
-
-define_node_command!(SetSoftBoundarySharpnessFactorCommand("Set Soft Boundary Sharpness Factor", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_particle_system_mut(), soft_boundary_sharpness_factor, set_soft_boundary_sharpness_factor);
-});
+define_swap_command! {
+    Node::as_particle_system_mut,
+    SetParticleSystemTextureCommand(Option<Texture>): texture, set_texture, "Set Particle System Texture";
+    SetAccelerationCommand(Vector3<f32>): acceleration, set_acceleration, "Set Particle System Acceleration";
+    SetParticleSystemEnabledCommand(bool): is_enabled, set_enabled, "Set Particle System Enabled";
+    SetSoftBoundarySharpnessFactorCommand(f32): soft_boundary_sharpness_factor, set_soft_boundary_sharpness_factor, "Set Soft Boundary Sharpness Factor";
+}
 
 macro_rules! define_emitter_variant_command {
     ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $emitter:ident, $variant:ident, $var:ident) $apply_method:block ) => {

@@ -1,45 +1,19 @@
-use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
+use crate::{command::Command, define_swap_command, scene::commands::SceneContext};
 use fyrox::{
-    core::{algebra::Vector3, pool::Handle},
-    scene::{graph::Graph, node::Node, rigidbody::*},
+    core::algebra::Vector3,
+    scene::{node::Node, rigidbody::*},
 };
 
-define_node_command!(SetBodyMassCommand("Set Body Mass", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_rigid_body_mut(), mass, set_mass)
-});
-
-define_node_command!(SetBodyLinVelCommand("Set Body Linear Velocity", Vector3<f32>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_rigid_body_mut(), lin_vel, set_lin_vel)
-});
-
-define_node_command!(SetBodyAngVelCommand("Set Body Angular Velocity", Vector3<f32>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_rigid_body_mut(), ang_vel, set_ang_vel)
-});
-
-define_node_command!(SetBodyStatusCommand("Set Body Status", RigidBodyType) where fn swap(self, node) {
-    get_set_swap!(self, node.as_rigid_body_mut(), body_type, set_body_type)
-});
-
-define_node_command!(SetBodyXRotationLockedCommand("Set Body X Rotation Locked", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_rigid_body_mut(), is_x_rotation_locked, lock_x_rotations)
-});
-
-define_node_command!(SetBodyYRotationLockedCommand("Set Body Y Rotation Locked", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_rigid_body_mut(), is_y_rotation_locked, lock_y_rotations)
-});
-
-define_node_command!(SetBodyZRotationLockedCommand("Set Body Z Rotation Locked", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_rigid_body_mut(), is_z_rotation_locked, lock_z_rotations)
-});
-
-define_node_command!(SetBodyTranslationLockedCommand("Set Body Translation Locked", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_rigid_body_mut(), is_translation_locked, lock_translation)
-});
-
-define_node_command!(SetBodyCanSleepCommand("Set Body Can Sleep", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_rigid_body_mut(), is_can_sleep, set_can_sleep)
-});
-
-define_node_command!(SetBodyCcdEnabledCommand("Set Body Ccd Enabled", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_rigid_body_mut(), is_ccd_enabled, enable_ccd)
-});
+define_swap_command! {
+    Node::as_rigid_body_mut,
+    SetBodyMassCommand(f32): mass, set_mass, "Set Body Mass";
+    SetBodyLinVelCommand(Vector3<f32>): lin_vel, set_lin_vel, "Set Body Linear Velocity";
+    SetBodyAngVelCommand(Vector3<f32>): ang_vel, set_ang_vel, "Set Body Angular Velocity";
+    SetBodyStatusCommand(RigidBodyType): body_type, set_body_type, "Set Body Status";
+    SetBodyXRotationLockedCommand(bool): is_x_rotation_locked, lock_x_rotations, "Set Body X Rotation Locked";
+    SetBodyYRotationLockedCommand(bool): is_y_rotation_locked, lock_y_rotations, "Set Body Y Rotation Locked";
+    SetBodyZRotationLockedCommand(bool): is_z_rotation_locked, lock_z_rotations, "Set Body Z Rotation Locked";
+    SetBodyTranslationLockedCommand(bool): is_translation_locked, lock_translation, "Set Body Translation Locked";
+    SetBodyCanSleepCommand(bool): is_can_sleep, set_can_sleep, "Set Body Can Sleep";
+    SetBodyCcdEnabledCommand(bool): is_ccd_enabled, enable_ccd, "Set Body Ccd Enabled";
+}

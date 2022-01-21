@@ -1,5 +1,5 @@
 use crate::{
-    command::Command, define_node_command, define_vec_add_remove_commands, get_set_swap,
+    command::Command, define_node_command, define_swap_command, define_vec_add_remove_commands,
     scene::commands::SceneContext,
 };
 use fyrox::{
@@ -455,29 +455,19 @@ impl Command for SetPropertyNameCommand {
     }
 }
 
-define_node_command!(SetNameCommand("Set Name", String) where fn swap(self, node) {
-    get_set_swap!(self, node, name_owned, set_name);
-});
+fn node_mut(node: &mut Node) -> &mut Node {
+    node
+}
 
-define_node_command!(SetTagCommand("Set Tag", String) where fn swap(self, node) {
-    get_set_swap!(self, node, tag_owned, set_tag);
-});
-
-define_node_command!(SetVisibleCommand("Set Visible", bool) where fn swap(self, node) {
-    get_set_swap!(self, node, visibility, set_visibility)
-});
-
-define_node_command!(SetLifetimeCommand("Set Lifetime", Option<f32>) where fn swap(self, node) {
-    get_set_swap!(self, node, lifetime, set_lifetime)
-});
-
-define_node_command!(SetMobilityCommand("Set Mobility", Mobility) where fn swap(self, node) {
-    get_set_swap!(self, node, mobility, set_mobility)
-});
-
-define_node_command!(SetDepthOffsetCommand("Set Depth Offset", f32) where fn swap(self, node) {
-    get_set_swap!(self, node, depth_offset_factor, set_depth_offset_factor)
-});
+define_swap_command! {
+    node_mut,
+    SetNameCommand(String): name_owned, set_name, "Set Name";
+    SetTagCommand(String): tag_owned, set_tag, "Set Tag";
+    SetVisibleCommand(bool): visibility, set_visibility, "Set Visible";
+    SetLifetimeCommand(Option<f32>): lifetime, set_lifetime, "Set Lifetime";
+    SetMobilityCommand(Mobility): mobility, set_mobility, "Set Mobility";
+    SetDepthOffsetCommand(f32): depth_offset_factor, set_depth_offset_factor, "Set Depth Offset";
+}
 
 define_node_command!(SetPostRotationCommand("Set Post Rotation", UnitQuaternion<f32>) where fn swap(self, node) {
     let temp = **node.local_transform().post_rotation();

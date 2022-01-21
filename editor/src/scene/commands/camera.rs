@@ -1,5 +1,5 @@
 use crate::{
-    define_node_command, get_set_swap,
+    define_node_command, define_swap_command,
     scene::commands::{Command, SceneContext},
 };
 use fyrox::scene::camera::Projection;
@@ -7,40 +7,30 @@ use fyrox::{
     core::{math::Rect, pool::Handle},
     resource::texture::Texture,
     scene::{
-        camera::{ColorGradingLut, Exposure, SkyBox},
+        camera::{Camera, ColorGradingLut, Exposure, SkyBox},
         graph::Graph,
         node::Node,
     },
 };
 
-define_node_command!(SetViewportCommand("Set Viewport", Rect<f32>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_camera_mut(), viewport, set_viewport);
-});
+fn node_as_camera_mut(node: &mut Node) -> &mut Camera {
+    node.as_camera_mut()
+}
+
+define_swap_command! {
+    node_as_camera_mut,
+    SetViewportCommand(Rect<f32>): viewport, set_viewport, "Set Viewport";
+    SetEnvironmentMap(Option<Texture>): environment_map, set_environment, "Set Camera Environment Map";
+    SetProjectionCommand(Projection): projection_value, set_projection, "Set Camera Projection";
+    SetExposureCommand(Exposure): exposure, set_exposure, "Set Camera Exposure";
+    SetColorGradingLutCommand(Option<ColorGradingLut>): color_grading_lut, set_color_grading_map, "Set Color Grading Lut";
+    SetColorGradingEnabledCommand(bool): color_grading_enabled, set_color_grading_enabled, "Set Color Grading Enabled";
+}
 
 define_node_command!(SetSkyBoxCommand("Set Sky Box Command", Option<Box<SkyBox>>) where fn swap(self, node) {
     let camera = node.as_camera_mut();
     let temp = camera.replace_skybox(self.value.take());
     self.value = temp;
-});
-
-define_node_command!(SetEnvironmentMap("Set Camera Environment Map", Option<Texture>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_camera_mut(), environment_map, set_environment);
-});
-
-define_node_command!(SetProjectionCommand("Set Camera Projection", Projection) where fn swap(self, node) {
-    get_set_swap!(self, node.as_camera_mut(), projection_value, set_projection);
-});
-
-define_node_command!(SetExposureCommand("Set Camera Exposure", Exposure) where fn swap(self, node) {
-    get_set_swap!(self, node.as_camera_mut(), exposure, set_exposure);
-});
-
-define_node_command!(SetColorGradingLutCommand("Set Color Grading Lut", Option<ColorGradingLut>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_camera_mut(), color_grading_lut, set_color_grading_map);
-});
-
-define_node_command!(SetColorGradingEnabledCommand("Set Color Grading Enabled", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_camera_mut(), color_grading_enabled, set_color_grading_enabled);
 });
 
 define_node_command!(SetPerspectiveZNear("Set Z Near", f32) where fn swap(self, node) {

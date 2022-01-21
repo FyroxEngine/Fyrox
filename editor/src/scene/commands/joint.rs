@@ -1,4 +1,6 @@
-use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
+use crate::{
+    command::Command, define_node_command, define_swap_command, scene::commands::SceneContext,
+};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -75,10 +77,8 @@ define_joint_variant_command!(SetPrismaticJointAxis2Command("Set Prismatic Joint
     std::mem::swap(&mut prismatic.local_axis2, &mut self.value);
 });
 
-define_node_command!(SetJointBody1Command("Set Joint Body 1", Handle<Node>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_joint_mut(), body1, set_body1)
-});
-
-define_node_command!(SetJointBody2Command("Set Joint Body 2", Handle<Node>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_joint_mut(), body2, set_body2)
-});
+define_swap_command! {
+    Node::as_joint_mut,
+    SetJointBody1Command(Handle<Node>): body1, set_body1, "Set Joint Body 1";
+    SetJointBody2Command(Handle<Node>): body2, set_body2, "Set Joint Body 2";
+}

@@ -1,5 +1,5 @@
 use crate::{
-    command::Command, create_terrain_layer_material, define_node_command, get_set_swap,
+    command::Command, create_terrain_layer_material, define_swap_command,
     scene::commands::SceneContext,
 };
 use fyrox::{
@@ -190,9 +190,10 @@ impl Command for ModifyTerrainLayerMaskCommand {
     }
 }
 
-define_node_command!(SetTerrainDecalLayerIndexCommand("Set Terrain Decal Layer Index", u8) where fn swap(self, node) {
-    get_set_swap!(self, node.as_terrain_mut(), decal_layer_index, set_decal_layer_index);
-});
+define_swap_command! {
+    Node::as_terrain_mut,
+    SetTerrainDecalLayerIndexCommand(u8): decal_layer_index, set_decal_layer_index, "Set Terrain Decal Layer Index";
+}
 
 #[derive(Debug)]
 pub struct SetTerrainLayerMaskPropertyNameCommand {
