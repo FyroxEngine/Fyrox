@@ -9,6 +9,7 @@ use crate::{
     define_with,
     scene::{node::Node, sound::context::SoundContext, variable::TemplateVariable},
 };
+use fyrox_core::define_is_as;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -115,6 +116,10 @@ impl Default for Effect {
     fn default() -> Self {
         Self::Reverb(Default::default())
     }
+}
+
+impl Effect {
+    define_is_as!(Effect : Reverb -> ref ReverbEffect => fn is_reverb, fn as_reverb, fn as_reverb_mut);
 }
 
 /// Base effect builder allows you to build an effect.

@@ -189,3 +189,49 @@ impl Selection {
         self.len() == 1
     }
 }
+
+#[macro_export]
+macro_rules! define_vec_add_remove_commands {
+    (struct $add_name:ident, $remove_name:ident<$model_ty:ty, $value_ty:ty> ($self:ident, $context:ident)$get_container:block) => {
+        #[derive(Debug)]
+        pub struct $add_name {
+            pub handle: Handle<$model_ty>,
+            pub value: $value_ty,
+        }
+
+        impl Command for $add_name {
+            fn name(&mut self, _: &SceneContext) -> String {
+                stringify!($add_name).to_owned()
+            }
+
+            fn execute(&mut $self, $context: &mut SceneContext) {
+                $get_container.push(std::mem::take(&mut $self.value));
+            }
+
+            fn revert(&mut $self, $context: &mut SceneContext) {
+                $self.value = $get_container.pop().unwrap();
+            }
+        }
+
+        #[derive(Debug)]
+        pub struct $remove_name {
+            pub handle: Handle<$model_ty>,
+            pub index: usize,
+            pub value: Option<$value_ty>,
+        }
+
+        impl Command for $remove_name {
+            fn name(&mut self, _: &SceneContext) -> String {
+                stringify!($remove_name).to_owned()
+            }
+
+            fn execute(&mut $self, $context: &mut SceneContext) {
+                $self.value = Some($get_container.remove($self.index));
+            }
+
+            fn revert(&mut $self, $context: &mut SceneContext) {
+                $get_container.insert($self.index, $self.value.take().unwrap());
+            }
+        }
+    };
+}

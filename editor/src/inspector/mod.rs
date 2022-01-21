@@ -1,8 +1,11 @@
-use crate::inspector::handlers::sound_context::handle_sound_context_property_changed;
 use crate::{
     inspector::{
         editors::make_property_editors_container,
-        handlers::node::{particle_system::ParticleSystemHandler, SceneNodePropertyChangedHandler},
+        handlers::{
+            effect::handle_reverb_effect_property_changed,
+            node::{particle_system::ParticleSystemHandler, SceneNodePropertyChangedHandler},
+            sound_context::handle_sound_context_property_changed,
+        },
     },
     scene::{EditorScene, Selection},
     Brush, CommandGroup, GameEngine, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
@@ -312,6 +315,11 @@ impl Inspector {
                     Selection::SoundContext => handle_sound_context_property_changed(args)
                         .map(|c| vec![c])
                         .unwrap_or_default(),
+                    Selection::Effect(selection) => selection
+                        .effects
+                        .iter()
+                        .filter_map(|&handle| handle_reverb_effect_property_changed(args, handle))
+                        .collect::<Vec<_>>(),
                     _ => vec![],
                 };
 
