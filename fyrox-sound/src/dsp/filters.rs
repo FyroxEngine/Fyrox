@@ -7,7 +7,10 @@
 //! description of each filter. There is no need to describe them all here.
 
 use crate::dsp::DelayLine;
-use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::{
+    inspect::{Inspect, PropertyInfo},
+    visitor::{Visit, VisitResult, Visitor},
+};
 
 /// One-pole Filter.
 /// For details see - <https://www.earlevel.com/main/2012/12/15/a-one-pole-filter/>
@@ -228,14 +231,21 @@ pub enum BiquadKind {
 
 /// Generic second order digital filter.
 /// More info here: <https://ccrma.stanford.edu/~jos/filters/BiQuad_Section.html>
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Inspect)]
 pub struct Biquad {
-    b0: f32,
-    b1: f32,
-    b2: f32,
-    a1: f32,
-    a2: f32,
+    /// B0 Coefficient of the equation.
+    pub b0: f32,
+    /// B1 Coefficient of the equation.
+    pub b1: f32,
+    /// B2 Coefficient of the equation.
+    pub b2: f32,
+    /// A1 Coefficient of the equation.
+    pub a1: f32,
+    /// A2 Coefficient of the equation.
+    pub a2: f32,
+    #[inspect(skip)]
     prev1: f32,
+    #[inspect(skip)]
     prev2: f32,
 }
 

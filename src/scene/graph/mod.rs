@@ -37,11 +37,13 @@ use crate::{
     resource::model::NodeMapping,
     scene::{
         base::PropertyValue, collider::ColliderShape, dim2, graph::physics::PhysicsWorld,
-        node::Node, transform::TransformBuilder, visibility::VisibilityCache,
+        node::Node, sound::context::SoundContext, transform::TransformBuilder,
+        visibility::VisibilityCache,
     },
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
+use fyrox_sound::source::Status;
 use rapier3d::geometry::ColliderHandle;
 use std::{
     fmt::Debug,
@@ -53,15 +55,15 @@ pub mod physics;
 /// See module docs.
 #[derive(Debug)]
 pub struct Graph {
-    /// Backing physics "world". It is responsible for the physics simulation.
-    pub physics: PhysicsWorld,
-
-    /// Backing 2D physics "world". It is responsible for the 2D physics simulation.
-    pub physics2d: dim2::physics::PhysicsWorld,
-
     root: Handle<Node>,
     pool: Pool<Node>,
     stack: Vec<Handle<Node>>,
+    /// Backing physics "world". It is responsible for the physics simulation.
+    pub physics: PhysicsWorld,
+    /// Backing 2D physics "world". It is responsible for the 2D physics simulation.
+    pub physics2d: dim2::physics::PhysicsWorld,
+    /// Backing sound context. It is responsible for sound rendering.
+    pub sound_context: SoundContext,
 }
 
 impl Default for Graph {
@@ -72,6 +74,7 @@ impl Default for Graph {
             root: Handle::NONE,
             pool: Pool::new(),
             stack: Vec::new(),
+            sound_context: Default::default(),
         }
     }
 }
@@ -140,6 +143,8 @@ fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_g
             }
         }
 
+        dest_graph.sound_context.remap_handles(old_new_mapping);
+
         // LODs also have handles that must be remapped too.
         if let Some(lod_group) = new_node.lod_group_mut() {
             for level in lod_group.levels.iter_mut() {
@@ -191,6 +196,7 @@ impl Graph {
             root,
             pool,
             physics2d: Default::default(),
+            sound_context: SoundContext::new(),
         }
     }
 
@@ -271,27 +277,69 @@ impl Graph {
 
             // Remove associated entities.
             let node = self.pool.free(handle);
-            match node {
-                Node::RigidBody(body) => {
-                    self.physics.remove_body(body.native.get());
-                }
-                Node::Collider(collider) => {
-                    self.physics.remove_collider(collider.native.get());
-                }
-                Node::Joint(joint) => {
-                    self.physics.remove_joint(joint.native.get());
-                }
-                Node::RigidBody2D(body) => {
-                    self.physics2d.remove_body(body.native.get());
-                }
-                Node::Collider2D(collider) => {
-                    self.physics2d.remove_collider(collider.native.get());
-                }
-                Node::Joint2D(joint) => {
-                    self.physics2d.remove_joint(joint.native.get());
-                }
-                _ => (),
+            self.clean_up_for_node(&node);
+        }
+    }
+
+    fn clean_up_for_node(&mut self, node: &Node) {
+        match node {
+            Node::RigidBody(body) => {
+                self.physics.remove_body(body.native.get());
+
+                Log::info(format!(
+                    "Native rigid body was removed for node: {}",
+                    body.name()
+                ));
             }
+            Node::Collider(collider) => {
+                self.physics.remove_collider(collider.native.get());
+
+                Log::info(format!(
+                    "Native collider was removed for node: {}",
+                    collider.name()
+                ));
+            }
+            Node::Joint(joint) => {
+                self.physics.remove_joint(joint.native.get());
+
+                Log::info(format!(
+                    "Native joint was removed for node: {}",
+                    joint.name()
+                ));
+            }
+            Node::RigidBody2D(body) => {
+                self.physics2d.remove_body(body.native.get());
+
+                Log::info(format!(
+                    "Native rigid body was removed for node: {}",
+                    body.name()
+                ));
+            }
+            Node::Collider2D(collider) => {
+                self.physics2d.remove_collider(collider.native.get());
+
+                Log::info(format!(
+                    "Native collider 2D was removed for node: {}",
+                    collider.name()
+                ));
+            }
+            Node::Joint2D(joint) => {
+                self.physics2d.remove_joint(joint.native.get());
+
+                Log::info(format!(
+                    "Native joint 2D was removed for node: {}",
+                    joint.name()
+                ));
+            }
+            Node::Sound(sound) => {
+                self.sound_context.remove_sound(sound.native.get());
+
+                Log::info(format!(
+                    "Native sound source was removed for node: {}",
+                    sound.name()
+                ));
+            }
+            _ => (),
         }
     }
 
@@ -621,72 +669,7 @@ impl Graph {
                             node.original_handle_in_resource = original;
                             node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
 
-                            // Check if we can sync transform of the nodes with resource.
-                            let resource_local_transform = resource_node.local_transform();
-                            let local_transform = node.local_transform_mut();
-
-                            // Position.
-                            if !local_transform.position().is_custom() {
-                                local_transform.set_position(**resource_local_transform.position());
-                            }
-
-                            // Rotation.
-                            if !local_transform.rotation().is_custom() {
-                                local_transform.set_rotation(**resource_local_transform.rotation());
-                            }
-
-                            // Scale.
-                            if !local_transform.scale().is_custom() {
-                                local_transform.set_scale(**resource_local_transform.scale());
-                            }
-
-                            // Pre-Rotation.
-                            if !local_transform.pre_rotation().is_custom() {
-                                local_transform
-                                    .set_pre_rotation(**resource_local_transform.pre_rotation());
-                            }
-
-                            // Post-Rotation.
-                            if !local_transform.post_rotation().is_custom() {
-                                local_transform
-                                    .set_post_rotation(**resource_local_transform.post_rotation());
-                            }
-
-                            // Rotation Offset.
-                            if !local_transform.rotation_offset().is_custom() {
-                                local_transform.set_rotation_offset(
-                                    **resource_local_transform.rotation_offset(),
-                                );
-                            }
-
-                            // Rotation Pivot.
-                            if !local_transform.rotation_pivot().is_custom() {
-                                local_transform.set_rotation_pivot(
-                                    **resource_local_transform.rotation_pivot(),
-                                );
-                            }
-
-                            // Scaling Offset.
-                            if !local_transform.scaling_offset().is_custom() {
-                                local_transform.set_scaling_offset(
-                                    **resource_local_transform.scaling_offset(),
-                                );
-                            }
-
-                            // Scaling Pivot.
-                            if !local_transform.scaling_pivot().is_custom() {
-                                local_transform
-                                    .set_scaling_pivot(**resource_local_transform.scaling_pivot());
-                            }
-
-                            if let (Node::Mesh(mesh), Node::Mesh(resource_mesh)) =
-                                (node, resource_node)
-                            {
-                                mesh.clear_surfaces();
-                                for resource_surface in resource_mesh.surfaces() {
-                                    mesh.add_surface(resource_surface.clone());
-                                }
-                            }
+                            node.inherit(resource_node);
                         }
                     }
                     ResourceState::Pending { .. } => {
@@ -925,7 +908,7 @@ impl Graph {
         self.pool.is_valid_handle(node_handle)
     }
 
-    fn sync_native_physics(&mut self) {
+    fn sync_native(&mut self) {
         for (handle, node) in self.pool.pair_iter() {
             match node {
                 Node::RigidBody(rigid_body) => {
@@ -948,6 +931,13 @@ impl Graph {
                 Node::Joint2D(joint) => {
                     self.physics2d.sync_to_joint_node(&self.pool, handle, joint);
                 }
+                Node::Sound(sound) => self.sound_context.sync_to_sound(sound),
+                Node::Listener(listener) => {
+                    let mut state = self.sound_context.native.state();
+                    let native = state.listener_mut();
+                    native.set_position(listener.global_position());
+                    native.set_basis(listener.global_transform().basis());
+                }
                 _ => (),
             }
         }
@@ -960,23 +950,28 @@ impl Graph {
 
         let this = unsafe { &*(self as *const Graph) };
 
-        self.sync_native_physics();
+        self.sync_native();
 
         self.update_hierarchical_data();
 
         self.physics.update();
         self.physics2d.update();
+        self.sound_context.update(&self.pool);
 
         for i in 0..self.pool.get_capacity() {
             let handle = self.pool.handle_from_index(i);
 
             if let Some(node) = self.pool.at_mut(i) {
-                let remove = if let Some(lifetime) = node.lifetime.as_mut() {
+                let mut remove = if let Some(lifetime) = node.lifetime.as_mut() {
                     *lifetime -= dt;
                     *lifetime <= 0.0
                 } else {
                     false
                 };
+
+                if let Node::Sound(sound) = node {
+                    remove |= sound.status() == Status::Stopped && sound.is_play_once()
+                }
 
                 if remove {
                     self.remove_node(handle);
@@ -1024,6 +1019,7 @@ impl Graph {
                             rigid_body,
                             this.pool[rigid_body.parent].global_transform(),
                         ),
+                        Node::Sound(sound) => self.sound_context.sync_with_sound(sound),
                         _ => (),
                     }
                 }
@@ -1111,8 +1107,10 @@ impl Graph {
     }
 
     /// Makes node handle vacant again.
-    pub fn forget_ticket(&mut self, ticket: Ticket<Node>) {
-        self.pool.forget_ticket(ticket)
+    pub fn forget_ticket(&mut self, ticket: Ticket<Node>, node: Node) -> Node {
+        self.pool.forget_ticket(ticket);
+        self.clean_up_for_node(&node);
+        node
     }
 
     /// Extracts sub-graph starting from a given node. All handles to extracted nodes
@@ -1153,11 +1151,13 @@ impl Graph {
 
     /// Forgets the entire sub-graph making handles to nodes invalid.
     pub fn forget_sub_graph(&mut self, sub_graph: SubGraph) {
-        for (ticket, _) in sub_graph.descendants {
+        for (ticket, node) in sub_graph.descendants {
             self.pool.forget_ticket(ticket);
+            self.clean_up_for_node(&node);
         }
-        let (ticket, _) = sub_graph.root;
+        let (ticket, root) = sub_graph.root;
         self.pool.forget_ticket(ticket);
+        self.clean_up_for_node(&root);
     }
 
     /// Returns the number of nodes in the graph.
@@ -1353,8 +1353,10 @@ impl Visit for Graph {
 
         self.root.visit("Root", visitor)?;
         self.pool.visit("Pool", visitor)?;
-        // self.physics is not serialized intentionally! The data of physics entities stored
-        // inside graph nodes and corresponding physic entities will be re-created on first
+        // Backward compatibility
+        let _ = self.sound_context.visit("SoundContext", visitor);
+        // self.physics/self.physics2d is not serialized intentionally! The data of physics entities
+        // stored inside graph nodes and corresponding physic entities will be re-created on first
         // update iteration.
 
         visitor.leave_region()

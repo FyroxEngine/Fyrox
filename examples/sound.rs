@@ -9,6 +9,7 @@
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
+use fyrox::scene::sound::effect::EffectInput;
 use fyrox::{
     animation::AnimationSignal,
     core::algebra::Vector2,
@@ -20,9 +21,10 @@ use fyrox::{
     },
     rand::Rng,
     renderer::QualitySettings,
-    sound::{
-        effects::EffectInput,
-        source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, Status},
+    scene::{
+        base::BaseBuilder,
+        sound::{SoundBuilder, Status},
+        transform::TransformBuilder,
     },
     utils::{
         log::{Log, MessageKind},
@@ -150,8 +152,6 @@ fn main() {
                         let scene = &mut game.engine.scenes[game_scene.scene];
                         game_scene.player.update(scene, fixed_timestep);
 
-                        let mut ctx = scene.sound_context.state();
-
                         while let Some(event) = scene.animations.get_mut(game_scene.player.locomotion_machine.walk_animation).pop_event() {
                             // We must play sound only if it was foot step signal and player was in walking state.
                             if event.signal_id != FOOTSTEP_SIGNAL
@@ -166,32 +166,30 @@ fn main() {
                             let foot_step = footstep_buffers[fyrox::rand::thread_rng().gen_range(0.. footstep_buffers.len())].clone();
 
                             // Create new temporary foot step sound source.
-                            let source = ctx
-                                .add_source(
-                                    SpatialSourceBuilder::new(
-                                        GenericSourceBuilder::new()
-                                            .with_buffer(foot_step)
-                                            // fyrox-sound provides built-in way to create temporary sounds that will die immediately
-                                            // after first play. This is very useful for foot step sounds.
-                                            .with_play_once(true)
-                                            // Every sound source must be explicitly set to Playing status, otherwise it will be stopped.
-                                            .with_status(Status::Playing)
-                                            .build()
-                                            .unwrap()
-                                    ).with_position(position).build_source());
+                            let source = SoundBuilder::new(BaseBuilder::new()
+                                .with_local_transform(TransformBuilder::new()
+                                    .with_local_position(position).build()))
+                                // Fyrox provides built-in way to create temporary sounds that will die immediately
+                                // after first play. This is very useful for foot step sounds.
+                                .with_play_once(true)
+                                .with_buffer(Some(foot_step))
+                                // Every sound source must be explicitly set to Playing status, otherwise it will be stopped.
+                                .with_status(Status::Playing)
+                                .build(&mut scene.graph);
+
 
                             // Once foot step sound source was created, it must be attached to reverb effect, otherwise no reverb
                             // will be added to the source.
-                            ctx
+                            scene
+                                .graph
+                                .sound_context
                                 .effect_mut(game_scene.reverb_effect)
-                                .add_input(EffectInput::direct(source));
+                                .inputs_mut()
+                                .push(EffectInput{
+                                    sound: source,
+                                    filter: None
+                                });
                         }
-
-                        // Final, and very important step - sync sound listener with active camera.
-                        let camera = &scene.graph[game_scene.player.camera];
-                        let listener = ctx.listener_mut();
-                        listener.set_position(camera.global_position());
-                        listener.set_orientation_lh(camera.look_vector(), camera.up_vector());
                     }
 
                     let fps = game.engine.renderer.get_statistics().frames_per_second;

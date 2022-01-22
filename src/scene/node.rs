@@ -4,7 +4,6 @@
 
 #![warn(missing_docs)]
 
-use crate::scene::dim2::rectangle::Rectangle;
 use crate::{
     asset::core::inspect::PropertyInfo,
     core::{
@@ -14,9 +13,19 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     scene::{
-        base::Base, camera::Camera, collider::Collider, decal::Decal, dim2, joint::Joint,
-        light::Light, mesh::Mesh, particle_system::ParticleSystem, rigidbody::RigidBody,
-        sprite::Sprite, terrain::Terrain,
+        base::Base,
+        camera::Camera,
+        collider::Collider,
+        decal::Decal,
+        dim2::{self, rectangle::Rectangle},
+        joint::Joint,
+        light::Light,
+        mesh::Mesh,
+        particle_system::ParticleSystem,
+        rigidbody::RigidBody,
+        sound::{listener::Listener, Sound},
+        sprite::Sprite,
+        terrain::Terrain,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -41,6 +50,32 @@ macro_rules! static_dispatch {
             Node::RigidBody2D(v) => v.$func($($args),*),
             Node::Collider2D(v) => v.$func($($args),*),
             Node::Joint2D(v) => v.$func($($args),*),
+            Node::Sound(v) => v.$func($($args),*),
+            Node::Listener(v) => v.$func($($args),*),
+        }
+    };
+}
+
+macro_rules! static_dispatch_inherit {
+    ($self:ident, $arg:expr) => {
+        match $self {
+            Node::Base(v) => v.inherit_properties($arg),
+            Node::Mesh(v) => v.inherit($arg),
+            Node::Camera(v) => v.inherit($arg),
+            Node::Light(v) => v.inherit($arg),
+            Node::ParticleSystem(v) => v.inherit($arg),
+            Node::Sprite(v) => v.inherit($arg),
+            Node::Terrain(v) => v.inherit($arg),
+            Node::Decal(v) => v.inherit($arg),
+            Node::RigidBody(v) => v.inherit($arg),
+            Node::Collider(v) => v.inherit($arg),
+            Node::Joint(v) => v.inherit($arg),
+            Node::Rectangle(v) => v.inherit($arg),
+            Node::RigidBody2D(v) => v.inherit($arg),
+            Node::Collider2D(v) => v.inherit($arg),
+            Node::Joint2D(v) => v.inherit($arg),
+            Node::Sound(v) => v.inherit($arg),
+            Node::Listener(v) => v.inherit($arg),
         }
     };
 }
@@ -181,6 +216,12 @@ pub enum Node {
 
     /// Rectangle node. See [`Rectangle`] node docs.
     Rectangle(dim2::rectangle::Rectangle),
+
+    /// See [`Sound`] node docs.
+    Sound(Sound),
+
+    /// See [`Listener`] node docs.
+    Listener(Listener),
 }
 
 macro_rules! static_dispatch_deref {
@@ -201,6 +242,8 @@ macro_rules! static_dispatch_deref {
             Node::RigidBody2D(v) => v,
             Node::Collider2D(v) => v,
             Node::Joint2D(v) => v,
+            Node::Sound(v) => v,
+            Node::Listener(v) => v,
         }
     };
 }
@@ -236,6 +279,11 @@ impl Node {
         static_dispatch!(self, world_bounding_box,)
     }
 
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        static_dispatch_inherit!(self, parent)
+    }
+
     /// Creates new Node based on variant id.
     pub fn from_id(id: u8) -> Result<Self, String> {
         match id {
@@ -254,6 +302,8 @@ impl Node {
             12 => Ok(Self::RigidBody2D(Default::default())),
             13 => Ok(Self::Collider2D(Default::default())),
             14 => Ok(Self::Joint2D(Default::default())),
+            15 => Ok(Self::Sound(Default::default())),
+            16 => Ok(Self::Listener(Default::default())),
             _ => Err(format!("Invalid node kind {}", id)),
         }
     }
@@ -276,6 +326,8 @@ impl Node {
             Self::RigidBody2D(_) => 12,
             Self::Collider2D(_) => 13,
             Self::Joint2D(_) => 14,
+            Self::Sound(_) => 15,
+            Self::Listener(_) => 16,
         }
     }
 
@@ -299,6 +351,8 @@ impl Node {
             Node::RigidBody2D(v) => Node::RigidBody2D(v.raw_copy()),
             Node::Collider2D(v) => Node::Collider2D(v.raw_copy()),
             Node::Joint2D(v) => Node::Joint2D(v.raw_copy()),
+            Node::Sound(v) => Node::Sound(v.raw_copy()),
+            Node::Listener(v) => Node::Listener(v.raw_copy()),
         }
     }
 
@@ -316,4 +370,6 @@ impl Node {
     define_is_as!(Node : RigidBody2D -> ref dim2::rigidbody::RigidBody => fn is_rigid_body2d, fn as_rigid_body2d, fn as_rigid_body2d_mut);
     define_is_as!(Node : Collider2D -> ref dim2::collider::Collider => fn is_collider2d, fn as_collider2d, fn as_collider2d_mut);
     define_is_as!(Node : Joint2D -> ref dim2::joint::Joint => fn is_joint2d, fn as_joint2d, fn as_joint2d_mut);
+    define_is_as!(Node : Sound -> ref Sound => fn is_sound, fn as_sound, fn as_sound_mut);
+    define_is_as!(Node : Listener -> ref Listener => fn is_listener, fn as_listener, fn as_listener_mut);
 }

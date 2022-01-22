@@ -1,5 +1,8 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
+use crate::scene::sound::{
+    DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState,
+};
 use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
     core::{append_extension, instant, io, visitor::prelude::*, VecExtensions},
@@ -10,17 +13,13 @@ use crate::{
         model::{Model, ModelData},
         texture::{Texture, TextureData, TextureError, TextureImportOptions, TextureState},
     },
-    sound::buffer::{
-        DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState,
-    },
     utils::log::{Log, MessageKind},
 };
 use ron::ser::PrettyConfig;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
-use std::fs::File;
-use std::future::Future;
+use serde::{de::DeserializeOwned, Serialize};
 use std::{
+    fs::File,
+    future::Future,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard},

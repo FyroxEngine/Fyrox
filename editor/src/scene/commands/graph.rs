@@ -1,5 +1,7 @@
-use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
-use fyrox::scene::base::{Property, PropertyValue};
+use crate::{
+    command::Command, define_node_command, define_vec_add_remove_commands, get_set_swap,
+    scene::commands::SceneContext,
+};
 use fyrox::{
     animation::Animation,
     core::{
@@ -7,7 +9,7 @@ use fyrox::{
         pool::{Handle, Ticket},
     },
     scene::{
-        base::Mobility,
+        base::{Mobility, Property, PropertyValue},
         graph::{Graph, SubGraph},
         node::Node,
     },
@@ -212,7 +214,10 @@ impl Command for DeleteNodeCommand {
 
     fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
-            context.scene.graph.forget_ticket(ticket)
+            context
+                .scene
+                .graph
+                .forget_ticket(ticket, self.node.take().unwrap());
         }
     }
 }
@@ -377,59 +382,18 @@ impl Command for AddNodeCommand {
 
     fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
-            context.scene.graph.forget_ticket(ticket)
+            context
+                .scene
+                .graph
+                .forget_ticket(ticket, self.node.take().unwrap());
         }
     }
 }
 
-#[derive(Debug)]
-pub struct AddPropertyCommand {
-    pub handle: Handle<Node>,
-    pub property: Property,
-}
-
-impl Command for AddPropertyCommand {
-    fn name(&mut self, _: &SceneContext) -> String {
-        "Add Property Command".to_owned()
-    }
-
-    fn execute(&mut self, context: &mut SceneContext) {
-        context.scene.graph[self.handle]
-            .properties
-            .push(std::mem::take(&mut self.property));
-    }
-
-    fn revert(&mut self, context: &mut SceneContext) {
-        self.property = context.scene.graph[self.handle].properties.pop().unwrap();
-    }
-}
-
-#[derive(Debug)]
-pub struct RemovePropertyCommand {
-    pub handle: Handle<Node>,
-    pub index: usize,
-    pub property: Option<Property>,
-}
-
-impl Command for RemovePropertyCommand {
-    fn name(&mut self, _: &SceneContext) -> String {
-        "Remove Property Command".to_owned()
-    }
-
-    fn execute(&mut self, context: &mut SceneContext) {
-        self.property = Some(
-            context.scene.graph[self.handle]
-                .properties
-                .remove(self.index),
-        );
-    }
-
-    fn revert(&mut self, context: &mut SceneContext) {
-        context.scene.graph[self.handle]
-            .properties
-            .insert(self.index, self.property.take().unwrap());
-    }
-}
+define_vec_add_remove_commands!(
+    struct AddPropertyCommand, RemovePropertyCommand<Node, Property>
+    (self, context) { &mut context.scene.graph[self.handle].properties }
+);
 
 #[derive(Debug)]
 pub struct SetPropertyValueCommand {

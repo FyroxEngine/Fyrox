@@ -18,6 +18,7 @@ pub mod mesh;
 pub mod node;
 pub mod particle_system;
 pub mod rigidbody;
+pub mod sound;
 pub mod sprite;
 pub mod terrain;
 pub mod transform;
@@ -37,6 +38,7 @@ use crate::{
     engine::resource_manager::ResourceManager,
     material::{shader::SamplerFallback, PropertyValue},
     resource::texture::Texture,
+    scene::sound::SoundEngine,
     scene::{
         debug::SceneDrawingContext,
         graph::{physics::PhysicsPerformanceStatistics, Graph},
@@ -46,7 +48,6 @@ use crate::{
         },
         node::Node,
     },
-    sound::{context::SoundContext, engine::SoundEngine},
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::FxHashMap;
@@ -148,9 +149,6 @@ pub struct Scene {
     /// Drawing context for simple graphics.
     pub drawing_context: SceneDrawingContext,
 
-    /// A sound context that holds all sound sources, effects, etc. belonging to the scene.
-    pub sound_context: SoundContext,
-
     /// A container for navigational meshes.
     pub navmeshes: NavMeshContainer,
 
@@ -181,7 +179,6 @@ impl Default for Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
-            sound_context: Default::default(),
             navmeshes: Default::default(),
             performance_statistics: Default::default(),
             ambient_lighting_color: Color::opaque(100, 100, 100),
@@ -247,7 +244,6 @@ impl Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
-            sound_context: SoundContext::new(),
             navmeshes: Default::default(),
             performance_statistics: Default::default(),
             ambient_lighting_color: Color::opaque(100, 100, 100),
@@ -542,8 +538,8 @@ impl Scene {
             (instant::Instant::now() - last).as_secs_f32();
 
         self.performance_statistics.sound_update_time = self
+            .graph
             .sound_context
-            .state()
             .full_render_duration()
             .as_secs_f32();
     }
@@ -573,7 +569,6 @@ impl Scene {
                 render_target: Default::default(),
                 lightmap: self.lightmap.clone(),
                 drawing_context: self.drawing_context.clone(),
-                sound_context: self.sound_context.deep_clone(),
                 navmeshes: self.navmeshes.clone(),
                 performance_statistics: Default::default(),
                 ambient_lighting_color: self.ambient_lighting_color,
@@ -590,7 +585,6 @@ impl Visit for Scene {
         self.graph.visit("Graph", visitor)?;
         self.animations.visit("Animations", visitor)?;
         self.lightmap.visit("Lightmap", visitor)?;
-        self.sound_context.visit("SoundContext", visitor)?;
         self.navmeshes.visit("NavMeshes", visitor)?;
         self.ambient_lighting_color
             .visit("AmbientLightingColor", visitor)?;
@@ -642,7 +636,7 @@ impl SceneContainer {
         self.sound_engine
             .lock()
             .unwrap()
-            .add_context(scene.sound_context.clone());
+            .add_context(scene.graph.sound_context.native.clone());
         self.pool.spawn(scene)
     }
 
@@ -658,7 +652,7 @@ impl SceneContainer {
         self.sound_engine
             .lock()
             .unwrap()
-            .remove_context(self.pool[handle].sound_context.clone());
+            .remove_context(self.pool[handle].graph.sound_context.native.clone());
         self.pool.free(handle);
     }
 

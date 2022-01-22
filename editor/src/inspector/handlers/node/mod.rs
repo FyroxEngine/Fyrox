@@ -1,15 +1,16 @@
 use std::any::TypeId;
 
-use crate::inspector::handlers::node::rectangle::handle_rectangle_property_changed;
 use crate::{
     inspector::handlers::node::{
         base::handle_base_property_changed, camera::handle_camera_property_changed,
         collider::handle_collider_property_changed, collider2d::handle_collider2d_property_changed,
         decal::handle_decal_property_changed, joint::handle_joint_property_changed,
-        joint2d::handle_joint2d_property_changed, light::*, mesh::handle_mesh_property_changed,
-        particle_system::ParticleSystemHandler, rigid_body::handle_rigid_body_property_changed,
-        rigid_body2d::handle_rigid_body2d_property_changed, sprite::handle_sprite_property_changed,
-        terrain::handle_terrain_property_changed,
+        joint2d::handle_joint2d_property_changed, light::*,
+        listener::handle_listener_property_changed, mesh::handle_mesh_property_changed,
+        particle_system::ParticleSystemHandler, rectangle::handle_rectangle_property_changed,
+        rigid_body::handle_rigid_body_property_changed,
+        rigid_body2d::handle_rigid_body2d_property_changed, sound::handle_sound_property_changed,
+        sprite::handle_sprite_property_changed, terrain::handle_terrain_property_changed,
     },
     SceneCommand,
 };
@@ -28,6 +29,8 @@ use fyrox::{
         node::Node,
         particle_system::ParticleSystem,
         rigidbody::RigidBody,
+        sound::listener::Listener,
+        sound::Sound,
         sprite::Sprite,
         terrain::Terrain,
         Scene,
@@ -42,11 +45,13 @@ pub mod decal;
 pub mod joint;
 pub mod joint2d;
 pub mod light;
+pub mod listener;
 pub mod mesh;
 pub mod particle_system;
 pub mod rectangle;
 pub mod rigid_body;
 pub mod rigid_body2d;
+pub mod sound;
 pub mod sprite;
 pub mod terrain;
 pub mod transform;
@@ -98,6 +103,10 @@ impl SceneNodePropertyChangedHandler {
             handle_joint2d_property_changed(args, handle, node.as_joint2d())
         } else if args.owner_type_id == TypeId::of::<dim2::rectangle::Rectangle>() {
             handle_rectangle_property_changed(args, handle, node)
+        } else if args.owner_type_id == TypeId::of::<Sound>() {
+            handle_sound_property_changed(args, handle)
+        } else if args.owner_type_id == TypeId::of::<Listener>() {
+            handle_listener_property_changed(args, handle, node)
         } else {
             None
         }

@@ -20,7 +20,7 @@ use fyrox::{
         BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
     },
     resource::model::Model,
-    sound::buffer::SoundBufferResource,
+    scene::sound::SoundBufferResource,
 };
 use std::{
     any::{Any, TypeId},

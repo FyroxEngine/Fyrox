@@ -19,8 +19,8 @@ use crate::{
     gui::UserInterface,
     renderer::{framework::error::FrameworkError, Renderer},
     resource::texture::TextureKind,
+    scene::sound::SoundEngine,
     scene::SceneContainer,
-    sound::engine::SoundEngine,
     window::{Window, WindowBuilder},
 };
 use fxhash::FxHashMap;
@@ -39,15 +39,9 @@ pub struct Engine {
     /// Current renderer. You should call at least [render](Self::render) method to see your scene on
     /// screen.
     pub renderer: Renderer,
-    /// User interface allows you to build interface of any kind. UI itself is *not* thread-safe,
-    /// but it uses messages to "talk" with outside world and message queue (MPSC) *is* thread-safe
-    /// so its sender part can be shared across threads.
+    /// User interface allows you to build interface of any kind.
     pub user_interface: UserInterface,
-    /// Sound context control all sound sources in the engine. It is wrapped into Arc<Mutex<>>
-    /// because internally sound engine spawns separate thread to mix and send data to sound
-    /// device. For more info see docs for Context.
-    pub sound_engine: Arc<Mutex<SoundEngine>>,
-    /// Current resource manager. Resource manager wrapped into Arc<Mutex<>> to be able to
+    /// Current resource manager. Resource manager can be cloned (it does clone only ref) to be able to
     /// use resource manager from any thread, this is useful to load resources from multiple
     /// threads to decrease loading times of your game by utilizing all available power of
     /// your CPU.
@@ -58,6 +52,11 @@ pub struct Engine {
     /// for such statistics, probably it is best to make separate structure to hold all
     /// such data.
     pub ui_time: Duration,
+
+    // Sound context control all sound sources in the engine. It is wrapped into Arc<Mutex<>>
+    // because internally sound engine spawns separate thread to mix and send data to sound
+    // device. For more info see docs for Context.
+    sound_engine: Arc<Mutex<SoundEngine>>,
 }
 
 impl Engine {
@@ -234,6 +233,17 @@ impl Engine {
                 .render_and_swap_buffers(&self.scenes, &self.user_interface.get_drawing_context())
         }
     }
+
+    /// Sets master gain of the sound engine. Can be used to control overall gain of all sound
+    /// scenes at once.
+    pub fn set_sound_gain(&mut self, gain: f32) {
+        self.sound_engine.lock().unwrap().set_master_gain(gain);
+    }
+
+    /// Returns master gain of the sound engine.
+    pub fn sound_gain(&self) -> f32 {
+        self.sound_engine.lock().unwrap().master_gain()
+    }
 }
 
 impl Visit for Engine {
@@ -247,7 +257,6 @@ impl Visit for Engine {
         }
 
         self.resource_manager.visit("ResourceManager", visitor)?;
-        self.sound_engine.visit("SoundEngine", visitor)?;
         self.scenes.visit("Scenes", visitor)?;
 
         if visitor.is_reading() {
@@ -255,6 +264,11 @@ impl Visit for Engine {
 
             crate::core::futures::executor::block_on(self.resource_manager.reload_resources());
             for scene in self.scenes.iter_mut() {
+                self.sound_engine
+                    .lock()
+                    .unwrap()
+                    .add_context(scene.graph.sound_context.native.clone());
+
                 scene.resolve();
             }
         }

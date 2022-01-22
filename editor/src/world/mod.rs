@@ -12,15 +12,13 @@ use crate::{
             selection::GraphSelection,
         },
         search::SearchBar,
-        sound::selection::SoundSelection,
     },
     GameEngine, Message,
 };
-use fyrox::core::pool::ErasedHandle;
 use fyrox::{
     core::{
         color::Color,
-        pool::{Handle, Pool},
+        pool::{ErasedHandle, Handle},
         scope_profile,
     },
     engine::Engine,
@@ -44,20 +42,16 @@ use fyrox::{
         VerticalAlignment,
     },
     scene::{graph::Graph, node::Node, Scene},
-    sound::{context::SoundContext, source::SoundSource},
 };
-use std::any::TypeId;
-use std::{cmp::Ordering, collections::HashMap, sync::mpsc::Sender};
+use std::{any::TypeId, cmp::Ordering, collections::HashMap, sync::mpsc::Sender};
 
 pub mod graph;
 pub mod search;
-pub mod sound;
 
 pub struct WorldViewer {
     pub window: Handle<UiNode>,
     tree_root: Handle<UiNode>,
     graph_folder: Handle<UiNode>,
-    sounds_folder: Handle<UiNode>,
     sender: Sender<Message>,
     track_selection: Handle<UiNode>,
     track_selection_state: bool,
@@ -76,7 +70,6 @@ pub struct WorldViewer {
     scroll_view: Handle<UiNode>,
     item_context_menu: ItemContextMenu,
     node_to_view_map: HashMap<Handle<Node>, Handle<UiNode>>,
-    sound_to_view_map: HashMap<Handle<SoundSource>, Handle<UiNode>>,
 }
 
 fn make_graph_node_item(
@@ -161,110 +154,6 @@ fn make_folder(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
         .build(ctx)
 }
 
-pub fn sync_pool<T, N, M>(
-    folder: Handle<UiNode>,
-    pool: &Pool<T>,
-    ui: &mut UserInterface,
-    selection: Option<&[Handle<T>]>,
-    view_map: &mut HashMap<Handle<T>, Handle<UiNode>>,
-    mut make_view: M,
-    mut make_name: N,
-) -> Vec<Handle<UiNode>>
-where
-    T: 'static,
-    N: FnMut(Handle<T>) -> String,
-    M: FnMut(&mut UserInterface, Handle<T>, &T) -> Handle<UiNode>,
-{
-    let folder_items = ui
-        .node(folder)
-        .cast::<Tree>()
-        .unwrap()
-        .items()
-        .iter()
-        .cloned()
-        .filter(|i| ui.node(*i).cast::<SceneItem<T>>().is_some())
-        .collect::<Vec<_>>();
-
-    let pool_count = usize::try_from(pool.alive_count()).expect("overflowed usize");
-    match pool_count.cmp(&folder_items.len()) {
-        Ordering::Less => {
-            // An entity was removed.
-            for &item in folder_items.iter() {
-                let entity_handle = ui.node(item).cast::<SceneItem<T>>().unwrap().entity_handle;
-
-                if pool.pair_iter().all(|(h, _)| h != entity_handle) {
-                    let removed = view_map.remove(&entity_handle);
-
-                    assert!(removed.is_some());
-
-                    send_sync_message(
-                        ui,
-                        TreeMessage::remove_item(folder, MessageDirection::ToWidget, item),
-                    );
-                }
-            }
-        }
-        Ordering::Greater => {
-            // An entity was added.
-            for (handle, elem) in pool.pair_iter() {
-                if folder_items
-                    .iter()
-                    .all(|i| ui.node(*i).cast::<SceneItem<T>>().unwrap().entity_handle != handle)
-                {
-                    let view = (make_view)(ui, handle, elem);
-
-                    let previous = view_map.insert(handle, view);
-
-                    assert!(previous.is_none());
-
-                    send_sync_message(
-                        ui,
-                        TreeMessage::add_item(folder, MessageDirection::ToWidget, view),
-                    );
-                }
-            }
-        }
-        _ => (),
-    }
-
-    let mut selected_items = Vec::new();
-
-    // Sync selection.
-    if let Some(selection) = selection {
-        for selected in selection {
-            if let Some(associated_item) = ui
-                .node(folder)
-                .cast::<Tree>()
-                .unwrap()
-                .items()
-                .iter()
-                .cloned()
-                .find(|i| ui.node(*i).cast::<SceneItem<T>>().unwrap().entity_handle == *selected)
-            {
-                selected_items.push(associated_item)
-            }
-        }
-    }
-
-    // Sync names.
-    for item in ui.node(folder).cast::<Tree>().unwrap().items() {
-        let item_ref = ui.node(*item).cast::<SceneItem<T>>().unwrap();
-        let entity_handle = item_ref.entity_handle;
-        if pool.is_valid_handle(entity_handle) {
-            let new_name = (make_name)(entity_handle);
-            if new_name != item_ref.name() {
-                ui.send_message(SceneItemMessage::name(
-                    *item,
-                    MessageDirection::ToWidget,
-                    new_name,
-                ));
-            }
-        }
-    }
-
-    selected_items
-}
-
 impl WorldViewer {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let track_selection_state = true;
@@ -277,7 +166,6 @@ impl WorldViewer {
         let track_selection;
         let search_bar = SearchBar::new(ctx);
         let graph_folder = make_folder(ctx, "Scene Graph");
-        let sounds_folder = make_folder(ctx, "Sounds");
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
             .with_title(WindowTitle::text("World Viewer"))
@@ -364,7 +252,7 @@ impl WorldViewer {
                             scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(3))
                                 .with_content({
                                     tree_root = TreeRootBuilder::new(WidgetBuilder::new())
-                                        .with_items(vec![graph_folder, sounds_folder])
+                                        .with_items(vec![graph_folder])
                                         .build(ctx);
                                     tree_root
                                 })
@@ -400,9 +288,7 @@ impl WorldViewer {
             expand_all,
             scroll_view,
             item_context_menu,
-            sounds_folder,
             node_to_view_map: Default::default(),
-            sound_to_view_map: Default::default(),
             filter: Default::default(),
         }
     }
@@ -417,7 +303,6 @@ impl WorldViewer {
         let mut selected_items = Vec::new();
 
         selected_items.extend(self.sync_graph(ui, editor_scene, graph));
-        selected_items.extend(self.sync_sounds(ui, editor_scene, scene.sound_context.clone()));
 
         if !selected_items.is_empty() {
             send_sync_message(
@@ -457,76 +342,24 @@ impl WorldViewer {
             send_sync_message(ui, WidgetMessage::remove(child, MessageDirection::ToWidget));
         }
 
-        match &editor_scene.selection {
-            Selection::Graph(selection) => {
-                if let Some(&first_selected) = selection.nodes().first() {
-                    let mut item = first_selected;
-                    while item.is_some() {
-                        let node = &scene.graph[item];
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            if let Some(&first_selected) = selection.nodes().first() {
+                let mut item = first_selected;
+                while item.is_some() {
+                    let node = &scene.graph[item];
 
-                        let view = ui.find_by_criteria_down(self.graph_folder, &|n| {
-                            n.cast::<SceneItem<Node>>()
-                                .map(|i| i.entity_handle == item)
-                                .unwrap_or_default()
-                        });
-                        assert!(view.is_some());
-                        self.build_breadcrumb(node.name(), view, ui);
-
-                        item = node.parent();
-                    }
-                }
-            }
-            Selection::Navmesh(_) => {
-                // TODO
-            }
-            Selection::Sound(selection) => {
-                if let Some(&first_selected) = selection.sources().first() {
-                    let view = ui.find_by_criteria_down(self.sounds_folder, &|n| {
-                        n.cast::<SceneItem<SoundSource>>()
-                            .map(|i| i.entity_handle == first_selected)
+                    let view = ui.find_by_criteria_down(self.graph_folder, &|n| {
+                        n.cast::<SceneItem<Node>>()
+                            .map(|i| i.entity_handle == item)
                             .unwrap_or_default()
                     });
                     assert!(view.is_some());
-                    self.build_breadcrumb(
-                        scene.sound_context.state().source(first_selected).name(),
-                        view,
-                        ui,
-                    );
+                    self.build_breadcrumb(node.name(), view, ui);
+
+                    item = node.parent();
                 }
             }
-            Selection::None => {}
         }
-    }
-
-    fn sync_sounds(
-        &mut self,
-        ui: &mut UserInterface,
-        editor_scene: &EditorScene,
-        ctx: SoundContext,
-    ) -> Vec<Handle<UiNode>> {
-        let ctx = ctx.state();
-
-        sync_pool(
-            self.sounds_folder,
-            ctx.sources(),
-            ui,
-            if let Selection::Sound(ref s) = editor_scene.selection {
-                Some(&s.sources)
-            } else {
-                None
-            },
-            &mut self.sound_to_view_map,
-            |ui, handle, _| {
-                SceneItemBuilder::<SoundSource>::new(TreeBuilder::new(WidgetBuilder::new()))
-                    .with_name(ctx.source(handle).name_owned())
-                    .with_icon(load_image(include_bytes!(
-                        "../../resources/embed/sound_source.png"
-                    )))
-                    .with_entity_handle(handle)
-                    .build(&mut ui.build_ctx())
-            },
-            |s| ctx.source(s).name_owned(),
-        )
     }
 
     fn sync_graph(
@@ -854,18 +687,6 @@ impl WorldViewer {
                     }
                     _ => (),
                 }
-            } else if let Some(sound) = selected_item_ref.cast::<SceneItem<SoundSource>>() {
-                match new_selection {
-                    Selection::None => {
-                        new_selection = Selection::Sound(SoundSelection {
-                            sources: vec![sound.entity_handle],
-                        });
-                    }
-                    Selection::Sound(ref mut selection) => {
-                        selection.sources.push(sound.entity_handle)
-                    }
-                    _ => (),
-                }
             } else {
                 return;
             }
@@ -926,15 +747,11 @@ impl WorldViewer {
     }
 
     fn map_selection(&self, selection: &Selection, engine: &GameEngine) -> Vec<Handle<UiNode>> {
-        let ui = &engine.user_interface;
         match selection {
             Selection::Graph(selection) => {
                 map_selection(selection.nodes(), self.graph_folder, &engine.user_interface)
             }
-            Selection::Sound(selection) => {
-                map_selection(selection.sources(), self.sounds_folder, ui)
-            }
-            Selection::None | Selection::Navmesh(_) => Default::default(),
+            _ => Default::default(),
         }
     }
 
@@ -960,9 +777,8 @@ impl WorldViewer {
 
     pub fn clear(&mut self, ui: &mut UserInterface) {
         self.node_to_view_map.clear();
-        self.sound_to_view_map.clear();
 
-        for folder in [self.graph_folder, self.sounds_folder] {
+        for folder in [self.graph_folder] {
             ui.send_message(TreeMessage::set_items(
                 folder,
                 MessageDirection::ToWidget,

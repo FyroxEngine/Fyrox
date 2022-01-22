@@ -28,6 +28,7 @@ use crate::{
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fxhash::FxHashMap;
 use std::collections::HashMap;
+use std::time::Duration;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -1413,6 +1414,24 @@ impl<T: Default + Visit, const SIZE: usize> Visit for [T; SIZE] {
                 item.visit("ItemData", visitor)?;
                 visitor.leave_region()?;
             }
+        }
+
+        visitor.leave_region()
+    }
+}
+
+impl Visit for Duration {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut secs: u64 = self.as_secs();
+        let mut nanos: u32 = self.subsec_nanos();
+
+        secs.visit("Secs", visitor)?;
+        nanos.visit("Nanos", visitor)?;
+
+        if visitor.is_reading() {
+            *self = Duration::new(secs, nanos);
         }
 
         visitor.leave_region()

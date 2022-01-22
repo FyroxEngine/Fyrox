@@ -10,30 +10,32 @@
 //! once the level is loaded you just set master gain of main menu context and it will no longer produce any
 //! sounds, only your level will do.
 
-use crate::pool::Ticket;
 use crate::{
     effects::{Effect, EffectRenderTrait},
     listener::Listener,
+    pool::Ticket,
     renderer::{render_source_default, Renderer},
     source::{SoundSource, Status},
 };
-use fyrox_core::visitor::VisitError;
 use fyrox_core::{
+    inspect::{Inspect, PropertyInfo},
     pool::{Handle, Pool},
-    visitor::{Visit, VisitResult, Visitor},
+    visitor::prelude::*,
 };
-use std::sync::MutexGuard;
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
     time::Duration,
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Sample rate for output device.
 /// TODO: Make this configurable, for now its set to most commonly used sample rate of 44100 Hz.
 pub const SAMPLE_RATE: u32 = 44100;
 
 /// Distance model defines how volume of sound will decay when distance to listener changes.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(
+    Copy, Clone, Debug, Eq, PartialEq, Inspect, Visit, AsRefStr, EnumString, EnumVariantNames,
+)]
 #[repr(u32)]
 pub enum DistanceModel {
     /// No distance attenuation at all.
@@ -204,6 +206,11 @@ impl State {
         self.sources.spawn(source)
     }
 
+    /// Removes sound source from the context.
+    pub fn remove_source(&mut self, source: Handle<SoundSource>) {
+        self.sources.free(source);
+    }
+
     /// Returns shared reference to a pool with all sound sources.
     pub fn sources(&self) -> &Pool<SoundSource> {
         &self.sources
@@ -227,6 +234,11 @@ impl State {
     /// Returns mutable reference to sound source at given handle. If handle is invalid, this method will panic.
     pub fn source_mut(&mut self, handle: Handle<SoundSource>) -> &mut SoundSource {
         self.sources.borrow_mut(handle)
+    }
+
+    /// Returns mutable reference to sound source at given handle. If handle is invalid, this method will panic.
+    pub fn try_get_source_mut(&mut self, handle: Handle<SoundSource>) -> Option<&mut SoundSource> {
+        self.sources.try_borrow_mut(handle)
     }
 
     /// Returns shared reference to listener. Engine has only one listener.

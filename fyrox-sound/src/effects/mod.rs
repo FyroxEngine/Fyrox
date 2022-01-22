@@ -127,7 +127,6 @@ pub(in crate) trait EffectRenderTrait {
 #[derive(Debug, Clone)]
 pub struct BaseEffect {
     gain: f32,
-    filters: Pool<InputFilter>,
     inputs: Vec<EffectInput>,
     frame_samples: Vec<(f32, f32)>,
 }
@@ -136,7 +135,6 @@ impl Default for BaseEffect {
     fn default() -> Self {
         Self {
             gain: 1.0,
-            filters: Default::default(),
             inputs: Default::default(),
             frame_samples: Default::default(),
         }
@@ -189,7 +187,7 @@ impl BaseEffect {
             let mut k = 0.0;
             let step = 1.0 / amount as f32;
 
-            match self.filters.try_borrow_mut(input.filter) {
+            match input.filter.as_mut() {
                 None => {
                     for ((accum_left, accum_right), &(input_left, input_right)) in
                         self.frame_samples.iter_mut().zip(source.frame_samples())
@@ -227,25 +225,14 @@ impl BaseEffect {
         self.gain = gain.max(0.0);
     }
 
-    /// Adds new filter to effect and returns its handle. Filter handle then can be
-    /// used to add input to effect (if it is filtered input).
-    pub fn add_filter(&mut self, filter: InputFilter) -> Handle<InputFilter> {
-        self.filters.spawn(filter)
-    }
-
     /// Adds new input to effect.
     pub fn add_input(&mut self, input: EffectInput) {
         self.inputs.push(input)
     }
 
-    /// Returns shared reference to filter.
-    pub fn filter(&self, handle: Handle<InputFilter>) -> &InputFilter {
-        self.filters.borrow(handle)
-    }
-
-    /// Returns mutable reference to filter.
-    pub fn filter_mut(&mut self, handle: Handle<InputFilter>) -> &mut InputFilter {
-        self.filters.borrow_mut(handle)
+    /// Removes all inputs.
+    pub fn clear_inputs(&mut self) {
+        self.inputs.clear()
     }
 }
 
@@ -254,7 +241,6 @@ impl Visit for BaseEffect {
         visitor.enter_region(name)?;
 
         self.gain.visit("Gain", visitor)?;
-        self.filters.visit("Filters", visitor)?;
         self.inputs.visit("Inputs", visitor)?;
 
         visitor.leave_region()
@@ -306,7 +292,7 @@ pub struct EffectInput {
 
     /// Handle of filter that will be used to transform samples. Can be NONE if no
     /// filtering is needed.
-    filter: Handle<InputFilter>,
+    filter: Option<InputFilter>,
 
     /// Distance gain from last frame, it is used to interpolate distance gain from
     /// frame to frame to prevent clicks in output signal.
@@ -318,7 +304,7 @@ impl EffectInput {
     pub fn direct(source: Handle<SoundSource>) -> Self {
         Self {
             source,
-            filter: Handle::NONE,
+            filter: None,
             last_distance_gain: None,
         }
     }
@@ -329,10 +315,10 @@ impl EffectInput {
     /// can add filter to input and then modify its parameters in runtime: if there is
     /// no direct path from listener to sound source - make it lowpass, otherwise -
     /// allpass.
-    pub fn filtered(source: Handle<SoundSource>, filter: Handle<InputFilter>) -> Self {
+    pub fn filtered(source: Handle<SoundSource>, filter: InputFilter) -> Self {
         Self {
             source,
-            filter,
+            filter: Some(filter),
             last_distance_gain: None,
         }
     }

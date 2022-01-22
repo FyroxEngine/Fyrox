@@ -14,7 +14,6 @@ use fyrox::{
     },
     resource::texture::{CompressionOptions, Texture},
     scene::{mesh::surface::SurfaceData, node::Node},
-    sound::source::SoundSource,
 };
 use std::sync::{Arc, Mutex};
 
@@ -87,8 +86,6 @@ impl SceneRenderPass for OverlayRenderPass {
         &mut self,
         ctx: SceneRenderPassContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
-        let state = ctx.scene.sound_context.state();
-
         let view_projection = ctx.camera.view_projection_matrix();
         let shader = &self.shader;
         let inv_view = ctx.camera.inv_view_matrix().unwrap();
@@ -103,24 +100,11 @@ impl SceneRenderPass for OverlayRenderPass {
             .get(ctx.pipeline_state, &self.light_icon)
             .unwrap();
 
-        for (position, icon) in state
-            .sources()
-            .iter()
-            .filter_map(|s| {
-                if let SoundSource::Spatial(spatial) = s {
-                    Some((spatial.position(), sound_icon.clone()))
-                } else {
-                    None
-                }
-            })
-            .chain(ctx.scene.graph.linear_iter().filter_map(|n| {
-                if let Node::Light(light) = n {
-                    Some((light.global_position(), light_icon.clone()))
-                } else {
-                    None
-                }
-            }))
-        {
+        for (position, icon) in ctx.scene.graph.linear_iter().filter_map(|n| match n {
+            Node::Light(light) => Some((light.global_position(), light_icon.clone())),
+            Node::Sound(sound) => Some((sound.global_position(), sound_icon.clone())),
+            _ => None,
+        }) {
             let world_matrix = Matrix4::new_translation(&position);
 
             ctx.framebuffer.draw(

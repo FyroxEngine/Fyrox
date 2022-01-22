@@ -1,9 +1,10 @@
-use crate::menu::dim2::Dim2Menu;
-use crate::menu::physics2d::Physics2dMenu;
 use crate::{
     create_terrain_layer_material,
-    menu::{create_menu_item, create_root_menu_item, physics::PhysicsMenu},
-    scene::commands::{graph::AddNodeCommand, sound::AddSoundSourceCommand},
+    menu::{
+        create_menu_item, create_root_menu_item, dim2::Dim2Menu, physics::PhysicsMenu,
+        physics2d::Physics2dMenu,
+    },
+    scene::commands::graph::AddNodeCommand,
     Message,
 };
 use fyrox::{
@@ -19,17 +20,17 @@ use fyrox::{
         },
         mesh::{
             surface::{Surface, SurfaceData},
-            Mesh, MeshBuilder,
+            MeshBuilder,
         },
         node::Node,
         particle_system::{
             emitter::{base::BaseEmitterBuilder, sphere::SphereEmitterBuilder},
             ParticleSystemBuilder,
         },
+        sound::{listener::ListenerBuilder, SoundBuilder},
         sprite::SpriteBuilder,
         terrain::{LayerDefinition, TerrainBuilder},
     },
-    sound::source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder},
 };
 use std::sync::{mpsc::Sender, Arc};
 
@@ -72,8 +73,8 @@ pub struct CreateEntityMenu {
     create_camera: Handle<UiNode>,
     create_sprite: Handle<UiNode>,
     create_particle_system: Handle<UiNode>,
+    create_listener: Handle<UiNode>,
     create_sound_source: Handle<UiNode>,
-    create_spatial_sound_source: Handle<UiNode>,
     physics_menu: PhysicsMenu,
     physics2d_menu: Physics2dMenu,
     dim2_menu: Dim2Menu,
@@ -96,8 +97,7 @@ impl CreateEntityMenu {
         let create_terrain;
         let create_pivot;
         let create_sound_source;
-        let create_spatial_sound_source;
-
+        let create_listener;
         let physics_menu = PhysicsMenu::new(ctx);
         let physics2d_menu = Physics2dMenu::new(ctx);
         let dim2_menu = Dim2Menu::new(ctx);
@@ -137,12 +137,12 @@ impl CreateEntityMenu {
                 "Sound",
                 vec![
                     {
-                        create_sound_source = create_menu_item("2D Source", vec![], ctx);
+                        create_sound_source = create_menu_item("Source", vec![], ctx);
                         create_sound_source
                     },
                     {
-                        create_spatial_sound_source = create_menu_item("3D Source", vec![], ctx);
-                        create_spatial_sound_source
+                        create_listener = create_menu_item("Listener", vec![], ctx);
+                        create_listener
                     },
                 ],
                 ctx,
@@ -207,7 +207,7 @@ impl CreateEntityMenu {
                 create_pivot,
                 create_terrain,
                 create_sound_source,
-                create_spatial_sound_source,
+                create_listener,
                 create_decal,
                 physics_menu,
                 physics2d_menu,
@@ -229,130 +229,85 @@ impl CreateEntityMenu {
         self.dim2_menu.handle_ui_message(message, sender, parent);
 
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
-            if message.destination() == self.create_cube {
-                let mut mesh = Mesh::default();
-                mesh.set_name("Cube");
-                mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceData::make_cube(
-                    Matrix4::identity(),
-                )))));
-                let node = Node::Mesh(mesh);
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
-                    .unwrap();
-            } else if message.destination() == self.create_spot_light {
-                let node = SpotLightBuilder::new(BaseLightBuilder::new(
-                    BaseBuilder::new().with_name("SpotLight"),
-                ))
-                .with_distance(10.0)
-                .with_hotspot_cone_angle(45.0f32.to_radians())
-                .with_falloff_angle_delta(2.0f32.to_radians())
-                .build_node();
-
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
-                    .unwrap();
-            } else if message.destination() == self.create_pivot {
-                let node = BaseBuilder::new().with_name("Pivot").build_node();
-
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
-                    .unwrap();
-            } else if message.destination() == self.create_point_light {
-                let node = PointLightBuilder::new(BaseLightBuilder::new(
-                    BaseBuilder::new().with_name("PointLight"),
-                ))
-                .with_radius(10.0)
-                .build_node();
-
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
-                    .unwrap();
-            } else if message.destination() == self.create_directional_light {
-                let node = DirectionalLightBuilder::new(BaseLightBuilder::new(
-                    BaseBuilder::new().with_name("DirectionalLight"),
-                ))
-                .build_node();
-
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
-                    .unwrap();
-            } else if message.destination() == self.create_cone {
-                let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
-                    .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
-                        SurfaceData::make_cone(16, 0.5, 1.0, &Matrix4::identity()),
-                    )))])
-                    .build_node();
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(mesh, parent)))
-                    .unwrap();
-            } else if message.destination() == self.create_cylinder {
-                let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
-                    .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
-                        SurfaceData::make_cylinder(16, 0.5, 1.0, true, &Matrix4::identity()),
-                    )))])
-                    .build_node();
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(mesh, parent)))
-                    .unwrap();
-            } else if message.destination() == self.create_sphere {
-                let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
-                    .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
-                        SurfaceData::make_sphere(16, 16, 0.5, &Matrix4::identity()),
-                    )))])
-                    .build_node();
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(mesh, parent)))
-                    .unwrap();
-            } else if message.destination() == self.create_quad {
-                let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
-                    .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
-                        SurfaceData::make_quad(&Matrix4::identity()),
-                    )))])
-                    .build_node();
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(mesh, parent)))
-                    .unwrap();
-            } else if message.destination() == self.create_camera {
-                let node = CameraBuilder::new(BaseBuilder::new().with_name("Camera"))
-                    .enabled(false)
-                    .build_node();
-
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
-                    .unwrap();
-            } else if message.destination() == self.create_sprite {
-                let node = SpriteBuilder::new(BaseBuilder::new().with_name("Sprite")).build_node();
-
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
-                    .unwrap();
-            } else if message.destination() == self.create_sound_source {
-                let source = GenericSourceBuilder::new()
-                    .with_name("2D Source")
-                    .build_source()
-                    .unwrap();
-
-                sender
-                    .send(Message::do_scene_command(AddSoundSourceCommand::new(
-                        source,
-                    )))
-                    .unwrap();
-            } else if message.destination() == self.create_spatial_sound_source {
-                let source = SpatialSourceBuilder::new(
-                    GenericSourceBuilder::new()
-                        .with_name("3D Source")
-                        .build()
-                        .unwrap(),
+            let node = if message.destination() == self.create_cube {
+                Some(
+                    MeshBuilder::new(BaseBuilder::new().with_name("Cube"))
+                        .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                            SurfaceData::make_cube(Matrix4::identity()),
+                        )))])
+                        .build_node(),
                 )
-                .build_source();
-
-                sender
-                    .send(Message::do_scene_command(AddSoundSourceCommand::new(
-                        source,
-                    )))
-                    .unwrap();
+            } else if message.destination() == self.create_spot_light {
+                Some(
+                    SpotLightBuilder::new(BaseLightBuilder::new(
+                        BaseBuilder::new().with_name("SpotLight"),
+                    ))
+                    .with_distance(10.0)
+                    .with_hotspot_cone_angle(45.0f32.to_radians())
+                    .with_falloff_angle_delta(2.0f32.to_radians())
+                    .build_node(),
+                )
+            } else if message.destination() == self.create_pivot {
+                Some(BaseBuilder::new().with_name("Pivot").build_node())
+            } else if message.destination() == self.create_point_light {
+                Some(
+                    PointLightBuilder::new(BaseLightBuilder::new(
+                        BaseBuilder::new().with_name("PointLight"),
+                    ))
+                    .with_radius(10.0)
+                    .build_node(),
+                )
+            } else if message.destination() == self.create_directional_light {
+                Some(
+                    DirectionalLightBuilder::new(BaseLightBuilder::new(
+                        BaseBuilder::new().with_name("DirectionalLight"),
+                    ))
+                    .build_node(),
+                )
+            } else if message.destination() == self.create_cone {
+                Some(
+                    MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
+                        .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                            SurfaceData::make_cone(16, 0.5, 1.0, &Matrix4::identity()),
+                        )))])
+                        .build_node(),
+                )
+            } else if message.destination() == self.create_cylinder {
+                Some(
+                    MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
+                        .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                            SurfaceData::make_cylinder(16, 0.5, 1.0, true, &Matrix4::identity()),
+                        )))])
+                        .build_node(),
+                )
+            } else if message.destination() == self.create_sphere {
+                Some(
+                    MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
+                        .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                            SurfaceData::make_sphere(16, 16, 0.5, &Matrix4::identity()),
+                        )))])
+                        .build_node(),
+                )
+            } else if message.destination() == self.create_quad {
+                Some(
+                    MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
+                        .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                            SurfaceData::make_quad(&Matrix4::identity()),
+                        )))])
+                        .build_node(),
+                )
+            } else if message.destination() == self.create_camera {
+                Some(
+                    CameraBuilder::new(BaseBuilder::new().with_name("Camera"))
+                        .enabled(false)
+                        .build_node(),
+                )
+            } else if message.destination() == self.create_sprite {
+                Some(SpriteBuilder::new(BaseBuilder::new().with_name("Sprite")).build_node())
+            } else if message.destination() == self.create_sound_source {
+                Some(SoundBuilder::new(BaseBuilder::new().with_name("Sound")).build_node())
             } else if message.destination() == self.create_particle_system {
-                let node =
+                Some(
                     ParticleSystemBuilder::new(BaseBuilder::new().with_name("ParticleSystem"))
                         .with_emitters(vec![SphereEmitterBuilder::new(
                             BaseEmitterBuilder::new()
@@ -361,26 +316,27 @@ impl CreateEntityMenu {
                         )
                         .with_radius(1.0)
                         .build()])
-                        .build_node();
-
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
-                    .unwrap();
+                        .build_node(),
+                )
             } else if message.destination() == self.create_terrain {
-                let node = TerrainBuilder::new(BaseBuilder::new().with_name("Terrain"))
-                    .with_layers(vec![LayerDefinition {
-                        material: create_terrain_layer_material(),
-                        mask_property_name: "maskTexture".to_owned(),
-                    }])
-                    .with_height_map_resolution(4.0)
-                    .build_node();
-
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
-                    .unwrap();
+                Some(
+                    TerrainBuilder::new(BaseBuilder::new().with_name("Terrain"))
+                        .with_layers(vec![LayerDefinition {
+                            material: create_terrain_layer_material(),
+                            mask_property_name: "maskTexture".to_owned(),
+                        }])
+                        .with_height_map_resolution(4.0)
+                        .build_node(),
+                )
             } else if message.destination() == self.create_decal {
-                let node = DecalBuilder::new(BaseBuilder::new().with_name("Decal")).build_node();
+                Some(DecalBuilder::new(BaseBuilder::new().with_name("Decal")).build_node())
+            } else if message.destination() == self.create_listener {
+                Some(ListenerBuilder::new(BaseBuilder::new().with_name("Listener")).build_node())
+            } else {
+                None
+            };
 
+            if let Some(node) = node {
                 sender
                     .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
                     .unwrap();

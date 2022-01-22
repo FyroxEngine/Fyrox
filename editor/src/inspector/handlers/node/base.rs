@@ -35,12 +35,12 @@ pub fn handle_base_property_changed(
             Base::PROPERTIES => match **collection_changed {
                 CollectionChanged::Add => Some(SceneCommand::new(AddPropertyCommand {
                     handle,
-                    property: Default::default(),
+                    value: Default::default(),
                 })),
                 CollectionChanged::Remove(i) => Some(SceneCommand::new(RemovePropertyCommand {
                     handle,
                     index: i,
-                    property: None,
+                    value: None,
                 })),
                 CollectionChanged::ItemChanged {
                     index,

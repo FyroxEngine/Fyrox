@@ -299,28 +299,15 @@ impl MoveGizmo {
 
     pub fn sync_transform(&self, scene: &mut Scene, selection: &Selection, scale: Vector3<f32>) {
         let graph = &mut scene.graph;
-        match selection {
-            Selection::Graph(selection) => {
-                if let Some((rotation, position)) = selection.global_rotation_position(graph) {
-                    graph[self.origin]
-                        .set_visibility(true)
-                        .local_transform_mut()
-                        .set_rotation(rotation)
-                        .set_position(position)
-                        .set_scale(scale);
-                }
+        if let Selection::Graph(selection) = selection {
+            if let Some((rotation, position)) = selection.global_rotation_position(graph) {
+                graph[self.origin]
+                    .set_visibility(true)
+                    .local_transform_mut()
+                    .set_rotation(rotation)
+                    .set_position(position)
+                    .set_scale(scale);
             }
-            Selection::Sound(selection) => {
-                if let Some(center) = selection.center(&scene.sound_context) {
-                    graph[self.origin]
-                        .set_visibility(true)
-                        .local_transform_mut()
-                        .set_position(center)
-                        .set_rotation(Default::default())
-                        .set_scale(scale);
-                }
-            }
-            _ => (),
         }
     }
 

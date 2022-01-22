@@ -16,6 +16,7 @@
 //! these are common effects for modern games but still can significantly impact
 //! performance.
 
+use crate::scene::node::Node;
 use crate::{
     core::{
         algebra::Vector3,
@@ -100,6 +101,14 @@ impl Light {
             Light::Directional(v) => Self::Directional(v.raw_copy()),
             Light::Spot(v) => Self::Spot(v.raw_copy()),
             Light::Point(v) => Self::Point(v.raw_copy()),
+        }
+    }
+
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        match self {
+            Light::Directional(v) => v.inherit(parent),
+            Light::Spot(v) => v.inherit(parent),
+            Light::Point(v) => v.inherit(parent),
         }
     }
 
@@ -292,6 +301,13 @@ impl BaseLight {
             scatter_enabled: self.scatter_enabled,
             intensity: self.intensity,
         }
+    }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        self.base.inherit_properties(parent);
+
+        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
     }
 }
 

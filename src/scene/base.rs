@@ -291,7 +291,7 @@ pub struct Base {
     pub(in crate) resource: Option<Model>,
     // Handle to node in scene of model resource from which this node
     // was instantiated from.
-    #[inspect(skip)]
+    #[inspect(read_only)]
     pub(in crate) original_handle_in_resource: Handle<Node>,
     // When `true` it means that this node is instance of `resource`.
     // More precisely - this node is root of whole descendant nodes
@@ -556,20 +556,20 @@ impl Base {
             global_visibility: self.global_visibility.clone(),
             inv_bind_pose_transform: self.inv_bind_pose_transform,
             resource: self.resource.clone(),
+            original_handle_in_resource: self.original_handle_in_resource,
             is_resource_instance_root: self.is_resource_instance_root,
             lifetime: self.lifetime,
             mobility: self.mobility,
             tag: self.tag.clone(),
             lod_group: self.lod_group.clone(),
             properties: self.properties.clone(),
+            frustum_culling: self.frustum_culling,
+            depth_offset: self.depth_offset,
 
             // Rest of data is *not* copied!
-            original_handle_in_resource: Default::default(),
             parent: Default::default(),
             children: Default::default(),
-            depth_offset: Default::default(),
             transform_modified: Cell::new(false),
-            frustum_culling: self.frustum_culling,
         }
     }
 
@@ -581,6 +581,13 @@ impl Base {
     /// Sets whether to use frustum culling or not
     pub fn set_frustum_culling(&mut self, frustum_culling: bool) {
         self.frustum_culling = frustum_culling;
+    }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit_properties(&mut self, parent: &Base) {
+        self.local_transform.inherit(parent.local_transform());
+
+        // TODO: Add inheritance for other properties.
     }
 }
 

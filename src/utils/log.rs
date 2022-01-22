@@ -88,6 +88,21 @@ impl Log {
         LOG.lock().unwrap().writeln_internal(kind, msg);
     }
 
+    /// Writes information message.
+    pub fn info(msg: String) {
+        Self::writeln(MessageKind::Information, msg)
+    }
+
+    /// Writes warning message.
+    pub fn warn(msg: String) {
+        Self::writeln(MessageKind::Warning, msg)
+    }
+
+    /// Writes error message.
+    pub fn err(msg: String) {
+        Self::writeln(MessageKind::Error, msg)
+    }
+
     /// Sets verbosity level.
     pub fn set_verbosity(kind: MessageKind) {
         LOG.lock().unwrap().verbosity = kind;
@@ -99,7 +114,7 @@ impl Log {
     ///
     /// Typical use case for this method is that when you _can_ ignore errors, but want them to
     /// be in the log.
-    pub fn verify<E>(result: Result<(), E>)
+    pub fn verify<T, E>(result: Result<T, E>)
     where
         E: Debug,
     {

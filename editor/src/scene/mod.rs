@@ -1,20 +1,22 @@
-use crate::interaction::navmesh::data_model::{NavmeshTriangle, NavmeshVertex};
+use crate::audio::EffectSelection;
 use crate::{
     camera::CameraController,
-    interaction::navmesh::{data_model::Navmesh, selection::NavmeshSelection},
+    interaction::navmesh::{
+        data_model::{Navmesh, NavmeshTriangle, NavmeshVertex},
+        selection::NavmeshSelection,
+    },
     scene::clipboard::Clipboard,
-    world::{graph::selection::GraphSelection, sound::selection::SoundSelection},
+    world::graph::selection::GraphSelection,
     GameEngine,
 };
-use fyrox::engine::Engine;
-use fyrox::scene::base::BaseBuilder;
 use fyrox::{
     core::{
+        math::TriangleDefinition,
         pool::{Handle, Pool},
         visitor::{Visit, Visitor},
     },
-    scene::{node::Node, Scene},
-    sound::math::TriangleDefinition,
+    engine::Engine,
+    scene::{base::BaseBuilder, node::Node, Scene},
 };
 use std::{collections::HashMap, fmt::Write, path::PathBuf};
 
@@ -150,9 +152,10 @@ impl EditorScene {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Selection {
     None,
+    SoundContext,
     Graph(GraphSelection),
     Navmesh(NavmeshSelection),
-    Sound(SoundSelection),
+    Effect(EffectSelection),
 }
 
 impl Default for Selection {
@@ -167,7 +170,8 @@ impl Selection {
             Selection::None => true,
             Selection::Graph(graph) => graph.is_empty(),
             Selection::Navmesh(navmesh) => navmesh.is_empty(),
-            Selection::Sound(sound) => sound.sources().is_empty(),
+            Selection::SoundContext => false,
+            Selection::Effect(effect) => effect.is_empty(),
         }
     }
 
@@ -176,11 +180,58 @@ impl Selection {
             Selection::None => 0,
             Selection::Graph(graph) => graph.len(),
             Selection::Navmesh(navmesh) => navmesh.len(),
-            Selection::Sound(sound) => sound.len(),
+            Selection::SoundContext => 1,
+            Selection::Effect(effect) => effect.len(),
         }
     }
 
     pub fn is_single_selection(&self) -> bool {
         self.len() == 1
     }
+}
+
+#[macro_export]
+macro_rules! define_vec_add_remove_commands {
+    (struct $add_name:ident, $remove_name:ident<$model_ty:ty, $value_ty:ty> ($self:ident, $context:ident)$get_container:block) => {
+        #[derive(Debug)]
+        pub struct $add_name {
+            pub handle: Handle<$model_ty>,
+            pub value: $value_ty,
+        }
+
+        impl Command for $add_name {
+            fn name(&mut self, _: &SceneContext) -> String {
+                stringify!($add_name).to_owned()
+            }
+
+            fn execute(&mut $self, $context: &mut SceneContext) {
+                $get_container.push(std::mem::take(&mut $self.value));
+            }
+
+            fn revert(&mut $self, $context: &mut SceneContext) {
+                $self.value = $get_container.pop().unwrap();
+            }
+        }
+
+        #[derive(Debug)]
+        pub struct $remove_name {
+            pub handle: Handle<$model_ty>,
+            pub index: usize,
+            pub value: Option<$value_ty>,
+        }
+
+        impl Command for $remove_name {
+            fn name(&mut self, _: &SceneContext) -> String {
+                stringify!($remove_name).to_owned()
+            }
+
+            fn execute(&mut $self, $context: &mut SceneContext) {
+                $self.value = Some($get_container.remove($self.index));
+            }
+
+            fn revert(&mut $self, $context: &mut SceneContext) {
+                $get_container.insert($self.index, $self.value.take().unwrap());
+            }
+        }
+    };
 }

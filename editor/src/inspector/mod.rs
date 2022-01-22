@@ -2,8 +2,9 @@ use crate::{
     inspector::{
         editors::make_property_editors_container,
         handlers::{
+            effect::handle_reverb_effect_property_changed,
             node::{particle_system::ParticleSystemHandler, SceneNodePropertyChangedHandler},
-            sound::*,
+            sound_context::handle_sound_context_property_changed,
         },
     },
     scene::{EditorScene, Selection},
@@ -25,14 +26,9 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
-    sound::source::{generic::GenericSource, spatial::SpatialSource},
     utils::log::{Log, MessageKind},
 };
-use std::{
-    any::{Any, TypeId},
-    rc::Rc,
-    sync::mpsc::Sender,
-};
+use std::{any::Any, rc::Rc, sync::mpsc::Sender};
 
 pub mod editors;
 pub mod handlers;
@@ -178,16 +174,17 @@ impl Inspector {
 
         if self.needs_sync {
             if editor_scene.selection.is_single_selection() {
-                let ctx = scene.sound_context.state();
                 let obj: Option<&dyn Inspect> = match &editor_scene.selection {
                     Selection::Graph(selection) => scene
                         .graph
                         .try_get(selection.nodes()[0])
                         .map(|n| n as &dyn Inspect),
-                    Selection::Sound(selection) => ctx
-                        .sources()
-                        .try_borrow(selection.sources()[0])
-                        .map(|s| s as &dyn Inspect),
+                    Selection::SoundContext => Some(&scene.graph.sound_context as &dyn Inspect),
+                    Selection::Effect(selection) => scene
+                        .graph
+                        .sound_context
+                        .try_get_effect(selection.effects[0])
+                        .map(|e| e as &dyn Inspect),
                     _ => None,
                 };
 
@@ -244,16 +241,17 @@ impl Inspector {
                 ));
 
             if !editor_scene.selection.is_empty() {
-                let ctx = scene.sound_context.state();
                 let obj: Option<&dyn Inspect> = match &editor_scene.selection {
                     Selection::Graph(selection) => scene
                         .graph
                         .try_get(selection.nodes()[0])
                         .map(|n| n as &dyn Inspect),
-                    Selection::Sound(selection) => ctx
-                        .sources()
-                        .try_borrow(selection.sources()[0])
-                        .map(|s| s as &dyn Inspect),
+                    Selection::SoundContext => Some(&scene.graph.sound_context as &dyn Inspect),
+                    Selection::Effect(selection) => scene
+                        .graph
+                        .sound_context
+                        .try_get_effect(selection.effects[0])
+                        .map(|e| e as &dyn Inspect),
                     _ => None,
                 };
 
@@ -314,22 +312,13 @@ impl Inspector {
                             }
                         })
                         .collect::<Vec<_>>(),
-                    Selection::Sound(selection) => selection
-                        .sources
+                    Selection::SoundContext => handle_sound_context_property_changed(args)
+                        .map(|c| vec![c])
+                        .unwrap_or_default(),
+                    Selection::Effect(selection) => selection
+                        .effects
                         .iter()
-                        .filter_map(|&source_handle| {
-                            if args.owner_type_id == TypeId::of::<GenericSource>() {
-                                handle_generic_source_property_changed(args, source_handle)
-                            } else if args.owner_type_id == TypeId::of::<SpatialSource>() {
-                                handle_spatial_source_property_changed(
-                                    args,
-                                    source_handle,
-                                    scene.sound_context.state().source(source_handle),
-                                )
-                            } else {
-                                None
-                            }
-                        })
+                        .filter_map(|&handle| handle_reverb_effect_property_changed(args, handle))
                         .collect::<Vec<_>>(),
                     _ => vec![],
                 };

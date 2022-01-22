@@ -566,12 +566,13 @@ impl Visit for GenericSource {
 pub struct GenericSourceBuilder {
     buffer: Option<SoundBufferResource>,
     gain: f32,
-    pitch: f32,
+    pitch: f64,
     name: String,
     panning: f32,
     looping: bool,
     status: Status,
     play_once: bool,
+    playback_time: Duration,
 }
 
 impl Default for GenericSourceBuilder {
@@ -592,12 +593,19 @@ impl GenericSourceBuilder {
             looping: false,
             status: Status::Stopped,
             play_once: false,
+            playback_time: Default::default(),
         }
     }
 
     /// Sets desired sound buffer to play.
     pub fn with_buffer(mut self, buffer: SoundBufferResource) -> Self {
         self.buffer = Some(buffer);
+        self
+    }
+
+    /// Sets desired sound buffer to play.
+    pub fn with_opt_buffer(mut self, buffer: Option<SoundBufferResource>) -> Self {
+        self.buffer = buffer;
         self
     }
 
@@ -608,7 +616,7 @@ impl GenericSourceBuilder {
     }
 
     /// See `set_pitch` of GenericSource
-    pub fn with_pitch(mut self, pitch: f32) -> Self {
+    pub fn with_pitch(mut self, pitch: f64) -> Self {
         self.pitch = pitch;
         self
     }
@@ -643,12 +651,18 @@ impl GenericSourceBuilder {
         self
     }
 
+    /// Sets desired starting playback time.
+    pub fn with_playback_time(mut self, time: Duration) -> Self {
+        self.playback_time = time;
+        self
+    }
+
     /// Creates new instance of generic sound source. May fail if buffer is invalid.
     pub fn build(self) -> Result<GenericSource, SoundError> {
         let mut source = GenericSource {
             buffer: self.buffer.clone(),
             gain: self.gain,
-            pitch: self.pitch as f64,
+            pitch: self.pitch,
             play_once: self.play_once,
             panning: self.panning,
             status: self.status,
@@ -659,6 +673,7 @@ impl GenericSourceBuilder {
         };
 
         source.set_buffer(self.buffer)?;
+        source.set_playback_time(self.playback_time);
 
         Ok(source)
     }

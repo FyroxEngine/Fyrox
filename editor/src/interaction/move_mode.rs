@@ -5,14 +5,11 @@ use crate::{
         InteractionMode,
     },
     scene::{
-        commands::{
-            graph::MoveNodeCommand, sound::MoveSpatialSoundSourceCommand, ChangeSelectionCommand,
-            CommandGroup, SceneCommand,
-        },
+        commands::{graph::MoveNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
         EditorScene, Selection,
     },
     settings::Settings,
-    world::{graph::selection::GraphSelection, sound::selection::SoundSelection},
+    world::graph::selection::GraphSelection,
     GameEngine, Message,
 };
 use fyrox::{
@@ -23,49 +20,11 @@ use fyrox::{
         pool::Handle,
     },
     scene::{graph::Graph, node::Node, Scene},
-    sound::source::SoundSource,
 };
 use std::sync::mpsc::Sender;
 
-#[derive(Copy, Clone)]
-enum MovableEntity {
-    Node(Handle<Node>),
-    Sound(Handle<SoundSource>),
-}
-
-impl MovableEntity {
-    fn position(&self, scene: &Scene) -> Vector3<f32> {
-        match *self {
-            MovableEntity::Node(node) => **scene.graph[node].local_transform().position(),
-            MovableEntity::Sound(sound) => {
-                let state = scene.sound_context.state();
-                match state.source(sound) {
-                    SoundSource::Generic(_) => Vector3::default(),
-                    SoundSource::Spatial(spatial) => spatial.position(),
-                }
-            }
-        }
-    }
-
-    fn set_position(&self, scene: &mut Scene, position: Vector3<f32>) {
-        match *self {
-            MovableEntity::Node(node) => {
-                scene.graph[node]
-                    .local_transform_mut()
-                    .set_position(position);
-            }
-            MovableEntity::Sound(sound) => {
-                let mut state = scene.sound_context.state();
-                if let SoundSource::Spatial(spatial) = state.source_mut(sound) {
-                    spatial.set_position(position);
-                }
-            }
-        }
-    }
-}
-
 struct Entry {
-    entity: MovableEntity,
+    node: Handle<Node>,
     initial_offset_gizmo_space: Vector3<f32>,
     initial_local_position: Vector3<f32>,
     initial_parent_inv_global_transform: Matrix4<f32>,
@@ -150,7 +109,7 @@ impl MoveContext {
                     .map(|&node_handle| {
                         let node = &graph[node_handle];
                         Entry {
-                            entity: MovableEntity::Node(node_handle),
+                            node: node_handle,
                             initial_offset_gizmo_space: gizmo_inv_transform
                                 .transform_point(&Point3::from(node.global_position()))
                                 .coords
@@ -167,50 +126,6 @@ impl MoveContext {
                             } else {
                                 Matrix4::identity()
                             },
-                        }
-                    })
-                    .collect()
-            },
-        )
-    }
-
-    pub fn from_sound_selection(
-        selection: &SoundSelection,
-        scene: &Scene,
-        move_gizmo: &MoveGizmo,
-        camera_controller: &CameraController,
-        plane_kind: PlaneKind,
-        mouse_pos: Vector2<f32>,
-        frame_size: Vector2<f32>,
-    ) -> Self {
-        let state = scene.sound_context.state();
-        Self::from_filler(
-            scene,
-            move_gizmo,
-            camera_controller,
-            plane_kind,
-            mouse_pos,
-            frame_size,
-            |plane_point, gizmo_inv_transform, gizmo_origin| {
-                selection
-                    .sources()
-                    .iter()
-                    .filter_map(|&source_handle| {
-                        let source = state.source(source_handle);
-                        match source {
-                            SoundSource::Generic(_) => None,
-                            SoundSource::Spatial(spatial) => Some(Entry {
-                                entity: MovableEntity::Sound(source_handle),
-                                initial_offset_gizmo_space: gizmo_inv_transform
-                                    .transform_point(&Point3::from(spatial.position()))
-                                    .coords
-                                    - plane_point
-                                    - gizmo_inv_transform
-                                        .transform_vector(&(spatial.position() - gizmo_origin)),
-                                new_local_position: spatial.position(),
-                                initial_local_position: spatial.position(),
-                                initial_parent_inv_global_transform: Matrix4::identity(),
-                            }),
                         }
                     })
                     .collect()
@@ -312,30 +227,16 @@ impl InteractionMode for MoveInteractionMode {
             },
         ) {
             if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, graph) {
-                match &editor_scene.selection {
-                    Selection::Graph(selection) => {
-                        self.move_context = Some(MoveContext::from_graph_selection(
-                            selection,
-                            scene,
-                            &self.move_gizmo,
-                            &editor_scene.camera_controller,
-                            plane_kind,
-                            mouse_pos,
-                            frame_size,
-                        ));
-                    }
-                    Selection::Sound(selection) => {
-                        self.move_context = Some(MoveContext::from_sound_selection(
-                            selection,
-                            scene,
-                            &self.move_gizmo,
-                            &editor_scene.camera_controller,
-                            plane_kind,
-                            mouse_pos,
-                            frame_size,
-                        ));
-                    }
-                    _ => {}
+                if let Selection::Graph(selection) = &editor_scene.selection {
+                    self.move_context = Some(MoveContext::from_graph_selection(
+                        selection,
+                        scene,
+                        &self.move_gizmo,
+                        &editor_scene.camera_controller,
+                        plane_kind,
+                        mouse_pos,
+                        frame_size,
+                    ));
                 }
             }
         }
@@ -354,7 +255,9 @@ impl InteractionMode for MoveInteractionMode {
             let mut changed = false;
 
             for initial_state in move_context.objects.iter() {
-                if initial_state.entity.position(scene) != initial_state.initial_local_position {
+                if **scene.graph[initial_state.node].local_transform().position()
+                    != initial_state.initial_local_position
+                {
                     changed = true;
                     break;
                 }
@@ -365,27 +268,12 @@ impl InteractionMode for MoveInteractionMode {
                     move_context
                         .objects
                         .iter()
-                        .filter_map(|initial_state| match initial_state.entity {
-                            MovableEntity::Node(node) => {
-                                Some(SceneCommand::new(MoveNodeCommand::new(
-                                    node,
-                                    initial_state.initial_local_position,
-                                    **scene.graph[node].local_transform().position(),
-                                )))
-                            }
-                            MovableEntity::Sound(sound) => {
-                                let state = scene.sound_context.state();
-                                match state.source(sound) {
-                                    SoundSource::Generic(_) => None,
-                                    SoundSource::Spatial(spatial) => {
-                                        Some(SceneCommand::new(MoveSpatialSoundSourceCommand::new(
-                                            sound,
-                                            initial_state.initial_local_position,
-                                            spatial.position(),
-                                        )))
-                                    }
-                                }
-                            }
+                        .map(|initial_state| {
+                            SceneCommand::new(MoveNodeCommand::new(
+                                initial_state.node,
+                                initial_state.initial_local_position,
+                                **scene.graph[initial_state.node].local_transform().position(),
+                            ))
                         })
                         .collect::<Vec<_>>(),
                 );
@@ -454,7 +342,9 @@ impl InteractionMode for MoveInteractionMode {
             );
 
             for entry in move_context.objects.iter() {
-                entry.entity.set_position(scene, entry.new_local_position);
+                scene.graph[entry.node]
+                    .local_transform_mut()
+                    .set_position(entry.new_local_position);
             }
         }
     }

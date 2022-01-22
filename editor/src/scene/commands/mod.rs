@@ -19,6 +19,7 @@ pub mod camera;
 pub mod collider;
 pub mod collider2d;
 pub mod decal;
+pub mod effect;
 pub mod graph;
 pub mod joint;
 pub mod joint2d;
@@ -32,6 +33,7 @@ pub mod rectangle;
 pub mod rigidbody;
 pub mod rigidbody2d;
 pub mod sound;
+pub mod sound_context;
 pub mod sprite;
 pub mod terrain;
 
@@ -187,7 +189,8 @@ impl ChangeSelectionCommand {
                 Selection::None => "Change Selection: None",
                 Selection::Graph(_) => "Change Selection: Graph",
                 Selection::Navmesh(_) => "Change Selection: Navmesh",
-                Selection::Sound(_) => "Change Selection: Sound",
+                Selection::SoundContext => "Change Selection: Sound Context",
+                Selection::Effect(_) => "Change Selection: Effect",
             }
             .to_owned(),
             new_selection,

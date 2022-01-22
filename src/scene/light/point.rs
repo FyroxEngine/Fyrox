@@ -88,6 +88,13 @@ impl PointLight {
             shadow_bias: self.shadow_bias,
         }
     }
+
+    // Prefab inheritance resolving.
+    pub(crate) fn inherit(&mut self, parent: &Node) {
+        self.base_light.inherit(parent);
+
+        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+    }
 }
 
 impl Visit for PointLight {

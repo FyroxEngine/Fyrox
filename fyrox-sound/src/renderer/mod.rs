@@ -14,7 +14,11 @@ use crate::{
     renderer::hrtf::HrtfRenderer,
     source::{generic::GenericSource, SoundSource},
 };
-use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::{
+    inspect::{Inspect, PropertyInfo},
+    visitor::{Visit, VisitResult, Visitor},
+};
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 pub mod hrtf;
 
@@ -22,7 +26,7 @@ pub mod hrtf;
 // This "large size difference" is not a problem because renderer
 // can be only one at a time on context.
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, AsRefStr, EnumString, EnumVariantNames)]
 pub enum Renderer {
     /// Stateless default renderer.
     Default,
@@ -30,6 +34,17 @@ pub enum Renderer {
     /// Can be used *only* with mono sounds, stereo sounds will be rendered through
     /// default renderer.
     HrtfRenderer(HrtfRenderer),
+}
+
+impl Inspect for Renderer {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        match self {
+            Renderer::Default => {
+                vec![]
+            }
+            Renderer::HrtfRenderer(v) => v.properties(),
+        }
+    }
 }
 
 impl Renderer {
