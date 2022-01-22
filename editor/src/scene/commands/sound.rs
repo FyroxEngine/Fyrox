@@ -1,4 +1,5 @@
 use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
+use fyrox::scene::sound::Status;
 use fyrox::{
     core::pool::Handle,
     scene::{graph::Graph, node::Node, sound::SoundBufferResource},
@@ -22,6 +23,10 @@ define_node_command!(SetSoundSourcePitchCommand("Set Sound Source Pitch", f64) w
 
 define_node_command!(SetSoundSourceLoopingCommand("Set Sound Source Looping", bool) where fn swap(self, source) {
     get_set_swap!(self, source.as_sound_mut(), is_looping, set_looping);
+});
+
+define_node_command!(SetSoundSourceStatusCommand("Set Sound Source Status", Status) where fn swap(self, source) {
+    get_set_swap!(self, source.as_sound_mut(), status, set_status);
 });
 
 define_node_command!(SetSoundSourcePlayOnceCommand("Set Sound Source Play Once", bool) where fn swap(self, source) {

@@ -176,6 +176,15 @@ impl Sound {
         *self.panning
     }
 
+    /// Sets playback status.    
+    pub fn set_status(&mut self, status: Status) {
+        match status {
+            Status::Stopped => self.stop(),
+            Status::Playing => self.play(),
+            Status::Paused => self.pause(),
+        }
+    }
+
     /// Returns status of sound source.
     pub fn status(&self) -> Status {
         *self.status
