@@ -16,6 +16,9 @@ pub fn handle_sound_context_property_changed(args: &PropertyChanged) -> Option<S
             SoundContext::DISTANCE_MODEL => Some(SceneCommand::new(SetDistanceModelCommand::new(
                 value.cast_clone()?,
             ))),
+            SoundContext::RENDERER => Some(SceneCommand::new(SetRendererCommand::new(
+                value.cast_clone()?,
+            ))),
             _ => None,
         },
         _ => None,

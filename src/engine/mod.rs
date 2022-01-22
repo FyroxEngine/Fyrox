@@ -233,6 +233,17 @@ impl Engine {
                 .render_and_swap_buffers(&self.scenes, &self.user_interface.get_drawing_context())
         }
     }
+
+    /// Sets master gain of the sound engine. Can be used to control overall gain of all sound
+    /// scenes at once.
+    pub fn set_sound_gain(&mut self, gain: f32) {
+        self.sound_engine.lock().unwrap().set_master_gain(gain);
+    }
+
+    /// Returns master gain of the sound engine.
+    pub fn sound_gain(&self) -> f32 {
+        self.sound_engine.lock().unwrap().master_gain()
+    }
 }
 
 impl Visit for Engine {

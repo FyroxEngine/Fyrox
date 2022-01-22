@@ -1,5 +1,5 @@
 use crate::{Command, SceneContext};
-use fyrox::scene::sound::{context::SoundContext, DistanceModel};
+use fyrox::scene::sound::{context::SoundContext, DistanceModel, Renderer};
 
 macro_rules! define_sound_context_command {
     ($name:ident($human_readable_name:expr, $value_type:ty, $get:ident, $set:ident)) => {
@@ -48,4 +48,10 @@ define_sound_context_command!(SetDistanceModelCommand(
     DistanceModel,
     distance_model,
     set_distance_model
+));
+define_sound_context_command!(SetRendererCommand(
+    "Set Renderer",
+    Renderer,
+    renderer,
+    set_renderer
 ));

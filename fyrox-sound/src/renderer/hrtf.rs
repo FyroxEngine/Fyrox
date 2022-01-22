@@ -52,19 +52,23 @@
 //! Clicks can be reproduced by using clean sine wave of 440 Hz on some source moving around listener.
 
 use crate::{
-    context,
-    context::{DistanceModel, SoundContext},
+    context::{self, DistanceModel, SoundContext},
     listener::Listener,
     renderer::render_source_default,
     source::SoundSource,
 };
-use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::{
+    inspect::{Inspect, PropertyInfo},
+    visitor::{Visit, VisitResult, Visitor},
+};
 use hrtf::HrirSphere;
-use std::fmt::Debug;
+use std::{fmt::Debug, path::PathBuf};
 
 /// See module docs.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Inspect)]
 pub struct HrtfRenderer {
+    hrir_path: PathBuf,
+    #[inspect(skip)]
     processor: Option<hrtf::HrtfProcessor>,
 }
 
@@ -72,20 +76,10 @@ impl Visit for HrtfRenderer {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        let mut resource_path = if visitor.is_reading() {
-            Default::default()
-        } else {
-            self.processor
-                .as_ref()
-                .unwrap()
-                .hrtf_sphere()
-                .source()
-                .to_owned()
-        };
-        resource_path.visit("ResourcePath", visitor)?;
+        self.hrir_path.visit("ResourcePath", visitor)?;
         if visitor.is_reading() {
             self.processor = Some(hrtf::HrtfProcessor::new(
-                HrirSphere::from_file(resource_path, context::SAMPLE_RATE).unwrap(),
+                HrirSphere::from_file(&self.hrir_path, context::SAMPLE_RATE).unwrap(),
                 SoundContext::HRTF_INTERPOLATION_STEPS,
                 SoundContext::HRTF_BLOCK_LEN,
             ));
@@ -99,6 +93,7 @@ impl HrtfRenderer {
     /// Creates new HRTF renderer using specified HRTF sphere. See module docs for more info.
     pub fn new(hrir_sphere: hrtf::HrirSphere) -> Self {
         Self {
+            hrir_path: hrir_sphere.source().to_path_buf(),
             processor: Some(hrtf::HrtfProcessor::new(
                 hrir_sphere,
                 SoundContext::HRTF_INTERPOLATION_STEPS,

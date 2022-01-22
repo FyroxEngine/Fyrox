@@ -146,6 +146,11 @@ impl SoundContext {
         self.native.state().full_render_duration()
     }
 
+    /// Returns current renderer.
+    pub fn renderer(&self) -> Renderer {
+        self.renderer.clone()
+    }
+
     /// Sets new renderer.
     pub fn set_renderer(&mut self, renderer: Renderer) -> Renderer {
         self.native.state().set_renderer(renderer)

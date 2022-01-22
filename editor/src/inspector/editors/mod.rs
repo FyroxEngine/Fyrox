@@ -43,7 +43,11 @@ use fyrox::{
         node::Node,
         particle_system::emitter::{base::BaseEmitter, Emitter},
         rigidbody::RigidBodyType,
-        sound::{effect::BaseEffect, effect::EffectInput, Biquad, DistanceModel, Status},
+        sound::{
+            self,
+            effect::{BaseEffect, EffectInput},
+            Biquad, DistanceModel, Status,
+        },
         terrain::Layer,
         transform::Transform,
     },
@@ -132,6 +136,7 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<FrustumSplitOptions>::new());
     container.insert(EnumPropertyEditorDefinition::<MaterialSearchOptions>::new());
     container.insert(EnumPropertyEditorDefinition::<DistanceModel>::new());
+    container.insert(EnumPropertyEditorDefinition::<sound::Renderer>::new());
 
     Rc::new(container)
 }
