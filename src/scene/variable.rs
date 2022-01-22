@@ -154,6 +154,15 @@ impl<T> TemplateVariable<T> {
         &mut self.value
     }
 
+    /// Returns a mutable reference to the wrapped value.
+    ///
+    /// # Important notes.
+    ///
+    /// This method does not mark the value as modified!
+    pub fn get_mut_silent(&mut self) -> &mut T {
+        &mut self.value
+    }
+
     /// Returns true if value was modified.
     pub fn is_modified(&self) -> bool {
         self.flags.get().contains(VariableFlags::MODIFIED)

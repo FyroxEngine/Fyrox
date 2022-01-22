@@ -143,6 +143,8 @@ fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_g
             }
         }
 
+        dest_graph.sound_context.remap_handles(old_new_mapping);
+
         // LODs also have handles that must be remapped too.
         if let Some(lod_group) = new_node.lod_group_mut() {
             for level in lod_group.levels.iter_mut() {

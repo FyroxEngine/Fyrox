@@ -13,6 +13,7 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
+use fxhash::FxHashMap;
 use fyrox_core::pool::Ticket;
 use fyrox_sound::{
     context::DistanceModel,
@@ -30,7 +31,7 @@ pub struct SoundContext {
     distance_model: DistanceModel,
     paused: bool,
     #[inspect(skip)]
-    effects: Pool<Effect>,
+    pub(crate) effects: Pool<Effect>,
     #[inspect(read_only)]
     // A model resource from which this context was instantiated from.
     pub(crate) resource: Option<Model>,
@@ -314,6 +315,19 @@ impl SoundContext {
                 MessageKind::Information,
                 format!("Native sound source was created for node: {}", sound.name()),
             );
+        }
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        for effect in self.effects.iter_mut() {
+            for input in effect.inputs.get_mut_silent().iter_mut() {
+                if let Some(new_handle) = old_new_mapping.get(&input.sound) {
+                    input.sound = *new_handle;
+                }
+            }
         }
     }
 }
