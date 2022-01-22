@@ -233,10 +233,15 @@ pub enum BiquadKind {
 /// More info here: <https://ccrma.stanford.edu/~jos/filters/BiQuad_Section.html>
 #[derive(Clone, Debug, Inspect)]
 pub struct Biquad {
+    /// B0 Coefficient of the equation.
     pub b0: f32,
+    /// B1 Coefficient of the equation.
     pub b1: f32,
+    /// B2 Coefficient of the equation.
     pub b2: f32,
+    /// A1 Coefficient of the equation.
     pub a1: f32,
+    /// A2 Coefficient of the equation.
     pub a2: f32,
     #[inspect(skip)]
     prev1: f32,
