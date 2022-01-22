@@ -10,12 +10,22 @@ use crate::{
     scene::{node::Node, sound::context::SoundContext, variable::TemplateVariable},
 };
 use fyrox_core::define_is_as;
+use fyrox_sound::dsp::filters::Biquad;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
 };
 
 const DEFAULT_FC: f32 = 0.25615; // 11296 Hz at 44100 Hz sample rate
+
+/// Effect input allows you to setup a source of samples for an effect with an optional filtering.
+#[derive(Visit, Inspect, Debug, Default, Clone)]
+pub struct EffectInput {
+    /// A sound node that will be the source of samples for the effect.
+    pub sound: Handle<Node>,
+    /// An optional filter that will be applied to all samples coming from sound.
+    pub filter: Option<Biquad>,
+}
 
 /// Base effect contains common properties for every effect (gain, inputs, etc.)
 #[derive(Visit, Inspect, Debug)]
@@ -25,7 +35,7 @@ pub struct BaseEffect {
     #[inspect(getter = "Deref::deref")]
     pub(crate) gain: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
-    pub(crate) inputs: TemplateVariable<Vec<Handle<Node>>>,
+    pub(crate) inputs: TemplateVariable<Vec<EffectInput>>,
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) native: Cell<Handle<fyrox_sound::effects::Effect>>,
@@ -43,12 +53,12 @@ impl BaseEffect {
     }
 
     /// Returns shared reference to the inputs array.
-    pub fn inputs(&self) -> &Vec<Handle<Node>> {
+    pub fn inputs(&self) -> &Vec<EffectInput> {
         &self.inputs
     }
 
     /// Returns mutable reference to the inputs array.
-    pub fn inputs_mut(&mut self) -> &mut Vec<Handle<Node>> {
+    pub fn inputs_mut(&mut self) -> &mut Vec<EffectInput> {
         self.inputs.get_mut()
     }
 
@@ -125,7 +135,7 @@ impl Effect {
 /// Base effect builder allows you to build an effect.
 pub struct BaseEffectBuilder {
     gain: f32,
-    inputs: Vec<Handle<Node>>,
+    inputs: Vec<EffectInput>,
     name: String,
 }
 
@@ -157,7 +167,7 @@ impl BaseEffectBuilder {
 
     define_with!(
         /// Sets desired inputs of the effect.
-        fn with_inputs(inputs: Vec<Handle<Node>>)
+        fn with_inputs(inputs: Vec<EffectInput>)
     );
 
     /// Creates new base effect.

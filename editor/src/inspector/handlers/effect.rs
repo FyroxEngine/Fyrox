@@ -2,7 +2,10 @@ use crate::{handle_properties, scene::commands::effect::*, SceneCommand};
 use fyrox::{
     core::pool::Handle,
     gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
-    scene::sound::effect::{BaseEffect, Effect, ReverbEffect},
+    scene::sound::{
+        effect::{BaseEffect, Effect, EffectInput, ReverbEffect},
+        Biquad,
+    },
 };
 
 pub fn handle_base_effect_property_changed(
@@ -30,21 +33,7 @@ pub fn handle_base_effect_property_changed(
                 CollectionChanged::ItemChanged {
                     index,
                     ref property,
-                } => match property.value {
-                    FieldKind::Inspectable(ref property_changed) => {
-                        match property_changed.name.as_ref() {
-                            "0" => {
-                                if let FieldKind::Object(ref value) = property_changed.value {
-                                    None
-                                } else {
-                                    None
-                                }
-                            }
-                            _ => None,
-                        }
-                    }
-                    _ => None,
-                },
+                } => handle_effect_input_property_changed(property, handle, index),
             },
             _ => None,
         },
@@ -67,6 +56,68 @@ pub fn handle_reverb_effect_property_changed(
         }
         FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
             ReverbEffect::BASE => handle_base_effect_property_changed(inner, handle),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn handle_effect_input_property_changed(
+    args: &PropertyChanged,
+    handle: Handle<Effect>,
+    index: usize,
+) -> Option<SceneCommand> {
+    match args.value {
+        FieldKind::Object(ref value) => match args.name.as_ref() {
+            EffectInput::SOUND => Some(SceneCommand::new(SetEffectInputSound::new(
+                handle,
+                index,
+                value.cast_clone()?,
+            ))),
+            EffectInput::FILTER => Some(SceneCommand::new(SetEffectInputFilter::new(
+                handle,
+                index,
+                value.cast_clone()?,
+            ))),
+            _ => None,
+        },
+        FieldKind::Inspectable(ref value) => handle_effect_input_filter(&**value, handle, index),
+        _ => None,
+    }
+}
+
+fn handle_effect_input_filter(
+    args: &PropertyChanged,
+    handle: Handle<Effect>,
+    index: usize,
+) -> Option<SceneCommand> {
+    match args.value {
+        FieldKind::Object(ref value) => match args.name.as_ref() {
+            Biquad::B_0 => Some(SceneCommand::new(SetEffectInputFilterB0::new(
+                handle,
+                index,
+                value.cast_clone()?,
+            ))),
+            Biquad::B_1 => Some(SceneCommand::new(SetEffectInputFilterB1::new(
+                handle,
+                index,
+                value.cast_clone()?,
+            ))),
+            Biquad::B_2 => Some(SceneCommand::new(SetEffectInputFilterB2::new(
+                handle,
+                index,
+                value.cast_clone()?,
+            ))),
+            Biquad::A_1 => Some(SceneCommand::new(SetEffectInputFilterA1::new(
+                handle,
+                index,
+                value.cast_clone()?,
+            ))),
+            Biquad::A_2 => Some(SceneCommand::new(SetEffectInputFilterA2::new(
+                handle,
+                index,
+                value.cast_clone()?,
+            ))),
             _ => None,
         },
         _ => None,

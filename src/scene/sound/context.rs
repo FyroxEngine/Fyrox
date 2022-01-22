@@ -9,14 +9,14 @@ use crate::{
     resource::model::Model,
     scene::{
         node::Node,
-        sound::{effect::Effect, Sound},
+        sound::{self, effect::Effect, Sound},
     },
     utils::log::{Log, MessageKind},
 };
 use fyrox_core::pool::Ticket;
 use fyrox_sound::{
     context::DistanceModel,
-    effects::{reverb::Reverb, BaseEffect, EffectInput},
+    effects::{reverb::Reverb, BaseEffect, EffectInput, InputFilter},
     renderer::Renderer,
     source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
 };
@@ -166,6 +166,28 @@ impl SoundContext {
     pub(crate) fn update(&mut self, nodes: &Pool<Node>) {
         let mut state = self.native.state();
 
+        fn sync_effect_inputs(
+            native_effect: &mut fyrox_sound::effects::BaseEffect,
+            inputs: &[sound::effect::EffectInput],
+            nodes: &Pool<Node>,
+        ) {
+            for input in inputs.iter() {
+                if let Some(Node::Sound(sound)) = nodes.try_borrow(input.sound) {
+                    match input.filter.as_ref() {
+                        None => {
+                            native_effect.add_input(EffectInput::direct(sound.native.get()));
+                        }
+                        Some(filter) => {
+                            native_effect.add_input(EffectInput::filtered(
+                                sound.native.get(),
+                                InputFilter::new(filter.clone()),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
         for effect in self.effects.iter() {
             if effect.native.get().is_some() {
                 let native_effect = state.effect_mut(effect.native.get());
@@ -183,11 +205,7 @@ impl SoundContext {
                     reverb.fc.try_sync_model(|v| native_reverb.set_fc(v));
                     reverb.inputs.try_sync_model(|v| {
                         native_reverb.clear_inputs();
-                        for input in v.iter() {
-                            if let Some(Node::Sound(sound)) = nodes.try_borrow(*input) {
-                                native_reverb.add_input(EffectInput::direct(sound.native.get()));
-                            }
-                        }
+                        sync_effect_inputs(native_reverb, &v, nodes)
                     });
                 }
             } else {
@@ -199,11 +217,7 @@ impl SoundContext {
                         native_reverb.set_decay_time(Duration::from_secs_f32(reverb.decay_time()));
                         native_reverb.set_dry(reverb.dry());
                         native_reverb.set_wet(reverb.wet());
-                        for input in reverb.inputs.iter() {
-                            if let Some(Node::Sound(sound)) = nodes.try_borrow(*input) {
-                                native_reverb.add_input(EffectInput::direct(sound.native.get()));
-                            }
-                        }
+                        sync_effect_inputs(&mut *native_reverb, &*reverb.inputs, nodes);
                         let native =
                             state.add_effect(fyrox_sound::effects::Effect::Reverb(native_reverb));
                         reverb.native.set(native);

@@ -26,6 +26,7 @@ use crate::{
 pub use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
     context::DistanceModel,
+    dsp::{filters::*, DelayLine},
     engine::SoundEngine,
     error::SoundError,
     renderer::{hrtf::*, Renderer},

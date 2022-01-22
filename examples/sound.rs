@@ -9,6 +9,7 @@
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
+use fyrox::scene::sound::effect::EffectInput;
 use fyrox::{
     animation::AnimationSignal,
     core::algebra::Vector2,
@@ -179,7 +180,15 @@ fn main() {
 
                             // Once foot step sound source was created, it must be attached to reverb effect, otherwise no reverb
                             // will be added to the source.
-                            scene.graph.sound_context.effect_mut(game_scene.reverb_effect).inputs_mut().push(source);
+                            scene
+                                .graph
+                                .sound_context
+                                .effect_mut(game_scene.reverb_effect)
+                                .inputs_mut()
+                                .push(EffectInput{
+                                    sound: source,
+                                    filter: None
+                                });
                         }
                     }
 
