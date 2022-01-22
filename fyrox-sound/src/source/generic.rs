@@ -572,6 +572,7 @@ pub struct GenericSourceBuilder {
     looping: bool,
     status: Status,
     play_once: bool,
+    playback_time: Duration,
 }
 
 impl Default for GenericSourceBuilder {
@@ -592,6 +593,7 @@ impl GenericSourceBuilder {
             looping: false,
             status: Status::Stopped,
             play_once: false,
+            playback_time: Default::default(),
         }
     }
 
@@ -649,6 +651,12 @@ impl GenericSourceBuilder {
         self
     }
 
+    /// Sets desired starting playback time.
+    pub fn with_playback_time(mut self, time: Duration) -> Self {
+        self.playback_time = time;
+        self
+    }
+
     /// Creates new instance of generic sound source. May fail if buffer is invalid.
     pub fn build(self) -> Result<GenericSource, SoundError> {
         let mut source = GenericSource {
@@ -665,6 +673,7 @@ impl GenericSourceBuilder {
         };
 
         source.set_buffer(self.buffer)?;
+        source.set_playback_time(self.playback_time);
 
         Ok(source)
     }

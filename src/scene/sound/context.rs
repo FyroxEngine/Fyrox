@@ -298,6 +298,7 @@ impl SoundContext {
                     .with_panning(sound.panning())
                     .with_pitch(sound.pitch())
                     .with_status(sound.status())
+                    .with_playback_time(sound.playback_time())
                     .build()
                     .unwrap(),
             )
