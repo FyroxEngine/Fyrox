@@ -1,3 +1,80 @@
+# 0.25 (future)
+
+- Some of sound entities were integrated in the scene graph.
+- New `Sound` and `Listener` scene nodes.
+- **WIP**
+
+## Migration guide
+
+**WARNING:** This release **does not** provide legacy sound system conversion to new one, which means if 
+any of your scene had any sound, they will be lost!
+
+Now there is limited access to `fyrox_sound` entities, there is no way to create sound contexts, sounds, 
+effects manually. You have to use respective scene nodes (`Sound`, `Listener`) and `Effect` from 
+`fyrox::scene::sound` module (and children modules). 
+
+### Listener
+
+Now there is no need to manually sync position and orientation of the sound listener, all you need to do
+instead is to create `Listener` node and attach it to your primary camera (or other scene node). Keep
+in mind that the engine supports only one listener, which means that only one listener can be active 
+at a time. The engine will not stop you from having multiple listeners active, however only first (the 
+order is undefined) will be used to output sound.
+
+### Sound sources
+
+There is no more 2D/3D separation between sounds, all sounds in 3D by default. Every sound source now is
+a scene node and can be created like so:
+
+```rust
+let sound = SoundBuilder::new(
+    BaseBuilder::new().with_local_transform(
+        TransformBuilder::new()
+            .with_local_position(position)
+            .build(),
+    ),
+)
+.with_buffer(buffer.into())
+.with_status(Status::Playing)
+.with_play_once(true)
+.with_gain(gain)
+.with_radius(radius)
+.with_rolloff_factor(rolloff_factor)
+.build(graph);
+```
+
+Its API mimics `fyrox_sound` API so there should be now troubles in migration.
+
+### Effects
+
+Effects got a thin wrapper around `fyrox_sound` to make them compatible with `Sound` scene nodes, a reverb
+effect instance can be created like so:
+
+```rust
+let reverb = ReverbEffectBuilder::new(BaseEffectBuilder::new().with_gain(0.7))
+    .with_wet(0.5)
+    .with_dry(0.5)
+    .with_decay_time(3.0)
+    .build(&mut scene.graph.sound_context);
+```
+
+A sound source can be attached to an effect like so:
+
+```rust
+graph
+    .sound_context
+    .effect_mut(self.reverb)
+    .inputs_mut()
+    .push(EffectInput {
+        sound,
+        filter: None,
+    });
+```
+
+### Filters
+
+Effect input filters API remain unchanged.
+
 # 0.24
 
 ## Engine
