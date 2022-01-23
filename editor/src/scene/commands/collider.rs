@@ -1,112 +1,79 @@
-use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
+use crate::{
+    command::Command, define_node_command, define_swap_command, scene::commands::SceneContext,
+};
 use fyrox::{
     core::{algebra::Vector3, pool::Handle},
     scene::{collider::*, graph::Graph, node::Node},
 };
 
-macro_rules! define_collider_variant_command {
-    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $node:ident, $variant:ident, $var:ident) $apply_method:block ) => {
-        define_node_command!($name($human_readable_name, $value_type) where fn swap($self, $node) {
-            if let ColliderShape::$variant(ref mut $var) = *$node.as_collider_mut().shape_mut() {
-                $apply_method
-            } else {
-                unreachable!();
+macro_rules! define_collider_shape_variant_command {
+    ($($ty_name:ident($value_ty:ty): $variant:ident, $field:ident, $name:expr;)*) => {
+        $(
+            define_swap_command! {
+                $ty_name($value_ty): $name, |me: &mut $ty_name, graph: &mut Graph| {
+                    let node = &mut graph[me.handle];
+                    let variant = match *node.as_collider_mut().shape_mut() {
+                        ColliderShape::$variant(ref mut x) => x,
+                        _ => unreachable!()
+                    };
+                    ::core::mem::swap(&mut variant.$field, &mut me.value);
+                }
             }
-        });
+        )*
     };
 }
 
-define_node_command!(SetColliderShapeCommand("Set Collider Shape", ColliderShape) where fn swap(self, node) {
-    get_set_swap!(self, node.as_collider_mut(), shape_value, set_shape)
-});
+macro_rules! define_collider_variant_command {
+    ($($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $node:ident, $variant:ident, $var:ident) $apply_method:block )*) => {
+        $(
+            define_node_command!($name($human_readable_name, $value_type) where fn swap($self, $node) {
+                if let ColliderShape::$variant(ref mut $var) = *$node.as_collider_mut().shape_mut() {
+                    $apply_method
+                } else {
+                    unreachable!();
+                }
+            });
+        )*
+    };
+}
 
-define_node_command!(SetColliderFrictionCommand("Set Collider Friction", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_collider_mut(), friction, set_friction)
-});
+define_swap_command! {
+    Node::as_collider_mut,
+    SetColliderShapeCommand(ColliderShape): shape_value, set_shape, "Set Collider Shape";
+    SetColliderFrictionCommand(f32): friction, set_friction, "Set Collider Friction";
+    SetColliderRestitutionCommand(f32): restitution, set_restitution, "Set Collider Restitution";
+    SetColliderIsSensorCommand(bool): is_sensor, set_is_sensor, "Set Collider Is Sensor";
+    SetColliderDensityCommand(Option<f32>): density, set_density, "Set Collider Density";
+    SetColliderCollisionGroupsCommand(InteractionGroups): collision_groups, set_collision_groups, "Set Collider Collision Groups";
+    SetColliderSolverGroupsCommand(InteractionGroups): solver_groups, set_solver_groups, "Set Collider Solver Groups";
+}
 
-define_node_command!(SetColliderRestitutionCommand("Set Collider Restitution", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_collider_mut(), restitution, set_restitution)
-});
+define_collider_shape_variant_command! {
+    SetCylinderHalfHeightCommand(f32): Cylinder, half_height, "Set Cylinder Half Height";
+    SetCylinderRadiusCommand(f32): Cylinder, radius, "Set Cylinder Radius";
+    SetConeHalfHeightCommand(f32): Cone, half_height, "Set Cone Half Height";
+    SetConeRadiusCommand(f32): Cone, radius, "Set Cone Radius";
+    SetCuboidHalfExtentsCommand(Vector3<f32>): Cuboid, half_extents, "Set Cuboid Half Extents";
+    SetCapsuleRadiusCommand(f32): Capsule, radius, "Set Capsule Radius";
+    SetCapsuleBeginCommand(Vector3<f32>): Capsule, begin, "Set Capsule Begin";
+    SetCapsuleEndCommand(Vector3<f32>): Capsule, end, "Set Capsule End";
+    SetSegmentBeginCommand(Vector3<f32>): Segment, begin, "Set Segment Begin";
+    SetSegmentEndCommand(Vector3<f32>): Segment, end, "Set Segment End";
+    SetTriangleACommand(Vector3<f32>): Triangle, a, "Set Triangle A";
+    SetTriangleBCommand(Vector3<f32>): Triangle, b, "Set Triangle B";
+    SetTriangleCCommand(Vector3<f32>): Triangle, c, "Set Triangle C";
+    SetBallRadiusCommand(f32): Ball, radius, "Set Ball Radius";
+}
 
-define_node_command!(SetColliderIsSensorCommand("Set Collider Is Sensor", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_collider_mut(), is_sensor, set_is_sensor)
-});
+define_collider_variant_command! {
+    SetHeightfieldSourceCommand("Set Heightfield Polyhedron Source", Handle<Node>) where fn swap(self, physics, Heightfield, hf) {
+        std::mem::swap(&mut hf.geometry_source.0, &mut self.value);
+    }
 
-define_node_command!(SetColliderDensityCommand("Set Collider Density", Option<f32>) where fn swap(self,node) {
-    get_set_swap!(self, node.as_collider_mut(), density, set_density)
-});
-
-define_node_command!(SetColliderCollisionGroupsCommand("Set Collider Collision Groups", InteractionGroups) where fn swap(self, node) {
-    get_set_swap!(self, node.as_collider_mut(), collision_groups, set_collision_groups)
-});
-
-define_node_command!(SetColliderSolverGroupsCommand("Set Collider Solver Groups", InteractionGroups) where fn swap(self, node) {
-    get_set_swap!(self, node.as_collider_mut(), solver_groups, set_solver_groups)
-});
-
-define_collider_variant_command!(SetCylinderHalfHeightCommand("Set Cylinder Half Height", f32) where fn swap(self, node, Cylinder, cylinder) {
-    std::mem::swap(&mut cylinder.half_height, &mut self.value);
-});
-
-define_collider_variant_command!(SetCylinderRadiusCommand("Set Cylinder Radius", f32) where fn swap(self, physics, Cylinder, cylinder) {
-    std::mem::swap(&mut cylinder.radius, &mut self.value);
-});
-
-define_collider_variant_command!(SetConeHalfHeightCommand("Set Cone Half Height", f32) where fn swap(self, physics, Cone, cone) {
-    std::mem::swap(&mut cone.half_height, &mut self.value);
-});
-
-define_collider_variant_command!(SetConeRadiusCommand("Set Cone Radius", f32) where fn swap(self, physics, Cone, cone) {
-    std::mem::swap(&mut cone.radius, &mut self.value);
-});
-
-define_collider_variant_command!(SetCuboidHalfExtentsCommand("Set Cuboid Half Extents", Vector3<f32>) where fn swap(self, physics, Cuboid, cuboid) {
-    std::mem::swap(&mut cuboid.half_extents, &mut self.value);
-});
-
-define_collider_variant_command!(SetCapsuleRadiusCommand("Set Capsule Radius", f32) where fn swap(self, physics, Capsule, capsule) {
-    std::mem::swap(&mut capsule.radius, &mut self.value);
-});
-
-define_collider_variant_command!(SetCapsuleBeginCommand("Set Capsule Begin", Vector3<f32>) where fn swap(self, physics, Capsule, capsule) {
-    std::mem::swap(&mut capsule.begin, &mut self.value);
-});
-
-define_collider_variant_command!(SetCapsuleEndCommand("Set Capsule End", Vector3<f32>) where fn swap(self, physics, Capsule, capsule) {
-    std::mem::swap(&mut capsule.end, &mut self.value);
-});
-
-define_collider_variant_command!(SetSegmentBeginCommand("Set Segment Begin", Vector3<f32>) where fn swap(self, physics, Segment, segment) {
-    std::mem::swap(&mut segment.begin, &mut self.value);
-});
-
-define_collider_variant_command!(SetSegmentEndCommand("Set Segment End", Vector3<f32>) where fn swap(self, physics, Segment, segment) {
-    std::mem::swap(&mut segment.end, &mut self.value);
-});
-
-define_collider_variant_command!(SetTriangleACommand("Set Triangle A", Vector3<f32>) where fn swap(self, physics, Triangle, triangle) {
-    std::mem::swap(&mut triangle.a, &mut self.value);
-});
-
-define_collider_variant_command!(SetTriangleBCommand("Set Triangle B", Vector3<f32>) where fn swap(self, physics, Triangle, triangle) {
-    std::mem::swap(&mut triangle.b, &mut self.value);
-});
-
-define_collider_variant_command!(SetTriangleCCommand("Set Triangle C", Vector3<f32>) where fn swap(self, physics, Triangle, triangle) {
-    std::mem::swap(&mut triangle.c, &mut self.value);
-});
-
-define_collider_variant_command!(SetBallRadiusCommand("Set Ball Radius", f32) where fn swap(self, physics, Ball, ball) {
-    std::mem::swap(&mut ball.radius, &mut self.value);
-});
-
-define_collider_variant_command!(SetHeightfieldSourceCommand("Set Heightfield Polyhedron Source", Handle<Node>) where fn swap(self, physics, Heightfield, hf) {
-    std::mem::swap(&mut hf.geometry_source.0, &mut self.value);
-});
-
-define_collider_variant_command!(SetPolyhedronSourceCommand("Set Polyhedron Source", Handle<Node>) where fn swap(self, physics, Polyhedron, ph) {
-    std::mem::swap(&mut ph.geometry_source.0, &mut self.value);
-});
+    SetPolyhedronSourceCommand("Set Polyhedron Source", Handle<Node>) where fn swap(self, physics, Polyhedron, ph) {
+        std::mem::swap(&mut ph.geometry_source.0, &mut self.value);
+    }
+}
 
 #[derive(Debug)]
 pub struct AddTrimeshGeometrySourceCommand {

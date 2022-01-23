@@ -1,50 +1,18 @@
-use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
+use crate::{command::Command, define_swap_command, scene::commands::SceneContext};
 use fyrox::scene::sound::Status;
-use fyrox::{
-    core::pool::Handle,
-    scene::{graph::Graph, node::Node, sound::SoundBufferResource},
-};
+use fyrox::scene::{node::Node, sound::SoundBufferResource};
 
-define_node_command!(SetSoundSourceGainCommand("Set Sound Source Gain", f32) where fn swap(self, source) {
-    get_set_swap!(self, source.as_sound_mut(), gain, set_gain);
-});
-
-define_node_command!(SetSoundSourceBufferCommand("Set Sound Source Buffer", Option<SoundBufferResource>) where fn swap(self, source) {
-    get_set_swap!(self, source.as_sound_mut(), buffer, set_buffer);
-});
-
-define_node_command!(SetSoundSourcePanningCommand("Set Sound Source Panning", f32) where fn swap(self, source) {
-    get_set_swap!(self, source.as_sound_mut(), panning, set_panning);
-});
-
-define_node_command!(SetSoundSourcePitchCommand("Set Sound Source Pitch", f64) where fn swap(self, source) {
-    get_set_swap!(self, source.as_sound_mut(), pitch, set_pitch);
-});
-
-define_node_command!(SetSoundSourceLoopingCommand("Set Sound Source Looping", bool) where fn swap(self, source) {
-    get_set_swap!(self, source.as_sound_mut(), is_looping, set_looping);
-});
-
-define_node_command!(SetSoundSourceStatusCommand("Set Sound Source Status", Status) where fn swap(self, source) {
-    get_set_swap!(self, source.as_sound_mut(), status, set_status);
-});
-
-define_node_command!(SetSoundSourcePlayOnceCommand("Set Sound Source Play Once", bool) where fn swap(self, source) {
-    get_set_swap!(self, source.as_sound_mut(), is_play_once, set_play_once);
-});
-
-define_node_command!(SetSpatialSoundSourceRadiusCommand("Set Spatial Sound Source Radius", f32) where fn swap(self, source) {
-    get_set_swap!(self, source.as_sound_mut(), radius, set_radius);
-});
-
-define_node_command!(SetRolloffFactorCommand("Set Spatial Sound Source Rolloff Factor", f32) where fn swap(self, source) {
-    get_set_swap!(self, source.as_sound_mut(), rolloff_factor, set_rolloff_factor);
-});
-
-define_node_command!(SetMaxDistanceCommand("Set Max Distance", f32) where fn swap(self, source) {
-    get_set_swap!(self, source.as_sound_mut(), max_distance, set_max_distance);
-});
-
-define_node_command!(SetSpatialBlendCommand("Set Spatial Blend", f32) where fn swap(self, source) {
-    get_set_swap!(self, source.as_sound_mut(), spatial_blend, set_spatial_blend);
-});
+define_swap_command! {
+    Node::as_sound_mut,
+    SetSoundSourceGainCommand(f32): gain, set_gain, "Set Sound Source Gain";
+    SetSoundSourceBufferCommand(Option<SoundBufferResource>): buffer, set_buffer, "Set Sound Source Buffer";
+    SetSoundSourcePanningCommand(f32): panning, set_panning, "Set Sound Source Panning";
+    SetSoundSourcePitchCommand(f64): pitch, set_pitch, "Set Sound Source Pitch";
+    SetSoundSourceLoopingCommand(bool): is_looping, set_looping, "Set Sound Source Looping";
+    SetSoundSourceStatusCommand(Status): status, set_status, "Set Sound Source Status";
+    SetSoundSourcePlayOnceCommand(bool): is_play_once, set_play_once, "Set Sound Source Play Once";
+    SetSpatialSoundSourceRadiusCommand(f32): radius, set_radius, "Set Spatial Sound Source Radius";
+    SetRolloffFactorCommand(f32): rolloff_factor, set_rolloff_factor, "Set Spatial Sound Source Rolloff Factor";
+    SetMaxDistanceCommand(f32): max_distance, set_max_distance, "Set Max Distance";
+    SetSpatialBlendCommand(f32): spatial_blend, set_spatial_blend, "Set Spatial Blend";
+}

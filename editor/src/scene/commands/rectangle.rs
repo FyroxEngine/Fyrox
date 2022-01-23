@@ -1,17 +1,11 @@
 use crate::{
-    define_node_command, get_set_swap,
+    define_swap_command,
     scene::commands::{Command, SceneContext},
 };
-use fyrox::{
-    core::{color::Color, pool::Handle},
-    resource::texture::Texture,
-    scene::{graph::Graph, node::Node},
-};
+use fyrox::{core::color::Color, resource::texture::Texture, scene::node::Node};
 
-define_node_command!(SetRectangleColorCommand("Set Rectangle Color", Color) where fn swap(self, node) {
-    get_set_swap!(self, node.as_rectangle_mut(), color, set_color);
-});
-
-define_node_command!(SetRectangleTextureCommand("Set Rectangle Texture", Option<Texture>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_rectangle_mut(), texture_value, set_texture);
-});
+define_swap_command! {
+    Node::as_rectangle_mut,
+    SetRectangleColorCommand(Color): color, set_color, "Set Rectangle Color";
+    SetRectangleTextureCommand(Option<Texture>): texture_value, set_texture, "Set Rectangle Texture";
+}

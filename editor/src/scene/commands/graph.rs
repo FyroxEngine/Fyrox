@@ -1,5 +1,5 @@
 use crate::{
-    command::Command, define_node_command, define_vec_add_remove_commands, get_set_swap,
+    command::Command, define_node_command, define_swap_command, define_vec_add_remove_commands,
     scene::commands::SceneContext,
 };
 use fyrox::{
@@ -455,62 +455,54 @@ impl Command for SetPropertyNameCommand {
     }
 }
 
-define_node_command!(SetNameCommand("Set Name", String) where fn swap(self, node) {
-    get_set_swap!(self, node, name_owned, set_name);
-});
+fn node_mut(node: &mut Node) -> &mut Node {
+    node
+}
 
-define_node_command!(SetTagCommand("Set Tag", String) where fn swap(self, node) {
-    get_set_swap!(self, node, tag_owned, set_tag);
-});
+define_swap_command! {
+    node_mut,
+    SetNameCommand(String): name_owned, set_name, "Set Name";
+    SetTagCommand(String): tag_owned, set_tag, "Set Tag";
+    SetVisibleCommand(bool): visibility, set_visibility, "Set Visible";
+    SetLifetimeCommand(Option<f32>): lifetime, set_lifetime, "Set Lifetime";
+    SetMobilityCommand(Mobility): mobility, set_mobility, "Set Mobility";
+    SetDepthOffsetCommand(f32): depth_offset_factor, set_depth_offset_factor, "Set Depth Offset";
+}
 
-define_node_command!(SetVisibleCommand("Set Visible", bool) where fn swap(self, node) {
-    get_set_swap!(self, node, visibility, set_visibility)
-});
+define_node_command! {
+    SetPostRotationCommand("Set Post Rotation", UnitQuaternion<f32>) where fn swap(self, node) {
+        let temp = **node.local_transform().post_rotation();
+        node.local_transform_mut().set_post_rotation(self.value);
+        self.value = temp;
+    }
 
-define_node_command!(SetLifetimeCommand("Set Lifetime", Option<f32>) where fn swap(self, node) {
-    get_set_swap!(self, node, lifetime, set_lifetime)
-});
+    SetPreRotationCommand("Set Pre Rotation", UnitQuaternion<f32>) where fn swap(self, node) {
+        let temp = **node.local_transform().pre_rotation();
+        node.local_transform_mut().set_pre_rotation(self.value);
+        self.value = temp;
+    }
 
-define_node_command!(SetMobilityCommand("Set Mobility", Mobility) where fn swap(self, node) {
-    get_set_swap!(self, node, mobility, set_mobility)
-});
+    SetRotationOffsetCommand("Set Rotation Offset", Vector3<f32>) where fn swap(self, node) {
+        let temp = **node.local_transform().rotation_offset();
+        node.local_transform_mut().set_rotation_offset(self.value);
+        self.value = temp;
+    }
 
-define_node_command!(SetDepthOffsetCommand("Set Depth Offset", f32) where fn swap(self, node) {
-    get_set_swap!(self, node, depth_offset_factor, set_depth_offset_factor)
-});
+    SetRotationPivotCommand("Set Rotation Pivot", Vector3<f32>) where fn swap(self, node) {
+        let temp = **node.local_transform().rotation_pivot();
+        node.local_transform_mut().set_rotation_pivot(self.value);
+        self.value = temp;
+    }
 
-define_node_command!(SetPostRotationCommand("Set Post Rotation", UnitQuaternion<f32>) where fn swap(self, node) {
-    let temp = **node.local_transform().post_rotation();
-    node.local_transform_mut().set_post_rotation(self.value);
-    self.value = temp;
-});
+    SetScaleOffsetCommand("Set Scaling Offset", Vector3<f32>) where fn swap(self, node) {
+        let temp = **node.local_transform().scaling_offset();
+        node.local_transform_mut().set_scaling_offset(self.value);
+        self.value = temp;
+    }
 
-define_node_command!(SetPreRotationCommand("Set Pre Rotation", UnitQuaternion<f32>) where fn swap(self, node) {
-    let temp = **node.local_transform().pre_rotation();
-    node.local_transform_mut().set_pre_rotation(self.value);
-    self.value = temp;
-});
-
-define_node_command!(SetRotationOffsetCommand("Set Rotation Offset", Vector3<f32>) where fn swap(self, node) {
-    let temp = **node.local_transform().rotation_offset();
-    node.local_transform_mut().set_rotation_offset(self.value);
-    self.value = temp;
-});
-
-define_node_command!(SetRotationPivotCommand("Set Rotation Pivot", Vector3<f32>) where fn swap(self, node) {
-    let temp = **node.local_transform().rotation_pivot();
-    node.local_transform_mut().set_rotation_pivot(self.value);
-    self.value = temp;
-});
-
-define_node_command!(SetScaleOffsetCommand("Set Scaling Offset", Vector3<f32>) where fn swap(self, node) {
-    let temp = **node.local_transform().scaling_offset();
-    node.local_transform_mut().set_scaling_offset(self.value);
-    self.value = temp;
-});
-
-define_node_command!(SetScalePivotCommand("Set Scaling Pivot", Vector3<f32>) where fn swap(self, node) {
-    let temp = **node.local_transform().scaling_pivot();
-    node.local_transform_mut().set_scaling_pivot(self.value);
-    self.value = temp;
-});
+    SetScalePivotCommand("Set Scaling Pivot", Vector3<f32>) where fn swap(self, node) {
+        let temp = **node.local_transform().scaling_pivot();
+        node.local_transform_mut().set_scaling_pivot(self.value);
+        self.value = temp;
+    }
+}

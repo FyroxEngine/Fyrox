@@ -1,9 +1,8 @@
-use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
+use crate::{command::Command, define_swap_command, scene::commands::SceneContext};
 use fyrox::{
     core::{algebra::Vector3, pool::Handle},
     resource::texture::Texture,
     scene::{
-        graph::Graph,
         node::Node,
         particle_system::{emitter::Emitter, ParticleLimit, ParticleSystem},
     },
@@ -93,30 +92,31 @@ impl Command for DeleteEmitterCommand {
 }
 
 macro_rules! define_emitter_command {
-    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $emitter:ident) $apply_method:block ) => {
+    // core impl
+    ($(#[$meta:meta])* $type:ident($value_type:ty): $name:expr, $swap:expr) => {
+        $(#[$meta])*
         #[derive(Debug)]
-        pub struct $name {
-            handle: Handle<Node>,
+        pub struct $type {
+            handle: $crate::fyrox::core::pool::Handle<Node>,
+            index: usize,
             value: $value_type,
-            index: usize
         }
 
-        impl $name {
-            pub fn new(handle: Handle<Node>, index: usize, value: $value_type) -> Self {
+        impl $type {
+            pub fn new(handle: $crate::fyrox::core::pool::Handle<Node>, index: usize, value: $value_type) -> Self {
                 Self { handle, index, value }
             }
 
-            fn swap(&mut $self, graph: &mut Graph) {
-                let $emitter = &mut graph[$self.handle].as_particle_system_mut().emitters[$self.index];
-                $apply_method
+            fn swap(&mut self, graph: &mut $crate::fyrox::scene::graph::Graph) {
+                let emitter = &mut graph[self.handle].as_particle_system_mut().emitters[self.index];
+                #[allow(clippy::redundant_closure_call)]
+                ($swap)(self, emitter)
             }
         }
 
-        impl Command for $name {
-
-
+        impl Command for $type {
             fn name(&mut self, _context: &SceneContext) -> String {
-                $human_readable_name.to_owned()
+                $name.to_owned()
             }
 
             fn execute(&mut self, context: &mut SceneContext) {
@@ -128,104 +128,73 @@ macro_rules! define_emitter_command {
             }
         }
     };
-}
 
-define_node_command!(SetParticleSystemTextureCommand("Set Particle System Texture", Option<Texture>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_particle_system_mut(), texture, set_texture);
-});
-
-define_node_command!(SetAccelerationCommand("Set Particle System Acceleration", Vector3<f32>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_particle_system_mut(), acceleration, set_acceleration);
-});
-
-define_node_command!(SetParticleSystemEnabledCommand("Set Particle System Enabled", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_particle_system_mut(), is_enabled, set_enabled);
-});
-
-define_node_command!(SetSoftBoundarySharpnessFactorCommand("Set Soft Boundary Sharpness Factor", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_particle_system_mut(), soft_boundary_sharpness_factor, set_soft_boundary_sharpness_factor);
-});
-
-macro_rules! define_emitter_variant_command {
-    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $emitter:ident, $variant:ident, $var:ident) $apply_method:block ) => {
-        define_emitter_command!($name($human_readable_name, $value_type) where fn swap($self, $emitter) {
-            if let Emitter::$variant($var) = $emitter {
-                $apply_method
-            } else {
-                unreachable!()
+    // cast `&mut Emitter` and use their setter/getter methods for swapping them
+    ($(
+        $(#[$meta:meta])* $type:ident($value_type:ty): $get:ident, $set:ident, $name:expr;
+     )*) => {
+        $(
+            define_emitter_command! {
+                $(#[$meta:meta])*
+                $type($value_type):
+                $name, |me: &mut $type, emitter: &mut Emitter| {
+                    let old = emitter.$get();
+                    let _ = emitter.$set(me.value.clone());
+                    me.value = old;
+                }
             }
-        });
+        )+
     };
 }
 
-define_emitter_variant_command!(SetSphereEmitterRadiusCommand("Set Sphere Emitter Radius", f32) where fn swap(self, emitter, Sphere, sphere) {
-    get_set_swap!(self, sphere, radius, set_radius);
-});
+macro_rules! define_emitter_variant_command {
+    ($( $(#[$meta:meta])* $ty_name:ident($value_type:ty): $variant:ident, $get:ident, $set:ident, $name_expr:expr;)*) => {
+        $(
+            define_emitter_command! {
+                $(#[$meta:meta])*
+                $ty_name($value_type): $name_expr, |me: &mut Self, emitter: &mut Emitter| {
+                    let variant = match emitter {
+                        Emitter::$variant(x) => x,
+                        _ => unreachable!(),
+                    };
+                    let old = variant.$get();
+                    let _ = variant.$set(me.value.clone());
+                    me.value = old;
+                }
+            }
+        )*
+    };
+}
 
-define_emitter_variant_command!(SetCylinderEmitterRadiusCommand("Set Cylinder Emitter Radius", f32) where fn swap(self, emitter, Cylinder, cylinder) {
-    get_set_swap!(self, cylinder, radius, set_radius);
-});
+define_swap_command! {
+    Node::as_particle_system_mut,
+    SetParticleSystemTextureCommand(Option<Texture>): texture, set_texture, "Set Particle System Texture";
+    SetAccelerationCommand(Vector3<f32>): acceleration, set_acceleration, "Set Particle System Acceleration";
+    SetParticleSystemEnabledCommand(bool): is_enabled, set_enabled, "Set Particle System Enabled";
+    SetSoftBoundarySharpnessFactorCommand(f32): soft_boundary_sharpness_factor, set_soft_boundary_sharpness_factor, "Set Soft Boundary Sharpness Factor";
+}
 
-define_emitter_variant_command!(SetCylinderEmitterHeightCommand("Set Cylinder Emitter Radius", f32) where fn swap(self, emitter, Cylinder, cylinder) {
-    get_set_swap!(self, cylinder, height, set_height);
-});
+define_emitter_variant_command! {
+    SetSphereEmitterRadiusCommand(f32): Sphere, radius, set_radius, "Set Sphere Emitter Radius";
+    SetCylinderEmitterRadiusCommand(f32): Cylinder, radius, set_radius, "Set Cylinder Emitter Radius";
+    SetCylinderEmitterHeightCommand(f32): Cylinder, height, set_height, "Set Cylinder Emitter Radius";
+    SetBoxEmitterHalfWidthCommand(f32): Cuboid, half_width, set_half_width, "Set Box Emitter Half Width";
+    SetBoxEmitterHalfHeightCommand(f32): Cuboid, half_height, set_half_height, "Set Box Emitter Half Height";
+    SetBoxEmitterHalfDepthCommand(f32): Cuboid, half_depth, set_half_depth, "Set Box Emitter Half Depth";
+}
 
-define_emitter_variant_command!(SetBoxEmitterHalfWidthCommand("Set Box Emitter Half Width", f32) where fn swap(self, emitter, Cuboid, box_emitter) {
-    get_set_swap!(self, box_emitter, half_width, set_half_width);
-});
-
-define_emitter_variant_command!(SetBoxEmitterHalfHeightCommand("Set Box Emitter Half Height", f32) where fn swap(self, emitter, Cuboid, box_emitter) {
-    get_set_swap!(self, box_emitter, half_height, set_half_height);
-});
-
-define_emitter_variant_command!(SetBoxEmitterHalfDepthCommand("Set Box Emitter Half Depth", f32) where fn swap(self, emitter, Cuboid, box_emitter) {
-    get_set_swap!(self, box_emitter, half_depth, set_half_depth);
-});
-
-define_emitter_command!(SetEmitterPositionCommand("Set Emitter Position", Vector3<f32>) where fn swap(self, emitter) {
-    get_set_swap!(self, emitter, position, set_position);
-});
-
-define_emitter_command!(SetEmitterSpawnRateCommand("Set Emitter Spawn Rate", u32) where fn swap(self, emitter) {
-    get_set_swap!(self, emitter, spawn_rate, set_spawn_rate);
-});
-
-define_emitter_command!(SetEmitterParticleLimitCommand("Set Emitter Particle Limit", ParticleLimit) where fn swap(self, emitter) {
-    get_set_swap!(self, emitter, max_particles, set_max_particles);
-});
-
-define_emitter_command!(SetEmitterLifetimeRangeCommand("Set Emitter Lifetime Range", Range<f32>) where fn swap(self, emitter) {
-    get_set_swap!(self, emitter, life_time_range, set_life_time_range);
-});
-
-define_emitter_command!(SetEmitterSizeRangeCommand("Set Emitter Size Range", Range<f32>) where fn swap(self, emitter) {
-    get_set_swap!(self, emitter, size_range, set_size_range);
-});
-
-define_emitter_command!(SetEmitterSizeModifierRangeCommand("Set Emitter Size Modifier Range", Range<f32>) where fn swap(self, emitter) {
-    get_set_swap!(self, emitter, size_modifier_range, set_size_modifier_range);
-});
-
-define_emitter_command!(SetEmitterXVelocityRangeCommand("Set Emitter X Velocity Range", Range<f32>) where fn swap(self, emitter) {
-    get_set_swap!(self, emitter, x_velocity_range, set_x_velocity_range);
-});
-
-define_emitter_command!(SetEmitterYVelocityRangeCommand("Set Emitter Y Velocity Range", Range<f32>) where fn swap(self, emitter) {
-    get_set_swap!(self, emitter, y_velocity_range, set_y_velocity_range);
-});
-
-define_emitter_command!(SetEmitterZVelocityRangeCommand("Set Emitter Z Velocity Range", Range<f32>) where fn swap(self, emitter) {
-    get_set_swap!(self, emitter, z_velocity_range, set_z_velocity_range);
-});
-
-define_emitter_command!(SetEmitterRotationSpeedRangeCommand("Set Emitter Rotation Speed Range", Range<f32>) where fn swap(self, emitter) {
-    get_set_swap!(self, emitter, rotation_speed_range, set_rotation_speed_range);
-});
-
-define_emitter_command!(SetEmitterRotationRangeCommand("Set Emitter Rotation Range", Range<f32>) where fn swap(self, emitter) {
-    get_set_swap!(self, emitter, rotation_range, set_rotation_range);
-});
-
-define_emitter_command!(SetEmitterResurrectParticlesCommand("Set Emitter Resurrect Particles", bool) where fn swap(self, emitter) {
-    get_set_swap!(self, emitter, is_particles_resurrects, enable_particle_resurrection);
-});
+define_emitter_command! {
+    SetEmitterPositionCommand(Vector3<f32>): position, set_position, "Set Emitter Position";
+    SetEmitterSpawnRateCommand(u32): spawn_rate, set_spawn_rate, "Set Emitter Spawn Rate";
+    SetEmitterParticleLimitCommand(ParticleLimit): max_particles, set_max_particles, "Set Emitter Particle Limit";
+    SetEmitterLifetimeRangeCommand(Range<f32>): life_time_range, set_life_time_range, "Set Emitter Lifetime Range";
+    SetEmitterSizeRangeCommand(Range<f32>): size_range, set_size_range, "Set Emitter Size Range";
+    SetEmitterSizeModifierRangeCommand(Range<f32>): size_modifier_range, set_size_modifier_range, "Set Emitter Size Modifier Range";
+    SetEmitterXVelocityRangeCommand(Range<f32>): x_velocity_range, set_x_velocity_range, "Set Emitter X Velocity Range";
+    SetEmitterYVelocityRangeCommand(Range<f32>): y_velocity_range, set_y_velocity_range, "Set Emitter Y Velocity Range";
+    SetEmitterZVelocityRangeCommand(Range<f32>): z_velocity_range, set_z_velocity_range, "Set Emitter Z Velocity Range";
+    SetEmitterRotationSpeedRangeCommand(Range<f32>): rotation_speed_range, set_rotation_speed_range,
+    "Set Emitter Rotation Speed Range";
+    SetEmitterRotationRangeCommand(Range<f32>): rotation_range, set_rotation_range, "Set Emitter Rotation Range";
+    SetEmitterResurrectParticlesCommand(bool): is_particles_resurrects, enable_particle_resurrection, "Set Emitter Resurrect Particles";
+}

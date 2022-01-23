@@ -1,62 +1,44 @@
 use crate::{
-    define_node_command, get_set_swap,
+    define_swap_command,
     scene::commands::{Command, SceneContext},
 };
 use fyrox::{
-    core::{algebra::Vector3, color::Color, pool::Handle},
+    core::{algebra::Vector3, color::Color},
     resource::texture::Texture,
-    scene::{graph::Graph, node::Node},
+    scene::{
+        light::{point::PointLight, spot::SpotLight},
+        node::Node,
+    },
 };
 
-define_node_command!(SetLightScatterCommand("Set Light Scatter", Vector3<f32>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_light_mut(), scatter, set_scatter)
-});
+define_swap_command! {
+    Node::as_light_mut,
+    SetLightScatterCommand(Vector3<f32>): scatter, set_scatter, "Set Light Scatter";
+    SetLightScatterEnabledCommand(bool): is_scatter_enabled, enable_scatter, "Set Light Scatter Enabled";
+    SetLightIntensityCommand(f32): intensity, set_intensity, "Set Light Intensity";
+    SetLightCastShadowsCommand(bool): is_cast_shadows, set_cast_shadows, "Set Light Cast Shadows";
+    SetLightColorCommand(Color): color, set_color, "Set Light Color";
+}
 
-define_node_command!(SetLightScatterEnabledCommand("Set Light Scatter Enabled", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_light_mut(), is_scatter_enabled, enable_scatter)
-});
+fn node_as_spot_mut(node: &mut Node) -> &mut SpotLight {
+    node.as_light_mut().as_spot_mut()
+}
 
-define_node_command!(SetLightCastShadowsCommand("Set Light Cast Shadows", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_light_mut(), is_cast_shadows, set_cast_shadows)
-});
+define_swap_command! {
+    node_as_spot_mut,
+    SetSpotLightHotspotCommand(Vector3<f32>): scatter, set_scatter, "Set Spot Light Hotswap";
+    SetPointLightShadowBiasCommand(f32): shadow_bias, set_shadow_bias, "Set Point Light Shadow Bias";
+    SetSpotLightFalloffAngleDeltaCommand(f32): falloff_angle_delta, set_falloff_angle_delta, "Set Spot Light Falloff Angle Delta";
+    SetSpotLightShadowBiasCommand(f32): shadow_bias, set_shadow_bias, "Set Spot Light Shadow Bias";
+    SetSpotLightDistanceCommand(f32): distance, set_distance, "Set Spot Light Distance";
+    SetSpotLightCookieTextureCommand(Option<Texture>): cookie_texture, set_cookie_texture, "Set Spot Light Cookie Texture";
+}
 
-define_node_command!(SetLightIntensityCommand("Set Light Intensity", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_light_mut(), intensity, set_intensity)
-});
+fn node_as_point_light_mut(node: &mut Node) -> &mut PointLight {
+    node.as_light_mut().as_point_mut()
+}
 
-define_node_command!(SetPointLightRadiusCommand("Set Point Light Radius", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_light_mut().as_point_mut(), radius, set_radius)
-});
-
-define_node_command!(SetPointLightShadowBiasCommand("Set Point Light Shadow Bias", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_light_mut().as_point_mut(), shadow_bias, set_shadow_bias)
-});
-
-define_node_command!(SetSpotLightHotspotCommand("Set Spot Light Hotspot", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_light_mut().as_spot_mut(), hotspot_cone_angle, set_hotspot_cone_angle)
-});
-
-define_node_command!(SetSpotLightFalloffAngleDeltaCommand("Set Spot Light Falloff Angle Delta", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_light_mut().as_spot_mut(), falloff_angle_delta, set_falloff_angle_delta)
-});
-
-define_node_command!(SetSpotLightShadowBiasCommand("Set Spot Light Shadow Bias", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_light_mut().as_spot_mut(), shadow_bias, set_shadow_bias)
-});
-
-define_node_command!(SetSpotLightDistanceCommand("Set Spot Light Distance", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_light_mut().as_spot_mut(), distance, set_distance);
-});
-
-define_node_command!(SetSpotLightCookieTextureCommand("Set Spot Light Cookie Texture", Option<Texture>) where fn swap(self, node) {
-    get_set_swap!(self, node.as_light_mut().as_spot_mut(), cookie_texture, set_cookie_texture);
-});
-
-define_node_command!(SetLightColorCommand("Set Light Color", Color) where fn swap(self, node) {
-    get_set_swap!(self, node.as_light_mut(), color, set_color)
-});
-
-/*
-define_node_command!(SetDirectionalLightShadowBiasCommand("Set Spot Light Shadow Bias", f32) where fn swap(self, node) {
-    get_set_swap!(self, node.as_light_mut().as_spot_mut(), shadow_bias, set_shadow_bias)
-});*/
+define_swap_command! {
+    node_as_point_light_mut,
+    SetPointLightRadiusCommand(f32): radius, set_radius, "Set Point Light Radius";
+}

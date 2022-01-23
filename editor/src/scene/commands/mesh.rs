@@ -1,4 +1,4 @@
-use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
+use crate::{command::Command, define_swap_command, scene::commands::SceneContext};
 use fyrox::core::sstorage::ImmutableString;
 use fyrox::material::shader::SamplerFallback;
 use fyrox::material::PropertyValue;
@@ -6,7 +6,6 @@ use fyrox::{
     core::pool::Handle,
     resource::texture::Texture,
     scene::{
-        graph::Graph,
         mesh::{Mesh, RenderPath},
         node::Node,
     },
@@ -112,14 +111,9 @@ impl Command for SetMeshTextureCommand {
     }
 }
 
-define_node_command!(SetMeshCastShadowsCommand("Set Mesh Cast Shadows", bool) where fn swap(self, node) {
-    get_set_swap!(self, node.as_mesh_mut(), cast_shadows, set_cast_shadows);
-});
-
-define_node_command!(SetMeshRenderPathCommand("Set Mesh Render Path", RenderPath) where fn swap(self, node) {
-    get_set_swap!(self, node.as_mesh_mut(), render_path, set_render_path);
-});
-
-define_node_command!(SetMeshDecalLayerIndexCommand("Set Mesh Decal Layer Index", u8) where fn swap(self, node) {
-    get_set_swap!(self, node.as_mesh_mut(), decal_layer_index, set_decal_layer_index);
-});
+define_swap_command! {
+    Node::as_mesh_mut,
+    SetMeshCastShadowsCommand(bool): cast_shadows, set_cast_shadows, "Set Mesh Cast Shadows";
+    SetMeshRenderPathCommand(RenderPath): render_path, set_render_path, "Set Mesh Render Path";
+    SetMeshDecalLayerIndexCommand(u8): decal_layer_index, set_decal_layer_index, "Set Mesh Decal Layer Index";
+}

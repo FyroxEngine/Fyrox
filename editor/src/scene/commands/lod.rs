@@ -1,9 +1,8 @@
-use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
+use crate::{command::Command, define_swap_command, scene::commands::SceneContext};
 use fyrox::{
     core::pool::Handle,
     scene::{
         base::{LevelOfDetail, LodControlledObject, LodGroup},
-        graph::Graph,
         node::Node,
     },
 };
@@ -294,6 +293,11 @@ impl Command for SetLodGroupLodObjectValue {
     }
 }
 
-define_node_command!(SetLodGroupCommand("Set Lod Group", Option<LodGroup>) where fn swap(self, node) {
-    get_set_swap!(self, node, take_lod_group, set_lod_group);
-});
+fn node_mut(node: &mut Node) -> &mut Node {
+    node
+}
+
+define_swap_command! {
+    node_mut,
+    SetLodGroupCommand(Option<LodGroup>): take_lod_group, set_lod_group, "Set Lod Group";
+}
