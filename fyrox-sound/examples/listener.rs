@@ -5,7 +5,7 @@ use fyrox_sound::{
     context::SoundContext,
     engine::SoundEngine,
     futures::executor::block_on,
-    source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, Status},
+    source::{SoundSourceBuilder, Status},
 };
 use std::{
     thread,
@@ -28,15 +28,12 @@ fn main() {
     .unwrap();
 
     // Create spatial source - spatial sources can be positioned in space.
-    let source = SpatialSourceBuilder::new(
-        GenericSourceBuilder::new()
-            .with_buffer(drop_buffer)
-            .with_looping(true)
-            .with_status(Status::Playing)
-            .build()
-            .unwrap(),
-    )
-    .build_source();
+    let source = SoundSourceBuilder::new()
+        .with_buffer(drop_buffer)
+        .with_looping(true)
+        .with_status(Status::Playing)
+        .build()
+        .unwrap();
 
     // Each sound sound must be added to context, context takes ownership on source
     // and returns pool handle to it by which it can be accessed later on if needed.

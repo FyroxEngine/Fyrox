@@ -44,3 +44,7 @@ define_node_command!(SetRolloffFactorCommand("Set Spatial Sound Source Rolloff F
 define_node_command!(SetMaxDistanceCommand("Set Max Distance", f32) where fn swap(self, source) {
     get_set_swap!(self, source.as_sound_mut(), max_distance, set_max_distance);
 });
+
+define_node_command!(SetSpatialBlendCommand("Set Spatial Blend", f32) where fn swap(self, source) {
+    get_set_swap!(self, source.as_sound_mut(), spatial_blend, set_spatial_blend);
+});

@@ -2,8 +2,7 @@
 //!
 //! # Overview
 //!
-//! Generic sound source is base building block for each other types of sound sources. It holds state of buffer read
-//! cursor, information about panning, pitch, looping, etc. It performs automatic resampling on the fly.
+//! Sound source is responsible for sound playback.
 //!
 //! # Usage
 //!
@@ -14,14 +13,14 @@
 //! use fyrox_sound::buffer::SoundBufferResource;
 //! use fyrox_sound::pool::Handle;
 //! use fyrox_sound::source::{SoundSource, Status};
-//! use fyrox_sound::source::generic::GenericSourceBuilder;
+//! use fyrox_sound::source::SoundSourceBuilder;
 //! use fyrox_sound::context::SoundContext;
 //!
 //! fn make_source(context: &mut SoundContext, buffer: SoundBufferResource) -> Handle<SoundSource> {
-//!     let source = GenericSourceBuilder::new()
+//!     let source = SoundSourceBuilder::new()
 //!        .with_buffer(buffer)
 //!        .with_status(Status::Playing)
-//!        .build_source()
+//!        .build()
 //!        .unwrap();
 //!     context.state().add_source(source)
 //! }
@@ -32,19 +31,37 @@
 
 use crate::{
     buffer::{streaming::StreamingBuffer, SoundBufferResource, SoundBufferState},
+    context::DistanceModel,
     error::SoundError,
-    source::{SoundSource, Status},
+    listener::Listener,
 };
 use fyrox_core::{
+    algebra::Vector3,
     inspect::{Inspect, PropertyInfo},
     visitor::{Visit, VisitResult, Visitor},
 };
 use fyrox_resource::ResourceState;
 use std::time::Duration;
 
+/// Status (state) of sound source.
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Inspect, Visit)]
+#[repr(u32)]
+pub enum Status {
+    /// Sound is stopped - it won't produces any sample and won't load mixer. This is default
+    /// state of all sound sources.
+    Stopped = 0,
+
+    /// Sound is playing.
+    Playing = 1,
+
+    /// Sound is paused, it can stay in this state any amount if time. Playback can be continued by
+    /// setting `Playing` status.
+    Paused = 2,
+}
+
 /// See module info.
-#[derive(Debug, Clone, Inspect)]
-pub struct GenericSource {
+#[derive(Debug, Clone, Inspect, Visit)]
+pub struct SoundSource {
     name: String,
     buffer: Option<SoundBufferResource>,
     // Read position in the buffer in samples. Differs from `playback_pos` if buffer is streaming.
@@ -63,6 +80,8 @@ pub struct GenericSource {
     #[inspect(min_value = 0.0, step = 0.05)]
     gain: f32,
     looping: bool,
+    #[inspect(min_value = 0.0, max_value = 1.0, step = 0.05)]
+    spatial_blend: f32,
     // Important coefficient for runtime resampling. It is used to modify playback speed
     // of a source in order to match output device sampling rate. PCM data can be stored
     // in various sampling rates (22050 Hz, 44100 Hz, 88200 Hz, etc.) but output device
@@ -82,17 +101,41 @@ pub struct GenericSource {
     // gain). So if these are None engine will set correct values first and only then it
     // will start interpolation of gain.
     #[inspect(skip)]
+    #[visit(skip)]
     pub(in crate) last_left_gain: Option<f32>,
     #[inspect(skip)]
+    #[visit(skip)]
     pub(in crate) last_right_gain: Option<f32>,
     #[inspect(skip)]
+    #[visit(skip)]
     pub(in crate) frame_samples: Vec<(f32, f32)>,
     // This sample is used when doing linear interpolation between two blocks of streaming buffer.
     #[inspect(skip)]
+    #[visit(skip)]
     prev_buffer_sample: (f32, f32),
+    #[inspect(min_value = 0.0, step = 0.05)]
+    radius: f32,
+    position: Vector3<f32>,
+    #[inspect(min_value = 0.0, step = 0.05)]
+    max_distance: f32,
+    #[inspect(min_value = 0.0, step = 0.05)]
+    rolloff_factor: f32,
+    // Some data that needed for iterative overlap-save convolution.
+    #[inspect(skip)]
+    #[visit(skip)]
+    pub(in crate) prev_left_samples: Vec<f32>,
+    #[inspect(skip)]
+    #[visit(skip)]
+    pub(in crate) prev_right_samples: Vec<f32>,
+    #[inspect(skip)]
+    #[visit(skip)]
+    pub(in crate) prev_sampling_vector: Vector3<f32>,
+    #[inspect(skip)]
+    #[visit(skip)]
+    pub(in crate) prev_distance_gain: Option<f32>,
 }
 
-impl Default for GenericSource {
+impl Default for SoundSource {
     fn default() -> Self {
         Self {
             name: Default::default(),
@@ -102,6 +145,7 @@ impl Default for GenericSource {
             panning: 0.0,
             pitch: 1.0,
             gain: 1.0,
+            spatial_blend: 1.0,
             looping: false,
             resampling_multiplier: 1.0,
             status: Status::Stopped,
@@ -110,11 +154,19 @@ impl Default for GenericSource {
             last_right_gain: None,
             frame_samples: Default::default(),
             prev_buffer_sample: (0.0, 0.0),
+            radius: 1.0,
+            position: Vector3::new(0.0, 0.0, 0.0),
+            max_distance: f32::MAX,
+            rolloff_factor: 1.0,
+            prev_left_samples: Default::default(),
+            prev_right_samples: Default::default(),
+            prev_sampling_vector: Vector3::new(0.0, 0.0, 1.0),
+            prev_distance_gain: None,
         }
     }
 }
 
-impl GenericSource {
+impl SoundSource {
     /// Sets new name of the sound source.
     pub fn set_name<N: AsRef<str>>(&mut self, name: N) {
         self.name = name.as_ref().to_owned();
@@ -128,6 +180,18 @@ impl GenericSource {
     /// Returns the name of the sound source.
     pub fn name_owned(&self) -> String {
         self.name.to_owned()
+    }
+
+    /// Sets spatial blend factor. It defines how much the source will be 2D and 3D sound at the same
+    /// time. Set it to 0.0 to make the sound fully 2D and 1.0 to make it fully 3D. Middle values
+    /// will make sound proportionally 2D and 3D at the same time.
+    pub fn set_spatial_blend(&mut self, k: f32) {
+        self.spatial_blend = k.clamp(0.0, 1.0);
+    }
+
+    /// Returns spatial blend factor.
+    pub fn spatial_blend(&self) -> f32 {
+        self.spatial_blend
     }
 
     /// Changes buffer of source. Returns old buffer. Source will continue playing from beginning, old
@@ -277,6 +341,98 @@ impl GenericSource {
 
         Ok(())
     }
+    /// Sets position of source in world space.
+    pub fn set_position(&mut self, position: Vector3<f32>) -> &mut Self {
+        self.position = position;
+        self
+    }
+
+    /// Returns positions of source.
+    pub fn position(&self) -> Vector3<f32> {
+        self.position
+    }
+
+    /// Sets radius of imaginable sphere around source in which no distance attenuation is applied.
+    pub fn set_radius(&mut self, radius: f32) -> &mut Self {
+        self.radius = radius;
+        self
+    }
+
+    /// Returns radius of source.
+    pub fn radius(&self) -> f32 {
+        self.radius
+    }
+
+    /// Sets rolloff factor. Rolloff factor is used in distance attenuation and has different meaning
+    /// in various distance models. It is applicable only for InverseDistance and ExponentDistance
+    /// distance models. See DistanceModel docs for formulae.
+    pub fn set_rolloff_factor(&mut self, rolloff_factor: f32) -> &mut Self {
+        self.rolloff_factor = rolloff_factor;
+        self
+    }
+
+    /// Returns rolloff factor.
+    pub fn rolloff_factor(&self) -> f32 {
+        self.rolloff_factor
+    }
+
+    /// Sets maximum distance until which distance gain will be applicable. Basically it doing this
+    /// min(max(distance, radius), max_distance) which clamps distance in radius..max_distance range.
+    /// From listener's perspective this will sound like source has stopped decreasing its volume even
+    /// if distance continue to grow.
+    pub fn set_max_distance(&mut self, max_distance: f32) -> &mut Self {
+        self.max_distance = max_distance;
+        self
+    }
+
+    /// Returns max distance.
+    pub fn max_distance(&self) -> f32 {
+        self.max_distance
+    }
+
+    // Distance models were taken from OpenAL Specification because it looks like they're
+    // standard in industry and there is no need to reinvent it.
+    // https://www.openal.org/documentation/openal-1.1-specification.pdf
+    pub(in crate) fn calculate_distance_gain(
+        &self,
+        listener: &Listener,
+        distance_model: DistanceModel,
+    ) -> f32 {
+        let distance = self
+            .position
+            .metric_distance(&listener.position())
+            .max(self.radius)
+            .min(self.max_distance);
+        match distance_model {
+            DistanceModel::None => 1.0,
+            DistanceModel::InverseDistance => {
+                self.radius / (self.radius + self.rolloff_factor * (distance - self.radius))
+            }
+            DistanceModel::LinearDistance => {
+                1.0 - self.radius * (distance - self.radius) / (self.max_distance - self.radius)
+            }
+            DistanceModel::ExponentDistance => (distance / self.radius).powf(-self.rolloff_factor),
+        }
+    }
+
+    pub(in crate) fn calculate_panning(&self, listener: &Listener) -> f32 {
+        (self.position - listener.position())
+            .try_normalize(f32::EPSILON)
+            // Fallback to look axis will give zero panning which will result in even
+            // gain in each channels (as if there was no panning at all).
+            .unwrap_or_else(|| listener.look_axis())
+            .dot(&listener.ear_axis())
+    }
+
+    pub(in crate) fn calculate_sampling_vector(&self, listener: &Listener) -> Vector3<f32> {
+        let to_self = self.position - listener.position();
+
+        (listener.basis() * to_self)
+            .try_normalize(f32::EPSILON)
+            // This is ok to fallback to (0, 0, 1) vector because it's given
+            // in listener coordinate system.
+            .unwrap_or_else(|| Vector3::new(0.0, 0.0, 1.0))
+    }
 
     /// Returns playback duration.
     pub fn playback_time(&self) -> Duration {
@@ -310,7 +466,8 @@ impl GenericSource {
                 SoundBufferState::Generic(_) => self.playback_pos,
             };
             assert!(
-                self.buf_read_pos * (buffer.channel_count() as f64) < buffer.samples().len() as f64
+                dbg!(self.buf_read_pos * (buffer.channel_count() as f64))
+                    < dbg!(buffer.samples().len() as f64)
             );
         }
     }
@@ -499,7 +656,7 @@ fn get_last_sample(buffer: &StreamingBuffer) -> (f32, f32) {
     }
 }
 
-impl Drop for GenericSource {
+impl Drop for SoundSource {
     fn drop(&mut self) {
         if let Some(buffer) = self.buffer.as_ref() {
             let mut buffer = buffer.data_ref();
@@ -510,27 +667,6 @@ impl Drop for GenericSource {
     }
 }
 
-impl Visit for GenericSource {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let _ = self.name.visit("Name", visitor);
-        self.buffer.visit("Buffer", visitor)?;
-        self.buf_read_pos.visit("BufReadPos", visitor)?;
-        self.playback_pos.visit("PlaybackPos", visitor)?;
-        self.panning.visit("Pan", visitor)?;
-        self.pitch.visit("Pitch", visitor)?;
-        self.gain.visit("Gain", visitor)?;
-        self.looping.visit("Looping", visitor)?;
-        self.resampling_multiplier
-            .visit("ResamplingMultiplier", visitor)?;
-        self.status.visit("Status", visitor)?;
-        self.play_once.visit("PlayOnce", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// Allows you to construct generic sound source with desired state.
 ///
 /// # Usage
@@ -538,11 +674,11 @@ impl Visit for GenericSource {
 /// ```no_run
 /// use std::sync::{Arc, Mutex};
 /// use fyrox_sound::buffer::SoundBufferResource;
-/// use fyrox_sound::source::generic::{GenericSource, GenericSourceBuilder};
+/// use fyrox_sound::source::{SoundSourceBuilder};
 /// use fyrox_sound::source::{Status, SoundSource};
 ///
-/// fn make_generic_source(buffer: SoundBufferResource) -> GenericSource {
-///     GenericSourceBuilder::new()
+/// fn make_sound_source(buffer: SoundBufferResource) -> SoundSource {
+///     SoundSourceBuilder::new()
 ///         .with_buffer(buffer)
 ///         .with_status(Status::Playing)
 ///         .with_gain(0.5)
@@ -551,19 +687,8 @@ impl Visit for GenericSource {
 ///         .build()
 ///         .unwrap()
 /// }
-///
-/// fn make_source(buffer: SoundBufferResource) -> SoundSource {
-///     GenericSourceBuilder::new()
-///         .with_buffer(buffer)
-///         .with_status(Status::Playing)
-///         .with_gain(0.5)
-///         .with_looping(true)
-///         .with_pitch(1.25)
-///         .build_source() // build_source creates SoundSource::Generic directly
-///         .unwrap()
-/// }
 /// ```
-pub struct GenericSourceBuilder {
+pub struct SoundSourceBuilder {
     buffer: Option<SoundBufferResource>,
     gain: f32,
     pitch: f64,
@@ -573,15 +698,20 @@ pub struct GenericSourceBuilder {
     status: Status,
     play_once: bool,
     playback_time: Duration,
+    radius: f32,
+    position: Vector3<f32>,
+    max_distance: f32,
+    rolloff_factor: f32,
+    spatial_blend: f32,
 }
 
-impl Default for GenericSourceBuilder {
+impl Default for SoundSourceBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl GenericSourceBuilder {
+impl SoundSourceBuilder {
     /// Creates new generic source builder with specified buffer.
     pub fn new() -> Self {
         Self {
@@ -594,6 +724,11 @@ impl GenericSourceBuilder {
             status: Status::Stopped,
             play_once: false,
             playback_time: Default::default(),
+            radius: 1.0,
+            position: Vector3::new(0.0, 0.0, 0.0),
+            max_distance: f32::MAX,
+            rolloff_factor: 1.0,
+            spatial_blend: 1.0,
         }
     }
 
@@ -609,25 +744,31 @@ impl GenericSourceBuilder {
         self
     }
 
-    /// See `set_gain` of GenericSource
+    /// See [`SoundSource::set_gain`]
     pub fn with_gain(mut self, gain: f32) -> Self {
         self.gain = gain;
         self
     }
 
-    /// See `set_pitch` of GenericSource
+    /// See [`SoundSource::set_spatial_blend`]
+    pub fn with_spatial_blend_factor(mut self, k: f32) -> Self {
+        self.spatial_blend = k.clamp(0.0, 1.0);
+        self
+    }
+
+    /// See [`SoundSource::set_pitch`]
     pub fn with_pitch(mut self, pitch: f64) -> Self {
         self.pitch = pitch;
         self
     }
 
-    /// See `set_panning` of GenericSource
+    /// See [`SoundSource::set_panning`]
     pub fn with_panning(mut self, panning: f32) -> Self {
         self.panning = panning;
         self
     }
 
-    /// See `set_looping` of GenericSource
+    /// See [`SoundSource::set_looping`]
     pub fn with_looping(mut self, looping: bool) -> Self {
         self.looping = looping;
         self
@@ -639,7 +780,7 @@ impl GenericSourceBuilder {
         self
     }
 
-    /// See `set_play_once` of GenericSource
+    /// See `set_play_once` of SoundSource
     pub fn with_play_once(mut self, play_once: bool) -> Self {
         self.play_once = play_once;
         self
@@ -657,9 +798,33 @@ impl GenericSourceBuilder {
         self
     }
 
+    /// See `set_position` of SpatialSource.
+    pub fn with_position(mut self, position: Vector3<f32>) -> Self {
+        self.position = position;
+        self
+    }
+
+    /// See `set_radius` of SpatialSource.
+    pub fn with_radius(mut self, radius: f32) -> Self {
+        self.radius = radius;
+        self
+    }
+
+    /// See `set_max_distance` of SpatialSource.
+    pub fn with_max_distance(mut self, max_distance: f32) -> Self {
+        self.max_distance = max_distance;
+        self
+    }
+
+    /// See `set_rolloff_factor` of SpatialSource.
+    pub fn with_rolloff_factor(mut self, rolloff_factor: f32) -> Self {
+        self.rolloff_factor = rolloff_factor;
+        self
+    }
+
     /// Creates new instance of generic sound source. May fail if buffer is invalid.
-    pub fn build(self) -> Result<GenericSource, SoundError> {
-        let mut source = GenericSource {
+    pub fn build(self) -> Result<SoundSource, SoundError> {
+        let mut source = SoundSource {
             buffer: self.buffer.clone(),
             gain: self.gain,
             pitch: self.pitch,
@@ -669,6 +834,13 @@ impl GenericSourceBuilder {
             looping: self.looping,
             name: self.name,
             frame_samples: Default::default(),
+            radius: self.radius,
+            position: self.position,
+            max_distance: self.max_distance,
+            rolloff_factor: self.rolloff_factor,
+            spatial_blend: self.spatial_blend,
+            prev_left_samples: Default::default(),
+            prev_right_samples: Default::default(),
             ..Default::default()
         };
 
@@ -676,10 +848,5 @@ impl GenericSourceBuilder {
         source.set_playback_time(self.playback_time);
 
         Ok(source)
-    }
-
-    /// Creates new instance of sound source of `Generic` variant.
-    pub fn build_source(self) -> Result<SoundSource, SoundError> {
-        Ok(SoundSource::Generic(self.build()?))
     }
 }

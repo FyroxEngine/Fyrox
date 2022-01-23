@@ -1,4 +1,5 @@
 use crate::fyrox::core::math::Matrix4Ext;
+use fyrox::scene::sound::listener::ListenerBuilder;
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -62,10 +63,14 @@ impl CameraController {
         let camera;
         let pivot = BaseBuilder::new()
             .with_children(&[{
-                camera = CameraBuilder::new(BaseBuilder::new().with_name("EditorCamera"))
-                    .with_exposure(Exposure::Manual(std::f32::consts::E))
-                    .with_z_far(512.0)
-                    .build(graph);
+                camera = CameraBuilder::new(
+                    BaseBuilder::new()
+                        .with_children(&[ListenerBuilder::new(BaseBuilder::new()).build(graph)])
+                        .with_name("EditorCamera"),
+                )
+                .with_exposure(Exposure::Manual(std::f32::consts::E))
+                .with_z_far(512.0)
+                .build(graph);
                 camera
             }])
             .with_name("EditorCameraPivot")

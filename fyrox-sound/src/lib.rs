@@ -19,7 +19,7 @@
 //! };
 //! use fyrox_sound::{
 //!     source::{
-//!         generic::GenericSourceBuilder,
+//!         SoundSourceBuilder,
 //!         SoundSource,
 //!         Status
 //!     },
@@ -34,10 +34,10 @@
 //!
 //!  let sound_buffer = SoundBufferResource::new_generic(fyrox_sound::futures::executor::block_on(DataSource::from_file("sound.wav")).unwrap()).unwrap();
 //!
-//!  let source = GenericSourceBuilder::new()
+//!  let source = SoundSourceBuilder::new()
 //!     .with_buffer(sound_buffer)
 //!     .with_status(Status::Playing)
-//!     .build_source()
+//!     .build()
 //!     .unwrap();
 //!
 //!  context.state()

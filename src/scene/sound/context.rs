@@ -19,7 +19,7 @@ use fyrox_sound::{
     context::DistanceModel,
     effects::{reverb::Reverb, BaseEffect, EffectInput, InputFilter},
     renderer::Renderer,
-    source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
+    source::{SoundSource, SoundSourceBuilder, Status},
 };
 use std::time::Duration;
 
@@ -238,83 +238,93 @@ impl SoundContext {
     }
 
     pub(crate) fn sync_with_sound(&self, sound: &mut Sound) {
-        if let Some(SoundSource::Spatial(spatial)) =
-            self.native.state().try_get_source_mut(sound.native.get())
-        {
+        if let Some(source) = self.native.state().try_get_source_mut(sound.native.get()) {
             // Sync back.
-            sound.status.set_silent(spatial.status());
-            sound.playback_time.set_silent(spatial.playback_time());
+            sound.status.set_silent(source.status());
+            sound.playback_time.set_silent(source.playback_time());
         }
     }
 
     pub(crate) fn sync_to_sound(&mut self, sound: &Sound) {
         if sound.native.get().is_some() {
             let mut state = self.native.state();
-            let spatial = state.source_mut(sound.native.get()).spatial_mut();
+            let source = state.source_mut(sound.native.get());
 
             sound.max_distance.try_sync_model(|v| {
-                spatial.set_max_distance(v);
+                source.set_max_distance(v);
             });
             sound.rolloff_factor.try_sync_model(|v| {
-                spatial.set_rolloff_factor(v);
+                source.set_rolloff_factor(v);
             });
             sound.radius.try_sync_model(|v| {
-                spatial.set_radius(v);
+                source.set_radius(v);
             });
             sound.playback_time.try_sync_model(|v| {
-                spatial.set_playback_time(v);
+                source.set_playback_time(v);
             });
             sound.pitch.try_sync_model(|v| {
-                spatial.set_pitch(v);
+                source.set_pitch(v);
             });
             sound.looping.try_sync_model(|v| {
-                spatial.set_looping(v);
+                source.set_looping(v);
             });
             sound.panning.try_sync_model(|v| {
-                spatial.set_panning(v);
+                source.set_panning(v);
             });
             sound.gain.try_sync_model(|v| {
-                spatial.set_gain(v);
+                source.set_gain(v);
             });
+            sound
+                .spatial_blend
+                .try_sync_model(|v| source.set_spatial_blend(v));
             sound.buffer.try_sync_model(|v| {
-                Log::verify(spatial.set_buffer(v));
+                Log::verify(source.set_buffer(v));
             });
             sound.status.try_sync_model(|v| match v {
                 Status::Stopped => {
-                    Log::verify(spatial.stop());
+                    Log::verify(source.stop());
                 }
                 Status::Playing => {
-                    spatial.play();
+                    source.play();
                 }
                 Status::Paused => {
-                    spatial.pause();
+                    source.pause();
                 }
             });
         } else {
-            let source = SpatialSourceBuilder::new(
-                GenericSourceBuilder::new()
-                    .with_gain(sound.gain())
-                    .with_opt_buffer(sound.buffer())
-                    .with_looping(sound.is_looping())
-                    .with_panning(sound.panning())
-                    .with_pitch(sound.pitch())
-                    .with_status(sound.status())
-                    .with_playback_time(sound.playback_time())
-                    .build()
-                    .unwrap(),
-            )
-            .with_position(sound.global_position())
-            .with_radius(sound.radius())
-            .with_max_distance(sound.max_distance())
-            .with_rolloff_factor(sound.rolloff_factor())
-            .build_source();
+            match SoundSourceBuilder::new()
+                .with_gain(sound.gain())
+                .with_opt_buffer(sound.buffer())
+                .with_looping(sound.is_looping())
+                .with_panning(sound.panning())
+                .with_pitch(sound.pitch())
+                .with_status(sound.status())
+                .with_playback_time(sound.playback_time())
+                .with_position(sound.global_position())
+                .with_radius(sound.radius())
+                .with_max_distance(sound.max_distance())
+                .with_rolloff_factor(sound.rolloff_factor())
+                .build()
+            {
+                Ok(source) => {
+                    sound.native.set(self.native.state().add_source(source));
 
-            sound.native.set(self.native.state().add_source(source));
-
-            Log::writeln(
-                MessageKind::Information,
-                format!("Native sound source was created for node: {}", sound.name()),
-            );
+                    Log::writeln(
+                        MessageKind::Information,
+                        format!("Native sound source was created for node: {}", sound.name()),
+                    );
+                }
+                Err(err) => {
+                    Log::writeln(
+                        MessageKind::Error,
+                        format!(
+                            "Unable to create native sound source for node: {}. Reason: {:?}",
+                            sound.name(),
+                            err
+                        ),
+                    );
+                }
+            }
         }
     }
 

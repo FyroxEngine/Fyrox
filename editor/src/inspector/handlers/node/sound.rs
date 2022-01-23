@@ -41,6 +41,9 @@ pub fn handle_sound_property_changed(
             Sound::ROLLOFF_FACTOR => {
                 make_command!(SetRolloffFactorCommand, handle, value)
             }
+            Sound::SPATIAL_BLEND => {
+                make_command!(SetSpatialBlendCommand, handle, value)
+            }
             _ => None,
         },
         _ => None,

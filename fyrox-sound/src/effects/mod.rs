@@ -173,12 +173,7 @@ impl BaseEffect {
                 continue;
             }
 
-            let distance_gain = match source {
-                SoundSource::Generic(_) => 1.0,
-                SoundSource::Spatial(spatial) => {
-                    spatial.get_distance_gain(listener, distance_model)
-                }
-            };
+            let distance_gain = source.calculate_distance_gain(listener, distance_model);
 
             let prev_distance_gain = input.last_distance_gain.unwrap_or(distance_gain);
 

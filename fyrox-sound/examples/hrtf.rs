@@ -7,7 +7,7 @@ use fyrox_sound::{
     futures::executor::block_on,
     hrtf::HrirSphere,
     renderer::{hrtf::HrtfRenderer, Renderer},
-    source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
+    source::{SoundSourceBuilder, Status},
 };
 use std::{
     thread,
@@ -36,29 +36,23 @@ fn main() {
         block_on(DataSource::from_file("examples/data/door_open.wav")).unwrap(),
     )
     .unwrap();
-    let source = SpatialSourceBuilder::new(
-        GenericSourceBuilder::new()
-            .with_buffer(sound_buffer)
-            .with_status(Status::Playing)
-            .build()
-            .unwrap(),
-    )
-    .build_source();
+    let source = SoundSourceBuilder::new()
+        .with_buffer(sound_buffer)
+        .with_status(Status::Playing)
+        .build()
+        .unwrap();
     context.state().add_source(source);
 
     let sound_buffer = SoundBufferResource::new_generic(
         block_on(DataSource::from_file("examples/data/helicopter.wav")).unwrap(),
     )
     .unwrap();
-    let source = SpatialSourceBuilder::new(
-        GenericSourceBuilder::new()
-            .with_buffer(sound_buffer)
-            .with_status(Status::Playing)
-            .with_looping(true)
-            .build()
-            .unwrap(),
-    )
-    .build_source();
+    let source = SoundSourceBuilder::new()
+        .with_buffer(sound_buffer)
+        .with_status(Status::Playing)
+        .with_looping(true)
+        .build()
+        .unwrap();
     let source_handle = context.state().add_source(source);
 
     // Move source sound around listener for some time.
@@ -68,16 +62,14 @@ fn main() {
         // Separate scope for update to make sure that mutex lock will be released before
         // thread::sleep will be called so context can actually work in background thread.
         {
-            if let SoundSource::Spatial(spatial) = context.state().source_mut(source_handle) {
-                let axis = Vector3::y_axis();
-                let rotation_matrix =
-                    UnitQuaternion::from_axis_angle(&axis, angle.to_radians()).to_homogeneous();
-                spatial.set_position(
-                    rotation_matrix
-                        .transform_point(&Point3::new(0.0, 0.0, 3.0))
-                        .coords,
-                );
-            }
+            let axis = Vector3::y_axis();
+            let rotation_matrix =
+                UnitQuaternion::from_axis_angle(&axis, angle.to_radians()).to_homogeneous();
+            context.state().source_mut(source_handle).set_position(
+                rotation_matrix
+                    .transform_point(&Point3::new(0.0, 0.0, 3.0))
+                    .coords,
+            );
 
             angle += 1.6;
 

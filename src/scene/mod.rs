@@ -333,6 +333,14 @@ impl Scene {
                         resource_manager.clone(),
                     ));
                 }
+                Node::Sound(sound) => {
+                    if let Some(buffer) = sound.buffer() {
+                        let state = buffer.state();
+                        sound.set_buffer(Some(
+                            resource_manager.request_sound_buffer(state.path(), false),
+                        ));
+                    }
+                }
                 _ => (),
             }
         }

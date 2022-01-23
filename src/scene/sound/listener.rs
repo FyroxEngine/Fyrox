@@ -12,6 +12,7 @@ use crate::{
         node::Node,
     },
 };
+use fyrox_core::math::aabb::AxisAlignedBoundingBox;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Visit, Inspect, Default, Debug)]
@@ -43,6 +44,13 @@ impl Listener {
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
         self.base.inherit_properties(parent);
+    }
+
+    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        AxisAlignedBoundingBox {
+            min: Default::default(),
+            max: Default::default(),
+        }
     }
 }
 

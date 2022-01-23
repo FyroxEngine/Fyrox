@@ -8,12 +8,10 @@
 #![allow(clippy::float_cmp)]
 
 use crate::{
-    context::DistanceModel,
-    listener::Listener,
-    math,
-    renderer::hrtf::HrtfRenderer,
-    source::{generic::GenericSource, SoundSource},
+    context::DistanceModel, listener::Listener, math, renderer::hrtf::HrtfRenderer,
+    source::SoundSource,
 };
+use fyrox_core::math::lerpf;
 use fyrox_core::{
     inspect::{Inspect, PropertyInfo},
     visitor::{Visit, VisitResult, Visitor},
@@ -71,7 +69,7 @@ impl Default for Renderer {
 }
 
 fn render_with_params(
-    source: &mut GenericSource,
+    source: &mut SoundSource,
     left_gain: f32,
     right_gain: f32,
     mix_buffer: &mut [(f32, f32)],
@@ -109,27 +107,31 @@ pub(in crate) fn render_source_default(
     distance_model: DistanceModel,
     mix_buffer: &mut [(f32, f32)],
 ) {
-    match source {
-        SoundSource::Generic(generic) => {
-            let gain = generic.gain();
-            let panning = generic.panning();
-            let left_gain = gain * (1.0 + panning);
-            let right_gain = gain * (1.0 - panning);
-            render_with_params(generic, left_gain, right_gain, mix_buffer);
-            generic.last_left_gain = Some(left_gain);
-            generic.last_right_gain = Some(right_gain);
-        }
-        SoundSource::Spatial(spatial) => {
-            let distance_gain = spatial.get_distance_gain(listener, distance_model);
-            let panning = spatial.get_panning(listener);
-            let gain = distance_gain * spatial.generic().gain();
-            let left_gain = gain * (1.0 + panning);
-            let right_gain = gain * (1.0 - panning);
-            render_with_params(spatial.generic_mut(), left_gain, right_gain, mix_buffer);
-            spatial.generic_mut().last_left_gain = Some(left_gain);
-            spatial.generic_mut().last_right_gain = Some(right_gain);
-        }
-    }
+    let distance_gain = lerpf(
+        1.0,
+        source.calculate_distance_gain(listener, distance_model),
+        source.spatial_blend(),
+    );
+    let panning = lerpf(
+        source.panning(),
+        source.calculate_panning(listener),
+        source.spatial_blend(),
+    );
+    let gain = distance_gain * source.gain();
+    let left_gain = gain * (1.0 + panning);
+    let right_gain = gain * (1.0 - panning);
+    render_with_params(source, left_gain, right_gain, mix_buffer);
+    source.last_left_gain = Some(left_gain);
+    source.last_right_gain = Some(right_gain);
+}
+
+pub(in crate) fn render_source_2d_only(source: &mut SoundSource, mix_buffer: &mut [(f32, f32)]) {
+    let gain = (1.0 - source.spatial_blend()) * source.gain();
+    let left_gain = gain * (1.0 + source.panning());
+    let right_gain = gain * (1.0 - source.panning());
+    render_with_params(source, left_gain, right_gain, mix_buffer);
+    source.last_left_gain = Some(left_gain);
+    source.last_right_gain = Some(right_gain);
 }
 
 impl Visit for Renderer {

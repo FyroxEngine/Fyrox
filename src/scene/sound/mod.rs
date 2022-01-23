@@ -62,7 +62,10 @@ pub struct Sound {
     max_distance: TemplateVariable<f32>,
     #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
     rolloff_factor: TemplateVariable<f32>,
+    #[inspect(getter = "Deref::deref")]
     playback_time: TemplateVariable<Duration>,
+    #[inspect(getter = "Deref::deref")]
+    spatial_blend: TemplateVariable<f32>,
     #[inspect(skip)]
     #[visit(skip)]
     pub(crate) native: Cell<Handle<SoundSource>>,
@@ -97,6 +100,7 @@ impl Default for Sound {
             max_distance: TemplateVariable::new(f32::MAX),
             rolloff_factor: TemplateVariable::new(1.0),
             playback_time: Default::default(),
+            spatial_blend: TemplateVariable::new(1.0),
             native: Default::default(),
         }
     }
@@ -118,6 +122,7 @@ impl Sound {
             max_distance: self.max_distance.clone(),
             rolloff_factor: self.rolloff_factor.clone(),
             playback_time: self.playback_time.clone(),
+            spatial_blend: self.spatial_blend.clone(),
             // Do not copy.
             native: Default::default(),
         }
@@ -148,6 +153,18 @@ impl Sound {
     /// Returns true if this source is marked for single play, false - otherwise.
     pub fn is_play_once(&self) -> bool {
         *self.play_once
+    }
+
+    /// Sets spatial blend factor. It defines how much the source will be 2D and 3D sound at the same
+    /// time. Set it to 0.0 to make the sound fully 2D and 1.0 to make it fully 3D. Middle values
+    /// will make sound proportionally 2D and 3D at the same time.
+    pub fn set_spatial_blend(&mut self, k: f32) {
+        self.spatial_blend.set(k.clamp(0.0, 1.0));
+    }
+
+    /// Returns spatial blend factor.
+    pub fn spatial_blend(&self) -> f32 {
+        *self.spatial_blend
     }
 
     /// Sets new gain (volume) of sound. Value should be in 0..1 range, but it is not clamped
@@ -305,6 +322,7 @@ pub struct SoundBuilder {
     max_distance: f32,
     rolloff_factor: f32,
     playback_time: Duration,
+    spatial_blend: f32,
 }
 
 impl SoundBuilder {
@@ -322,6 +340,7 @@ impl SoundBuilder {
             radius: 10.0,
             max_distance: f32::MAX,
             rolloff_factor: 1.0,
+            spatial_blend: 1.0,
             playback_time: Default::default(),
         }
     }
@@ -377,6 +396,11 @@ impl SoundBuilder {
     );
 
     define_with!(
+        /// Sets desired spatial blend factor. See [`Sound::set_spatial_blend`] for more info.
+        fn with_spatial_blend_factor(spatial_blend: f32)
+    );
+
+    define_with!(
         /// Sets desired playback time. See [`Sound::set_playback_time`] for more info.
         fn with_playback_time(playback_time: Duration)
     );
@@ -397,6 +421,7 @@ impl SoundBuilder {
             max_distance: self.max_distance.into(),
             rolloff_factor: self.rolloff_factor.into(),
             playback_time: self.playback_time.into(),
+            spatial_blend: self.spatial_blend.into(),
             native: Default::default(),
         })
     }

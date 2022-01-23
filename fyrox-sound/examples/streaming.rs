@@ -1,10 +1,10 @@
-use fyrox_sound::engine::SoundEngine;
-use fyrox_sound::futures::executor::block_on;
 use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource},
     context::SoundContext,
+    engine::SoundEngine,
+    futures::executor::block_on,
     pool::Handle,
-    source::{generic::GenericSourceBuilder, SoundSource, Status},
+    source::{SoundSource, SoundSourceBuilder, Status},
 };
 use std::{thread, time::Duration};
 
@@ -24,11 +24,11 @@ fn main() {
     .unwrap();
 
     // Create flat source (without spatial effects) using that buffer.
-    let source = GenericSourceBuilder::new()
+    let source = SoundSourceBuilder::new()
         .with_buffer(waterfall_buffer)
         .with_status(Status::Playing)
         .with_looping(true)
-        .build_source()
+        .build()
         .unwrap();
 
     // Each sound sound must be added to context, context takes ownership on source

@@ -54,7 +54,7 @@
 use crate::{
     context::{self, DistanceModel, SoundContext},
     listener::Listener,
-    renderer::render_source_default,
+    renderer::render_source_2d_only,
     source::SoundSource,
 };
 use fyrox_core::{
@@ -109,39 +109,37 @@ impl HrtfRenderer {
         distance_model: DistanceModel,
         out_buf: &mut [(f32, f32)],
     ) {
-        match source {
-            SoundSource::Generic(_) => {
-                render_source_default(source, listener, distance_model, out_buf)
-            }
-            SoundSource::Spatial(spatial) => {
-                let new_distance_gain = spatial.get_distance_gain(listener, distance_model);
-                let new_sampling_vector = spatial.get_sampling_vector(listener);
+        // Render as 2D first with k = (1.0 - spatial_blend).
+        render_source_2d_only(source, out_buf);
 
-                self.processor
-                    .as_mut()
-                    .unwrap()
-                    .process_samples(hrtf::HrtfContext {
-                        source: &spatial.generic.frame_samples,
-                        output: out_buf,
-                        new_sample_vector: hrtf::Vec3::new(
-                            new_sampling_vector.x,
-                            new_sampling_vector.y,
-                            new_sampling_vector.z,
-                        ),
-                        prev_sample_vector: hrtf::Vec3::new(
-                            spatial.prev_sampling_vector.x,
-                            spatial.prev_sampling_vector.y,
-                            spatial.prev_sampling_vector.z,
-                        ),
-                        prev_left_samples: &mut spatial.prev_left_samples,
-                        prev_right_samples: &mut spatial.prev_right_samples,
-                        prev_distance_gain: spatial.prev_distance_gain.unwrap_or(new_distance_gain),
-                        new_distance_gain,
-                    });
+        // Then add HRTF part with k = spatial_blend
+        let new_distance_gain =
+            source.spatial_blend() * source.calculate_distance_gain(listener, distance_model);
+        let new_sampling_vector = source.calculate_sampling_vector(listener);
 
-                spatial.prev_sampling_vector = new_sampling_vector;
-                spatial.prev_distance_gain = Some(new_distance_gain);
-            }
-        }
+        self.processor
+            .as_mut()
+            .unwrap()
+            .process_samples(hrtf::HrtfContext {
+                source: &source.frame_samples,
+                output: out_buf,
+                new_sample_vector: hrtf::Vec3::new(
+                    new_sampling_vector.x,
+                    new_sampling_vector.y,
+                    new_sampling_vector.z,
+                ),
+                prev_sample_vector: hrtf::Vec3::new(
+                    source.prev_sampling_vector.x,
+                    source.prev_sampling_vector.y,
+                    source.prev_sampling_vector.z,
+                ),
+                prev_left_samples: &mut source.prev_left_samples,
+                prev_right_samples: &mut source.prev_right_samples,
+                prev_distance_gain: source.prev_distance_gain.unwrap_or(new_distance_gain),
+                new_distance_gain,
+            });
+
+        source.prev_sampling_vector = new_sampling_vector;
+        source.prev_distance_gain = Some(new_distance_gain);
     }
 }

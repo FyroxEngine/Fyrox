@@ -1,9 +1,9 @@
-use fyrox_sound::engine::SoundEngine;
 use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource},
     context::SoundContext,
+    engine::SoundEngine,
     pool::Handle,
-    source::{generic::GenericSourceBuilder, SoundSource, Status},
+    source::{SoundSource, SoundSourceBuilder, Status},
 };
 
 fn main() {
@@ -26,10 +26,10 @@ fn main() {
     .unwrap();
 
     // Create generic source (without spatial effects) using that buffer.
-    let source = GenericSourceBuilder::new()
+    let source = SoundSourceBuilder::new()
         .with_buffer(door_open_buffer)
         .with_status(Status::Playing)
-        .build_source()
+        .build()
         .unwrap();
 
     // Each sound sound must be added to context, context takes ownership on source

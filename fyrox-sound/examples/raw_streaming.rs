@@ -2,7 +2,7 @@ use fyrox_sound::{
     buffer::{DataSource, RawStreamingDataSource, SoundBufferResource},
     context::SoundContext,
     engine::SoundEngine,
-    source::{generic::GenericSourceBuilder, Status},
+    source::{SoundSourceBuilder, Status},
 };
 use std::{thread, time::Duration};
 
@@ -65,10 +65,10 @@ fn main() {
     let sine_wave_buffer = SoundBufferResource::new_streaming(sine_wave).unwrap();
 
     // Create generic source (without spatial effects) using that buffer.
-    let source = GenericSourceBuilder::new()
+    let source = SoundSourceBuilder::new()
         .with_buffer(sine_wave_buffer)
         .with_status(Status::Playing)
-        .build_source()
+        .build()
         .unwrap();
 
     context.state().add_source(source);

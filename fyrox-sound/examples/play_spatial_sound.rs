@@ -5,7 +5,7 @@ use fyrox_sound::{
     context::SoundContext,
     engine::SoundEngine,
     pool::Handle,
-    source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
+    source::{SoundSource, SoundSourceBuilder, Status},
 };
 use std::{
     thread,
@@ -28,15 +28,12 @@ fn main() {
     .unwrap();
 
     // Create spatial source - spatial sources can be positioned in space.
-    let source = SpatialSourceBuilder::new(
-        GenericSourceBuilder::new()
-            .with_buffer(drop_buffer)
-            .with_looping(true)
-            .with_status(Status::Playing)
-            .build()
-            .unwrap(),
-    )
-    .build_source();
+    let source = SoundSourceBuilder::new()
+        .with_buffer(drop_buffer)
+        .with_looping(true)
+        .with_status(Status::Playing)
+        .build()
+        .unwrap();
 
     // Each sound sound must be added to context, context takes ownership on source
     // and returns pool handle to it by which it can be accessed later on if needed.
@@ -46,16 +43,15 @@ fn main() {
     let start_time = time::Instant::now();
     let mut angle = 0.0f32;
     while (time::Instant::now() - start_time).as_secs() < 11 {
-        if let SoundSource::Spatial(spatial) = context.state().source_mut(source_handle) {
-            let axis = Vector3::y_axis();
-            let rotation_matrix =
-                UnitQuaternion::from_axis_angle(&axis, angle.to_radians()).to_homogeneous();
-            spatial.set_position(
-                rotation_matrix
-                    .transform_point(&Point3::new(0.0, 0.0, 3.0))
-                    .coords,
-            );
-        }
+        let axis = Vector3::y_axis();
+        let rotation_matrix =
+            UnitQuaternion::from_axis_angle(&axis, angle.to_radians()).to_homogeneous();
+        context.state().source_mut(source_handle).set_position(
+            rotation_matrix
+                .transform_point(&Point3::new(0.0, 0.0, 3.0))
+                .coords,
+        );
+
         angle += 3.6;
 
         // Limit rate of updates.

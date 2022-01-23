@@ -1,13 +1,13 @@
-use fyrox_sound::engine::SoundEngine;
-use fyrox_sound::futures::executor::block_on;
 use fyrox_sound::{
     algebra::{Point3, UnitQuaternion, Vector3},
     buffer::{DataSource, SoundBufferResource},
     context::{self, SoundContext},
     effects::{reverb::Reverb, BaseEffect, Effect, EffectInput},
+    engine::SoundEngine,
+    futures::executor::block_on,
     hrtf::HrirSphere,
     renderer::{hrtf::HrtfRenderer, Renderer},
-    source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
+    source::{SoundSourceBuilder, Status},
 };
 use std::{
     thread,
@@ -43,14 +43,11 @@ fn main() {
         block_on(DataSource::from_file("examples/data/door_open.wav")).unwrap(),
     )
     .unwrap();
-    let source = SpatialSourceBuilder::new(
-        GenericSourceBuilder::new()
-            .with_buffer(sound_buffer)
-            .with_status(Status::Playing)
-            .build()
-            .unwrap(),
-    )
-    .build_source();
+    let source = SoundSourceBuilder::new()
+        .with_buffer(sound_buffer)
+        .with_status(Status::Playing)
+        .build()
+        .unwrap();
     let door_sound = context.state().add_source(source);
 
     // Each sound source must be attached to effect, otherwise sound won't be passed to effect
@@ -64,15 +61,12 @@ fn main() {
         block_on(DataSource::from_file("examples/data/drop.wav")).unwrap(),
     )
     .unwrap();
-    let source = SpatialSourceBuilder::new(
-        GenericSourceBuilder::new()
-            .with_buffer(sound_buffer)
-            .with_status(Status::Playing)
-            .with_looping(true)
-            .build()
-            .unwrap(),
-    )
-    .build_source();
+    let source = SoundSourceBuilder::new()
+        .with_buffer(sound_buffer)
+        .with_status(Status::Playing)
+        .with_looping(true)
+        .build()
+        .unwrap();
     let drop_sound_handle = context.state().add_source(source);
 
     context
@@ -84,16 +78,14 @@ fn main() {
     let start_time = time::Instant::now();
     let mut angle = 0.0f32;
     while (time::Instant::now() - start_time).as_secs() < 360 {
-        if let SoundSource::Spatial(sound) = context.state().source_mut(drop_sound_handle) {
-            let axis = Vector3::y_axis();
-            let rotation_matrix =
-                UnitQuaternion::from_axis_angle(&axis, angle.to_radians()).to_homogeneous();
-            sound.set_position(
-                rotation_matrix
-                    .transform_point(&Point3::new(0.0, 0.0, 1.0))
-                    .coords,
-            );
-        }
+        let axis = Vector3::y_axis();
+        let rotation_matrix =
+            UnitQuaternion::from_axis_angle(&axis, angle.to_radians()).to_homogeneous();
+        context.state().source_mut(drop_sound_handle).set_position(
+            rotation_matrix
+                .transform_point(&Point3::new(0.0, 0.0, 1.0))
+                .coords,
+        );
 
         angle += 1.6;
 
