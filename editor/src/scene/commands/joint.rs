@@ -1,6 +1,4 @@
-use crate::{
-    command::Command, define_node_command, define_swap_command, scene::commands::SceneContext,
-};
+use crate::{command::Command, define_swap_command, scene::commands::SceneContext};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -10,75 +8,37 @@ use fyrox::{
 };
 
 macro_rules! define_joint_variant_command {
-    ($($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $node:ident, $variant:ident, $var:ident) $apply_method:block )*) => {
+    ($($ty_name:ident($value_ty:ty): $variant:ident, $field:ident, $name:expr;)*) => {
         $(
-            define_node_command!($name($human_readable_name, $value_type) where fn swap($self, $node) {
-                if let JointParams::$variant(ref mut $var) = *$node.as_joint_mut().params_mut() {
-                    $apply_method
-                } else {
-                    unreachable!();
+            define_swap_command! {
+                $ty_name($value_ty): $name, |me: &mut $ty_name, graph: &mut Graph| {
+                    let node = &mut graph[me.handle];
+                    let variant = match *node.as_joint_mut().params_mut() {
+                        JointParams::$variant(ref mut x) => x,
+                        _ => unreachable!()
+                    };
+                    ::core::mem::swap(&mut variant.$field, &mut me.value);
                 }
-            });
+            }
         )*
     };
 }
 
 define_joint_variant_command! {
-SetBallJointAnchor1Command("Set Ball Joint Anchor 1", Vector3<f32>) where fn swap(self, physics, BallJoint, ball) {
-        std::mem::swap(&mut ball.local_anchor1, &mut self.value);
-    }
-
-    SetBallJointAnchor2Command("Set Ball Joint Anchor 2", Vector3<f32>) where fn swap(self, physics, BallJoint, ball) {
-        std::mem::swap(&mut ball.local_anchor2, &mut self.value);
-    }
-
-    SetFixedJointAnchor1TranslationCommand("Set Fixed Joint Anchor 1 Translation", Vector3<f32>) where fn swap(self, physics, FixedJoint, fixed) {
-        std::mem::swap(&mut fixed.local_anchor1_translation, &mut self.value);
-    }
-
-    SetFixedJointAnchor2TranslationCommand("Set Fixed Joint Anchor 2 Translation", Vector3<f32>) where fn swap(self, physics, FixedJoint, fixed) {
-        std::mem::swap(&mut fixed.local_anchor2_translation, &mut self.value);
-    }
-
-    SetFixedJointAnchor1RotationCommand("Set Fixed Joint Anchor 1 Rotation", UnitQuaternion<f32>) where fn swap(self, node, FixedJoint, fixed) {
-        std::mem::swap(&mut fixed.local_anchor1_rotation, &mut self.value);
-    }
-
-    SetFixedJointAnchor2RotationCommand("Set Fixed Joint Anchor 2 Rotation", UnitQuaternion<f32>) where fn swap(self, node, FixedJoint, fixed) {
-        std::mem::swap(&mut fixed.local_anchor2_rotation, &mut self.value);
-    }
-
-    SetRevoluteJointAnchor1Command("Set Revolute Joint Anchor 1", Vector3<f32>) where fn swap(self, node, RevoluteJoint, revolute) {
-        std::mem::swap(&mut revolute.local_anchor1, &mut self.value);
-    }
-
-    SetRevoluteJointAxis1Command("Set Revolute Joint Axis 1", Vector3<f32>) where fn swap(self, node, RevoluteJoint, revolute) {
-        std::mem::swap(&mut revolute.local_axis1, &mut self.value);
-    }
-
-    SetRevoluteJointAnchor2Command("Set Revolute Joint Anchor 2", Vector3<f32>) where fn swap(self, node, RevoluteJoint, revolute) {
-        std::mem::swap(&mut revolute.local_anchor2, &mut self.value);
-    }
-
-    SetRevoluteJointAxis2Command("Set Prismatic Joint Axis 2", Vector3<f32>) where fn swap(self, node, RevoluteJoint, revolute) {
-        std::mem::swap(&mut revolute.local_axis2, &mut self.value);
-    }
-
-    SetPrismaticJointAnchor1Command("Set Prismatic Joint Anchor 1", Vector3<f32>) where fn swap(self, node, PrismaticJoint, prismatic) {
-        std::mem::swap(&mut prismatic.local_anchor1, &mut self.value);
-    }
-
-    SetPrismaticJointAxis1Command("Set Prismatic Joint Axis 1", Vector3<f32>) where fn swap(self, node, PrismaticJoint, prismatic) {
-        std::mem::swap(&mut prismatic.local_axis1, &mut self.value);
-    }
-
-    SetPrismaticJointAnchor2Command("Set Prismatic Joint Anchor 2", Vector3<f32>) where fn swap(self, node, PrismaticJoint, prismatic) {
-        std::mem::swap(&mut prismatic.local_anchor2, &mut self.value);
-    }
-
-    SetPrismaticJointAxis2Command("Set Prismatic Joint Axis 2", Vector3<f32>) where fn swap(self, node, PrismaticJoint, prismatic) {
-        std::mem::swap(&mut prismatic.local_axis2, &mut self.value);
-    }
+    SetBallJointAnchor1Command(Vector3<f32>): BallJoint, local_anchor1, "Set Ball Joint Anchor 1";
+    SetBallJointAnchor2Command(Vector3<f32>): BallJoint, local_anchor2, "Set Ball Joint Anchor 2";
+    SetFixedJointAnchor1TranslationCommand(Vector3<f32>): FixedJoint, local_anchor1_translation, "Set Fixed Joint Anchor 1 Translation";
+    SetFixedJointAnchor2TranslationCommand(Vector3<f32>): FixedJoint, local_anchor2_translation, "Set Fixed Joint Anchor 2 Translation";
+    SetFixedJointAnchor1RotationCommand(UnitQuaternion<f32>): FixedJoint, local_anchor1_rotation, "Set Fixed Joint Anchor 1 Rotation";
+    SetFixedJointAnchor2RotationCommand(UnitQuaternion<f32>): FixedJoint, local_anchor2_rotation, "Set Fixed Joint Anchor 2 Rotation";
+    SetRevoluteJointAnchor1Command(Vector3<f32>): RevoluteJoint, local_anchor1, "Set Revolute Joint Anchor 1";
+    SetRevoluteJointAxis1Command(Vector3<f32>): RevoluteJoint, local_axis1, "Set Revolute Joint Axis 1";
+    SetRevoluteJointAnchor2Command(Vector3<f32>): RevoluteJoint, local_anchor2, "Set Revolute Joint Anchor 2";
+    SetRevoluteJointAxis2Command(Vector3<f32>): RevoluteJoint, local_axis2, "Set Prismatic Joint Axis 2";
+    SetPrismaticJointAnchor1Command(Vector3<f32>): PrismaticJoint, local_anchor1, "Set Prismatic Joint Anchor 1";
+    SetPrismaticJointAxis1Command(Vector3<f32>): PrismaticJoint, local_axis1, "Set Prismatic Joint Axis 1";
+    SetPrismaticJointAnchor2Command(Vector3<f32>): PrismaticJoint, local_anchor2, "Set Prismatic Joint Anchor 2";
+    SetPrismaticJointAxis2Command(Vector3<f32>): PrismaticJoint, local_axis2, "Set Prismatic Joint Axis 2";
 }
 
 define_swap_command! {

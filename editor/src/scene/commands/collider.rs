@@ -6,6 +6,23 @@ use fyrox::{
     scene::{collider::*, graph::Graph, node::Node},
 };
 
+macro_rules! define_collider_shape_variant_command {
+    ($($ty_name:ident($value_ty:ty): $variant:ident, $field:ident, $name:expr;)*) => {
+        $(
+            define_swap_command! {
+                $ty_name($value_ty): $name, |me: &mut $ty_name, graph: &mut Graph| {
+                    let node = &mut graph[me.handle];
+                    let variant = match *node.as_collider_mut().shape_mut() {
+                        ColliderShape::$variant(ref mut x) => x,
+                        _ => unreachable!()
+                    };
+                    ::core::mem::swap(&mut variant.$field, &mut me.value);
+                }
+            }
+        )*
+    };
+}
+
 macro_rules! define_collider_variant_command {
     ($($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $node:ident, $variant:ident, $var:ident) $apply_method:block )*) => {
         $(
@@ -31,63 +48,24 @@ define_swap_command! {
     SetColliderSolverGroupsCommand(InteractionGroups): solver_groups, set_solver_groups, "Set Collider Solver Groups";
 }
 
+define_collider_shape_variant_command! {
+    SetCylinderHalfHeightCommand(f32): Cylinder, half_height, "Set Cylinder Half Height";
+    SetCylinderRadiusCommand(f32): Cylinder, radius, "Set Cylinder Radius";
+    SetConeHalfHeightCommand(f32): Cone, half_height, "Set Cone Half Height";
+    SetConeRadiusCommand(f32): Cone, radius, "Set Cone Radius";
+    SetCuboidHalfExtentsCommand(Vector3<f32>): Cuboid, half_extents, "Set Cuboid Half Extents";
+    SetCapsuleRadiusCommand(f32): Capsule, radius, "Set Capsule Radius";
+    SetCapsuleBeginCommand(Vector3<f32>): Capsule, begin, "Set Capsule Begin";
+    SetCapsuleEndCommand(Vector3<f32>): Capsule, end, "Set Capsule End";
+    SetSegmentBeginCommand(Vector3<f32>): Segment, begin, "Set Segment Begin";
+    SetSegmentEndCommand(Vector3<f32>): Segment, end, "Set Segment End";
+    SetTriangleACommand(Vector3<f32>): Triangle, a, "Set Triangle A";
+    SetTriangleBCommand(Vector3<f32>): Triangle, b, "Set Triangle B";
+    SetTriangleCCommand(Vector3<f32>): Triangle, c, "Set Triangle C";
+    SetBallRadiusCommand(f32): Ball, radius, "Set Ball Radius";
+}
+
 define_collider_variant_command! {
-    SetCylinderHalfHeightCommand("Set Cylinder Half Height", f32) where fn swap(self, node, Cylinder, cylinder) {
-        std::mem::swap(&mut cylinder.half_height, &mut self.value);
-    }
-
-    SetCylinderRadiusCommand("Set Cylinder Radius", f32) where fn swap(self, physics, Cylinder, cylinder) {
-        std::mem::swap(&mut cylinder.radius, &mut self.value);
-    }
-
-    SetConeHalfHeightCommand("Set Cone Half Height", f32) where fn swap(self, physics, Cone, cone) {
-        std::mem::swap(&mut cone.half_height, &mut self.value);
-    }
-
-    SetConeRadiusCommand("Set Cone Radius", f32) where fn swap(self, physics, Cone, cone) {
-        std::mem::swap(&mut cone.radius, &mut self.value);
-    }
-
-    SetCuboidHalfExtentsCommand("Set Cuboid Half Extents", Vector3<f32>) where fn swap(self, physics, Cuboid, cuboid) {
-        std::mem::swap(&mut cuboid.half_extents, &mut self.value);
-    }
-
-    SetCapsuleRadiusCommand("Set Capsule Radius", f32) where fn swap(self, physics, Capsule, capsule) {
-        std::mem::swap(&mut capsule.radius, &mut self.value);
-    }
-
-    SetCapsuleBeginCommand("Set Capsule Begin", Vector3<f32>) where fn swap(self, physics, Capsule, capsule) {
-        std::mem::swap(&mut capsule.begin, &mut self.value);
-    }
-
-    SetCapsuleEndCommand("Set Capsule End", Vector3<f32>) where fn swap(self, physics, Capsule, capsule) {
-        std::mem::swap(&mut capsule.end, &mut self.value);
-    }
-
-    SetSegmentBeginCommand("Set Segment Begin", Vector3<f32>) where fn swap(self, physics, Segment, segment) {
-        std::mem::swap(&mut segment.begin, &mut self.value);
-    }
-
-    SetSegmentEndCommand("Set Segment End", Vector3<f32>) where fn swap(self, physics, Segment, segment) {
-        std::mem::swap(&mut segment.end, &mut self.value);
-    }
-
-    SetTriangleACommand("Set Triangle A", Vector3<f32>) where fn swap(self, physics, Triangle, triangle) {
-        std::mem::swap(&mut triangle.a, &mut self.value);
-    }
-
-    SetTriangleBCommand("Set Triangle B", Vector3<f32>) where fn swap(self, physics, Triangle, triangle) {
-        std::mem::swap(&mut triangle.b, &mut self.value);
-    }
-
-    SetTriangleCCommand("Set Triangle C", Vector3<f32>) where fn swap(self, physics, Triangle, triangle) {
-        std::mem::swap(&mut triangle.c, &mut self.value);
-    }
-
-    SetBallRadiusCommand("Set Ball Radius", f32) where fn swap(self, physics, Ball, ball) {
-        std::mem::swap(&mut ball.radius, &mut self.value);
-    }
-
     SetHeightfieldSourceCommand("Set Heightfield Polyhedron Source", Handle<Node>) where fn swap(self, physics, Heightfield, hf) {
         std::mem::swap(&mut hf.geometry_source.0, &mut self.value);
     }

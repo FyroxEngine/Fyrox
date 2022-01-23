@@ -1,21 +1,22 @@
-use crate::{
-    command::Command, define_node_command, define_swap_command, scene::commands::SceneContext,
-};
+use crate::{command::Command, define_swap_command, scene::commands::SceneContext};
 use fyrox::{
-    core::{algebra::Vector2, pool::Handle},
+    core::algebra::Vector2,
     scene::{collider::InteractionGroups, dim2::collider::*, graph::Graph, node::Node},
 };
 
 macro_rules! define_collider_variant_command {
-    ($($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $node:ident, $variant:ident, $var:ident) $apply_method:block )*) => {
+    ($($ty_name:ident($value_ty:ty): $variant:ident, $field:ident, $name:expr;)*) => {
         $(
-            define_node_command!($name($human_readable_name, $value_type) where fn swap($self, $node) {
-                if let ColliderShape::$variant(ref mut $var) = *$node.as_collider2d_mut().shape_mut() {
-                    $apply_method
-                } else {
-                    unreachable!();
+            define_swap_command! {
+                $ty_name($value_ty): $name, |me: &mut $ty_name, graph: &mut Graph| {
+                    let node = &mut graph[me.handle];
+                    let variant = match *node.as_collider2d_mut().shape_mut() {
+                        ColliderShape::$variant(ref mut x) => x,
+                        _ => unreachable!()
+                    };
+                    ::core::mem::swap(&mut variant.$field, &mut me.value);
                 }
-            });
+            }
         )*
     };
 }
@@ -32,43 +33,14 @@ define_swap_command! {
 }
 
 define_collider_variant_command! {
-    SetCuboidHalfExtentsCommand("Set 2D Cuboid Half Extents", Vector2<f32>) where fn swap(self, physics, Cuboid, cuboid) {
-        std::mem::swap(&mut cuboid.half_extents, &mut self.value);
-    }
-
-    SetCapsuleRadiusCommand("Set 2D Capsule Radius", f32) where fn swap(self, physics, Capsule, capsule) {
-        std::mem::swap(&mut capsule.radius, &mut self.value);
-    }
-
-    SetCapsuleBeginCommand("Set 2D Capsule Begin", Vector2<f32>) where fn swap(self, physics, Capsule, capsule) {
-        std::mem::swap(&mut capsule.begin, &mut self.value);
-    }
-
-    SetCapsuleEndCommand("Set 2D Capsule End", Vector2<f32>) where fn swap(self, physics, Capsule, capsule) {
-        std::mem::swap(&mut capsule.end, &mut self.value);
-    }
-
-    SetSegmentBeginCommand("Set 2D Segment Begin", Vector2<f32>) where fn swap(self, physics, Segment, segment) {
-        std::mem::swap(&mut segment.begin, &mut self.value);
-    }
-
-    SetSegmentEndCommand("Set 2D Segment End", Vector2<f32>) where fn swap(self, physics, Segment, segment) {
-        std::mem::swap(&mut segment.end, &mut self.value);
-    }
-
-    SetTriangleACommand("Set 2D Triangle A", Vector2<f32>) where fn swap(self, physics, Triangle, triangle) {
-        std::mem::swap(&mut triangle.a, &mut self.value);
-    }
-
-    SetTriangleBCommand("Set 2D Triangle B", Vector2<f32>) where fn swap(self, physics, Triangle, triangle) {
-        std::mem::swap(&mut triangle.b, &mut self.value);
-    }
-
-    SetTriangleCCommand("Set 2D Triangle C", Vector2<f32>) where fn swap(self, physics, Triangle, triangle) {
-        std::mem::swap(&mut triangle.c, &mut self.value);
-    }
-
-    SetBallRadiusCommand("Set 2D Ball Radius", f32) where fn swap(self, physics, Ball, ball) {
-        std::mem::swap(&mut ball.radius, &mut self.value);
-    }
+    SetCuboidHalfExtentsCommand(Vector2<f32>): Cuboid, half_extents, "Set 2D Cuboid Half Extents";
+    SetCapsuleRadiusCommand(f32): Capsule, radius, "Set 2D Capsule Radius";
+    SetCapsuleBeginCommand(Vector2<f32>): Capsule, begin, "Set 2D Capsule Begin";
+    SetCapsuleEndCommand(Vector2<f32>): Capsule, end, "Set 2D Capsule End";
+    SetSegmentBeginCommand(Vector2<f32>): Segment, begin, "Set 2D Segment Begin";
+    SetSegmentEndCommand(Vector2<f32>): Segment, end, "Set 2D Segment End";
+    SetTriangleACommand(Vector2<f32>): Triangle, a, "Set 2D Triangle A";
+    SetTriangleBCommand(Vector2<f32>): Triangle, b, "Set 2D Triangle B";
+    SetTriangleCCommand(Vector2<f32>): Triangle, c, "Set 2D Triangle C";
+    SetBallRadiusCommand(f32): Ball, radius, "Set 2D Ball Radius";
 }
