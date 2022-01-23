@@ -5,7 +5,13 @@ use crate::scene::sound::{
 };
 use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
-    core::{append_extension, instant, io, visitor::prelude::*, VecExtensions},
+    core::{
+        append_extension,
+        inspect::{Inspect, PropertyInfo},
+        instant, io,
+        visitor::prelude::*,
+        VecExtensions,
+    },
     material::shader::{Shader, ShaderState},
     renderer::TextureUploadSender,
     resource::{
@@ -16,7 +22,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use ron::ser::PrettyConfig;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     fs::File,
     future::Future,
@@ -247,6 +253,7 @@ pub struct ResourceManagerState {
     curves: ResourceContainer<CurveResource>,
     textures_import_options: TextureImportOptions,
     model_import_options: ModelImportOptions,
+    sound_buffer_import_options: SoundBufferImportOptions,
     #[cfg(not(target_arch = "wasm32"))]
     thread_pool: ThreadPool,
     pub(in crate) upload_sender: Option<TextureUploadSender>,
@@ -262,6 +269,7 @@ impl Default for ResourceManagerState {
             curves: Default::default(),
             textures_import_options: Default::default(),
             model_import_options: Default::default(),
+            sound_buffer_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
             upload_sender: None,
@@ -475,10 +483,27 @@ async fn load_curve_resource(curve: CurveResource, path: PathBuf) {
     }
 }
 
-async fn load_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream: bool) {
+/// Defines sound buffer resource import options.
+#[derive(Clone, Deserialize, Serialize, Default, Inspect)]
+pub struct SoundBufferImportOptions {
+    /// Whether the buffer is streaming or not.
+    pub stream: bool,
+}
+
+impl ImportOptions for SoundBufferImportOptions {}
+
+async fn load_sound_buffer(
+    resource: SoundBufferResource,
+    path: PathBuf,
+    default_import_options: SoundBufferImportOptions,
+) {
+    let import_options = try_get_import_settings(&path)
+        .await
+        .unwrap_or(default_import_options);
+
     match DataSource::from_file(&path).await {
         Ok(source) => {
-            let buffer = if stream {
+            let buffer = if import_options.stream {
                 SoundBufferState::raw_streaming(source)
             } else {
                 SoundBufferState::raw_generic(source)
@@ -515,36 +540,6 @@ async fn load_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream:
                 path: path.clone(),
                 error: Some(Arc::new(SoundBufferResourceLoadError::Io(e))),
             })
-        }
-    }
-}
-
-async fn reload_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream: bool) {
-    if let Ok(data_source) = DataSource::from_file(&path).await {
-        let new_sound_buffer = match stream {
-            false => SoundBufferState::raw_generic(data_source),
-            true => SoundBufferState::raw_streaming(data_source),
-        };
-        match new_sound_buffer {
-            Ok(new_sound_buffer) => {
-                Log::writeln(
-                    MessageKind::Information,
-                    format!("Sound buffer {:?} successfully reloaded!", path,),
-                );
-
-                resource.state().commit(ResourceState::Ok(new_sound_buffer));
-            }
-            Err(_) => {
-                Log::writeln(
-                    MessageKind::Error,
-                    format!("Unable to reload {:?} sound buffer!", path),
-                );
-
-                resource.state().commit(ResourceState::LoadError {
-                    path,
-                    error: Some(Arc::new(SoundBufferResourceLoadError::UnsupportedFormat)),
-                })
-            }
         }
     }
 }
@@ -700,12 +695,8 @@ impl ResourceManager {
     ///
     /// # Supported formats
     ///
-    /// Currently only WAV (uncompressed) and OGG are supported.
-    pub fn request_sound_buffer<P: AsRef<Path>>(
-        &self,
-        path: P,
-        stream: bool,
-    ) -> SoundBufferResource {
+    /// Currently only WAV and OGG are supported.
+    pub fn request_sound_buffer<P: AsRef<Path>>(&self, path: P) -> SoundBufferResource {
         let mut state = self.state();
 
         if let Some(sound_buffer) = state.sound_buffers.find(path.as_ref()) {
@@ -718,9 +709,10 @@ impl ResourceManager {
         state.sound_buffers.push(resource.clone());
         let result = resource.clone();
         let path = path.as_ref().to_owned();
+        let default_import_options = state.sound_buffer_import_options.clone();
 
         state.spawn_task(async move {
-            load_sound_buffer(resource, path, stream).await;
+            load_sound_buffer(resource, path, default_import_options).await;
         });
 
         result
@@ -930,19 +922,12 @@ impl ResourceManager {
                 .collect::<Vec<SoundBufferResource>>();
 
             for resource in sound_buffers.iter().cloned() {
-                let (stream, path) = {
-                    let inner_buffer = resource.data_ref();
-                    let stream = match *inner_buffer {
-                        SoundBufferState::Generic(_) => false,
-                        SoundBufferState::Streaming(_) => true,
-                    };
-                    (stream, inner_buffer.external_data_path().to_path_buf())
-                };
+                let path = resource.state().path().to_path_buf();
+                let default_import_options = state.sound_buffer_import_options.clone();
                 if path != PathBuf::default() {
                     *resource.state() = ResourceState::new_pending(path.clone());
-
                     state.spawn_task(async move {
-                        reload_sound_buffer(resource, path, stream).await;
+                        load_sound_buffer(resource, path, default_import_options).await;
                     });
                 }
             }
@@ -977,6 +962,7 @@ impl ResourceManagerState {
             curves: Default::default(),
             textures_import_options: Default::default(),
             model_import_options: Default::default(),
+            sound_buffer_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
             upload_sender: Some(upload_sender),

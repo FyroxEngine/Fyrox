@@ -176,7 +176,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     SoundBuilder::new(BaseBuilder::new())
         .with_buffer(
             resource_manager
-                .request_sound_buffer("data/music.ogg", false)
+                .request_sound_buffer("data/music.ogg")
                 .await
                 .ok(),
         )

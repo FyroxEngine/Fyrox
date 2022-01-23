@@ -336,9 +336,7 @@ impl Scene {
                 Node::Sound(sound) => {
                     if let Some(buffer) = sound.buffer() {
                         let state = buffer.state();
-                        sound.set_buffer(Some(
-                            resource_manager.request_sound_buffer(state.path(), false),
-                        ));
+                        sound.set_buffer(Some(resource_manager.request_sound_buffer(state.path())));
                     }
                 }
                 _ => (),

@@ -139,10 +139,9 @@ impl Control for SoundBufferField {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                     let relative_path = make_relative_path(&item.path);
 
-                    if let Ok(value) = block_on(
-                        self.resource_manager
-                            .request_sound_buffer(relative_path, false),
-                    ) {
+                    if let Ok(value) =
+                        block_on(self.resource_manager.request_sound_buffer(relative_path))
+                    {
                         ui.send_message(SoundBufferFieldMessage::value(
                             self.handle(),
                             MessageDirection::ToWidget,

@@ -2,6 +2,8 @@
 
 - Some of sound entities were integrated in the scene graph.
 - New `Sound` and `Listener` scene nodes.
+- Sound buffer import options.
+- `ResourceManager::request_sound_buffer` now accepts only path to sound buffer.
 - **WIP**
 
 ## Migration guide

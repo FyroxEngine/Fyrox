@@ -58,16 +58,15 @@ fn main() {
     ];
 
     // Request foot step sound buffer from resources directory.
-    let footstep_buffers = fyrox::core::futures::executor::block_on(
-        fyrox::core::futures::future::join_all(footstep_paths.iter().map(|&path| {
-            game.engine
-                .resource_manager
-                .request_sound_buffer(path, false)
-        })),
-    )
-    .into_iter()
-    .map(|r| r.unwrap())
-    .collect::<Vec<_>>();
+    let footstep_buffers =
+        fyrox::core::futures::executor::block_on(fyrox::core::futures::future::join_all(
+            footstep_paths
+                .iter()
+                .map(|&path| game.engine.resource_manager.request_sound_buffer(path)),
+        ))
+        .into_iter()
+        .map(|r| r.unwrap())
+        .collect::<Vec<_>>();
 
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly.

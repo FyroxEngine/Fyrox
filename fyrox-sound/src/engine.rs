@@ -62,6 +62,11 @@ impl SoundEngine {
         }
     }
 
+    /// Removes all contexts from the engine.
+    pub fn remove_all_contexts(&mut self) {
+        self.contexts.clear()
+    }
+
     /// Checks if a context is registered in the engine.
     pub fn has_context(&self, context: &SoundContext) -> bool {
         self.contexts

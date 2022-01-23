@@ -254,6 +254,7 @@ impl Visit for Engine {
             self.renderer.flush();
             self.resource_manager.state().update(0.0);
             self.scenes.clear();
+            self.sound_engine.lock().unwrap().remove_all_contexts();
         }
 
         self.resource_manager.visit("ResourceManager", visitor)?;
