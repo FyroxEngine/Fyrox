@@ -27,59 +27,61 @@ define_swap_command! {
     SetColorGradingEnabledCommand(bool): color_grading_enabled, set_color_grading_enabled, "Set Color Grading Enabled";
 }
 
-define_node_command!(SetSkyBoxCommand("Set Sky Box Command", Option<Box<SkyBox>>) where fn swap(self, node) {
-    let camera = node.as_camera_mut();
-    let temp = camera.replace_skybox(self.value.take());
-    self.value = temp;
-});
-
-define_node_command!(SetPerspectiveZNear("Set Z Near", f32) where fn swap(self, node) {
-    if let Projection::Perspective(proj) = node.as_camera_mut().projection_mut() {
-        std::mem::swap(&mut proj.z_near, &mut self.value)
-    } else {
-        unreachable!()
+define_node_command! {
+    SetSkyBoxCommand("Set Sky Box Command", Option<Box<SkyBox>>) where fn swap(self, node) {
+        let camera = node.as_camera_mut();
+        let temp = camera.replace_skybox(self.value.take());
+        self.value = temp;
     }
-});
 
-define_node_command!(SetPerspectiveZFar("Set Z Far", f32) where fn swap(self, node) {
-    if let Projection::Perspective(proj) = node.as_camera_mut().projection_mut() {
-        std::mem::swap(&mut proj.z_far, &mut self.value)
-    } else {
-        unreachable!()
+    SetPerspectiveZNear("Set Z Near", f32) where fn swap(self, node) {
+        if let Projection::Perspective(proj) = node.as_camera_mut().projection_mut() {
+            std::mem::swap(&mut proj.z_near, &mut self.value)
+        } else {
+            unreachable!()
+        }
     }
-});
 
-define_node_command!(SetPerspectiveFov("Set Fov", f32) where fn swap(self, node) {
-    if let Projection::Perspective(proj) = node.as_camera_mut().projection_mut() {
-        std::mem::swap(&mut proj.fov, &mut self.value)
-    } else {
-        unreachable!()
+    SetPerspectiveZFar("Set Z Far", f32) where fn swap(self, node) {
+        if let Projection::Perspective(proj) = node.as_camera_mut().projection_mut() {
+            std::mem::swap(&mut proj.z_far, &mut self.value)
+        } else {
+            unreachable!()
+        }
     }
-});
 
-define_node_command!(SetOrthoZNear("Set Z Near", f32) where fn swap(self, node) {
-    if let Projection::Orthographic(proj) = node.as_camera_mut().projection_mut() {
-        std::mem::swap(&mut proj.z_near, &mut self.value)
-    } else {
-        unreachable!()
+    SetPerspectiveFov("Set Fov", f32) where fn swap(self, node) {
+        if let Projection::Perspective(proj) = node.as_camera_mut().projection_mut() {
+            std::mem::swap(&mut proj.fov, &mut self.value)
+        } else {
+            unreachable!()
+        }
     }
-});
 
-define_node_command!(SetOrthoZFar("Set Z Far", f32) where fn swap(self, node) {
-    if let Projection::Orthographic(proj) = node.as_camera_mut().projection_mut() {
-        std::mem::swap(&mut proj.z_far, &mut self.value)
-    } else {
-        unreachable!()
+    SetOrthoZNear("Set Z Near", f32) where fn swap(self, node) {
+        if let Projection::Orthographic(proj) = node.as_camera_mut().projection_mut() {
+            std::mem::swap(&mut proj.z_near, &mut self.value)
+        } else {
+            unreachable!()
+        }
     }
-});
 
-define_node_command!(SetOrthoVerticalSize("Set Vertical Size", f32) where fn swap(self, node) {
-    if let Projection::Orthographic(proj) = node.as_camera_mut().projection_mut() {
-        std::mem::swap(&mut proj.vertical_size, &mut self.value)
-    } else {
-        unreachable!()
+    SetOrthoZFar("Set Z Far", f32) where fn swap(self, node) {
+        if let Projection::Orthographic(proj) = node.as_camera_mut().projection_mut() {
+            std::mem::swap(&mut proj.z_far, &mut self.value)
+        } else {
+            unreachable!()
+        }
     }
-});
+
+    SetOrthoVerticalSize("Set Vertical Size", f32) where fn swap(self, node) {
+        if let Projection::Orthographic(proj) = node.as_camera_mut().projection_mut() {
+            std::mem::swap(&mut proj.vertical_size, &mut self.value)
+        } else {
+            unreachable!()
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct SetCameraPreviewCommand {
