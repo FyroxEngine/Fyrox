@@ -466,8 +466,7 @@ impl SoundSource {
                 SoundBufferState::Generic(_) => self.playback_pos,
             };
             assert!(
-                dbg!(self.buf_read_pos * (buffer.channel_count() as f64))
-                    < dbg!(buffer.samples().len() as f64)
+                self.buf_read_pos * (buffer.channel_count() as f64) < buffer.samples().len() as f64
             );
         }
     }
