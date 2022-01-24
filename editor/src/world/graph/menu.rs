@@ -42,6 +42,7 @@ impl ItemContextMenu {
                                 text: "Delete Selection",
                                 shortcut: "Del",
                                 icon: Default::default(),
+                                arrow: true,
                             })
                             .build(ctx);
                             delete_selection
@@ -54,6 +55,7 @@ impl ItemContextMenu {
                                 text: "Copy Selection",
                                 shortcut: "Ctrl+C",
                                 icon: Default::default(),
+                                arrow: true,
                             })
                             .build(ctx);
                             copy_selection

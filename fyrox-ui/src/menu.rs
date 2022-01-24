@@ -9,9 +9,12 @@ use crate::{
     popup::{Placement, Popup, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
+    utils::{make_arrow_primitives, ArrowDirection},
+    vector_image::VectorImageBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
-    Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
+    Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE,
+    BRUSH_PRIMARY,
 };
 use std::sync::mpsc::Sender;
 use std::{
@@ -411,14 +414,18 @@ impl MenuBuilder {
 pub enum MenuItemContent<'a, 'b> {
     /// Quick-n-dirty way of building elements. It can cover most of use
     /// cases - it builds classic menu item:
-    ///   _____________________
-    ///  |    |      |        |
-    ///  |icon| text |shortcut|
-    ///  |____|______|________|
+    ///
+    /// ```text
+    ///   _________________________
+    ///  |    |      |        |   |
+    ///  |icon| text |shortcut| > |
+    ///  |____|______|________|___|
+    /// ```
     Text {
         text: &'a str,
         shortcut: &'b str,
         icon: Handle<UiNode>,
+        arrow: bool,
     },
     /// Allows to put any node into menu item. It allows to customize menu
     /// item how needed - i.e. put image in it, or other user control.
@@ -431,6 +438,7 @@ impl<'a, 'b> MenuItemContent<'a, 'b> {
             text,
             shortcut,
             icon: Default::default(),
+            arrow: true,
         }
     }
 
@@ -439,6 +447,16 @@ impl<'a, 'b> MenuItemContent<'a, 'b> {
             text,
             shortcut: "",
             icon: Default::default(),
+            arrow: true,
+        }
+    }
+
+    pub fn text_no_arrow(text: &'a str) -> Self {
+        MenuItemContent::Text {
+            text,
+            shortcut: "",
+            icon: Default::default(),
+            arrow: false,
         }
     }
 }
@@ -484,6 +502,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                 text,
                 shortcut,
                 icon,
+                arrow,
             }) => GridBuilder::new(
                 WidgetBuilder::new()
                     .with_child(icon)
@@ -507,12 +526,27 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                         )
                         .with_text(shortcut)
                         .build(ctx),
-                    ),
+                    )
+                    .with_child(if arrow {
+                        VectorImageBuilder::new(
+                            WidgetBuilder::new()
+                                .with_visibility(!self.items.is_empty())
+                                .on_column(3)
+                                .with_foreground(BRUSH_BRIGHT)
+                                .with_horizontal_alignment(HorizontalAlignment::Center)
+                                .with_vertical_alignment(VerticalAlignment::Center),
+                        )
+                        .with_primitives(make_arrow_primitives(ArrowDirection::Right, 8.0))
+                        .build(ctx)
+                    } else {
+                        Handle::NONE
+                    }),
             )
             .add_row(Row::auto())
             .add_column(Column::auto())
             .add_column(Column::stretch())
             .add_column(Column::auto())
+            .add_column(Column::strict(10.0))
             .build(ctx),
             Some(MenuItemContent::Node(node)) => node,
         };

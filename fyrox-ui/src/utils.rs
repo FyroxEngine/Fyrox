@@ -16,18 +16,8 @@ pub enum ArrowDirection {
     Right,
 }
 
-pub fn make_arrow(
-    ctx: &mut BuildContext,
-    orientation: ArrowDirection,
-    size: f32,
-) -> Handle<UiNode> {
-    VectorImageBuilder::new(
-        WidgetBuilder::new()
-            .with_foreground(BRUSH_BRIGHT)
-            .with_horizontal_alignment(HorizontalAlignment::Center)
-            .with_vertical_alignment(VerticalAlignment::Center),
-    )
-    .with_primitives(vec![match orientation {
+pub fn make_arrow_primitives(orientation: ArrowDirection, size: f32) -> Vec<Primitive> {
+    vec![match orientation {
         ArrowDirection::Top => Primitive::Triangle {
             points: [
                 Vector2::new(size * 0.5, 0.0),
@@ -56,7 +46,21 @@ pub fn make_arrow(
                 Vector2::new(size, size),
             ],
         },
-    }])
+    }]
+}
+
+pub fn make_arrow(
+    ctx: &mut BuildContext,
+    orientation: ArrowDirection,
+    size: f32,
+) -> Handle<UiNode> {
+    VectorImageBuilder::new(
+        WidgetBuilder::new()
+            .with_foreground(BRUSH_BRIGHT)
+            .with_horizontal_alignment(HorizontalAlignment::Center)
+            .with_vertical_alignment(VerticalAlignment::Center),
+    )
+    .with_primitives(make_arrow_primitives(orientation, size))
     .build(ctx)
 }
 
