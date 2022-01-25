@@ -118,34 +118,19 @@ pub struct Transform {
     post_rotation_matrix: Matrix3<f32>,
 }
 
-/// Helper to load old versions.
-fn compatibility_visit<T: Default + Visit>(
-    value: &mut TemplateVariable<T>,
-    name: &str,
-    visitor: &mut Visitor,
-) -> VisitResult {
-    if value.visit(name, visitor).is_err() {
-        // Try visit inner value.
-        let mut inner = T::default();
-        inner.visit(name, visitor)?;
-        *value = TemplateVariable::new_modified(inner);
-    }
-    Ok(())
-}
-
 impl Visit for Transform {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        compatibility_visit(&mut self.local_scale, "LocalScale", visitor)?;
-        compatibility_visit(&mut self.local_position, "LocalPosition", visitor)?;
-        compatibility_visit(&mut self.local_rotation, "LocalRotation", visitor)?;
-        compatibility_visit(&mut self.pre_rotation, "PreRotation", visitor)?;
-        compatibility_visit(&mut self.post_rotation, "PostRotation", visitor)?;
-        compatibility_visit(&mut self.rotation_offset, "RotationOffset", visitor)?;
-        compatibility_visit(&mut self.rotation_pivot, "RotationPivot", visitor)?;
-        compatibility_visit(&mut self.scaling_offset, "ScalingOffset", visitor)?;
-        compatibility_visit(&mut self.scaling_pivot, "ScalingPivot", visitor)?;
+        self.local_scale.visit("LocalScale", visitor)?;
+        self.local_position.visit("LocalPosition", visitor)?;
+        self.local_rotation.visit("LocalRotation", visitor)?;
+        self.pre_rotation.visit("PreRotation", visitor)?;
+        self.post_rotation.visit("PostRotation", visitor)?;
+        self.rotation_offset.visit("RotationOffset", visitor)?;
+        self.rotation_pivot.visit("RotationPivot", visitor)?;
+        self.scaling_offset.visit("ScalingOffset", visitor)?;
+        self.scaling_pivot.visit("ScalingPivot", visitor)?;
 
         if visitor.is_reading() {
             self.post_rotation_matrix =

@@ -188,24 +188,46 @@ where
     T: Visit,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.value.visit("Value", visitor)?;
-
-        // Backward compatibility. Convert bool -> VariableFlags
-        let mut old = false;
         if visitor.is_reading() {
-            let mut is_custom = false;
-            if is_custom.visit("IsCustom", visitor).is_ok() {
+            // TODO: The entire branch should be deleted after release of 0.25.
+            // Try to load values before conversion where they weren't wrapped in TemplateVariable.
+            if self.value.visit(name, visitor).is_ok() {
+                // Mark as modified, because old versions most certainly have some of values
+                // modified, but here we can't find out that because we don't have access to
+                // parent variable.
                 self.flags.get_mut().insert(VariableFlags::MODIFIED);
-                old = true;
+
+                Ok(())
+            } else {
+                // Reading the latest version.
+                if visitor
+                    .current_region()
+                    .map(|region| region != name)
+                    .unwrap_or_default()
+                {
+                    visitor.enter_region(name)?;
+                }
+
+                self.value.visit("Value", visitor)?;
+
+                // We still might have old version with single IsCustom flag.
+                let mut is_custom = false;
+                if is_custom.visit("IsCustom", visitor).is_ok() {
+                    self.flags.get_mut().set(VariableFlags::MODIFIED, is_custom);
+                } else {
+                    self.flags.get_mut().bits.visit("Flags", visitor)?;
+                }
+
+                visitor.leave_region()
             }
-        }
+        } else {
+            // Write in latest format.
+            visitor.enter_region(name)?;
 
-        if !old {
+            self.value.visit("Value", visitor)?;
             self.flags.get_mut().bits.visit("Flags", visitor)?;
-        }
 
-        visitor.leave_region()
+            visitor.leave_region()
+        }
     }
 }

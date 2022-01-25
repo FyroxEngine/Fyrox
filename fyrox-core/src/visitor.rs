@@ -799,6 +799,12 @@ impl Visitor {
         }
     }
 
+    pub fn current_region(&self) -> Option<&str> {
+        self.nodes
+            .try_borrow(self.current_node)
+            .map(|n| n.name.as_str())
+    }
+
     pub fn leave_region(&mut self) -> VisitResult {
         self.current_node = self.nodes.borrow(self.current_node).parent;
         if self.current_node.is_none() {
