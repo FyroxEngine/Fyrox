@@ -1,25 +1,27 @@
 //! Scene physics module.
 
 use crate::{
-    core::algebra::{Isometry3, Point3, Rotation3, Translation3},
-    core::color::Color,
     core::{
         algebra::{
             Isometry2, Matrix4, Point2, Translation2, Unit, UnitComplex, UnitQuaternion,
             UnitVector2, Vector2, Vector3,
         },
+        algebra::{Isometry3, Point3, Rotation3, Translation3},
         arrayvec::ArrayVec,
+        color::Color,
+        inspect::{Inspect, PropertyInfo},
         instant,
         math::Matrix4Ext,
         pool::{Handle, Pool},
+        visitor::prelude::*,
         BiDirHashMap,
     },
-    scene::debug::{Line, SceneDrawingContext},
     scene::{
         self,
         collider::{self, ColliderChanges},
+        debug::{Line, SceneDrawingContext},
         dim2::{collider::ColliderShape, rigidbody::ApplyAction},
-        graph::physics::{FeatureId, PhysicsPerformanceStatistics},
+        graph::physics::{FeatureId, IntegrationParameters, PhysicsPerformanceStatistics},
         joint::JointChanges,
         node::Node,
         rigidbody::RigidBodyChanges,
@@ -28,9 +30,9 @@ use crate::{
 };
 use rapier2d::{
     dynamics::{
-        BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager, JointHandle,
-        JointParams, JointSet, PrismaticJoint, RigidBody, RigidBodyActivation, RigidBodyBuilder,
-        RigidBodyHandle, RigidBodySet, RigidBodyType,
+        BallJoint, CCDSolver, FixedJoint, IslandManager, JointHandle, JointParams, JointSet,
+        PrismaticJoint, RigidBody, RigidBodyActivation, RigidBodyBuilder, RigidBodyHandle,
+        RigidBodySet, RigidBodyType,
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
@@ -284,42 +286,62 @@ fn isometry2_to_mat4(isometry: &Isometry2<f32>) -> Matrix4<f32> {
 /// Physics world is responsible for physics simulation in the engine. There is a very few public
 /// methods, mostly for ray casting. You should add physical entities using scene graph nodes, such
 /// as RigidBody, Collider, Joint.
+#[derive(Visit, Inspect)]
 pub struct PhysicsWorld {
     /// A flag that defines whether physics simulation is enabled or not.
     pub enabled: bool,
 
+    /// A set of parameters that define behavior of every rigid body.
+    pub integration_parameters: IntegrationParameters,
+
+    /// Current gravity vector. Default is (0.0, -9.81)
+    pub gravity: Vector2<f32>,
+
+    /// Performance statistics of a single simulation step.
+    #[visit(skip)]
+    #[inspect(skip)]
+    pub performance_statistics: PhysicsPerformanceStatistics,
+
     // Current physics pipeline.
+    #[visit(skip)]
+    #[inspect(skip)]
     pipeline: PhysicsPipeline,
-    // Current gravity vector. Default is (0.0, -9.81, 0.0)
-    gravity: Vector2<f32>,
-    // A set of parameters that define behavior of every rigid body.
-    integration_parameters: IntegrationParameters,
     // Broad phase performs rough intersection checks.
+    #[visit(skip)]
+    #[inspect(skip)]
     broad_phase: BroadPhase,
     // Narrow phase is responsible for precise contact generation.
+    #[visit(skip)]
+    #[inspect(skip)]
     narrow_phase: NarrowPhase,
     // A continuous collision detection solver.
+    #[visit(skip)]
+    #[inspect(skip)]
     ccd_solver: CCDSolver,
     // Structure responsible for maintaining the set of active rigid-bodies, and putting non-moving
     // rigid-bodies to sleep to save computation times.
+    #[visit(skip)]
+    #[inspect(skip)]
     islands: IslandManager,
-
     // A container of rigid bodies.
+    #[visit(skip)]
+    #[inspect(skip)]
     bodies: Container<RigidBodySet, RigidBodyHandle>,
-
     // A container of colliders.
+    #[visit(skip)]
+    #[inspect(skip)]
     colliders: Container<ColliderSet, ColliderHandle>,
-
     // A container of joints.
+    #[visit(skip)]
+    #[inspect(skip)]
     joints: Container<JointSet, JointHandle>,
-
     // Event handler collects info about contacts and proximity events.
+    #[visit(skip)]
+    #[inspect(skip)]
     event_handler: Box<dyn EventHandler>,
-
+    #[visit(skip)]
+    #[inspect(skip)]
     query: RefCell<QueryPipeline>,
-
-    /// Performance statistics of a single simulation step.
-    pub performance_statistics: PhysicsPerformanceStatistics,
 }
 
 impl PhysicsWorld {
@@ -356,9 +378,31 @@ impl PhysicsWorld {
         let time = instant::Instant::now();
 
         if self.enabled {
+            let integration_parameters = rapier2d::dynamics::IntegrationParameters {
+                dt: self.integration_parameters.dt,
+                min_ccd_dt: self.integration_parameters.min_ccd_dt,
+                erp: self.integration_parameters.erp,
+                joint_erp: self.integration_parameters.joint_erp,
+                warmstart_coeff: self.integration_parameters.warmstart_coeff,
+                warmstart_correction_slope: self.integration_parameters.warmstart_correction_slope,
+                velocity_solve_fraction: self.integration_parameters.velocity_solve_fraction,
+                velocity_based_erp: self.integration_parameters.velocity_based_erp,
+                allowed_linear_error: self.integration_parameters.allowed_linear_error,
+                prediction_distance: self.integration_parameters.prediction_distance,
+                allowed_angular_error: self.integration_parameters.allowed_angular_error,
+                max_linear_correction: self.integration_parameters.max_linear_correction,
+                max_angular_correction: self.integration_parameters.max_angular_correction,
+                max_velocity_iterations: self.integration_parameters.max_velocity_iterations
+                    as usize,
+                max_position_iterations: self.integration_parameters.max_position_iterations
+                    as usize,
+                min_island_size: self.integration_parameters.min_island_size as usize,
+                max_ccd_substeps: self.integration_parameters.max_ccd_substeps as usize,
+            };
+
             self.pipeline.step(
                 &self.gravity,
-                &self.integration_parameters,
+                &integration_parameters,
                 &mut self.islands,
                 &mut self.broad_phase,
                 &mut self.narrow_phase,

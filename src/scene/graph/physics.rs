@@ -36,9 +36,9 @@ use crate::{
 };
 use rapier3d::{
     dynamics::{
-        BallJoint, CCDSolver, FixedJoint, IntegrationParameters, IslandManager, JointHandle,
-        JointParams, JointSet, PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyActivation,
-        RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
+        BallJoint, CCDSolver, FixedJoint, IslandManager, JointHandle, JointParams, JointSet,
+        PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyActivation, RigidBodyBuilder,
+        RigidBodyHandle, RigidBodySet, RigidBodyType,
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
@@ -675,45 +675,247 @@ fn collider_shape_into_native_shape(
     }
 }
 
+/// Parameters for a time-step of the physics engine.
+///
+/// # Notes
+///
+/// This is almost one-to-one copy of Rapier's integration parameters with custom attributes for
+/// each parameter.
+#[derive(Copy, Clone, Visit, Inspect, Debug)]
+pub struct IntegrationParameters {
+    /// The timestep length (default: `1.0 / 60.0`)
+    #[inspect(
+        min_value = 0.0,
+        description = "The timestep length (default: `1.0 / 60.0`)"
+    )]
+    pub dt: f32,
+
+    /// Minimum timestep size when using CCD with multiple substeps (default `1.0 / 60.0 / 100.0`)
+    ///
+    /// When CCD with multiple substeps is enabled, the timestep is subdivided into smaller pieces.
+    /// This timestep subdivision won't generate timestep lengths smaller than `min_ccd_dt`.
+    ///
+    /// Setting this to a large value will reduce the opportunity to performing CCD substepping,
+    /// resulting in potentially more time dropped by the motion-clamping mechanism. Setting this
+    /// to an very small value may lead to numerical instabilities.
+    #[inspect(
+        min_value = 0.0,
+        description = "Minimum timestep size when using CCD with multiple\
+         substeps (default `1.0 / 60.0 / 100.0`)"
+    )]
+    pub min_ccd_dt: f32,
+
+    /// The Error Reduction Parameter in `[0, 1]` is the proportion of the positional error to be
+    /// corrected at each time step (default: `0.2`).
+    #[inspect(
+        min_value = 0.0,
+        max_value = 1.0,
+        description = "The Error Reduction Parameter in `[0, 1]` is the proportion of the \
+        positional error to be corrected at each time step (default: `0.2`)"
+    )]
+    pub erp: f32,
+
+    /// The Error Reduction Parameter for joints in `[0, 1]` is the proportion of the positional
+    /// error to be corrected at each time step (default: `0.2`).
+    #[inspect(
+        min_value = 0.0,
+        max_value = 1.0,
+        description = "The Error Reduction Parameter for joints in `[0, 1]` is the proportion \
+        of the positional error to be corrected at each time step (default: `0.2`)."
+    )]
+    pub joint_erp: f32,
+
+    /// Each cached impulse are multiplied by this coefficient in `[0, 1]` when they are re-used to
+    /// initialize the solver (default `1.0`).
+    #[inspect(
+        min_value = 0.0,
+        max_value = 1.0,
+        description = "Each cached impulse are multiplied by this coefficient in `[0, 1]` when they
+         are re-used to initialize the solver (default `1.0`)."
+    )]
+    pub warmstart_coeff: f32,
+
+    /// Correction factor to avoid large warmstart impulse after a strong impact (default `10.0`).
+    #[inspect(
+        description = "Correction factor to avoid large warmstart impulse after a strong\
+         impact (default `10.0`)."
+    )]
+    pub warmstart_correction_slope: f32,
+
+    /// `[0, 1]`: how much of the velocity to dampen out in the constraint solver (default `1.0`).
+    #[inspect(
+        min_value = 0.0,
+        max_value = 1.0,
+        description = "`[0, 1]`: how much of the velocity to dampen out in the \
+        constraint solver (default `1.0`)."
+    )]
+    pub velocity_solve_fraction: f32,
+
+    /// `[0, 1]`: multiplier for how much of the constraint violation (e.g. contact penetration)
+    /// will be compensated for during the velocity solve. If zero, you need to enable the positional
+    /// solver. If non-zero, you do not need the positional solver. A good non-zero value is
+    /// around `0.2` (default `0.0`).
+    #[inspect(
+        min_value = 0.0,
+        max_value = 1.0,
+        description = "`[0, 1]`: multiplier for how much of the constraint violation \
+         (e.g. contact penetration) will be compensated for during the velocity solve."
+    )]
+    pub velocity_based_erp: f32,
+
+    /// Amount of penetration the engine wont attempt to correct (default: `0.005m`).
+    #[inspect(
+        min_value = 0.0,
+        description = "Amount of penetration the engine wont attempt to correct (default: `0.005m`)."
+    )]
+    pub allowed_linear_error: f32,
+
+    /// The maximal distance separating two objects that will generate predictive contacts (default: `0.002`).
+    #[inspect(
+        min_value = 0.0,
+        description = "The maximal distance separating two objects that will generate \
+        predictive contacts (default: `0.002`)."
+    )]
+    pub prediction_distance: f32,
+
+    /// Amount of angular drift of joint limits the engine wont attempt to correct (default: `0.001rad`).
+    #[inspect(
+        min_value = 0.0,
+        description = "Amount of angular drift of joint limits the engine wont attempt \
+        to correct (default: `0.001rad`)."
+    )]
+    pub allowed_angular_error: f32,
+
+    /// Maximum linear correction during one step of the non-linear position solver (default: `0.2`).
+    #[inspect(
+        min_value = 0.0,
+        description = "Maximum linear correction during one step of the non-linear \
+        position solver (default: `0.2`)."
+    )]
+    pub max_linear_correction: f32,
+
+    /// Maximum angular correction during one step of the non-linear position solver (default: `0.2`).
+    #[inspect(
+        min_value = 0.0,
+        description = "Maximum angular correction during one step of \
+    the non-linear position solver (default: `0.2`)."
+    )]
+    pub max_angular_correction: f32,
+
+    /// Maximum number of iterations performed by the velocity constraints solver (default: `4`).
+    #[inspect(
+        min_value = 0.0,
+        description = "Maximum number of iterations performed by the \
+    velocity constraints solver (default: `4`)."
+    )]
+    pub max_velocity_iterations: u32,
+
+    /// Maximum number of iterations performed by the position-based constraints solver (default: `1`).
+    #[inspect(
+        min_value = 0.0,
+        description = "Maximum number of iterations performed by the \
+    position-based constraints solver (default: `1`)."
+    )]
+    pub max_position_iterations: u32,
+
+    /// Minimum number of dynamic bodies in each active island (default: `128`).
+    #[inspect(
+        min_value = 0.0,
+        description = "Minimum number of dynamic bodies in each active island (default: `128`)."
+    )]
+    pub min_island_size: u32,
+
+    /// Maximum number of substeps performed by the  solver (default: `1`).
+    #[inspect(
+        min_value = 0.0,
+        description = "Maximum number of substeps performed by the  solver (default: `1`)."
+    )]
+    pub max_ccd_substeps: u32,
+}
+
+impl Default for IntegrationParameters {
+    fn default() -> Self {
+        Self {
+            dt: 1.0 / 60.0,
+            min_ccd_dt: 1.0 / 60.0 / 100.0,
+            erp: 0.2,
+            joint_erp: 0.2,
+            velocity_solve_fraction: 1.0,
+            velocity_based_erp: 0.0,
+            warmstart_coeff: 1.0,
+            warmstart_correction_slope: 10.0,
+            allowed_linear_error: 0.005,
+            prediction_distance: 0.002,
+            allowed_angular_error: 0.001,
+            max_linear_correction: 0.2,
+            max_angular_correction: 0.2,
+            max_velocity_iterations: 4,
+            max_position_iterations: 1,
+            min_island_size: 128,
+            max_ccd_substeps: 1,
+        }
+    }
+}
+
 /// Physics world is responsible for physics simulation in the engine. There is a very few public
 /// methods, mostly for ray casting. You should add physical entities using scene graph nodes, such
 /// as RigidBody, Collider, Joint.
+#[derive(Visit, Inspect)]
 pub struct PhysicsWorld {
     /// A flag that defines whether physics simulation is enabled or not.
     pub enabled: bool,
 
+    /// A set of parameters that define behavior of every rigid body.
+    pub integration_parameters: IntegrationParameters,
+
+    /// Current gravity vector. Default is (0.0, -9.81, 0.0)
+    pub gravity: Vector3<f32>,
+
+    /// Performance statistics of a single simulation step.
+    #[visit(skip)]
+    #[inspect(skip)]
+    pub performance_statistics: PhysicsPerformanceStatistics,
+
     // Current physics pipeline.
+    #[visit(skip)]
+    #[inspect(skip)]
     pipeline: PhysicsPipeline,
-    // Current gravity vector. Default is (0.0, -9.81, 0.0)
-    gravity: Vector3<f32>,
-    // A set of parameters that define behavior of every rigid body.
-    integration_parameters: IntegrationParameters,
     // Broad phase performs rough intersection checks.
+    #[visit(skip)]
+    #[inspect(skip)]
     broad_phase: BroadPhase,
     // Narrow phase is responsible for precise contact generation.
+    #[visit(skip)]
+    #[inspect(skip)]
     narrow_phase: NarrowPhase,
     // A continuous collision detection solver.
+    #[visit(skip)]
+    #[inspect(skip)]
     ccd_solver: CCDSolver,
     // Structure responsible for maintaining the set of active rigid-bodies, and putting non-moving
     // rigid-bodies to sleep to save computation times.
+    #[visit(skip)]
+    #[inspect(skip)]
     islands: IslandManager,
-
     // A container of rigid bodies.
+    #[visit(skip)]
+    #[inspect(skip)]
     bodies: Container<RigidBodySet, RigidBodyHandle>,
-
     // A container of colliders.
+    #[visit(skip)]
+    #[inspect(skip)]
     colliders: Container<ColliderSet, ColliderHandle>,
-
     // A container of joints.
+    #[visit(skip)]
+    #[inspect(skip)]
     joints: Container<JointSet, JointHandle>,
-
     // Event handler collects info about contacts and proximity events.
+    #[visit(skip)]
+    #[inspect(skip)]
     event_handler: Box<dyn EventHandler>,
-
+    #[visit(skip)]
+    #[inspect(skip)]
     query: RefCell<QueryPipeline>,
-
-    /// Performance statistics of a single simulation step.
-    pub performance_statistics: PhysicsPerformanceStatistics,
 }
 
 fn draw_shape(shape: &dyn Shape, transform: Matrix4<f32>, context: &mut SceneDrawingContext) {
@@ -847,9 +1049,31 @@ impl PhysicsWorld {
         let time = instant::Instant::now();
 
         if self.enabled {
+            let integration_parameters = rapier3d::dynamics::IntegrationParameters {
+                dt: self.integration_parameters.dt,
+                min_ccd_dt: self.integration_parameters.min_ccd_dt,
+                erp: self.integration_parameters.erp,
+                joint_erp: self.integration_parameters.joint_erp,
+                warmstart_coeff: self.integration_parameters.warmstart_coeff,
+                warmstart_correction_slope: self.integration_parameters.warmstart_correction_slope,
+                velocity_solve_fraction: self.integration_parameters.velocity_solve_fraction,
+                velocity_based_erp: self.integration_parameters.velocity_based_erp,
+                allowed_linear_error: self.integration_parameters.allowed_linear_error,
+                prediction_distance: self.integration_parameters.prediction_distance,
+                allowed_angular_error: self.integration_parameters.allowed_angular_error,
+                max_linear_correction: self.integration_parameters.max_linear_correction,
+                max_angular_correction: self.integration_parameters.max_angular_correction,
+                max_velocity_iterations: self.integration_parameters.max_velocity_iterations
+                    as usize,
+                max_position_iterations: self.integration_parameters.max_position_iterations
+                    as usize,
+                min_island_size: self.integration_parameters.min_island_size as usize,
+                max_ccd_substeps: self.integration_parameters.max_ccd_substeps as usize,
+            };
+
             self.pipeline.step(
                 &self.gravity,
-                &self.integration_parameters,
+                &integration_parameters,
                 &mut self.islands,
                 &mut self.broad_phase,
                 &mut self.narrow_phase,

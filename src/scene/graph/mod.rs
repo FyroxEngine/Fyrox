@@ -1355,9 +1355,8 @@ impl Visit for Graph {
         self.pool.visit("Pool", visitor)?;
         // Backward compatibility
         let _ = self.sound_context.visit("SoundContext", visitor);
-        // self.physics/self.physics2d is not serialized intentionally! The data of physics entities
-        // stored inside graph nodes and corresponding physic entities will be re-created on first
-        // update iteration.
+        let _ = self.physics.visit("PhysicsWorld", visitor);
+        let _ = self.physics2d.visit("PhysicsWorld2D", visitor);
 
         visitor.leave_region()
     }
