@@ -53,152 +53,69 @@ use crate::{
     scene::variable::TemplateVariable,
     utils::log::{Log, MessageKind},
 };
-use std::{any::TypeId, cell::Cell};
+use std::{cell::Cell, ops::Deref};
 
 /// See module docs.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Inspect)]
 pub struct Transform {
-    /// Indicates that some property has changed and matrix must be
-    /// recalculated before use. This is some sort of lazy evaluation.
+    // Indicates that some property has changed and matrix must be
+    // recalculated before use. This is some sort of lazy evaluation.
     dirty: Cell<bool>,
+
+    #[inspect(getter = "Deref::deref", description = "Local scale of the transform")]
     local_scale: TemplateVariable<Vector3<f32>>,
+
+    #[inspect(
+        getter = "Deref::deref",
+        description = "Local position of the transform"
+    )]
     local_position: TemplateVariable<Vector3<f32>>,
+
+    #[inspect(
+        getter = "Deref::deref",
+        description = "Local rotation of the transform"
+    )]
     local_rotation: TemplateVariable<UnitQuaternion<f32>>,
+
+    #[inspect(
+        getter = "Deref::deref",
+        description = "Pre rotation of the transform. Applied before local rotation."
+    )]
     pre_rotation: TemplateVariable<UnitQuaternion<f32>>,
+
+    #[inspect(
+        getter = "Deref::deref",
+        description = "Post rotation of the transform. Applied after local rotation."
+    )]
     post_rotation: TemplateVariable<UnitQuaternion<f32>>,
+
+    #[inspect(
+        getter = "Deref::deref",
+        description = "Rotation offset of the transform."
+    )]
     rotation_offset: TemplateVariable<Vector3<f32>>,
+
+    #[inspect(
+        getter = "Deref::deref",
+        description = "Rotation pivot of the transform."
+    )]
     rotation_pivot: TemplateVariable<Vector3<f32>>,
+
+    #[inspect(
+        getter = "Deref::deref",
+        description = "Scale offset of the transform."
+    )]
     scaling_offset: TemplateVariable<Vector3<f32>>,
+
+    #[inspect(getter = "Deref::deref", description = "Scale pivot of the transform.")]
     scaling_pivot: TemplateVariable<Vector3<f32>>,
-    /// Combined transform. Final result of combination of other properties.
+
+    // Combined transform. Final result of combination of other properties.
+    #[inspect(skip)]
     matrix: Cell<Matrix4<f32>>,
+
+    #[inspect(skip)]
     post_rotation_matrix: Matrix3<f32>,
-}
-
-impl Inspect for Transform {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        vec![
-            PropertyInfo {
-                owner_type_id: TypeId::of::<Self>(),
-                name: "local_scale",
-                display_name: "Local Scale",
-
-                value: &*self.local_scale,
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "Local scale of the transform".to_string(),
-            },
-            PropertyInfo {
-                owner_type_id: TypeId::of::<Self>(),
-                name: "local_position",
-                display_name: "Local Position",
-
-                value: &*self.local_position,
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "Local position of the transform".to_string(),
-            },
-            PropertyInfo {
-                owner_type_id: TypeId::of::<Self>(),
-                name: "local_rotation",
-                display_name: "Local Rotation",
-
-                value: &*self.local_rotation,
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "Local rotation of the transform".to_string(),
-            },
-            PropertyInfo {
-                owner_type_id: TypeId::of::<Self>(),
-                name: "pre_rotation",
-                display_name: "Pre Rotation",
-
-                value: &*self.pre_rotation,
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "Pre rotation of the transform. Applied before local rotation."
-                    .to_string(),
-            },
-            PropertyInfo {
-                owner_type_id: TypeId::of::<Self>(),
-                name: "post_rotation",
-                display_name: "Post Rotation",
-
-                value: &*self.post_rotation,
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "Post rotation of the transform. Applied after local rotation."
-                    .to_string(),
-            },
-            PropertyInfo {
-                owner_type_id: TypeId::of::<Self>(),
-                name: "rotation_offset",
-                display_name: "Rotation Offset",
-
-                value: &*self.rotation_offset,
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "Rotation offset of the transform.".to_string(),
-            },
-            PropertyInfo {
-                owner_type_id: TypeId::of::<Self>(),
-                name: "rotation_pivot",
-                display_name: "Rotation Pivot",
-
-                value: &*self.rotation_pivot,
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "Rotation pivot of the transform.".to_string(),
-            },
-            PropertyInfo {
-                owner_type_id: TypeId::of::<Self>(),
-                name: "scaling_offset",
-                display_name: "Scaling Offset",
-
-                value: &*self.scaling_offset,
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "Scale offset of the transform.".to_string(),
-            },
-            PropertyInfo {
-                owner_type_id: TypeId::of::<Self>(),
-                name: "scaling_pivot",
-                display_name: "Scaling Pivot",
-
-                value: &*self.scaling_pivot,
-                read_only: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "Scale pivot of the transform.".to_string(),
-            },
-        ]
-    }
 }
 
 /// Helper to load old versions.
