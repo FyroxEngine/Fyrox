@@ -3,6 +3,7 @@
 //! For more info see [`Sprite`].
 
 use crate::engine::resource_manager::ResourceManager;
+use crate::scene::variable::TemplateVariable;
 use crate::{
     core::{
         color::Color,
@@ -62,11 +63,14 @@ use std::ops::{Deref, DerefMut};
 #[derive(Debug, Inspect)]
 pub struct Sprite {
     base: Base,
-    texture: Option<Texture>,
-    color: Color,
-    #[inspect(min_value = 0.0, step = 0.1)]
-    size: f32,
-    rotation: f32,
+    #[inspect(getter = "Deref::deref")]
+    texture: TemplateVariable<Option<Texture>>,
+    #[inspect(getter = "Deref::deref")]
+    color: TemplateVariable<Color>,
+    #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    size: TemplateVariable<f32>,
+    #[inspect(getter = "Deref::deref")]
+    rotation: TemplateVariable<f32>,
 }
 
 impl Deref for Sprite {
@@ -95,9 +99,9 @@ impl Sprite {
         Self {
             base: self.base.raw_copy(),
             texture: self.texture.clone(),
-            color: self.color,
-            size: self.size,
-            rotation: self.rotation,
+            color: self.color.clone(),
+            size: self.size.clone(),
+            rotation: self.rotation.clone(),
         }
     }
 
@@ -106,42 +110,42 @@ impl Sprite {
     ///
     /// Negative values could be used to "inverse" the image on the sprite.
     pub fn set_size(&mut self, size: f32) {
-        self.size = size;
+        self.size.set(size);
     }
 
     /// Returns current size of sprite.
     pub fn size(&self) -> f32 {
-        self.size
+        *self.size
     }
 
     /// Sets new color of sprite. Default is White.
     pub fn set_color(&mut self, color: Color) {
-        self.color = color;
+        self.color.set(color);
     }
 
     /// Returns current color of sprite.
     pub fn color(&self) -> Color {
-        self.color
+        *self.color
     }
 
     /// Sets rotation around "look" axis in radians. Default is 0.0.
     pub fn set_rotation(&mut self, rotation: f32) {
-        self.rotation = rotation;
+        self.rotation.set(rotation);
     }
 
     /// Returns rotation in radians.
     pub fn rotation(&self) -> f32 {
-        self.rotation
+        *self.rotation
     }
 
     /// Sets new texture for sprite. Default is None.
     pub fn set_texture(&mut self, texture: Option<Texture>) {
-        self.texture = texture;
+        self.texture.set(texture);
     }
 
     /// Returns current texture of sprite. Can be None if sprite has no texture.
     pub fn texture(&self) -> Option<Texture> {
-        self.texture.clone()
+        (*self.texture).clone()
     }
 
     /// Returns current texture of sprite by ref. Can be None if sprite has no texture.
@@ -152,7 +156,7 @@ impl Sprite {
     /// Returns current **local-space** bounding box.
     #[inline]
     pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
-        AxisAlignedBoundingBox::from_radius(self.size)
+        AxisAlignedBoundingBox::from_radius(*self.size)
     }
 
     /// Returns current **world-space** bounding box.
@@ -161,14 +165,18 @@ impl Sprite {
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.set_texture(resource_manager.map_texture(self.texture.clone()));
+        self.set_texture(resource_manager.map_texture(self.texture()));
     }
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
         self.base.inherit_properties(parent);
-
-        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+        if let Node::Sprite(parent) = parent {
+            self.texture.try_inherit(&parent.texture);
+            self.color.try_inherit(&parent.color);
+            self.size.try_inherit(&parent.size);
+            self.rotation.try_inherit(&parent.rotation);
+        }
     }
 }
 
@@ -241,10 +249,10 @@ impl SpriteBuilder {
     fn build_sprite(self) -> Sprite {
         Sprite {
             base: self.base_builder.build_base(),
-            texture: self.texture,
-            color: self.color,
-            size: self.size,
-            rotation: self.rotation,
+            texture: self.texture.into(),
+            color: self.color.into(),
+            size: self.size.into(),
+            rotation: self.rotation.into(),
         }
     }
 
