@@ -11,7 +11,7 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     resource::model::Model,
-    scene::{graph::Graph, node::Node, transform::Transform},
+    scene::{graph::Graph, node::Node, transform::Transform, variable::TemplateVariable},
 };
 use std::{
     cell::Cell,
@@ -271,53 +271,79 @@ pub struct Property {
 /// ```
 #[derive(Debug, Inspect)]
 pub struct Base {
-    name: String,
+    #[inspect(getter = "Deref::deref")]
+    name: TemplateVariable<String>,
+
     pub(crate) local_transform: Transform,
-    visibility: bool,
+
+    #[inspect(getter = "Deref::deref")]
+    visibility: TemplateVariable<bool>,
+
+    // Maximum amount of Some(time) that node will "live" or None
+    // if node has undefined lifetime.
+    #[inspect(getter = "Deref::deref")]
+    pub(in crate) lifetime: TemplateVariable<Option<f32>>,
+
+    #[inspect(min_value = 0.0, max_value = 1.0, step = 0.1, getter = "Deref::deref")]
+    depth_offset: TemplateVariable<f32>,
+
+    #[inspect(getter = "Deref::deref")]
+    lod_group: TemplateVariable<Option<LodGroup>>,
+
+    #[inspect(getter = "Deref::deref")]
+    mobility: TemplateVariable<Mobility>,
+
+    #[inspect(getter = "Deref::deref")]
+    tag: TemplateVariable<String>,
+
+    /// A set of custom properties that can hold almost any data. It can be used to set additional
+    /// properties to scene nodes.
+    #[inspect(getter = "Deref::deref")]
+    pub properties: TemplateVariable<Vec<Property>>,
+
+    #[inspect(getter = "Deref::deref")]
+    frustum_culling: TemplateVariable<bool>,
+
     #[inspect(skip)]
-    pub(in crate) global_visibility: Cell<bool>,
-    #[inspect(skip)]
-    pub(in crate) parent: Handle<Node>,
-    #[inspect(skip)]
-    pub(in crate) children: Vec<Handle<Node>>,
-    #[inspect(skip)]
-    pub(in crate) global_transform: Cell<Matrix4<f32>>,
-    // Bone-specific matrix. Non-serializable.
-    #[inspect(skip)]
-    pub(in crate) inv_bind_pose_transform: Matrix4<f32>,
-    // A resource from which this node was instantiated from, can work in pair
-    // with `original` handle to get corresponding node from resource.
-    #[inspect(read_only)]
-    pub(in crate) resource: Option<Model>,
-    // Handle to node in scene of model resource from which this node
-    // was instantiated from.
-    #[inspect(read_only)]
-    pub(in crate) original_handle_in_resource: Handle<Node>,
+    pub(in crate) transform_modified: Cell<bool>,
+
     // When `true` it means that this node is instance of `resource`.
     // More precisely - this node is root of whole descendant nodes
     // hierarchy which was instantiated from resource.
     #[inspect(read_only)]
     pub(in crate) is_resource_instance_root: bool,
-    // Maximum amount of Some(time) that node will "live" or None
-    // if node has undefined lifetime.
-    pub(in crate) lifetime: Option<f32>,
-    #[inspect(min_value = 0.0, max_value = 1.0, step = 0.1)]
-    depth_offset: f32,
-    lod_group: Option<LodGroup>,
-    mobility: Mobility,
-    tag: String,
-    /// A set of custom properties that can hold almost any data. It can be used to set additional
-    /// properties to scene nodes.
-    pub properties: Vec<Property>,
+
     #[inspect(skip)]
-    pub(in crate) transform_modified: Cell<bool>,
-    frustum_culling: bool,
+    pub(in crate) global_visibility: Cell<bool>,
+
+    #[inspect(skip)]
+    pub(in crate) parent: Handle<Node>,
+
+    #[inspect(skip)]
+    pub(in crate) children: Vec<Handle<Node>>,
+
+    #[inspect(skip)]
+    pub(in crate) global_transform: Cell<Matrix4<f32>>,
+
+    // Bone-specific matrix. Non-serializable.
+    #[inspect(skip)]
+    pub(in crate) inv_bind_pose_transform: Matrix4<f32>,
+
+    // A resource from which this node was instantiated from, can work in pair
+    // with `original` handle to get corresponding node from resource.
+    #[inspect(read_only)]
+    pub(in crate) resource: Option<Model>,
+
+    // Handle to node in scene of model resource from which this node
+    // was instantiated from.
+    #[inspect(read_only)]
+    pub(in crate) original_handle_in_resource: Handle<Node>,
 }
 
 impl Base {
     /// Sets name of node. Can be useful to mark a node to be able to find it later on.
     pub fn set_name<N: AsRef<str>>(&mut self, name: N) -> &mut Self {
-        self.name = name.as_ref().to_owned();
+        self.name.set(name.as_ref().to_owned());
         self
     }
 
@@ -328,7 +354,7 @@ impl Base {
 
     /// Returns owned name of node.
     pub fn name_owned(&self) -> String {
-        self.name.clone()
+        (*self.name).clone()
     }
 
     /// Returns shared reference to local transform of a node, can be used to fetch
@@ -371,14 +397,14 @@ impl Base {
     /// efficient algorithm because scene holds every object in pool and allocation
     /// or deallocation of node takes very little amount of time.
     pub fn set_lifetime(&mut self, time_seconds: Option<f32>) -> &mut Self {
-        self.lifetime = time_seconds;
+        self.lifetime.set(time_seconds);
         self
     }
 
     /// Returns current lifetime of a node. Will be None if node has undefined lifetime.
     /// For more info about lifetimes see [`set_lifetime`](Self::set_lifetime).
     pub fn lifetime(&self) -> Option<f32> {
-        self.lifetime
+        *self.lifetime
     }
 
     /// Returns handle of parent node.
@@ -418,13 +444,13 @@ impl Base {
 
     /// Sets local visibility of a node.
     pub fn set_visibility(&mut self, visibility: bool) -> &mut Self {
-        self.visibility = visibility;
+        self.visibility.set(visibility);
         self
     }
 
     /// Returns local visibility of a node.
     pub fn visibility(&self) -> bool {
-        self.visibility
+        *self.visibility
     }
 
     /// Returns current **local-space** bounding box. Keep in mind that this value is just
@@ -445,13 +471,13 @@ impl Base {
     /// TODO. Mobility still has no effect, it was designed to be used in combined
     /// rendering (dynamic + static lights (lightmaps))
     pub fn set_mobility(&mut self, mobility: Mobility) -> &mut Self {
-        self.mobility = mobility;
+        self.mobility.set(mobility);
         self
     }
 
     /// Return current mobility of the node.
     pub fn mobility(&self) -> Mobility {
-        self.mobility
+        *self.mobility
     }
 
     /// Returns combined visibility of an node. This is the final visibility of a node. Global visibility calculated
@@ -502,22 +528,22 @@ impl Base {
     /// matrix usually set to -1 to which makes w coordinate of in homogeneous space to be -z_fragment for
     /// further perspective divide. We can abuse this to shift z of fragment by some value.
     pub fn set_depth_offset_factor(&mut self, factor: f32) {
-        self.depth_offset = factor.abs().min(1.0).max(0.0);
+        self.depth_offset.set(factor.abs().min(1.0).max(0.0));
     }
 
     /// Returns depth offset factor.
     pub fn depth_offset_factor(&self) -> f32 {
-        self.depth_offset
+        *self.depth_offset
     }
 
     /// Sets new lod group.
     pub fn set_lod_group(&mut self, lod_group: Option<LodGroup>) -> Option<LodGroup> {
-        std::mem::replace(&mut self.lod_group, lod_group)
+        std::mem::replace(self.lod_group.get_mut(), lod_group)
     }
 
     /// Extracts lod group, leaving None in the node.
     pub fn take_lod_group(&mut self) -> Option<LodGroup> {
-        std::mem::take(&mut self.lod_group)
+        std::mem::take(self.lod_group.get_mut())
     }
 
     /// Returns shared reference to current lod group.
@@ -527,7 +553,7 @@ impl Base {
 
     /// Returns mutable reference to current lod group.
     pub fn lod_group_mut(&mut self) -> Option<&mut LodGroup> {
-        self.lod_group.as_mut()
+        self.lod_group.get_mut().as_mut()
     }
 
     /// Returns node tag.
@@ -537,12 +563,12 @@ impl Base {
 
     /// Returns a copy of node tag.
     pub fn tag_owned(&self) -> String {
-        self.tag.clone()
+        (*self.tag).clone()
     }
 
     /// Sets new tag.
     pub fn set_tag(&mut self, tag: String) {
-        self.tag = tag;
+        self.tag.set(tag);
     }
 
     /// Shallow copy of node data. You should never use this directly, shallow copy
@@ -552,19 +578,19 @@ impl Base {
             name: self.name.clone(),
             local_transform: self.local_transform.clone(),
             global_transform: self.global_transform.clone(),
-            visibility: self.visibility,
+            visibility: self.visibility.clone(),
             global_visibility: self.global_visibility.clone(),
             inv_bind_pose_transform: self.inv_bind_pose_transform,
             resource: self.resource.clone(),
             original_handle_in_resource: self.original_handle_in_resource,
             is_resource_instance_root: self.is_resource_instance_root,
-            lifetime: self.lifetime,
-            mobility: self.mobility,
+            lifetime: self.lifetime.clone(),
+            mobility: self.mobility.clone(),
             tag: self.tag.clone(),
             lod_group: self.lod_group.clone(),
             properties: self.properties.clone(),
-            frustum_culling: self.frustum_culling,
-            depth_offset: self.depth_offset,
+            frustum_culling: self.frustum_culling.clone(),
+            depth_offset: self.depth_offset.clone(),
 
             // Rest of data is *not* copied!
             parent: Default::default(),
@@ -575,19 +601,26 @@ impl Base {
 
     /// Return the frustum_culling flag
     pub fn frustum_culling(&self) -> bool {
-        self.frustum_culling
+        *self.frustum_culling
     }
 
     /// Sets whether to use frustum culling or not
     pub fn set_frustum_culling(&mut self, frustum_culling: bool) {
-        self.frustum_culling = frustum_culling;
+        self.frustum_culling.set(frustum_culling);
     }
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit_properties(&mut self, parent: &Base) {
         self.local_transform.inherit(parent.local_transform());
-
-        // TODO: Add inheritance for other properties.
+        self.name.try_inherit(&parent.name);
+        self.visibility.try_inherit(&parent.visibility);
+        self.lifetime.try_inherit(&parent.lifetime);
+        self.depth_offset.try_inherit(&parent.depth_offset);
+        self.lod_group.try_inherit(&parent.lod_group);
+        self.mobility.try_inherit(&parent.mobility);
+        self.tag.try_inherit(&parent.tag);
+        self.properties.try_inherit(&parent.properties);
+        self.frustum_culling.try_inherit(&parent.frustum_culling);
     }
 }
 
@@ -737,11 +770,11 @@ impl BaseBuilder {
 
     pub(in crate) fn build_base(self) -> Base {
         Base {
-            name: self.name,
+            name: self.name.into(),
             children: self.children,
             local_transform: self.local_transform,
-            lifetime: self.lifetime,
-            visibility: self.visibility,
+            lifetime: self.lifetime.into(),
+            visibility: self.visibility.into(),
             global_visibility: Cell::new(true),
             parent: Handle::NONE,
             global_transform: Cell::new(Matrix4::identity()),
@@ -749,13 +782,13 @@ impl BaseBuilder {
             resource: None,
             original_handle_in_resource: Handle::NONE,
             is_resource_instance_root: false,
-            depth_offset: self.depth_offset,
-            lod_group: self.lod_group,
-            mobility: self.mobility,
-            tag: self.tag,
+            depth_offset: self.depth_offset.into(),
+            lod_group: self.lod_group.into(),
+            mobility: self.mobility.into(),
+            tag: self.tag.into(),
             properties: Default::default(),
             transform_modified: Cell::new(false),
-            frustum_culling: self.frustum_culling,
+            frustum_culling: self.frustum_culling.into(),
         }
     }
 

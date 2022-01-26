@@ -135,7 +135,7 @@ fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_g
             _ => {}
         }
 
-        for property in new_node.properties.iter_mut() {
+        for property in new_node.properties.get_mut_silent().iter_mut() {
             if let PropertyValue::NodeHandle(ref mut handle) = property.value {
                 if let Some(new_handle) = old_new_mapping.get(handle) {
                     *handle = *new_handle;
@@ -962,7 +962,7 @@ impl Graph {
             let handle = self.pool.handle_from_index(i);
 
             if let Some(node) = self.pool.at_mut(i) {
-                let mut remove = if let Some(lifetime) = node.lifetime.as_mut() {
+                let mut remove = if let Some(lifetime) = node.lifetime.get_mut_silent().as_mut() {
                     *lifetime -= dt;
                     *lifetime <= 0.0
                 } else {

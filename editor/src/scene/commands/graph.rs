@@ -392,7 +392,7 @@ impl Command for AddNodeCommand {
 
 define_vec_add_remove_commands!(
     struct AddPropertyCommand, RemovePropertyCommand<Node, Property>
-    (self, context) { &mut context.scene.graph[self.handle].properties }
+    (self, context) { &mut context.scene.graph[self.handle].properties.get_mut() }
 );
 
 #[derive(Debug)]
@@ -405,7 +405,7 @@ pub struct SetPropertyValueCommand {
 impl SetPropertyValueCommand {
     fn swap(&mut self, context: &mut SceneContext) {
         std::mem::swap(
-            &mut context.scene.graph[self.handle].properties[self.index].value,
+            &mut context.scene.graph[self.handle].properties.get_mut()[self.index].value,
             &mut self.value,
         );
     }
@@ -435,7 +435,7 @@ pub struct SetPropertyNameCommand {
 impl SetPropertyNameCommand {
     fn swap(&mut self, context: &mut SceneContext) {
         std::mem::swap(
-            &mut context.scene.graph[self.handle].properties[self.index].name,
+            &mut context.scene.graph[self.handle].properties.get_mut()[self.index].name,
             &mut self.name,
         );
     }
