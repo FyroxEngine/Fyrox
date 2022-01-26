@@ -216,14 +216,15 @@ fn quote_field_prop(
     };
 
     let field_ref = field_prefix.quote_field_ref(nth_field, field, style);
+
     let getter = match &field.getter {
         // use custom getter function to retrieve the target reference
         Some(getter) => {
-            let getter: Path = parse_str(getter).expect("can't parse as a path");
+            let getter: Path = parse_str(getter).expect("can't parse `getter` as a path");
             quote! { #getter(#field_ref) }
         }
         // default: get reference of the field
-        None => field_ref,
+        None => field_ref.clone(),
     };
 
     // consider #[inspect(name = ..)]
@@ -263,6 +264,14 @@ fn quote_field_prop(
 
     let description = field.description.clone().unwrap_or_default();
 
+    let is_modified = match field.is_modified.as_ref() {
+        Some(getter) => {
+            let getter: Path = parse_str(getter).expect("can't parse `is_modified` as a path");
+            quote! { #field_ref.#getter() }
+        }
+        None => quote! { false },
+    };
+
     quote! {
         PropertyInfo {
             owner_type_id: std::any::TypeId::of::<Self>(),
@@ -274,7 +283,8 @@ fn quote_field_prop(
             max_value: #max_value,
             step: #step,
             precision: #precision,
-            description: (#description).to_string()
+            description: (#description).to_string(),
+            is_modified: #is_modified,
         }
     }
 }
