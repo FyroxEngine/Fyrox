@@ -558,6 +558,18 @@ impl ResourceManager {
         self.state.as_ref().unwrap().lock().unwrap()
     }
 
+    /// Tries to get actual version of the texture. This is a helper function that mainly used to
+    /// restore "shallow" textures when loading scenes. "Shallow" texture (or resource) is a resource
+    /// that does not have any data loaded, but only path to data.
+    #[must_use]
+    pub fn map_texture(&self, texture: Option<Texture>) -> Option<Texture> {
+        if let Some(texture) = texture {
+            Some(self.request_texture(texture.state().path()))
+        } else {
+            None
+        }
+    }
+
     /// Tries to load texture from given path or get instance of existing, if any. This method is asynchronous,
     /// it immediately returns a texture which can be shared across multiple places, the loading may fail, but it is
     /// internal state of the texture. The engine does not care if texture failed to load, it just won't use

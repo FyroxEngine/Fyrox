@@ -70,6 +70,7 @@
 //! }
 //! ```
 
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
@@ -394,6 +395,10 @@ impl ParticleSystem {
     /// Returns current texture used by particle system by ref.
     pub fn texture_ref(&self) -> Option<&Texture> {
         self.texture.as_ref()
+    }
+
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        self.set_texture(resource_manager.map_texture(self.texture()));
     }
 
     // Prefab inheritance resolving.

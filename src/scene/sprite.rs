@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Sprite`].
 
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         color::Color,
@@ -157,6 +158,10 @@ impl Sprite {
     /// Returns current **world-space** bounding box.
     pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.world_bounding_box()
+    }
+
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        self.set_texture(resource_manager.map_texture(self.texture.clone()));
     }
 
     // Prefab inheritance resolving.

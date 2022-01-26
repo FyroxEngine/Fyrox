@@ -23,6 +23,7 @@ use crate::{
 };
 
 // Re-export some the fyrox_sound entities.
+use crate::engine::resource_manager::ResourceManager;
 pub use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
     context::{DistanceModel, SAMPLE_RATE},
@@ -287,6 +288,13 @@ impl Sound {
     /// Returns max distance.
     pub fn max_distance(&self) -> f32 {
         *self.max_distance
+    }
+
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        if let Some(buffer) = self.buffer() {
+            let state = buffer.state();
+            self.set_buffer(Some(resource_manager.request_sound_buffer(state.path())));
+        }
     }
 
     // Prefab inheritance resolving.

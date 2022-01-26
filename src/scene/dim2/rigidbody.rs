@@ -8,6 +8,7 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         algebra::Vector2,
@@ -326,6 +327,8 @@ impl RigidBody {
     pub fn wake_up(&mut self) {
         self.actions.get_mut().push_back(ApplyAction::WakeUp)
     }
+
+    pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {

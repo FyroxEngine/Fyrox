@@ -1,5 +1,6 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -269,6 +270,8 @@ impl Joint {
     pub fn body2(&self) -> Handle<Node> {
         self.body2
     }
+
+    pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {

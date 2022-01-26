@@ -17,6 +17,7 @@
 //! can easily ruin performance of your game, especially on low-end hardware. Light
 //! scattering is relatively heavy too.
 
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -88,6 +89,8 @@ impl PointLight {
             shadow_bias: self.shadow_bias,
         }
     }
+
+    pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {

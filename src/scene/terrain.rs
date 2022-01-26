@@ -1,5 +1,6 @@
 //! Everything related to terrains.
 
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -634,6 +635,12 @@ impl Terrain {
                     )
                 })
                 .collect(),
+        }
+    }
+
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        for layer in self.layers() {
+            layer.material.lock().resolve(resource_manager.clone());
         }
     }
 

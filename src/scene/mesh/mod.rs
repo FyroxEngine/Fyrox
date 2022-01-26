@@ -8,6 +8,7 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -195,6 +196,12 @@ impl Mesh {
     /// Returns current **world-space** bounding box.
     pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.world_bounding_box.get()
+    }
+
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        for surface in self.surfaces_mut() {
+            surface.material().lock().resolve(resource_manager.clone());
+        }
     }
 
     pub(in crate) fn update(&self, graph: &Graph) {

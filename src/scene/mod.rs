@@ -187,15 +187,6 @@ impl Default for Scene {
     }
 }
 
-fn map_texture(tex: Option<Texture>, rm: ResourceManager) -> Option<Texture> {
-    if let Some(shallow_texture) = tex {
-        let shallow_texture = shallow_texture.state();
-        Some(rm.request_texture(shallow_texture.path()))
-    } else {
-        None
-    }
-}
-
 /// A structure that holds times that specific update step took.
 #[derive(Clone, Default, Debug)]
 pub struct PerformanceStatistics {
@@ -263,7 +254,9 @@ impl Scene {
             scene.visit("Scene", &mut visitor)?;
         }
 
-        // Collect all used resources and wait for them.
+        // Collect all model resources and wait for them. This step is crucial, because
+        // later on resolve stage we'll extensively access parent resources to inherit
+        // data from them and we can't read data of a resource being loading.
         let mut resources = Vec::new();
         for node in scene.graph.linear_iter_mut() {
             if let Some(shallow_resource) = node.resource.clone() {
@@ -279,78 +272,19 @@ impl Scene {
 
         // Restore pointers to resources. Scene saves only paths to resources, here we must
         // find real resources instead.
-
         for node in scene.graph.linear_iter_mut() {
-            match node {
-                Node::Mesh(mesh) => {
-                    for surface in mesh.surfaces_mut() {
-                        surface.material().lock().resolve(resource_manager.clone());
-                    }
-                }
-                Node::Sprite(sprite) => {
-                    sprite.set_texture(map_texture(sprite.texture(), resource_manager.clone()));
-                }
-                Node::ParticleSystem(particle_system) => {
-                    particle_system.set_texture(map_texture(
-                        particle_system.texture(),
-                        resource_manager.clone(),
-                    ));
-                }
-                Node::Camera(camera) => {
-                    camera.set_environment(map_texture(
-                        camera.environment_map(),
-                        resource_manager.clone(),
-                    ));
-
-                    if let Some(skybox) = camera.skybox_mut() {
-                        skybox.bottom =
-                            map_texture(skybox.bottom.clone(), resource_manager.clone());
-                        skybox.top = map_texture(skybox.top.clone(), resource_manager.clone());
-                        skybox.left = map_texture(skybox.left.clone(), resource_manager.clone());
-                        skybox.right = map_texture(skybox.right.clone(), resource_manager.clone());
-                        skybox.front = map_texture(skybox.front.clone(), resource_manager.clone());
-                        skybox.back = map_texture(skybox.back.clone(), resource_manager.clone());
-                    }
-                }
-                Node::Terrain(terrain) => {
-                    for layer in terrain.layers() {
-                        layer.material.lock().resolve(resource_manager.clone());
-                    }
-                }
-                Node::Rectangle(rectangle) => {
-                    rectangle.set_texture(map_texture(
-                        rectangle.texture_value(),
-                        resource_manager.clone(),
-                    ));
-                }
-                Node::Decal(decal) => {
-                    decal.set_diffuse_texture(map_texture(
-                        decal.diffuse_texture_value(),
-                        resource_manager.clone(),
-                    ));
-                    decal.set_normal_texture(map_texture(
-                        decal.normal_texture_value(),
-                        resource_manager.clone(),
-                    ));
-                }
-                Node::Sound(sound) => {
-                    if let Some(buffer) = sound.buffer() {
-                        let state = buffer.state();
-                        sound.set_buffer(Some(resource_manager.request_sound_buffer(state.path())));
-                    }
-                }
-                _ => (),
-            }
+            node.restore_resources(resource_manager.clone());
         }
 
         if let Some(lightmap) = scene.lightmap.as_mut() {
             for entries in lightmap.map.values_mut() {
                 for entry in entries.iter_mut() {
-                    entry.texture = map_texture(entry.texture.clone(), resource_manager.clone());
+                    entry.texture = resource_manager.map_texture(entry.texture.clone());
                 }
             }
         }
 
+        // TODO: Move into Camera::restore_resources?
         // We have to wait until skybox textures are all loaded, because we need to read their data
         // to re-create cube map.
         let mut skybox_textures = Vec::new();

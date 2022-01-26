@@ -4,6 +4,7 @@
 
 #![warn(missing_docs)]
 
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     asset::core::inspect::PropertyInfo,
     core::{
@@ -282,6 +283,10 @@ impl Node {
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
         static_dispatch_inherit!(self, parent)
+    }
+
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        static_dispatch!(self, restore_resources, resource_manager)
     }
 
     /// Creates new Node based on variant id.

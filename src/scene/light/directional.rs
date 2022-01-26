@@ -7,6 +7,7 @@
 //! Current directional light does *not* support shadows, it is still
 //! on list of features that should be implemented.
 
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -133,6 +134,8 @@ impl DirectionalLight {
             csm_options: self.csm_options.clone(),
         }
     }
+
+    pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {

@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Base`]
 
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -608,6 +609,8 @@ impl Base {
     pub fn set_frustum_culling(&mut self, frustum_culling: bool) {
         self.frustum_culling.set(frustum_culling);
     }
+
+    pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit_properties(&mut self, parent: &Base) {

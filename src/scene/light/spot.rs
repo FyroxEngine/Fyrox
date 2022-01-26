@@ -22,6 +22,7 @@
 //! Light scattering feature may significantly impact performance on low-end
 //! hardware!
 
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -169,6 +170,10 @@ impl SpotLight {
             distance: self.distance,
             cookie_texture: self.cookie_texture.clone(),
         }
+    }
+
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        self.cookie_texture = resource_manager.map_texture(self.cookie_texture.clone());
     }
 
     // Prefab inheritance resolving.

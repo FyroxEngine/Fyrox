@@ -3,6 +3,7 @@
 //! For more info see [`Decal`]
 
 use crate::core::math::aabb::AxisAlignedBoundingBox;
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         color::Color,
@@ -181,6 +182,11 @@ impl Decal {
     /// Returns current **world-space** bounding box.
     pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.world_bounding_box()
+    }
+
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        self.set_diffuse_texture(resource_manager.map_texture(self.diffuse_texture_value()));
+        self.set_normal_texture(resource_manager.map_texture(self.normal_texture_value()));
     }
 
     // Prefab inheritance resolving.

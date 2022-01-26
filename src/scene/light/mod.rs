@@ -16,6 +16,7 @@
 //! these are common effects for modern games but still can significantly impact
 //! performance.
 
+use crate::engine::resource_manager::ResourceManager;
 use crate::scene::node::Node;
 use crate::{
     core::{
@@ -109,6 +110,14 @@ impl Light {
             Light::Directional(v) => v.inherit(parent),
             Light::Spot(v) => v.inherit(parent),
             Light::Point(v) => v.inherit(parent),
+        }
+    }
+
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        match self {
+            Light::Directional(v) => v.restore_resources(resource_manager),
+            Light::Spot(v) => v.restore_resources(resource_manager),
+            Light::Point(v) => v.restore_resources(resource_manager),
         }
     }
 

@@ -14,6 +14,7 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -553,6 +554,19 @@ impl Camera {
     /// Returns current exposure value.
     pub fn exposure(&self) -> Exposure {
         self.exposure
+    }
+
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        self.set_environment(resource_manager.map_texture(self.environment_map()));
+
+        if let Some(skybox) = self.skybox_mut() {
+            skybox.bottom = resource_manager.map_texture(skybox.bottom.clone());
+            skybox.top = resource_manager.map_texture(skybox.top.clone());
+            skybox.left = resource_manager.map_texture(skybox.left.clone());
+            skybox.right = resource_manager.map_texture(skybox.right.clone());
+            skybox.front = resource_manager.map_texture(skybox.front.clone());
+            skybox.back = resource_manager.map_texture(skybox.back.clone());
+        }
     }
 
     // Prefab inheritance resolving.

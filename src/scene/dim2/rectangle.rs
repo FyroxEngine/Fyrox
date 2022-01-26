@@ -1,3 +1,4 @@
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         color::Color,
@@ -62,6 +63,10 @@ impl Rectangle {
             texture: self.texture.clone(),
             color: self.color,
         }
+    }
+
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        self.set_texture(resource_manager.map_texture(self.texture_value()));
     }
 
     // Prefab inheritance resolving.
