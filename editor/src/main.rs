@@ -1251,6 +1251,9 @@ impl Editor {
                         // otherwise it will show last rendered frame in preview which is not what we want.
                         self.scene_viewer
                             .set_render_target(&engine.user_interface, None);
+                        // Set default title scene
+                        self.scene_viewer
+                            .set_title(&engine.user_interface, "Scene Preview".to_string());
                     }
                 }
                 Message::NewScene => {
