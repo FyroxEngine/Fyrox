@@ -563,11 +563,7 @@ impl ResourceManager {
     /// that does not have any data loaded, but only path to data.
     #[must_use]
     pub fn map_texture(&self, texture: Option<Texture>) -> Option<Texture> {
-        if let Some(texture) = texture {
-            Some(self.request_texture(texture.state().path()))
-        } else {
-            None
-        }
+        texture.map(|texture| self.request_texture(texture.state().path()))
     }
 
     /// Tries to load texture from given path or get instance of existing, if any. This method is asynchronous,
