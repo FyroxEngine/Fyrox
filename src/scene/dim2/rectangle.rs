@@ -1,4 +1,3 @@
-use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         color::Color,
@@ -6,11 +5,13 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
+    engine::resource_manager::ResourceManager,
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
+        variable::TemplateVariable,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -18,8 +19,12 @@ use std::ops::{Deref, DerefMut};
 #[derive(Visit, Inspect, Debug, Default)]
 pub struct Rectangle {
     base: Base,
-    texture: Option<Texture>,
-    color: Color,
+
+    #[inspect(getter = "Deref::deref")]
+    texture: TemplateVariable<Option<Texture>>,
+
+    #[inspect(getter = "Deref::deref")]
+    color: TemplateVariable<Color>,
 }
 
 impl Deref for Rectangle {
@@ -42,38 +47,41 @@ impl Rectangle {
     }
 
     pub fn texture_value(&self) -> Option<Texture> {
-        self.texture.clone()
+        (*self.texture).clone()
     }
 
     pub fn set_texture(&mut self, texture: Option<Texture>) {
-        self.texture = texture;
+        self.texture.set(texture);
     }
 
     pub fn color(&self) -> Color {
-        self.color
+        *self.color
     }
 
     pub fn set_color(&mut self, color: Color) {
-        self.color = color;
+        self.color.set(color);
     }
 
     pub fn raw_copy(&self) -> Self {
         Self {
             base: self.base.raw_copy(),
             texture: self.texture.clone(),
-            color: self.color,
+            color: self.color.clone(),
         }
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.set_texture(resource_manager.map_texture(self.texture_value()));
+        self.texture
+            .set_silent(resource_manager.map_texture(self.texture_value()));
     }
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
         self.base.inherit_properties(parent);
-
-        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+        if let Node::Rectangle(parent) = parent {
+            self.texture.try_inherit(&parent.texture);
+            self.color.try_inherit(&parent.color);
+        }
     }
 }
 
@@ -105,8 +113,8 @@ impl RectangleBuilder {
     pub fn build_node(self) -> Node {
         Node::Rectangle(Rectangle {
             base: self.base_builder.build_base(),
-            texture: self.texture,
-            color: self.color,
+            texture: self.texture.into(),
+            color: self.color.into(),
         })
     }
 
