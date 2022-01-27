@@ -165,7 +165,8 @@ impl Sprite {
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.set_texture(resource_manager.map_texture(self.texture()));
+        self.texture
+            .set_silent(resource_manager.map_texture(self.texture()));
     }
 
     // Prefab inheritance resolving.

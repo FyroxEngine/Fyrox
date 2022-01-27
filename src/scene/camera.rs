@@ -14,21 +14,21 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
-use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         inspect::{Inspect, PropertyInfo},
-        math::aabb::AxisAlignedBoundingBox,
-        math::{ray::Ray, Rect},
+        math::{aabb::AxisAlignedBoundingBox, ray::Ray, Rect},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
+    engine::resource_manager::ResourceManager,
     resource::texture::{Texture, TextureError, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
+        variable::TemplateVariable,
         visibility::VisibilityCache,
     },
 };
@@ -249,24 +249,43 @@ impl Default for Exposure {
 #[derive(Debug, Visit, Inspect)]
 pub struct Camera {
     base: Base,
+
+    #[inspect(getter = "Deref::deref")]
     #[visit(optional)] // Backward compatibility
-    projection: Projection,
-    viewport: Rect<f32>,
+    projection: TemplateVariable<Projection>,
+
+    #[inspect(getter = "Deref::deref")]
+    viewport: TemplateVariable<Rect<f32>>,
+
+    #[inspect(getter = "Deref::deref")]
+    enabled: TemplateVariable<bool>,
+
+    #[inspect(getter = "Deref::deref")]
+    sky_box: TemplateVariable<Option<Box<SkyBox>>>,
+
+    #[inspect(getter = "Deref::deref")]
+    environment: TemplateVariable<Option<Texture>>,
+
+    #[inspect(getter = "Deref::deref")]
+    #[visit(optional)] // Backward compatibility.
+    exposure: TemplateVariable<Exposure>,
+
+    #[inspect(getter = "Deref::deref")]
+    #[visit(optional)] // Backward compatibility.
+    color_grading_lut: TemplateVariable<Option<ColorGradingLut>>,
+
+    #[inspect(getter = "Deref::deref")]
+    #[visit(optional)] // Backward compatibility.
+    color_grading_enabled: TemplateVariable<bool>,
+
     #[visit(skip)]
     #[inspect(skip)]
     view_matrix: Matrix4<f32>,
+
     #[visit(skip)]
     #[inspect(skip)]
     projection_matrix: Matrix4<f32>,
-    enabled: bool,
-    sky_box: Option<Box<SkyBox>>,
-    environment: Option<Texture>,
-    #[visit(optional)] // Backward compatibility.
-    exposure: Exposure,
-    #[visit(optional)] // Backward compatibility.
-    color_grading_lut: Option<ColorGradingLut>,
-    #[visit(optional)] // Backward compatibility.
-    color_grading_enabled: bool,
+
     /// Visibility cache allows you to quickly check if object is visible from the camera or not.
     #[visit(skip)]
     #[inspect(skip)]
@@ -313,18 +332,18 @@ impl Camera {
     /// Why not just use pixels directly? Because you can change resolution while
     /// your application is running and you'd be force to manually recalculate
     /// pixel values everytime when resolution changes.
-    pub fn set_viewport(&mut self, viewport: Rect<f32>) -> &mut Self {
-        self.viewport = viewport;
-        self.viewport.position.x = self.viewport.position.x.clamp(0.0, 1.0);
-        self.viewport.position.y = self.viewport.position.y.clamp(0.0, 1.0);
-        self.viewport.size.x = self.viewport.size.x.clamp(0.0, 1.0);
-        self.viewport.size.y = self.viewport.size.y.clamp(0.0, 1.0);
+    pub fn set_viewport(&mut self, mut viewport: Rect<f32>) -> &mut Self {
+        viewport.position.x = viewport.position.x.clamp(0.0, 1.0);
+        viewport.position.y = viewport.position.y.clamp(0.0, 1.0);
+        viewport.size.x = viewport.size.x.clamp(0.0, 1.0);
+        viewport.size.y = viewport.size.y.clamp(0.0, 1.0);
+        self.viewport.set(viewport);
         self
     }
 
     /// Returns current viewport.
     pub fn viewport(&self) -> Rect<f32> {
-        self.viewport
+        *self.viewport
     }
 
     /// Calculates viewport rectangle in pixels based on internal resolution-independent
@@ -379,25 +398,25 @@ impl Camera {
     /// Returns current projection mode.
     #[inline]
     pub fn projection_value(&self) -> Projection {
-        self.projection.clone()
+        (*self.projection).clone()
     }
 
     /// Returns current projection mode as mutable reference.
     #[inline]
     pub fn projection_mut(&mut self) -> &mut Projection {
-        &mut self.projection
+        self.projection.get_mut()
     }
 
     /// Sets current projection mode.
     #[inline]
     pub fn set_projection(&mut self, projection: Projection) {
-        self.projection = projection;
+        self.projection.set(projection);
     }
 
     /// Returns state of camera: enabled or not.
     #[inline]
     pub fn is_enabled(&self) -> bool {
-        self.enabled
+        *self.enabled
     }
 
     /// Enables or disables camera. Disabled cameras will be ignored during
@@ -405,19 +424,19 @@ impl Camera {
     /// final picture.
     #[inline]
     pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {
-        self.enabled = enabled;
+        self.enabled.set(enabled);
         self
     }
 
     /// Sets new skybox. Could be None if no skybox needed.
     pub fn set_skybox(&mut self, skybox: Option<SkyBox>) -> &mut Self {
-        self.sky_box = skybox.map(Box::new);
+        self.sky_box.set(skybox.map(Box::new));
         self
     }
 
     /// Return optional mutable reference to current skybox.
     pub fn skybox_mut(&mut self) -> Option<&mut SkyBox> {
-        self.sky_box.as_deref_mut()
+        self.sky_box.get_mut().as_deref_mut()
     }
 
     /// Return optional shared reference to current skybox.
@@ -427,18 +446,18 @@ impl Camera {
 
     /// Replaces the skybox.
     pub fn replace_skybox(&mut self, new: Option<Box<SkyBox>>) -> Option<Box<SkyBox>> {
-        std::mem::replace(&mut self.sky_box, new)
+        std::mem::replace(self.sky_box.get_mut(), new)
     }
 
     /// Sets new environment.
     pub fn set_environment(&mut self, environment: Option<Texture>) -> &mut Self {
-        self.environment = environment;
+        self.environment.set(environment);
         self
     }
 
     /// Return optional mutable reference to current environment.
     pub fn environment_mut(&mut self) -> Option<&mut Texture> {
-        self.environment.as_mut()
+        self.environment.get_mut().as_mut()
     }
 
     /// Return optional shared reference to current environment.
@@ -448,7 +467,7 @@ impl Camera {
 
     /// Return current environment map.
     pub fn environment_map(&self) -> Option<Texture> {
-        self.environment.clone()
+        (*self.environment).clone()
     }
 
     /// Returns current **local-space** bounding box.
@@ -507,15 +526,15 @@ impl Camera {
         Self {
             base: self.base.raw_copy(),
             projection: self.projection.clone(),
-            viewport: self.viewport,
+            viewport: self.viewport.clone(),
             view_matrix: self.view_matrix,
             projection_matrix: self.projection_matrix,
-            enabled: self.enabled,
+            enabled: self.enabled.clone(),
             sky_box: self.sky_box.clone(),
             environment: self.environment.clone(),
-            exposure: self.exposure,
+            exposure: self.exposure.clone(),
             color_grading_lut: self.color_grading_lut.clone(),
-            color_grading_enabled: self.color_grading_enabled,
+            color_grading_enabled: self.color_grading_enabled.clone(),
             // No need to copy cache. It is valid only for one frame.
             visibility_cache: Default::default(),
         }
@@ -523,12 +542,12 @@ impl Camera {
 
     /// Sets new color grading LUT.
     pub fn set_color_grading_map(&mut self, lut: Option<ColorGradingLut>) {
-        self.color_grading_lut = lut;
+        self.color_grading_lut.set(lut);
     }
 
     /// Returns current color grading map.
     pub fn color_grading_lut(&self) -> Option<ColorGradingLut> {
-        self.color_grading_lut.clone()
+        (*self.color_grading_lut).clone()
     }
 
     /// Returns current color grading map by ref.
@@ -538,22 +557,22 @@ impl Camera {
 
     /// Enables or disables color grading.
     pub fn set_color_grading_enabled(&mut self, enable: bool) {
-        self.color_grading_enabled = enable;
+        self.color_grading_enabled.set(enable);
     }
 
     /// Whether color grading enabled or not.
     pub fn color_grading_enabled(&self) -> bool {
-        self.color_grading_enabled
+        *self.color_grading_enabled
     }
 
     /// Sets new exposure. See `Exposure` struct docs for more info.
     pub fn set_exposure(&mut self, exposure: Exposure) {
-        self.exposure = exposure;
+        self.exposure.set(exposure);
     }
 
     /// Returns current exposure value.
     pub fn exposure(&self) -> Exposure {
-        self.exposure
+        *self.exposure
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
@@ -572,8 +591,18 @@ impl Camera {
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
         self.base.inherit_properties(parent);
-
-        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+        if let Node::Camera(parent) = parent {
+            self.projection.try_inherit(&parent.projection);
+            self.viewport.try_inherit(&parent.viewport);
+            self.enabled.try_inherit(&parent.enabled);
+            self.sky_box.try_inherit(&parent.sky_box);
+            self.environment.try_inherit(&parent.environment);
+            self.exposure.try_inherit(&parent.exposure);
+            self.color_grading_lut
+                .try_inherit(&parent.color_grading_lut);
+            self.color_grading_enabled
+                .try_inherit(&parent.color_grading_enabled);
+        }
     }
 }
 
@@ -848,20 +877,20 @@ impl CameraBuilder {
     /// Creates new instance of camera.
     pub fn build_camera(self) -> Camera {
         Camera {
-            enabled: self.enabled,
+            enabled: self.enabled.into(),
             base: self.base_builder.build_base(),
-            projection: self.projection,
-            viewport: self.viewport,
+            projection: self.projection.into(),
+            viewport: self.viewport.into(),
             // No need to calculate these matrices - they'll be automatically
             // recalculated before rendering.
             view_matrix: Matrix4::identity(),
             projection_matrix: Matrix4::identity(),
             visibility_cache: Default::default(),
-            sky_box: self.skybox.map(Box::new),
-            environment: self.environment,
-            exposure: self.exposure,
-            color_grading_lut: self.color_grading_lut,
-            color_grading_enabled: self.color_grading_enabled,
+            sky_box: self.skybox.map(Box::new).into(),
+            environment: self.environment.into(),
+            exposure: self.exposure.into(),
+            color_grading_lut: self.color_grading_lut.into(),
+            color_grading_enabled: self.color_grading_enabled.into(),
         }
     }
 
