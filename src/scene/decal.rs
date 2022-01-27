@@ -4,6 +4,7 @@
 
 use crate::core::math::aabb::AxisAlignedBoundingBox;
 use crate::engine::resource_manager::ResourceManager;
+use crate::scene::variable::TemplateVariable;
 use crate::{
     core::{
         color::Color,
@@ -83,13 +84,20 @@ use std::ops::{Deref, DerefMut};
 #[derive(Debug, Visit, Default, Inspect)]
 pub struct Decal {
     base: Base,
-    diffuse_texture: Option<Texture>,
-    normal_texture: Option<Texture>,
+
+    #[inspect(getter = "Deref::deref")]
+    diffuse_texture: TemplateVariable<Option<Texture>>,
+
+    #[inspect(getter = "Deref::deref")]
+    normal_texture: TemplateVariable<Option<Texture>>,
+
     #[visit(optional)] // Backward compatibility
-    color: Color,
+    #[inspect(getter = "Deref::deref")]
+    color: TemplateVariable<Color>,
+
     #[visit(optional)] // Backward compatibility
-    #[inspect(min_value = 0.0)]
-    layer: u8,
+    #[inspect(min_value = 0.0, getter = "Deref::deref")]
+    layer: TemplateVariable<u8>,
 }
 
 impl Deref for Decal {
@@ -113,14 +121,14 @@ impl Decal {
             base: self.base.raw_copy(),
             diffuse_texture: self.diffuse_texture.clone(),
             normal_texture: self.normal_texture.clone(),
-            color: self.color,
-            layer: self.layer,
+            color: self.color.clone(),
+            layer: self.layer.clone(),
         }
     }
 
     /// Sets new diffuse texture.
     pub fn set_diffuse_texture(&mut self, diffuse_texture: Option<Texture>) -> Option<Texture> {
-        std::mem::replace(&mut self.diffuse_texture, diffuse_texture)
+        std::mem::replace(self.diffuse_texture.get_mut(), diffuse_texture)
     }
 
     /// Returns current diffuse texture.
@@ -130,12 +138,12 @@ impl Decal {
 
     /// Returns current diffuse texture.
     pub fn diffuse_texture_value(&self) -> Option<Texture> {
-        self.diffuse_texture.clone()
+        (*self.diffuse_texture).clone()
     }
 
     /// Sets new normal texture.
     pub fn set_normal_texture(&mut self, normal_texture: Option<Texture>) -> Option<Texture> {
-        std::mem::replace(&mut self.normal_texture, normal_texture)
+        std::mem::replace(self.normal_texture.get_mut(), normal_texture)
     }
 
     /// Returns current normal texture.
@@ -145,17 +153,17 @@ impl Decal {
 
     /// Returns current normal texture.
     pub fn normal_texture_value(&self) -> Option<Texture> {
-        self.normal_texture.clone()
+        (*self.normal_texture).clone()
     }
 
     /// Sets new color for the decal.
     pub fn set_color(&mut self, color: Color) {
-        self.color = color;
+        self.color.set(color);
     }
 
     /// Returns current color of the decal.
     pub fn color(&self) -> Color {
-        self.color
+        *self.color
     }
 
     /// Sets layer index of the decal. Layer index allows you to apply decals only on desired
@@ -164,12 +172,12 @@ impl Decal {
     /// example blood splatter decal will have `index == 0` in this case. In case of dynamic
     /// objects (like bots, etc.) index will be 1.
     pub fn set_layer(&mut self, layer: u8) {
-        self.layer = layer;
+        self.layer.set(layer);
     }
 
     /// Returns current layer index.
     pub fn layer(&self) -> u8 {
-        self.layer
+        *self.layer
     }
 
     /// Returns current **local-space** bounding box.
@@ -185,15 +193,21 @@ impl Decal {
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.set_diffuse_texture(resource_manager.map_texture(self.diffuse_texture_value()));
-        self.set_normal_texture(resource_manager.map_texture(self.normal_texture_value()));
+        self.diffuse_texture
+            .set_silent(resource_manager.map_texture(self.diffuse_texture_value()));
+        self.normal_texture
+            .set_silent(resource_manager.map_texture(self.normal_texture_value()));
     }
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
         self.base.inherit_properties(parent);
-
-        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+        if let Node::Decal(parent) = parent {
+            self.diffuse_texture.try_inherit(&parent.diffuse_texture);
+            self.normal_texture.try_inherit(&parent.normal_texture);
+            self.color.try_inherit(&parent.color);
+            self.layer.try_inherit(&parent.layer);
+        }
     }
 }
 
@@ -246,10 +260,10 @@ impl DecalBuilder {
     pub fn build_node(self) -> Node {
         Node::Decal(Decal {
             base: self.base_builder.build_base(),
-            diffuse_texture: self.diffuse_texture,
-            normal_texture: self.normal_texture,
-            color: self.color,
-            layer: self.layer,
+            diffuse_texture: self.diffuse_texture.into(),
+            normal_texture: self.normal_texture.into(),
+            color: self.color.into(),
+            layer: self.layer.into(),
         })
     }
 
