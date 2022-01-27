@@ -16,6 +16,7 @@ fn default_prop() -> PropertyInfo<'static> {
         step: None,
         precision: None,
         description: "".to_string(),
+        is_modified: false,
     }
 }
 
@@ -100,6 +101,7 @@ fn inspect_attributes() {
             step: Some(0.1),
             precision: Some(3),
             description: "This is a property description.".to_string(),
+            ..default_prop()
         },
     ];
 
@@ -311,6 +313,25 @@ fn inspect_with_custom_getter() {
             name: "0",
             display_name: "0",
             value: &*a.0,
+            ..default_prop()
+        }]
+    );
+}
+
+#[test]
+fn inspect_modified() {
+    #[derive(Inspect)]
+    struct S(#[inspect(is_modified = "clone")] bool);
+
+    let s = S(true);
+    assert_eq!(
+        s.properties(),
+        vec![PropertyInfo {
+            owner_type_id: TypeId::of::<S>(),
+            name: "0",
+            display_name: "0",
+            value: &s.0,
+            is_modified: true,
             ..default_prop()
         }]
     );

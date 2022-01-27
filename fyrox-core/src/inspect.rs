@@ -68,6 +68,9 @@ pub struct PropertyInfo<'a> {
 
     /// Description of the property.
     pub description: String,
+
+    /// True if the value has been modified.
+    pub is_modified: bool,
 }
 
 impl<'a> PartialEq<Self> for PropertyInfo<'a> {
@@ -173,6 +176,7 @@ macro_rules! impl_self_inspect {
                     step: Some($step),
                     precision: Some($precision),
                     description: "".to_string(),
+                    is_modified: false,
                 }]
             }
         }

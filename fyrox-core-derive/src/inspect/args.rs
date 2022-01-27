@@ -97,6 +97,12 @@ pub struct FieldArgs {
     /// Description of the property.
     #[darling(default)]
     pub description: Option<String>,
+
+    /// `#[inspect(getter = "<method_name>")]`
+    ///
+    /// True if the value has been modified.
+    #[darling(default)]
+    pub is_modified: Option<String>,
 }
 
 #[derive(FromVariant)]
