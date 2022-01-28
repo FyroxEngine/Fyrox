@@ -18,7 +18,7 @@ use crate::{
     },
     scene::{
         self,
-        collider::{self, ColliderChanges},
+        collider::{self},
         debug::{Line, SceneDrawingContext},
         dim2::{collider::ColliderShape, rigidbody::ApplyAction},
         graph::physics::{FeatureId, IntegrationParameters, PhysicsPerformanceStatistics},
@@ -819,7 +819,7 @@ impl PhysicsWorld {
         collider_node: &scene::dim2::collider::Collider,
     ) {
         let anything_changed =
-            collider_node.transform_modified.get() || !collider_node.changes.get().is_empty();
+            collider_node.transform_modified.get() || collider_node.needs_sync_model();
 
         // Important notes!
         // 1) The collider node may lack backing native physics collider in case if it
@@ -840,61 +840,32 @@ impl PhysicsWorld {
                         });
                     }
 
-                    let mut changes = collider_node.changes.get();
-                    if changes.contains(ColliderChanges::SHAPE) {
-                        if let Some(shape) = collider_shape_into_native_shape(collider_node.shape())
-                        {
+                    collider_node.shape.try_sync_model(|v| {
+                        if let Some(shape) = collider_shape_into_native_shape(&v) {
                             native.set_shape(shape);
-                            changes.remove(ColliderChanges::SHAPE);
                         }
-                    }
-                    if changes.contains(ColliderChanges::RESTITUTION) {
-                        native.set_restitution(collider_node.restitution());
-                        changes.remove(ColliderChanges::RESTITUTION);
-                    }
-                    if changes.contains(ColliderChanges::COLLISION_GROUPS) {
-                        native.set_collision_groups(InteractionGroups::new(
-                            collider_node.collision_groups().memberships,
-                            collider_node.collision_groups().filter,
-                        ));
-                        changes.remove(ColliderChanges::COLLISION_GROUPS);
-                    }
-                    if changes.contains(ColliderChanges::SOLVER_GROUPS) {
-                        native.set_solver_groups(InteractionGroups::new(
-                            collider_node.solver_groups().memberships,
-                            collider_node.solver_groups().filter,
-                        ));
-                        changes.remove(ColliderChanges::SOLVER_GROUPS);
-                    }
-                    if changes.contains(ColliderChanges::FRICTION) {
-                        native.set_friction(collider_node.friction());
-                        changes.remove(ColliderChanges::FRICTION);
-                    }
-                    if changes.contains(ColliderChanges::IS_SENSOR) {
-                        native.set_sensor(collider_node.is_sensor());
-                        changes.remove(ColliderChanges::IS_SENSOR);
-                    }
-                    if changes.contains(ColliderChanges::FRICTION_COMBINE_RULE) {
-                        native.set_friction_combine_rule(
-                            collider_node.friction_combine_rule().into(),
-                        );
-                        changes.remove(ColliderChanges::FRICTION_COMBINE_RULE);
-                    }
-                    if changes.contains(ColliderChanges::RESTITUTION_COMBINE_RULE) {
-                        native.set_restitution_combine_rule(
-                            collider_node.restitution_combine_rule().into(),
-                        );
-                        changes.remove(ColliderChanges::RESTITUTION_COMBINE_RULE);
-                    }
-
-                    if changes != ColliderChanges::NONE {
-                        Log::writeln(
-                            MessageKind::Warning,
-                            format!("Unhandled collider changes! Mask: {:?}", changes),
-                        );
-                    }
-
-                    collider_node.changes.set(changes);
+                    });
+                    collider_node
+                        .restitution
+                        .try_sync_model(|v| native.set_restitution(v));
+                    collider_node.collision_groups.try_sync_model(|v| {
+                        native.set_collision_groups(InteractionGroups::new(v.memberships, v.filter))
+                    });
+                    collider_node.solver_groups.try_sync_model(|v| {
+                        native.set_solver_groups(InteractionGroups::new(v.memberships, v.filter))
+                    });
+                    collider_node
+                        .friction
+                        .try_sync_model(|v| native.set_friction(v));
+                    collider_node
+                        .is_sensor
+                        .try_sync_model(|v| native.set_sensor(v));
+                    collider_node
+                        .friction_combine_rule
+                        .try_sync_model(|v| native.set_friction_combine_rule(v.into()));
+                    collider_node
+                        .restitution_combine_rule
+                        .try_sync_model(|v| native.set_restitution_combine_rule(v.into()));
                 }
             }
         } else if let Some(Node::RigidBody2D(parent_body)) =

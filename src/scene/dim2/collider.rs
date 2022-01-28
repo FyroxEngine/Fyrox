@@ -1,7 +1,6 @@
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
 
-use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         algebra::Vector2,
@@ -9,12 +8,14 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
+    engine::resource_manager::ResourceManager,
     scene::{
         base::{Base, BaseBuilder},
-        collider::{ColliderChanges, InteractionGroups},
+        collider::InteractionGroups,
         dim2::physics::{ContactPair, PhysicsWorld},
         graph::{physics::CoefficientCombineRule, Graph},
         node::Node,
+        variable::TemplateVariable,
     },
 };
 use rapier2d::geometry::ColliderHandle;
@@ -236,23 +237,37 @@ impl ColliderShape {
 #[derive(Inspect, Visit, Debug)]
 pub struct Collider {
     base: Base,
-    shape: ColliderShape,
-    #[inspect(min_value = 0.0, step = 0.05)]
-    friction: f32,
-    density: Option<f32>,
-    #[inspect(min_value = 0.0, step = 0.05)]
-    restitution: f32,
-    is_sensor: bool,
-    collision_groups: InteractionGroups,
-    solver_groups: InteractionGroups,
-    friction_combine_rule: CoefficientCombineRule,
-    restitution_combine_rule: CoefficientCombineRule,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) shape: TemplateVariable<ColliderShape>,
+
+    #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    pub(crate) friction: TemplateVariable<f32>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) density: TemplateVariable<Option<f32>>,
+
+    #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    pub(crate) restitution: TemplateVariable<f32>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) is_sensor: TemplateVariable<bool>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) collision_groups: TemplateVariable<InteractionGroups>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) solver_groups: TemplateVariable<InteractionGroups>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) friction_combine_rule: TemplateVariable<CoefficientCombineRule>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) restitution_combine_rule: TemplateVariable<CoefficientCombineRule>,
+
     #[visit(skip)]
     #[inspect(skip)]
     pub(in crate) native: Cell<ColliderHandle>,
-    #[visit(skip)]
-    #[inspect(skip)]
-    pub(in crate) changes: Cell<ColliderChanges>,
 }
 
 impl Default for Collider {
@@ -260,16 +275,15 @@ impl Default for Collider {
         Self {
             base: Default::default(),
             shape: Default::default(),
-            friction: 0.0,
-            density: None,
-            restitution: 0.0,
-            is_sensor: false,
+            friction: Default::default(),
+            density: Default::default(),
+            restitution: Default::default(),
+            is_sensor: Default::default(),
             collision_groups: Default::default(),
             solver_groups: Default::default(),
             friction_combine_rule: Default::default(),
             restitution_combine_rule: Default::default(),
             native: Cell::new(ColliderHandle::invalid()),
-            changes: Cell::new(ColliderChanges::NONE),
         }
     }
 }
@@ -294,17 +308,16 @@ impl Collider {
         Self {
             base: self.base.raw_copy(),
             shape: self.shape.clone(),
-            friction: self.friction,
-            density: self.density,
-            restitution: self.restitution,
-            is_sensor: self.is_sensor,
-            collision_groups: self.collision_groups,
-            solver_groups: self.solver_groups,
-            friction_combine_rule: self.friction_combine_rule,
-            restitution_combine_rule: self.restitution_combine_rule,
+            friction: self.friction.clone(),
+            density: self.density.clone(),
+            restitution: self.restitution.clone(),
+            is_sensor: self.is_sensor.clone(),
+            collision_groups: self.collision_groups.clone(),
+            solver_groups: self.solver_groups.clone(),
+            friction_combine_rule: self.friction_combine_rule.clone(),
+            restitution_combine_rule: self.restitution_combine_rule.clone(),
             // Do not copy.
             native: Cell::new(ColliderHandle::invalid()),
-            changes: Cell::new(ColliderChanges::NONE),
         }
     }
 
@@ -316,8 +329,7 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_shape(&mut self, shape: ColliderShape) {
-        self.shape = shape;
-        self.changes.get_mut().insert(ColliderChanges::SHAPE);
+        self.shape.set(shape);
     }
 
     /// Returns shared reference to the collider shape.
@@ -327,7 +339,7 @@ impl Collider {
 
     /// Returns a copy of the collider shape.
     pub fn shape_value(&self) -> ColliderShape {
-        self.shape.clone()
+        (*self.shape).clone()
     }
 
     /// Returns mutable reference to the current collider shape.
@@ -338,8 +350,7 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn shape_mut(&mut self) -> &mut ColliderShape {
-        self.changes.get_mut().insert(ColliderChanges::SHAPE);
-        &mut self.shape
+        self.shape.get_mut()
     }
 
     /// Sets the new restitution value. The exact meaning of possible values is somewhat complex,
@@ -352,13 +363,12 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_restitution(&mut self, restitution: f32) {
-        self.restitution = restitution;
-        self.changes.get_mut().insert(ColliderChanges::RESTITUTION);
+        self.restitution.set(restitution);
     }
 
     /// Returns current restitution value of the collider.
     pub fn restitution(&self) -> f32 {
-        self.restitution
+        *self.restitution
     }
 
     /// Sets the new density value of the collider. Density defines actual mass of the rigid body to
@@ -376,13 +386,12 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_density(&mut self, density: Option<f32>) {
-        self.density = density;
-        self.changes.get_mut().insert(ColliderChanges::DENSITY);
+        self.density.set(density);
     }
 
     /// Returns current density of the collider.
     pub fn density(&self) -> Option<f32> {
-        self.density
+        *self.density
     }
 
     /// Sets friction coefficient for the collider. The greater value is the more kinematic energy
@@ -395,13 +404,12 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_friction(&mut self, friction: f32) {
-        self.friction = friction;
-        self.changes.get_mut().insert(ColliderChanges::FRICTION);
+        self.friction.set(friction);
     }
 
     /// Return current friction of the collider.
     pub fn friction(&self) -> f32 {
-        self.friction
+        *self.friction
     }
 
     /// Sets the new collision filtering options. See [`InteractionGroups`] docs for more info.
@@ -412,15 +420,12 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_collision_groups(&mut self, groups: InteractionGroups) {
-        self.collision_groups = groups;
-        self.changes
-            .get_mut()
-            .insert(ColliderChanges::COLLISION_GROUPS);
+        self.collision_groups.set(groups);
     }
 
     /// Returns current collision filtering options.
     pub fn collision_groups(&self) -> InteractionGroups {
-        self.collision_groups
+        *self.collision_groups
     }
 
     /// Sets the new joint solver filtering options. See [`InteractionGroups`] docs for more info.
@@ -431,15 +436,12 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_solver_groups(&mut self, groups: InteractionGroups) {
-        self.solver_groups = groups;
-        self.changes
-            .get_mut()
-            .insert(ColliderChanges::SOLVER_GROUPS);
+        self.solver_groups.set(groups);
     }
 
     /// Returns current solver groups.
     pub fn solver_groups(&self) -> InteractionGroups {
-        self.solver_groups
+        *self.solver_groups
     }
 
     /// If true is passed, the method makes collider a sensor. Sensors will not participate in
@@ -451,13 +453,12 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_is_sensor(&mut self, is_sensor: bool) {
-        self.is_sensor = is_sensor;
-        self.changes.get_mut().insert(ColliderChanges::IS_SENSOR);
+        self.is_sensor.set(is_sensor);
     }
 
     /// Returns true if the collider is sensor, false - otherwise.
     pub fn is_sensor(&self) -> bool {
-        self.is_sensor
+        *self.is_sensor
     }
 
     /// Sets the new friction combine rule. See [`CoefficientCombineRule`] docs for more info.
@@ -468,15 +469,12 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_friction_combine_rule(&mut self, rule: CoefficientCombineRule) {
-        self.friction_combine_rule = rule;
-        self.changes
-            .get_mut()
-            .insert(ColliderChanges::FRICTION_COMBINE_RULE);
+        self.friction_combine_rule.set(rule);
     }
 
     /// Returns current friction combine rule of the collider.
     pub fn friction_combine_rule(&self) -> CoefficientCombineRule {
-        self.friction_combine_rule
+        *self.friction_combine_rule
     }
 
     /// Sets the new restitution combine rule. See [`CoefficientCombineRule`] docs for more info.
@@ -487,15 +485,12 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_restitution_combine_rule(&mut self, rule: CoefficientCombineRule) {
-        self.restitution_combine_rule = rule;
-        self.changes
-            .get_mut()
-            .insert(ColliderChanges::RESTITUTION_COMBINE_RULE);
+        self.restitution_combine_rule.set(rule);
     }
 
     /// Returns current restitution combine rule of the collider.
     pub fn restitution_combine_rule(&self) -> CoefficientCombineRule {
-        self.restitution_combine_rule
+        *self.restitution_combine_rule
     }
 
     /// Returns an iterator that yields contact information for the collider.
@@ -511,8 +506,31 @@ impl Collider {
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
         self.base.inherit_properties(parent);
+        if let Node::Collider2D(parent) = parent {
+            self.shape.try_inherit(&parent.shape);
+            self.friction.try_inherit(&parent.friction);
+            self.density.try_inherit(&parent.density);
+            self.restitution.try_inherit(&parent.restitution);
+            self.is_sensor.try_inherit(&parent.is_sensor);
+            self.collision_groups.try_inherit(&parent.collision_groups);
+            self.solver_groups.try_inherit(&parent.solver_groups);
+            self.friction_combine_rule
+                .try_inherit(&parent.friction_combine_rule);
+            self.restitution_combine_rule
+                .try_inherit(&parent.restitution_combine_rule);
+        }
+    }
 
-        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+    pub(crate) fn needs_sync_model(&self) -> bool {
+        self.shape.need_sync()
+            || self.friction.need_sync()
+            || self.density.need_sync()
+            || self.restitution.need_sync()
+            || self.is_sensor.need_sync()
+            || self.collision_groups.need_sync()
+            || self.solver_groups.need_sync()
+            || self.friction_combine_rule.need_sync()
+            || self.restitution_combine_rule.need_sync()
     }
 }
 
@@ -605,17 +623,16 @@ impl ColliderBuilder {
     pub fn build_node(self) -> Node {
         let collider = Collider {
             base: self.base_builder.build_base(),
-            shape: self.shape,
-            friction: self.friction,
-            density: self.density,
-            restitution: self.restitution,
-            is_sensor: self.is_sensor,
-            collision_groups: self.collision_groups,
-            solver_groups: self.solver_groups,
-            friction_combine_rule: self.friction_combine_rule,
-            restitution_combine_rule: self.restitution_combine_rule,
+            shape: self.shape.into(),
+            friction: self.friction.into(),
+            density: self.density.into(),
+            restitution: self.restitution.into(),
+            is_sensor: self.is_sensor.into(),
+            collision_groups: self.collision_groups.into(),
+            solver_groups: self.solver_groups.into(),
+            friction_combine_rule: self.friction_combine_rule.into(),
+            restitution_combine_rule: self.restitution_combine_rule.into(),
             native: Cell::new(ColliderHandle::invalid()),
-            changes: Cell::new(ColliderChanges::NONE),
         };
         Node::Collider2D(collider)
     }
