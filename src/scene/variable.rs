@@ -129,6 +129,12 @@ impl<T> TemplateVariable<T> {
         std::mem::replace(&mut self.value, value)
     }
 
+    /// Replaces value and flags.
+    pub fn set_with_flags(&mut self, value: T, flags: VariableFlags) -> T {
+        self.flags.set(flags);
+        std::mem::replace(&mut self.value, value)
+    }
+
     /// Replaces current value without marking the variable modified.
     pub fn set_silent(&mut self, value: T) -> T {
         std::mem::replace(&mut self.value, value)

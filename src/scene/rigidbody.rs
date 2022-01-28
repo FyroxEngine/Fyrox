@@ -8,7 +8,6 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
-use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         algebra::Vector3,
@@ -17,13 +16,14 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
+    engine::resource_manager::ResourceManager,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
+        variable::TemplateVariable,
     },
 };
-use bitflags::bitflags;
 use rapier3d::{dynamics, prelude::RigidBodyHandle};
 use std::{
     cell::Cell,
@@ -98,22 +98,6 @@ impl From<RigidBodyType> for rapier2d::dynamics::RigidBodyType {
     }
 }
 
-bitflags! {
-    pub(crate) struct RigidBodyChanges: u32 {
-        const NONE = 0;
-        const LIN_VEL = 0b0000_0001;
-        const ANG_VEL = 0b0000_0010;
-        const BODY_TYPE = 0b0000_0100;
-        const ROTATION_LOCKED = 0b0000_1000;
-        const TRANSLATION_LOCKED = 0b0001_0000;
-        const MASS = 0b0010_0000;
-        const ANG_DAMPING = 0b0100_0000;
-        const LIN_DAMPING = 0b1000_0000;
-        const CCD_STATE = 0b0001_0000_0000;
-        const CAN_SLEEP = 0b0010_0000_0000;
-    }
-}
-
 #[derive(Debug)]
 pub(crate) enum ApplyAction {
     Force(Vector3<f32>),
@@ -141,28 +125,49 @@ pub(crate) enum ApplyAction {
 #[derive(Visit, Inspect)]
 pub struct RigidBody {
     base: Base,
-    pub(crate) lin_vel: Vector3<f32>,
-    pub(crate) ang_vel: Vector3<f32>,
-    pub(crate) lin_damping: f32,
-    pub(crate) ang_damping: f32,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) lin_vel: TemplateVariable<Vector3<f32>>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) ang_vel: TemplateVariable<Vector3<f32>>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) lin_damping: TemplateVariable<f32>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) ang_damping: TemplateVariable<f32>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) body_type: TemplateVariable<RigidBodyType>,
+
+    #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    pub(crate) mass: TemplateVariable<f32>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) x_rotation_locked: TemplateVariable<bool>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) y_rotation_locked: TemplateVariable<bool>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) z_rotation_locked: TemplateVariable<bool>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) translation_locked: TemplateVariable<bool>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) ccd_enabled: TemplateVariable<bool>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) can_sleep: TemplateVariable<bool>,
+
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) sleeping: bool,
-    body_type: RigidBodyType,
-    #[inspect(min_value = 0.0, step = 0.05)]
-    mass: f32,
-    x_rotation_locked: bool,
-    y_rotation_locked: bool,
-    z_rotation_locked: bool,
-    translation_locked: bool,
-    ccd_enabled: bool,
-    can_sleep: bool,
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) native: Cell<RigidBodyHandle>,
-    #[visit(skip)]
-    #[inspect(skip)]
-    pub(crate) changes: Cell<RigidBodyChanges>,
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) actions: Mutex<VecDeque<ApplyAction>>,
@@ -180,19 +185,18 @@ impl Default for RigidBody {
             base: Default::default(),
             lin_vel: Default::default(),
             ang_vel: Default::default(),
-            lin_damping: 0.0,
-            ang_damping: 0.0,
-            sleeping: false,
-            body_type: RigidBodyType::Dynamic,
-            mass: 1.0,
-            x_rotation_locked: false,
-            y_rotation_locked: false,
-            z_rotation_locked: false,
-            translation_locked: false,
-            ccd_enabled: false,
-            can_sleep: true,
+            lin_damping: Default::default(),
+            ang_damping: Default::default(),
+            sleeping: Default::default(),
+            body_type: TemplateVariable::new(RigidBodyType::Dynamic),
+            mass: TemplateVariable::new(1.0),
+            x_rotation_locked: Default::default(),
+            y_rotation_locked: Default::default(),
+            z_rotation_locked: Default::default(),
+            translation_locked: Default::default(),
+            ccd_enabled: Default::default(),
+            can_sleep: TemplateVariable::new(true),
             native: Cell::new(RigidBodyHandle::invalid()),
-            changes: Cell::new(RigidBodyChanges::NONE),
             actions: Default::default(),
         }
     }
@@ -217,22 +221,21 @@ impl RigidBody {
     pub fn raw_copy(&self) -> Self {
         Self {
             base: self.base.raw_copy(),
-            lin_vel: self.lin_vel,
-            ang_vel: self.ang_vel,
-            lin_damping: self.lin_damping,
-            ang_damping: self.ang_damping,
-            sleeping: self.sleeping,
-            body_type: self.body_type,
-            mass: self.mass,
-            x_rotation_locked: self.x_rotation_locked,
-            y_rotation_locked: self.y_rotation_locked,
-            z_rotation_locked: self.z_rotation_locked,
-            translation_locked: self.translation_locked,
-            ccd_enabled: self.ccd_enabled,
-            can_sleep: self.can_sleep,
+            lin_vel: self.lin_vel.clone(),
+            ang_vel: self.ang_vel.clone(),
+            lin_damping: self.lin_damping.clone(),
+            ang_damping: self.ang_damping.clone(),
+            sleeping: self.sleeping.clone(),
+            body_type: self.body_type.clone(),
+            mass: self.mass.clone(),
+            x_rotation_locked: self.x_rotation_locked.clone(),
+            y_rotation_locked: self.y_rotation_locked.clone(),
+            z_rotation_locked: self.z_rotation_locked.clone(),
+            translation_locked: self.translation_locked.clone(),
+            ccd_enabled: self.ccd_enabled.clone(),
+            can_sleep: self.can_sleep.clone(),
             // Do not copy.
             native: Cell::new(RigidBodyHandle::invalid()),
-            changes: Cell::new(RigidBodyChanges::NONE),
             actions: Default::default(),
         }
     }
@@ -240,134 +243,113 @@ impl RigidBody {
     /// Sets new linear velocity of the rigid body. Changing this parameter will wake up the rigid
     /// body!
     pub fn set_lin_vel(&mut self, lin_vel: Vector3<f32>) {
-        self.lin_vel = lin_vel;
-        self.changes.get_mut().insert(RigidBodyChanges::LIN_VEL);
+        self.lin_vel.set(lin_vel);
     }
 
     /// Returns current linear velocity of the rigid body.
     pub fn lin_vel(&self) -> Vector3<f32> {
-        self.lin_vel
+        *self.lin_vel
     }
 
     /// Sets new angular velocity of the rigid body. Changing this parameter will wake up the rigid
     /// body!
     pub fn set_ang_vel(&mut self, ang_vel: Vector3<f32>) {
-        self.ang_vel = ang_vel;
-        self.changes.get_mut().insert(RigidBodyChanges::ANG_VEL);
+        self.ang_vel.set(ang_vel);
     }
 
     /// Returns current angular velocity of the rigid body.
     pub fn ang_vel(&self) -> Vector3<f32> {
-        self.ang_vel
+        *self.ang_vel
     }
 
     /// Sets _additional_ mass of the rigid body. It is called additional because real mass is defined
     /// by colliders attached to the body and their density and volume.
     pub fn set_mass(&mut self, mass: f32) {
-        self.mass = mass;
-        self.changes.get_mut().insert(RigidBodyChanges::MASS);
+        self.mass.set(mass);
     }
 
     /// Returns _additional_ mass of the rigid body.
     pub fn mass(&self) -> f32 {
-        self.mass
+        *self.mass
     }
 
     /// Sets angular damping of the rigid body. Angular damping will decrease angular velocity over
     /// time. Default is zero.
     pub fn set_ang_damping(&mut self, damping: f32) {
-        self.ang_damping = damping;
-        self.changes.get_mut().insert(RigidBodyChanges::ANG_DAMPING);
+        self.ang_damping.set(damping);
     }
 
     /// Returns current angular damping.
     pub fn ang_damping(&self) -> f32 {
-        self.ang_damping
+        *self.ang_damping
     }
 
     /// Sets linear damping of the rigid body. Linear damping will decrease linear velocity over
     /// time. Default is zero.
     pub fn set_lin_damping(&mut self, damping: f32) {
-        self.lin_damping = damping;
-        self.changes.get_mut().insert(RigidBodyChanges::LIN_DAMPING);
+        self.lin_damping.set(damping);
     }
 
     /// Returns current linear damping.
     pub fn lin_damping(&self) -> f32 {
-        self.lin_damping
+        *self.lin_damping
     }
 
     /// Locks rotations around X axis in world coordinates.
     pub fn lock_x_rotations(&mut self, state: bool) {
-        self.x_rotation_locked = state;
-        self.changes
-            .get_mut()
-            .insert(RigidBodyChanges::ROTATION_LOCKED);
+        self.x_rotation_locked.set(state);
     }
 
     /// Returns true if rotation around X axis is locked, false - otherwise.
     pub fn is_x_rotation_locked(&self) -> bool {
-        self.x_rotation_locked
+        *self.x_rotation_locked
     }
 
     /// Locks rotations around Y axis in world coordinates.
     pub fn lock_y_rotations(&mut self, state: bool) {
-        self.y_rotation_locked = state;
-        self.changes
-            .get_mut()
-            .insert(RigidBodyChanges::ROTATION_LOCKED);
+        self.y_rotation_locked.set(state);
     }
 
     /// Returns true if rotation around Y axis is locked, false - otherwise.    
     pub fn is_y_rotation_locked(&self) -> bool {
-        self.y_rotation_locked
+        *self.y_rotation_locked
     }
 
     /// Locks rotations around Z axis in world coordinates.
     pub fn lock_z_rotations(&mut self, state: bool) {
-        self.z_rotation_locked = state;
-        self.changes
-            .get_mut()
-            .insert(RigidBodyChanges::ROTATION_LOCKED);
+        self.z_rotation_locked.set(state);
     }
 
     /// Returns true if rotation around Z axis is locked, false - otherwise.    
     pub fn is_z_rotation_locked(&self) -> bool {
-        self.z_rotation_locked
+        *self.z_rotation_locked
     }
 
     /// Locks or unlocks rotations around all axes at once.
     pub fn lock_rotations(&mut self, locked: bool) {
-        self.x_rotation_locked = locked;
-        self.y_rotation_locked = locked;
-        self.z_rotation_locked = locked;
-        self.changes
-            .get_mut()
-            .insert(RigidBodyChanges::ROTATION_LOCKED);
+        self.x_rotation_locked.set(locked);
+        self.y_rotation_locked.set(locked);
+        self.z_rotation_locked.set(locked);
     }
 
     /// Locks translation in world coordinates.
     pub fn lock_translation(&mut self, state: bool) {
-        self.translation_locked = state;
-        self.changes
-            .get_mut()
-            .insert(RigidBodyChanges::TRANSLATION_LOCKED);
+        self.translation_locked.set(state);
     }
 
     /// Returns true if translation is locked, false - otherwise.    
     pub fn is_translation_locked(&self) -> bool {
-        self.translation_locked
+        *self.translation_locked
     }
 
     /// Sets new body type. See [`RigidBodyType`] for more info.
     pub fn set_body_type(&mut self, body_type: RigidBodyType) {
-        self.body_type = body_type;
-        self.changes.get_mut().insert(RigidBodyChanges::BODY_TYPE);
+        self.body_type.set(body_type);
     }
 
     /// Returns current body type.
     pub fn body_type(&self) -> RigidBodyType {
-        self.body_type
+        *self.body_type
     }
 
     /// Returns true if the rigid body is sleeping (temporarily excluded from simulation to save
@@ -378,14 +360,13 @@ impl RigidBody {
 
     /// Returns true if continuous collision detection is enabled, false - otherwise.
     pub fn is_ccd_enabled(&self) -> bool {
-        self.ccd_enabled
+        *self.ccd_enabled
     }
 
     /// Enables or disables continuous collision detection. CCD is very useful for fast moving objects
     /// to prevent accidental penetrations on high velocities.
     pub fn enable_ccd(&mut self, enable: bool) {
-        self.ccd_enabled = enable;
-        self.changes.get_mut().insert(RigidBodyChanges::CCD_STATE);
+        self.ccd_enabled.set(enable);
     }
 
     /// Applies a force at the center-of-mass of this rigid-body. The force will be applied in the
@@ -438,13 +419,12 @@ impl RigidBody {
     /// Sets whether the rigid body can sleep or not. If `false` is passed, it _automatically_ wake
     /// up rigid body.
     pub fn set_can_sleep(&mut self, can_sleep: bool) {
-        self.can_sleep = can_sleep;
-        self.changes.get_mut().insert(RigidBodyChanges::CAN_SLEEP);
+        self.can_sleep.set(can_sleep);
     }
 
     /// Returns true if the rigid body can sleep, false - otherwise.
     pub fn is_can_sleep(&self) -> bool {
-        self.can_sleep
+        *self.can_sleep
     }
 
     /// Wakes up rigid body, forcing it to return to participate in the simulation.
@@ -457,8 +437,39 @@ impl RigidBody {
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
         self.base.inherit_properties(parent);
+        if let Node::RigidBody(parent) = parent {
+            self.lin_vel.try_inherit(&parent.lin_vel);
+            self.ang_vel.try_inherit(&parent.ang_vel);
+            self.lin_damping.try_inherit(&parent.lin_damping);
+            self.ang_damping.try_inherit(&parent.ang_damping);
+            self.body_type.try_inherit(&parent.body_type);
+            self.mass.try_inherit(&parent.mass);
+            self.x_rotation_locked
+                .try_inherit(&parent.x_rotation_locked);
+            self.y_rotation_locked
+                .try_inherit(&parent.y_rotation_locked);
+            self.z_rotation_locked
+                .try_inherit(&parent.z_rotation_locked);
+            self.translation_locked
+                .try_inherit(&parent.translation_locked);
+            self.ccd_enabled.try_inherit(&parent.ccd_enabled);
+            self.can_sleep.try_inherit(&parent.can_sleep);
+        }
+    }
 
-        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+    pub(crate) fn need_sync_model(&self) -> bool {
+        self.lin_vel.need_sync()
+            || self.ang_vel.need_sync()
+            || self.lin_damping.need_sync()
+            || self.ang_damping.need_sync()
+            || self.body_type.need_sync()
+            || self.mass.need_sync()
+            || self.x_rotation_locked.need_sync()
+            || self.y_rotation_locked.need_sync()
+            || self.z_rotation_locked.need_sync()
+            || self.translation_locked.need_sync()
+            || self.ccd_enabled.need_sync()
+            || self.can_sleep.need_sync()
     }
 }
 
@@ -591,21 +602,20 @@ impl RigidBodyBuilder {
     pub fn build_node(self) -> Node {
         let rigid_body = RigidBody {
             base: self.base_builder.build_base(),
-            lin_vel: self.lin_vel,
-            ang_vel: self.ang_vel,
-            lin_damping: self.lin_damping,
-            ang_damping: self.ang_damping,
+            lin_vel: self.lin_vel.into(),
+            ang_vel: self.ang_vel.into(),
+            lin_damping: self.lin_damping.into(),
+            ang_damping: self.ang_damping.into(),
             sleeping: self.sleeping,
-            body_type: self.body_type,
-            mass: self.mass,
-            x_rotation_locked: self.x_rotation_locked,
-            y_rotation_locked: self.y_rotation_locked,
-            z_rotation_locked: self.z_rotation_locked,
-            translation_locked: self.translation_locked,
-            ccd_enabled: self.ccd_enabled,
-            can_sleep: self.can_sleep,
+            body_type: self.body_type.into(),
+            mass: self.mass.into(),
+            x_rotation_locked: self.x_rotation_locked.into(),
+            y_rotation_locked: self.y_rotation_locked.into(),
+            z_rotation_locked: self.z_rotation_locked.into(),
+            translation_locked: self.translation_locked.into(),
+            ccd_enabled: self.ccd_enabled.into(),
+            can_sleep: self.can_sleep.into(),
             native: Cell::new(RigidBodyHandle::invalid()),
-            changes: Cell::new(RigidBodyChanges::NONE),
             actions: Default::default(),
         };
 

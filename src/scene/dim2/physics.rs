@@ -1,5 +1,6 @@
 //! Scene physics module.
 
+use crate::scene::variable::VariableFlags;
 use crate::{
     core::{
         algebra::{
@@ -24,7 +25,6 @@ use crate::{
         graph::physics::{FeatureId, IntegrationParameters, PhysicsPerformanceStatistics},
         joint::JointChanges,
         node::Node,
-        rigidbody::RigidBodyChanges,
     },
     utils::log::{Log, MessageKind},
 };
@@ -641,24 +641,31 @@ impl PhysicsWorld {
         rigid_body: &mut scene::dim2::rigidbody::RigidBody,
         parent_transform: Matrix4<f32>,
     ) {
-        if let Some(native) = self.bodies.set.get(rigid_body.native.get()) {
-            if native.body_type() == RigidBodyType::Dynamic {
-                let local_transform: Matrix4<f32> = parent_transform
-                    .try_inverse()
-                    .unwrap_or_else(Matrix4::identity)
-                    * isometry2_to_mat4(native.position());
+        if self.enabled {
+            if let Some(native) = self.bodies.set.get(rigid_body.native.get()) {
+                if native.body_type() == RigidBodyType::Dynamic {
+                    let local_transform: Matrix4<f32> = parent_transform
+                        .try_inverse()
+                        .unwrap_or_else(Matrix4::identity)
+                        * isometry2_to_mat4(native.position());
 
-                let local_rotation = UnitQuaternion::from_matrix(&local_transform.basis());
-                let local_position = Vector3::new(local_transform[12], local_transform[13], 0.0);
+                    let local_rotation = UnitQuaternion::from_matrix(&local_transform.basis());
+                    let local_position =
+                        Vector3::new(local_transform[12], local_transform[13], 0.0);
 
-                rigid_body
-                    .local_transform
-                    .set_position(local_position)
-                    .set_rotation(local_rotation);
+                    rigid_body
+                        .local_transform
+                        .set_position(local_position)
+                        .set_rotation(local_rotation);
 
-                rigid_body.lin_vel = *native.linvel();
-                rigid_body.ang_vel = native.angvel();
-                rigid_body.sleeping = native.is_sleeping();
+                    rigid_body
+                        .lin_vel
+                        .set_with_flags(*native.linvel(), VariableFlags::MODIFIED);
+                    rigid_body
+                        .ang_vel
+                        .set_with_flags(native.angvel(), VariableFlags::MODIFIED);
+                    rigid_body.sleeping = native.is_sleeping();
+                }
             }
         }
     }
@@ -673,73 +680,50 @@ impl PhysicsWorld {
         //    and a lot of other stuff, this is why we need `anything_changed` flag.
         if rigid_body_node.native.get() != RigidBodyHandle::invalid() {
             let mut actions = rigid_body_node.actions.lock();
-            if !rigid_body_node.changes.get().is_empty() || !actions.is_empty() {
+            if rigid_body_node.need_sync_model() || !actions.is_empty() {
                 if let Some(native) = self.bodies.set.get_mut(rigid_body_node.native.get()) {
                     // Sync native rigid body's properties with scene node's in case if they
                     // were changed by user.
-                    let mut changes = rigid_body_node.changes.get();
-                    if changes.contains(RigidBodyChanges::BODY_TYPE) {
-                        native.set_body_type(rigid_body_node.body_type().into());
-                        changes.remove(RigidBodyChanges::BODY_TYPE);
-                    }
-                    if changes.contains(RigidBodyChanges::LIN_VEL) {
-                        native.set_linvel(rigid_body_node.lin_vel, false);
-                        changes.remove(RigidBodyChanges::LIN_VEL);
-                    }
-                    if changes.contains(RigidBodyChanges::ANG_VEL) {
-                        native.set_angvel(rigid_body_node.ang_vel, false);
-                        changes.remove(RigidBodyChanges::ANG_VEL);
-                    }
-                    if changes.contains(RigidBodyChanges::MASS) {
+                    rigid_body_node
+                        .body_type
+                        .try_sync_model(|v| native.set_body_type(v.into()));
+                    rigid_body_node
+                        .lin_vel
+                        .try_sync_model(|v| native.set_linvel(v, false));
+                    rigid_body_node
+                        .ang_vel
+                        .try_sync_model(|v| native.set_angvel(v, false));
+                    rigid_body_node.mass.try_sync_model(|v| {
                         let mut props = *native.mass_properties();
-                        props.set_mass(rigid_body_node.mass(), true);
-                        native.set_mass_properties(props, true);
-                        changes.remove(RigidBodyChanges::MASS);
-                    }
-                    if changes.contains(RigidBodyChanges::LIN_DAMPING) {
-                        native.set_linear_damping(rigid_body_node.lin_damping);
-                        changes.remove(RigidBodyChanges::LIN_DAMPING);
-                    }
-                    if changes.contains(RigidBodyChanges::ANG_DAMPING) {
-                        native.set_angular_damping(rigid_body_node.ang_damping);
-                        changes.remove(RigidBodyChanges::ANG_DAMPING);
-                    }
-                    if changes.contains(RigidBodyChanges::CCD_STATE) {
-                        native.enable_ccd(rigid_body_node.is_ccd_enabled());
-                        changes.remove(RigidBodyChanges::CCD_STATE);
-                    }
-                    if changes.contains(RigidBodyChanges::CAN_SLEEP) {
+                        props.set_mass(v, true);
+                        native.set_mass_properties(props, true)
+                    });
+                    rigid_body_node
+                        .lin_damping
+                        .try_sync_model(|v| native.set_linear_damping(v));
+                    rigid_body_node
+                        .ang_damping
+                        .try_sync_model(|v| native.set_angular_damping(v));
+                    rigid_body_node
+                        .ccd_enabled
+                        .try_sync_model(|v| native.enable_ccd(v));
+                    rigid_body_node.can_sleep.try_sync_model(|v| {
                         let mut activation = native.activation_mut();
-                        if rigid_body_node.is_can_sleep() {
+                        if v {
                             activation.threshold = RigidBodyActivation::default_threshold()
                         } else {
                             activation.sleeping = false;
                             activation.threshold = -1.0;
                         };
-                        changes.remove(RigidBodyChanges::CAN_SLEEP);
-                    }
-                    if changes.contains(RigidBodyChanges::ROTATION_LOCKED) {
+                    });
+                    rigid_body_node
+                        .translation_locked
+                        .try_sync_model(|v| native.lock_translations(v, false));
+                    rigid_body_node.rotation_locked.try_sync_model(|v| {
                         // Logic is inverted here:
                         // See https://github.com/dimforge/rapier/pull/265
-                        native.restrict_rotations(
-                            rigid_body_node.is_rotation_locked(),
-                            rigid_body_node.is_rotation_locked(),
-                            rigid_body_node.is_rotation_locked(),
-                            false,
-                        );
-                        changes.remove(RigidBodyChanges::ROTATION_LOCKED);
-                    }
-                    if changes.contains(RigidBodyChanges::TRANSLATION_LOCKED) {
-                        native.lock_translations(rigid_body_node.is_translation_locked(), false);
-                        changes.remove(RigidBodyChanges::TRANSLATION_LOCKED);
-                    }
-
-                    if changes != RigidBodyChanges::NONE {
-                        Log::writeln(
-                            MessageKind::Warning,
-                            format!("Unhandled rigid body changes! Mask: {:?}", changes),
-                        );
-                    }
+                        native.restrict_rotations(v, v, v, false);
+                    });
 
                     while let Some(action) = actions.pop_front() {
                         match action {
@@ -758,8 +742,6 @@ impl PhysicsWorld {
                             ApplyAction::WakeUp => native.wake_up(false),
                         }
                     }
-
-                    rigid_body_node.changes.set(changes);
                 }
             }
         } else {
@@ -778,10 +760,10 @@ impl PhysicsWorld {
                 })
                 .ccd_enabled(rigid_body_node.is_ccd_enabled())
                 .additional_mass(rigid_body_node.mass())
-                .angvel(rigid_body_node.ang_vel)
-                .linvel(rigid_body_node.lin_vel)
-                .linear_damping(rigid_body_node.lin_damping)
-                .angular_damping(rigid_body_node.ang_damping)
+                .angvel(*rigid_body_node.ang_vel)
+                .linvel(*rigid_body_node.lin_vel)
+                .linear_damping(*rigid_body_node.lin_damping)
+                .angular_damping(*rigid_body_node.ang_damping)
                 .can_sleep(rigid_body_node.is_can_sleep())
                 .sleeping(rigid_body_node.is_sleeping());
 
