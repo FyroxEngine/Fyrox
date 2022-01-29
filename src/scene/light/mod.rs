@@ -18,6 +18,7 @@
 
 use crate::engine::resource_manager::ResourceManager;
 use crate::scene::node::Node;
+use crate::scene::variable::TemplateVariable;
 use crate::{
     core::{
         algebra::Vector3,
@@ -174,12 +175,21 @@ impl Visit for Light {
 #[derive(Debug, Inspect)]
 pub struct BaseLight {
     base: Base,
-    color: Color,
-    cast_shadows: bool,
-    scatter: Vector3<f32>,
-    scatter_enabled: bool,
-    #[inspect(min_value = 0.0, step = 0.1)]
-    intensity: f32,
+
+    #[inspect(getter = "Deref::deref")]
+    color: TemplateVariable<Color>,
+
+    #[inspect(getter = "Deref::deref")]
+    cast_shadows: TemplateVariable<bool>,
+
+    #[inspect(getter = "Deref::deref")]
+    scatter: TemplateVariable<Vector3<f32>>,
+
+    #[inspect(getter = "Deref::deref")]
+    scatter_enabled: TemplateVariable<bool>,
+
+    #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    intensity: TemplateVariable<f32>,
 }
 
 impl Deref for BaseLight {
@@ -200,11 +210,15 @@ impl Default for BaseLight {
     fn default() -> Self {
         Self {
             base: Default::default(),
-            color: Color::WHITE,
-            cast_shadows: true,
-            scatter: Vector3::new(DEFAULT_SCATTER_R, DEFAULT_SCATTER_G, DEFAULT_SCATTER_B),
-            scatter_enabled: true,
-            intensity: 1.0,
+            color: TemplateVariable::new(Color::WHITE),
+            cast_shadows: TemplateVariable::new(true),
+            scatter: TemplateVariable::new(Vector3::new(
+                DEFAULT_SCATTER_R,
+                DEFAULT_SCATTER_G,
+                DEFAULT_SCATTER_B,
+            )),
+            scatter_enabled: TemplateVariable::new(true),
+            intensity: TemplateVariable::new(1.0),
         }
     }
 }
@@ -228,25 +242,25 @@ impl BaseLight {
     /// Sets color of light, alpha component of color is ignored.
     #[inline]
     pub fn set_color(&mut self, color: Color) {
-        self.color = color;
+        self.color.set(color);
     }
 
     /// Returns current color of light source.
     #[inline]
     pub fn color(&self) -> Color {
-        self.color
+        *self.color
     }
 
     /// Enables or disables shadows for light source.
     #[inline]
     pub fn set_cast_shadows(&mut self, value: bool) {
-        self.cast_shadows = value;
+        self.cast_shadows.set(value);
     }
 
     /// Returns true if light is able to cast shadows, false - otherwise.
     #[inline]
     pub fn is_cast_shadows(&self) -> bool {
-        self.cast_shadows
+        *self.cast_shadows
     }
 
     /// Sets scatter factor per color channel (red, green, blue) in (0..1) range.
@@ -259,13 +273,13 @@ impl BaseLight {
     /// as if you light source would be in fog.
     #[inline]
     pub fn set_scatter(&mut self, f: Vector3<f32>) {
-        self.scatter = f;
+        self.scatter.set(f);
     }
 
     /// Returns current scatter factor.
     #[inline]
     pub fn scatter(&self) -> Vector3<f32> {
-        self.scatter
+        *self.scatter
     }
 
     /// Sets new light intensity. Default is 1.0.
@@ -274,12 +288,12 @@ impl BaseLight {
     /// can be represented as directional light source with very high intensity.
     /// Other lights, however, will remain relatively dim.
     pub fn set_intensity(&mut self, intensity: f32) {
-        self.intensity = intensity;
+        self.intensity.set(intensity);
     }
 
     /// Returns current intensity of the light.
     pub fn intensity(&self) -> f32 {
-        self.intensity
+        *self.intensity
     }
 
     /// Returns current scatter factor in linear color space.
@@ -291,32 +305,35 @@ impl BaseLight {
     /// Enables or disables light scattering.
     #[inline]
     pub fn enable_scatter(&mut self, state: bool) {
-        self.scatter_enabled = state;
+        self.scatter_enabled.set(state);
     }
 
     /// Returns true if light scattering is enabled, false - otherwise.
     #[inline]
     pub fn is_scatter_enabled(&self) -> bool {
-        self.scatter_enabled
+        *self.scatter_enabled
     }
 
     /// Creates a raw copy of a base light node.
     pub fn raw_copy(&self) -> Self {
         Self {
             base: self.base.raw_copy(),
-            color: self.color,
-            cast_shadows: self.cast_shadows,
-            scatter: self.scatter,
-            scatter_enabled: self.scatter_enabled,
-            intensity: self.intensity,
+            color: self.color.clone(),
+            cast_shadows: self.cast_shadows.clone(),
+            scatter: self.scatter.clone(),
+            scatter_enabled: self.scatter_enabled.clone(),
+            intensity: self.intensity.clone(),
         }
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
+    pub(crate) fn inherit(&mut self, parent: &BaseLight) {
         self.base.inherit_properties(parent);
-
-        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+        self.color.try_inherit(&parent.color);
+        self.cast_shadows.try_inherit(&parent.cast_shadows);
+        self.scatter.try_inherit(&parent.scatter);
+        self.scatter_enabled.try_inherit(&parent.scatter_enabled);
+        self.intensity.try_inherit(&parent.intensity);
     }
 }
 
@@ -381,11 +398,11 @@ impl BaseLightBuilder {
     pub fn build(self) -> BaseLight {
         BaseLight {
             base: self.base_builder.build_base(),
-            color: self.color,
-            cast_shadows: self.cast_shadows,
-            scatter: self.scatter_factor,
-            scatter_enabled: self.scatter_enabled,
-            intensity: self.intensity,
+            color: self.color.into(),
+            cast_shadows: self.cast_shadows.into(),
+            scatter: self.scatter_factor.into(),
+            scatter_enabled: self.scatter_enabled.into(),
+            intensity: self.intensity.into(),
         }
     }
 }

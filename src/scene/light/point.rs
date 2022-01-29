@@ -17,17 +17,18 @@
 //! can easily ruin performance of your game, especially on low-end hardware. Light
 //! scattering is relatively heavy too.
 
-use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
+    engine::resource_manager::ResourceManager,
     scene::{
         graph::Graph,
         light::{BaseLight, BaseLightBuilder, Light},
         node::Node,
+        variable::TemplateVariable,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -36,10 +37,12 @@ use std::ops::{Deref, DerefMut};
 #[derive(Debug, Inspect)]
 pub struct PointLight {
     base_light: BaseLight,
-    #[inspect(min_value = 0.0, step = 0.001)]
-    shadow_bias: f32,
-    #[inspect(min_value = 0.0, step = 0.1)]
-    radius: f32,
+
+    #[inspect(min_value = 0.0, step = 0.001, getter = "Deref::deref")]
+    shadow_bias: TemplateVariable<f32>,
+
+    #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    radius: TemplateVariable<f32>,
 }
 
 impl Deref for PointLight {
@@ -61,32 +64,32 @@ impl PointLight {
     /// light volume that is used in light scattering.
     #[inline]
     pub fn set_radius(&mut self, radius: f32) {
-        self.radius = radius.abs();
+        self.radius.set(radius.abs());
     }
 
     /// Returns radius of point light.
     #[inline]
     pub fn radius(&self) -> f32 {
-        self.radius
+        *self.radius
     }
 
     /// Sets new shadow bias value. Bias will be used to offset fragment's depth before
     /// compare it with shadow map value, it is used to remove "shadow acne".
     pub fn set_shadow_bias(&mut self, bias: f32) {
-        self.shadow_bias = bias;
+        self.shadow_bias.set(bias);
     }
 
     /// Returns current value of shadow bias.
     pub fn shadow_bias(&self) -> f32 {
-        self.shadow_bias
+        *self.shadow_bias
     }
 
     /// Creates a raw copy of a point light node.
     pub fn raw_copy(&self) -> Self {
         Self {
             base_light: self.base_light.raw_copy(),
-            radius: self.radius,
-            shadow_bias: self.shadow_bias,
+            radius: self.radius.clone(),
+            shadow_bias: self.shadow_bias.clone(),
         }
     }
 
@@ -94,9 +97,13 @@ impl PointLight {
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base_light.inherit(parent);
-
-        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+        if let Node::Light(parent) = parent {
+            self.base_light.inherit(parent);
+            if let Light::Point(parent) = parent {
+                self.radius.try_inherit(&parent.radius);
+                self.shadow_bias.try_inherit(&parent.shadow_bias);
+            }
+        }
     }
 }
 
@@ -116,8 +123,8 @@ impl Default for PointLight {
     fn default() -> Self {
         Self {
             base_light: Default::default(),
-            shadow_bias: 0.025,
-            radius: 10.0,
+            shadow_bias: TemplateVariable::new(0.025),
+            radius: TemplateVariable::new(10.0),
         }
     }
 }
@@ -155,8 +162,8 @@ impl PointLightBuilder {
     pub fn build_point_light(self) -> PointLight {
         PointLight {
             base_light: self.base_light_builder.build(),
-            radius: self.radius,
-            shadow_bias: self.shadow_bias,
+            radius: self.radius.into(),
+            shadow_bias: self.shadow_bias.into(),
         }
     }
 

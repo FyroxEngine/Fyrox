@@ -8,6 +8,7 @@
 //! on list of features that should be implemented.
 
 use crate::engine::resource_manager::ResourceManager;
+use crate::scene::variable::TemplateVariable;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -99,8 +100,9 @@ impl CsmOptions {
 pub struct DirectionalLight {
     base_light: BaseLight,
     /// See [`CsmOptions`].
+    #[inspect(getter = "Deref::deref")]
     #[visit(optional)] // Backward compatibility
-    pub csm_options: CsmOptions,
+    pub csm_options: TemplateVariable<CsmOptions>,
 }
 
 impl From<BaseLight> for DirectionalLight {
@@ -139,9 +141,12 @@ impl DirectionalLight {
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base_light.inherit(parent);
-
-        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+        if let Node::Light(parent) = parent {
+            self.base_light.inherit(parent);
+            if let Light::Directional(parent) = parent {
+                self.csm_options.try_inherit(&parent.csm_options);
+            }
+        }
     }
 }
 
@@ -164,7 +169,7 @@ impl DirectionalLightBuilder {
     pub fn build_directional_light(self) -> DirectionalLight {
         DirectionalLight {
             base_light: self.base_light_builder.build(),
-            csm_options: self.csm_options,
+            csm_options: self.csm_options.into(),
         }
     }
 

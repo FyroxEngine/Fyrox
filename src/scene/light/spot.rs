@@ -23,6 +23,7 @@
 //! hardware!
 
 use crate::engine::resource_manager::ResourceManager;
+use crate::scene::variable::TemplateVariable;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -42,15 +43,26 @@ use std::ops::{Deref, DerefMut};
 #[derive(Debug, Inspect)]
 pub struct SpotLight {
     base_light: BaseLight,
-    #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1)]
-    hotspot_cone_angle: f32,
-    #[inspect(min_value = 0.0, step = 0.1)]
-    falloff_angle_delta: f32,
-    #[inspect(min_value = 0.0, step = 0.001)]
-    shadow_bias: f32,
-    #[inspect(min_value = 0.0, step = 0.1)]
-    distance: f32,
-    cookie_texture: Option<Texture>,
+
+    #[inspect(
+        min_value = 0.0,
+        max_value = 3.14159,
+        step = 0.1,
+        getter = "Deref::deref"
+    )]
+    hotspot_cone_angle: TemplateVariable<f32>,
+
+    #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    falloff_angle_delta: TemplateVariable<f32>,
+
+    #[inspect(min_value = 0.0, step = 0.001, getter = "Deref::deref")]
+    shadow_bias: TemplateVariable<f32>,
+
+    #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    distance: TemplateVariable<f32>,
+
+    #[inspect(getter = "Deref::deref")]
+    cookie_texture: TemplateVariable<Option<Texture>>,
 }
 
 impl Deref for SpotLight {
@@ -71,11 +83,11 @@ impl Default for SpotLight {
     fn default() -> Self {
         Self {
             base_light: Default::default(),
-            hotspot_cone_angle: 90.0f32.to_radians(),
-            falloff_angle_delta: 5.0f32.to_radians(),
-            shadow_bias: 0.00005,
-            distance: 10.0,
-            cookie_texture: None,
+            hotspot_cone_angle: TemplateVariable::new(90.0f32.to_radians()),
+            falloff_angle_delta: TemplateVariable::new(5.0f32.to_radians()),
+            shadow_bias: TemplateVariable::new(0.00005),
+            distance: TemplateVariable::new(10.0),
+            cookie_texture: TemplateVariable::new(None),
         }
     }
 }
@@ -84,65 +96,65 @@ impl SpotLight {
     /// Returns hotspot angle of light.
     #[inline]
     pub fn hotspot_cone_angle(&self) -> f32 {
-        self.hotspot_cone_angle
+        *self.hotspot_cone_angle
     }
 
     /// Sets new value of hotspot angle of light.
     #[inline]
     pub fn set_hotspot_cone_angle(&mut self, cone_angle: f32) -> &mut Self {
-        self.hotspot_cone_angle = cone_angle.abs();
+        self.hotspot_cone_angle.set(cone_angle.abs());
         self
     }
 
     /// Sets new falloff angle range for spot light.
     #[inline]
     pub fn set_falloff_angle_delta(&mut self, delta: f32) -> &mut Self {
-        self.falloff_angle_delta = delta;
+        self.falloff_angle_delta.set(delta);
         self
     }
 
     /// Returns falloff angle range of light.
     #[inline]
     pub fn falloff_angle_delta(&self) -> f32 {
-        self.falloff_angle_delta
+        *self.falloff_angle_delta
     }
 
     /// Returns full angle at top of light cone.
     #[inline]
     pub fn full_cone_angle(&self) -> f32 {
-        self.hotspot_cone_angle + self.falloff_angle_delta
+        *self.hotspot_cone_angle + *self.falloff_angle_delta
     }
 
     /// Sets new shadow bias value. Bias will be used to offset fragment's depth before
     /// compare it with shadow map value, it is used to remove "shadow acne".
     pub fn set_shadow_bias(&mut self, bias: f32) {
-        self.shadow_bias = bias;
+        self.shadow_bias.set(bias);
     }
 
     /// Returns current value of shadow bias.
     pub fn shadow_bias(&self) -> f32 {
-        self.shadow_bias
+        *self.shadow_bias
     }
 
     /// Sets maximum distance at which light intensity will be zero. Intensity
     /// of light will be calculated using inverse square root law.
     #[inline]
     pub fn set_distance(&mut self, distance: f32) -> &mut Self {
-        self.distance = distance.abs();
+        self.distance.set(distance.abs());
         self
     }
 
     /// Returns maximum distance of light.
     #[inline]
     pub fn distance(&self) -> f32 {
-        self.distance
+        *self.distance
     }
 
     /// Set cookie texture. Also called gobo this texture gets projected
     /// by the spot light.
     #[inline]
     pub fn set_cookie_texture(&mut self, texture: Option<Texture>) -> &mut Self {
-        self.cookie_texture = texture;
+        self.cookie_texture.set(texture);
         self
     }
 
@@ -150,7 +162,7 @@ impl SpotLight {
     /// by the spot light.
     #[inline]
     pub fn cookie_texture(&self) -> Option<Texture> {
-        self.cookie_texture.clone()
+        (*self.cookie_texture).clone()
     }
 
     /// Get cookie texture by ref. Also called gobo this texture gets projected
@@ -164,23 +176,33 @@ impl SpotLight {
     pub fn raw_copy(&self) -> Self {
         Self {
             base_light: self.base_light.raw_copy(),
-            hotspot_cone_angle: self.hotspot_cone_angle,
-            falloff_angle_delta: self.falloff_angle_delta,
-            shadow_bias: self.shadow_bias,
-            distance: self.distance,
+            hotspot_cone_angle: self.hotspot_cone_angle.clone(),
+            falloff_angle_delta: self.falloff_angle_delta.clone(),
+            shadow_bias: self.shadow_bias.clone(),
+            distance: self.distance.clone(),
             cookie_texture: self.cookie_texture.clone(),
         }
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.cookie_texture = resource_manager.map_texture(self.cookie_texture.clone());
+        self.cookie_texture
+            .set_silent(resource_manager.map_texture(self.cookie_texture()));
     }
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base_light.inherit(parent);
-
-        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+        if let Node::Light(parent) = parent {
+            self.base_light.inherit(parent);
+            if let Light::Spot(parent) = parent {
+                self.hotspot_cone_angle
+                    .try_inherit(&parent.hotspot_cone_angle);
+                self.falloff_angle_delta
+                    .try_inherit(&parent.falloff_angle_delta);
+                self.shadow_bias.try_inherit(&parent.shadow_bias);
+                self.distance.try_inherit(&parent.distance);
+                self.cookie_texture.try_inherit(&parent.cookie_texture);
+            }
+        }
     }
 }
 
@@ -257,11 +279,11 @@ impl SpotLightBuilder {
     pub fn build_spot_light(self) -> SpotLight {
         SpotLight {
             base_light: self.base_light_builder.build(),
-            hotspot_cone_angle: self.hotspot_cone_angle,
-            falloff_angle_delta: self.falloff_angle_delta,
-            shadow_bias: self.shadow_bias,
-            distance: self.distance,
-            cookie_texture: self.cookie_texture,
+            hotspot_cone_angle: self.hotspot_cone_angle.into(),
+            falloff_angle_delta: self.falloff_angle_delta.into(),
+            shadow_bias: self.shadow_bias.into(),
+            distance: self.distance.into(),
+            cookie_texture: self.cookie_texture.into(),
         }
     }
 
