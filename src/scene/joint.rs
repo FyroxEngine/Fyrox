@@ -1,6 +1,5 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
-use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -8,13 +7,14 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
+    engine::resource_manager::ResourceManager,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
+        variable::TemplateVariable,
     },
 };
-use bitflags::bitflags;
 use rapier3d::dynamics::JointHandle;
 use std::{
     cell::Cell,
@@ -170,29 +170,24 @@ impl Default for JointParams {
     }
 }
 
-bitflags! {
-    pub(crate) struct JointChanges: u32 {
-        const NONE = 0;
-        const BODY1 = 0b0001;
-        const BODY2 = 0b0010;
-        const PARAMS = 0b0100;
-    }
-}
-
 /// Joint is used to restrict motion of two rigid bodies. There are numerous examples of joints in
 /// real life: door hinge, ball joints in human arms, etc.
 #[derive(Visit, Inspect, Debug)]
 pub struct Joint {
     base: Base,
-    params: JointParams,
-    body1: Handle<Node>,
-    body2: Handle<Node>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) params: TemplateVariable<JointParams>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) body1: TemplateVariable<Handle<Node>>,
+
+    #[inspect(getter = "Deref::deref")]
+    pub(crate) body2: TemplateVariable<Handle<Node>>,
+
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) native: Cell<JointHandle>,
-    #[visit(skip)]
-    #[inspect(skip)]
-    pub(crate) changes: Cell<JointChanges>,
 }
 
 impl Default for Joint {
@@ -203,7 +198,6 @@ impl Default for Joint {
             body1: Default::default(),
             body2: Default::default(),
             native: Cell::new(JointHandle::invalid()),
-            changes: Cell::new(JointChanges::NONE),
         }
     }
 }
@@ -228,10 +222,9 @@ impl Joint {
         Self {
             base: self.base.raw_copy(),
             params: self.params.clone(),
-            body1: self.body1,
-            body2: self.body2,
+            body1: self.body1.clone(),
+            body2: self.body2.clone(),
             native: Cell::new(JointHandle::invalid()),
-            changes: Cell::new(JointChanges::NONE),
         }
     }
 
@@ -243,32 +236,29 @@ impl Joint {
     /// Returns a mutable reference to the current joint parameters. Obtaining the mutable reference
     /// will force the engine to do additional calculations to reflect changes to the physics engine.
     pub fn params_mut(&mut self) -> &mut JointParams {
-        self.changes.get_mut().insert(JointChanges::PARAMS);
-        &mut self.params
+        self.params.get_mut()
     }
 
     /// Sets the first body of the joint. The handle should point to the RigidBody node, otherwise
     /// the joint will have no effect!
     pub fn set_body1(&mut self, handle: Handle<Node>) {
-        self.body1 = handle;
-        self.changes.get_mut().insert(JointChanges::BODY1);
+        self.body1.set(handle);
     }
 
     /// Returns current first body of the joint.
     pub fn body1(&self) -> Handle<Node> {
-        self.body1
+        *self.body1
     }
 
     /// Sets the second body of the joint. The handle should point to the RigidBody node, otherwise
     /// the joint will have no effect!
     pub fn set_body2(&mut self, handle: Handle<Node>) {
-        self.body2 = handle;
-        self.changes.get_mut().insert(JointChanges::BODY2);
+        self.body2.set(handle);
     }
 
     /// Returns current second body of the joint.
     pub fn body2(&self) -> Handle<Node> {
-        self.body2
+        *self.body2
     }
 
     pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
@@ -276,8 +266,11 @@ impl Joint {
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
         self.base.inherit_properties(parent);
-
-        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+        if let Node::Joint(parent) = parent {
+            self.params.try_inherit(&parent.params);
+            self.body1.try_inherit(&parent.body1);
+            self.body2.try_inherit(&parent.body2);
+        }
     }
 }
 
@@ -324,11 +317,10 @@ impl JointBuilder {
     pub fn build_node(self) -> Node {
         Node::Joint(Joint {
             base: self.base_builder.build_base(),
-            params: self.params,
-            body1: self.body1,
-            body2: self.body2,
+            params: self.params.into(),
+            body1: self.body1.into(),
+            body2: self.body2.into(),
             native: Cell::new(JointHandle::invalid()),
-            changes: Cell::new(JointChanges::NONE),
         })
     }
 

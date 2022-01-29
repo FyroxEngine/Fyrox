@@ -21,7 +21,6 @@ use crate::{
         collider::{self, ColliderShape, GeometrySource},
         debug::{Line, SceneDrawingContext},
         graph::isometric_global_transform,
-        joint::JointChanges,
         mesh::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
             Mesh,
@@ -1547,32 +1546,19 @@ impl PhysicsWorld {
         joint: &scene::joint::Joint,
     ) {
         if let Some(native) = self.joints.set.get_mut(joint.native.get()) {
-            let mut changes = joint.changes.get();
-            if changes.contains(JointChanges::PARAMS) {
-                native.params = convert_joint_params(joint.params().clone());
-                changes.remove(JointChanges::PARAMS);
-            }
-            if changes.contains(JointChanges::BODY1) {
-                if let Some(Node::RigidBody(rigid_body_node)) = nodes.try_borrow(joint.body1()) {
+            joint
+                .params
+                .try_sync_model(|v| native.params = convert_joint_params(v));
+            joint.body1.try_sync_model(|v| {
+                if let Some(Node::RigidBody(rigid_body_node)) = nodes.try_borrow(v) {
                     native.body1 = rigid_body_node.native.get();
                 }
-                changes.remove(JointChanges::BODY1);
-            }
-            if changes.contains(JointChanges::BODY2) {
-                if let Some(Node::RigidBody(rigid_body_node)) = nodes.try_borrow(joint.body2()) {
+            });
+            joint.body2.try_sync_model(|v| {
+                if let Some(Node::RigidBody(rigid_body_node)) = nodes.try_borrow(v) {
                     native.body2 = rigid_body_node.native.get();
                 }
-                changes.remove(JointChanges::BODY2);
-            }
-
-            if changes != JointChanges::NONE {
-                Log::writeln(
-                    MessageKind::Warning,
-                    format!("Unhandled joint changes! Mask: {:?}", changes),
-                );
-            }
-
-            joint.changes.set(changes);
+            });
         } else {
             let body1_handle = joint.body1();
             let body2_handle = joint.body2();
