@@ -162,6 +162,14 @@ pub struct RigidBody {
     #[inspect(getter = "Deref::deref")]
     pub(crate) can_sleep: TemplateVariable<bool>,
 
+    #[inspect(getter = "Deref::deref")]
+    #[visit(optional)] // Backward compatibility
+    pub(crate) dominance: TemplateVariable<i8>,
+
+    #[inspect(getter = "Deref::deref")]
+    #[visit(optional)] // Backward compatibility
+    pub(crate) gravity_scale: TemplateVariable<f32>,
+
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) sleeping: bool,
@@ -196,6 +204,8 @@ impl Default for RigidBody {
             translation_locked: Default::default(),
             ccd_enabled: Default::default(),
             can_sleep: TemplateVariable::new(true),
+            dominance: Default::default(),
+            gravity_scale: TemplateVariable::new(1.0),
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
         }
@@ -234,6 +244,8 @@ impl RigidBody {
             translation_locked: self.translation_locked.clone(),
             ccd_enabled: self.ccd_enabled.clone(),
             can_sleep: self.can_sleep.clone(),
+            dominance: self.dominance.clone(),
+            gravity_scale: self.gravity_scale.clone(),
             // Do not copy.
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
@@ -369,6 +381,29 @@ impl RigidBody {
         self.ccd_enabled.set(enable);
     }
 
+    /// Sets a gravity scale coefficient. Zero can be used to disable gravity.
+    pub fn set_gravity_scale(&mut self, scale: f32) {
+        self.gravity_scale.set(scale);
+    }
+
+    /// Returns current gravity scale coefficient.
+    pub fn gravity_scale(&self) -> f32 {
+        *self.gravity_scale
+    }
+
+    /// Sets dominance group of the rigid body. A rigid body with higher dominance group will not
+    /// be affected by an object with lower dominance group (it will behave like it has an infinite
+    /// mass). This is very importance feature for character physics in games, you can set highest
+    /// dominance group to the player, and it won't be affected by any external forces.
+    pub fn set_dominance(&mut self, dominance: i8) {
+        self.dominance.set(dominance);
+    }
+
+    /// Returns current dominance group.
+    pub fn dominance(&self) -> i8 {
+        *self.dominance
+    }
+
     /// Applies a force at the center-of-mass of this rigid-body. The force will be applied in the
     /// next simulation step. This does nothing on non-dynamic bodies.
     pub fn apply_force(&mut self, force: Vector3<f32>) {
@@ -454,6 +489,8 @@ impl RigidBody {
                 .try_inherit(&parent.translation_locked);
             self.ccd_enabled.try_inherit(&parent.ccd_enabled);
             self.can_sleep.try_inherit(&parent.can_sleep);
+            self.dominance.try_inherit(&parent.dominance);
+            self.gravity_scale.try_inherit(&parent.gravity_scale);
         }
     }
 
@@ -470,6 +507,8 @@ impl RigidBody {
             || self.translation_locked.need_sync()
             || self.ccd_enabled.need_sync()
             || self.can_sleep.need_sync()
+            || self.dominance.need_sync()
+            || self.gravity_scale.need_sync()
     }
 }
 
@@ -489,6 +528,8 @@ pub struct RigidBodyBuilder {
     translation_locked: bool,
     ccd_enabled: bool,
     can_sleep: bool,
+    dominance: i8,
+    gravity_scale: f32,
 }
 
 impl RigidBodyBuilder {
@@ -509,6 +550,8 @@ impl RigidBodyBuilder {
             translation_locked: false,
             ccd_enabled: false,
             can_sleep: true,
+            dominance: 0,
+            gravity_scale: 1.0,
         }
     }
 
@@ -598,6 +641,18 @@ impl RigidBodyBuilder {
         self
     }
 
+    /// Sets desired dominance group.
+    pub fn with_dominance(mut self, dominance: i8) -> Self {
+        self.dominance = dominance;
+        self
+    }
+
+    /// Sets desired gravity scale.
+    pub fn with_gravity_scale(mut self, gravity_scale: f32) -> Self {
+        self.gravity_scale = gravity_scale;
+        self
+    }
+
     /// Creates RigidBody node but does not add it to the graph.
     pub fn build_node(self) -> Node {
         let rigid_body = RigidBody {
@@ -615,6 +670,8 @@ impl RigidBodyBuilder {
             translation_locked: self.translation_locked.into(),
             ccd_enabled: self.ccd_enabled.into(),
             can_sleep: self.can_sleep.into(),
+            dominance: self.dominance.into(),
+            gravity_scale: self.gravity_scale.into(),
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
         };

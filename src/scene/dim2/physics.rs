@@ -723,6 +723,12 @@ impl PhysicsWorld {
                         // See https://github.com/dimforge/rapier/pull/265
                         native.restrict_rotations(v, v, v, false);
                     });
+                    rigid_body_node
+                        .dominance
+                        .try_sync_model(|v| native.set_dominance_group(v));
+                    rigid_body_node
+                        .gravity_scale
+                        .try_sync_model(|v| native.set_gravity_scale(v, false));
 
                     while let Some(action) = actions.pop_front() {
                         match action {
@@ -764,7 +770,9 @@ impl PhysicsWorld {
                 .linear_damping(*rigid_body_node.lin_damping)
                 .angular_damping(*rigid_body_node.ang_damping)
                 .can_sleep(rigid_body_node.is_can_sleep())
-                .sleeping(rigid_body_node.is_sleeping());
+                .sleeping(rigid_body_node.is_sleeping())
+                .dominance_group(rigid_body_node.dominance())
+                .gravity_scale(rigid_body_node.gravity_scale());
 
             if rigid_body_node.is_translation_locked() {
                 builder = builder.lock_translations();

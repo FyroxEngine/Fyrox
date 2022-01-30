@@ -1362,6 +1362,12 @@ impl PhysicsWorld {
                             false,
                         );
                     });
+                    rigid_body_node
+                        .dominance
+                        .try_sync_model(|v| native.set_dominance_group(v));
+                    rigid_body_node
+                        .gravity_scale
+                        .try_sync_model(|v| native.set_gravity_scale(v, false));
 
                     while let Some(action) = actions.pop_front() {
                         match action {
@@ -1398,6 +1404,8 @@ impl PhysicsWorld {
                 .angular_damping(*rigid_body_node.ang_damping)
                 .can_sleep(rigid_body_node.is_can_sleep())
                 .sleeping(rigid_body_node.is_sleeping())
+                .dominance_group(rigid_body_node.dominance())
+                .gravity_scale(rigid_body_node.gravity_scale())
                 .restrict_rotations(
                     !rigid_body_node.is_x_rotation_locked(),
                     !rigid_body_node.is_y_rotation_locked(),
