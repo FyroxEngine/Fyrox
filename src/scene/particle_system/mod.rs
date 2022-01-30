@@ -71,6 +71,7 @@
 //! ```
 
 use crate::engine::resource_manager::ResourceManager;
+use crate::scene::variable::TemplateVariable;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
@@ -139,20 +140,33 @@ impl Visit for ParticleLimit {
 #[derive(Debug, Visit, Inspect)]
 pub struct ParticleSystem {
     base: Base,
+
+    /// List of emitters of the particle system.
+    #[inspect(getter = "Deref::deref")]
+    pub emitters: TemplateVariable<Vec<Emitter>>,
+
+    #[inspect(getter = "Deref::deref")]
+    texture: TemplateVariable<Option<Texture>>,
+
+    #[inspect(getter = "Deref::deref")]
+    acceleration: TemplateVariable<Vector3<f32>>,
+
+    #[visit(rename = "ColorGradient")]
+    #[inspect(getter = "Deref::deref")]
+    color_over_lifetime: TemplateVariable<Option<ColorGradient>>,
+
+    #[visit(optional)] // Backward compatibility.
+    #[inspect(getter = "Deref::deref")]
+    soft_boundary_sharpness_factor: TemplateVariable<f32>,
+
+    #[visit(optional)] // Backward compatibility.
+    #[inspect(getter = "Deref::deref")]
+    enabled: TemplateVariable<bool>,
+
     #[inspect(skip)]
     particles: Vec<Particle>,
     #[inspect(skip)]
     free_particles: Vec<u32>,
-    /// List of emitters of the particle system.
-    pub emitters: Vec<Emitter>,
-    texture: Option<Texture>,
-    acceleration: Vector3<f32>,
-    #[visit(rename = "ColorGradient")]
-    color_over_lifetime: Option<ColorGradient>,
-    #[visit(optional)] // Backward compatibility.
-    soft_boundary_sharpness_factor: f32,
-    #[visit(optional)] // Backward compatibility.
-    enabled: bool,
 }
 
 impl Deref for ParticleSystem {
@@ -178,43 +192,43 @@ impl ParticleSystem {
             free_particles: self.free_particles.clone(),
             emitters: self.emitters.clone(),
             texture: self.texture.clone(),
-            acceleration: self.acceleration,
+            acceleration: self.acceleration.clone(),
             color_over_lifetime: self.color_over_lifetime.clone(),
-            soft_boundary_sharpness_factor: self.soft_boundary_sharpness_factor,
-            enabled: self.enabled,
+            soft_boundary_sharpness_factor: self.soft_boundary_sharpness_factor.clone(),
+            enabled: self.enabled.clone(),
         }
     }
 
     /// Returns current acceleration for particles in particle system.
     pub fn acceleration(&self) -> Vector3<f32> {
-        self.acceleration
+        *self.acceleration
     }
 
     /// Set new acceleration that will be applied to all particles,
     /// can be used to change "gravity" vector of particles.
     pub fn set_acceleration(&mut self, accel: Vector3<f32>) {
-        self.acceleration = accel;
+        self.acceleration.set(accel);
     }
 
     /// Sets new "color curve" that will evaluate color over lifetime.
     pub fn set_color_over_lifetime_gradient(&mut self, gradient: ColorGradient) {
-        self.color_over_lifetime = Some(gradient)
+        self.color_over_lifetime.set(Some(gradient));
     }
 
     /// Return current soft boundary sharpness factor.
     pub fn soft_boundary_sharpness_factor(&self) -> f32 {
-        self.soft_boundary_sharpness_factor
+        *self.soft_boundary_sharpness_factor
     }
 
     /// Enables or disables particle system. Disabled particle system remains in "frozen" state
     /// until enabled again.
     pub fn set_enabled(&mut self, enabled: bool) {
-        self.enabled = enabled;
+        self.enabled.set(enabled);
     }
 
     /// Returns current particle system status.
     pub fn is_enabled(&self) -> bool {
-        self.enabled
+        *self.enabled
     }
 
     /// Sets soft boundary sharpness factor. This value defines how wide soft boundary will be.
@@ -222,14 +236,14 @@ impl ParticleSystem {
     /// parameter allows you to manipulate particle "softness" - the engine automatically adds
     /// fading to those pixels of a particle which is close enough to other geometry in a scene.
     pub fn set_soft_boundary_sharpness_factor(&mut self, factor: f32) {
-        self.soft_boundary_sharpness_factor = factor;
+        self.soft_boundary_sharpness_factor.set(factor);
     }
 
     /// Removes all generated particles.
     pub fn clear_particles(&mut self) {
         self.particles.clear();
         self.free_particles.clear();
-        for emitter in self.emitters.iter_mut() {
+        for emitter in self.emitters.get_mut_silent().iter_mut() {
             emitter.alive_particles = 0;
         }
     }
@@ -238,15 +252,15 @@ impl ParticleSystem {
     /// changes their color, size, rotation, etc. This method should not be
     /// used directly, it will be automatically called by scene update.
     pub fn update(&mut self, dt: f32) {
-        if !self.enabled {
+        if !*self.enabled {
             return;
         }
 
-        for emitter in self.emitters.iter_mut() {
+        for emitter in self.emitters.get_mut_silent().iter_mut() {
             emitter.tick(dt);
         }
 
-        for (i, emitter) in self.emitters.iter_mut().enumerate() {
+        for (i, emitter) in self.emitters.get_mut_silent().iter_mut().enumerate() {
             for _ in 0..emitter.particles_to_spawn {
                 let mut particle = Particle {
                     emitter_index: i as u32,
@@ -269,7 +283,11 @@ impl ParticleSystem {
                 particle.lifetime += dt;
                 if particle.lifetime >= particle.initial_lifetime {
                     self.free_particles.push(i as u32);
-                    if let Some(emitter) = self.emitters.get_mut(particle.emitter_index as usize) {
+                    if let Some(emitter) = self
+                        .emitters
+                        .get_mut()
+                        .get_mut(particle.emitter_index as usize)
+                    {
                         emitter.alive_particles -= 1;
                     }
                     particle.alive = false;
@@ -282,7 +300,7 @@ impl ParticleSystem {
                         particle.size = 0.0;
                     }
                     particle.rotation += particle.rotation_speed * dt;
-                    if let Some(color_over_lifetime) = &self.color_over_lifetime {
+                    if let Some(color_over_lifetime) = self.color_over_lifetime.as_ref() {
                         let k = particle.lifetime / particle.initial_lifetime;
                         particle.color = color_over_lifetime.get_color(k);
                     } else {
@@ -384,12 +402,12 @@ impl ParticleSystem {
 
     /// Sets new texture for particle system.
     pub fn set_texture(&mut self, texture: Option<Texture>) {
-        self.texture = texture
+        self.texture.set(texture);
     }
 
     /// Returns current texture used by particle system.
     pub fn texture(&self) -> Option<Texture> {
-        self.texture.clone()
+        (*self.texture).clone()
     }
 
     /// Returns current texture used by particle system by ref.
@@ -404,8 +422,16 @@ impl ParticleSystem {
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
         self.base.inherit_properties(parent);
-
-        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+        if let Node::ParticleSystem(parent) = parent {
+            self.emitters.try_inherit(&parent.emitters);
+            self.texture.try_inherit(&parent.texture);
+            self.acceleration.try_inherit(&parent.acceleration);
+            self.color_over_lifetime
+                .try_inherit(&parent.color_over_lifetime);
+            self.soft_boundary_sharpness_factor
+                .try_inherit(&parent.soft_boundary_sharpness_factor);
+            self.enabled.try_inherit(&parent.enabled);
+        }
     }
 }
 
@@ -497,12 +523,12 @@ impl ParticleSystemBuilder {
             base: self.base_builder.build_base(),
             particles: self.particles,
             free_particles: Vec::new(),
-            emitters: self.emitters,
-            texture: self.texture.clone(),
-            acceleration: self.acceleration,
-            color_over_lifetime: self.color_over_lifetime,
-            soft_boundary_sharpness_factor: self.soft_boundary_sharpness_factor,
-            enabled: self.enabled,
+            emitters: self.emitters.into(),
+            texture: self.texture.into(),
+            acceleration: self.acceleration.into(),
+            color_over_lifetime: self.color_over_lifetime.into(),
+            soft_boundary_sharpness_factor: self.soft_boundary_sharpness_factor.into(),
+            enabled: self.enabled.into(),
         }
     }
 
