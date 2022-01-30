@@ -4,6 +4,8 @@
 - New `Sound` and `Listener` scene nodes.
 - Sound buffer import options.
 - `ResourceManager::request_sound_buffer` now accepts only path to sound buffer.
+- Prefab inheritance improvements - now most of the properties of scene nodes are inheritable.
+- Access to simulation properties of the physics.
 - **WIP**
 
 ## Migration guide
