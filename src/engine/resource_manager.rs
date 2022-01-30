@@ -624,9 +624,7 @@ impl ResourceManager {
             .expect("Upload sender must be set!")
             .clone();
 
-        state.spawn_task(async move {
-            load_texture(texture, path, default_options, upload_sender).await;
-        });
+        state.spawn_task(load_texture(texture, path, default_options, upload_sender));
 
         result
     }
@@ -690,9 +688,12 @@ impl ResourceManager {
         let path = path.as_ref().to_owned();
         let resource_manager = self.clone();
 
-        state.spawn_task(async move {
-            load_model(model, path, resource_manager, default_import_options).await;
-        });
+        state.spawn_task(load_model(
+            model,
+            path,
+            resource_manager,
+            default_import_options,
+        ));
 
         result
     }
@@ -719,9 +720,7 @@ impl ResourceManager {
         let path = path.as_ref().to_owned();
         let default_import_options = state.sound_buffer_import_options.clone();
 
-        state.spawn_task(async move {
-            load_sound_buffer(resource, path, default_import_options).await;
-        });
+        state.spawn_task(load_sound_buffer(resource, path, default_import_options));
 
         result
     }
@@ -748,9 +747,7 @@ impl ResourceManager {
         let result = shader.clone();
         let path = path.as_ref().to_owned();
 
-        state.spawn_task(async move {
-            load_shader(shader, path).await;
-        });
+        state.spawn_task(load_shader(shader, path));
 
         result
     }
@@ -777,9 +774,7 @@ impl ResourceManager {
         let result = curve.clone();
         let path = path.as_ref().to_owned();
 
-        state.spawn_task(async move {
-            load_curve_resource(curve, path).await;
-        });
+        state.spawn_task(load_curve_resource(curve, path));
 
         result
     }
@@ -796,9 +791,7 @@ impl ResourceManager {
             .expect("Upload sender must exist at this point!");
         *texture.state() = ResourceState::new_pending(path.clone());
 
-        state.spawn_task(async move {
-            load_texture(texture, path, default_options, upload_sender).await;
-        });
+        state.spawn_task(load_texture(texture, path, default_options, upload_sender));
     }
 
     /// Reloads every loaded texture. This method is asynchronous, internally it uses thread pool
@@ -819,9 +812,7 @@ impl ResourceManager {
                     .expect("Upload sender must exist at this point!");
                 *resource.state() = ResourceState::new_pending(path.clone());
 
-                state.spawn_task(async move {
-                    load_texture(resource, path, default_options, upload_sender).await;
-                });
+                state.spawn_task(load_texture(resource, path, default_options, upload_sender));
             }
 
             textures
@@ -845,9 +836,7 @@ impl ResourceManager {
                 let default_import_options = state.model_import_options.clone();
                 *model.state() = ResourceState::new_pending(path.clone());
 
-                state.spawn_task(async move {
-                    load_model(model, path, this, default_import_options).await;
-                })
+                state.spawn_task(load_model(model, path, this, default_import_options))
             }
 
             models
@@ -872,10 +861,7 @@ impl ResourceManager {
             for shader in shaders.iter().cloned() {
                 let path = shader.state().path().to_path_buf();
                 *shader.state() = ResourceState::new_pending(path.clone());
-
-                state.spawn_task(async move {
-                    load_shader(shader, path).await;
-                })
+                state.spawn_task(load_shader(shader, path))
             }
 
             shaders
@@ -901,9 +887,7 @@ impl ResourceManager {
                 let path = curve.state().path().to_path_buf();
                 *curve.state() = ResourceState::new_pending(path.clone());
 
-                state.spawn_task(async move {
-                    load_curve_resource(curve, path).await;
-                })
+                state.spawn_task(load_curve_resource(curve, path))
             }
 
             curves
@@ -934,9 +918,7 @@ impl ResourceManager {
                 let default_import_options = state.sound_buffer_import_options.clone();
                 if path != PathBuf::default() {
                     *resource.state() = ResourceState::new_pending(path.clone());
-                    state.spawn_task(async move {
-                        load_sound_buffer(resource, path, default_import_options).await;
-                    });
+                    state.spawn_task(load_sound_buffer(resource, path, default_import_options));
                 }
             }
 
