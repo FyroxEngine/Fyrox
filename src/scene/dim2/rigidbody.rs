@@ -154,7 +154,7 @@ impl RigidBody {
             ang_vel: self.ang_vel.clone(),
             lin_damping: self.lin_damping.clone(),
             ang_damping: self.ang_damping.clone(),
-            sleeping: self.sleeping.clone(),
+            sleeping: self.sleeping,
             body_type: self.body_type.clone(),
             mass: self.mass.clone(),
             rotation_locked: self.rotation_locked.clone(),
