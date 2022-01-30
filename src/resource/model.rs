@@ -17,7 +17,6 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native Fyroxed format) formats are supported.
-use crate::engine::resource_manager::ImportOptions;
 use crate::{
     animation::Animation,
     asset::{define_new_resource, Resource, ResourceData},
@@ -26,6 +25,7 @@ use crate::{
         pool::Handle,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
+    engine::resource_manager::options::ImportOptions,
     engine::resource_manager::ResourceManager,
     resource::fbx::{self, error::FbxError},
     scene::{node::Node, Scene},

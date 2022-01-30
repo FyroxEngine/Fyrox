@@ -28,7 +28,7 @@ use crate::{
         io::{self, FileLoadError},
         visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
     },
-    engine::resource_manager::ImportOptions,
+    engine::resource_manager::options::ImportOptions,
 };
 use ddsfile::{Caps2, D3DFormat};
 use fxhash::FxHasher;

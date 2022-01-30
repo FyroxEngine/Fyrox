@@ -348,6 +348,12 @@ macro_rules! define_new_resource {
             }
         }
 
+        impl From<Resource<$state, $error>> for $name {
+            fn from(resource: Resource<$state, $error>) -> Self {
+                $name(resource)
+            }
+        }
+
         impl std::ops::Deref for $name {
             type Target = Resource<$state, $error>;
 

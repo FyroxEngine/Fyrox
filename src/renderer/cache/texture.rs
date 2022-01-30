@@ -1,7 +1,7 @@
 use crate::renderer::framework::error::FrameworkError;
 use crate::{
     core::scope_profile,
-    engine::resource_manager::DEFAULT_RESOURCE_LIFETIME,
+    engine::resource_manager::container::entry::DEFAULT_RESOURCE_LIFETIME,
     renderer::{
         cache::CacheEntry,
         framework::{

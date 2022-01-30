@@ -10,6 +10,7 @@ use crate::{
         sparse::AtomicIndex,
         visitor::prelude::*,
     },
+    engine::resource_manager::options::ImportOptions,
     lazy_static::lazy_static,
     renderer::{
         cache::{shader::ShaderSet, CacheEntry},
@@ -17,7 +18,7 @@ use crate::{
     },
 };
 use ron::Error;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     io::Cursor,
@@ -532,6 +533,12 @@ impl Shader {
         vec![Self::standard(), Self::standard_terrain()]
     }
 }
+
+/// Import options for shader resource.
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct ShaderImportOptions {}
+
+impl ImportOptions for ShaderImportOptions {}
 
 lazy_static! {
     static ref STANDARD: Shader = Shader(Resource::new(ResourceState::Ok(

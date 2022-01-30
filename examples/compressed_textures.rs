@@ -20,9 +20,13 @@ impl GameState for Game {
     {
         // Explicitly set compression options - here we use Quality which in most cases will use
         // DXT5 compression with compression ratio 4:1
-        engine.resource_manager.state().set_textures_import_options(
-            TextureImportOptions::default().with_compression(CompressionOptions::Quality),
-        );
+        engine
+            .resource_manager
+            .state()
+            .textures
+            .set_default_import_options(
+                TextureImportOptions::default().with_compression(CompressionOptions::Quality),
+            );
 
         engine
             .renderer

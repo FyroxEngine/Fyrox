@@ -5,7 +5,7 @@ use crate::{
         math::TriangleDefinition,
         scope_profile,
     },
-    engine::resource_manager::TimedEntry,
+    engine::resource_manager::container::entry::TimedEntry,
     renderer::framework::{
         geometry_buffer::{
             AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,

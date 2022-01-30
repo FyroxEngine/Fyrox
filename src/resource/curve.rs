@@ -3,7 +3,9 @@
 use crate::{
     asset::{define_new_resource, Resource, ResourceData},
     core::{curve::Curve, io::FileLoadError, visitor::prelude::*},
+    engine::resource_manager::options::ImportOptions,
 };
+use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
@@ -68,3 +70,9 @@ define_new_resource!(
     /// See module docs.
     CurveResource<CurveResourceState, CurveResourceError>
 );
+
+/// Import options for curve resource.
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct CurveImportOptions {}
+
+impl ImportOptions for CurveImportOptions {}

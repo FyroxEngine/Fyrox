@@ -466,7 +466,7 @@ impl Default for Statistics {
 }
 
 /// A sending point for textures that should be uploaded to GPU memory.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TextureUploadSender {
     sender: Sender<Texture>,
 }

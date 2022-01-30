@@ -1,7 +1,10 @@
 use crate::asset::inspector::handlers::ImportOptionsHandler;
 use fyrox::{
     core::{append_extension, futures::executor::block_on, inspect::Inspect},
-    engine::resource_manager::{try_get_import_settings, ImportOptions, ResourceManager},
+    engine::resource_manager::{
+        options::{try_get_import_settings, ImportOptions},
+        ResourceManager,
+    },
     gui::inspector::{FieldKind, PropertyChanged},
     resource::model::ModelImportOptions,
 };

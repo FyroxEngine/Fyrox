@@ -2,7 +2,7 @@ use crate::core::sstorage::ImmutableString;
 use crate::{
     asset::ResourceState,
     core::{scope_profile, sparse::SparseBuffer},
-    engine::resource_manager::DEFAULT_RESOURCE_LIFETIME,
+    engine::resource_manager::container::entry::DEFAULT_RESOURCE_LIFETIME,
     material::shader::{Shader, ShaderState},
     renderer::{
         cache::CacheEntry,

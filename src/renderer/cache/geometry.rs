@@ -2,7 +2,7 @@ use crate::core::parking_lot::Mutex;
 use crate::core::sparse::SparseBuffer;
 use crate::{
     core::scope_profile,
-    engine::resource_manager::DEFAULT_RESOURCE_LIFETIME,
+    engine::resource_manager::container::entry::DEFAULT_RESOURCE_LIFETIME,
     renderer::{
         cache::CacheEntry,
         framework::{
