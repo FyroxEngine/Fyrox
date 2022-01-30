@@ -33,6 +33,7 @@ impl Command for AddParticleSystemEmitterCommand {
         context.scene.graph[self.particle_system]
             .as_particle_system_mut()
             .emitters
+            .get_mut()
             .push(self.emitter.take().unwrap());
     }
 
@@ -41,6 +42,7 @@ impl Command for AddParticleSystemEmitterCommand {
             context.scene.graph[self.particle_system]
                 .as_particle_system_mut()
                 .emitters
+                .get_mut()
                 .pop()
                 .unwrap(),
         );
@@ -74,6 +76,7 @@ impl Command for DeleteEmitterCommand {
             context.scene.graph[self.particle_system]
                 .as_particle_system_mut()
                 .emitters
+                .get_mut()
                 .remove(self.emitter_index),
         );
     }
@@ -82,10 +85,14 @@ impl Command for DeleteEmitterCommand {
         let particle_system: &mut ParticleSystem =
             context.scene.graph[self.particle_system].as_particle_system_mut();
         if self.emitter_index == 0 {
-            particle_system.emitters.push(self.emitter.take().unwrap());
+            particle_system
+                .emitters
+                .get_mut()
+                .push(self.emitter.take().unwrap());
         } else {
             particle_system
                 .emitters
+                .get_mut()
                 .insert(self.emitter_index, self.emitter.take().unwrap());
         }
     }
@@ -108,7 +115,7 @@ macro_rules! define_emitter_command {
             }
 
             fn swap(&mut self, graph: &mut $crate::fyrox::scene::graph::Graph) {
-                let emitter = &mut graph[self.handle].as_particle_system_mut().emitters[self.index];
+                let emitter = &mut graph[self.handle].as_particle_system_mut().emitters.get_mut()[self.index];
                 #[allow(clippy::redundant_closure_call)]
                 ($swap)(self, emitter)
             }

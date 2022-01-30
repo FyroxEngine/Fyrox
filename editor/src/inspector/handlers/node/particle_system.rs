@@ -150,7 +150,7 @@ impl ParticleSystemHandler {
                             Some(SceneCommand::new(DeleteEmitterCommand::new(handle, *index)))
                         }
                         CollectionChanged::ItemChanged { index, property } => {
-                            let emitter = particle_system.emitters.get(*index)?;
+                            let emitter = particle_system.emitters.get().get(*index)?;
                             if property.owner_type_id == TypeId::of::<SphereEmitter>() {
                                 handle_sphere_emitter_property_changed(
                                     handle, emitter, property, *index,
