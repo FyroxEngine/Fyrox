@@ -1,6 +1,7 @@
 //! Everything related to terrains.
 
 use crate::engine::resource_manager::ResourceManager;
+use crate::scene::variable::TemplateVariable;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -227,10 +228,30 @@ pub struct TerrainRayCastResult {
     pub toi: f32,
 }
 
-/// See module docs.
+/// Terrain is a height field where each point has fixed coordinates in XZ plane, but variable
+/// Y coordinate. It can be used to create landscapes. It supports multiple layers, where each
+/// layer has its own material and mask.
+///
+/// # Prefab inheritance notes
+///
+/// There is very limited inheritance possible, only layers, decal layer index and cast shadows flag
+/// are inheritable. You cannot inherit width, height, chunks and other things because these cannot
+/// be modified at runtime because changing width (for example) will invalidate the entire height
+/// map which makes runtime modification useless.  
 #[derive(Visit, Debug, Default, Inspect)]
 pub struct Terrain {
     base: Base,
+
+    #[inspect(getter = "Deref::deref")]
+    layers: TemplateVariable<Vec<Layer>>,
+
+    #[visit(optional)] // Backward compatibility
+    #[inspect(getter = "Deref::deref")]
+    decal_layer_index: TemplateVariable<u8>,
+
+    #[inspect(getter = "Deref::deref")]
+    cast_shadows: TemplateVariable<bool>,
+
     #[inspect(read_only)]
     width: f32,
     #[inspect(read_only)]
@@ -241,7 +262,6 @@ pub struct Terrain {
     height_map_resolution: f32,
     #[inspect(skip)]
     chunks: Vec<Chunk>,
-    layers: Vec<Layer>,
     #[inspect(read_only)]
     width_chunks: u32,
     #[inspect(read_only)]
@@ -250,9 +270,6 @@ pub struct Terrain {
     bounding_box_dirty: Cell<bool>,
     #[inspect(skip)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
-    #[visit(optional)] // Backward compatibility
-    decal_layer_index: u8,
-    cast_shadows: bool,
 }
 
 impl Deref for Terrain {
@@ -316,22 +333,22 @@ impl Terrain {
     /// for example iff a decal has index == 0 and a mesh has index == 0, then decals will
     /// be applied. This allows you to apply decals only on needed surfaces.
     pub fn set_decal_layer_index(&mut self, index: u8) {
-        self.decal_layer_index = index;
+        self.decal_layer_index.set(index);
     }
 
     /// Returns current decal index.
     pub fn decal_layer_index(&self) -> u8 {
-        self.decal_layer_index
+        *self.decal_layer_index
     }
 
     /// Returns true if terrain should cast shadows.
     pub fn cast_shadows(&self) -> bool {
-        self.cast_shadows
+        *self.cast_shadows
     }
 
     /// Sets whether terrain should cast shadows or not.
     pub fn set_cast_shadows(&mut self, value: bool) {
-        self.cast_shadows = value;
+        self.cast_shadows.set(value);
     }
 
     /// Creates raw copy of the terrain. Do not use this method directly, use
@@ -348,9 +365,9 @@ impl Terrain {
             length_chunks: self.length_chunks,
             bounding_box_dirty: Cell::new(true),
             bounding_box: Default::default(),
-            decal_layer_index: self.decal_layer_index,
+            decal_layer_index: self.decal_layer_index.clone(),
             layers: self.layers.clone(),
-            cast_shadows: self.cast_shadows,
+            cast_shadows: self.cast_shadows.clone(),
         }
     }
 
@@ -430,7 +447,7 @@ impl Terrain {
 
                 for (chunk_index, chunk) in self.chunks.iter_mut().enumerate() {
                     let chunk_position = chunk.local_position();
-                    let layer = &mut self.layers[layer];
+                    let layer = &mut self.layers.get_mut()[layer];
                     let mut texture_data = layer.chunk_masks[chunk_index].data_ref();
                     let mut texture_data_mut = texture_data.modify();
 
@@ -589,29 +606,29 @@ impl Terrain {
 
     /// Returns a mutable reference to a slice with layers of the terrain.
     pub fn layers_mut(&mut self) -> &mut [Layer] {
-        &mut self.layers
+        self.layers.get_mut()
     }
 
     /// Adds new layer to the chunk. It is possible to have different layer count per chunk
     /// in the same terrain, however it seems to not have practical usage, so try to keep
     /// equal layer count per each chunk in your terrains.
     pub fn add_layer(&mut self, layer: Layer) {
-        self.layers.push(layer);
+        self.layers.get_mut().push(layer);
     }
 
     /// Removes given layers from the terrain.
     pub fn remove_layer(&mut self, layer: usize) -> Layer {
-        self.layers.remove(layer)
+        self.layers.get_mut().remove(layer)
     }
 
     /// Tries to remove last layer from the terrain.
     pub fn pop_layer(&mut self) -> Option<Layer> {
-        self.layers.pop()
+        self.layers.get_mut().pop()
     }
 
     /// Inserts new layer at given position in the terrain.
     pub fn insert_layer(&mut self, layer: Layer, index: usize) {
-        self.layers.insert(index, layer)
+        self.layers.get_mut().insert(index, layer)
     }
 
     /// Creates new layer with given parameters, but does **not** add it to the terrain.
@@ -647,8 +664,12 @@ impl Terrain {
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
         self.base.inherit_properties(parent);
-
-        // TODO: Add properties. https://github.com/FyroxEngine/Fyrox/issues/282
+        if let Node::Terrain(parent) = parent {
+            self.layers.try_inherit(&parent.layers);
+            self.decal_layer_index
+                .try_inherit(&parent.decal_layer_index);
+            self.cast_shadows.try_inherit(&parent.cast_shadows);
+        }
     }
 }
 
@@ -904,7 +925,8 @@ impl TerrainBuilder {
                             .collect(),
                     }
                 })
-                .collect(),
+                .collect::<Vec<_>>()
+                .into(),
             chunks,
             bounding_box_dirty: Cell::new(true),
             bounding_box: Default::default(),
@@ -912,8 +934,8 @@ impl TerrainBuilder {
             height_map_resolution: self.height_map_resolution,
             width_chunks: self.width_chunks as u32,
             length_chunks: self.length_chunks as u32,
-            decal_layer_index: self.decal_layer_index,
-            cast_shadows: self.cast_shadows,
+            decal_layer_index: self.decal_layer_index.into(),
+            cast_shadows: self.cast_shadows.into(),
         };
 
         Node::Terrain(terrain)
