@@ -6,6 +6,8 @@
 - `ResourceManager::request_sound_buffer` now accepts only path to sound buffer.
 - Prefab inheritance improvements - now most of the properties of scene nodes are inheritable.
 - Access to simulation properties of the physics.
+- Engine and Resource manager are nonserializable anymore, check migration guide to find how to create
+save files in the correct way.
 - **WIP**
 
 ## Migration guide
@@ -78,6 +80,94 @@ graph
 ### Filters
 
 Effect input filters API remain unchanged.
+
+## Serialization
+
+Engine and ResourceManager both are non-serializable anymore. It changes approach of creating save files in games.
+Previously you used something like this (following code snippets are modified versions of `save_load` example):
+
+```rust
+const SAVE_FILE: &str = "save.bin";
+
+fn save(game: &mut Game) {
+    let mut visitor = Visitor::new();
+
+    game.engine.visit("Engine", visitor)?; // This no longer works
+    game.game_scene.visit("GameScene", visitor)?;
+    
+    visitor.save_binary(Path::new(SAVE_FILE)).unwrap();
+}
+
+fn load(game: &mut Game) {
+    if Path::new(SAVE_FILE).exists() {
+        if let Some(game_scene) = game.game_scene.take() {
+            game.engine.scenes.remove(game_scene.scene);
+        }
+
+        let mut visitor = block_on(Visitor::load_binary(SAVE_FILE)).unwrap();
+
+        game.engine.visit("Engine", visitor)?; // This no longer works
+        game.game_scene.visit("GameScene", visitor)?;
+    }
+}
+```
+
+However, on practice this approach could lead to some undesirable side effects. The main problem with the old 
+approach is that when you serialize the engine, it serializes all scenes you have. This fact is more or less
+ok if you have only one scene, but if you have two and more scenes (for example one for menu and one for 
+game level) it writes/reads redundant data. The second problem is that you cannot load saved games asynchronously
+using the old approach, because it takes mutable access of the engine and prevents you from off-threading work.
+
+The new approach is much more flexible and do not have such issues, instead of saving the entire state of the
+engine, you just save and load only what you actually need:
+
+```rust
+const SAVE_FILE: &str = "save.bin";
+
+fn save(game: &mut Game) {
+    if let Some(game_scene) = game.game_scene.as_mut() {
+        let mut visitor = Visitor::new();
+
+        // Serialize game scene first.
+        game.engine.scenes[game_scene.scene]
+            .save("Scene", &mut visitor)
+            .unwrap();
+        // Then serialize the game scene.
+        game_scene.visit("GameScene", &mut visitor).unwrap();
+
+        // And call save method to write everything to disk.
+        visitor.save_binary(Path::new(SAVE_FILE)).unwrap();
+    }
+}
+
+// Notice that load is now async.
+async fn load(game: &mut Game) {
+    // Try to load saved game.
+    if Path::new(SAVE_FILE).exists() {
+        // Remove current scene first.
+        if let Some(game_scene) = game.game_scene.take() {
+            game.engine.scenes.remove(game_scene.scene);
+        }
+
+        let mut visitor = Visitor::load_binary(SAVE_FILE).await.unwrap();
+
+        let scene = SceneLoader::load("Scene", &mut visitor)
+            .unwrap()
+            .finish(game.engine.resource_manager.clone())
+            .await;
+
+        let mut game_scene = GameScene::default();
+        game_scene.visit("GameScene", &mut visitor).unwrap();
+
+        game_scene.scene = game.engine.scenes.add(scene);
+        game.game_scene = Some(game_scene);
+    }
+}
+```
+
+As you can see in the new approach you save your scene and some level data, and on load - you load the scene, add
+it to the engine as usual and load level's data. The new approach is a bit more verbose, but it is much more 
+flexible.
 
 # 0.24
 
