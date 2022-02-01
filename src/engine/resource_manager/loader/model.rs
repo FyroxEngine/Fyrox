@@ -9,7 +9,9 @@ use crate::{
 use fyrox_resource::ResourceState;
 use std::{path::PathBuf, sync::Arc};
 
-pub struct ModelLoader;
+pub struct ModelLoader {
+    pub resource_manager: ResourceManager,
+}
 
 impl ResourceLoader<Model, ModelImportOptions> for ModelLoader {
     type Output = BoxedLoaderFuture;
@@ -19,8 +21,9 @@ impl ResourceLoader<Model, ModelImportOptions> for ModelLoader {
         model: Model,
         path: PathBuf,
         default_import_options: ModelImportOptions,
-        resource_manager: ResourceManager,
     ) -> Self::Output {
+        let resource_manager = self.resource_manager.clone();
+
         let fut = async move {
             let import_options = try_get_import_settings(&path)
                 .await

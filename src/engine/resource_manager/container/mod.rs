@@ -9,7 +9,6 @@ use crate::{
         loader::ResourceLoader,
         options::ImportOptions,
         task::TaskPool,
-        ResourceManager,
     },
     utils::log::{Log, MessageKind},
 };
@@ -189,7 +188,7 @@ where
     }
 
     /// Tries to load a resources at a given path.
-    pub fn request<P: AsRef<Path>>(&mut self, path: P, resource_manager: ResourceManager) -> T {
+    pub fn request<P: AsRef<Path>>(&mut self, path: P) -> T {
         let path_ref = path.as_ref();
 
         if let Some(existing) = self.find(path_ref) {
@@ -207,29 +206,24 @@ where
             resource,
             path_ref.to_owned(),
             self.default_import_options.clone(),
-            resource_manager,
         ));
 
         result
     }
 
     /// Reloads a single resource.
-    pub fn reload_resource(&mut self, resource: T, resource_manager: ResourceManager) {
+    pub fn reload_resource(&mut self, resource: T) {
         let path = resource.state().path().to_path_buf();
         let default_options = self.default_import_options.clone();
         *resource.state() = ResourceState::new_pending(path.clone());
 
-        self.task_pool.spawn_task(self.loader.load(
-            resource,
-            path,
-            default_options,
-            resource_manager,
-        ));
+        self.task_pool
+            .spawn_task(self.loader.load(resource, path, default_options));
     }
 
     /// Reloads all resources in the container. Returns a list of resources that will be reloaded.
     /// You can use the list to wait until all resources are loading.
-    pub fn reload_resources(&mut self, resource_manager: ResourceManager) -> Vec<T> {
+    pub fn reload_resources(&mut self) -> Vec<T> {
         let resources = self
             .resources
             .iter()
@@ -241,15 +235,19 @@ where
             let default_import_options = self.default_import_options.clone();
             if path != PathBuf::default() {
                 *resource.state() = ResourceState::new_pending(path.clone());
-                self.task_pool.spawn_task(self.loader.load(
-                    resource,
-                    path,
-                    default_import_options,
-                    resource_manager.clone(),
-                ));
+                self.task_pool
+                    .spawn_task(self.loader.load(resource, path, default_import_options));
             }
         }
 
         resources
+    }
+
+    /// Tries to restore resource by making an attempt to request resource with path from existing
+    /// resource instance. This method is used to restore "shallow" resources after scene
+    /// deserialization.
+    #[must_use = "method returns new resource instance"]
+    pub fn try_restore_resource(&mut self, resource: &T) -> T {
+        self.request(resource.state().path())
     }
 }

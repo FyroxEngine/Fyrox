@@ -1,6 +1,6 @@
 use crate::engine::resource_manager::loader::BoxedLoaderFuture;
 use crate::{
-    engine::resource_manager::{loader::ResourceLoader, ResourceManager},
+    engine::resource_manager::loader::ResourceLoader,
     resource::curve::{CurveImportOptions, CurveResource, CurveResourceState},
     utils::log::{Log, MessageKind},
 };
@@ -17,7 +17,6 @@ impl ResourceLoader<CurveResource, CurveImportOptions> for CurveLoader {
         curve: CurveResource,
         path: PathBuf,
         _default_import_options: CurveImportOptions,
-        _resource_manager: ResourceManager,
     ) -> Self::Output {
         let fut = async move {
             match CurveResourceState::from_file(&path).await {

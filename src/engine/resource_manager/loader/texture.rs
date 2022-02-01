@@ -1,16 +1,19 @@
-use crate::engine::resource_manager::loader::BoxedLoaderFuture;
 use crate::{
     asset::ResourceState,
     core::instant,
     engine::resource_manager::{
-        loader::ResourceLoader, options::try_get_import_settings, ResourceManager,
+        loader::{BoxedLoaderFuture, ResourceLoader},
+        options::try_get_import_settings,
     },
+    renderer::TextureUploadSender,
     resource::texture::{Texture, TextureData, TextureImportOptions},
     utils::log::{Log, MessageKind},
 };
 use std::{path::PathBuf, sync::Arc};
 
-pub struct TextureLoader;
+pub struct TextureLoader {
+    pub upload_sender: TextureUploadSender,
+}
 
 impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
     type Output = BoxedLoaderFuture;
@@ -20,11 +23,10 @@ impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
         texture: Texture,
         path: PathBuf,
         default_import_options: TextureImportOptions,
-        resource_manager: ResourceManager,
     ) -> Self::Output {
-        let fut = async move {
-            let upload_sender = resource_manager.state().upload_sender.clone().unwrap();
+        let upload_sender = self.upload_sender.clone();
 
+        let fut = async move {
             let import_options = try_get_import_settings(&path)
                 .await
                 .unwrap_or(default_import_options);

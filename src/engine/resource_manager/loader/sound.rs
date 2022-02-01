@@ -1,11 +1,9 @@
-use crate::engine::resource_manager::loader::BoxedLoaderFuture;
 use crate::{
     asset::ResourceState,
     core::inspect::{Inspect, PropertyInfo},
     engine::resource_manager::{
-        loader::ResourceLoader,
+        loader::{BoxedLoaderFuture, ResourceLoader},
         options::{try_get_import_settings, ImportOptions},
-        ResourceManager,
     },
     utils::log::{Log, MessageKind},
 };
@@ -34,7 +32,6 @@ impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBuff
         resource: SoundBufferResource,
         path: PathBuf,
         default_import_options: SoundBufferImportOptions,
-        _resource_manager: ResourceManager,
     ) -> Self::Output {
         let fut = async move {
             let import_options = try_get_import_settings(&path)

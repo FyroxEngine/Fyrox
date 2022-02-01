@@ -1,7 +1,10 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
 use crate::{
-    core::futures::future::join_all,
+    core::{
+        futures::future::join_all,
+        parking_lot::{Mutex, MutexGuard},
+    },
     engine::resource_manager::{
         container::ResourceContainer,
         loader::{
@@ -22,18 +25,15 @@ use crate::{
     },
 };
 use fyrox_sound::buffer::SoundBufferResource;
-use std::{
-    path::Path,
-    sync::{Arc, Mutex, MutexGuard},
-};
+use std::{path::Path, sync::Arc};
 
 pub mod container;
 mod loader;
 pub mod options;
 mod task;
 
-/// See module docs.
-pub struct ResourceManagerState {
+/// Storage of resource containers.
+pub struct ContainersStorage {
     /// Container for texture resources.
     pub textures: ResourceContainer<Texture, TextureImportOptions, TextureLoader>,
 
@@ -49,22 +49,11 @@ pub struct ResourceManagerState {
 
     /// Container for curve resources.
     pub curves: ResourceContainer<CurveResource, CurveImportOptions, CurveLoader>,
-
-    pub(in crate) upload_sender: Option<TextureUploadSender>,
 }
 
-impl Default for ResourceManagerState {
-    fn default() -> Self {
-        let task_pool = Arc::new(TaskPool::new());
-        Self {
-            textures: ResourceContainer::new(task_pool.clone(), TextureLoader),
-            models: ResourceContainer::new(task_pool.clone(), ModelLoader),
-            sound_buffers: ResourceContainer::new(task_pool.clone(), SoundBufferLoader),
-            shaders: ResourceContainer::new(task_pool.clone(), ShaderLoader),
-            curves: ResourceContainer::new(task_pool, CurveLoader),
-            upload_sender: None,
-        }
-    }
+/// See module docs.
+pub struct ResourceManagerState {
+    containers_storage: Option<ContainersStorage>,
 }
 
 /// See module docs.
@@ -95,14 +84,31 @@ impl From<TextureError> for TextureRegistrationError {
 
 impl ResourceManager {
     pub(in crate) fn new(upload_sender: TextureUploadSender) -> Self {
-        Self {
-            state: Arc::new(Mutex::new(ResourceManagerState::new(upload_sender))),
-        }
+        let resource_manager = Self {
+            state: Arc::new(Mutex::new(ResourceManagerState::new())),
+        };
+
+        let task_pool = Arc::new(TaskPool::new());
+
+        resource_manager.state().containers_storage = Some(ContainersStorage {
+            textures: ResourceContainer::new(task_pool.clone(), TextureLoader { upload_sender }),
+            models: ResourceContainer::new(
+                task_pool.clone(),
+                ModelLoader {
+                    resource_manager: resource_manager.clone(),
+                },
+            ),
+            sound_buffers: ResourceContainer::new(task_pool.clone(), SoundBufferLoader),
+            shaders: ResourceContainer::new(task_pool.clone(), ShaderLoader),
+            curves: ResourceContainer::new(task_pool, CurveLoader),
+        });
+
+        resource_manager
     }
 
     /// Returns a guarded reference to internal state of resource manager.
     pub fn state(&self) -> MutexGuard<'_, ResourceManagerState> {
-        self.state.lock().unwrap()
+        self.state.lock()
     }
 
     /// Tries to get actual version of the texture. This is a helper function that mainly used to
@@ -150,7 +156,7 @@ impl ResourceManager {
     /// To load images and decode them, Fyrox uses image create which supports following image formats: png, tga, bmp, dds,
     /// jpg, gif, tiff, dxt.
     pub fn request_texture<P: AsRef<Path>>(&self, path: P) -> Texture {
-        self.state().textures.request(path, self.clone())
+        self.state().containers_mut().textures.request(path)
     }
 
     /// Saves given texture in the specified path and registers it in resource manager, so
@@ -161,7 +167,7 @@ impl ResourceManager {
         path: P,
     ) -> Result<(), TextureRegistrationError> {
         let mut state = self.state();
-        if state.textures.find(path.as_ref()).is_some() {
+        if state.containers().textures.find(path.as_ref()).is_some() {
             Err(TextureRegistrationError::AlreadyRegistered)
         } else {
             let mut texture_state = texture.state();
@@ -172,7 +178,7 @@ impl ResourceManager {
                         Err(TextureRegistrationError::Texture(e))
                     } else {
                         std::mem::drop(texture_state);
-                        state.textures.push(texture);
+                        state.containers_mut().textures.push(texture);
                         Ok(())
                     }
                 }
@@ -196,7 +202,7 @@ impl ResourceManager {
     /// Currently only FBX (common format in game industry for storing complex 3d models)
     /// and RGS (native Fyroxed format) formats are supported.
     pub fn request_model<P: AsRef<Path>>(&self, path: P) -> Model {
-        self.state().models.request(path, self.clone())
+        self.state().containers_mut().models.request(path)
     }
 
     /// Tries to load new sound buffer from given path or get instance of existing, if any.
@@ -207,7 +213,7 @@ impl ResourceManager {
     ///
     /// Currently only WAV and OGG are supported.
     pub fn request_sound_buffer<P: AsRef<Path>>(&self, path: P) -> SoundBufferResource {
-        self.state().sound_buffers.request(path, self.clone())
+        self.state().containers_mut().sound_buffers.request(path)
     }
 
     /// Tries to load a new shader resource from given path or get instance of existing, if any.
@@ -218,7 +224,7 @@ impl ResourceManager {
     ///
     /// Each shader implements Future trait and can be used in async contexts.
     pub fn request_shader<P: AsRef<Path>>(&self, path: P) -> Shader {
-        self.state().shaders.request(path, self.clone())
+        self.state().containers_mut().shaders.request(path)
     }
 
     /// Tries to load a new curve resource from given path or get instance of existing, if any.
@@ -229,46 +235,53 @@ impl ResourceManager {
     ///
     /// Each shader implements Future trait and can be used in async contexts.
     pub fn request_curve_resource<P: AsRef<Path>>(&self, path: P) -> CurveResource {
-        self.state().curves.request(path, self.clone())
+        self.state().containers_mut().curves.request(path)
     }
 
     /// Reloads given texture, forces the engine to re-upload the texture to the GPU.
     pub fn reload_texture(&self, texture: Texture) {
-        self.state().textures.reload_resource(texture, self.clone());
+        self.state()
+            .containers_mut()
+            .textures
+            .reload_resource(texture);
     }
 
     /// Reloads every loaded texture. This method is asynchronous, internally it uses thread pool
     /// to run reload on separate thread per texture.
     pub async fn reload_textures(&self) {
-        let resources = self.state().textures.reload_resources(self.clone());
+        let resources = self.state().containers_mut().textures.reload_resources();
         join_all(resources).await;
     }
 
     /// Reloads every loaded model. This method is asynchronous, internally it uses thread pool
     /// to run reload on separate thread per model.
     pub async fn reload_models(&self) {
-        let resources = self.state().models.reload_resources(self.clone());
+        let resources = self.state().containers_mut().models.reload_resources();
         join_all(resources).await;
     }
 
     /// Reloads every loaded shader. This method is asynchronous, internally it uses thread pool
     /// to run reload on separate thread per shader.
     pub async fn reload_shaders(&self) {
-        let resources = self.state().shaders.reload_resources(self.clone());
+        let resources = self.state().containers_mut().shaders.reload_resources();
         join_all(resources).await;
     }
 
     /// Reloads every loaded curve resource. This method is asynchronous, internally it uses thread pool
     /// to run reload on separate thread per resource.
     pub async fn reload_curve_resources(&self) {
-        let resources = self.state().curves.reload_resources(self.clone());
+        let resources = self.state().containers_mut().curves.reload_resources();
         join_all(resources).await;
     }
 
     /// Reloads every loaded sound buffer. This method is asynchronous, internally it uses thread pool
     /// to run reload on separate thread per sound buffer.
     pub async fn reload_sound_buffers(&self) {
-        let resources = self.state().sound_buffers.reload_resources(self.clone());
+        let resources = self
+            .state()
+            .containers_mut()
+            .sound_buffers
+            .reload_resources();
         join_all(resources).await;
     }
 
@@ -287,43 +300,54 @@ impl ResourceManager {
 }
 
 impl ResourceManagerState {
-    pub(in crate::engine) fn new(upload_sender: TextureUploadSender) -> Self {
-        let task_pool = Arc::new(TaskPool::new());
+    pub(in crate::engine) fn new() -> Self {
         Self {
-            textures: ResourceContainer::new(task_pool.clone(), TextureLoader),
-            models: ResourceContainer::new(task_pool.clone(), ModelLoader),
-            sound_buffers: ResourceContainer::new(task_pool.clone(), SoundBufferLoader),
-            shaders: ResourceContainer::new(task_pool.clone(), ShaderLoader),
-            curves: ResourceContainer::new(task_pool, CurveLoader),
-            upload_sender: Some(upload_sender),
+            containers_storage: None,
         }
+    }
+
+    /// Returns a reference to resource containers storage.
+    pub fn containers(&self) -> &ContainersStorage {
+        self.containers_storage
+            .as_ref()
+            .expect("Corrupted resource manager!")
+    }
+
+    /// Returns a reference to resource containers storage.
+    pub fn containers_mut(&mut self) -> &mut ContainersStorage {
+        self.containers_storage
+            .as_mut()
+            .expect("Corrupted resource manager!")
     }
 
     /// Returns total amount of resources in pending state.
     pub fn count_pending_resources(&self) -> usize {
-        self.textures.count_pending_resources()
-            + self.sound_buffers.count_pending_resources()
-            + self.models.count_pending_resources()
-            + self.shaders.count_pending_resources()
-            + self.curves.count_pending_resources()
+        let containers = self.containers();
+        containers.textures.count_pending_resources()
+            + containers.sound_buffers.count_pending_resources()
+            + containers.models.count_pending_resources()
+            + containers.shaders.count_pending_resources()
+            + containers.curves.count_pending_resources()
     }
 
     /// Returns total amount of loaded resources.
     pub fn count_loaded_resources(&self) -> usize {
-        self.textures.count_loaded_resources()
-            + self.sound_buffers.count_loaded_resources()
-            + self.models.count_loaded_resources()
-            + self.shaders.count_loaded_resources()
-            + self.curves.count_loaded_resources()
+        let containers = self.containers();
+        containers.textures.count_loaded_resources()
+            + containers.sound_buffers.count_loaded_resources()
+            + containers.models.count_loaded_resources()
+            + containers.shaders.count_loaded_resources()
+            + containers.curves.count_loaded_resources()
     }
 
     /// Returns total amount of registered resources.
     pub fn count_registered_resources(&self) -> usize {
-        self.textures.len()
-            + self.sound_buffers.len()
-            + self.models.len()
-            + self.shaders.len()
-            + self.curves.len()
+        let containers = self.containers();
+        containers.textures.len()
+            + containers.sound_buffers.len()
+            + containers.models.len()
+            + containers.shaders.len()
+            + containers.curves.len()
     }
 
     /// Returns percentage of loading progress. This method is useful to show progress on
@@ -341,18 +365,20 @@ impl ResourceManagerState {
 
     /// Immediately destroys all unused resources.
     pub fn destroy_unused_resources(&mut self) {
-        self.sound_buffers.destroy_unused();
-        self.models.destroy_unused();
-        self.textures.destroy_unused();
-        self.shaders.destroy_unused();
-        self.curves.destroy_unused();
+        let containers = self.containers_mut();
+        containers.sound_buffers.destroy_unused();
+        containers.models.destroy_unused();
+        containers.textures.destroy_unused();
+        containers.shaders.destroy_unused();
+        containers.curves.destroy_unused();
     }
 
     pub(in crate) fn update(&mut self, dt: f32) {
-        self.textures.update(dt);
-        self.models.update(dt);
-        self.sound_buffers.update(dt);
-        self.shaders.update(dt);
-        self.curves.update(dt);
+        let containers = self.containers_mut();
+        containers.textures.update(dt);
+        containers.models.update(dt);
+        containers.sound_buffers.update(dt);
+        containers.shaders.update(dt);
+        containers.curves.update(dt);
     }
 }

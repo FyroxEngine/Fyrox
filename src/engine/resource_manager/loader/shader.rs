@@ -1,6 +1,6 @@
 use crate::engine::resource_manager::loader::BoxedLoaderFuture;
 use crate::{
-    engine::resource_manager::{loader::ResourceLoader, ResourceManager},
+    engine::resource_manager::loader::ResourceLoader,
     material::shader::{Shader, ShaderImportOptions, ShaderState},
     utils::log::{Log, MessageKind},
 };
@@ -17,7 +17,6 @@ impl ResourceLoader<Shader, ShaderImportOptions> for ShaderLoader {
         shader: Shader,
         path: PathBuf,
         _default_import_options: ShaderImportOptions,
-        _resource_manager: ResourceManager,
     ) -> Self::Output {
         let fut = async move {
             match ShaderState::from_file(&path).await {

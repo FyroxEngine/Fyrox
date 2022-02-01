@@ -1,4 +1,4 @@
-use crate::engine::resource_manager::{options::ImportOptions, ResourceManager};
+use crate::engine::resource_manager::options::ImportOptions;
 use std::pin::Pin;
 use std::{future::Future, path::PathBuf};
 
@@ -24,11 +24,5 @@ where
     #[cfg(not(target_arch = "wasm32"))]
     type Output: Future<Output = ()> + Send + 'static;
 
-    fn load(
-        &mut self,
-        resource: T,
-        path: PathBuf,
-        default_import_options: O,
-        resource_manager: ResourceManager,
-    ) -> Self::Output;
+    fn load(&mut self, resource: T, path: PathBuf, default_import_options: O) -> Self::Output;
 }
