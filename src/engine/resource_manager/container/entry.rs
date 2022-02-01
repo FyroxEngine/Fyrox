@@ -4,7 +4,6 @@
 //! The inner resource might still be in use (have a strong reference to it), the resource data
 //! will be deleted once no one uses the resource.
 
-use crate::core::visitor::prelude::*;
 use std::ops::{Deref, DerefMut};
 
 /// Lifetime of orphaned resource in seconds (with only one strong ref which is resource manager itself)
@@ -55,19 +54,5 @@ where
             value: self.value.clone(),
             time_to_live: self.time_to_live,
         }
-    }
-}
-
-impl<T> Visit for TimedEntry<T>
-where
-    T: Default + Visit,
-{
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.value.visit("Value", visitor)?;
-        self.time_to_live.visit("TimeToLive", visitor)?;
-
-        visitor.leave_region()
     }
 }

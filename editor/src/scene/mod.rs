@@ -1,5 +1,5 @@
-use crate::audio::EffectSelection;
 use crate::{
+    audio::EffectSelection,
     camera::CameraController,
     interaction::navmesh::{
         data_model::{Navmesh, NavmeshTriangle, NavmeshVertex},
@@ -13,7 +13,7 @@ use fyrox::{
     core::{
         math::TriangleDefinition,
         pool::{Handle, Pool},
-        visitor::{Visit, Visitor},
+        visitor::Visitor,
     },
     engine::Engine,
     scene::{base::BaseBuilder, node::Node, Scene},
@@ -135,7 +135,7 @@ impl EditorScene {
             }
 
             let mut visitor = Visitor::new();
-            pure_scene.visit("Scene", &mut visitor).unwrap();
+            pure_scene.save("Scene", &mut visitor).unwrap();
             if let Err(e) = visitor.save_binary(&path) {
                 Err(format!("Failed to save scene! Reason: {}", e))
             } else {

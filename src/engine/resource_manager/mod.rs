@@ -1,10 +1,7 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
 use crate::{
-    core::{
-        futures::future::join_all,
-        visitor::{Visit, VisitResult, Visitor},
-    },
+    core::futures::future::join_all,
     engine::resource_manager::{
         container::ResourceContainer,
         loader::{
@@ -71,9 +68,9 @@ impl Default for ResourceManagerState {
 }
 
 /// See module docs.
-#[derive(Clone, Visit)]
+#[derive(Clone)]
 pub struct ResourceManager {
-    state: Option<Arc<Mutex<ResourceManagerState>>>,
+    state: Arc<Mutex<ResourceManagerState>>,
 }
 
 /// An error that may occur during texture registration.
@@ -99,15 +96,13 @@ impl From<TextureError> for TextureRegistrationError {
 impl ResourceManager {
     pub(in crate) fn new(upload_sender: TextureUploadSender) -> Self {
         Self {
-            state: Some(Arc::new(Mutex::new(ResourceManagerState::new(
-                upload_sender,
-            )))),
+            state: Arc::new(Mutex::new(ResourceManagerState::new(upload_sender))),
         }
     }
 
     /// Returns a guarded reference to internal state of resource manager.
     pub fn state(&self) -> MutexGuard<'_, ResourceManagerState> {
-        self.state.as_ref().unwrap().lock().unwrap()
+        self.state.lock().unwrap()
     }
 
     /// Tries to get actual version of the texture. This is a helper function that mainly used to
@@ -359,25 +354,5 @@ impl ResourceManagerState {
         self.sound_buffers.update(dt);
         self.shaders.update(dt);
         self.curves.update(dt);
-    }
-}
-
-impl Visit for ResourceManagerState {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.textures.wait();
-        self.models.wait();
-        self.sound_buffers.wait();
-        self.shaders.wait();
-        self.curves.wait();
-
-        self.textures.visit("Textures", visitor)?;
-        self.models.visit("Models", visitor)?;
-        self.sound_buffers.visit("SoundBuffers", visitor)?;
-        self.shaders.visit("Shaders", visitor)?;
-        self.curves.visit("Curves", visitor)?;
-
-        visitor.leave_region()
     }
 }

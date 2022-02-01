@@ -18,6 +18,7 @@
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene, LocomotionMachine, Player};
+use fyrox::scene::SceneLoader;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -35,6 +36,7 @@ use fyrox::{
         translate_event,
     },
 };
+use fyrox_core::futures::executor::block_on;
 use std::path::Path;
 
 // Start implementing Visit trait for simple types which are used by more complex.
@@ -98,32 +100,46 @@ impl Visit for GameScene {
     }
 }
 
-// And finally implement Visit trait for the Game.
-impl Visit for Game {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        // As you can see entire state of the Fyrox engine saved in a single line.
-        self.engine.visit("Engine", visitor)?;
-
-        self.game_scene.visit("GameScene", visitor)?;
-        // self.load_context is intentionally not serialized - we abuse the fact that we can
-        // save **only** when scene was loaded, so no need to save context.
-
-        visitor.leave_region()
-    }
-}
-
 // For simplicity we'll be save (or load) game from hardcoded path.
 const SAVE_FILE: &str = "save.bin";
 
 fn save(game: &mut Game) {
-    // To save a game state all we need to do is to create new instance of Visitor
-    // and call visit on game instance.
-    let mut visitor = Visitor::new();
-    game.visit("Game", &mut visitor).unwrap();
-    // And call save method.
-    visitor.save_binary(Path::new(SAVE_FILE)).unwrap();
+    if let Some(game_scene) = game.game_scene.as_mut() {
+        let mut visitor = Visitor::new();
+
+        // Serialize game scene first.
+        game.engine.scenes[game_scene.scene]
+            .save("Scene", &mut visitor)
+            .unwrap();
+        // Then serialize the game scene.
+        game_scene.visit("GameScene", &mut visitor).unwrap();
+
+        // And call save method to write everything to disk.
+        visitor.save_binary(Path::new(SAVE_FILE)).unwrap();
+    }
+}
+
+async fn load(game: &mut Game) {
+    // Try to load saved game.
+    if Path::new(SAVE_FILE).exists() {
+        // Remove current scene first.
+        if let Some(game_scene) = game.game_scene.take() {
+            game.engine.scenes.remove(game_scene.scene);
+        }
+
+        let mut visitor = Visitor::load_binary(SAVE_FILE).await.unwrap();
+
+        let scene = SceneLoader::load("Scene", &mut visitor)
+            .unwrap()
+            .finish(game.engine.resource_manager.clone())
+            .await;
+
+        let mut game_scene = GameScene::default();
+        game_scene.visit("GameScene", &mut visitor).unwrap();
+
+        game_scene.scene = game.engine.scenes.add(scene);
+        game.game_scene = Some(game_scene);
+    }
 }
 
 fn main() {
@@ -303,13 +319,9 @@ fn main() {
                                 // Save/load bound to classic F5 and F9 keys.
                                 match code {
                                     VirtualKeyCode::F5 => save(&mut game),
-                                    VirtualKeyCode::F9 => {
-                                        if Path::new(SAVE_FILE).exists() {
-                                            // Loading a game is even simpler - just 2 lines.
-                                            let mut visitor = fyrox::core::futures::executor::block_on(Visitor::load_binary(SAVE_FILE)).unwrap();
-                                            game.visit("Game", &mut visitor).unwrap();
-                                        }
-                                    },
+                                    VirtualKeyCode::F9 =>
+                                        block_on(load(&mut game))
+                                    ,
                                     _ => ()
                                 };
                             }

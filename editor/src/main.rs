@@ -68,6 +68,8 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use fyrox::core::futures::executor::block_on;
+use fyrox::scene::SceneLoader;
 use fyrox::{
     core::{
         algebra::{Point3, Vector2},
@@ -687,8 +689,11 @@ impl Editor {
             .handle_ui_message(message, engine, self.message_sender.clone());
         self.command_stack_viewer.handle_ui_message(message);
         self.curve_editor.handle_ui_message(message, engine);
-        self.path_fixer
-            .handle_ui_message(message, &mut engine.user_interface);
+        self.path_fixer.handle_ui_message(
+            message,
+            &mut engine.user_interface,
+            engine.resource_manager.clone(),
+        );
 
         if let Some(editor_scene) = self.scene.as_mut() {
             self.audio_panel
@@ -1205,14 +1210,11 @@ impl Editor {
                     }
                 }
                 Message::LoadScene(scene_path) => {
-                    let result = {
-                        fyrox::core::futures::executor::block_on(Scene::from_file(
-                            &scene_path,
-                            engine.resource_manager.clone(),
-                        ))
-                    };
+                    let result = { block_on(SceneLoader::from_file(&scene_path)) };
                     match result {
-                        Ok(scene) => {
+                        Ok(loader) => {
+                            let scene = block_on(loader.finish(engine.resource_manager.clone()));
+
                             self.set_scene(engine, scene, Some(scene_path));
                         }
                         Err(e) => {

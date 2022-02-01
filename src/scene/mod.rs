@@ -51,6 +51,7 @@ use crate::{
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::FxHashMap;
+use fyrox_core::futures::future::join_all;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
@@ -219,40 +220,36 @@ impl Display for PerformanceStatistics {
     }
 }
 
-impl Scene {
-    /// Creates new scene with single root node.
-    ///
-    /// # Notes
-    ///
-    /// This method differs from Default trait implementation! Scene::default() creates
-    /// empty graph with no nodes.
-    #[inline]
-    pub fn new() -> Self {
-        Self {
-            // Graph must be created with `new` method because it differs from `default`
-            graph: Graph::new(),
-            animations: Default::default(),
-            render_target: None,
-            lightmap: None,
-            drawing_context: Default::default(),
-            navmeshes: Default::default(),
-            performance_statistics: Default::default(),
-            ambient_lighting_color: Color::opaque(100, 100, 100),
-            enabled: true,
-        }
-    }
+/// Scene loader.
+pub struct SceneLoader {
+    scene: Scene,
+}
 
+impl SceneLoader {
     /// Tries to load scene from given file. File can contain any scene in native engine format.
     /// Such scenes can be made in rusty editor.
-    pub async fn from_file<P: AsRef<Path>>(
-        path: P,
-        resource_manager: ResourceManager,
-    ) -> Result<Self, VisitError> {
-        let mut scene = Scene::default();
-        {
-            let mut visitor = Visitor::load_binary(path.as_ref()).await?;
-            scene.visit("Scene", &mut visitor)?;
+    pub async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, VisitError> {
+        let mut visitor = Visitor::load_binary(path).await?;
+        Self::load("Scene", &mut visitor)
+    }
+
+    /// Tries to load a scene using specified visitor and region name.
+    pub fn load(region_name: &str, visitor: &mut Visitor) -> Result<Self, VisitError> {
+        if !visitor.is_reading() {
+            return Err(VisitError::User(
+                "Visitor must be in read mode!".to_string(),
+            ));
         }
+
+        let mut scene = Scene::default();
+        scene.visit(region_name, visitor)?;
+
+        Ok(Self { scene })
+    }
+
+    /// Finishes scene loading.
+    pub async fn finish(self, resource_manager: ResourceManager) -> Scene {
+        let mut scene = self.scene;
 
         // Collect all model resources and wait for them. This step is crucial, because
         // later on resolve stage we'll extensively access parent resources to inherit
@@ -268,7 +265,7 @@ impl Scene {
             }
         }
 
-        let _ = crate::core::futures::future::join_all(resources).await;
+        let _ = join_all(resources).await;
 
         // Restore pointers to resources. Scene saves only paths to resources, here we must
         // find real resources instead.
@@ -295,12 +292,45 @@ impl Scene {
                 }
             }
         }
-        crate::core::futures::future::join_all(skybox_textures).await;
+        join_all(skybox_textures).await;
+
+        let mut animation_resources = Vec::new();
+        for animation in scene.animations.iter_mut() {
+            animation.restore_resources(resource_manager.clone());
+            if let Some(resource) = animation.resource.as_ref() {
+                animation_resources.push(resource.clone());
+            }
+        }
+        join_all(animation_resources).await;
 
         // And do resolve to extract correct graphical data and so on.
         scene.resolve();
 
-        Ok(scene)
+        scene
+    }
+}
+
+impl Scene {
+    /// Creates new scene with single root node.
+    ///
+    /// # Notes
+    ///
+    /// This method differs from Default trait implementation! Scene::default() creates
+    /// empty graph with no nodes.
+    #[inline]
+    pub fn new() -> Self {
+        Self {
+            // Graph must be created with `new` method because it differs from `default`
+            graph: Graph::new(),
+            animations: Default::default(),
+            render_target: None,
+            lightmap: None,
+            drawing_context: Default::default(),
+            navmeshes: Default::default(),
+            performance_statistics: Default::default(),
+            ambient_lighting_color: Color::opaque(100, 100, 100),
+            enabled: true,
+        }
     }
 
     /// Removes node from scene with all associated entities, like animations etc. This method
@@ -517,11 +547,10 @@ impl Scene {
             old_new_map,
         )
     }
-}
 
-impl Visit for Scene {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+    fn visit(&mut self, region_name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(region_name)?;
+
         self.graph.visit("Graph", visitor)?;
         self.animations.visit("Animations", visitor)?;
         self.lightmap.visit("Lightmap", visitor)?;
@@ -529,7 +558,21 @@ impl Visit for Scene {
         self.ambient_lighting_color
             .visit("AmbientLightingColor", visitor)?;
         self.enabled.visit("Enabled", visitor)?;
+
         visitor.leave_region()
+    }
+
+    /// Saves scene in a specified file.
+    pub fn save(&self, region_name: &str, visitor: &mut Visitor) -> VisitResult {
+        if visitor.is_reading() {
+            return Err(VisitError::User(
+                "Visitor must be in write mode!".to_string(),
+            ));
+        }
+
+        // SAFETY: The check above guarantees that visitor won't mutate values during saving.
+        let this = unsafe { &mut *(self as *const Self as *mut Self) };
+        this.visit(region_name, visitor)
     }
 }
 
@@ -627,16 +670,5 @@ impl IndexMut<Handle<Scene>> for SceneContainer {
     #[inline]
     fn index_mut(&mut self, index: Handle<Scene>) -> &mut Self::Output {
         &mut self.pool[index]
-    }
-}
-
-impl Visit for SceneContainer {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.pool.visit("Pool", visitor)?;
-        self.sound_engine.visit("SoundEngine", visitor)?;
-
-        visitor.leave_region()
     }
 }

@@ -1,5 +1,6 @@
 pub mod machine;
 
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     asset::ResourceState,
     core::{
@@ -640,54 +641,75 @@ impl Animation {
         None
     }
 
+    pub(in crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        if let Some(resource) = self.resource.as_mut() {
+            let new_resource = resource_manager.request_model(resource.state().path());
+            *resource = new_resource;
+        }
+    }
+
     pub(in crate) fn resolve(&mut self, graph: &Graph) {
         // Copy key frames from resource for each animation. This is needed because we
         // do not store key frames in save file, but just keep reference to resource
         // from which key frames should be taken on load.
         if let Some(resource) = self.resource.clone() {
             let resource = resource.state();
-            if let ResourceState::Ok(ref data) = *resource {
-                // TODO: Here we assume that resource contains only *one* animation.
-                if let Some(ref_animation) = data.get_scene().animations.pool.at(0) {
-                    for track in self.get_tracks_mut() {
-                        // This may panic if animation has track that refers to a deleted node,
-                        // it can happen if you deleted a node but forgot to remove animation
-                        // that uses this node.
-                        let track_node = &graph[track.get_node()];
+            match *resource {
+                ResourceState::Ok(ref data) => {
+                    // TODO: Here we assume that resource contains only *one* animation.
+                    if let Some(ref_animation) = data.get_scene().animations.pool.at(0) {
+                        for track in self.get_tracks_mut() {
+                            // This may panic if animation has track that refers to a deleted node,
+                            // it can happen if you deleted a node but forgot to remove animation
+                            // that uses this node.
+                            let track_node = &graph[track.get_node()];
 
-                        // Find corresponding track in resource using names of nodes, not
-                        // original handles of instantiated nodes. We can't use original
-                        // handles here because animation can be targeted to a node that
-                        // wasn't instantiated from animation resource. It can be instantiated
-                        // from some other resource. For example you have a character with
-                        // multiple animations. Character "lives" in its own file without animations
-                        // but with skin. Each animation "lives" in its own file too, then
-                        // you did animation retargeting from animation resource to your character
-                        // instantiated model, which is essentially copies key frames to new
-                        // animation targeted to character instance.
-                        let mut found = false;
-                        for ref_track in ref_animation.get_tracks().iter() {
-                            if track_node.name()
-                                == data.get_scene().graph[ref_track.get_node()].name()
-                            {
-                                track.set_key_frames(ref_track.get_key_frames());
-                                found = true;
-                                break;
+                            // Find corresponding track in resource using names of nodes, not
+                            // original handles of instantiated nodes. We can't use original
+                            // handles here because animation can be targeted to a node that
+                            // wasn't instantiated from animation resource. It can be instantiated
+                            // from some other resource. For example you have a character with
+                            // multiple animations. Character "lives" in its own file without animations
+                            // but with skin. Each animation "lives" in its own file too, then
+                            // you did animation retargeting from animation resource to your character
+                            // instantiated model, which is essentially copies key frames to new
+                            // animation targeted to character instance.
+                            let mut found = false;
+                            for ref_track in ref_animation.get_tracks().iter() {
+                                if track_node.name()
+                                    == data.get_scene().graph[ref_track.get_node()].name()
+                                {
+                                    track.set_key_frames(ref_track.get_key_frames());
+                                    found = true;
+                                    break;
+                                }
                             }
-                        }
-                        if !found {
-                            Log::write(
-                                MessageKind::Error,
-                                format!(
-                                    "Failed to copy key frames for node {}!",
-                                    track_node.name()
-                                ),
-                            );
+                            if !found {
+                                Log::write(
+                                    MessageKind::Error,
+                                    format!(
+                                        "Failed to copy key frames for node {}!",
+                                        track_node.name()
+                                    ),
+                                );
+                            }
                         }
                     }
                 }
-            } else {
-                unreachable!()
+                ResourceState::LoadError {
+                    ref path,
+                    ref error,
+                } => Log::err(format!(
+                    "Unable to restore animation key frames from {} resource. Reason: {:?}",
+                    path.display(),
+                    error
+                )),
+                ResourceState::Pending { ref path, .. } => {
+                    panic!(
+                        "Animation resource {} must be fully loaded before resolving!",
+                        path.display()
+                    )
+                }
             }
         }
     }

@@ -5,12 +5,9 @@ use crate::{make_scene_file_filter, Message};
 use fyrox::{
     asset::ResourceData,
     core::{
-        color::Color,
-        futures::executor::block_on,
-        pool::Handle,
-        replace_slashes,
-        visitor::{Visit, Visitor},
+        color::Color, futures::executor::block_on, pool::Handle, replace_slashes, visitor::Visitor,
     },
+    engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -30,7 +27,7 @@ use fyrox::{
     },
     material::PropertyValue,
     resource::{model::Model, texture::Texture},
-    scene::{light::Light, node::Node, Scene},
+    scene::{light::Light, node::Node, Scene, SceneLoader},
 };
 use std::{
     collections::HashSet,
@@ -300,178 +297,199 @@ impl PathFixer {
         ));
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        ui: &mut UserInterface,
+        resource_manager: ResourceManager,
+    ) {
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.scene_selector {
-                let mut scene = Scene::default();
                 let message;
                 match block_on(Visitor::load_binary(path)) {
                     Ok(mut visitor) => {
-                        if let Err(e) = scene.visit("Scene", &mut visitor) {
-                            message =
-                                format!("Failed to load a scene {}\nReason: {}", path.display(), e);
-                        } else {
-                            // Gather resources.
-
-                            // Use hash map to remove duplicates.
-                            let mut scene_resources = HashSet::new();
-
-                            for node in scene.graph.linear_iter() {
-                                if let Some(model) = node.resource() {
-                                    scene_resources.insert(SceneResource::Model(model));
-                                }
-
-                                match node {
-                                    Node::Light(light) => {
-                                        if let Light::Spot(spot) = light {
-                                            if let Some(texture) = spot.cookie_texture() {
-                                                scene_resources.insert(SceneResource::Texture(
-                                                    texture.clone(),
-                                                ));
-                                            }
-                                        }
-                                    }
-                                    Node::Camera(camera) => {
-                                        if let Some(skybox) = camera.skybox_ref() {
-                                            for texture in skybox.textures().iter().flatten() {
-                                                scene_resources.insert(SceneResource::Texture(
-                                                    texture.clone(),
-                                                ));
-                                            }
-                                        }
-                                    }
-                                    Node::Mesh(mesh) => {
-                                        for surface in mesh.surfaces() {
-                                            for texture in surface
-                                                .material()
-                                                .lock()
-                                                .properties()
-                                                .values()
-                                                .filter_map(|v| {
-                                                    if let PropertyValue::Sampler {
-                                                        value, ..
-                                                    } = v
-                                                    {
-                                                        value.clone()
-                                                    } else {
-                                                        None
-                                                    }
-                                                })
-                                            {
-                                                scene_resources.insert(SceneResource::Texture(
-                                                    texture.clone(),
-                                                ));
-                                            }
-                                        }
-                                    }
-                                    Node::Sprite(sprite) => {
-                                        if let Some(texture) = sprite.texture() {
-                                            scene_resources.insert(SceneResource::Texture(texture));
-                                        }
-                                    }
-                                    Node::Decal(decal) => {
-                                        if let Some(texture) = decal.diffuse_texture() {
-                                            scene_resources
-                                                .insert(SceneResource::Texture(texture.clone()));
-                                        }
-                                        if let Some(texture) = decal.normal_texture() {
-                                            scene_resources
-                                                .insert(SceneResource::Texture(texture.clone()));
-                                        }
-                                    }
-                                    Node::ParticleSystem(particle_system) => {
-                                        if let Some(texture) = particle_system.texture() {
-                                            scene_resources.insert(SceneResource::Texture(texture));
-                                        }
-                                    }
-                                    Node::Terrain(terrain) => {
-                                        for layer in terrain.layers() {
-                                            for texture in layer
-                                                .material
-                                                .lock()
-                                                .properties()
-                                                .values()
-                                                .filter_map(|v| {
-                                                    if let PropertyValue::Sampler {
-                                                        value, ..
-                                                    } = v
-                                                    {
-                                                        value.clone()
-                                                    } else {
-                                                        None
-                                                    }
-                                                })
-                                            {
-                                                scene_resources.insert(SceneResource::Texture(
-                                                    texture.clone(),
-                                                ));
-                                            }
-                                        }
-                                    }
-                                    Node::Rectangle(sprite) => {
-                                        if let Some(texture) = sprite.texture() {
-                                            scene_resources
-                                                .insert(SceneResource::Texture(texture.clone()));
-                                        }
-                                    }
-                                    Node::Sound(_) => {
-                                        // TODO
-                                    }
-                                    Node::Base(_)
-                                    | Node::RigidBody(_)
-                                    | Node::Collider(_)
-                                    | Node::Joint(_)
-                                    | Node::RigidBody2D(_)
-                                    | Node::Collider2D(_)
-                                    | Node::Joint2D(_)
-                                    | Node::Listener(_) => {
-                                        // Nothing
-                                    }
-                                }
+                        match SceneLoader::load("Scene", &mut visitor) {
+                            Err(e) => {
+                                message = format!(
+                                    "Failed to load a scene {}\nReason: {}",
+                                    path.display(),
+                                    e
+                                );
                             }
+                            Ok(loader) => {
+                                let scene = block_on(loader.finish(resource_manager));
 
-                            // Turn hash map into vec to be able to index it.
-                            self.orphaned_scene_resources = scene_resources
-                                .into_iter()
-                                .filter(|r| !r.path().exists())
-                                .collect::<Vec<_>>();
+                                // Gather resources.
 
-                            let ctx = &mut ui.build_ctx();
-                            let items = self
-                                .orphaned_scene_resources
-                                .iter()
-                                .map(|r| {
-                                    DecoratorBuilder::new(BorderBuilder::new(
-                                        WidgetBuilder::new().with_height(22.0).with_child(
-                                            TextBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_margin(Thickness::uniform(1.0))
-                                                    .with_foreground(Brush::Solid(Color::RED)),
-                                            )
-                                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                                            .with_text(&r.path().to_string_lossy())
-                                            .build(ctx),
-                                        ),
-                                    ))
-                                    .build(ctx)
-                                })
-                                .collect::<Vec<_>>();
+                                // Use hash map to remove duplicates.
+                                let mut scene_resources = HashSet::new();
 
-                            ui.send_message(ListViewMessage::items(
-                                self.resources_list,
-                                MessageDirection::ToWidget,
-                                items,
-                            ));
-                            ui.send_message(ListViewMessage::selection(
-                                self.resources_list,
-                                MessageDirection::ToWidget,
-                                None,
-                            ));
+                                for node in scene.graph.linear_iter() {
+                                    if let Some(model) = node.resource() {
+                                        scene_resources.insert(SceneResource::Model(model));
+                                    }
 
-                            self.scene = Some(scene);
-                            self.scene_path_value = path.clone();
+                                    match node {
+                                        Node::Light(light) => {
+                                            if let Light::Spot(spot) = light {
+                                                if let Some(texture) = spot.cookie_texture() {
+                                                    scene_resources.insert(SceneResource::Texture(
+                                                        texture.clone(),
+                                                    ));
+                                                }
+                                            }
+                                        }
+                                        Node::Camera(camera) => {
+                                            if let Some(skybox) = camera.skybox_ref() {
+                                                for texture in skybox.textures().iter().flatten() {
+                                                    scene_resources.insert(SceneResource::Texture(
+                                                        texture.clone(),
+                                                    ));
+                                                }
+                                            }
+                                        }
+                                        Node::Mesh(mesh) => {
+                                            for surface in mesh.surfaces() {
+                                                for texture in surface
+                                                    .material()
+                                                    .lock()
+                                                    .properties()
+                                                    .values()
+                                                    .filter_map(|v| {
+                                                        if let PropertyValue::Sampler {
+                                                            value,
+                                                            ..
+                                                        } = v
+                                                        {
+                                                            value.clone()
+                                                        } else {
+                                                            None
+                                                        }
+                                                    })
+                                                {
+                                                    scene_resources.insert(SceneResource::Texture(
+                                                        texture.clone(),
+                                                    ));
+                                                }
+                                            }
+                                        }
+                                        Node::Sprite(sprite) => {
+                                            if let Some(texture) = sprite.texture() {
+                                                scene_resources
+                                                    .insert(SceneResource::Texture(texture));
+                                            }
+                                        }
+                                        Node::Decal(decal) => {
+                                            if let Some(texture) = decal.diffuse_texture() {
+                                                scene_resources.insert(SceneResource::Texture(
+                                                    texture.clone(),
+                                                ));
+                                            }
+                                            if let Some(texture) = decal.normal_texture() {
+                                                scene_resources.insert(SceneResource::Texture(
+                                                    texture.clone(),
+                                                ));
+                                            }
+                                        }
+                                        Node::ParticleSystem(particle_system) => {
+                                            if let Some(texture) = particle_system.texture() {
+                                                scene_resources
+                                                    .insert(SceneResource::Texture(texture));
+                                            }
+                                        }
+                                        Node::Terrain(terrain) => {
+                                            for layer in terrain.layers() {
+                                                for texture in layer
+                                                    .material
+                                                    .lock()
+                                                    .properties()
+                                                    .values()
+                                                    .filter_map(|v| {
+                                                        if let PropertyValue::Sampler {
+                                                            value,
+                                                            ..
+                                                        } = v
+                                                        {
+                                                            value.clone()
+                                                        } else {
+                                                            None
+                                                        }
+                                                    })
+                                                {
+                                                    scene_resources.insert(SceneResource::Texture(
+                                                        texture.clone(),
+                                                    ));
+                                                }
+                                            }
+                                        }
+                                        Node::Rectangle(sprite) => {
+                                            if let Some(texture) = sprite.texture() {
+                                                scene_resources.insert(SceneResource::Texture(
+                                                    texture.clone(),
+                                                ));
+                                            }
+                                        }
+                                        Node::Sound(_) => {
+                                            // TODO
+                                        }
+                                        Node::Base(_)
+                                        | Node::RigidBody(_)
+                                        | Node::Collider(_)
+                                        | Node::Joint(_)
+                                        | Node::RigidBody2D(_)
+                                        | Node::Collider2D(_)
+                                        | Node::Joint2D(_)
+                                        | Node::Listener(_) => {
+                                            // Nothing
+                                        }
+                                    }
+                                }
 
-                            message = format!("Scene: {}", path.display());
+                                // Turn hash map into vec to be able to index it.
+                                self.orphaned_scene_resources = scene_resources
+                                    .into_iter()
+                                    .filter(|r| !r.path().exists())
+                                    .collect::<Vec<_>>();
+
+                                let ctx = &mut ui.build_ctx();
+                                let items = self
+                                    .orphaned_scene_resources
+                                    .iter()
+                                    .map(|r| {
+                                        DecoratorBuilder::new(BorderBuilder::new(
+                                            WidgetBuilder::new().with_height(22.0).with_child(
+                                                TextBuilder::new(
+                                                    WidgetBuilder::new()
+                                                        .with_margin(Thickness::uniform(1.0))
+                                                        .with_foreground(Brush::Solid(Color::RED)),
+                                                )
+                                                .with_vertical_text_alignment(
+                                                    VerticalAlignment::Center,
+                                                )
+                                                .with_text(&r.path().to_string_lossy())
+                                                .build(ctx),
+                                            ),
+                                        ))
+                                        .build(ctx)
+                                    })
+                                    .collect::<Vec<_>>();
+
+                                ui.send_message(ListViewMessage::items(
+                                    self.resources_list,
+                                    MessageDirection::ToWidget,
+                                    items,
+                                ));
+                                ui.send_message(ListViewMessage::selection(
+                                    self.resources_list,
+                                    MessageDirection::ToWidget,
+                                    None,
+                                ));
+
+                                self.scene = Some(scene);
+                                self.scene_path_value = path.clone();
+
+                                message = format!("Scene: {}", path.display());
+                            }
                         }
                     }
                     Err(e) => {
@@ -508,10 +526,10 @@ impl PathFixer {
                     MessageDirection::ToWidget,
                 ));
 
-                if let Some(mut scene) = self.scene.take() {
+                if let Some(scene) = self.scene.take() {
                     let mut visitor = Visitor::new();
                     scene
-                        .visit("Scene", &mut visitor)
+                        .save("Scene", &mut visitor)
                         .expect("Unable to visit a scene!");
                     visitor
                         .save_binary(&self.scene_path_value)

@@ -246,38 +246,6 @@ impl Engine {
     }
 }
 
-impl Visit for Engine {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        if visitor.is_reading() {
-            self.renderer.flush();
-            self.resource_manager.state().update(0.0);
-            self.scenes.clear();
-            self.sound_engine.lock().unwrap().remove_all_contexts();
-        }
-
-        self.resource_manager.visit("ResourceManager", visitor)?;
-        self.scenes.visit("Scenes", visitor)?;
-
-        if visitor.is_reading() {
-            self.resource_manager.state().upload_sender = Some(self.renderer.upload_sender());
-
-            crate::core::futures::executor::block_on(self.resource_manager.reload_resources());
-            for scene in self.scenes.iter_mut() {
-                self.sound_engine
-                    .lock()
-                    .unwrap()
-                    .add_context(scene.graph.sound_context.native.clone());
-
-                scene.resolve();
-            }
-        }
-
-        visitor.leave_region()
-    }
-}
-
 /// Physics binder is used to link graph nodes with rigid bodies. Scene will
 /// sync transform of node with its associated rigid body.
 #[derive(Clone, Debug)]

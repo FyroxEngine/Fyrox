@@ -17,6 +17,7 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native Fyroxed format) formats are supported.
+use crate::scene::SceneLoader;
 use crate::{
     animation::Animation,
     asset::{define_new_resource, Resource, ResourceData},
@@ -372,7 +373,10 @@ impl ModelData {
             // Scene can be used directly as model resource. Such scenes can be created in
             // Fyroxed.
             "rgs" => (
-                Scene::from_file(path.as_ref(), resource_manager).await?,
+                SceneLoader::from_file(path.as_ref())
+                    .await?
+                    .finish(resource_manager)
+                    .await,
                 NodeMapping::UseHandles,
             ),
             // TODO: Add more formats.

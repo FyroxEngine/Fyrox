@@ -3,7 +3,7 @@
 
 use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
-    core::{visitor::prelude::*, VecExtensions},
+    core::VecExtensions,
     engine::resource_manager::{
         container::entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
         loader::ResourceLoader,
@@ -26,18 +26,14 @@ pub mod entry;
 /// track resources life time and remove unused timed-out resources. It also provides useful
 /// methods to search resources, count loaded or pending, wait until all resources are loading,
 /// etc.
-#[derive(Visit)]
 pub struct ResourceContainer<T, O, L>
 where
     O: ImportOptions,
     L: ResourceLoader<T, O>,
 {
     resources: Vec<TimedEntry<T>>,
-    #[visit(skip)]
     default_import_options: O,
-    #[visit(skip)]
     task_pool: Arc<TaskPool>,
-    #[visit(skip)]
     loader: L,
 }
 
