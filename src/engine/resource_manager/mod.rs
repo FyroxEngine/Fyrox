@@ -137,7 +137,7 @@ impl ResourceManager {
     ///
     /// Usually there is no need to change this file manually, it can be modified from the editor using the Asset Browser.
     /// When there is no import options file, the engine will use texture import options defined in the resource manager.
-    /// See [set_textures_import_options](ResourceManagerState::set_textures_import_options) for more info.
+    /// See [set_default_import_options](ResourceContainer::set_default_import_options) for more info.
     ///
     /// # Async/.await
     ///
