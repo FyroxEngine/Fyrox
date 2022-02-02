@@ -1,6 +1,6 @@
-use crate::{asset::item::AssetItem, inspector::EditorEnvironment, make_relative_path};
+use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
 use fyrox::{
-    asset::core::pool::Handle,
+    core::{make_relative_path, pool::Handle},
     engine::resource_manager::ResourceManager,
     gui::{
         define_constructor,

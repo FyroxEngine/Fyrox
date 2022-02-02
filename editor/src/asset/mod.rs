@@ -7,12 +7,13 @@ use crate::{
         item::AssetItemBuilder,
     },
     gui::AssetItemMessage,
-    make_relative_path,
     preview::PreviewPanel,
     AssetItem, AssetKind, GameEngine, Message,
 };
 use fyrox::{
-    core::{color::Color, futures::executor::block_on, pool::Handle, scope_profile},
+    core::{
+        color::Color, futures::executor::block_on, make_relative_path, pool::Handle, scope_profile,
+    },
     gui::{
         border::BorderBuilder,
         brush::Brush,

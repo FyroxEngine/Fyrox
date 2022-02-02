@@ -68,12 +68,12 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::core::futures::executor::block_on;
-use fyrox::scene::SceneLoader;
 use fyrox::{
     core::{
         algebra::{Point3, Vector2},
         color::Color,
+        futures::executor::block_on,
+        make_relative_path,
         math::aabb::AxisAlignedBoundingBox,
         parking_lot::Mutex,
         pool::{ErasedHandle, Handle},
@@ -81,6 +81,7 @@ use fyrox::{
         sstorage::ImmutableString,
     },
     dpi::LogicalSize,
+    engine::resource_manager::watcher::ResourceWatcher,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -109,12 +110,12 @@ use fyrox::{
             Mesh,
         },
         node::Node,
-        Scene,
+        Scene, SceneLoader,
     },
     utils::{into_gui_texture, log::MessageKind, translate_cursor_icon, translate_event},
 };
-use std::any::TypeId;
 use std::{
+    any::TypeId,
     fs,
     io::Write,
     path::{Path, PathBuf},
@@ -123,7 +124,7 @@ use std::{
         mpsc::{self, Receiver, Sender},
         Arc,
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 pub const MSG_SYNC_FLAG: u64 = 1;
@@ -223,19 +224,6 @@ pub fn create_terrain_layer_material() -> Arc<Mutex<Material>> {
         )
         .unwrap();
     Arc::new(Mutex::new(material))
-}
-
-pub fn make_relative_path<P: AsRef<Path>>(path: P) -> PathBuf {
-    // Strip working directory from file name.
-    let relative_path = path
-        .as_ref()
-        .canonicalize()
-        .unwrap()
-        .strip_prefix(std::env::current_dir().unwrap().canonicalize().unwrap())
-        .unwrap()
-        .to_owned();
-
-    fyrox::core::replace_slashes(relative_path)
 }
 
 #[derive(Debug)]
@@ -1275,6 +1263,20 @@ impl Editor {
                     engine
                         .get_window()
                         .set_title(&format!("Fyroxed: {}", working_directory.to_string_lossy()));
+
+                    match ResourceWatcher::new(&working_directory, Duration::from_secs(1)) {
+                        Ok(watcher) => {
+                            engine.resource_manager.state().set_watcher(Some(watcher));
+                        }
+                        Err(e) => {
+                            self.message_sender
+                                .send(Message::Log(format!(
+                                    "Unable to create resource watcher. Reason {:?}",
+                                    e
+                                )))
+                                .unwrap();
+                        }
+                    }
 
                     engine.resource_manager.state().destroy_unused_resources();
 

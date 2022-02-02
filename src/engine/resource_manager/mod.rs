@@ -3,6 +3,7 @@
 use crate::{
     core::{
         futures::future::join_all,
+        make_relative_path,
         parking_lot::{Mutex, MutexGuard},
     },
     engine::resource_manager::{
@@ -15,6 +16,7 @@ use crate::{
             texture::TextureLoader,
         },
         task::TaskPool,
+        watcher::ResourceWatcher,
     },
     material::shader::{Shader, ShaderImportOptions},
     renderer::TextureUploadSender,
@@ -25,12 +27,14 @@ use crate::{
     },
 };
 use fyrox_sound::buffer::SoundBufferResource;
+use notify::DebouncedEvent;
 use std::{path::Path, sync::Arc};
 
 pub mod container;
 mod loader;
 pub mod options;
 mod task;
+pub mod watcher;
 
 /// Storage of resource containers.
 pub struct ContainersStorage {
@@ -54,6 +58,7 @@ pub struct ContainersStorage {
 /// See module docs.
 pub struct ResourceManagerState {
     containers_storage: Option<ContainersStorage>,
+    watcher: Option<ResourceWatcher>,
 }
 
 /// See module docs.
@@ -287,7 +292,16 @@ impl ResourceManagerState {
     pub(in crate::engine) fn new() -> Self {
         Self {
             containers_storage: None,
+            watcher: None,
         }
+    }
+
+    /// Sets resource watcher which will track any modifications in file system and forcing
+    /// the manager to reload changed resources. By default there is no watcher, since it
+    /// may be an undesired effect to reload resources at runtime. This is very useful thing
+    /// for fast iterative development.
+    pub fn set_watcher(&mut self, watcher: Option<ResourceWatcher>) {
+        self.watcher = watcher;
     }
 
     /// Returns a reference to resource containers storage.
@@ -364,5 +378,20 @@ impl ResourceManagerState {
         containers.sound_buffers.update(dt);
         containers.shaders.update(dt);
         containers.curves.update(dt);
+
+        if let Some(watcher) = self.watcher.as_ref() {
+            if let Some(fs_event) = watcher.try_get_event() {
+                let containers = self.containers_mut();
+                match fs_event {
+                    DebouncedEvent::NoticeWrite(path) => {
+                        let relative_path = make_relative_path(path);
+                        if let Some(resource) = containers.textures.find(relative_path).cloned() {
+                            containers.textures.reload_resource(resource);
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
     }
 }

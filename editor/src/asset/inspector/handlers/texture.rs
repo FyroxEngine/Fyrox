@@ -29,11 +29,12 @@ impl ImportOptionsHandler for TextureImportOptionsHandler {
         self.options
             .save(&append_extension(&self.resource_path, "options"));
 
+        let texture = resource_manager.request_texture(&self.resource_path);
         resource_manager
             .state()
             .containers_mut()
             .textures
-            .reload_resource(resource_manager.request_texture(&self.resource_path));
+            .reload_resource(texture);
     }
 
     fn revert(&mut self) {

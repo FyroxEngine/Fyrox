@@ -1,7 +1,6 @@
 use crate::{
     asset::item::AssetItem,
     gui::make_dropdown_list_option,
-    make_relative_path,
     preview::PreviewPanel,
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, GameEngine, Message,
@@ -10,6 +9,7 @@ use fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
         futures::executor::block_on,
+        make_relative_path,
         parking_lot::Mutex,
         pool::Handle,
         sstorage::ImmutableString,

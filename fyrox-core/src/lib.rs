@@ -328,3 +328,16 @@ pub fn hash_combine(lhs: u64, rhs: u64) -> u64 {
         .wrapping_add(lhs << 6)
         .wrapping_add(lhs >> 2))
 }
+
+/// Strip working directory from file name.
+pub fn make_relative_path<P: AsRef<Path>>(path: P) -> PathBuf {
+    let relative_path = path
+        .as_ref()
+        .canonicalize()
+        .unwrap()
+        .strip_prefix(std::env::current_dir().unwrap().canonicalize().unwrap())
+        .unwrap()
+        .to_owned();
+
+    replace_slashes(relative_path)
+}

@@ -1,7 +1,7 @@
-use crate::{asset::item::AssetItem, inspector::EditorEnvironment, load_image, make_relative_path};
+use crate::{asset::item::AssetItem, inspector::EditorEnvironment, load_image};
 use fyrox::{
     asset::{Resource, ResourceData, ResourceLoadError},
-    core::{futures::executor::block_on, pool::Handle},
+    core::{futures::executor::block_on, make_relative_path, pool::Handle},
     engine::resource_manager::ResourceManager,
     gui::{
         define_constructor,
