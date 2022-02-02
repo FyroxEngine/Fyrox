@@ -8,24 +8,16 @@ pub mod framework;
 pub mod resource_manager;
 
 use crate::{
-    core::{
-        algebra::Vector2,
-        instant,
-        pool::Handle,
-        visitor::{Visit, VisitResult, Visitor},
-    },
+    core::{algebra::Vector2, instant},
     engine::{error::EngineError, resource_manager::ResourceManager},
     event_loop::EventLoop,
     gui::UserInterface,
     renderer::{framework::error::FrameworkError, Renderer},
     resource::texture::TextureKind,
-    scene::sound::SoundEngine,
-    scene::SceneContainer,
+    scene::{sound::SoundEngine, SceneContainer},
     window::{Window, WindowBuilder},
 };
-use fxhash::FxHashMap;
 use std::{
-    hash::Hash,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -243,119 +235,5 @@ impl Engine {
     /// Returns master gain of the sound engine.
     pub fn sound_gain(&self) -> f32 {
         self.sound_engine.lock().unwrap().master_gain()
-    }
-}
-
-/// Physics binder is used to link graph nodes with rigid bodies. Scene will
-/// sync transform of node with its associated rigid body.
-#[derive(Clone, Debug)]
-pub struct PhysicsBinder<N, BH> {
-    /// Mapping Node -> RigidBody.
-    forward_map: FxHashMap<Handle<N>, BH>,
-
-    backward_map: FxHashMap<BH, Handle<N>>,
-
-    /// Whether binder is enabled or not. If binder is disabled, it won't synchronize
-    /// node's transform with body's transform.
-    pub enabled: bool,
-}
-
-impl<N, BH> Default for PhysicsBinder<N, BH> {
-    fn default() -> Self {
-        Self {
-            forward_map: Default::default(),
-            backward_map: Default::default(),
-            enabled: true,
-        }
-    }
-}
-
-impl<N, BH> PhysicsBinder<N, BH>
-where
-    BH: Visit + Copy + Clone + Hash + Eq,
-{
-    /// Links given graph node with specified rigid body. Returns old linked body.
-    pub fn bind(&mut self, node: Handle<N>, rigid_body: BH) -> Option<BH> {
-        let old_body = self.forward_map.insert(node, rigid_body);
-        self.backward_map.insert(rigid_body, node);
-        old_body
-    }
-
-    /// Unlinks given graph node from its associated rigid body (if any).
-    pub fn unbind(&mut self, node: Handle<N>) -> Option<BH> {
-        if let Some(body_handle) = self.forward_map.remove(&node) {
-            self.backward_map.remove(&body_handle);
-            Some(body_handle)
-        } else {
-            None
-        }
-    }
-
-    /// Unlinks given body from a node that is linked with the body.
-    pub fn unbind_by_body(&mut self, body: BH) -> Handle<N> {
-        if let Some(node) = self.backward_map.get(&body) {
-            self.forward_map.remove(node);
-            *node
-        } else {
-            Handle::NONE
-        }
-    }
-
-    /// Returns handle of rigid body associated with given node. It will return
-    /// Handle::NONE if given node isn't linked to a rigid body.
-    pub fn body_of(&self, node: Handle<N>) -> Option<&BH> {
-        self.forward_map.get(&node)
-    }
-
-    /// Tries to find a node for a given rigid body.
-    pub fn node_of(&self, body: BH) -> Option<Handle<N>> {
-        self.backward_map.get(&body).copied()
-    }
-
-    /// Removes all bindings.
-    pub fn clear(&mut self) {
-        self.forward_map.clear();
-        self.backward_map.clear();
-    }
-
-    /// Returns a shared reference to inner forward mapping.
-    pub fn forward_map(&self) -> &FxHashMap<Handle<N>, BH> {
-        &self.forward_map
-    }
-
-    /// Returns a shared reference to inner backward mapping.
-    pub fn backward_map(&self) -> &FxHashMap<BH, Handle<N>> {
-        &self.backward_map
-    }
-
-    /// Retains only the elements specified by the predicate.
-    pub fn retain<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&Handle<N>, &mut BH) -> bool,
-    {
-        self.backward_map.retain(|node, handle| {
-            let mut n = *node;
-            f(handle, &mut n)
-        });
-        self.forward_map.retain(f);
-    }
-}
-
-impl<N, BH> Visit for PhysicsBinder<N, BH>
-where
-    BH: Visit + Copy + Clone + Hash + Eq + Default,
-{
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.forward_map.visit("Map", visitor)?;
-        if self.backward_map.visit("RevMap", visitor).is_err() {
-            for (&n, &b) in self.forward_map.iter() {
-                self.backward_map.insert(b, n);
-            }
-        }
-        self.enabled.visit("Enabled", visitor)?;
-
-        visitor.leave_region()
     }
 }
