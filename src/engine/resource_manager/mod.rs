@@ -230,14 +230,6 @@ impl ResourceManager {
         self.state().containers_mut().curves.request(path)
     }
 
-    /// Reloads given texture, forces the engine to re-upload the texture to the GPU.
-    pub fn reload_texture(&self, texture: Texture) {
-        self.state()
-            .containers_mut()
-            .textures
-            .reload_resource(texture);
-    }
-
     /// Reloads every loaded texture. This method is asynchronous, internally it uses thread pool
     /// to run reload on separate thread per texture.
     pub async fn reload_textures(&self) {
