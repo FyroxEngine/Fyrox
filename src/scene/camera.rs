@@ -576,15 +576,17 @@ impl Camera {
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.set_environment(resource_manager.map_texture(self.environment_map()));
+        let mut state = resource_manager.state();
+        let texture_container = &mut state.containers_mut().textures;
+        texture_container.try_restore_template_resource(&mut self.environment);
 
         if let Some(skybox) = self.skybox_mut() {
-            skybox.bottom = resource_manager.map_texture(skybox.bottom.clone());
-            skybox.top = resource_manager.map_texture(skybox.top.clone());
-            skybox.left = resource_manager.map_texture(skybox.left.clone());
-            skybox.right = resource_manager.map_texture(skybox.right.clone());
-            skybox.front = resource_manager.map_texture(skybox.front.clone());
-            skybox.back = resource_manager.map_texture(skybox.back.clone());
+            texture_container.try_restore_optional_resource(&mut skybox.bottom);
+            texture_container.try_restore_optional_resource(&mut skybox.top);
+            texture_container.try_restore_optional_resource(&mut skybox.left);
+            texture_container.try_restore_optional_resource(&mut skybox.right);
+            texture_container.try_restore_optional_resource(&mut skybox.front);
+            texture_container.try_restore_optional_resource(&mut skybox.back);
         }
     }
 

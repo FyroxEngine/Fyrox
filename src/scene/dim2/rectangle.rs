@@ -71,8 +71,11 @@ impl Rectangle {
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.texture
-            .set_silent(resource_manager.map_texture(self.texture_value()));
+        resource_manager
+            .state()
+            .containers_mut()
+            .textures
+            .try_restore_template_resource(&mut self.texture);
     }
 
     // Prefab inheritance resolving.

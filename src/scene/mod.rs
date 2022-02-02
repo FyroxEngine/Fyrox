@@ -276,7 +276,11 @@ impl SceneLoader {
         if let Some(lightmap) = scene.lightmap.as_mut() {
             for entries in lightmap.map.values_mut() {
                 for entry in entries.iter_mut() {
-                    entry.texture = resource_manager.map_texture(entry.texture.clone());
+                    resource_manager
+                        .state()
+                        .containers_mut()
+                        .textures
+                        .try_restore_optional_resource(&mut entry.texture);
                 }
             }
         }

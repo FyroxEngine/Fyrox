@@ -1,6 +1,7 @@
 //! Resource container. It manages resource lifetime, allows you to load, re-load, wait, count
 //! resources.
 
+use crate::scene::variable::TemplateVariable;
 use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
     core::VecExtensions,
@@ -245,9 +246,32 @@ where
 
     /// Tries to restore resource by making an attempt to request resource with path from existing
     /// resource instance. This method is used to restore "shallow" resources after scene
+    /// deserialization.    
+    pub fn try_restore_resource(&mut self, resource: &mut T) {
+        let new_resource = self.request(resource.state().path());
+        *resource = new_resource;
+    }
+
+    /// Tries to restore resource by making an attempt to request resource with path from existing
+    /// resource instance. This method is used to restore "shallow" resources after scene
     /// deserialization.
-    #[must_use = "method returns new resource instance"]
-    pub fn try_restore_resource(&mut self, resource: &T) -> T {
-        self.request(resource.state().path())
+    pub fn try_restore_optional_resource(&mut self, resource: &mut Option<T>) {
+        if let Some(shallow_resource) = resource.as_mut() {
+            let new_resource = self.request(shallow_resource.state().path());
+            *shallow_resource = new_resource;
+        }
+    }
+
+    /// Tries to restore resource by making an attempt to request resource with path from existing
+    /// resource instance. This method is used to restore "shallow" resources after scene
+    /// deserialization.
+    pub fn try_restore_template_resource(
+        &mut self,
+        template_resource: &mut TemplateVariable<Option<T>>,
+    ) {
+        if let Some(shallow_resource) = template_resource.get_mut_silent().as_mut() {
+            let new_resource = self.request(shallow_resource.state().path());
+            *shallow_resource = new_resource;
+        }
     }
 }

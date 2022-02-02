@@ -416,7 +416,9 @@ impl ParticleSystem {
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.set_texture(resource_manager.map_texture(self.texture()));
+        let mut state = resource_manager.state();
+        let texture_container = &mut state.containers_mut().textures;
+        texture_container.try_restore_template_resource(&mut self.texture);
     }
 
     // Prefab inheritance resolving.

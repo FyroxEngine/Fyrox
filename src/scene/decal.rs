@@ -193,10 +193,10 @@ impl Decal {
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.diffuse_texture
-            .set_silent(resource_manager.map_texture(self.diffuse_texture_value()));
-        self.normal_texture
-            .set_silent(resource_manager.map_texture(self.normal_texture_value()));
+        let mut state = resource_manager.state();
+        let texture_container = &mut state.containers_mut().textures;
+        texture_container.try_restore_template_resource(&mut self.diffuse_texture);
+        texture_container.try_restore_template_resource(&mut self.normal_texture);
     }
 
     // Prefab inheritance resolving.
