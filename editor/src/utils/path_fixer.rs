@@ -526,7 +526,7 @@ impl PathFixer {
                     MessageDirection::ToWidget,
                 ));
 
-                if let Some(scene) = self.scene.take() {
+                if let Some(mut scene) = self.scene.take() {
                     let mut visitor = Visitor::new();
                     scene
                         .save("Scene", &mut visitor)

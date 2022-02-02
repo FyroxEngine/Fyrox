@@ -23,6 +23,7 @@ impl GameState for Game {
         engine
             .resource_manager
             .state()
+            .containers_mut()
             .textures
             .set_default_import_options(
                 TextureImportOptions::default().with_compression(CompressionOptions::Quality),

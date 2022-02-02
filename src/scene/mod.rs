@@ -567,16 +567,14 @@ impl Scene {
     }
 
     /// Saves scene in a specified file.
-    pub fn save(&self, region_name: &str, visitor: &mut Visitor) -> VisitResult {
+    pub fn save(&mut self, region_name: &str, visitor: &mut Visitor) -> VisitResult {
         if visitor.is_reading() {
             return Err(VisitError::User(
                 "Visitor must be in write mode!".to_string(),
             ));
         }
 
-        // SAFETY: The check above guarantees that visitor won't mutate values during saving.
-        let this = unsafe { &mut *(self as *const Self as *mut Self) };
-        this.visit(region_name, visitor)
+        self.visit(region_name, visitor)
     }
 }
 

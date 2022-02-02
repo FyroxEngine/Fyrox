@@ -14,7 +14,7 @@ use fyrox::{
         color::Color,
         futures,
         pool::Handle,
-        visitor::{Visit, Visitor},
+        visitor::Visitor,
     },
     engine::{resource_manager::ResourceManager, Engine},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
@@ -30,7 +30,7 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
-    scene::{node::Node, Scene},
+    scene::{node::Node, Scene, SceneLoader},
     utils::{
         lightmap::{CancellationToken, Lightmap, ProgressIndicator, ProgressStage},
         log::{Log, MessageKind},
@@ -254,15 +254,17 @@ fn create_scene_async(
                     }
 
                     let mut visitor = Visitor::new();
-                    scene.visit("Scene", &mut visitor).unwrap();
+                    scene.save("Scene", &mut visitor).unwrap();
                     visitor.save_binary(LIGHTMAP_SCENE_PATH).unwrap();
 
                     context.lock().unwrap().data = Some(GameScene { scene, root });
                 }
             } else {
-                let scene = Scene::from_file(LIGHTMAP_SCENE_PATH, resource_manager)
+                let scene = SceneLoader::from_file(LIGHTMAP_SCENE_PATH)
                     .await
-                    .unwrap();
+                    .unwrap()
+                    .finish(resource_manager)
+                    .await;
                 let root = scene.graph[scene.graph.get_root()].children()[0];
 
                 context.lock().unwrap().data = Some(GameScene { scene, root });
