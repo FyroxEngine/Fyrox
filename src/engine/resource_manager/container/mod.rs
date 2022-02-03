@@ -1,7 +1,6 @@
 //! Resource container. It manages resource lifetime, allows you to load, re-load, wait, count
 //! resources.
 
-use crate::scene::variable::TemplateVariable;
 use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
     core::VecExtensions,
@@ -11,6 +10,7 @@ use crate::{
         options::ImportOptions,
         task::TaskPool,
     },
+    scene::variable::TemplateVariable,
     utils::log::{Log, MessageKind},
 };
 use std::{
@@ -21,6 +21,10 @@ use std::{
 };
 
 pub mod entry;
+
+pub(crate) trait Container {
+    fn try_reload_resource_from_path(&mut self, path: &Path) -> bool;
+}
 
 /// Generic container for any resource in the engine. Main purpose of the container is to
 /// track resources life time and remove unused timed-out resources. It also provides useful
@@ -272,6 +276,24 @@ where
         if let Some(shallow_resource) = template_resource.get_mut_silent().as_mut() {
             let new_resource = self.request(shallow_resource.state().path());
             *shallow_resource = new_resource;
+        }
+    }
+}
+
+impl<T, R, E, O, L> Container for ResourceContainer<T, O, L>
+where
+    T: Deref<Target = Resource<R, E>> + Clone + Send + Future + From<Resource<R, E>>,
+    R: ResourceData,
+    E: ResourceLoadError,
+    O: ImportOptions,
+    L: ResourceLoader<T, O>,
+{
+    fn try_reload_resource_from_path(&mut self, path: &Path) -> bool {
+        if let Some(resource) = self.find(path).cloned() {
+            self.reload_resource(resource);
+            true
+        } else {
+            false
         }
     }
 }

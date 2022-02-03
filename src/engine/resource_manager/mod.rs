@@ -7,7 +7,7 @@ use crate::{
         parking_lot::{Mutex, MutexGuard},
     },
     engine::resource_manager::{
-        container::ResourceContainer,
+        container::{Container, ResourceContainer},
         loader::{
             curve::CurveLoader,
             model::ModelLoader,
@@ -381,15 +381,20 @@ impl ResourceManagerState {
 
         if let Some(watcher) = self.watcher.as_ref() {
             if let Some(fs_event) = watcher.try_get_event() {
-                let containers = self.containers_mut();
-                match fs_event {
-                    DebouncedEvent::NoticeWrite(path) => {
-                        let relative_path = make_relative_path(path);
-                        if let Some(resource) = containers.textures.find(relative_path).cloned() {
-                            containers.textures.reload_resource(resource);
+                if let DebouncedEvent::NoticeWrite(path) = fs_event {
+                    let relative_path = make_relative_path(path);
+                    let containers = self.containers_mut();
+                    for container in [
+                        &mut containers.textures as &mut dyn Container,
+                        &mut containers.models as &mut dyn Container,
+                        &mut containers.sound_buffers as &mut dyn Container,
+                        &mut containers.shaders as &mut dyn Container,
+                        &mut containers.curves as &mut dyn Container,
+                    ] {
+                        if container.try_reload_resource_from_path(&relative_path) {
+                            break;
                         }
                     }
-                    _ => (),
                 }
             }
         }
