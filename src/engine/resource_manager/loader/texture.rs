@@ -2,18 +2,16 @@ use crate::{
     asset::ResourceState,
     core::instant,
     engine::resource_manager::{
+        container::event::{ResourceEvent, ResourceEventBroadcaster},
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::try_get_import_settings,
     },
-    renderer::TextureUploadSender,
     resource::texture::{Texture, TextureData, TextureImportOptions},
     utils::log::{Log, MessageKind},
 };
 use std::{path::PathBuf, sync::Arc};
 
-pub struct TextureLoader {
-    pub upload_sender: TextureUploadSender,
-}
+pub struct TextureLoader;
 
 impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
     type Output = BoxedLoaderFuture;
@@ -23,9 +21,8 @@ impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
         texture: Texture,
         path: PathBuf,
         default_import_options: TextureImportOptions,
+        event_broadcaster: ResourceEventBroadcaster<Texture>,
     ) -> Self::Output {
-        let upload_sender = self.upload_sender.clone();
-
         let fut = async move {
             let import_options = try_get_import_settings(&path)
                 .await
@@ -50,8 +47,7 @@ impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
 
                     texture.state().commit(ResourceState::Ok(raw_texture));
 
-                    // Ask renderer to upload texture to GPU.
-                    upload_sender.request_upload(texture);
+                    event_broadcaster.broadcast(ResourceEvent::Loaded(texture));
                 }
                 Err(error) => {
                     Log::writeln(

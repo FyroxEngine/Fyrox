@@ -1,12 +1,14 @@
-use crate::engine::resource_manager::loader::BoxedLoaderFuture;
 use crate::{
+    asset::ResourceState,
     engine::resource_manager::{
-        loader::ResourceLoader, options::try_get_import_settings, ResourceManager,
+        container::event::{ResourceEvent, ResourceEventBroadcaster},
+        loader::{BoxedLoaderFuture, ResourceLoader},
+        options::try_get_import_settings,
+        ResourceManager,
     },
     resource::model::{Model, ModelData, ModelImportOptions},
     utils::log::{Log, MessageKind},
 };
-use fyrox_resource::ResourceState;
 use std::{path::PathBuf, sync::Arc};
 
 pub struct ModelLoader {
@@ -21,6 +23,7 @@ impl ResourceLoader<Model, ModelImportOptions> for ModelLoader {
         model: Model,
         path: PathBuf,
         default_import_options: ModelImportOptions,
+        event_broadcaster: ResourceEventBroadcaster<Model>,
     ) -> Self::Output {
         let resource_manager = self.resource_manager.clone();
 
@@ -37,6 +40,8 @@ impl ResourceLoader<Model, ModelImportOptions> for ModelLoader {
                     );
 
                     model.state().commit(ResourceState::Ok(raw_model));
+
+                    event_broadcaster.broadcast(ResourceEvent::Loaded(model));
                 }
                 Err(error) => {
                     Log::writeln(

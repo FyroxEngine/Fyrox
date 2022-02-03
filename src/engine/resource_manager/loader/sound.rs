@@ -2,6 +2,7 @@ use crate::{
     asset::ResourceState,
     core::inspect::{Inspect, PropertyInfo},
     engine::resource_manager::{
+        container::event::{ResourceEvent, ResourceEventBroadcaster},
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::{try_get_import_settings, ImportOptions},
     },
@@ -32,6 +33,7 @@ impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBuff
         resource: SoundBufferResource,
         path: PathBuf,
         default_import_options: SoundBufferImportOptions,
+        event_broadcaster: ResourceEventBroadcaster<SoundBufferResource>,
     ) -> Self::Output {
         let fut = async move {
             let import_options = try_get_import_settings(&path)
@@ -53,6 +55,8 @@ impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBuff
                             );
 
                             resource.state().commit(ResourceState::Ok(sound_buffer));
+
+                            event_broadcaster.broadcast(ResourceEvent::Loaded(resource));
                         }
                         Err(_) => {
                             Log::writeln(

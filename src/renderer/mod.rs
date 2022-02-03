@@ -33,9 +33,6 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
-use crate::renderer::framework::geometry_buffer::GeometryBufferKind;
-use crate::renderer::framework::gpu_program::BuiltInUniform;
-use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -45,21 +42,21 @@ use crate::{
         pool::Handle,
         scope_profile,
     },
+    engine::resource_manager::{container::event::ResourceEvent, ResourceManager},
     gui::{draw::DrawingContext, UserInterface},
     material::{shader::SamplerFallback, Material, PropertyValue},
     renderer::{
         batch::BatchStorage,
         bloom::BloomRenderer,
-        cache::shader::ShaderCache,
-        cache::{geometry::GeometryCache, texture::TextureCache, CacheEntry},
+        cache::{geometry::GeometryCache, shader::ShaderCache, texture::TextureCache, CacheEntry},
         debug_renderer::DebugRenderer,
         flat_shader::FlatShader,
         forward_renderer::{ForwardRenderContext, ForwardRenderer},
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
-            geometry_buffer::{DrawCallStatistics, GeometryBuffer},
-            gpu_program::GpuProgramBinding,
+            geometry_buffer::{DrawCallStatistics, GeometryBuffer, GeometryBufferKind},
+            gpu_program::{BuiltInUniform, GpuProgramBinding},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
@@ -77,6 +74,7 @@ use crate::{
     },
     resource::texture::{Texture, TextureKind},
     scene::{camera::Camera, mesh::surface::SurfaceData, node::Node, Scene, SceneContainer},
+    utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -85,10 +83,7 @@ use std::{
     collections::hash_map::Entry,
     fmt::{Display, Formatter},
     rc::Rc,
-    sync::{
-        mpsc::{Receiver, Sender},
-        Arc, Mutex,
-    },
+    sync::{mpsc::Receiver, Arc, Mutex},
 };
 
 /// Renderer statistics for one frame, also includes current frames per second
@@ -465,21 +460,6 @@ impl Default for Statistics {
     }
 }
 
-/// A sending point for textures that should be uploaded to GPU memory.
-#[derive(Clone, Debug)]
-pub struct TextureUploadSender {
-    sender: Sender<Texture>,
-}
-
-impl TextureUploadSender {
-    /// Requests an upload of the texture to GPU memory.
-    pub fn request_upload(&self, texture: Texture) {
-        self.sender
-            .send(texture)
-            .expect("Texture upload receiver must be alive while renderer is alive")
-    }
-}
-
 struct AssociatedSceneData {
     /// G-Buffer of the scene.
     pub gbuffer: GBuffer,
@@ -690,8 +670,7 @@ pub struct Renderer {
     forward_renderer: ForwardRenderer,
     fxaa_renderer: FxaaRenderer,
     renderer2d: Renderer2d,
-    texture_upload_receiver: Receiver<Texture>,
-    texture_upload_sender: Sender<Texture>,
+    texture_event_receiver: Receiver<ResourceEvent<Texture>>,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: FxHashMap<usize, FrameBuffer>,
@@ -1010,10 +989,18 @@ impl Renderer {
     pub(in crate) fn new(
         context: glow::Context,
         frame_size: (u32, u32),
+        resource_manager: &ResourceManager,
     ) -> Result<Self, FrameworkError> {
         let settings = QualitySettings::default();
 
-        let (texture_upload_sender, texture_upload_receiver) = std::sync::mpsc::channel();
+        let (texture_upload_sender, texture_event_receiver) = std::sync::mpsc::channel();
+
+        resource_manager
+            .state()
+            .containers_mut()
+            .textures
+            .event_broadcaster
+            .add(texture_upload_sender);
 
         // Box pipeline state because we'll store pointers to it inside framework's entities and
         // it must have constant address.
@@ -1111,8 +1098,7 @@ impl Renderer {
             fxaa_renderer: FxaaRenderer::new(&mut state)?,
             statistics: Statistics::default(),
             renderer2d: Renderer2d::new(&mut state)?,
-            texture_upload_receiver,
-            texture_upload_sender,
+            texture_event_receiver,
             state,
             shader_cache: ShaderCache::default(),
             scene_render_passes: Default::default(),
@@ -1142,12 +1128,6 @@ impl Renderer {
     /// Returns a reference to current pipeline state.
     pub fn pipeline_state(&mut self) -> &mut PipelineState {
         &mut self.state
-    }
-
-    pub(in crate) fn upload_sender(&self) -> TextureUploadSender {
-        TextureUploadSender {
-            sender: self.texture_upload_sender.clone(),
-        }
     }
 
     /// Sets new frame size. You should call the same method on [`crate::engine::Engine`]
@@ -1281,19 +1261,21 @@ impl Renderer {
         const THROUGHPUT: usize = 5;
 
         let mut uploaded = 0;
-        while let Ok(texture) = self.texture_upload_receiver.try_recv() {
-            match self.texture_cache.upload(&mut self.state, &texture) {
-                Ok(_) => {
-                    uploaded += 1;
-                    if uploaded >= THROUGHPUT {
-                        break;
+        while let Ok(event) = self.texture_event_receiver.try_recv() {
+            if let ResourceEvent::Loaded(texture) = event {
+                match self.texture_cache.upload(&mut self.state, &texture) {
+                    Ok(_) => {
+                        uploaded += 1;
+                        if uploaded >= THROUGHPUT {
+                            break;
+                        }
                     }
-                }
-                Err(e) => {
-                    Log::writeln(
-                        MessageKind::Error,
-                        format!("Failed to upload texture to GPU. Reason: {:?}", e),
-                    );
+                    Err(e) => {
+                        Log::writeln(
+                            MessageKind::Error,
+                            format!("Failed to upload texture to GPU. Reason: {:?}", e),
+                        );
+                    }
                 }
             }
         }

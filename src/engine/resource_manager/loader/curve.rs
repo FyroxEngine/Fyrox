@@ -1,10 +1,12 @@
-use crate::engine::resource_manager::loader::BoxedLoaderFuture;
 use crate::{
-    engine::resource_manager::loader::ResourceLoader,
+    asset::ResourceState,
+    engine::resource_manager::{
+        container::event::{ResourceEvent, ResourceEventBroadcaster},
+        loader::{BoxedLoaderFuture, ResourceLoader},
+    },
     resource::curve::{CurveImportOptions, CurveResource, CurveResourceState},
     utils::log::{Log, MessageKind},
 };
-use fyrox_resource::ResourceState;
 use std::{path::PathBuf, sync::Arc};
 
 pub struct CurveLoader;
@@ -17,6 +19,7 @@ impl ResourceLoader<CurveResource, CurveImportOptions> for CurveLoader {
         curve: CurveResource,
         path: PathBuf,
         _default_import_options: CurveImportOptions,
+        event_broadcaster: ResourceEventBroadcaster<CurveResource>,
     ) -> Self::Output {
         let fut = async move {
             match CurveResourceState::from_file(&path).await {
@@ -27,6 +30,8 @@ impl ResourceLoader<CurveResource, CurveImportOptions> for CurveLoader {
                     );
 
                     curve.state().commit(ResourceState::Ok(curve_state));
+
+                    event_broadcaster.broadcast(ResourceEvent::Loaded(curve));
                 }
                 Err(error) => {
                     Log::writeln(

@@ -1,3 +1,4 @@
+use crate::engine::resource_manager::container::event::ResourceEventBroadcaster;
 use crate::engine::resource_manager::options::ImportOptions;
 use std::pin::Pin;
 use std::{future::Future, path::PathBuf};
@@ -16,6 +17,7 @@ pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 pub trait ResourceLoader<T, O>
 where
+    T: Clone,
     O: ImportOptions,
 {
     #[cfg(target_arch = "wasm32")]
@@ -24,5 +26,11 @@ where
     #[cfg(not(target_arch = "wasm32"))]
     type Output: Future<Output = ()> + Send + 'static;
 
-    fn load(&mut self, resource: T, path: PathBuf, default_import_options: O) -> Self::Output;
+    fn load(
+        &mut self,
+        resource: T,
+        path: PathBuf,
+        default_import_options: O,
+        event_broadcaster: ResourceEventBroadcaster<T>,
+    ) -> Self::Output;
 }

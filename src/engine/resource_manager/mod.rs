@@ -19,7 +19,6 @@ use crate::{
         watcher::ResourceWatcher,
     },
     material::shader::{Shader, ShaderImportOptions},
-    renderer::TextureUploadSender,
     resource::{
         curve::{CurveImportOptions, CurveResource},
         model::{Model, ModelImportOptions},
@@ -88,7 +87,7 @@ impl From<TextureError> for TextureRegistrationError {
 }
 
 impl ResourceManager {
-    pub(in crate) fn new(upload_sender: TextureUploadSender) -> Self {
+    pub(in crate) fn new() -> Self {
         let resource_manager = Self {
             state: Arc::new(Mutex::new(ResourceManagerState::new())),
         };
@@ -96,7 +95,7 @@ impl ResourceManager {
         let task_pool = Arc::new(TaskPool::new());
 
         resource_manager.state().containers_storage = Some(ContainersStorage {
-            textures: ResourceContainer::new(task_pool.clone(), TextureLoader { upload_sender }),
+            textures: ResourceContainer::new(task_pool.clone(), TextureLoader),
             models: ResourceContainer::new(
                 task_pool.clone(),
                 ModelLoader {
@@ -380,20 +379,18 @@ impl ResourceManagerState {
         containers.curves.update(dt);
 
         if let Some(watcher) = self.watcher.as_ref() {
-            if let Some(fs_event) = watcher.try_get_event() {
-                if let DebouncedEvent::NoticeWrite(path) = fs_event {
-                    let relative_path = make_relative_path(path);
-                    let containers = self.containers_mut();
-                    for container in [
-                        &mut containers.textures as &mut dyn Container,
-                        &mut containers.models as &mut dyn Container,
-                        &mut containers.sound_buffers as &mut dyn Container,
-                        &mut containers.shaders as &mut dyn Container,
-                        &mut containers.curves as &mut dyn Container,
-                    ] {
-                        if container.try_reload_resource_from_path(&relative_path) {
-                            break;
-                        }
+            if let Some(DebouncedEvent::NoticeWrite(path)) = watcher.try_get_event() {
+                let relative_path = make_relative_path(path);
+                let containers = self.containers_mut();
+                for container in [
+                    &mut containers.textures as &mut dyn Container,
+                    &mut containers.models as &mut dyn Container,
+                    &mut containers.sound_buffers as &mut dyn Container,
+                    &mut containers.shaders as &mut dyn Container,
+                    &mut containers.curves as &mut dyn Container,
+                ] {
+                    if container.try_reload_resource_from_path(&relative_path) {
+                        break;
                     }
                 }
             }

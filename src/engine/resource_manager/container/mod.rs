@@ -5,7 +5,10 @@ use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
     core::VecExtensions,
     engine::resource_manager::{
-        container::entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
+        container::{
+            entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
+            event::ResourceEventBroadcaster,
+        },
         loader::ResourceLoader,
         options::ImportOptions,
         task::TaskPool,
@@ -21,6 +24,7 @@ use std::{
 };
 
 pub mod entry;
+pub mod event;
 
 pub(crate) trait Container {
     fn try_reload_resource_from_path(&mut self, path: &Path) -> bool;
@@ -32,6 +36,7 @@ pub(crate) trait Container {
 /// etc.
 pub struct ResourceContainer<T, O, L>
 where
+    T: Clone,
     O: ImportOptions,
     L: ResourceLoader<T, O>,
 {
@@ -39,6 +44,9 @@ where
     default_import_options: O,
     task_pool: Arc<TaskPool>,
     loader: L,
+
+    /// Event broadcaster can be used to "subscribe" for events happening inside the container.    
+    pub event_broadcaster: ResourceEventBroadcaster<T>,
 }
 
 impl<T, R, E, O, L> ResourceContainer<T, O, L>
@@ -55,6 +63,7 @@ where
             default_import_options: Default::default(),
             task_pool,
             loader,
+            event_broadcaster: ResourceEventBroadcaster::new(),
         }
     }
 
@@ -211,6 +220,7 @@ where
             resource,
             path_ref.to_owned(),
             self.default_import_options.clone(),
+            self.event_broadcaster.clone(),
         ));
 
         result
@@ -222,8 +232,12 @@ where
         let default_options = self.default_import_options.clone();
         *resource.state() = ResourceState::new_pending(path.clone());
 
-        self.task_pool
-            .spawn_task(self.loader.load(resource, path, default_options));
+        self.task_pool.spawn_task(self.loader.load(
+            resource,
+            path,
+            default_options,
+            self.event_broadcaster.clone(),
+        ));
     }
 
     /// Reloads all resources in the container. Returns a list of resources that will be reloaded.
@@ -240,8 +254,12 @@ where
             let default_import_options = self.default_import_options.clone();
             if path != PathBuf::default() {
                 *resource.state() = ResourceState::new_pending(path.clone());
-                self.task_pool
-                    .spawn_task(self.loader.load(resource, path, default_import_options));
+                self.task_pool.spawn_task(self.loader.load(
+                    resource,
+                    path,
+                    default_import_options,
+                    self.event_broadcaster.clone(),
+                ));
             }
         }
 

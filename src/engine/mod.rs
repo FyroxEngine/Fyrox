@@ -136,10 +136,16 @@ impl Engine {
 
         let sound_engine = SoundEngine::new();
 
-        let renderer = Renderer::new(glow_context, (client_size.x as u32, client_size.y as u32))?;
+        let resource_manager = ResourceManager::new();
+
+        let renderer = Renderer::new(
+            glow_context,
+            (client_size.x as u32, client_size.y as u32),
+            &resource_manager,
+        )?;
 
         Ok(Self {
-            resource_manager: ResourceManager::new(renderer.upload_sender()),
+            resource_manager,
             renderer,
             scenes: SceneContainer::new(sound_engine.clone()),
             sound_engine,

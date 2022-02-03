@@ -1,10 +1,12 @@
-use crate::engine::resource_manager::loader::BoxedLoaderFuture;
 use crate::{
-    engine::resource_manager::loader::ResourceLoader,
+    asset::ResourceState,
+    engine::resource_manager::{
+        container::event::{ResourceEvent, ResourceEventBroadcaster},
+        loader::{BoxedLoaderFuture, ResourceLoader},
+    },
     material::shader::{Shader, ShaderImportOptions, ShaderState},
     utils::log::{Log, MessageKind},
 };
-use fyrox_resource::ResourceState;
 use std::{path::PathBuf, sync::Arc};
 
 pub struct ShaderLoader;
@@ -17,6 +19,7 @@ impl ResourceLoader<Shader, ShaderImportOptions> for ShaderLoader {
         shader: Shader,
         path: PathBuf,
         _default_import_options: ShaderImportOptions,
+        event_broadcaster: ResourceEventBroadcaster<Shader>,
     ) -> Self::Output {
         let fut = async move {
             match ShaderState::from_file(&path).await {
@@ -27,6 +30,8 @@ impl ResourceLoader<Shader, ShaderImportOptions> for ShaderLoader {
                     );
 
                     shader.state().commit(ResourceState::Ok(shader_state));
+
+                    event_broadcaster.broadcast(ResourceEvent::Loaded(shader));
                 }
                 Err(error) => {
                     Log::writeln(
