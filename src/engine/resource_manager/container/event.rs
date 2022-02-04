@@ -77,4 +77,9 @@ where
             Log::verify(sender.send(event.clone()));
         }
     }
+
+    /// Sends a [`ResourceEvent::Loaded`] event to all "subscribers" in the broadcaster.
+    pub fn broadcast_loaded(&self, resource: T) {
+        self.broadcast(ResourceEvent::Loaded(resource))
+    }
 }

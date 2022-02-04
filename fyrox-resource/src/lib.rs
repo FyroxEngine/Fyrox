@@ -325,6 +325,19 @@ impl<T: ResourceData, E: ResourceLoadError> ResourceState<T, E> {
             waker.wake();
         }
     }
+
+    /// Changes internal state to [`ResourceState::Ok`]
+    pub fn commit_ok(&mut self, data: T) {
+        self.commit(ResourceState::Ok(data))
+    }
+
+    /// Changes internal state to [`ResourceState::LoadError`].
+    pub fn commit_error(&mut self, path: PathBuf, error: E) {
+        self.commit(ResourceState::LoadError {
+            path,
+            error: Some(Arc::new(error)),
+        })
+    }
 }
 
 impl<T: ResourceData, E: ResourceLoadError> Default for ResourceState<T, E> {

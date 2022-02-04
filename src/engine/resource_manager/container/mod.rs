@@ -16,12 +16,7 @@ use crate::{
     scene::variable::TemplateVariable,
     utils::log::{Log, MessageKind},
 };
-use std::{
-    future::Future,
-    ops::Deref,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{future::Future, ops::Deref, path::Path, sync::Arc};
 
 pub mod entry;
 pub mod event;
@@ -226,7 +221,6 @@ where
 
         self.task_pool.spawn_task(self.loader.load(
             resource,
-            path_ref.to_owned(),
             self.default_import_options.clone(),
             self.event_broadcaster.clone(),
         ));
@@ -237,13 +231,11 @@ where
     /// Reloads a single resource.
     pub fn reload_resource(&mut self, resource: T) {
         let path = resource.state().path().to_path_buf();
-        let default_options = self.default_import_options.clone();
-        *resource.state() = ResourceState::new_pending(path.clone());
+        *resource.state() = ResourceState::new_pending(path);
 
         self.task_pool.spawn_task(self.loader.load(
             resource,
-            path,
-            default_options,
+            self.default_import_options.clone(),
             self.event_broadcaster.clone(),
         ));
     }
@@ -259,16 +251,12 @@ where
 
         for resource in resources.iter().cloned() {
             let path = resource.state().path().to_path_buf();
-            let default_import_options = self.default_import_options.clone();
-            if path != PathBuf::default() {
-                *resource.state() = ResourceState::new_pending(path.clone());
-                self.task_pool.spawn_task(self.loader.load(
-                    resource,
-                    path,
-                    default_import_options,
-                    self.event_broadcaster.clone(),
-                ));
-            }
+            *resource.state() = ResourceState::new_pending(path);
+            self.task_pool.spawn_task(self.loader.load(
+                resource,
+                self.default_import_options.clone(),
+                self.event_broadcaster.clone(),
+            ));
         }
 
         resources

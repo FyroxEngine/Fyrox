@@ -1,7 +1,7 @@
-use crate::engine::resource_manager::container::event::ResourceEventBroadcaster;
-use crate::engine::resource_manager::options::ImportOptions;
-use std::pin::Pin;
-use std::{future::Future, path::PathBuf};
+use crate::engine::resource_manager::{
+    container::event::ResourceEventBroadcaster, options::ImportOptions,
+};
+use std::{future::Future, pin::Pin};
 
 pub mod curve;
 pub mod model;
@@ -29,7 +29,6 @@ where
     fn load(
         &mut self,
         resource: T,
-        path: PathBuf,
         default_import_options: O,
         event_broadcaster: ResourceEventBroadcaster<T>,
     ) -> Self::Output;

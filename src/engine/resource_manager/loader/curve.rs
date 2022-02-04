@@ -1,13 +1,11 @@
 use crate::{
-    asset::ResourceState,
     engine::resource_manager::{
-        container::event::{ResourceEvent, ResourceEventBroadcaster},
+        container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
     },
     resource::curve::{CurveImportOptions, CurveResource, CurveResourceState},
-    utils::log::{Log, MessageKind},
+    utils::log::Log,
 };
-use std::{path::PathBuf, sync::Arc};
 
 pub struct CurveLoader;
 
@@ -17,35 +15,29 @@ impl ResourceLoader<CurveResource, CurveImportOptions> for CurveLoader {
     fn load(
         &mut self,
         curve: CurveResource,
-        path: PathBuf,
         _default_import_options: CurveImportOptions,
         event_broadcaster: ResourceEventBroadcaster<CurveResource>,
     ) -> Self::Output {
-        let fut = async move {
+        Box::pin(async move {
+            let path = curve.state().path().to_path_buf();
+
             match CurveResourceState::from_file(&path).await {
                 Ok(curve_state) => {
-                    Log::writeln(
-                        MessageKind::Information,
-                        format!("Curve {:?} is loaded!", path),
-                    );
+                    Log::info(format!("Curve {:?} is loaded!", path));
 
-                    curve.state().commit(ResourceState::Ok(curve_state));
+                    curve.state().commit_ok(curve_state);
 
-                    event_broadcaster.broadcast(ResourceEvent::Loaded(curve));
+                    event_broadcaster.broadcast_loaded(curve);
                 }
                 Err(error) => {
-                    Log::writeln(
-                        MessageKind::Error,
-                        format!("Unable to load curve from {:?}! Reason {:?}", path, error),
-                    );
+                    Log::err(format!(
+                        "Unable to load curve from {:?}! Reason {:?}",
+                        path, error
+                    ));
 
-                    curve.state().commit(ResourceState::LoadError {
-                        path,
-                        error: Some(Arc::new(error)),
-                    });
+                    curve.state().commit_error(path, error);
                 }
             }
-        };
-        Box::pin(fut)
+        })
     }
 }

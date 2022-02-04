@@ -1,18 +1,16 @@
 use crate::{
-    asset::ResourceState,
     core::inspect::{Inspect, PropertyInfo},
     engine::resource_manager::{
-        container::event::{ResourceEvent, ResourceEventBroadcaster},
+        container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::{try_get_import_settings, ImportOptions},
     },
-    utils::log::{Log, MessageKind},
+    utils::log::Log,
 };
 use fyrox_sound::buffer::{
     DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState,
 };
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, sync::Arc};
 
 /// Defines sound buffer resource import options.
 #[derive(Clone, Deserialize, Serialize, Default, Inspect)]
@@ -31,11 +29,12 @@ impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBuff
     fn load(
         &mut self,
         resource: SoundBufferResource,
-        path: PathBuf,
         default_import_options: SoundBufferImportOptions,
         event_broadcaster: ResourceEventBroadcaster<SoundBufferResource>,
     ) -> Self::Output {
-        let fut = async move {
+        Box::pin(async move {
+            let path = resource.state().path().to_path_buf();
+
             let import_options = try_get_import_settings(&path)
                 .await
                 .unwrap_or(default_import_options);
@@ -49,43 +48,30 @@ impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBuff
                     };
                     match buffer {
                         Ok(sound_buffer) => {
-                            Log::writeln(
-                                MessageKind::Information,
-                                format!("Sound buffer {:?} is loaded!", path),
-                            );
+                            resource.state().commit_ok(sound_buffer);
 
-                            resource.state().commit(ResourceState::Ok(sound_buffer));
+                            event_broadcaster.broadcast_loaded(resource);
 
-                            event_broadcaster.broadcast(ResourceEvent::Loaded(resource));
+                            Log::info(format!("Sound buffer {:?} is loaded!", path));
                         }
                         Err(_) => {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!("Unable to load sound buffer from {:?}!", path),
+                            resource.state().commit_error(
+                                path.clone(),
+                                SoundBufferResourceLoadError::UnsupportedFormat,
                             );
 
-                            resource.state().commit(ResourceState::LoadError {
-                                path: path.clone(),
-                                error: Some(Arc::new(
-                                    SoundBufferResourceLoadError::UnsupportedFormat,
-                                )),
-                            })
+                            Log::err(format!("Unable to load sound buffer from {:?}!", path));
                         }
                     }
                 }
                 Err(e) => {
-                    Log::writeln(
-                        MessageKind::Error,
-                        format!("Invalid data source for sound buffer: {:?}", e),
-                    );
+                    Log::err(format!("Invalid data source for sound buffer: {:?}", e));
 
-                    resource.state().commit(ResourceState::LoadError {
-                        path: path.clone(),
-                        error: Some(Arc::new(SoundBufferResourceLoadError::Io(e))),
-                    })
+                    resource
+                        .state()
+                        .commit_error(path.clone(), SoundBufferResourceLoadError::Io(e));
                 }
             }
-        };
-        Box::pin(fut)
+        })
     }
 }

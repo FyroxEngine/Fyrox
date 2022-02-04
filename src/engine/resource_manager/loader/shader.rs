@@ -1,13 +1,11 @@
 use crate::{
-    asset::ResourceState,
     engine::resource_manager::{
-        container::event::{ResourceEvent, ResourceEventBroadcaster},
+        container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
     },
     material::shader::{Shader, ShaderImportOptions, ShaderState},
-    utils::log::{Log, MessageKind},
+    utils::log::Log,
 };
-use std::{path::PathBuf, sync::Arc};
 
 pub struct ShaderLoader;
 
@@ -17,35 +15,29 @@ impl ResourceLoader<Shader, ShaderImportOptions> for ShaderLoader {
     fn load(
         &mut self,
         shader: Shader,
-        path: PathBuf,
         _default_import_options: ShaderImportOptions,
         event_broadcaster: ResourceEventBroadcaster<Shader>,
     ) -> Self::Output {
-        let fut = async move {
+        Box::pin(async move {
+            let path = shader.state().path().to_path_buf();
+
             match ShaderState::from_file(&path).await {
                 Ok(shader_state) => {
-                    Log::writeln(
-                        MessageKind::Information,
-                        format!("Shader {:?} is loaded!", path),
-                    );
+                    Log::info(format!("Shader {:?} is loaded!", path));
 
-                    shader.state().commit(ResourceState::Ok(shader_state));
+                    shader.state().commit_ok(shader_state);
 
-                    event_broadcaster.broadcast(ResourceEvent::Loaded(shader));
+                    event_broadcaster.broadcast_loaded(shader);
                 }
                 Err(error) => {
-                    Log::writeln(
-                        MessageKind::Error,
-                        format!("Unable to load model from {:?}! Reason {:?}", path, error),
-                    );
+                    Log::err(format!(
+                        "Unable to load model from {:?}! Reason {:?}",
+                        path, error
+                    ));
 
-                    shader.state().commit(ResourceState::LoadError {
-                        path,
-                        error: Some(Arc::new(error)),
-                    });
+                    shader.state().commit_error(path, error);
                 }
             }
-        };
-        Box::pin(fut)
+        })
     }
 }
