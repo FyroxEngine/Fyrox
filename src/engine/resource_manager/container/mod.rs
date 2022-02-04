@@ -7,7 +7,7 @@ use crate::{
     engine::resource_manager::{
         container::{
             entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
-            event::ResourceEventBroadcaster,
+            event::{ResourceEvent, ResourceEventBroadcaster},
         },
         loader::ResourceLoader,
         options::ImportOptions,
@@ -69,6 +69,9 @@ where
 
     /// Adds a new resource in the container.
     pub fn push(&mut self, resource: T) {
+        self.event_broadcaster
+            .broadcast(ResourceEvent::Added(resource.clone()));
+
         self.resources.push(TimedEntry {
             value: resource,
             time_to_live: DEFAULT_RESOURCE_LIFETIME,
@@ -98,13 +101,18 @@ where
             if resource.use_count() <= 1 {
                 resource.time_to_live -= dt;
                 if resource.time_to_live <= 0.0 {
+                    let path = resource.state().path().to_path_buf();
+
                     Log::writeln(
                         MessageKind::Information,
                         format!(
-                            "Resource {:?} destroyed because it not used anymore!",
-                            resource.state().path()
+                            "Resource {} destroyed because it not used anymore!",
+                            path.display()
                         ),
                     );
+
+                    self.event_broadcaster
+                        .broadcast(ResourceEvent::Removed(path));
 
                     false
                 } else {

@@ -7,7 +7,10 @@ use crate::{
     },
     utils::log::Log,
 };
-use std::sync::{mpsc::Sender, Arc};
+use std::{
+    path::PathBuf,
+    sync::{mpsc::Sender, Arc},
+};
 
 /// A resource event.
 #[derive(Clone)]
@@ -19,14 +22,10 @@ where
     Loaded(T),
 
     /// Occurs when a resource was just added to a resource container.
-    ///
-    /// TODO: Unsupported yet!
     Added(T),
 
     /// Occurs when a resource was removed from a resource container.
-    ///
-    /// TODO: Unsupported yet!
-    Removed(T),
+    Removed(PathBuf),
 }
 
 /// Type alias for event sender.
