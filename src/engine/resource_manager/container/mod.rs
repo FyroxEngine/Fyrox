@@ -14,7 +14,7 @@ use crate::{
         task::TaskPool,
     },
     scene::variable::TemplateVariable,
-    utils::log::{Log, MessageKind},
+    utils::log::Log,
 };
 use std::{future::Future, ops::Deref, path::Path, sync::Arc};
 
@@ -98,13 +98,10 @@ where
                 if resource.time_to_live <= 0.0 {
                     let path = resource.state().path().to_path_buf();
 
-                    Log::writeln(
-                        MessageKind::Information,
-                        format!(
-                            "Resource {} destroyed because it not used anymore!",
-                            path.display()
-                        ),
-                    );
+                    Log::info(format!(
+                        "Resource {} destroyed because it not used anymore!",
+                        path.display()
+                    ));
 
                     self.event_broadcaster
                         .broadcast(ResourceEvent::Removed(path));
@@ -206,32 +203,28 @@ where
 
     /// Tries to load a resources at a given path.
     pub fn request<P: AsRef<Path>>(&mut self, path: P) -> T {
-        let path_ref = path.as_ref();
+        match self.find(path.as_ref()) {
+            Some(existing) => existing.clone(),
+            None => {
+                let resource = T::from(Resource::new(ResourceState::new_pending(
+                    path.as_ref().to_owned(),
+                )));
+                self.push(resource.clone());
 
-        if let Some(existing) = self.find(path_ref) {
-            return existing.clone();
+                self.task_pool.spawn_task(self.loader.load(
+                    resource.clone(),
+                    self.default_import_options.clone(),
+                    self.event_broadcaster.clone(),
+                ));
+
+                resource
+            }
         }
-
-        let resource = T::from(Resource::new(ResourceState::new_pending(
-            path_ref.to_owned(),
-        )));
-        self.push(resource.clone());
-
-        let result = resource.clone();
-
-        self.task_pool.spawn_task(self.loader.load(
-            resource,
-            self.default_import_options.clone(),
-            self.event_broadcaster.clone(),
-        ));
-
-        result
     }
 
     /// Reloads a single resource.
     pub fn reload_resource(&mut self, resource: T) {
-        let path = resource.state().path().to_path_buf();
-        *resource.state() = ResourceState::new_pending(path);
+        resource.state().switch_to_pending_state();
 
         self.task_pool.spawn_task(self.loader.load(
             resource,
@@ -250,8 +243,7 @@ where
             .collect::<Vec<_>>();
 
         for resource in resources.iter().cloned() {
-            let path = resource.state().path().to_path_buf();
-            *resource.state() = ResourceState::new_pending(path);
+            resource.state().switch_to_pending_state();
             self.task_pool.spawn_task(self.loader.load(
                 resource,
                 self.default_import_options.clone(),

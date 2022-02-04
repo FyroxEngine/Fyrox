@@ -274,6 +274,24 @@ impl<T: ResourceData, E: ResourceLoadError> ResourceState<T, E> {
         }
     }
 
+    pub fn switch_to_pending_state(&mut self) {
+        match self {
+            ResourceState::LoadError { path, .. } => {
+                *self = ResourceState::Pending {
+                    path: std::mem::take(path),
+                    wakers: Default::default(),
+                }
+            }
+            ResourceState::Ok(data) => {
+                *self = ResourceState::Pending {
+                    path: data.path().to_path_buf(),
+                    wakers: Default::default(),
+                }
+            }
+            _ => (),
+        }
+    }
+
     #[inline]
     fn id(&self) -> u32 {
         match self {
