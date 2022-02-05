@@ -755,16 +755,20 @@ impl Graph {
                         );
 
                         // Instantiate missing node.
-                        let (copy, mapping) =
+                        let (copy, old_to_new_mapping) =
                             resource_graph.copy_node(resource_node_handle, self, &mut |_, _| true);
 
-                        restored_count += mapping.len();
+                        restored_count += old_to_new_mapping.len();
 
                         let mut stack = vec![copy];
                         while let Some(node_handle) = stack.pop() {
                             let node = &mut self.pool[node_handle];
                             node.resource = Some(resource.clone());
                             stack.extend_from_slice(node.children());
+                        }
+
+                        for (&old, &new) in old_to_new_mapping.iter() {
+                            self[new].original_handle_in_resource = old;
                         }
 
                         // Link it with existing node.
