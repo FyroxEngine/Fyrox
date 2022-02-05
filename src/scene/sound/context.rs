@@ -237,6 +237,12 @@ impl SoundContext {
         self.native.state().remove_source(sound);
     }
 
+    pub(crate) fn set_sound_position(&mut self, sound: &Sound) {
+        if let Some(source) = self.native.state().try_get_source_mut(sound.native.get()) {
+            source.set_position(sound.global_position());
+        }
+    }
+
     pub(crate) fn sync_with_sound(&self, sound: &mut Sound) {
         if let Some(source) = self.native.state().try_get_source_mut(sound.native.get()) {
             // Sync back.

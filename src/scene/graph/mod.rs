@@ -860,6 +860,7 @@ impl Graph {
 
         fn update_recursively(
             nodes: &Pool<Node>,
+            sound_context: &mut SoundContext,
             physics: &mut PhysicsWorld,
             physics2d: &mut dim2::physics::PhysicsWorld,
             node_handle: Handle<Node>,
@@ -876,14 +877,23 @@ impl Graph {
             let new_global_transform = parent_global_transform * node.local_transform().matrix();
 
             // TODO: Detect changes from user code here.
-            if let Node::RigidBody(rigid_body) = node {
-                if !m4x4_approx_eq(&new_global_transform, &node.global_transform()) {
-                    physics.set_rigid_body_position(rigid_body, &new_global_transform);
+            match node {
+                Node::RigidBody(rigid_body) => {
+                    if !m4x4_approx_eq(&new_global_transform, &node.global_transform()) {
+                        physics.set_rigid_body_position(rigid_body, &new_global_transform);
+                    }
                 }
-            } else if let Node::RigidBody2D(rigid_body) = node {
-                if !m4x4_approx_eq(&new_global_transform, &node.global_transform()) {
-                    physics2d.set_rigid_body_position(rigid_body, &new_global_transform);
+                Node::RigidBody2D(rigid_body) => {
+                    if !m4x4_approx_eq(&new_global_transform, &node.global_transform()) {
+                        physics2d.set_rigid_body_position(rigid_body, &new_global_transform);
+                    }
                 }
+                Node::Sound(sound) => {
+                    if !m4x4_approx_eq(&new_global_transform, &node.global_transform()) {
+                        sound_context.set_sound_position(sound);
+                    }
+                }
+                _ => {}
             }
 
             node.global_transform.set(new_global_transform);
@@ -891,12 +901,13 @@ impl Graph {
                 .set(parent_visibility && node.visibility());
 
             for &child in node.children() {
-                update_recursively(nodes, physics, physics2d, child);
+                update_recursively(nodes, sound_context, physics, physics2d, child);
             }
         }
 
         update_recursively(
             &self.pool,
+            &mut self.sound_context,
             &mut self.physics,
             &mut self.physics2d,
             self.root,
@@ -950,9 +961,8 @@ impl Graph {
 
         let this = unsafe { &*(self as *const Graph) };
 
-        self.sync_native();
-
         self.update_hierarchical_data();
+        self.sync_native();
 
         self.physics.update();
         self.physics2d.update();
