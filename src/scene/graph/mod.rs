@@ -741,7 +741,9 @@ impl Graph {
                     // consolidation all descendants under a single node.
                     if resource_node_handle != resource_graph.root
                         && self
-                            .find_by_name(instance_root, resource_node.name())
+                            .find(instance_root, &mut |n| {
+                                n.original_handle_in_resource == resource_node_handle
+                            })
                             .is_none()
                     {
                         Log::writeln(

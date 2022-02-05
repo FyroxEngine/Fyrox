@@ -379,7 +379,7 @@ impl ResourceManagerState {
         containers.curves.update(dt);
 
         if let Some(watcher) = self.watcher.as_ref() {
-            if let Some(DebouncedEvent::NoticeWrite(path)) = watcher.try_get_event() {
+            if let Some(DebouncedEvent::Write(path)) = watcher.try_get_event() {
                 let relative_path = make_relative_path(path);
                 let containers = self.containers_mut();
                 for container in [
