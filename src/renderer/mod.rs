@@ -88,7 +88,7 @@ use std::{
 
 /// Renderer statistics for one frame, also includes current frames per second
 /// amount.
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Statistics {
     /// Shows how many pipeline state changes was made per frame.
     pub pipeline: PipelineStatistics,
@@ -130,7 +130,7 @@ impl Display for Statistics {
 }
 
 /// GPU statistics for single frame.
-#[derive(Copy, Clone, Default)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct RenderPassStatistics {
     /// Amount of draw calls per frame - lower the better.
     pub draw_calls: usize,

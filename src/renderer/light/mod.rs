@@ -60,7 +60,7 @@ pub mod directional;
 pub mod point;
 pub mod spot;
 
-#[derive(Copy, Clone, Default)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct LightingStatistics {
     pub point_lights_rendered: usize,
     pub point_shadow_maps_rendered: usize,

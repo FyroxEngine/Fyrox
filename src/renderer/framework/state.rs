@@ -7,7 +7,7 @@ use glow::{Framebuffer, HasContext};
 use serde::Deserialize;
 use std::fmt::{Display, Formatter};
 
-#[derive(Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct PipelineStatistics {
     pub texture_binding_changes: usize,
     pub vbo_binding_changes: usize,
