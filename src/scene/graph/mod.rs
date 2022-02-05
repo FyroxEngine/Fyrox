@@ -670,6 +670,11 @@ impl Graph {
                             node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
 
                             node.inherit(resource_node);
+                        } else {
+                            Log::warn(format!(
+                                "Unable to find original handle for node {}",
+                                node.name(),
+                            ))
                         }
                     }
                     ResourceState::Pending { .. } => {
@@ -706,15 +711,15 @@ impl Graph {
         let instance_count = instances.len();
         let mut restored_count = 0;
 
-        for (instance, resource) in instances {
+        for (instance_root, resource) in instances {
             let model = resource.state();
             if let ResourceState::Ok(ref data) = *model {
                 let resource_graph = &data.get_scene().graph;
 
-                let original = self.pool[instance].original_handle_in_resource;
+                let resource_instance_root = self.pool[instance_root].original_handle_in_resource;
 
-                if original.is_none() {
-                    let instance = &self.pool[instance];
+                if resource_instance_root.is_none() {
+                    let instance = &self.pool[instance_root];
                     Log::writeln(
                         MessageKind::Warning,
                         format!(
@@ -728,14 +733,16 @@ impl Graph {
                     continue;
                 }
 
-                let mut traverse_stack = vec![original];
+                let mut traverse_stack = vec![resource_instance_root];
                 while let Some(resource_node_handle) = traverse_stack.pop() {
                     let resource_node = &resource_graph[resource_node_handle];
 
                     // Root of the resource is not belongs to resource, it is just a convenient way of
                     // consolidation all descendants under a single node.
                     if resource_node_handle != resource_graph.root
-                        && self.find_by_name(instance, resource_node.name()).is_none()
+                        && self
+                            .find_by_name(instance_root, resource_node.name())
+                            .is_none()
                     {
                         Log::writeln(
                             MessageKind::Warning,
@@ -761,7 +768,7 @@ impl Graph {
                         // Link it with existing node.
                         if resource_node.parent().is_some() {
                             let parent = self.find_by_name(
-                                instance,
+                                instance_root,
                                 resource_graph[resource_node.parent()].name(),
                             );
 
@@ -769,11 +776,11 @@ impl Graph {
                                 self.link_nodes(copy, parent);
                             } else {
                                 // Fail-safe route - link with root of instance.
-                                self.link_nodes(copy, instance);
+                                self.link_nodes(copy, instance_root);
                             }
                         } else {
                             // Fail-safe route - link with root of instance.
-                            self.link_nodes(copy, instance);
+                            self.link_nodes(copy, instance_root);
                         }
                     }
 

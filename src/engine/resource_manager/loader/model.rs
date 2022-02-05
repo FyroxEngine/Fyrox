@@ -21,6 +21,7 @@ impl ResourceLoader<Model, ModelImportOptions> for ModelLoader {
         model: Model,
         default_import_options: ModelImportOptions,
         event_broadcaster: ResourceEventBroadcaster<Model>,
+        reload: bool,
     ) -> Self::Output {
         let resource_manager = self.resource_manager.clone();
 
@@ -37,7 +38,7 @@ impl ResourceLoader<Model, ModelImportOptions> for ModelLoader {
 
                     model.state().commit_ok(raw_model);
 
-                    event_broadcaster.broadcast_loaded(model);
+                    event_broadcaster.broadcast_loaded_or_reloaded(model, reload);
                 }
                 Err(error) => {
                     Log::err(format!(

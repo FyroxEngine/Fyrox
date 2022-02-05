@@ -21,6 +21,9 @@ where
     /// Occurs when a resource was fully loaded without any errors.
     Loaded(T),
 
+    /// Occurs when a resource was already fully loaded, but was reloaded by an explicit request.
+    Reloaded(T),
+
     /// Occurs when a resource was just added to a resource container.
     Added(T),
 
@@ -81,5 +84,15 @@ where
     /// Sends a [`ResourceEvent::Loaded`] event to all "subscribers" in the broadcaster.
     pub fn broadcast_loaded(&self, resource: T) {
         self.broadcast(ResourceEvent::Loaded(resource))
+    }
+
+    /// Sends either a [`ResourceEvent::Loaded`] event or a [`ResourceEvent::Reloaded`] to all
+    /// "subscribers" in the broadcaster depending on the `reload` parameter.
+    pub fn broadcast_loaded_or_reloaded(&self, resource: T, reload: bool) {
+        self.broadcast(if reload {
+            ResourceEvent::Reloaded(resource)
+        } else {
+            ResourceEvent::Loaded(resource)
+        })
     }
 }

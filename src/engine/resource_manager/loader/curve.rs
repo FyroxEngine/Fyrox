@@ -17,6 +17,7 @@ impl ResourceLoader<CurveResource, CurveImportOptions> for CurveLoader {
         curve: CurveResource,
         _default_import_options: CurveImportOptions,
         event_broadcaster: ResourceEventBroadcaster<CurveResource>,
+        reload: bool,
     ) -> Self::Output {
         Box::pin(async move {
             let path = curve.state().path().to_path_buf();
@@ -27,7 +28,7 @@ impl ResourceLoader<CurveResource, CurveImportOptions> for CurveLoader {
 
                     curve.state().commit_ok(curve_state);
 
-                    event_broadcaster.broadcast_loaded(curve);
+                    event_broadcaster.broadcast_loaded_or_reloaded(curve, reload);
                 }
                 Err(error) => {
                     Log::err(format!(

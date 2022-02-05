@@ -31,6 +31,7 @@ impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBuff
         resource: SoundBufferResource,
         default_import_options: SoundBufferImportOptions,
         event_broadcaster: ResourceEventBroadcaster<SoundBufferResource>,
+        reload: bool,
     ) -> Self::Output {
         Box::pin(async move {
             let path = resource.state().path().to_path_buf();
@@ -50,7 +51,7 @@ impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBuff
                         Ok(sound_buffer) => {
                             resource.state().commit_ok(sound_buffer);
 
-                            event_broadcaster.broadcast_loaded(resource);
+                            event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
 
                             Log::info(format!("Sound buffer {:?} is loaded!", path));
                         }

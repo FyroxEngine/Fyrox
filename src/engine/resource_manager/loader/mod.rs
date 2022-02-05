@@ -31,5 +31,6 @@ where
         resource: T,
         default_import_options: O,
         event_broadcaster: ResourceEventBroadcaster<T>,
+        reload: bool,
     ) -> Self::Output;
 }

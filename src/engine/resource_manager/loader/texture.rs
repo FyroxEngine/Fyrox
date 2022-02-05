@@ -1,7 +1,7 @@
 use crate::{
     core::instant,
     engine::resource_manager::{
-        container::event::{ResourceEvent, ResourceEventBroadcaster},
+        container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::try_get_import_settings,
     },
@@ -19,6 +19,7 @@ impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
         texture: Texture,
         default_import_options: TextureImportOptions,
         event_broadcaster: ResourceEventBroadcaster<Texture>,
+        reload: bool,
     ) -> Self::Output {
         Box::pin(async move {
             let path = texture.state().path().to_path_buf();
@@ -47,7 +48,7 @@ impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
 
                     texture.state().commit_ok(raw_texture);
 
-                    event_broadcaster.broadcast(ResourceEvent::Loaded(texture));
+                    event_broadcaster.broadcast_loaded_or_reloaded(texture, reload);
                 }
                 Err(error) => {
                     Log::err(format!(

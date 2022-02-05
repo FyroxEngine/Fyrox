@@ -407,4 +407,8 @@ impl ModelData {
     pub fn find_node_by_name(&self, name: &str) -> Handle<Node> {
         self.scene.graph.find_by_name_from_root(name)
     }
+
+    pub(crate) fn get_scene_mut(&mut self) -> &mut Scene {
+        &mut self.scene
+    }
 }

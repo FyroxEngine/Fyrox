@@ -2,12 +2,15 @@
 
 #![warn(missing_docs)]
 
-use crate::core::parking_lot::{Mutex, MutexGuard};
-use crate::core::visitor::prelude::*;
+use crate::core::{
+    parking_lot::{Mutex, MutexGuard},
+    visitor::prelude::*,
+};
 use std::{
     borrow::Cow,
     fmt::Debug,
     future::Future,
+    hash::{Hash, Hasher},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     pin::Pin,
@@ -43,7 +46,11 @@ impl<T> ResourceLoadError for T where T: 'static + Debug + Send + Sync {}
 /// ideally should be loaded on separate core of the CPU, but since this is
 /// asynchronous, we must have the ability to track the state of the resource.
 #[derive(Debug)]
-pub enum ResourceState<T: ResourceData, E: ResourceLoadError> {
+pub enum ResourceState<T, E>
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
     /// Resource is loading from external resource or in the queue to load.
     Pending {
         /// A path to load resource from.
@@ -62,7 +69,11 @@ pub enum ResourceState<T: ResourceData, E: ResourceLoadError> {
     Ok(T),
 }
 
-impl<T: ResourceData, E: ResourceLoadError> Visit for ResourceState<T, E> {
+impl<T, E> Visit for ResourceState<T, E>
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -89,11 +100,19 @@ impl<T: ResourceData, E: ResourceLoadError> Visit for ResourceState<T, E> {
 
 /// See module docs.
 #[derive(Debug, Visit)]
-pub struct Resource<T: ResourceData, E: ResourceLoadError> {
+pub struct Resource<T, E>
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
     state: Option<Arc<Mutex<ResourceState<T, E>>>>,
 }
 
-impl<T: ResourceData, E: ResourceLoadError> PartialEq for Resource<T, E> {
+impl<T, E> PartialEq for Resource<T, E>
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
     fn eq(&self, other: &Self) -> bool {
         match (self.state.as_ref(), other.state.as_ref()) {
             (Some(state), Some(other_state)) => std::ptr::eq(&**state, &**other_state),
@@ -103,12 +122,40 @@ impl<T: ResourceData, E: ResourceLoadError> PartialEq for Resource<T, E> {
     }
 }
 
+impl<T, E> Eq for Resource<T, E>
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
+}
+
+impl<T, E> Hash for Resource<T, E>
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self.state.as_ref() {
+            None => state.write_u64(0),
+            Some(resource_state) => state.write_u64(&**resource_state as *const _ as u64),
+        }
+    }
+}
+
 #[doc(hidden)]
-pub struct ResourceDataRef<'a, T: ResourceData, E: ResourceLoadError> {
+pub struct ResourceDataRef<'a, T, E>
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
     guard: MutexGuard<'a, ResourceState<T, E>>,
 }
 
-impl<'a, T: ResourceData, E: ResourceLoadError> Deref for ResourceDataRef<'a, T, E> {
+impl<'a, T, E> Deref for ResourceDataRef<'a, T, E>
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -274,6 +321,7 @@ impl<T: ResourceData, E: ResourceLoadError> ResourceState<T, E> {
         }
     }
 
+    /// Switches the internal state of the resource to [`ResourceState::Pending`].
     pub fn switch_to_pending_state(&mut self) {
         match self {
             ResourceState::LoadError { path, .. } => {
@@ -369,7 +417,7 @@ impl<T: ResourceData, E: ResourceLoadError> Default for ResourceState<T, E> {
 macro_rules! define_new_resource {
     ($(#[$meta:meta])* $name:ident<$state:ty, $error:ty>) => {
         $(#[$meta])*
-        #[derive(Clone, Debug, Default, PartialEq)]
+        #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
         #[repr(transparent)]
         pub struct $name(pub Resource<$state, $error>);
 

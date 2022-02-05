@@ -7,18 +7,27 @@ pub mod error;
 pub mod framework;
 pub mod resource_manager;
 
+use crate::utils::log::Log;
 use crate::{
+    asset::ResourceState,
     core::{algebra::Vector2, instant},
-    engine::{error::EngineError, resource_manager::ResourceManager},
+    engine::{
+        error::EngineError,
+        resource_manager::{container::event::ResourceEvent, ResourceManager},
+    },
     event_loop::EventLoop,
     gui::UserInterface,
     renderer::{framework::error::FrameworkError, Renderer},
-    resource::texture::TextureKind,
+    resource::{model::Model, texture::TextureKind},
     scene::{sound::SoundEngine, SceneContainer},
     window::{Window, WindowBuilder},
 };
 use std::{
-    sync::{Arc, Mutex},
+    collections::HashSet,
+    sync::{
+        mpsc::{channel, Receiver},
+        Arc, Mutex,
+    },
     time::Duration,
 };
 
@@ -45,10 +54,79 @@ pub struct Engine {
     /// such data.
     pub ui_time: Duration,
 
+    model_events_receiver: Receiver<ResourceEvent<Model>>,
+
     // Sound context control all sound sources in the engine. It is wrapped into Arc<Mutex<>>
     // because internally sound engine spawns separate thread to mix and send data to sound
     // device. For more info see docs for Context.
     sound_engine: Arc<Mutex<SoundEngine>>,
+}
+
+struct ResourceGraphVertex {
+    resource: Model,
+    children: Vec<ResourceGraphVertex>,
+}
+
+impl ResourceGraphVertex {
+    pub fn new(model: Model, resource_manager: ResourceManager) -> Self {
+        let mut children = Vec::new();
+
+        // Look for dependent resources.
+        let mut dependent_resources = HashSet::new();
+        for other_model in resource_manager.state().containers().models.iter() {
+            let state = other_model.state();
+            if let ResourceState::Ok(ref model_data) = *state {
+                if model_data
+                    .get_scene()
+                    .graph
+                    .linear_iter()
+                    .any(|n| n.resource.as_ref().map_or(false, |r| r == &model))
+                {
+                    dependent_resources.insert(other_model.clone());
+                }
+            }
+        }
+
+        children.extend(
+            dependent_resources
+                .into_iter()
+                .map(|r| ResourceGraphVertex::new(r, resource_manager.clone())),
+        );
+
+        Self {
+            resource: model,
+            children,
+        }
+    }
+
+    pub fn resolve(&self) {
+        Log::info(format!(
+            "Resolving {} resource from dependency graph...",
+            self.resource.state().path().display()
+        ));
+
+        self.resource.data_ref().get_scene_mut().resolve();
+
+        for child in self.children.iter() {
+            child.resolve();
+        }
+    }
+}
+
+struct ResourceDependencyGraph {
+    root: ResourceGraphVertex,
+}
+
+impl ResourceDependencyGraph {
+    pub fn new(model: Model, resource_manager: ResourceManager) -> Self {
+        Self {
+            root: ResourceGraphVertex::new(model, resource_manager),
+        }
+    }
+
+    pub fn resolve(&self) {
+        self.root.resolve()
+    }
 }
 
 impl Engine {
@@ -144,7 +222,16 @@ impl Engine {
             &resource_manager,
         )?;
 
+        let (rx, tx) = channel();
+        resource_manager
+            .state()
+            .containers_mut()
+            .models
+            .event_broadcaster
+            .add(rx);
+
         Ok(Self {
+            model_events_receiver: tx,
             resource_manager,
             renderer,
             scenes: SceneContainer::new(sound_engine.clone()),
@@ -193,6 +280,7 @@ impl Engine {
 
         self.resource_manager.state().update(dt);
         self.renderer.update(dt);
+        self.handle_model_events();
 
         for scene in self.scenes.iter_mut().filter(|s| s.enabled) {
             let frame_size = scene.render_target.as_ref().map_or(window_size, |rt| {
@@ -209,6 +297,29 @@ impl Engine {
         let time = instant::Instant::now();
         self.user_interface.update(window_size, dt);
         self.ui_time = instant::Instant::now() - time;
+    }
+
+    pub(crate) fn handle_model_events(&mut self) {
+        while let Ok(event) = self.model_events_receiver.try_recv() {
+            if let ResourceEvent::Reloaded(model) = event {
+                Log::info(format!(
+                    "A model resource {} was reloaded, propagating changes...",
+                    model.state().path().display()
+                ));
+
+                // Build resource dependency graph and resolve it first.
+                ResourceDependencyGraph::new(model, self.resource_manager.clone()).resolve();
+
+                Log::info(format!("Propagating changes to active scenes...",));
+
+                // Resolve all scenes.
+                // TODO: This might be inefficient if there is bunch of scenes loaded,
+                // however this seems to be very rare case so it should be ok.
+                for scene in self.scenes.iter_mut() {
+                    scene.resolve();
+                }
+            }
+        }
     }
 
     /// Performs rendering of single frame, must be called from your game loop, otherwise you won't

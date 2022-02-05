@@ -215,6 +215,7 @@ where
                     resource.clone(),
                     self.default_import_options.clone(),
                     self.event_broadcaster.clone(),
+                    false,
                 ));
 
                 resource
@@ -230,6 +231,7 @@ where
             resource,
             self.default_import_options.clone(),
             self.event_broadcaster.clone(),
+            true,
         ));
     }
 
@@ -248,6 +250,7 @@ where
                 resource,
                 self.default_import_options.clone(),
                 self.event_broadcaster.clone(),
+                true,
             ));
         }
 

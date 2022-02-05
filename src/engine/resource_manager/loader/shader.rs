@@ -17,6 +17,7 @@ impl ResourceLoader<Shader, ShaderImportOptions> for ShaderLoader {
         shader: Shader,
         _default_import_options: ShaderImportOptions,
         event_broadcaster: ResourceEventBroadcaster<Shader>,
+        reload: bool,
     ) -> Self::Output {
         Box::pin(async move {
             let path = shader.state().path().to_path_buf();
@@ -27,7 +28,7 @@ impl ResourceLoader<Shader, ShaderImportOptions> for ShaderLoader {
 
                     shader.state().commit_ok(shader_state);
 
-                    event_broadcaster.broadcast_loaded(shader);
+                    event_broadcaster.broadcast_loaded_or_reloaded(shader, reload);
                 }
                 Err(error) => {
                     Log::err(format!(
