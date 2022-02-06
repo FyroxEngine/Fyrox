@@ -1283,11 +1283,11 @@ impl Renderer {
         self.texture_cache.update(dt);
     }
 
-    pub(in crate) fn update(&mut self, dt: f32) {
-        // Update caches - this will remove timed out resources.
+    /// Update caches - this will remove timed out resources.
+    pub fn update_caches(&mut self, dt: f32) {
         self.update_texture_cache(dt);
         self.geometry_cache.update(dt);
-        self.renderer2d.update(dt);
+        self.renderer2d.update_caches(dt);
     }
 
     fn render_frame(

@@ -370,7 +370,8 @@ impl ResourceManagerState {
         containers.curves.destroy_unused();
     }
 
-    pub(in crate) fn update(&mut self, dt: f32) {
+    /// Reload resources if they have changed in disk.
+    pub fn update(&mut self, dt: f32) {
         let containers = self.containers_mut();
         containers.textures.update(dt);
         containers.models.update(dt);

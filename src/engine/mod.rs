@@ -279,7 +279,7 @@ impl Engine {
         let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
         self.resource_manager.state().update(dt);
-        self.renderer.update(dt);
+        self.renderer.update_caches(dt);
         self.handle_model_events();
 
         for scene in self.scenes.iter_mut().filter(|s| s.enabled) {
@@ -299,7 +299,8 @@ impl Engine {
         self.ui_time = instant::Instant::now() - time;
     }
 
-    pub(crate) fn handle_model_events(&mut self) {
+    /// Handle hot-reloading of resources.
+    pub fn handle_model_events(&mut self) {
         while let Ok(event) = self.model_events_receiver.try_recv() {
             if let ResourceEvent::Reloaded(model) = event {
                 Log::info(format!(
