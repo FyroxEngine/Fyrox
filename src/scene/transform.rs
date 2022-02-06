@@ -478,50 +478,16 @@ impl Transform {
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Transform) {
-        // Position.
-        if !self.position().is_modified() {
-            self.set_position(**parent.position());
-        }
-
-        // Rotation.
-        if !self.rotation().is_modified() {
-            self.set_rotation(**parent.rotation());
-        }
-
-        // Scale.
-        if !self.scale().is_modified() {
-            self.set_scale(**parent.scale());
-        }
-
-        // Pre-Rotation.
-        if !self.pre_rotation().is_modified() {
-            self.set_pre_rotation(**parent.pre_rotation());
-        }
-
-        // Post-Rotation.
-        if !self.post_rotation().is_modified() {
-            self.set_post_rotation(**parent.post_rotation());
-        }
-
-        // Rotation Offset.
-        if !self.rotation_offset().is_modified() {
-            self.set_rotation_offset(**parent.rotation_offset());
-        }
-
-        // Rotation Pivot.
-        if !self.rotation_pivot().is_modified() {
-            self.set_rotation_pivot(**parent.rotation_pivot());
-        }
-
-        // Scaling Offset.
-        if !self.scaling_offset().is_modified() {
-            self.set_scaling_offset(**parent.scaling_offset());
-        }
-
-        // Scaling Pivot.
-        if !self.scaling_pivot().is_modified() {
-            self.set_scaling_pivot(**parent.scaling_pivot());
-        }
+        self.local_position.try_inherit(&parent.local_position);
+        self.local_rotation.try_inherit(&parent.local_rotation);
+        self.local_scale.try_inherit(&parent.local_scale);
+        self.pre_rotation.try_inherit(&parent.pre_rotation);
+        self.post_rotation.try_inherit(&parent.post_rotation);
+        self.rotation_offset.try_inherit(&parent.rotation_offset);
+        self.rotation_pivot.try_inherit(&parent.rotation_pivot);
+        self.scaling_offset.try_inherit(&parent.scaling_offset);
+        self.scaling_pivot.try_inherit(&parent.scaling_pivot);
+        self.post_rotation_matrix = build_post_rotation_matrix(self.post_rotation.clone_inner());
     }
 }
 
@@ -620,15 +586,15 @@ impl TransformBuilder {
     pub fn build(self) -> Transform {
         Transform {
             dirty: Cell::new(true),
-            local_scale: TemplateVariable::new(self.local_scale),
-            local_position: TemplateVariable::new(self.local_position),
-            local_rotation: TemplateVariable::new(self.local_rotation),
-            pre_rotation: TemplateVariable::new(self.pre_rotation),
-            post_rotation: TemplateVariable::new(self.post_rotation),
-            rotation_offset: TemplateVariable::new(self.rotation_offset),
-            rotation_pivot: TemplateVariable::new(self.rotation_pivot),
-            scaling_offset: TemplateVariable::new(self.scaling_offset),
-            scaling_pivot: TemplateVariable::new(self.scaling_pivot),
+            local_scale: self.local_scale.into(),
+            local_position: self.local_position.into(),
+            local_rotation: self.local_rotation.into(),
+            pre_rotation: self.pre_rotation.into(),
+            post_rotation: self.post_rotation.into(),
+            rotation_offset: self.rotation_offset.into(),
+            rotation_pivot: self.rotation_pivot.into(),
+            scaling_offset: self.scaling_offset.into(),
+            scaling_pivot: self.scaling_pivot.into(),
             matrix: Cell::new(Matrix4::identity()),
             post_rotation_matrix: build_post_rotation_matrix(self.post_rotation),
         }

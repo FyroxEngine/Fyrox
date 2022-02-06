@@ -15,6 +15,11 @@ bitflags! {
         const MODIFIED = 0b0000_0001;
         /// A variable must be synced with respective variable from data model.
         const NEED_SYNC = 0b0000_0010;
+        /// Ensures that the variable will not be marked as modified on deserialization
+        /// if it is failed to load as a [`TemplateVariable`]. See TemplateVariable::visit.
+        ///
+        /// **Warning**: This flag will be removed in 0.26!
+        const DONT_MARK_AS_MODIFIED_IF_MISSING = 0b0000_0100;
     }
 }
 
@@ -123,6 +128,14 @@ impl<T> TemplateVariable<T> {
         }
     }
 
+    /// Creates new variable from a given value with custom flags.
+    pub fn new_with_flags(value: T, flags: VariableFlags) -> Self {
+        Self {
+            value,
+            flags: Cell::new(flags),
+        }
+    }
+
     /// Replaces value and also raises the [`VariableFlags::MODIFIED`] flag.
     pub fn set(&mut self, value: T) -> T {
         self.mark_modified();
@@ -195,13 +208,24 @@ where
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         if visitor.is_reading() {
-            // TODO: The entire branch should be deleted after release of 0.25.
+            // TODO: The entire branch should be deleted after release of 0.25 (in 0.26).
             // Try to load values before conversion where they weren't wrapped in TemplateVariable.
             if self.value.visit(name, visitor).is_ok() {
                 // Mark as modified, because old versions most certainly have some of values
                 // modified, but here we can't find out that because we don't have access to
                 // parent variable.
-                self.flags.get_mut().insert(VariableFlags::MODIFIED);
+                //
+                // In rare cases for compatibility reasons we don't want the variable to be marked
+                // as modified (for example in case of mesh surfaces) - there is a
+                // VariableFlags::DONT_MARK_AS_MODIFIED_IF_MISSING for that purpose. This is a
+                // hack and will be removed in 0.26.
+                if !self
+                    .flags
+                    .get()
+                    .contains(VariableFlags::DONT_MARK_AS_MODIFIED_IF_MISSING)
+                {
+                    self.flags.get_mut().insert(VariableFlags::MODIFIED);
+                }
 
                 Ok(())
             } else {

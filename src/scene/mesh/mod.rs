@@ -9,6 +9,7 @@
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
 use crate::engine::resource_manager::ResourceManager;
+use crate::scene::variable::{TemplateVariable, VariableFlags};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -82,32 +83,51 @@ impl RenderPath {
 }
 
 /// See module docs.
-#[derive(Debug, Inspect)]
+#[derive(Debug, Inspect, Visit)]
 pub struct Mesh {
+    #[visit(rename = "Common")]
     base: Base,
-    surfaces: Vec<Surface>,
+
+    #[inspect(getter = "Deref::deref")]
+    surfaces: TemplateVariable<Vec<Surface>>,
+
+    #[inspect(getter = "Deref::deref")]
+    cast_shadows: TemplateVariable<bool>,
+
+    #[inspect(getter = "Deref::deref")]
+    #[visit(optional)]
+    render_path: TemplateVariable<RenderPath>,
+
+    #[inspect(getter = "Deref::deref")]
+    decal_layer_index: TemplateVariable<u8>,
+
     #[inspect(skip)]
+    #[visit(skip)]
     local_bounding_box: Cell<AxisAlignedBoundingBox>,
+
     #[inspect(skip)]
+    #[visit(skip)]
     local_bounding_box_dirty: Cell<bool>,
+
     #[inspect(skip)]
+    #[visit(skip)]
     world_bounding_box: Cell<AxisAlignedBoundingBox>,
-    cast_shadows: bool,
-    render_path: RenderPath,
-    decal_layer_index: u8,
 }
 
 impl Default for Mesh {
     fn default() -> Self {
         Self {
             base: Default::default(),
-            surfaces: Default::default(),
+            surfaces: TemplateVariable::new_with_flags(
+                Default::default(),
+                VariableFlags::DONT_MARK_AS_MODIFIED_IF_MISSING,
+            ),
             local_bounding_box: Default::default(),
             world_bounding_box: Default::default(),
             local_bounding_box_dirty: Cell::new(true),
-            cast_shadows: true,
-            render_path: RenderPath::Deferred,
-            decal_layer_index: 0,
+            cast_shadows: TemplateVariable::new(true),
+            render_path: TemplateVariable::new(RenderPath::Deferred),
+            decal_layer_index: TemplateVariable::new(0),
         }
     }
 }
@@ -126,28 +146,6 @@ impl DerefMut for Mesh {
     }
 }
 
-impl Visit for Mesh {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.base.visit("Common", visitor)?;
-        self.cast_shadows.visit("CastShadows", visitor)?;
-        let _ = self.decal_layer_index.visit("DecalLayerIndex", visitor);
-
-        let mut render_path = self.render_path as u32;
-        render_path.visit("RenderPath", visitor)?;
-        if visitor.is_reading() {
-            self.render_path = RenderPath::from_id(render_path)?;
-        }
-
-        // Serialize surfaces, but keep in mind that surfaces from resources will be automatically
-        // recreated on resolve stage! Serialization of surfaces needed for procedural surfaces.
-        self.surfaces.visit("Surfaces", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 impl Mesh {
     /// Returns shared reference to array of surfaces.
     #[inline]
@@ -158,33 +156,33 @@ impl Mesh {
     /// Returns mutable reference to array of surfaces.
     #[inline]
     pub fn surfaces_mut(&mut self) -> &mut [Surface] {
-        &mut self.surfaces
+        self.surfaces.get_mut_silent()
     }
 
     /// Removes all surfaces from mesh.
     #[inline]
     pub fn clear_surfaces(&mut self) {
-        self.surfaces.clear();
+        self.surfaces.get_mut().clear();
         self.local_bounding_box_dirty.set(true);
     }
 
     /// Adds new surface into mesh, can be used to procedurally generate meshes.
     #[inline]
     pub fn add_surface(&mut self, surface: Surface) {
-        self.surfaces.push(surface);
+        self.surfaces.get_mut().push(surface);
         self.local_bounding_box_dirty.set(true);
     }
 
     /// Returns true if mesh should cast shadows, false - otherwise.
     #[inline]
     pub fn cast_shadows(&self) -> bool {
-        self.cast_shadows
+        *self.cast_shadows
     }
 
     /// Sets whether mesh should cast shadows or not.
     #[inline]
     pub fn set_cast_shadows(&mut self, cast_shadows: bool) {
-        self.cast_shadows = cast_shadows;
+        self.cast_shadows.set(cast_shadows);
     }
 
     /// Returns current bounding box. Bounding box presented in *local coordinates*
@@ -242,12 +240,12 @@ impl Mesh {
 
     /// Sets new render path for the mesh.
     pub fn set_render_path(&mut self, render_path: RenderPath) {
-        self.render_path = render_path;
+        self.render_path.set(render_path);
     }
 
     /// Returns current render path of the mesh.
     pub fn render_path(&self) -> RenderPath {
-        self.render_path
+        *self.render_path
     }
 
     /// Calculate very accurate bounding box in *world coordinates* including influence of bones.
@@ -312,12 +310,12 @@ impl Mesh {
     /// for example iff a decal has index == 0 and a mesh has index == 0, then decals will
     /// be applied. This allows you to apply decals only on needed surfaces.
     pub fn set_decal_layer_index(&mut self, index: u8) {
-        self.decal_layer_index = index;
+        self.decal_layer_index.set(index);
     }
 
     /// Returns current decal index.
     pub fn decal_layer_index(&self) -> u8 {
-        self.decal_layer_index
+        *self.decal_layer_index
     }
 
     /// Creates a raw copy of a mesh node.
@@ -328,25 +326,23 @@ impl Mesh {
             local_bounding_box: self.local_bounding_box.clone(),
             local_bounding_box_dirty: self.local_bounding_box_dirty.clone(),
             world_bounding_box: Default::default(),
-            cast_shadows: self.cast_shadows,
-            render_path: self.render_path,
-            decal_layer_index: self.decal_layer_index,
+            cast_shadows: self.cast_shadows.clone(),
+            render_path: self.render_path.clone(),
+            decal_layer_index: self.decal_layer_index.clone(),
         }
     }
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit(&mut self, parent: &Node) {
         self.base.inherit_properties(parent);
-
-        // Inherit surfaces.
         if let Node::Mesh(parent) = parent {
-            self.clear_surfaces();
-            for parent_surface in parent.surfaces() {
-                self.add_surface(parent_surface.clone());
-            }
+            dbg!(self.surfaces.is_modified());
+            self.surfaces.try_inherit(&parent.surfaces);
+            self.cast_shadows.try_inherit(&parent.cast_shadows);
+            self.render_path.try_inherit(&parent.render_path);
+            self.decal_layer_index
+                .try_inherit(&parent.decal_layer_index);
         }
-
-        // TODO: Add rest of properties. https://github.com/FyroxEngine/Fyrox/issues/282
     }
 }
 
@@ -400,12 +396,12 @@ impl MeshBuilder {
     pub fn build_node(self) -> Node {
         Node::Mesh(Mesh {
             base: self.base_builder.build_base(),
-            cast_shadows: self.cast_shadows,
-            surfaces: self.surfaces,
+            cast_shadows: self.cast_shadows.into(),
+            surfaces: self.surfaces.into(),
             local_bounding_box: Default::default(),
             local_bounding_box_dirty: Cell::new(true),
-            render_path: self.render_path,
-            decal_layer_index: self.decal_layer_index,
+            render_path: self.render_path.into(),
+            decal_layer_index: self.decal_layer_index.into(),
             world_bounding_box: Default::default(),
         })
     }
