@@ -169,7 +169,7 @@ pub struct GeometryBufferBinding<'a> {
     buffer: &'a GeometryBuffer,
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct DrawCallStatistics {
     pub triangles: usize,
 }
