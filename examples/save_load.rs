@@ -17,7 +17,17 @@
 
 pub mod shared;
 
-use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene, LocomotionMachine, Player};
+use crate::shared::{create_ui, fix_shadows_distance, create_scene_async, Game, GameScene, LocomotionMachine, Player};
+use fyrox::engine::Engine;
+use fyrox::engine::resource_manager::ResourceManager;
+use fyrox::engine::resource_manager::container::event::ResourceEventBroadcaster;
+use fyrox::engine::resource_manager::loader::model::ModelLoader;
+use fyrox::engine::resource_manager::loader::texture::TextureLoader;
+use fyrox::engine::resource_manager::loader::{ResourceLoader, BoxedLoaderFuture};
+use fyrox::engine::resource_manager::options::ImportOptions;
+use fyrox::event_loop::EventLoop;
+use fyrox::resource::model::{ModelImportOptions, Model};
+use fyrox::resource::texture::{TextureImportOptions, Texture};
 use fyrox::scene::SceneLoader;
 use fyrox::{
     core::{
@@ -37,7 +47,9 @@ use fyrox::{
     },
 };
 use fyrox_core::futures::executor::block_on;
+use std::marker::PhantomData;
 use std::path::Path;
+use std::sync::Arc;
 
 // Start implementing Visit trait for simple types which are used by more complex.
 // At first implement trait for LocomotionMachine.
@@ -142,8 +154,80 @@ async fn load(game: &mut Game) {
     }
 }
 
+struct CustomModelLoader(Arc<ModelLoader>);
+
+impl ResourceLoader<Model, ModelImportOptions> for CustomModelLoader {
+    fn load(
+        &self,
+        resource: Model,
+        default_import_options: ModelImportOptions,
+        resource_manager: ResourceManager,
+        event_broadcaster: ResourceEventBroadcaster<Model>,
+        reload: bool,
+    ) -> BoxedLoaderFuture {
+        // cannot borrow self for the async block as BoxedLoaderFuture is 'static due to the task_pool requirements
+        let loader = self.0.clone();
+
+        Box::pin(async move {
+            println!("CUSTOM LOADER: loading model {:?}", resource.state().path() );
+            loader.load(resource, default_import_options, resource_manager, event_broadcaster, reload).await
+        })
+    }
+}
+
+struct CustomTextureLoader(Arc<TextureLoader>);
+
+impl ResourceLoader<Texture, TextureImportOptions> for CustomTextureLoader {
+    fn load(
+        &self,
+        resource: Texture,
+        default_import_options: TextureImportOptions,
+        resource_manager: ResourceManager,
+        event_broadcaster: ResourceEventBroadcaster<Texture>,
+        reload: bool,
+    ) -> BoxedLoaderFuture {
+        // cannot borrow self for the async block as BoxedLoaderFuture is 'static due to the task_pool requirements
+        let loader = self.0.clone();
+
+        Box::pin(async move {
+            println!("CUSTOM LOADER: loading texture {:?}", resource.state().path() );
+            loader.load(resource, default_import_options, resource_manager, event_broadcaster, reload).await
+        })
+    }
+}
+
+
+fn create_game(title: &str) -> (Game, EventLoop<()>) {
+    let event_loop = EventLoop::new();
+
+    let window_builder = fyrox::window::WindowBuilder::new()
+        .with_title(title)
+        .with_resizable(true);
+
+    let resource_manager_builder = fyrox::engine::resource_manager::ResourceManagerBuilder::new()
+        .with_texture_loader(CustomTextureLoader(Arc::new(TextureLoader)))
+        .with_model_loader(CustomModelLoader(Arc::new(ModelLoader)));
+
+    let mut engine = Engine::new(window_builder, resource_manager_builder, &event_loop, false).unwrap();
+
+    engine
+        .renderer
+        .set_quality_settings(&fix_shadows_distance(QualitySettings::high()))
+        .unwrap();
+
+    let game = Game {
+        // Initially scene is None, once scene is loaded it'll have actual state.
+        game_scene: None,
+        // Create scene asynchronously - this method immediately returns empty load context
+        // which will be filled with data over time.
+        load_context: Some(create_scene_async(engine.resource_manager.clone())),
+        engine,
+    };
+    (game, event_loop)
+}
+
 fn main() {
-    let (mut game, event_loop) = Game::new("Example 06 - Save/load");
+    let (mut game, event_loop) = create_game("Example 06 - Save/load");
 
     // Create simple user interface that will show some useful info.
     let window = game.engine.get_window();

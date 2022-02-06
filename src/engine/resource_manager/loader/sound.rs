@@ -4,6 +4,7 @@ use crate::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::{try_get_import_settings, ImportOptions},
+        ResourceManager
     },
     utils::log::Log,
 };
@@ -24,15 +25,14 @@ impl ImportOptions for SoundBufferImportOptions {}
 pub struct SoundBufferLoader;
 
 impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBufferLoader {
-    type Output = BoxedLoaderFuture;
-
     fn load(
-        &mut self,
+        &self,
         resource: SoundBufferResource,
         default_import_options: SoundBufferImportOptions,
+        _resource_manager: ResourceManager,
         event_broadcaster: ResourceEventBroadcaster<SoundBufferResource>,
         reload: bool,
-    ) -> Self::Output {
+    ) -> BoxedLoaderFuture {
         Box::pin(async move {
             let path = resource.state().path().to_path_buf();
 

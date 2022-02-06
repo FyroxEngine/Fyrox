@@ -14,6 +14,7 @@ use crate::{
             shader::ShaderLoader,
             sound::{SoundBufferImportOptions, SoundBufferLoader},
             texture::TextureLoader,
+            ResourceLoader,
         },
         task::TaskPool,
         watcher::ResourceWatcher,
@@ -30,7 +31,7 @@ use notify::DebouncedEvent;
 use std::{path::Path, sync::Arc};
 
 pub mod container;
-mod loader;
+pub mod loader;
 pub mod options;
 mod task;
 pub mod watcher;
@@ -38,20 +39,80 @@ pub mod watcher;
 /// Storage of resource containers.
 pub struct ContainersStorage {
     /// Container for texture resources.
-    pub textures: ResourceContainer<Texture, TextureImportOptions, TextureLoader>,
+    pub textures: ResourceContainer<Texture, TextureImportOptions>,
 
     /// Container for model resources.
-    pub models: ResourceContainer<Model, ModelImportOptions, ModelLoader>,
+    pub models: ResourceContainer<Model, ModelImportOptions>,
 
     /// Container for sound buffer resources.
     pub sound_buffers:
-        ResourceContainer<SoundBufferResource, SoundBufferImportOptions, SoundBufferLoader>,
+        ResourceContainer<SoundBufferResource, SoundBufferImportOptions>,
 
     /// Container for shader resources.
-    pub shaders: ResourceContainer<Shader, ShaderImportOptions, ShaderLoader>,
+    pub shaders: ResourceContainer<Shader, ShaderImportOptions>,
 
     /// Container for curve resources.
-    pub curves: ResourceContainer<CurveResource, CurveImportOptions, CurveLoader>,
+    pub curves: ResourceContainer<CurveResource, CurveImportOptions>,
+}
+
+pub struct ResourceManagerBuilder {
+    texture_loader: Box<dyn ResourceLoader<Texture, TextureImportOptions>>,
+    model_loader: Box<dyn ResourceLoader<Model, ModelImportOptions>>,
+    sound_buffer_loader: Box<dyn ResourceLoader<SoundBufferResource, SoundBufferImportOptions>>,
+    shader_loader: Box<dyn ResourceLoader<Shader, ShaderImportOptions>>,
+    curve_loader: Box<dyn ResourceLoader<CurveResource, CurveImportOptions>>,
+}
+
+impl ResourceManagerBuilder {
+    pub fn new() -> ResourceManagerBuilder {
+        ResourceManagerBuilder {
+            texture_loader: Box::new(TextureLoader),
+            model_loader: Box::new(ModelLoader),
+            sound_buffer_loader: Box::new(SoundBufferLoader),
+            shader_loader: Box::new(ShaderLoader),
+            curve_loader: Box::new(CurveLoader),
+        }
+    }
+
+    #[must_use]
+    pub fn with_texture_loader<L>(mut self, loader: L) -> Self
+    where L : 'static + ResourceLoader<Texture, TextureImportOptions> {
+        self.texture_loader = Box::new(loader);
+        self
+
+    }
+
+    #[must_use]
+    pub fn with_model_loader<L>(mut self, loader: L) -> Self
+    where L : 'static + ResourceLoader<Model, ModelImportOptions> {
+        self.model_loader = Box::new(loader);
+        self
+
+    }
+
+    #[must_use]
+    pub fn with_sound_buffer_loader<L>(mut self, loader: L) -> Self
+    where L : 'static + ResourceLoader<SoundBufferResource, SoundBufferImportOptions> {
+        self.sound_buffer_loader = Box::new(loader);
+        self
+
+    }
+
+    #[must_use]
+    pub fn with_shader_loader<L>(mut self, loader: L) -> Self
+    where L : 'static + ResourceLoader<Shader, ShaderImportOptions> {
+        self.shader_loader = Box::new(loader);
+        self
+
+    }
+
+    #[must_use]
+    pub fn with_curve_loader<L>(mut self, loader: L) -> Self
+    where L : 'static + ResourceLoader<CurveResource, CurveImportOptions> {
+        self.curve_loader = Box::new(loader);
+        self
+
+    }
 }
 
 /// See module docs.
@@ -87,7 +148,7 @@ impl From<TextureError> for TextureRegistrationError {
 }
 
 impl ResourceManager {
-    pub(in crate) fn new() -> Self {
+    pub(in crate) fn new(builder: ResourceManagerBuilder) -> Self {
         let resource_manager = Self {
             state: Arc::new(Mutex::new(ResourceManagerState::new())),
         };
@@ -95,16 +156,11 @@ impl ResourceManager {
         let task_pool = Arc::new(TaskPool::new());
 
         resource_manager.state().containers_storage = Some(ContainersStorage {
-            textures: ResourceContainer::new(task_pool.clone(), TextureLoader),
-            models: ResourceContainer::new(
-                task_pool.clone(),
-                ModelLoader {
-                    resource_manager: resource_manager.clone(),
-                },
-            ),
-            sound_buffers: ResourceContainer::new(task_pool.clone(), SoundBufferLoader),
-            shaders: ResourceContainer::new(task_pool.clone(), ShaderLoader),
-            curves: ResourceContainer::new(task_pool, CurveLoader),
+            textures: ResourceContainer::new(task_pool.clone(), resource_manager.clone(), builder.texture_loader),
+            models: ResourceContainer::new(task_pool.clone(), resource_manager.clone(), builder.model_loader),
+            sound_buffers: ResourceContainer::new(task_pool.clone(), resource_manager.clone(), builder.sound_buffer_loader),
+            shaders: ResourceContainer::new(task_pool.clone(), resource_manager.clone(), builder.shader_loader),
+            curves: ResourceContainer::new(task_pool, resource_manager.clone(), builder.curve_loader),
         });
 
         resource_manager

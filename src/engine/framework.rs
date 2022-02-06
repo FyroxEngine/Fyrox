@@ -8,11 +8,11 @@ use crate::gui::message::UiMessage;
 use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::instant::Instant,
-    engine::{error::EngineError, Engine},
+    engine::{error::EngineError, Engine, resource_manager::ResourceManagerBuilder},
     event::{DeviceEvent, DeviceId, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     utils::translate_event,
-    window::WindowBuilder,
+    window::WindowBuilder,    
 };
 
 #[doc(hidden)]
@@ -62,8 +62,9 @@ impl<State: GameState> Framework<State> {
         let event_loop = EventLoop::new();
 
         let window_builder = WindowBuilder::new().with_title("Game").with_resizable(true);
+        let resource_manager_builder = ResourceManagerBuilder::new();
 
-        let mut engine = Engine::new(window_builder, &event_loop, false)?;
+        let mut engine = Engine::new(window_builder, resource_manager_builder, &event_loop, false)?;
 
         Ok(Self {
             title: "Game".to_owned(),

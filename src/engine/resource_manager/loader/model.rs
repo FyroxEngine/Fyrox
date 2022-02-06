@@ -9,22 +9,17 @@ use crate::{
     utils::log::Log,
 };
 
-pub struct ModelLoader {
-    pub resource_manager: ResourceManager,
-}
+pub struct ModelLoader;
 
 impl ResourceLoader<Model, ModelImportOptions> for ModelLoader {
-    type Output = BoxedLoaderFuture;
-
     fn load(
-        &mut self,
+        &self,
         model: Model,
         default_import_options: ModelImportOptions,
+        resource_manager: ResourceManager,
         event_broadcaster: ResourceEventBroadcaster<Model>,
         reload: bool,
-    ) -> Self::Output {
-        let resource_manager = self.resource_manager.clone();
-
+    ) -> BoxedLoaderFuture {
         Box::pin(async move {
             let path = model.state().path().to_path_buf();
 

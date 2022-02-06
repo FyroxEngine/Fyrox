@@ -13,7 +13,7 @@ use crate::{
     core::{algebra::Vector2, instant},
     engine::{
         error::EngineError,
-        resource_manager::{container::event::ResourceEvent, ResourceManager},
+        resource_manager::{container::event::ResourceEvent, ResourceManager, ResourceManagerBuilder},
     },
     event_loop::EventLoop,
     gui::UserInterface,
@@ -139,17 +139,20 @@ impl Engine {
     /// ```no_run
     /// use fyrox::engine::Engine;
     /// use fyrox::window::WindowBuilder;
+    /// use fyrox::resource_manager::ResourceManagerBuilder;
     /// use fyrox::event_loop::EventLoop;
     ///
     /// let evt = EventLoop::new();
+    /// let resource_manager_builder = WindowBuilder::new()
     /// let window_builder = WindowBuilder::new()
     ///     .with_title("Test")
     ///     .with_fullscreen(None);
-    /// let mut engine: Engine = Engine::new(window_builder, &evt, true).unwrap();
+    /// let mut engine: Engine = Engine::new(window_builder, resource_manager_builder, &evt, true).unwrap();
     /// ```
     #[inline]
     pub fn new(
         window_builder: WindowBuilder,
+        resource_manager_builder: ResourceManagerBuilder,
         events_loop: &EventLoop<()>,
         #[allow(unused_variables)] vsync: bool,
     ) -> Result<Self, EngineError> {
@@ -214,7 +217,7 @@ impl Engine {
 
         let sound_engine = SoundEngine::new();
 
-        let resource_manager = ResourceManager::new();
+        let resource_manager = ResourceManager::new(resource_manager_builder);
 
         let renderer = Renderer::new(
             glow_context,

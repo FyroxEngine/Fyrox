@@ -2,6 +2,7 @@ use crate::{
     engine::resource_manager::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
+        ResourceManager
     },
     resource::curve::{CurveImportOptions, CurveResource, CurveResourceState},
     utils::log::Log,
@@ -10,15 +11,14 @@ use crate::{
 pub struct CurveLoader;
 
 impl ResourceLoader<CurveResource, CurveImportOptions> for CurveLoader {
-    type Output = BoxedLoaderFuture;
-
     fn load(
-        &mut self,
+        &self,
         curve: CurveResource,
         _default_import_options: CurveImportOptions,
+        _resource_manager: ResourceManager,
         event_broadcaster: ResourceEventBroadcaster<CurveResource>,
         reload: bool,
-    ) -> Self::Output {
+    ) -> BoxedLoaderFuture {
         Box::pin(async move {
             let path = curve.state().path().to_path_buf();
 

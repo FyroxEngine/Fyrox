@@ -12,6 +12,7 @@ use crate::{
         loader::ResourceLoader,
         options::ImportOptions,
         task::TaskPool,
+        ResourceManager,
     },
     scene::variable::TemplateVariable,
     utils::log::Log,
@@ -29,34 +30,34 @@ pub(crate) trait Container {
 /// track resources life time and remove unused timed-out resources. It also provides useful
 /// methods to search resources, count loaded or pending, wait until all resources are loading,
 /// etc.
-pub struct ResourceContainer<T, O, L>
+pub struct ResourceContainer<T, O>
 where
     T: Clone,
     O: ImportOptions,
-    L: ResourceLoader<T, O>,
 {
     resources: Vec<TimedEntry<T>>,
     default_import_options: O,
     task_pool: Arc<TaskPool>,
-    loader: L,
+    resource_manager: ResourceManager,
+    loader: Box<dyn ResourceLoader<T, O>>,
 
     /// Event broadcaster can be used to "subscribe" for events happening inside the container.    
     pub event_broadcaster: ResourceEventBroadcaster<T>,
 }
 
-impl<T, R, E, O, L> ResourceContainer<T, O, L>
+impl<T, R, E, O> ResourceContainer<T, O>
 where
     T: Deref<Target = Resource<R, E>> + Clone + Send + Future + From<Resource<R, E>>,
     R: ResourceData,
     E: ResourceLoadError,
     O: ImportOptions,
-    L: ResourceLoader<T, O>,
 {
-    pub(crate) fn new(task_pool: Arc<TaskPool>, loader: L) -> Self {
+    pub(crate) fn new(task_pool: Arc<TaskPool>, resource_manager: ResourceManager, loader: Box<dyn ResourceLoader<T, O>>) -> Self {
         Self {
             resources: Default::default(),
             default_import_options: Default::default(),
             task_pool,
+            resource_manager,
             loader,
             event_broadcaster: ResourceEventBroadcaster::new(),
         }
@@ -214,6 +215,7 @@ where
                 self.task_pool.spawn_task(self.loader.load(
                     resource.clone(),
                     self.default_import_options.clone(),
+                    self.resource_manager.clone(),
                     self.event_broadcaster.clone(),
                     false,
                 ));
@@ -230,6 +232,7 @@ where
         self.task_pool.spawn_task(self.loader.load(
             resource,
             self.default_import_options.clone(),
+            self.resource_manager.clone(),
             self.event_broadcaster.clone(),
             true,
         ));
@@ -249,6 +252,7 @@ where
             self.task_pool.spawn_task(self.loader.load(
                 resource,
                 self.default_import_options.clone(),
+                self.resource_manager.clone(),
                 self.event_broadcaster.clone(),
                 true,
             ));
@@ -289,13 +293,12 @@ where
     }
 }
 
-impl<T, R, E, O, L> Container for ResourceContainer<T, O, L>
+impl<T, R, E, O> Container for ResourceContainer<T, O>
 where
     T: Deref<Target = Resource<R, E>> + Clone + Send + Future + From<Resource<R, E>>,
     R: ResourceData,
     E: ResourceLoadError,
     O: ImportOptions,
-    L: ResourceLoader<T, O>,
 {
     fn try_reload_resource_from_path(&mut self, path: &Path) -> bool {
         if let Some(resource) = self.find(path).cloned() {

@@ -1,5 +1,5 @@
 use crate::engine::resource_manager::{
-    container::event::ResourceEventBroadcaster, options::ImportOptions,
+    container::event::ResourceEventBroadcaster, options::ImportOptions, ResourceManager
 };
 use std::{future::Future, pin::Pin};
 
@@ -12,25 +12,38 @@ pub mod texture;
 #[cfg(target_arch = "wasm32")]
 pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = ()>>>;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
-
+#[cfg(target_arch = "wasm32")]
 pub trait ResourceLoader<T, O>
 where
     T: Clone,
     O: ImportOptions,
 {
-    #[cfg(target_arch = "wasm32")]
-    type Output: Future<Output = ()> + 'static;
-
-    #[cfg(not(target_arch = "wasm32"))]
-    type Output: Future<Output = ()> + Send + 'static;
-
     fn load(
-        &mut self,
+        &self,
         resource: T,
         default_import_options: O,
+        resource_manager: ResourceManager,
         event_broadcaster: ResourceEventBroadcaster<T>,
         reload: bool,
-    ) -> Self::Output;
+    ) -> BoxedLoaderFuture;
+}
+
+
+#[cfg(not(target_arch = "wasm32"))]
+pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub trait ResourceLoader<T, O>: Send
+where
+    T: Clone,
+    O: ImportOptions,
+{
+    fn load(
+        &self,
+        resource: T,
+        default_import_options: O,
+        resource_manager: ResourceManager,
+        event_broadcaster: ResourceEventBroadcaster<T>,
+        reload: bool,
+    ) -> BoxedLoaderFuture;
 }

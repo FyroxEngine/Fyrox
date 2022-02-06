@@ -1574,7 +1574,9 @@ fn main() {
         .with_title("rusty editor")
         .with_resizable(true);
 
-    let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
+    let resource_manager_builder = fyrox::engine::resource_manager::ResourceManagerBuilder::new();
+
+    let mut engine = GameEngine::new(window_builder, resource_manager_builder, &event_loop, true).unwrap();
 
     let overlay_pass = OverlayRenderPass::new(engine.renderer.pipeline_state());
     engine.renderer.add_render_pass(overlay_pass);

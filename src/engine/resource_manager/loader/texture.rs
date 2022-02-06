@@ -4,6 +4,7 @@ use crate::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::try_get_import_settings,
+        ResourceManager
     },
     resource::texture::{Texture, TextureData, TextureImportOptions},
     utils::log::Log,
@@ -12,15 +13,14 @@ use crate::{
 pub struct TextureLoader;
 
 impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
-    type Output = BoxedLoaderFuture;
-
     fn load(
-        &mut self,
+        &self,
         texture: Texture,
         default_import_options: TextureImportOptions,
+        _resource_manager: ResourceManager,
         event_broadcaster: ResourceEventBroadcaster<Texture>,
         reload: bool,
-    ) -> Self::Output {
+    ) -> BoxedLoaderFuture {
         Box::pin(async move {
             let path = texture.state().path().to_path_buf();
 
