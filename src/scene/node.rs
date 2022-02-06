@@ -5,6 +5,7 @@
 #![warn(missing_docs)]
 
 use crate::engine::resource_manager::ResourceManager;
+use crate::scene::variable::InheritError;
 use crate::{
     asset::core::inspect::PropertyInfo,
     core::{
@@ -281,8 +282,12 @@ impl Node {
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
         static_dispatch_inherit!(self, parent)
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        static_dispatch!(self, reset_inheritable_properties,)
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {

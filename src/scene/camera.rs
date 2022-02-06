@@ -14,6 +14,8 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
+use crate::scene::variable::InheritError;
+use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -23,6 +25,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
+    impl_directly_inheritable_entity_trait,
     resource::texture::{Texture, TextureError, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
@@ -291,6 +294,17 @@ pub struct Camera {
     #[inspect(skip)]
     pub visibility_cache: VisibilityCache,
 }
+
+impl_directly_inheritable_entity_trait!(Camera;
+    projection,
+    viewport,
+    enabled,
+    sky_box,
+    environment,
+    exposure,
+    color_grading_lut,
+    color_grading_enabled
+);
 
 impl Deref for Camera {
     type Target = Base;
@@ -591,20 +605,17 @@ impl Camera {
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base.inherit_properties(parent);
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
         if let Node::Camera(parent) = parent {
-            self.projection.try_inherit(&parent.projection);
-            self.viewport.try_inherit(&parent.viewport);
-            self.enabled.try_inherit(&parent.enabled);
-            self.sky_box.try_inherit(&parent.sky_box);
-            self.environment.try_inherit(&parent.environment);
-            self.exposure.try_inherit(&parent.exposure);
-            self.color_grading_lut
-                .try_inherit(&parent.color_grading_lut);
-            self.color_grading_enabled
-                .try_inherit(&parent.color_grading_enabled);
+            self.try_inherit_self_properties(parent)?;
         }
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 }
 

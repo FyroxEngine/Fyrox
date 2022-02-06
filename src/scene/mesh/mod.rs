@@ -9,7 +9,8 @@
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
 use crate::engine::resource_manager::ResourceManager;
-use crate::scene::variable::{TemplateVariable, VariableFlags};
+use crate::scene::variable::{InheritError, TemplateVariable, VariableFlags};
+use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -18,6 +19,7 @@ use crate::{
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
+    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -113,6 +115,13 @@ pub struct Mesh {
     #[visit(skip)]
     world_bounding_box: Cell<AxisAlignedBoundingBox>,
 }
+
+impl_directly_inheritable_entity_trait!(Mesh;
+    surfaces,
+    cast_shadows,
+    render_path,
+    decal_layer_index
+);
 
 impl Default for Mesh {
     fn default() -> Self {
@@ -333,16 +342,17 @@ impl Mesh {
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base.inherit_properties(parent);
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
         if let Node::Mesh(parent) = parent {
-            dbg!(self.surfaces.is_modified());
-            self.surfaces.try_inherit(&parent.surfaces);
-            self.cast_shadows.try_inherit(&parent.cast_shadows);
-            self.render_path.try_inherit(&parent.render_path);
-            self.decal_layer_index
-                .try_inherit(&parent.decal_layer_index);
+            self.try_inherit_self_properties(parent)?;
         }
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 }
 

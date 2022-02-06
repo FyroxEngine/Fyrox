@@ -24,11 +24,14 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
+    impl_directly_inheritable_entity_trait,
     scene::{
         graph::Graph,
         light::{BaseLight, BaseLightBuilder, Light},
         node::Node,
+        variable::InheritError,
         variable::TemplateVariable,
+        DirectlyInheritableEntity,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -44,6 +47,11 @@ pub struct PointLight {
     #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
     radius: TemplateVariable<f32>,
 }
+
+impl_directly_inheritable_entity_trait!(PointLight;
+    shadow_bias,
+    radius
+);
 
 impl Deref for PointLight {
     type Target = BaseLight;
@@ -96,14 +104,19 @@ impl PointLight {
     pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
         if let Node::Light(parent) = parent {
-            self.base_light.inherit(parent);
+            self.base_light.inherit(parent)?;
             if let Light::Point(parent) = parent {
-                self.radius.try_inherit(&parent.radius);
-                self.shadow_bias.try_inherit(&parent.shadow_bias);
+                self.try_inherit_self_properties(parent)?;
             }
         }
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base_light.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 }
 

@@ -2,21 +2,24 @@
 //!
 //! For more info see [`Decal`]
 
-use crate::core::math::aabb::AxisAlignedBoundingBox;
-use crate::engine::resource_manager::ResourceManager;
-use crate::scene::variable::TemplateVariable;
+use crate::scene::variable::InheritError;
+use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         visitor::prelude::*,
     },
+    engine::resource_manager::ResourceManager,
+    impl_directly_inheritable_entity_trait,
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
+        variable::TemplateVariable,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -99,6 +102,13 @@ pub struct Decal {
     #[inspect(min_value = 0.0, getter = "Deref::deref")]
     layer: TemplateVariable<u8>,
 }
+
+impl_directly_inheritable_entity_trait!(Decal;
+    diffuse_texture,
+    normal_texture,
+    color,
+    layer
+);
 
 impl Deref for Decal {
     type Target = Base;
@@ -200,14 +210,17 @@ impl Decal {
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base.inherit_properties(parent);
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
         if let Node::Decal(parent) = parent {
-            self.diffuse_texture.try_inherit(&parent.diffuse_texture);
-            self.normal_texture.try_inherit(&parent.normal_texture);
-            self.color.try_inherit(&parent.color);
-            self.layer.try_inherit(&parent.layer);
+            self.try_inherit_self_properties(parent)?;
         }
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 }
 

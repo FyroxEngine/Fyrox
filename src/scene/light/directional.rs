@@ -7,18 +7,20 @@
 //! Current directional light does *not* support shadows, it is still
 //! on list of features that should be implemented.
 
-use crate::engine::resource_manager::ResourceManager;
-use crate::scene::variable::TemplateVariable;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
+    engine::resource_manager::ResourceManager,
+    impl_directly_inheritable_entity_trait,
     scene::{
         graph::Graph,
         light::{BaseLight, BaseLightBuilder, Light},
         node::Node,
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -105,6 +107,10 @@ pub struct DirectionalLight {
     pub csm_options: TemplateVariable<CsmOptions>,
 }
 
+impl_directly_inheritable_entity_trait!(DirectionalLight;
+    csm_options
+);
+
 impl From<BaseLight> for DirectionalLight {
     fn from(base_light: BaseLight) -> Self {
         Self {
@@ -140,13 +146,19 @@ impl DirectionalLight {
     pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
         if let Node::Light(parent) = parent {
-            self.base_light.inherit(parent);
+            self.base_light.inherit(parent)?;
             if let Light::Directional(parent) = parent {
-                self.csm_options.try_inherit(&parent.csm_options);
+                self.try_inherit_self_properties(parent)?;
             }
         }
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base_light.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 }
 

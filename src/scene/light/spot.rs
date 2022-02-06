@@ -23,13 +23,15 @@
 //! hardware!
 
 use crate::engine::resource_manager::ResourceManager;
-use crate::scene::variable::TemplateVariable;
+use crate::scene::variable::{InheritError, TemplateVariable};
+use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
+    impl_directly_inheritable_entity_trait,
     resource::texture::Texture,
     scene::{
         graph::Graph,
@@ -64,6 +66,14 @@ pub struct SpotLight {
     #[inspect(getter = "Deref::deref")]
     cookie_texture: TemplateVariable<Option<Texture>>,
 }
+
+impl_directly_inheritable_entity_trait!(SpotLight;
+    hotspot_cone_angle,
+    falloff_angle_delta,
+    shadow_bias,
+    distance,
+    cookie_texture
+);
 
 impl Deref for SpotLight {
     type Target = BaseLight;
@@ -191,19 +201,19 @@ impl SpotLight {
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
         if let Node::Light(parent) = parent {
-            self.base_light.inherit(parent);
+            self.base_light.inherit(parent)?;
             if let Light::Spot(parent) = parent {
-                self.hotspot_cone_angle
-                    .try_inherit(&parent.hotspot_cone_angle);
-                self.falloff_angle_delta
-                    .try_inherit(&parent.falloff_angle_delta);
-                self.shadow_bias.try_inherit(&parent.shadow_bias);
-                self.distance.try_inherit(&parent.distance);
-                self.cookie_texture.try_inherit(&parent.cookie_texture);
+                self.try_inherit_self_properties(parent)?;
             }
         }
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base_light.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 }
 

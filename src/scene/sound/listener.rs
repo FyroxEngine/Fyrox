@@ -1,5 +1,6 @@
 #![allow(missing_docs)] // TODO
 
+use crate::scene::variable::InheritError;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -42,8 +43,12 @@ impl Listener {
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base.inherit_properties(parent);
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
     }
 
     pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

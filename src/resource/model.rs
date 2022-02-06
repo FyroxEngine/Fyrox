@@ -17,7 +17,6 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native Fyroxed format) formats are supported.
-use crate::scene::SceneLoader;
 use crate::{
     animation::Animation,
     asset::{define_new_resource, Resource, ResourceData},
@@ -26,10 +25,9 @@ use crate::{
         pool::Handle,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::resource_manager::options::ImportOptions,
-    engine::resource_manager::ResourceManager,
+    engine::resource_manager::{options::ImportOptions, ResourceManager},
     resource::fbx::{self, error::FbxError},
-    scene::{node::Node, Scene},
+    scene::{node::Node, Scene, SceneLoader},
     utils::log::{Log, MessageKind},
 };
 use serde::{Deserialize, Serialize};
@@ -78,6 +76,10 @@ impl Model {
             let node = &mut dest_scene.graph[node_handle];
 
             node.resource = Some(self.clone());
+
+            // Reset inheritable properties, so property inheritance system will take properties
+            // from parent objects on resolve stage.
+            node.reset_inheritable_properties();
 
             // Continue on children.
             stack.extend_from_slice(node.children());

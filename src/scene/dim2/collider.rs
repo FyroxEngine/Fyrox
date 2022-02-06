@@ -9,13 +9,15 @@ use crate::{
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
+    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         collider::InteractionGroups,
         dim2::physics::{ContactPair, PhysicsWorld},
         graph::{physics::CoefficientCombineRule, Graph},
         node::Node,
-        variable::TemplateVariable,
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
     },
 };
 use rapier2d::geometry::ColliderHandle;
@@ -270,6 +272,18 @@ pub struct Collider {
     pub(in crate) native: Cell<ColliderHandle>,
 }
 
+impl_directly_inheritable_entity_trait!(Collider;
+    shape,
+    friction,
+    density,
+    restitution,
+    is_sensor,
+    collision_groups,
+    solver_groups,
+    friction_combine_rule,
+    restitution_combine_rule
+);
+
 impl Default for Collider {
     fn default() -> Self {
         Self {
@@ -504,21 +518,17 @@ impl Collider {
     pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base.inherit_properties(parent);
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
         if let Node::Collider2D(parent) = parent {
-            self.shape.try_inherit(&parent.shape);
-            self.friction.try_inherit(&parent.friction);
-            self.density.try_inherit(&parent.density);
-            self.restitution.try_inherit(&parent.restitution);
-            self.is_sensor.try_inherit(&parent.is_sensor);
-            self.collision_groups.try_inherit(&parent.collision_groups);
-            self.solver_groups.try_inherit(&parent.solver_groups);
-            self.friction_combine_rule
-                .try_inherit(&parent.friction_combine_rule);
-            self.restitution_combine_rule
-                .try_inherit(&parent.restitution_combine_rule);
+            self.try_inherit_self_properties(parent)?;
         }
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 
     pub(crate) fn needs_sync_model(&self) -> bool {

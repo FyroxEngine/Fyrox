@@ -3,6 +3,8 @@
 //! For more info see [`Base`]
 
 use crate::engine::resource_manager::ResourceManager;
+use crate::scene::variable::InheritError;
+use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -11,6 +13,7 @@ use crate::{
         pool::{ErasedHandle, Handle},
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
+    impl_directly_inheritable_entity_trait,
     resource::model::Model,
     scene::{graph::Graph, node::Node, transform::Transform, variable::TemplateVariable},
 };
@@ -341,6 +344,18 @@ pub struct Base {
     pub(in crate) original_handle_in_resource: Handle<Node>,
 }
 
+impl_directly_inheritable_entity_trait!(Base;
+    name,
+    visibility,
+    lifetime,
+    depth_offset,
+    lod_group,
+    mobility,
+    tag,
+    properties,
+    frustum_culling
+);
+
 impl Base {
     /// Sets name of node. Can be useful to mark a node to be able to find it later on.
     pub fn set_name<N: AsRef<str>>(&mut self, name: N) -> &mut Self {
@@ -613,17 +628,15 @@ impl Base {
     pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit_properties(&mut self, parent: &Base) {
-        self.local_transform.inherit(parent.local_transform());
-        self.name.try_inherit(&parent.name);
-        self.visibility.try_inherit(&parent.visibility);
-        self.lifetime.try_inherit(&parent.lifetime);
-        self.depth_offset.try_inherit(&parent.depth_offset);
-        self.lod_group.try_inherit(&parent.lod_group);
-        self.mobility.try_inherit(&parent.mobility);
-        self.tag.try_inherit(&parent.tag);
-        self.properties.try_inherit(&parent.properties);
-        self.frustum_culling.try_inherit(&parent.frustum_culling);
+    pub(crate) fn inherit_properties(&mut self, parent: &Base) -> Result<(), InheritError> {
+        self.local_transform.inherit(parent.local_transform())?;
+        self.try_inherit_self_properties(parent)?;
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.reset_self_inheritable_properties();
+        self.local_transform.reset_inheritable_properties();
     }
 }
 

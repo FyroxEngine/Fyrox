@@ -30,6 +30,7 @@ use crate::{
     core::{
         algebra::Vector2,
         color::Color,
+        futures::future::join_all,
         instant,
         pool::{Handle, Pool, PoolIterator, PoolIteratorMut, Ticket},
         sstorage::ImmutableString,
@@ -38,7 +39,6 @@ use crate::{
     engine::resource_manager::ResourceManager,
     material::{shader::SamplerFallback, PropertyValue},
     resource::texture::Texture,
-    scene::sound::SoundEngine,
     scene::{
         debug::SceneDrawingContext,
         graph::{physics::PhysicsPerformanceStatistics, Graph},
@@ -47,17 +47,94 @@ use crate::{
             VertexWriteTrait,
         },
         node::Node,
+        sound::SoundEngine,
+        variable::{InheritError, InheritableVariable},
     },
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::FxHashMap;
-use fyrox_core::futures::future::join_all;
 use std::{
+    any::{Any, TypeId},
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
     path::Path,
     sync::{Arc, Mutex},
 };
+
+/// A trait for object that has any TemplateVariable and should support property inheritance.
+pub trait DirectlyInheritableEntity: Any {
+    /// Returns a list of references to inheritable variables of an entity.
+    fn inheritable_properties_ref(&self) -> Vec<&dyn InheritableVariable>;
+
+    /// Returns a list of references to inheritable variables of an entity.
+    fn inheritable_properties_mut(&mut self) -> Vec<&mut dyn InheritableVariable>;
+
+    /// Casts self as [`Any`]
+    fn as_any(&self) -> &dyn Any;
+
+    /// Tries to inherit properties from parent in **non-resursive** manner.
+    fn try_inherit_self_properties(
+        &mut self,
+        parent: &dyn DirectlyInheritableEntity,
+    ) -> Result<(), InheritError> {
+        let any_parent = parent.as_any();
+        if TypeId::of::<Self>() == any_parent.type_id() {
+            for (dest, src) in self
+                .inheritable_properties_mut()
+                .iter_mut()
+                .zip(parent.inheritable_properties_ref())
+            {
+                dest.try_inherit(src)?;
+            }
+            Ok(())
+        } else {
+            Err(InheritError::TypesMismatch {
+                left_type: TypeId::of::<Self>(),
+                right_type: any_parent.type_id(),
+            })
+        }
+    }
+
+    /// Resets modified flags on every property of an entity. It is useful for model instantiation,
+    /// we reset modified flags on copies thus forcing copies to inherit properties from "parent"
+    /// objects.
+    fn reset_self_inheritable_properties(&mut self) {
+        for property in self.inheritable_properties_mut() {
+            property.reset_modified_flag();
+        }
+    }
+}
+
+/// Implements [`DirectlyInheritableEntity`] trait for a specified object.
+///
+/// As first argument it accepts type name for which the trait will be implemented, second variadic
+/// parameter is field names of the type that implement InheritableVariable trait.
+#[macro_export]
+macro_rules! impl_directly_inheritable_entity_trait {
+    ($ty:ty; $($name:ident),*) => {
+        impl crate::scene::DirectlyInheritableEntity for $ty {
+            fn inheritable_properties_ref(&self)
+                -> Vec<&dyn crate::scene::variable::InheritableVariable>
+            {
+                vec![
+                    $(&self.$name),*
+                ]
+            }
+
+            fn inheritable_properties_mut(&mut self)
+                -> Vec<&mut dyn crate::scene::variable::InheritableVariable>
+            {
+                vec![
+                    $(&mut self.$name),*
+                ]
+            }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+        }
+    }
+}
 
 /// A container for navigational meshes.
 #[derive(Default, Clone, Debug)]

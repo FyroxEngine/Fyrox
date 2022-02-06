@@ -8,6 +8,8 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
+use crate::scene::variable::InheritError;
+use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         algebra::Vector3,
@@ -17,6 +19,7 @@ use crate::{
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
+    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -180,6 +183,23 @@ pub struct RigidBody {
     #[inspect(skip)]
     pub(crate) actions: Mutex<VecDeque<ApplyAction>>,
 }
+
+impl_directly_inheritable_entity_trait!(RigidBody;
+    lin_vel,
+    ang_vel,
+    lin_damping,
+    ang_damping,
+    body_type,
+    mass,
+    x_rotation_locked,
+    y_rotation_locked,
+    z_rotation_locked,
+    translation_locked,
+    ccd_enabled,
+    can_sleep,
+    dominance,
+    gravity_scale
+);
 
 impl Debug for RigidBody {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -470,28 +490,17 @@ impl RigidBody {
     pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base.inherit_properties(parent);
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
         if let Node::RigidBody(parent) = parent {
-            self.lin_vel.try_inherit(&parent.lin_vel);
-            self.ang_vel.try_inherit(&parent.ang_vel);
-            self.lin_damping.try_inherit(&parent.lin_damping);
-            self.ang_damping.try_inherit(&parent.ang_damping);
-            self.body_type.try_inherit(&parent.body_type);
-            self.mass.try_inherit(&parent.mass);
-            self.x_rotation_locked
-                .try_inherit(&parent.x_rotation_locked);
-            self.y_rotation_locked
-                .try_inherit(&parent.y_rotation_locked);
-            self.z_rotation_locked
-                .try_inherit(&parent.z_rotation_locked);
-            self.translation_locked
-                .try_inherit(&parent.translation_locked);
-            self.ccd_enabled.try_inherit(&parent.ccd_enabled);
-            self.can_sleep.try_inherit(&parent.can_sleep);
-            self.dominance.try_inherit(&parent.dominance);
-            self.gravity_scale.try_inherit(&parent.gravity_scale);
+            self.try_inherit_self_properties(parent)?;
         }
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 
     pub(crate) fn need_sync_model(&self) -> bool {

@@ -2,8 +2,8 @@
 //!
 //! For more info see [`Sprite`].
 
-use crate::engine::resource_manager::ResourceManager;
-use crate::scene::variable::TemplateVariable;
+use crate::scene::variable::InheritError;
+use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         color::Color,
@@ -12,11 +12,14 @@ use crate::{
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
+    engine::resource_manager::ResourceManager,
+    impl_directly_inheritable_entity_trait,
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
+        variable::TemplateVariable,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -72,6 +75,13 @@ pub struct Sprite {
     #[inspect(getter = "Deref::deref")]
     rotation: TemplateVariable<f32>,
 }
+
+impl_directly_inheritable_entity_trait!(Sprite;
+    texture,
+    color,
+    size,
+    rotation
+);
 
 impl Deref for Sprite {
     type Target = Base;
@@ -171,14 +181,17 @@ impl Sprite {
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base.inherit_properties(parent);
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
         if let Node::Sprite(parent) = parent {
-            self.texture.try_inherit(&parent.texture);
-            self.color.try_inherit(&parent.color);
-            self.size.try_inherit(&parent.size);
-            self.rotation.try_inherit(&parent.rotation);
+            self.try_inherit_self_properties(parent)?;
         }
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 }
 

@@ -71,7 +71,8 @@
 //! ```
 
 use crate::engine::resource_manager::ResourceManager;
-use crate::scene::variable::TemplateVariable;
+use crate::scene::variable::{InheritError, TemplateVariable};
+use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
@@ -82,6 +83,7 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
+    impl_directly_inheritable_entity_trait,
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
@@ -168,6 +170,15 @@ pub struct ParticleSystem {
     #[inspect(skip)]
     free_particles: Vec<u32>,
 }
+
+impl_directly_inheritable_entity_trait!(ParticleSystem;
+    emitters,
+    texture,
+    acceleration,
+    color_over_lifetime,
+    soft_boundary_sharpness_factor,
+    enabled
+);
 
 impl Deref for ParticleSystem {
     type Target = Base;
@@ -422,18 +433,17 @@ impl ParticleSystem {
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base.inherit_properties(parent);
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
         if let Node::ParticleSystem(parent) = parent {
-            self.emitters.try_inherit(&parent.emitters);
-            self.texture.try_inherit(&parent.texture);
-            self.acceleration.try_inherit(&parent.acceleration);
-            self.color_over_lifetime
-                .try_inherit(&parent.color_over_lifetime);
-            self.soft_boundary_sharpness_factor
-                .try_inherit(&parent.soft_boundary_sharpness_factor);
-            self.enabled.try_inherit(&parent.enabled);
+            self.try_inherit_self_properties(parent)?;
         }
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 }
 

@@ -669,7 +669,7 @@ impl Graph {
                             node.original_handle_in_resource = original;
                             node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
 
-                            node.inherit(resource_node);
+                            Log::verify(node.inherit(resource_node));
                         } else {
                             Log::warn(format!(
                                 "Unable to find original handle for node {}",
@@ -764,6 +764,9 @@ impl Graph {
                         while let Some(node_handle) = stack.pop() {
                             let node = &mut self.pool[node_handle];
                             node.resource = Some(resource.clone());
+                            // Reset inheritable properties, so property inheritance system will take properties
+                            // from parent objects on resolve stage.
+                            node.reset_inheritable_properties();
                             stack.extend_from_slice(node.children());
                         }
 
@@ -773,10 +776,9 @@ impl Graph {
 
                         // Link it with existing node.
                         if resource_node.parent().is_some() {
-                            let parent = self.find_by_name(
-                                instance_root,
-                                resource_graph[resource_node.parent()].name(),
-                            );
+                            let parent = self.find(instance_root, &mut |n| {
+                                n.original_handle_in_resource == resource_node.parent()
+                            });
 
                             if parent.is_some() {
                                 self.link_nodes(copy, parent);

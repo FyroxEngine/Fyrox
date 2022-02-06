@@ -4,7 +4,11 @@
 
 use crate::core::visitor::prelude::*;
 use bitflags::bitflags;
-use std::{cell::Cell, ops::Deref};
+use std::{
+    any::{Any, TypeId},
+    cell::Cell,
+    ops::Deref,
+};
 
 bitflags! {
     /// A set of possible variable flags.
@@ -20,6 +24,75 @@ bitflags! {
         ///
         /// **Warning**: This flag will be removed in 0.26!
         const DONT_MARK_AS_MODIFIED_IF_MISSING = 0b0000_0100;
+    }
+}
+
+/// An error that could occur during inheritance.
+#[derive(Debug)]
+pub enum InheritError {
+    /// Types of properties mismatch.
+    TypesMismatch {
+        /// Type of left property.
+        left_type: TypeId,
+        /// Type of right property.
+        right_type: TypeId,
+    },
+}
+
+/// A variable that can inherit its value from parent.
+pub trait InheritableVariable: Any {
+    /// Tries to inherit a value from parent. It will succeed only if the current variable is
+    /// not marked as modified.
+    fn try_inherit(&mut self, parent: &dyn InheritableVariable) -> Result<bool, InheritError>;
+
+    /// Resets modified flag from the variable.
+    fn reset_modified_flag(&mut self);
+
+    /// Casts self as Any trait.
+    fn as_any(&self) -> &dyn Any;
+
+    /// Returns current variable flags.
+    fn flags(&self) -> VariableFlags;
+
+    /// Returns true if value was modified.
+    fn is_modified(&self) -> bool;
+}
+
+impl<T> InheritableVariable for TemplateVariable<T>
+where
+    T: Clone + 'static,
+{
+    fn try_inherit(&mut self, parent: &dyn InheritableVariable) -> Result<bool, InheritError> {
+        let any_parent = parent.as_any();
+        if let Some(parent) = any_parent.downcast_ref::<Self>() {
+            if !self.is_modified() {
+                self.value = parent.value.clone();
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        } else {
+            Err(InheritError::TypesMismatch {
+                left_type: TypeId::of::<Self>(),
+                right_type: any_parent.type_id(),
+            })
+        }
+    }
+
+    fn reset_modified_flag(&mut self) {
+        self.flags.get_mut().remove(VariableFlags::MODIFIED)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn flags(&self) -> VariableFlags {
+        self.flags.get()
+    }
+
+    fn is_modified(&self) -> bool {
+        self.flags.get().contains(VariableFlags::MODIFIED)
     }
 }
 
@@ -98,17 +171,6 @@ impl<T: Clone> TemplateVariable<T> {
             false
         }
     }
-
-    /// Tries to inherit a value from parent. It will succeed only if the current variable is
-    /// not marked as modified.
-    pub fn try_inherit(&mut self, parent: &Self) -> bool {
-        if !self.is_modified() {
-            self.value = parent.value.clone();
-            true
-        } else {
-            false
-        }
-    }
 }
 
 impl<T> TemplateVariable<T> {
@@ -180,11 +242,6 @@ impl<T> TemplateVariable<T> {
     /// This method does not mark the value as modified!
     pub fn get_mut_silent(&mut self) -> &mut T {
         &mut self.value
-    }
-
-    /// Returns true if value was modified.
-    pub fn is_modified(&self) -> bool {
-        self.flags.get().contains(VariableFlags::MODIFIED)
     }
 
     fn mark_modified(&mut self) {

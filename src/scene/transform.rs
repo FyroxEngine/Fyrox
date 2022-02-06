@@ -50,7 +50,11 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         visitor::{Visit, VisitResult, Visitor},
     },
-    scene::variable::TemplateVariable,
+    impl_directly_inheritable_entity_trait,
+    scene::{
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
+    },
     utils::log::{Log, MessageKind},
 };
 use std::{cell::Cell, ops::Deref};
@@ -117,6 +121,18 @@ pub struct Transform {
     #[inspect(skip)]
     post_rotation_matrix: Matrix3<f32>,
 }
+
+impl_directly_inheritable_entity_trait!(Transform;
+    local_position,
+    local_rotation,
+    local_scale,
+    pre_rotation,
+    post_rotation,
+    rotation_offset,
+    rotation_pivot,
+    scaling_offset,
+    scaling_pivot
+);
 
 impl Visit for Transform {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -477,17 +493,15 @@ impl Transform {
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Transform) {
-        self.local_position.try_inherit(&parent.local_position);
-        self.local_rotation.try_inherit(&parent.local_rotation);
-        self.local_scale.try_inherit(&parent.local_scale);
-        self.pre_rotation.try_inherit(&parent.pre_rotation);
-        self.post_rotation.try_inherit(&parent.post_rotation);
-        self.rotation_offset.try_inherit(&parent.rotation_offset);
-        self.rotation_pivot.try_inherit(&parent.rotation_pivot);
-        self.scaling_offset.try_inherit(&parent.scaling_offset);
-        self.scaling_pivot.try_inherit(&parent.scaling_pivot);
+    pub(crate) fn inherit(&mut self, parent: &Transform) -> Result<(), InheritError> {
+        self.try_inherit_self_properties(parent)?;
+        self.dirty.set(true);
         self.post_rotation_matrix = build_post_rotation_matrix(self.post_rotation.clone_inner());
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.reset_self_inheritable_properties();
     }
 }
 

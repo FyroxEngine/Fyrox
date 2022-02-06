@@ -13,7 +13,7 @@ use crate::{
         pool::Handle,
         visitor::prelude::*,
     },
-    define_with,
+    define_with, impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -24,6 +24,8 @@ use crate::{
 
 // Re-export some the fyrox_sound entities.
 use crate::engine::resource_manager::ResourceManager;
+use crate::scene::variable::InheritError;
+use crate::scene::DirectlyInheritableEntity;
 pub use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
     context::{DistanceModel, SAMPLE_RATE},
@@ -71,6 +73,20 @@ pub struct Sound {
     #[visit(skip)]
     pub(crate) native: Cell<Handle<SoundSource>>,
 }
+
+impl_directly_inheritable_entity_trait!(Sound;
+    status,
+    buffer,
+    play_once,
+    gain,
+    panning,
+    looping,
+    pitch,
+    radius,
+    max_distance,
+    rolloff_factor,
+    playback_time
+);
 
 impl Deref for Sound {
     type Target = Base;
@@ -298,21 +314,17 @@ impl Sound {
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base.inherit_properties(parent);
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
         if let Node::Sound(parent) = parent {
-            self.status.try_inherit(&parent.status);
-            self.buffer.try_inherit(&parent.buffer);
-            self.play_once.try_inherit(&parent.play_once);
-            self.gain.try_inherit(&parent.gain);
-            self.panning.try_inherit(&parent.panning);
-            self.looping.try_inherit(&parent.looping);
-            self.pitch.try_inherit(&parent.pitch);
-            self.radius.try_inherit(&parent.radius);
-            self.max_distance.try_inherit(&parent.max_distance);
-            self.rolloff_factor.try_inherit(&parent.rolloff_factor);
-            self.playback_time.try_inherit(&parent.playback_time);
+            self.try_inherit_self_properties(parent)?;
         }
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 }
 

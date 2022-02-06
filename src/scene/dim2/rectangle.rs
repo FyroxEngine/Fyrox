@@ -6,12 +6,14 @@ use crate::{
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
+    impl_directly_inheritable_entity_trait,
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
-        variable::TemplateVariable,
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -26,6 +28,11 @@ pub struct Rectangle {
     #[inspect(getter = "Deref::deref")]
     color: TemplateVariable<Color>,
 }
+
+impl_directly_inheritable_entity_trait!(Rectangle;
+    texture,
+    color
+);
 
 impl Deref for Rectangle {
     type Target = Base;
@@ -78,13 +85,18 @@ impl Rectangle {
             .try_restore_template_resource(&mut self.texture);
     }
 
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
+    }
+
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base.inherit_properties(parent);
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
         if let Node::Rectangle(parent) = parent {
-            self.texture.try_inherit(&parent.texture);
-            self.color.try_inherit(&parent.color);
+            self.try_inherit_self_properties(parent)?;
         }
+        Ok(())
     }
 }
 

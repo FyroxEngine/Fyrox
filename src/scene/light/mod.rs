@@ -16,9 +16,8 @@
 //! these are common effects for modern games but still can significantly impact
 //! performance.
 
-use crate::engine::resource_manager::ResourceManager;
-use crate::scene::node::Node;
-use crate::scene::variable::TemplateVariable;
+use crate::scene::variable::InheritError;
+use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         algebra::Vector3,
@@ -27,9 +26,13 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         visitor::{Visit, VisitResult, Visitor},
     },
+    engine::resource_manager::ResourceManager,
+    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
+        node::Node,
+        variable::TemplateVariable,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -106,11 +109,19 @@ impl Light {
         }
     }
 
-    pub(crate) fn inherit(&mut self, parent: &Node) {
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
         match self {
             Light::Directional(v) => v.inherit(parent),
             Light::Spot(v) => v.inherit(parent),
             Light::Point(v) => v.inherit(parent),
+        }
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        match self {
+            Light::Directional(v) => v.reset_inheritable_properties(),
+            Light::Spot(v) => v.reset_inheritable_properties(),
+            Light::Point(v) => v.reset_inheritable_properties(),
         }
     }
 
@@ -191,6 +202,14 @@ pub struct BaseLight {
     #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
     intensity: TemplateVariable<f32>,
 }
+
+impl_directly_inheritable_entity_trait!(BaseLight;
+    color,
+    cast_shadows,
+    scatter,
+    scatter_enabled,
+    intensity
+);
 
 impl Deref for BaseLight {
     type Target = Base;
@@ -327,13 +346,15 @@ impl BaseLight {
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &BaseLight) {
-        self.base.inherit_properties(parent);
-        self.color.try_inherit(&parent.color);
-        self.cast_shadows.try_inherit(&parent.cast_shadows);
-        self.scatter.try_inherit(&parent.scatter);
-        self.scatter_enabled.try_inherit(&parent.scatter_enabled);
-        self.intensity.try_inherit(&parent.intensity);
+    pub(crate) fn inherit(&mut self, parent: &BaseLight) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
+        self.try_inherit_self_properties(parent)?;
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 }
 

@@ -1,5 +1,7 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
+use crate::scene::variable::InheritError;
+use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -8,6 +10,7 @@ use crate::{
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
+    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -190,6 +193,12 @@ pub struct Joint {
     pub(crate) native: Cell<JointHandle>,
 }
 
+impl_directly_inheritable_entity_trait!(Joint;
+    params,
+    body1,
+    body2
+);
+
 impl Default for Joint {
     fn default() -> Self {
         Self {
@@ -264,13 +273,17 @@ impl Joint {
     pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base.inherit_properties(parent);
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
         if let Node::Joint(parent) = parent {
-            self.params.try_inherit(&parent.params);
-            self.body1.try_inherit(&parent.body1);
-            self.body2.try_inherit(&parent.body2);
+            self.try_inherit_self_properties(parent)?;
         }
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 }
 

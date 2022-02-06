@@ -17,12 +17,14 @@ use crate::{
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
+    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
         rigidbody::RigidBodyType,
-        variable::TemplateVariable,
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
     },
 };
 use rapier2d::prelude::RigidBodyHandle;
@@ -111,6 +113,21 @@ pub struct RigidBody {
     #[inspect(skip)]
     pub(crate) actions: Mutex<VecDeque<ApplyAction>>,
 }
+
+impl_directly_inheritable_entity_trait!(RigidBody;
+    lin_vel,
+    ang_vel,
+    lin_damping,
+    ang_damping,
+    body_type,
+    mass,
+    rotation_locked,
+    translation_locked,
+    ccd_enabled,
+    can_sleep,
+    dominance,
+    gravity_scale
+);
 
 impl Debug for RigidBody {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -370,23 +387,17 @@ impl RigidBody {
     pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) {
-        self.base.inherit_properties(parent);
+    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
         if let Node::RigidBody2D(parent) = parent {
-            self.lin_vel.try_inherit(&parent.lin_vel);
-            self.ang_vel.try_inherit(&parent.ang_vel);
-            self.lin_damping.try_inherit(&parent.lin_damping);
-            self.ang_damping.try_inherit(&parent.ang_damping);
-            self.body_type.try_inherit(&parent.body_type);
-            self.mass.try_inherit(&parent.mass);
-            self.rotation_locked.try_inherit(&parent.rotation_locked);
-            self.translation_locked
-                .try_inherit(&parent.translation_locked);
-            self.ccd_enabled.try_inherit(&parent.ccd_enabled);
-            self.can_sleep.try_inherit(&parent.can_sleep);
-            self.dominance.try_inherit(&parent.dominance);
-            self.gravity_scale.try_inherit(&parent.gravity_scale);
+            self.try_inherit_self_properties(parent)?;
         }
+        Ok(())
+    }
+
+    pub(crate) fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
     }
 
     pub(crate) fn need_sync_model(&self) -> bool {
