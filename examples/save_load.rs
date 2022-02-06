@@ -17,17 +17,19 @@
 
 pub mod shared;
 
-use crate::shared::{create_ui, fix_shadows_distance, create_scene_async, Game, GameScene, LocomotionMachine, Player};
-use fyrox::engine::Engine;
-use fyrox::engine::resource_manager::ResourceManager;
+use crate::shared::{
+    create_scene_async, create_ui, fix_shadows_distance, Game, GameScene, LocomotionMachine, Player,
+};
 use fyrox::engine::resource_manager::container::event::ResourceEventBroadcaster;
 use fyrox::engine::resource_manager::loader::model::ModelLoader;
 use fyrox::engine::resource_manager::loader::texture::TextureLoader;
-use fyrox::engine::resource_manager::loader::{ResourceLoader, BoxedLoaderFuture};
+use fyrox::engine::resource_manager::loader::{BoxedLoaderFuture, ResourceLoader};
 use fyrox::engine::resource_manager::options::ImportOptions;
+use fyrox::engine::resource_manager::ResourceManager;
+use fyrox::engine::Engine;
 use fyrox::event_loop::EventLoop;
-use fyrox::resource::model::{ModelImportOptions, Model};
-use fyrox::resource::texture::{TextureImportOptions, Texture};
+use fyrox::resource::model::{Model, ModelImportOptions};
+use fyrox::resource::texture::{Texture, TextureImportOptions};
 use fyrox::scene::SceneLoader;
 use fyrox::{
     core::{
@@ -169,8 +171,16 @@ impl ResourceLoader<Model, ModelImportOptions> for CustomModelLoader {
         let loader = self.0.clone();
 
         Box::pin(async move {
-            println!("CUSTOM LOADER: loading model {:?}", resource.state().path() );
-            loader.load(resource, default_import_options, resource_manager, event_broadcaster, reload).await
+            println!("CUSTOM LOADER: loading model {:?}", resource.state().path());
+            loader
+                .load(
+                    resource,
+                    default_import_options,
+                    resource_manager,
+                    event_broadcaster,
+                    reload,
+                )
+                .await
         })
     }
 }
@@ -190,12 +200,22 @@ impl ResourceLoader<Texture, TextureImportOptions> for CustomTextureLoader {
         let loader = self.0.clone();
 
         Box::pin(async move {
-            println!("CUSTOM LOADER: loading texture {:?}", resource.state().path() );
-            loader.load(resource, default_import_options, resource_manager, event_broadcaster, reload).await
+            println!(
+                "CUSTOM LOADER: loading texture {:?}",
+                resource.state().path()
+            );
+            loader
+                .load(
+                    resource,
+                    default_import_options,
+                    resource_manager,
+                    event_broadcaster,
+                    reload,
+                )
+                .await
         })
     }
 }
-
 
 fn create_game(title: &str) -> (Game, EventLoop<()>) {
     let event_loop = EventLoop::new();
@@ -208,7 +228,8 @@ fn create_game(title: &str) -> (Game, EventLoop<()>) {
         .with_texture_loader(CustomTextureLoader(Arc::new(TextureLoader)))
         .with_model_loader(CustomModelLoader(Arc::new(ModelLoader)));
 
-    let mut engine = Engine::new(window_builder, resource_manager_builder, &event_loop, false).unwrap();
+    let mut engine =
+        Engine::new(window_builder, resource_manager_builder, &event_loop, false).unwrap();
 
     engine
         .renderer

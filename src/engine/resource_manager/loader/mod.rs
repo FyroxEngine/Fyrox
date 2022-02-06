@@ -1,5 +1,5 @@
 use crate::engine::resource_manager::{
-    container::event::ResourceEventBroadcaster, options::ImportOptions, ResourceManager
+    container::event::ResourceEventBroadcaster, options::ImportOptions, ResourceManager,
 };
 use std::{future::Future, pin::Pin};
 
@@ -27,7 +27,6 @@ where
         reload: bool,
     ) -> BoxedLoaderFuture;
 }
-
 
 #[cfg(not(target_arch = "wasm32"))]
 pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = ()> + Send>>;

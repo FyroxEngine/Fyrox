@@ -8,11 +8,11 @@ use crate::gui::message::UiMessage;
 use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::instant::Instant,
-    engine::{error::EngineError, Engine, resource_manager::ResourceManagerBuilder},
+    engine::{error::EngineError, resource_manager::ResourceManagerBuilder, Engine},
     event::{DeviceEvent, DeviceId, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     utils::translate_event,
-    window::WindowBuilder,    
+    window::WindowBuilder,
 };
 
 #[doc(hidden)]

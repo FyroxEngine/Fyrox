@@ -4,7 +4,7 @@ use crate::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::{try_get_import_settings, ImportOptions},
-        ResourceManager
+        ResourceManager,
     },
     utils::log::Log,
 };

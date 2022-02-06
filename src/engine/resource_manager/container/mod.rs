@@ -52,7 +52,11 @@ where
     E: ResourceLoadError,
     O: ImportOptions,
 {
-    pub(crate) fn new(task_pool: Arc<TaskPool>, resource_manager: ResourceManager, loader: Box<dyn ResourceLoader<T, O>>) -> Self {
+    pub(crate) fn new(
+        task_pool: Arc<TaskPool>,
+        resource_manager: ResourceManager,
+        loader: Box<dyn ResourceLoader<T, O>>,
+    ) -> Self {
         Self {
             resources: Default::default(),
             default_import_options: Default::default(),

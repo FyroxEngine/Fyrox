@@ -2,7 +2,7 @@ use crate::{
     engine::resource_manager::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
-        ResourceManager
+        ResourceManager,
     },
     resource::curve::{CurveImportOptions, CurveResource, CurveResourceState},
     utils::log::Log,

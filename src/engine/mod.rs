@@ -13,7 +13,9 @@ use crate::{
     core::{algebra::Vector2, instant},
     engine::{
         error::EngineError,
-        resource_manager::{container::event::ResourceEvent, ResourceManager, ResourceManagerBuilder},
+        resource_manager::{
+            container::event::ResourceEvent, ResourceManager, ResourceManagerBuilder,
+        },
     },
     event_loop::EventLoop,
     gui::UserInterface,
