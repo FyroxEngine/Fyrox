@@ -623,11 +623,7 @@ impl Graph {
         model_root_handle
     }
 
-    pub(in crate) fn resolve(&mut self) {
-        Log::writeln(MessageKind::Information, "Resolving graph...".to_owned());
-
-        self.update_hierarchical_data();
-
+    fn restore_original_handles(&mut self) {
         // Iterate over each node in the graph and resolve original handles. Original handle is a handle
         // to a node in resource from which a node was instantiated from. Also sync templated properties
         // if needed and copy surfaces from originals.
@@ -689,7 +685,9 @@ impl Graph {
             MessageKind::Information,
             "Original handles resolved!".to_owned(),
         );
+    }
 
+    fn restore_integrity(&mut self) {
         Log::writeln(MessageKind::Information, "Checking integrity...".to_owned());
 
         // Check integrity - if a node was added in resource, it must be also added in the graph.
@@ -804,6 +802,14 @@ impl Graph {
                 instance_count, restored_count
             ),
         );
+    }
+
+    pub(in crate) fn resolve(&mut self) {
+        Log::writeln(MessageKind::Information, "Resolving graph...".to_owned());
+
+        self.update_hierarchical_data();
+        self.restore_original_handles();
+        self.restore_integrity();
 
         // Taking second reference to self is safe here because we need it only
         // to iterate over graph and find copy of bone node. We won't modify pool
@@ -850,7 +856,7 @@ impl Graph {
         for node in self.linear_iter_mut() {
             if let Node::Camera(camera) = node {
                 if let Some(skybox) = camera.skybox_mut() {
-                    skybox.create_cubemap().ok();
+                    Log::verify(skybox.create_cubemap());
                 }
             }
         }
