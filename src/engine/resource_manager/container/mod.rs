@@ -99,7 +99,7 @@ where
                     let path = resource.state().path().to_path_buf();
 
                     Log::info(format!(
-                        "Resource {} destroyed because it not used anymore!",
+                        "Resource {} destroyed because it is not used anymore!",
                         path.display()
                     ));
 

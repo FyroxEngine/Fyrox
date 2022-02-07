@@ -370,7 +370,13 @@ impl ResourceManagerState {
         containers.curves.destroy_unused();
     }
 
-    /// Reload resources if they have changed in disk.
+    /// Update resource containers and do hot-reloading.
+    ///
+    /// Resources are removed if they're not used
+    /// or reloaded if they have changed in disk.
+    ///
+    /// Normally, this is called from `Engine::update()`.
+    /// You should only call this manually if you don't use that method.
     pub fn update(&mut self, dt: f32) {
         let containers = self.containers_mut();
         containers.textures.update(dt);
