@@ -1284,6 +1284,9 @@ impl Renderer {
     }
 
     /// Update caches - this will remove timed out resources.
+    ///
+    /// Normally, this is called from `Engine::update()`.
+    /// You should only call this manually if you don't use that method.
     pub fn update_caches(&mut self, dt: f32) {
         self.update_texture_cache(dt);
         self.geometry_cache.update(dt);
