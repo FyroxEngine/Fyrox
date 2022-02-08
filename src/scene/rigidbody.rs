@@ -27,6 +27,7 @@ use crate::{
         variable::TemplateVariable,
     },
 };
+use fxhash::FxHashMap;
 use rapier3d::{dynamics, prelude::RigidBodyHandle};
 use std::{
     cell::Cell,
@@ -518,6 +519,13 @@ impl RigidBody {
             || self.can_sleep.need_sync()
             || self.dominance.need_sync()
             || self.gravity_scale.need_sync()
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        self.base.remap_handles(old_new_mapping);
     }
 }
 

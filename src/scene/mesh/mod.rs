@@ -30,6 +30,7 @@ use crate::{
         node::Node,
     },
 };
+use fxhash::FxHashMap;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -353,6 +354,21 @@ impl Mesh {
     pub(crate) fn reset_inheritable_properties(&mut self) {
         self.base.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        self.base.remap_handles(old_new_mapping);
+
+        for surface in self.surfaces.get_mut_silent() {
+            for bone_handle in surface.bones.iter_mut() {
+                if let Some(entry) = old_new_mapping.get(bone_handle) {
+                    *bone_handle = *entry;
+                }
+            }
+        }
     }
 }
 

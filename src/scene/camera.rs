@@ -14,8 +14,6 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
-use crate::scene::variable::InheritError;
-use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -31,10 +29,12 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
-        variable::TemplateVariable,
+        variable::{InheritError, TemplateVariable},
         visibility::VisibilityCache,
+        DirectlyInheritableEntity,
     },
 };
+use fxhash::FxHashMap;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -616,6 +616,13 @@ impl Camera {
     pub(crate) fn reset_inheritable_properties(&mut self) {
         self.base.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        self.base.remap_handles(old_new_mapping);
     }
 }
 

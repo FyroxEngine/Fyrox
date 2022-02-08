@@ -1,8 +1,7 @@
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
 
-use crate::scene::variable::InheritError;
-use crate::scene::DirectlyInheritableEntity;
+use crate::utils::log::Log;
 use crate::{
     core::{
         algebra::Vector3,
@@ -19,9 +18,11 @@ use crate::{
             Graph,
         },
         node::Node,
-        variable::TemplateVariable,
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
     },
 };
+use fxhash::FxHashMap;
 use rapier3d::geometry::{self, ColliderHandle};
 use std::{
     cell::Cell,
@@ -674,6 +675,41 @@ impl Collider {
             || self.solver_groups.need_sync()
             || self.friction_combine_rule.need_sync()
             || self.restitution_combine_rule.need_sync()
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        self.base.remap_handles(old_new_mapping);
+
+        match self.shape.get_mut_silent() {
+            ColliderShape::Trimesh(ref mut trimesh) => {
+                for source in trimesh.sources.iter_mut() {
+                    if let Some(entry) = old_new_mapping.get(&source.0) {
+                        source.0 = *entry;
+                    } else {
+                        Log::warn(format!(
+                            "Unable to remap geometry source of a Trimesh collider {} shape. Handle is {}!",
+                            *self.base.name,
+                            source.0
+                        ))
+                    }
+                }
+            }
+            ColliderShape::Heightfield(ref mut heightfield) => {
+                if let Some(entry) = old_new_mapping.get(&heightfield.geometry_source.0) {
+                    heightfield.geometry_source.0 = *entry;
+                } else {
+                    Log::warn(format!(
+                        "Unable to remap geometry source of a Height Field collider {} shape. Handle is {}!",
+                        *self.base.name,
+                        heightfield.geometry_source.0
+                    ))
+                }
+            }
+            _ => (),
+        }
     }
 }
 

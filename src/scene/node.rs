@@ -4,8 +4,6 @@
 
 #![warn(missing_docs)]
 
-use crate::engine::resource_manager::ResourceManager;
-use crate::scene::variable::InheritError;
 use crate::{
     asset::core::inspect::PropertyInfo,
     core::{
@@ -14,6 +12,7 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         visitor::{Visit, VisitResult, Visitor},
     },
+    engine::resource_manager::ResourceManager,
     scene::{
         base::Base,
         camera::Camera,
@@ -28,8 +27,11 @@ use crate::{
         sound::{listener::Listener, Sound},
         sprite::Sprite,
         terrain::Terrain,
+        variable::InheritError,
     },
 };
+use fxhash::FxHashMap;
+use fyrox_core::pool::Handle;
 use std::ops::{Deref, DerefMut};
 
 /// Helper macros to reduce code bloat - its purpose it to dispatch specified call by
@@ -292,6 +294,13 @@ impl Node {
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
         static_dispatch!(self, restore_resources, resource_manager)
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        static_dispatch!(self, remap_handles, old_new_mapping)
     }
 
     /// Creates new Node based on variant id.

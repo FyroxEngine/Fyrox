@@ -23,6 +23,7 @@ use crate::{
         DirectlyInheritableEntity,
     },
 };
+use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -159,6 +160,13 @@ impl DirectionalLight {
     pub(crate) fn reset_inheritable_properties(&mut self) {
         self.base_light.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        self.base_light.remap_handles(old_new_mapping);
     }
 }
 

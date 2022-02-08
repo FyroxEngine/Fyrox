@@ -1,7 +1,6 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
-use crate::scene::variable::InheritError;
-use crate::scene::DirectlyInheritableEntity;
+use crate::utils::log::Log;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -15,9 +14,11 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
-        variable::TemplateVariable,
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
     },
 };
+use fxhash::FxHashMap;
 use rapier3d::dynamics::JointHandle;
 use std::{
     cell::Cell,
@@ -284,6 +285,31 @@ impl Joint {
     pub(crate) fn reset_inheritable_properties(&mut self) {
         self.base.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        if let Some(entry) = old_new_mapping.get(&self.body1()) {
+            self.body1.set_silent(*entry);
+        } else {
+            Log::warn(format!(
+                "Unable to remap first body of a joint {}. Handle is {}!",
+                self.name(),
+                self.body1()
+            ))
+        }
+
+        if let Some(entry) = old_new_mapping.get(&self.body2()) {
+            self.body2.set_silent(*entry);
+        } else {
+            Log::warn(format!(
+                "Unable to remap second body of a joint {}. Handle is {}!",
+                self.name(),
+                self.body2()
+            ))
+        }
     }
 }
 

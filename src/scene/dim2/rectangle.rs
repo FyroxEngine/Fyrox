@@ -16,6 +16,7 @@ use crate::{
         DirectlyInheritableEntity,
     },
 };
+use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Visit, Inspect, Debug, Default)]
@@ -97,6 +98,13 @@ impl Rectangle {
             self.try_inherit_self_properties(parent)?;
         }
         Ok(())
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        self.base.remap_handles(old_new_mapping);
     }
 }
 

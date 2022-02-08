@@ -1,8 +1,5 @@
 //! Everything related to terrains.
 
-use crate::engine::resource_manager::ResourceManager;
-use crate::scene::variable::{InheritError, TemplateVariable};
-use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -15,6 +12,7 @@ use crate::{
         pool::Handle,
         visitor::{prelude::*, PodVecView},
     },
+    engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     material::Material,
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureWrapMode},
@@ -27,8 +25,11 @@ use crate::{
             vertex::StaticVertex,
         },
         node::Node,
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
     },
 };
+use fxhash::FxHashMap;
 use std::{
     cell::Cell,
     cmp::Ordering,
@@ -681,6 +682,13 @@ impl Terrain {
     pub(crate) fn reset_inheritable_properties(&mut self) {
         self.base.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        self.base.remap_handles(old_new_mapping);
     }
 }
 

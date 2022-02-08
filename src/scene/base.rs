@@ -2,9 +2,6 @@
 //!
 //! For more info see [`Base`]
 
-use crate::engine::resource_manager::ResourceManager;
-use crate::scene::variable::InheritError;
-use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -12,11 +9,21 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{ErasedHandle, Handle},
         visitor::{Visit, VisitError, VisitResult, Visitor},
+        VecExtensions,
     },
+    engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     resource::model::Model,
-    scene::{graph::Graph, node::Node, transform::Transform, variable::TemplateVariable},
+    scene::{
+        graph::Graph,
+        node::Node,
+        transform::Transform,
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
+    },
+    utils::log::Log,
 };
+use fxhash::FxHashMap;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -276,7 +283,7 @@ pub struct Property {
 #[derive(Debug, Inspect)]
 pub struct Base {
     #[inspect(getter = "Deref::deref")]
-    name: TemplateVariable<String>,
+    pub(crate) name: TemplateVariable<String>,
 
     pub(crate) local_transform: Transform,
 
@@ -637,6 +644,45 @@ impl Base {
     pub(crate) fn reset_inheritable_properties(&mut self) {
         self.reset_self_inheritable_properties();
         self.local_transform.reset_inheritable_properties();
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        for property in self.properties.get_mut_silent().iter_mut() {
+            if let PropertyValue::NodeHandle(ref mut handle) = property.value {
+                if let Some(new_handle) = old_new_mapping.get(handle) {
+                    *handle = *new_handle;
+                } else {
+                    Log::warn(format!(
+                        "Unable to remap node handle property {} of a node {}. Handle is {}!",
+                        property.name, *self.name, handle
+                    ))
+                }
+            }
+        }
+
+        // LODs also have handles that must be remapped too.
+        if let Some(lod_group) = self.lod_group.get_mut_silent() {
+            for level in lod_group.levels.iter_mut() {
+                level.objects.retain_mut_ext(|object| {
+                    if let Some(entry) = old_new_mapping.get(object) {
+                        // Replace to mapped.
+                        object.0 = *entry;
+                        true
+                    } else {
+                        Log::warn(format!(
+                            "Unable to remap LOD object handle of a node {}. Handle is {}!",
+                            *self.name, object.0
+                        ));
+
+                        // Discard invalid handles.
+                        false
+                    }
+                });
+            }
+        }
     }
 }
 

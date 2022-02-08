@@ -35,6 +35,8 @@ use crate::{
         variable::TemplateVariable,
     },
 };
+use fxhash::FxHashMap;
+use fyrox_core::pool::Handle;
 use std::ops::{Deref, DerefMut};
 
 pub mod directional;
@@ -130,6 +132,17 @@ impl Light {
             Light::Directional(v) => v.restore_resources(resource_manager),
             Light::Spot(v) => v.restore_resources(resource_manager),
             Light::Point(v) => v.restore_resources(resource_manager),
+        }
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        match self {
+            Light::Directional(v) => v.remap_handles(old_new_mapping),
+            Light::Spot(v) => v.remap_handles(old_new_mapping),
+            Light::Point(v) => v.remap_handles(old_new_mapping),
         }
     }
 
@@ -355,6 +368,13 @@ impl BaseLight {
     pub(crate) fn reset_inheritable_properties(&mut self) {
         self.base.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        self.base.remap_handles(old_new_mapping);
     }
 }
 

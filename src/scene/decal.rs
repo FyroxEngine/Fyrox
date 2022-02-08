@@ -2,8 +2,6 @@
 //!
 //! For more info see [`Decal`]
 
-use crate::scene::variable::InheritError;
-use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         color::Color,
@@ -19,9 +17,11 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
-        variable::TemplateVariable,
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
     },
 };
+use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
 /// Decal is an image that gets projected to a geometry of a scene. Blood splatters, bullet holes, scratches
@@ -221,6 +221,13 @@ impl Decal {
     pub(crate) fn reset_inheritable_properties(&mut self) {
         self.base.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
+    }
+
+    pub(crate) fn remap_handles(
+        &mut self,
+        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+        self.base.remap_handles(old_new_mapping);
     }
 }
 

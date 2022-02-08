@@ -22,7 +22,6 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::resource::model::Model;
 use crate::{
     asset::ResourceState,
     core::{
@@ -33,13 +32,11 @@ use crate::{
             Ticket,
         },
         visitor::{Visit, VisitResult, Visitor},
-        VecExtensions,
     },
-    resource::model::NodeMapping,
+    resource::model::{Model, NodeMapping},
     scene::{
-        base::PropertyValue, collider::ColliderShape, dim2, graph::physics::PhysicsWorld,
-        node::Node, sound::context::SoundContext, transform::TransformBuilder,
-        visibility::VisibilityCache,
+        dim2, graph::physics::PhysicsWorld, node::Node, sound::context::SoundContext,
+        transform::TransformBuilder, visibility::VisibilityCache,
     },
     utils::log::{Log, MessageKind},
 };
@@ -98,70 +95,10 @@ pub struct SubGraph {
 fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_graph: &mut Graph) {
     // Iterate over instantiated nodes and remap handles.
     for (_, &new_node_handle) in old_new_mapping.iter() {
-        let new_node = &mut dest_graph.pool[new_node_handle];
-
-        match new_node {
-            Node::Mesh(mesh) => {
-                for surface in mesh.surfaces_mut() {
-                    for bone_handle in surface.bones.iter_mut() {
-                        if let Some(entry) = old_new_mapping.get(bone_handle) {
-                            *bone_handle = *entry;
-                        }
-                    }
-                }
-            }
-            Node::Collider(collider) => match collider.shape_mut() {
-                ColliderShape::Trimesh(ref mut trimesh) => {
-                    for source in trimesh.sources.iter_mut() {
-                        if let Some(entry) = old_new_mapping.get(&source.0) {
-                            source.0 = *entry;
-                        }
-                    }
-                }
-                ColliderShape::Heightfield(ref mut heightfield) => {
-                    if let Some(entry) = old_new_mapping.get(&heightfield.geometry_source.0) {
-                        heightfield.geometry_source.0 = *entry;
-                    }
-                }
-                _ => (),
-            },
-            Node::Joint(joint) => {
-                if let Some(entry) = old_new_mapping.get(&joint.body1()) {
-                    joint.set_body1(*entry);
-                }
-                if let Some(entry) = old_new_mapping.get(&joint.body2()) {
-                    joint.set_body2(*entry);
-                }
-            }
-            _ => {}
-        }
-
-        for property in new_node.properties.get_mut_silent().iter_mut() {
-            if let PropertyValue::NodeHandle(ref mut handle) = property.value {
-                if let Some(new_handle) = old_new_mapping.get(handle) {
-                    *handle = *new_handle;
-                }
-            }
-        }
-
-        dest_graph.sound_context.remap_handles(old_new_mapping);
-
-        // LODs also have handles that must be remapped too.
-        if let Some(lod_group) = new_node.lod_group_mut() {
-            for level in lod_group.levels.iter_mut() {
-                level.objects.retain_mut_ext(|object| {
-                    if let Some(entry) = old_new_mapping.get(object) {
-                        // Replace to mapped.
-                        object.0 = *entry;
-                        true
-                    } else {
-                        // Discard invalid handles.
-                        false
-                    }
-                });
-            }
-        }
+        dest_graph.pool[new_node_handle].remap_handles(old_new_mapping);
     }
+
+    dest_graph.sound_context.remap_handles(old_new_mapping);
 }
 
 fn isometric_local_transform(nodes: &Pool<Node>, node: Handle<Node>) -> Matrix4<f32> {
@@ -602,28 +539,6 @@ impl Graph {
         dest_copy_handle
     }
 
-    /// Searches root node in given hierarchy starting from given node. This method is used
-    /// when you need to find a root node of a model in complex graph.
-    fn find_model_root(&self, from: Handle<Node>) -> Handle<Node> {
-        let mut model_root_handle = from;
-        while model_root_handle.is_some() {
-            let model_node = &self.pool[model_root_handle];
-
-            if model_node.parent().is_none() {
-                // We have no parent on node, then it must be root.
-                return model_root_handle;
-            }
-
-            if model_node.is_resource_instance_root() {
-                return model_root_handle;
-            }
-
-            // Continue searching up on hierarchy.
-            model_root_handle = model_node.parent();
-        }
-        model_root_handle
-    }
-
     fn restore_original_handles(&mut self) {
         // Iterate over each node in the graph and resolve original handles. Original handle is a handle
         // to a node in resource from which a node was instantiated from. Also sync templated properties
@@ -688,7 +603,36 @@ impl Graph {
         );
     }
 
-    fn restore_integrity(&mut self) {
+    fn remap_handles(&mut self, instances: &[(Handle<Node>, Model)]) {
+        for (instance_root, resource) in instances {
+            // Prepare old -> new handle mapping first by walking over the graph
+            // starting from instance root.
+            let mut old_new_mapping = FxHashMap::default();
+            let mut traverse_stack = vec![*instance_root];
+            while let Some(node_handle) = traverse_stack.pop() {
+                let node = &self.pool[node_handle];
+                if let Some(node_resource) = node.resource().as_ref() {
+                    // We're interested only in instance nodes.
+                    if node_resource == resource {
+                        let previous_mapping =
+                            old_new_mapping.insert(node.original_handle_in_resource, node_handle);
+                        // There must be no such node.
+                        assert!(previous_mapping.is_none());
+                    }
+                }
+
+                traverse_stack.extend_from_slice(node.children());
+            }
+
+            // Lastly, remap handles. We can't do this in single pass because there could
+            // be cross references.
+            for (_, handle) in old_new_mapping.iter() {
+                self.pool[*handle].remap_handles(&old_new_mapping);
+            }
+        }
+    }
+
+    fn restore_integrity(&mut self) -> Vec<(Handle<Node>, Model)> {
         Log::writeln(MessageKind::Information, "Checking integrity...".to_owned());
 
         // Check integrity - if a node was added in resource, it must be also added in the graph.
@@ -710,7 +654,7 @@ impl Graph {
         let instance_count = instances.len();
         let mut restored_count = 0;
 
-        for (instance_root, resource) in instances {
+        for (instance_root, resource) in instances.iter().cloned() {
             let model = resource.state();
             if let ResourceState::Ok(ref data) = *model {
                 let resource_graph = &data.get_scene().graph;
@@ -793,6 +737,8 @@ impl Graph {
                 instance_count, restored_count
             ),
         );
+
+        instances
     }
 
     pub(in crate) fn resolve(&mut self) {
@@ -800,48 +746,8 @@ impl Graph {
 
         self.update_hierarchical_data();
         self.restore_original_handles();
-        self.restore_integrity();
-
-        // Taking second reference to self is safe here because we need it only
-        // to iterate over graph and find copy of bone node. We won't modify pool
-        // while iterating over it, so it is double safe.
-        let graph = unsafe { &*(self as *const Graph) };
-
-        // Remap bones as separate pass. We can't do that while resolving original handles because
-        // surfaces usually has more than one bone and it is impossible to remap unresolved nodes.
-        // Bones remapping is required stage because we copied surface from resource and
-        // bones are mapped to nodes in resource, but we must have them mapped to instantiated
-        // nodes on scene. To do that we'll try to find a root for each node, and starting from
-        // it we'll find corresponding bone nodes.
-        for (node_handle, node) in self.pool.pair_iter_mut() {
-            if let Node::Mesh(mesh) = node {
-                let root_handle = graph.find_model_root(node_handle);
-
-                // Remap bones
-                for surface in mesh.surfaces_mut() {
-                    for bone_handle in surface.bones.iter_mut() {
-                        let copy = graph.find_copy_of(root_handle, *bone_handle);
-
-                        if copy.is_none() {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!(
-                                    "Unable to find bone with name {} \
-                                                 starting from node {} in the graph! Bone handle will be removed!",
-                                    graph[*bone_handle].name(),
-                                    graph[root_handle].name()
-                                ),
-                            );
-                        }
-
-                        *bone_handle = copy;
-                    }
-
-                    // Remove invalid handles to prevent panicking.
-                    surface.bones.retain(|h| h.is_some())
-                }
-            }
-        }
+        let instances = self.restore_integrity();
+        self.remap_handles(&instances);
 
         // Update cube maps for sky boxes.
         for node in self.linear_iter_mut() {
