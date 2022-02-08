@@ -167,21 +167,15 @@ pub struct PhysicsPerformanceStatistics {
     pub total_ray_cast_time: Cell<Duration>,
 }
 
-impl Display for PhysicsPerformanceStatistics {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Physics Step Time: {:?}\nPhysics Ray Cast Time: {:?}",
-            self.step_time,
-            self.total_ray_cast_time.get(),
-        )
-    }
-}
-
 impl PhysicsPerformanceStatistics {
     /// Resets performance statistics to default values.
     pub fn reset(&mut self) {
         *self = Default::default();
+    }
+
+    /// Returns total amount of time for every part of statistics.
+    pub fn total(&self) -> Duration {
+        self.step_time + self.total_ray_cast_time.get()
     }
 }
 

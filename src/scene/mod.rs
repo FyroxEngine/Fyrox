@@ -25,6 +25,7 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
+use crate::scene::graph::GraphPerformanceStatistics;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -41,7 +42,7 @@ use crate::{
     resource::texture::Texture,
     scene::{
         debug::SceneDrawingContext,
-        graph::{physics::PhysicsPerformanceStatistics, Graph},
+        graph::Graph,
         mesh::buffer::{
             VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
             VertexWriteTrait,
@@ -53,6 +54,7 @@ use crate::{
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::FxHashMap;
+use std::time::Duration;
 use std::{
     any::{Any, TypeId},
     fmt::{Display, Formatter},
@@ -268,31 +270,39 @@ impl Default for Scene {
 /// A structure that holds times that specific update step took.
 #[derive(Clone, Default, Debug)]
 pub struct PerformanceStatistics {
-    /// Physics performance statistics.
-    pub physics: PhysicsPerformanceStatistics,
+    /// Graph performance statistics.
+    pub graph: GraphPerformanceStatistics,
 
-    /// 2D Physics performance statistics.
-    pub physics2d: PhysicsPerformanceStatistics,
-
-    /// A time (in seconds) which was required to update graph.
-    pub graph_update_time: f32,
-
-    /// A time (in seconds) which was required to update animations.
-    pub animations_update_time: f32,
-
-    /// A time (in seconds) which was required to render sounds.
-    pub sound_update_time: f32,
+    /// A time which was required to update animations.
+    pub animations_update_time: Duration,
 }
 
 impl Display for PerformanceStatistics {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}\nGraph: {} ms\nAnimations: {} ms\nSounds: {} ms",
-            self.physics,
-            self.graph_update_time * 1000.0,
-            self.animations_update_time * 1000.0,
-            self.sound_update_time * 1000.0
+            "Animations: {:?}\n\
+            Graph: {:?}\n\
+            \tSync Time: {:?}\n\
+            \tSound: {:?}\n\
+            \tPhysics: {:?}\n\
+            \t\tSimulation: {:?}\n\
+            \t\tRay cast: {:?}\n\
+            \tPhysics 2D: {:?}\n\
+            \t\tSimulation: {:?}\n\
+            \t\tRay cast: {:?}\n\
+            \tHierarchy: {:?}",
+            self.animations_update_time,
+            self.graph.total(),
+            self.graph.sync_time,
+            self.graph.sound_update_time,
+            self.graph.physics.total(),
+            self.graph.physics.step_time,
+            self.graph.physics.total_ray_cast_time.get(),
+            self.graph.physics2d.total(),
+            self.graph.physics2d.step_time,
+            self.graph.physics2d.total_ray_cast_time.get(),
+            self.graph.hierarchical_properties_time,
         )
     }
 }
@@ -578,21 +588,10 @@ impl Scene {
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
         let last = instant::Instant::now();
         self.animations.update_animations(dt);
-        self.performance_statistics.animations_update_time =
-            (instant::Instant::now() - last).as_secs_f32();
+        self.performance_statistics.animations_update_time = instant::Instant::now() - last;
 
-        let last = instant::Instant::now();
         self.graph.update(frame_size, dt);
-        self.performance_statistics.physics = self.graph.physics.performance_statistics.clone();
-        self.performance_statistics.physics2d = self.graph.physics2d.performance_statistics.clone();
-        self.performance_statistics.graph_update_time =
-            (instant::Instant::now() - last).as_secs_f32();
-
-        self.performance_statistics.sound_update_time = self
-            .graph
-            .sound_context
-            .full_render_duration()
-            .as_secs_f32();
+        self.performance_statistics.graph = self.graph.performance_statistics.clone();
     }
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes

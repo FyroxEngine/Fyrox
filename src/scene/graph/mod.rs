@@ -24,6 +24,7 @@
 
 use crate::{
     asset::ResourceState,
+    core::instant,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
         math::{frustum::Frustum, Matrix4Ext},
@@ -35,8 +36,12 @@ use crate::{
     },
     resource::model::{Model, NodeMapping},
     scene::{
-        dim2, graph::physics::PhysicsWorld, node::Node, sound::context::SoundContext,
-        transform::TransformBuilder, visibility::VisibilityCache,
+        dim2,
+        graph::physics::{PhysicsPerformanceStatistics, PhysicsWorld},
+        node::Node,
+        sound::context::SoundContext,
+        transform::TransformBuilder,
+        visibility::VisibilityCache,
     },
     utils::log::{Log, MessageKind},
 };
@@ -44,11 +49,44 @@ use fxhash::FxHashMap;
 use fyrox_sound::source::Status;
 use rapier3d::geometry::ColliderHandle;
 use std::{
-    fmt::Debug,
+    fmt::{Debug, Display, Formatter},
     ops::{Index, IndexMut},
+    time::Duration,
 };
 
 pub mod physics;
+
+/// Graph performance statistics. Allows you to find out "hot" parts of the scene graph, which
+/// parts takes the most time to update.
+#[derive(Clone, Default, Debug)]
+pub struct GraphPerformanceStatistics {
+    /// Amount of time that was needed to update global transform, visibility, and every other
+    /// property of every object which depends on the state of a parent node.
+    pub hierarchical_properties_time: Duration,
+
+    /// Amount of time that was needed to synchronize state of the graph with the state of
+    /// backing native objects (Rapier's rigid bodies, colliders, joints, sound sources, etc.)
+    pub sync_time: Duration,
+
+    /// Physics performance statistics.
+    pub physics: PhysicsPerformanceStatistics,
+
+    /// 2D Physics performance statistics.
+    pub physics2d: PhysicsPerformanceStatistics,
+
+    /// A time which was required to render sounds.
+    pub sound_update_time: Duration,
+}
+
+impl GraphPerformanceStatistics {
+    pub fn total(&self) -> Duration {
+        self.hierarchical_properties_time
+            + self.sync_time
+            + self.physics.total()
+            + self.physics2d.total()
+            + self.sound_update_time
+    }
+}
 
 /// See module docs.
 #[derive(Debug)]
@@ -56,12 +94,18 @@ pub struct Graph {
     root: Handle<Node>,
     pool: Pool<Node>,
     stack: Vec<Handle<Node>>,
+
     /// Backing physics "world". It is responsible for the physics simulation.
     pub physics: PhysicsWorld,
+
     /// Backing 2D physics "world". It is responsible for the 2D physics simulation.
     pub physics2d: dim2::physics::PhysicsWorld,
+
     /// Backing sound context. It is responsible for sound rendering.
     pub sound_context: SoundContext,
+
+    /// Performance statistics of a last [`Graph::update`] call.
+    pub performance_statistics: GraphPerformanceStatistics,
 }
 
 impl Default for Graph {
@@ -73,6 +117,7 @@ impl Default for Graph {
             pool: Pool::new(),
             stack: Vec::new(),
             sound_context: Default::default(),
+            performance_statistics: Default::default(),
         }
     }
 }
@@ -135,6 +180,7 @@ impl Graph {
             pool,
             physics2d: Default::default(),
             sound_context: SoundContext::new(),
+            performance_statistics: Default::default(),
         }
     }
 
@@ -874,17 +920,27 @@ impl Graph {
 
     /// Updates nodes in graph using given delta time. There is no need to call it manually.
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
-        self.physics.performance_statistics.reset();
-        self.physics2d.performance_statistics.reset();
-
         let this = unsafe { &*(self as *const Graph) };
 
+        let last_time = instant::Instant::now();
         self.update_hierarchical_data();
-        self.sync_native();
+        self.performance_statistics.hierarchical_properties_time =
+            instant::Instant::now() - last_time;
 
+        let last_time = instant::Instant::now();
+        self.sync_native();
+        self.performance_statistics.sync_time = instant::Instant::now() - last_time;
+
+        self.physics.performance_statistics.reset();
         self.physics.update();
+        self.performance_statistics.physics = self.physics.performance_statistics.clone();
+
+        self.physics2d.performance_statistics.reset();
         self.physics2d.update();
+        self.performance_statistics.physics2d = self.physics2d.performance_statistics.clone();
+
         self.sound_context.update(&self.pool);
+        self.performance_statistics.sound_update_time = self.sound_context.full_render_duration();
 
         for i in 0..self.pool.get_capacity() {
             let handle = self.pool.handle_from_index(i);
