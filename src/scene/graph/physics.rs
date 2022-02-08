@@ -49,7 +49,7 @@ use rapier3d::{
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
-    fmt::{Debug, Display, Formatter},
+    fmt::{Debug, Formatter},
     hash::Hash,
     sync::Arc,
     time::Duration,

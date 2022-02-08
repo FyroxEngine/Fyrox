@@ -49,7 +49,7 @@ use fxhash::FxHashMap;
 use fyrox_sound::source::Status;
 use rapier3d::geometry::ColliderHandle;
 use std::{
-    fmt::{Debug, Display, Formatter},
+    fmt::Debug,
     ops::{Index, IndexMut},
     time::Duration,
 };
@@ -79,6 +79,7 @@ pub struct GraphPerformanceStatistics {
 }
 
 impl GraphPerformanceStatistics {
+    /// Returns total amount of time.
     pub fn total(&self) -> Duration {
         self.hierarchical_properties_time
             + self.sync_time
