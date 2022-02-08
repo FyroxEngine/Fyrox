@@ -17,6 +17,7 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native Fyroxed format) formats are supported.
+use crate::scene::graph::Graph;
 use crate::{
     animation::Animation,
     asset::{define_new_resource, Resource, ResourceData},
@@ -30,6 +31,7 @@ use crate::{
     scene::{node::Node, Scene, SceneLoader},
     utils::log::{Log, MessageKind},
 };
+use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
@@ -58,24 +60,24 @@ define_new_resource!(
 );
 
 impl Model {
-    /// Tries to instantiate model from given resource. Does not retarget available
-    /// animations from model to its instance. Can be helpful if you only need geometry.
-    pub fn instantiate_geometry(&self, dest_scene: &mut Scene) -> Handle<Node> {
-        let data = self.data_ref();
-
-        let (root, old_to_new) = data.scene.graph.copy_node(
-            data.scene.graph.get_root(),
-            &mut dest_scene.graph,
-            &mut |_, _| true,
-        );
-        dest_scene.graph[root].is_resource_instance_root = true;
+    pub(crate) fn instantiate_from(
+        model: Self,
+        model_data: &ModelData,
+        handle: Handle<Node>,
+        dest_graph: &mut Graph,
+    ) -> (Handle<Node>, FxHashMap<Handle<Node>, Handle<Node>>) {
+        let (root, old_to_new) =
+            model_data
+                .scene
+                .graph
+                .copy_node(handle, dest_graph, &mut |_, _| true);
 
         // Notify instantiated nodes about resource they were created from.
         let mut stack = vec![root];
         while let Some(node_handle) = stack.pop() {
-            let node = &mut dest_scene.graph[node_handle];
+            let node = &mut dest_graph[node_handle];
 
-            node.resource = Some(self.clone());
+            node.resource = Some(model.clone());
 
             // Reset inheritable properties, so property inheritance system will take properties
             // from parent objects on resolve stage.
@@ -87,19 +89,37 @@ impl Model {
 
         // Fill original handles to instances.
         for (&old, &new) in old_to_new.iter() {
-            dest_scene.graph[new].original_handle_in_resource = old;
+            dest_graph[new].original_handle_in_resource = old;
         }
+
+        (root, old_to_new)
+    }
+
+    /// Tries to instantiate model from given resource. Does not retarget available
+    /// animations from model to its instance. Can be helpful if you only need geometry.
+    pub fn instantiate_geometry(&self, dest_scene: &mut Scene) -> Handle<Node> {
+        let data = self.data_ref();
+
+        let instance_root = Self::instantiate_from(
+            self.clone(),
+            &*data,
+            data.scene.graph.get_root(),
+            &mut dest_scene.graph,
+        )
+        .0;
+        dest_scene.graph[instance_root].is_resource_instance_root = true;
 
         // Embed navmeshes.
         // TODO: This also must provide a map which will make it possible to extract navmesh
         // from resource later on.
+
         for navmesh in data.scene.navmeshes.iter() {
             dest_scene.navmeshes.add(navmesh.clone());
         }
 
         std::mem::drop(data);
 
-        root
+        instance_root
     }
 
     /// Tries to instantiate model from given resource.

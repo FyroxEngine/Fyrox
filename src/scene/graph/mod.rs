@@ -22,6 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::resource::model::Model;
 use crate::{
     asset::ResourceState,
     core::{
@@ -753,24 +754,14 @@ impl Graph {
                         );
 
                         // Instantiate missing node.
-                        let (copy, old_to_new_mapping) =
-                            resource_graph.copy_node(resource_node_handle, self, &mut |_, _| true);
+                        let (copy, old_to_new_mapping) = Model::instantiate_from(
+                            resource.clone(),
+                            data,
+                            resource_node_handle,
+                            self,
+                        );
 
                         restored_count += old_to_new_mapping.len();
-
-                        let mut stack = vec![copy];
-                        while let Some(node_handle) = stack.pop() {
-                            let node = &mut self.pool[node_handle];
-                            node.resource = Some(resource.clone());
-                            // Reset inheritable properties, so property inheritance system will take properties
-                            // from parent objects on resolve stage.
-                            node.reset_inheritable_properties();
-                            stack.extend_from_slice(node.children());
-                        }
-
-                        for (&old, &new) in old_to_new_mapping.iter() {
-                            self[new].original_handle_in_resource = old;
-                        }
 
                         // Link it with existing node.
                         if resource_node.parent().is_some() {
