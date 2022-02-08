@@ -182,7 +182,7 @@ impl Renderer2d {
         })
     }
 
-    pub(in crate) fn update(&mut self, dt: f32) {
+    pub(in crate) fn update_caches(&mut self, dt: f32) {
         self.geometry_cache.update(dt);
     }
 
