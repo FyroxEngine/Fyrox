@@ -1,5 +1,6 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
+use crate::utils::log::Log;
 use crate::{
     core::{
         futures::future::join_all,
@@ -388,6 +389,12 @@ impl ResourceManagerState {
         if let Some(watcher) = self.watcher.as_ref() {
             if let Some(DebouncedEvent::Write(path)) = watcher.try_get_event() {
                 let relative_path = make_relative_path(path);
+
+                Log::info(format!(
+                    "File {} was changed, trying to reload a respective resource...",
+                    relative_path.display()
+                ));
+
                 let containers = self.containers_mut();
                 for container in [
                     &mut containers.textures as &mut dyn Container,

@@ -65,6 +65,13 @@ pub struct ShaderCache {
 }
 
 impl ShaderCache {
+    pub fn remove(&mut self, shader: &Shader) {
+        let shader = shader.state();
+        if let ResourceState::Ok(shader_state) = shader.deref() {
+            self.buffer.free(&shader_state.cache_index);
+        }
+    }
+
     pub fn get(&mut self, state: &mut PipelineState, shader: &Shader) -> Option<&ShaderSet> {
         scope_profile!();
 

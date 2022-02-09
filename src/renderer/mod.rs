@@ -33,6 +33,7 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
+use crate::material::shader::Shader;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -671,6 +672,7 @@ pub struct Renderer {
     fxaa_renderer: FxaaRenderer,
     renderer2d: Renderer2d,
     texture_event_receiver: Receiver<ResourceEvent<Texture>>,
+    shader_event_receiver: Receiver<ResourceEvent<Shader>>,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: FxHashMap<usize, FrameBuffer>,
@@ -993,14 +995,23 @@ impl Renderer {
     ) -> Result<Self, FrameworkError> {
         let settings = QualitySettings::default();
 
-        let (texture_upload_sender, texture_event_receiver) = std::sync::mpsc::channel();
+        let (texture_event_sender, texture_event_receiver) = std::sync::mpsc::channel();
 
         resource_manager
             .state()
             .containers_mut()
             .textures
             .event_broadcaster
-            .add(texture_upload_sender);
+            .add(texture_event_sender);
+
+        let (shader_event_sender, shader_event_receiver) = std::sync::mpsc::channel();
+
+        resource_manager
+            .state()
+            .containers_mut()
+            .shaders
+            .event_broadcaster
+            .add(shader_event_sender);
 
         // Box pipeline state because we'll store pointers to it inside framework's entities and
         // it must have constant address.
@@ -1098,6 +1109,7 @@ impl Renderer {
             fxaa_renderer: FxaaRenderer::new(&mut state)?,
             statistics: Statistics::default(),
             renderer2d: Renderer2d::new(&mut state)?,
+            shader_event_receiver,
             texture_event_receiver,
             state,
             shader_cache: ShaderCache::default(),
@@ -1262,7 +1274,7 @@ impl Renderer {
 
         let mut uploaded = 0;
         while let Ok(event) = self.texture_event_receiver.try_recv() {
-            if let ResourceEvent::Loaded(texture) = event {
+            if let ResourceEvent::Loaded(texture) | ResourceEvent::Reloaded(texture) = event {
                 match self.texture_cache.upload(&mut self.state, &texture) {
                     Ok(_) => {
                         uploaded += 1;
@@ -1283,12 +1295,25 @@ impl Renderer {
         self.texture_cache.update(dt);
     }
 
+    fn update_shader_cache(&mut self, dt: f32) {
+        while let Ok(event) = self.shader_event_receiver.try_recv() {
+            if let ResourceEvent::Loaded(shader) | ResourceEvent::Reloaded(shader) = event {
+                // Remove and immediately "touch" the shader cache to force upload shader.
+                self.shader_cache.remove(&shader);
+                let _ = self.shader_cache.get(&mut self.state, &shader);
+            }
+        }
+
+        self.shader_cache.update(dt)
+    }
+
     /// Update caches - this will remove timed out resources.
     ///
     /// Normally, this is called from `Engine::update()`.
     /// You should only call this manually if you don't use that method.
     pub fn update_caches(&mut self, dt: f32) {
         self.update_texture_cache(dt);
+        self.update_shader_cache(dt);
         self.geometry_cache.update(dt);
         self.renderer2d.update_caches(dt);
     }

@@ -335,7 +335,7 @@ impl MaterialEditor {
             if let Some(extension) = path.extension() {
                 if extension == "shader" {
                     self.shaders_list
-                        .push(resource_manager.request_shader(path));
+                        .push(resource_manager.request_shader(make_relative_path(path)));
                 }
             }
         }
