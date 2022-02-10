@@ -1,3 +1,5 @@
+//! The module responsible for batch generation for rendering optimizations.
+
 use crate::{
     core::{
         algebra::Matrix4, arrayvec::ArrayVec, parking_lot::Mutex, pool::Handle, scope_profile,
@@ -18,21 +20,34 @@ use std::{
     sync::Arc,
 };
 
+/// Maximum amount of bone matrices per instance.
 pub const BONE_MATRICES_COUNT: usize = 64;
 
+/// A set of data of a surface for rendering.  
 pub struct SurfaceInstance {
+    /// A handle to an owner node.
     pub owner: Handle<Node>,
+    /// A world matrix.
     pub world_transform: Matrix4<f32>,
+    /// A set of bone matrices.
     pub bone_matrices: ArrayVec<Matrix4<f32>, BONE_MATRICES_COUNT>,
+    /// A depth-hack value.
     pub depth_offset: f32,
 }
 
+/// A set of surface instances that share the same vertex/index data and a material.
 pub struct Batch {
+    /// A pointer to shared surface data.
     pub data: Arc<Mutex<SurfaceData>>,
+    /// A set of instances.
     pub instances: Vec<SurfaceInstance>,
+    /// A material that is shared across all instances.
     pub material: Arc<Mutex<Material>>,
+    /// Whether the batch is using GPU skinning or not.
     pub is_skinned: bool,
+    /// A render path of the batch.
     pub render_path: RenderPath,
+    /// A decal layer index of the batch.
     pub decal_layer_index: u8,
     sort_index: u64,
 }
@@ -48,6 +63,8 @@ impl Debug for Batch {
     }
 }
 
+/// Batch storage handles batch generation for a scene before rendering. It is used to optimize
+/// rendering by reducing amount of state changes of OpenGL context.
 #[derive(Default)]
 pub struct BatchStorage {
     buffers: Vec<Vec<SurfaceInstance>>,

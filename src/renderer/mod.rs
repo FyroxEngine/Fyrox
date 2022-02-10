@@ -13,11 +13,11 @@
 #[allow(unsafe_code)]
 pub mod framework;
 
+pub mod batch;
 pub mod cache;
 pub mod debug_renderer;
 pub mod renderer2d;
 
-mod batch;
 mod bloom;
 mod flat_shader;
 mod forward_renderer;
