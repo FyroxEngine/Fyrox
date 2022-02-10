@@ -729,12 +729,11 @@ impl Graph {
 
                     // Root of the resource is not belongs to resource, it is just a convenient way of
                     // consolidation all descendants under a single node.
+                    let mut compare =
+                        |n: &Node| n.original_handle_in_resource == resource_node_handle;
+
                     if resource_node_handle != resource_graph.root
-                        && self
-                            .find(instance_root, &mut |n| {
-                                n.original_handle_in_resource == resource_node_handle
-                            })
-                            .is_none()
+                        && self.find(instance_root, &mut compare).is_none()
                     {
                         Log::writeln(
                             MessageKind::Warning,
