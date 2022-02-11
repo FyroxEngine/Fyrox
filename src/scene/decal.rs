@@ -277,18 +277,55 @@ impl DecalBuilder {
     }
 
     /// Creates new Decal node.
-    pub fn build_node(self) -> Node {
-        Node::Decal(Decal {
+    pub fn build_decal(self) -> Decal {
+        Decal {
             base: self.base_builder.build_base(),
             diffuse_texture: self.diffuse_texture.into(),
             normal_texture: self.normal_texture.into(),
             color: self.color.into(),
             layer: self.layer.into(),
-        })
+        }
+    }
+
+    /// Creates new Decal node.
+    pub fn build_node(self) -> Node {
+        Node::Decal(self.build_decal())
     }
 
     /// Creates new instance of Decal node and puts it in the given graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        core::color::Color,
+        resource::texture::test::create_test_texture,
+        scene::{
+            base::{test::check_inheritable_properties_equality, BaseBuilder},
+            decal::DecalBuilder,
+            node::Node,
+        },
+    };
+
+    #[test]
+    fn test_decal_inheritance() {
+        let parent = DecalBuilder::new(BaseBuilder::new())
+            .with_color(Color::opaque(1, 2, 3))
+            .with_layer(1)
+            .with_diffuse_texture(create_test_texture())
+            .with_normal_texture(create_test_texture())
+            .build_node();
+
+        let mut child = DecalBuilder::new(BaseBuilder::new()).build_decal();
+
+        child.inherit(&parent).unwrap();
+
+        if let Node::Decal(parent) = parent {
+            check_inheritable_properties_equality(&child.base, &parent.base);
+            check_inheritable_properties_equality(&child, &parent);
+        }
     }
 }

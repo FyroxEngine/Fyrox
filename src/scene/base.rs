@@ -59,7 +59,7 @@ impl Visit for LodControlledObject {
 /// Normalized distance is a distance in (0; 1) range where 0 - closest to camera,
 /// 1 - farthest. Real distance can be obtained by multiplying normalized distance
 /// with z_far of current projection matrix.
-#[derive(Debug, Default, Clone, Visit, Inspect)]
+#[derive(Debug, Default, Clone, Visit, Inspect, PartialEq)]
 pub struct LevelOfDetail {
     begin: f32,
     end: f32,
@@ -123,7 +123,7 @@ impl LevelOfDetail {
 /// Lod group must contain non-overlapping cascades, each cascade with its own set of objects
 /// that belongs to level of detail. Engine does not care if you create overlapping cascades,
 /// it is your responsibility to create non-overlapping cascades.
-#[derive(Debug, Default, Clone, Visit, Inspect)]
+#[derive(Debug, Default, Clone, Visit, Inspect, PartialEq)]
 pub struct LodGroup {
     /// Set of cascades.
     pub levels: Vec<LevelOfDetail>,
@@ -206,7 +206,7 @@ impl Visit for Mobility {
 }
 
 /// A property value.
-#[derive(Debug, Visit, Inspect, Clone, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Debug, Visit, Inspect, PartialEq, Clone, AsRefStr, EnumString, EnumVariantNames)]
 pub enum PropertyValue {
     /// A node handle.
     ///
@@ -253,7 +253,7 @@ impl Default for PropertyValue {
 }
 
 /// A custom property.
-#[derive(Debug, Visit, Inspect, Default, Clone)]
+#[derive(Debug, Visit, Inspect, Default, Clone, PartialEq)]
 pub struct Property {
     /// Name of the property.
     pub name: String,
@@ -862,5 +862,55 @@ impl BaseBuilder {
     /// Creates new instance of base node and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use crate::scene::{
+        base::{BaseBuilder, LevelOfDetail, LodGroup, Mobility},
+        DirectlyInheritableEntity,
+    };
+
+    pub fn check_inheritable_properties_equality<T: DirectlyInheritableEntity>(
+        entity_a: &T,
+        entity_b: &T,
+    ) {
+        for (a, b) in entity_a
+            .inheritable_properties_ref()
+            .iter()
+            .zip(entity_b.inheritable_properties_ref())
+        {
+            if !a.value_equals(b) {
+                panic!("Value of property {:#?} is not equal to {:#?}", a, b)
+            }
+        }
+    }
+
+    #[test]
+    fn test_base_inheritance() {
+        let parent = BaseBuilder::new()
+            .with_visibility(false)
+            .with_depth_offset(1.0)
+            .with_tag("Tag".to_string())
+            .with_name("Name")
+            .with_lifetime(1.0)
+            .with_frustum_culling(false)
+            .with_mobility(Mobility::Static)
+            .with_lod_group(LodGroup {
+                levels: vec![LevelOfDetail {
+                    begin: 0.0,
+                    end: 1.0,
+                    objects: vec![],
+                }],
+            })
+            .build_node();
+
+        let mut child = BaseBuilder::new().build_base();
+
+        child.inherit_properties(&parent).unwrap();
+
+        check_inheritable_properties_equality(&child.local_transform, &parent.local_transform);
+        check_inheritable_properties_equality(&child, &parent)
     }
 }

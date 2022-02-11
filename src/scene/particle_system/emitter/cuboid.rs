@@ -19,7 +19,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug, Clone, Visit, Inspect)]
+#[derive(Debug, Clone, Visit, PartialEq, Inspect)]
 pub struct CuboidEmitter {
     emitter: BaseEmitter,
     #[inspect(min_value = 0.0, step = 0.1)]

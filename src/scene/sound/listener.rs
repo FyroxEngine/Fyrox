@@ -68,13 +68,41 @@ impl ListenerBuilder {
         Self { base_builder }
     }
 
-    pub fn build_node(self) -> Node {
-        Node::Listener(Listener {
+    pub fn build_listener(self) -> Listener {
+        Listener {
             base: self.base_builder.build_base(),
-        })
+        }
+    }
+
+    pub fn build_node(self) -> Node {
+        Node::Listener(self.build_listener())
     }
 
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::scene::{
+        base::{test::check_inheritable_properties_equality, BaseBuilder},
+        node::Node,
+        sound::listener::ListenerBuilder,
+    };
+
+    #[test]
+    fn test_listener_inheritance() {
+        let parent = ListenerBuilder::new(BaseBuilder::new()).build_node();
+
+        let mut child = ListenerBuilder::new(BaseBuilder::new()).build_listener();
+
+        child.inherit(&parent).unwrap();
+
+        if let Node::Listener(parent) = parent {
+            check_inheritable_properties_equality(&child.base, &parent.base);
+        } else {
+            unreachable!()
+        }
     }
 }

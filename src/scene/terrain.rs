@@ -57,6 +57,14 @@ pub struct Layer {
     pub(in crate) chunk_masks: Vec<Texture>,
 }
 
+impl PartialEq for Layer {
+    fn eq(&self, other: &Self) -> bool {
+        self.mask_property_name == other.mask_property_name
+            && self.chunk_masks == other.chunk_masks
+            && Arc::ptr_eq(&self.material, &other.material)
+    }
+}
+
 impl Layer {
     /// Returns a slice containing a set of masks for every chunk in the layer.
     pub fn chunk_masks(&self) -> &[Texture] {

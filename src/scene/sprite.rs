@@ -289,3 +289,37 @@ impl SpriteBuilder {
         graph.add_node(self.build_node())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        core::color::Color,
+        resource::texture::test::create_test_texture,
+        scene::{
+            base::{test::check_inheritable_properties_equality, BaseBuilder},
+            node::Node,
+            sprite::SpriteBuilder,
+        },
+    };
+
+    #[test]
+    fn test_sprite_inheritance() {
+        let parent = SpriteBuilder::new(BaseBuilder::new())
+            .with_color(Color::opaque(1, 2, 3))
+            .with_rotation(1.0)
+            .with_size(2.0)
+            .with_texture(create_test_texture())
+            .build_node();
+
+        let mut child = SpriteBuilder::new(BaseBuilder::new()).build_sprite();
+
+        child.inherit(&parent).unwrap();
+
+        if let Node::Sprite(parent) = parent {
+            check_inheritable_properties_equality(&child.base, &parent.base);
+            check_inheritable_properties_equality(&child, &parent)
+        } else {
+            unreachable!()
+        }
+    }
+}

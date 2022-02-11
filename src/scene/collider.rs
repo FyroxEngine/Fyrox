@@ -1,7 +1,6 @@
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
 
-use crate::utils::log::Log;
 use crate::{
     core::{
         algebra::Vector3,
@@ -21,6 +20,7 @@ use crate::{
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
+    utils::log::Log,
 };
 use fxhash::FxHashMap;
 use rapier3d::geometry::{self, ColliderHandle};
@@ -31,7 +31,7 @@ use std::{
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Ball is an idea sphere shape defined by a single parameters - its radius.
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, PartialEq, Visit, Inspect)]
 pub struct BallShape {
     /// Radius of the sphere.
     #[inspect(min_value = 0.0, step = 0.05)]
@@ -45,7 +45,7 @@ impl Default for BallShape {
 }
 
 /// Cylinder shape aligned in Y axis.
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, Inspect, PartialEq)]
 pub struct CylinderShape {
     /// Half height of the cylinder, actual height will be 2 times bigger.
     #[inspect(min_value = 0.0, step = 0.05)]
@@ -65,7 +65,7 @@ impl Default for CylinderShape {
 }
 
 /// Cone shape aligned in Y axis.
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, Inspect, PartialEq)]
 pub struct ConeShape {
     /// Half height of the cone, actual height will be 2 times bigger.
     #[inspect(min_value = 0.0, step = 0.05)]
@@ -85,7 +85,7 @@ impl Default for ConeShape {
 }
 
 /// Cuboid shape (box).
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, Inspect, PartialEq)]
 pub struct CuboidShape {
     /// Half extents of the box. X - half width, Y - half height, Z - half depth.
     /// Actual _size_ will be 2 times bigger.
@@ -101,7 +101,7 @@ impl Default for CuboidShape {
 }
 
 /// Arbitrary capsule shape defined by 2 points (which forms axis) and a radius.
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, Inspect, PartialEq)]
 pub struct CapsuleShape {
     /// Begin point of the capsule.
     pub begin: Vector3<f32>,
@@ -124,7 +124,7 @@ impl Default for CapsuleShape {
 }
 
 /// Arbitrary segment shape defined by two points.
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, Inspect, PartialEq)]
 pub struct SegmentShape {
     /// Begin point of the capsule.
     pub begin: Vector3<f32>,
@@ -142,7 +142,7 @@ impl Default for SegmentShape {
 }
 
 /// Arbitrary triangle shape.
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, Inspect, PartialEq)]
 pub struct TriangleShape {
     /// First point of the triangle shape.
     pub a: Vector3<f32>,
@@ -171,21 +171,21 @@ impl Default for TriangleShape {
 pub struct GeometrySource(pub Handle<Node>);
 
 /// Arbitrary triangle mesh shape.
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Clone, Debug, Visit, Inspect, PartialEq)]
 pub struct TrimeshShape {
     /// Geometry sources for the shape.
     pub sources: Vec<GeometrySource>,
 }
 
 /// Arbitrary height field shape.
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Clone, Debug, Visit, Inspect, PartialEq)]
 pub struct HeightfieldShape {
     /// A handle to terrain scene node.
     pub geometry_source: GeometrySource,
 }
 
 /// Arbitrary convex polyhedron shape.
-#[derive(Default, Clone, Debug, Visit, Inspect)]
+#[derive(Default, Clone, Debug, Visit, Inspect, PartialEq)]
 pub struct ConvexPolyhedronShape {
     /// A handle to a mesh node.
     pub geometry_source: GeometrySource,
@@ -206,7 +206,7 @@ pub struct ConvexPolyhedronShape {
 /// ```ignore
 /// (self.memberships & rhs.filter) != 0 && (rhs.memberships & self.filter) != 0
 /// ```
-#[derive(Visit, Debug, Clone, Copy, Inspect)]
+#[derive(Visit, Debug, Clone, Copy, PartialEq, Inspect)]
 pub struct InteractionGroups {
     /// Groups memberships.
     pub memberships: u32,
@@ -260,7 +260,7 @@ impl Inspect for ColliderShape {
 }
 
 /// Possible collider shapes.
-#[derive(Clone, Debug, Visit, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Clone, Debug, PartialEq, Visit, AsRefStr, EnumString, EnumVariantNames)]
 pub enum ColliderShape {
     /// See [`BallShape`] docs.
     Ball(BallShape),
@@ -799,8 +799,8 @@ impl ColliderBuilder {
     }
 
     /// Creates collider node, but does not add it to a graph.
-    pub fn build_node(self) -> Node {
-        let collider = Collider {
+    pub fn build_collider(self) -> Collider {
+        Collider {
             base: self.base_builder.build_base(),
             shape: self.shape.into(),
             friction: self.friction.into(),
@@ -812,12 +812,52 @@ impl ColliderBuilder {
             friction_combine_rule: self.friction_combine_rule.into(),
             restitution_combine_rule: self.restitution_combine_rule.into(),
             native: Cell::new(ColliderHandle::invalid()),
-        };
-        Node::Collider(collider)
+        }
+    }
+
+    /// Creates collider node, but does not add it to a graph.
+    pub fn build_node(self) -> Node {
+        Node::Collider(self.build_collider())
     }
 
     /// Creates collider node and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::scene::{
+        base::{test::check_inheritable_properties_equality, BaseBuilder},
+        collider::{ColliderBuilder, ColliderShape, InteractionGroups},
+        graph::physics::CoefficientCombineRule,
+        node::Node,
+    };
+
+    #[test]
+    fn test_collider_inheritance() {
+        let parent = ColliderBuilder::new(BaseBuilder::new())
+            .with_shape(ColliderShape::ball(1.0))
+            .with_friction(1.0)
+            .with_restitution(1.0)
+            .with_density(Some(2.0))
+            .with_sensor(true)
+            .with_restitution_combine_rule(CoefficientCombineRule::Max)
+            .with_friction_combine_rule(CoefficientCombineRule::Max)
+            .with_collision_groups(InteractionGroups::new(1, 2))
+            .with_solver_groups(InteractionGroups::new(1, 2))
+            .build_node();
+
+        let mut child = ColliderBuilder::new(BaseBuilder::new()).build_collider();
+
+        child.inherit(&parent).unwrap();
+
+        if let Node::Collider(parent) = parent {
+            check_inheritable_properties_equality(&child.base, &parent.base);
+            check_inheritable_properties_equality(&child, &parent);
+        } else {
+            unreachable!();
+        }
     }
 }

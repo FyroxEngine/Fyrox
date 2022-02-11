@@ -108,7 +108,7 @@ pub mod emitter;
 pub mod particle;
 
 /// Particle limit for emitter.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum ParticleLimit {
     /// No limit in amount of particles.
     Unlimited,
@@ -560,5 +560,37 @@ impl ParticleSystemBuilder {
     /// Creates new instance of particle system and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        core::algebra::Vector3,
+        resource::texture::test::create_test_texture,
+        scene::{
+            base::test::check_inheritable_properties_equality, base::BaseBuilder, node::Node,
+            particle_system::ParticleSystemBuilder,
+        },
+    };
+
+    #[test]
+    fn test_particle_system_inheritance() {
+        let parent = ParticleSystemBuilder::new(BaseBuilder::new())
+            .with_texture(create_test_texture())
+            .with_acceleration(Vector3::new(1.0, 0.0, 0.0))
+            .with_enabled(false)
+            .build_node();
+
+        let mut child = ParticleSystemBuilder::new(BaseBuilder::new()).build_particle_system();
+
+        child.inherit(&parent).unwrap();
+
+        if let Node::ParticleSystem(parent) = parent {
+            check_inheritable_properties_equality(&child.base, &parent.base);
+            check_inheritable_properties_equality(&child, &parent);
+        } else {
+            unreachable!()
+        }
     }
 }

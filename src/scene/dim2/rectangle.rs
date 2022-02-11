@@ -133,15 +133,51 @@ impl RectangleBuilder {
         self
     }
 
-    pub fn build_node(self) -> Node {
-        Node::Rectangle(Rectangle {
+    pub fn build_rectangle(self) -> Rectangle {
+        Rectangle {
             base: self.base_builder.build_base(),
             texture: self.texture.into(),
             color: self.color.into(),
-        })
+        }
+    }
+
+    pub fn build_node(self) -> Node {
+        Node::Rectangle(self.build_rectangle())
     }
 
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        core::color::Color,
+        resource::texture::test::create_test_texture,
+        scene::{
+            base::{test::check_inheritable_properties_equality, BaseBuilder},
+            dim2::rectangle::RectangleBuilder,
+            node::Node,
+        },
+    };
+
+    #[test]
+    fn test_rectangle_inheritance() {
+        let parent = RectangleBuilder::new(BaseBuilder::new())
+            .with_color(Color::opaque(1, 2, 3))
+            .with_texture(create_test_texture())
+            .build_node();
+
+        let mut child = RectangleBuilder::new(BaseBuilder::new()).build_rectangle();
+
+        child.inherit(&parent).unwrap();
+
+        if let Node::Rectangle(parent) = parent {
+            check_inheritable_properties_equality(&child.base, &parent.base);
+            check_inheritable_properties_equality(&child, &parent);
+        } else {
+            unreachable!()
+        }
     }
 }

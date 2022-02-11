@@ -27,7 +27,7 @@ pub trait Emit {
 }
 
 /// See module docs.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub enum Emitter {
     /// Unknown kind here is just to have ability to implement Default trait,
     /// must not be used at runtime!

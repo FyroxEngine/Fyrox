@@ -13,7 +13,7 @@ use crate::{
 use std::ops::Range;
 
 /// See module docs.
-#[derive(Debug, Visit, Inspect)]
+#[derive(Debug, Visit, PartialEq, Inspect)]
 pub struct BaseEmitter {
     /// Offset from center of particle system.
     position: Vector3<f32>,

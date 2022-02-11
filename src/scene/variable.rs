@@ -4,6 +4,7 @@
 
 use crate::core::visitor::prelude::*;
 use bitflags::bitflags;
+use std::fmt::Debug;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
@@ -40,7 +41,7 @@ pub enum InheritError {
 }
 
 /// A variable that can inherit its value from parent.
-pub trait InheritableVariable: Any {
+pub trait InheritableVariable: Any + Debug {
     /// Tries to inherit a value from parent. It will succeed only if the current variable is
     /// not marked as modified.
     fn try_inherit(&mut self, parent: &dyn InheritableVariable) -> Result<bool, InheritError>;
@@ -56,11 +57,14 @@ pub trait InheritableVariable: Any {
 
     /// Returns true if value was modified.
     fn is_modified(&self) -> bool;
+
+    /// Returns true if value equals to other's value.
+    fn value_equals(&self, other: &dyn InheritableVariable) -> bool;
 }
 
 impl<T> InheritableVariable for TemplateVariable<T>
 where
-    T: Clone + 'static,
+    T: Debug + PartialEq + Clone + 'static,
 {
     fn try_inherit(&mut self, parent: &dyn InheritableVariable) -> Result<bool, InheritError> {
         let any_parent = parent.as_any();
@@ -93,6 +97,13 @@ where
 
     fn is_modified(&self) -> bool {
         self.flags.get().contains(VariableFlags::MODIFIED)
+    }
+
+    fn value_equals(&self, other: &dyn InheritableVariable) -> bool {
+        other
+            .as_any()
+            .downcast_ref::<Self>()
+            .map_or(false, |other| self.value == other.value)
     }
 }
 

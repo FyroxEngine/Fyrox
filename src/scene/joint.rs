@@ -28,7 +28,7 @@ use std::{
 /// Ball joint locks any translational moves between two objects on the axis between objects, but
 /// allows rigid bodies to perform relative rotations. The real world example is a human shoulder,
 /// pendulum, etc.
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, PartialEq, Inspect)]
 pub struct BallJoint {
     /// Where the prismatic joint is attached on the first body, expressed in the local space of the
     /// first attached body.
@@ -61,7 +61,7 @@ impl Default for BallJoint {
 
 /// A fixed joint ensures that two rigid bodies does not move relative to each other. There is no
 /// straightforward real-world example, but it can be thought as two bodies were "welded" together.
-#[derive(Clone, Debug, Visit, Inspect, Default)]
+#[derive(Clone, Debug, Visit, PartialEq, Inspect, Default)]
 pub struct FixedJoint {
     /// Local translation for the first body.
     pub local_anchor1_translation: Vector3<f32>,
@@ -75,7 +75,7 @@ pub struct FixedJoint {
 
 /// Prismatic joint prevents any relative movement between two rigid-bodies, except for relative
 /// translations along one axis. The real world example is a sliders that used to support drawers.
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, PartialEq, Inspect)]
 pub struct PrismaticJoint {
     /// Where the prismatic joint is attached on the first body, expressed in the local space of the
     /// first attached body.
@@ -111,7 +111,7 @@ impl Default for PrismaticJoint {
 /// Revolute joint prevents any relative movement between two rigid bodies, except relative rotation
 /// along one axis. The real world example is wheels, fans, etc. It can also be used to simulate door
 /// hinge.
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, PartialEq, Inspect)]
 pub struct RevoluteJoint {
     /// Where the prismatic joint is attached on the first body, expressed in the local space of the
     /// first attached body.
@@ -145,7 +145,7 @@ impl Default for RevoluteJoint {
 }
 
 /// The exact kind of the joint.
-#[derive(Clone, Debug, Visit)]
+#[derive(Clone, Debug, PartialEq, Visit)]
 pub enum JointParams {
     /// See [`BallJoint`] for more info.
     BallJoint(BallJoint),
@@ -353,18 +353,60 @@ impl JointBuilder {
     }
 
     /// Creates new Joint node, but does not add it to the graph.
-    pub fn build_node(self) -> Node {
-        Node::Joint(Joint {
+    pub fn build_joint(self) -> Joint {
+        Joint {
             base: self.base_builder.build_base(),
             params: self.params.into(),
             body1: self.body1.into(),
             body2: self.body2.into(),
             native: Cell::new(JointHandle::invalid()),
-        })
+        }
+    }
+
+    /// Creates new Joint node, but does not add it to the graph.
+    pub fn build_node(self) -> Node {
+        Node::Joint(self.build_joint())
     }
 
     /// Creates new Joint node and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        core::algebra::Vector3,
+        scene::{
+            base::{test::check_inheritable_properties_equality, BaseBuilder},
+            joint::{BallJoint, JointBuilder, JointParams},
+            node::Node,
+        },
+    };
+
+    #[test]
+    fn test_joint_inheritance() {
+        let parent = JointBuilder::new(BaseBuilder::new())
+            .with_params(JointParams::BallJoint(BallJoint {
+                local_anchor1: Vector3::new(1.0, 0.0, 0.0),
+                local_anchor2: Vector3::new(1.0, 1.0, 0.0),
+                limits_enabled: true,
+                limits_local_axis1: Vector3::new(1.0, 1.0, 0.0),
+                limits_local_axis2: Vector3::new(1.0, 1.0, 0.0),
+                limits_angle: 1.57,
+            }))
+            .build_node();
+
+        let mut child = JointBuilder::new(BaseBuilder::new()).build_joint();
+
+        child.inherit(&parent).unwrap();
+
+        if let Node::Joint(parent) = parent {
+            check_inheritable_properties_equality(&child.base, &parent.base);
+            check_inheritable_properties_equality(&child, &parent);
+        } else {
+            unreachable!();
+        }
     }
 }

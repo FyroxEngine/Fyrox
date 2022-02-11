@@ -198,3 +198,33 @@ impl PointLightBuilder {
         graph.add_node(self.build_node())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::scene::{
+        base::{test::check_inheritable_properties_equality, BaseBuilder},
+        light::{point::PointLightBuilder, BaseLightBuilder, Light},
+        node::Node,
+    };
+
+    #[test]
+    fn test_point_light_inheritance() {
+        let parent = PointLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
+            .with_radius(1.0)
+            .with_shadow_bias(0.1)
+            .build_node();
+
+        let mut child =
+            PointLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new())).build_point_light();
+
+        child.inherit(&parent).unwrap();
+
+        if let Node::Light(Light::Point(parent)) = parent {
+            check_inheritable_properties_equality(&child.base, &parent.base);
+            check_inheritable_properties_equality(&child.base_light, &parent.base_light);
+            check_inheritable_properties_equality(&child, &parent);
+        } else {
+            unreachable!()
+        }
+    }
+}

@@ -31,7 +31,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub const CSM_NUM_CASCADES: usize = 3;
 
 /// Frustum split options defines how to split camera's frustum to generate cascades.
-#[derive(Inspect, Clone, Visit, Debug, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Inspect, Clone, Visit, Debug, PartialEq, AsRefStr, EnumString, EnumVariantNames)]
 pub enum FrustumSplitOptions {
     /// Camera frustum will be split into a [`CSM_NUM_CASCADES`] splits where each sub-frustum
     /// will have fixed far plane location.
@@ -66,7 +66,7 @@ impl Default for FrustumSplitOptions {
 }
 
 /// Cascade Shadow Mapping (CSM) options.
-#[derive(Inspect, Clone, Visit, Debug)]
+#[derive(Inspect, Clone, Visit, PartialEq, Debug)]
 pub struct CsmOptions {
     /// See [`FrustumSplitOptions`].
     pub split_options: FrustumSplitOptions,
@@ -207,5 +207,46 @@ impl DirectionalLightBuilder {
     /// Creates new instance of directional light and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::scene::{
+        base::{test::check_inheritable_properties_equality, BaseBuilder},
+        light::{
+            directional::{CsmOptions, DirectionalLightBuilder, FrustumSplitOptions},
+            BaseLightBuilder, Light,
+        },
+        node::Node,
+    };
+
+    #[test]
+    fn test_directional_light_inheritance() {
+        let parent = DirectionalLightBuilder::new(BaseLightBuilder::new(
+            BaseBuilder::new()
+                .with_name("Light")
+                .with_tag("Tag".to_owned()),
+        ))
+        .with_csm_options(CsmOptions {
+            split_options: FrustumSplitOptions::Absolute {
+                far_planes: [1.0, 2.0, 4.0],
+            },
+            shadow_bias: 0.0,
+        })
+        .build_node();
+
+        let mut child = DirectionalLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
+            .build_directional_light();
+
+        child.inherit(&parent).unwrap();
+
+        if let Node::Light(Light::Directional(parent)) = parent {
+            check_inheritable_properties_equality(&child.base, &parent.base);
+            check_inheritable_properties_equality(&child.base_light, &parent.base_light);
+            check_inheritable_properties_equality(&child, &parent);
+        } else {
+            unreachable!();
+        }
     }
 }

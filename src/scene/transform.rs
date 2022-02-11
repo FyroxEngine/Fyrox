@@ -614,3 +614,32 @@ impl TransformBuilder {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        core::algebra::{UnitQuaternion, Vector3},
+        scene::{base::test::check_inheritable_properties_equality, transform::TransformBuilder},
+    };
+
+    #[test]
+    fn test_transform_inheritance() {
+        let parent = TransformBuilder::new()
+            .with_local_position(Vector3::new(1.0, 0.0, 0.0))
+            .with_local_scale(Vector3::new(1.0, 0.0, 0.0))
+            .with_local_rotation(UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 1.57))
+            .with_post_rotation(UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 1.57))
+            .with_pre_rotation(UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 1.57))
+            .with_scaling_offset(Vector3::new(1.0, 0.0, 0.0))
+            .with_scaling_pivot(Vector3::new(1.0, 0.0, 0.0))
+            .with_rotation_offset(Vector3::new(1.0, 0.0, 0.0))
+            .with_rotation_pivot(Vector3::new(1.0, 0.0, 0.0))
+            .build();
+
+        let mut child = TransformBuilder::new().build();
+
+        child.inherit(&parent).unwrap();
+
+        check_inheritable_properties_equality(&child, &parent);
+    }
+}

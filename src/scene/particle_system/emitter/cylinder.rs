@@ -18,7 +18,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Clone, Debug, Visit, Inspect)]
+#[derive(Clone, Debug, Visit, PartialEq, Inspect)]
 pub struct CylinderEmitter {
     emitter: BaseEmitter,
     #[inspect(min_value = 0.0, step = 0.1)]

@@ -19,7 +19,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug, Clone, Inspect, Visit)]
+#[derive(Debug, Clone, Inspect, PartialEq, Visit)]
 pub struct SphereEmitter {
     emitter: BaseEmitter,
     #[inspect(min_value = 0.0, step = 0.1)]

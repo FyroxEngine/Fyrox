@@ -22,21 +22,21 @@
 //! Light scattering feature may significantly impact performance on low-end
 //! hardware!
 
-use crate::engine::resource_manager::ResourceManager;
-use crate::scene::variable::{InheritError, TemplateVariable};
-use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
+    engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     resource::texture::Texture,
     scene::{
         graph::Graph,
         light::{BaseLight, BaseLightBuilder, Light},
         node::Node,
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
@@ -314,5 +314,41 @@ impl SpotLightBuilder {
     /// Creates new spot light instance and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        resource::texture::test::create_test_texture,
+        scene::{
+            base::{test::check_inheritable_properties_equality, BaseBuilder},
+            light::{spot::SpotLightBuilder, BaseLightBuilder, Light},
+            node::Node,
+        },
+    };
+
+    #[test]
+    fn test_spot_light_inheritance() {
+        let parent = SpotLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
+            .with_distance(1.0)
+            .with_cookie_texture(create_test_texture())
+            .with_falloff_angle_delta(0.1)
+            .with_shadow_bias(1.0)
+            .with_hotspot_cone_angle(0.1)
+            .build_node();
+
+        let mut child =
+            SpotLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new())).build_spot_light();
+
+        child.inherit(&parent).unwrap();
+
+        if let Node::Light(Light::Spot(parent)) = parent {
+            check_inheritable_properties_equality(&child.base, &parent.base);
+            check_inheritable_properties_equality(&child.base_light, &parent.base_light);
+            check_inheritable_properties_equality(&child, &parent);
+        } else {
+            unreachable!()
+        }
     }
 }

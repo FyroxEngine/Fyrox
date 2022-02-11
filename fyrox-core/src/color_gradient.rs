@@ -4,7 +4,7 @@ use crate::{
 };
 use std::cmp::Ordering;
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct GradientPoint {
     location: f32,
     color: Color,
@@ -45,7 +45,7 @@ impl Clone for GradientPoint {
     }
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct ColorGradient {
     points: Vec<GradientPoint>,
 }

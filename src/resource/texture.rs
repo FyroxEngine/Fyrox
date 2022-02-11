@@ -1411,3 +1411,21 @@ impl<'a> TextureDataRefMut<'a> {
         &mut self.texture.bytes
     }
 }
+
+#[cfg(test)]
+pub mod test {
+    use crate::resource::texture::{Texture, TextureKind, TexturePixelKind};
+
+    pub fn create_test_texture() -> Texture {
+        Texture::from_bytes(
+            TextureKind::Rectangle {
+                width: 1,
+                height: 1,
+            },
+            TexturePixelKind::RGBA8,
+            vec![1, 1, 1, 1],
+            false,
+        )
+        .unwrap()
+    }
+}

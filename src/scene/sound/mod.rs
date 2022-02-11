@@ -8,25 +8,24 @@ use std::{
     time::Duration,
 };
 
+// Re-export some the fyrox_sound entities.
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::prelude::*,
     },
-    define_with, impl_directly_inheritable_entity_trait,
+    define_with,
+    engine::resource_manager::ResourceManager,
+    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::Node,
-        variable::TemplateVariable,
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
     },
 };
-
-// Re-export some the fyrox_sound entities.
-use crate::engine::resource_manager::ResourceManager;
-use crate::scene::variable::InheritError;
-use crate::scene::DirectlyInheritableEntity;
 pub use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
     context::{DistanceModel, SAMPLE_RATE},
@@ -435,8 +434,8 @@ impl SoundBuilder {
 
     /// Creates a new [`Sound`] node.
     #[must_use]
-    pub fn build_node(self) -> Node {
-        Node::Sound(Sound {
+    pub fn build_sound(self) -> Sound {
+        Sound {
             base: self.base_builder.build_base(),
             buffer: self.buffer.into(),
             play_once: self.play_once.into(),
@@ -451,11 +450,53 @@ impl SoundBuilder {
             playback_time: self.playback_time.into(),
             spatial_blend: self.spatial_blend.into(),
             native: Default::default(),
-        })
+        }
+    }
+
+    /// Creates a new [`Sound`] node.
+    #[must_use]
+    pub fn build_node(self) -> Node {
+        Node::Sound(self.build_sound())
     }
 
     /// Create a new [`Sound`] node and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::scene::{
+        base::{test::check_inheritable_properties_equality, BaseBuilder},
+        node::Node,
+        sound::SoundBuilder,
+    };
+    use fyrox_sound::source::Status;
+    use std::time::Duration;
+
+    #[test]
+    fn test_sound_inheritance() {
+        let parent = SoundBuilder::new(BaseBuilder::new())
+            .with_radius(1.0)
+            .with_gain(2.0)
+            .with_status(Status::Paused)
+            .with_pitch(2.0)
+            .with_playback_time(Duration::from_secs(2))
+            .with_looping(true)
+            .with_play_once(true)
+            .with_panning(0.1)
+            .build_node();
+
+        let mut child = SoundBuilder::new(BaseBuilder::new()).build_sound();
+
+        child.inherit(&parent).unwrap();
+
+        if let Node::Sound(parent) = parent {
+            check_inheritable_properties_equality(&child.base, &parent.base);
+            check_inheritable_properties_equality(&child, &parent);
+        } else {
+            unreachable!();
+        }
     }
 }

@@ -822,7 +822,7 @@ impl Visit for SurfaceData {
 }
 
 /// Vertex weight is a pair of (bone; weight) that affects vertex.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct VertexWeight {
     /// Exact weight value in [0; 1] range
     pub value: f32,
@@ -845,7 +845,7 @@ impl Default for VertexWeight {
 }
 
 /// Weight set contains up to four pairs of (bone; weight).
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Default)]
 pub struct VertexWeightSet {
     weights: [VertexWeight; 4],
     count: usize,
@@ -916,6 +916,23 @@ pub struct Surface {
     pub vertex_weights: Vec<VertexWeightSet>,
     /// Array of handle to scene nodes which are used as bones.
     pub bones: Vec<Handle<Node>>,
+}
+
+impl PartialEq for Surface {
+    fn eq(&self, other: &Self) -> bool {
+        let data_equal = match (&self.data, &other.data) {
+            (Some(data), Some(other_data)) => Arc::ptr_eq(data, other_data),
+            (None, None) => true,
+            _ => false,
+        };
+
+        let material_equal = Arc::ptr_eq(&self.material, &other.material);
+
+        self.bones == other.bones
+            && self.vertex_weights == other.vertex_weights
+            && data_equal
+            && material_equal
+    }
 }
 
 impl Default for Surface {

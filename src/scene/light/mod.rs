@@ -16,14 +16,13 @@
 //! these are common effects for modern games but still can significantly impact
 //! performance.
 
-use crate::scene::variable::InheritError;
-use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         algebra::Vector3,
         color::Color,
         define_is_as,
         inspect::{Inspect, PropertyInfo},
+        pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -32,11 +31,11 @@ use crate::{
         base::{Base, BaseBuilder},
         light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         node::Node,
-        variable::TemplateVariable,
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
-use fyrox_core::pool::Handle;
 use std::ops::{Deref, DerefMut};
 
 pub mod directional;

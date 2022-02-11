@@ -671,8 +671,8 @@ impl RigidBodyBuilder {
     }
 
     /// Creates RigidBody node but does not add it to the graph.
-    pub fn build_node(self) -> Node {
-        let rigid_body = RigidBody {
+    pub fn build_rigid_body(self) -> RigidBody {
+        RigidBody {
             base: self.base_builder.build_base(),
             lin_vel: self.lin_vel.into(),
             ang_vel: self.ang_vel.into(),
@@ -691,13 +691,57 @@ impl RigidBodyBuilder {
             gravity_scale: self.gravity_scale.into(),
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
-        };
+        }
+    }
 
-        Node::RigidBody(rigid_body)
+    /// Creates RigidBody node but does not add it to the graph.
+    pub fn build_node(self) -> Node {
+        Node::RigidBody(self.build_rigid_body())
     }
 
     /// Creates RigidBody node and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        core::algebra::Vector3,
+        scene::{
+            base::{test::check_inheritable_properties_equality, BaseBuilder},
+            node::Node,
+            rigidbody::{RigidBodyBuilder, RigidBodyType},
+        },
+    };
+
+    #[test]
+    fn test_rigid_body_inheritance() {
+        let parent = RigidBodyBuilder::new(BaseBuilder::new())
+            .with_can_sleep(false)
+            .with_mass(2.0)
+            .with_sleeping(true)
+            .with_locked_rotations(true)
+            .with_ang_vel(Vector3::new(1.0, 0.0, 0.0))
+            .with_lin_vel(Vector3::new(2.0, 0.0, 0.0))
+            .with_ccd_enabled(true)
+            .with_body_type(RigidBodyType::Static)
+            .with_gravity_scale(0.5)
+            .with_lin_damping(0.1)
+            .with_ang_damping(0.1)
+            .with_dominance(123)
+            .with_translation_locked(true)
+            .build_node();
+
+        let mut child = RigidBodyBuilder::new(BaseBuilder::new()).build_rigid_body();
+
+        child.inherit(&parent).unwrap();
+
+        if let Node::RigidBody(parent) = parent {
+            check_inheritable_properties_equality(&child, &parent);
+        } else {
+            unreachable!()
+        }
     }
 }
