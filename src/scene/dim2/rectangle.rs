@@ -1,3 +1,8 @@
+//! Rectangle is the simplest "2D" node, it can be used to create "2D" graphics. 2D is in quotes
+//! here because the node is actually a 3D node, like everything else in the engine.
+//!
+//! See [`Rectangle`] docs for more info.
+
 use crate::{
     core::{
         color::Color,
@@ -19,6 +24,72 @@ use crate::{
 use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
+/// Rectangle is the simplest "2D" node, it can be used to create "2D" graphics. 2D is in quotes
+/// here because the node is actually a 3D node, like everything else in the engine.
+///
+/// ## Performance
+///
+/// Rectangles use specialized renderer that is heavily optimized to render tons of rectangles at
+/// once, so you can use rectangles almost for everything in 2D games.
+///
+/// ## Limitations
+///
+/// Rectangle nodes does not support custom materials - it is a simplified version of a Mesh node
+/// that allows you draw a rectangle with a texture and a color. Its main purpose is to be able to
+/// start making games as quick as possible without diving too deep into details (shaders, render
+/// passes, etc.). You can still create a "rectangle" with custom material, use Mesh node with
+/// single rectangle surface:
+///
+/// ```rust
+/// use fyrox::{
+///     core::{
+///         algebra::{Matrix4, Vector3},
+///         parking_lot::Mutex,
+///         pool::Handle,
+///     },
+///     material::Material,
+///     scene::{
+///         base::BaseBuilder,
+///         graph::Graph,
+///         mesh::{
+///             surface::{SurfaceBuilder, SurfaceData},
+///             MeshBuilder, RenderPath,
+///         },
+///         node::Node,
+///         transform::TransformBuilder,
+///     },
+/// };
+/// use std::sync::Arc;
+///
+/// fn create_rect_with_custom_material(
+///     graph: &mut Graph,
+///     material: Arc<Mutex<Material>>,
+/// ) -> Handle<Node> {
+///     MeshBuilder::new(
+///         BaseBuilder::new().with_local_transform(
+///             TransformBuilder::new()
+///                 .with_local_scale(Vector3::new(0.4, 0.2, 1.0))
+///                 .build(),
+///         ),
+///     )
+///     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+///         SurfaceData::make_quad(&Matrix4::identity()),
+///     )))
+///     .with_material(material)
+///     .build()])
+///     .with_render_path(RenderPath::Forward)
+///     .build(graph)
+/// }
+/// ```
+///
+/// This will effectively "mimic" the Rectangle node, but will allow you to use the full power of
+/// custom shaders. Keep in mind that Mesh nodes will be rendered via Deferred Renderer, while
+/// Rectangle nodes rendered with specialized renderer, that might result in some graphical artifacts.
+///
+/// Rectangle nodes has limited lighting support, it means that they still will be lit by standard
+/// scene lights, but it will be a very simple diffuse lighting without any "physically correct"
+/// lighting. This is perfectly ok for 95% of 2D games, if you want to add custom lighting then
+/// you should use custom shader.
 #[derive(Visit, Inspect, Debug, Default)]
 pub struct Rectangle {
     base: Base,
@@ -50,26 +121,32 @@ impl DerefMut for Rectangle {
 }
 
 impl Rectangle {
+    /// Returns a texture used by the rectangle.
     pub fn texture(&self) -> Option<&Texture> {
         self.texture.as_ref()
     }
 
+    /// Returns a texture used by the rectangle.
     pub fn texture_value(&self) -> Option<Texture> {
         (*self.texture).clone()
     }
 
+    /// Sets new texture for the rectangle.
     pub fn set_texture(&mut self, texture: Option<Texture>) {
         self.texture.set(texture);
     }
 
+    /// Returns current color of the rectangle.
     pub fn color(&self) -> Color {
         *self.color
     }
 
+    /// Sets color of the rectangle.
     pub fn set_color(&mut self, color: Color) {
         self.color.set(color);
     }
 
+    /// Creates raw copy of the rectangle.
     pub fn raw_copy(&self) -> Self {
         Self {
             base: self.base.raw_copy(),
@@ -108,6 +185,7 @@ impl Rectangle {
     }
 }
 
+/// Allows you to create rectangle in declarative manner.
 pub struct RectangleBuilder {
     base_builder: BaseBuilder,
     texture: Option<Texture>,
@@ -115,6 +193,7 @@ pub struct RectangleBuilder {
 }
 
 impl RectangleBuilder {
+    /// Creates new rectangle builder.
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
@@ -123,16 +202,19 @@ impl RectangleBuilder {
         }
     }
 
+    /// Sets desired texture of the rectangle.
     pub fn with_texture(mut self, texture: Texture) -> Self {
         self.texture = Some(texture);
         self
     }
 
+    /// Sets desired color of the rectangle.
     pub fn with_color(mut self, color: Color) -> Self {
         self.color = color;
         self
     }
 
+    /// Creates new [`Rectangle`] instance.
     pub fn build_rectangle(self) -> Rectangle {
         Rectangle {
             base: self.base_builder.build_base(),
@@ -141,10 +223,12 @@ impl RectangleBuilder {
         }
     }
 
+    /// Creates new [`Node::Rectangle`] instance.
     pub fn build_node(self) -> Node {
         Node::Rectangle(self.build_rectangle())
     }
 
+    /// Creates new [`Node::Rectangle`] instance and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
     }
