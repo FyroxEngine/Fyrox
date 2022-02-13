@@ -1,7 +1,12 @@
 //! Everything related to sound in the engine.
 
 use fxhash::FxHashMap;
+use fyrox_core::algebra::Matrix4;
+use fyrox_core::math::aabb::AxisAlignedBoundingBox;
+use fyrox_core::math::m4x4_approx_eq;
+use fyrox_core::uuid::Uuid;
 use fyrox_sound::source::SoundSource;
+use std::str::FromStr;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -9,6 +14,8 @@ use std::{
 };
 
 // Re-export some the fyrox_sound entities.
+use crate::scene::node::{NodeTrait, SyncContext, UpdateContext};
+use crate::utils::log::Log;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -123,11 +130,10 @@ impl Default for Sound {
     }
 }
 
-impl Sound {
-    /// Creates a raw copy of this node. For internal use only.
-    pub fn raw_copy(&self) -> Self {
+impl Clone for Sound {
+    fn clone(&self) -> Self {
         Self {
-            base: self.base.raw_copy(),
+            base: self.base.clone(),
             buffer: self.buffer.clone(),
             play_once: self.play_once.clone(),
             gain: self.gain.clone(),
@@ -143,6 +149,12 @@ impl Sound {
             // Do not copy.
             native: Default::default(),
         }
+    }
+}
+
+impl Sound {
+    pub fn type_uuid() -> Uuid {
+        Uuid::from_str("28621735-8cd1-4fad-8faf-ecd24bf8aa99").unwrap()
     }
 
     /// Changes buffer of source. Source will continue playing from beginning, old
@@ -305,33 +317,70 @@ impl Sound {
     pub fn max_distance(&self) -> f32 {
         *self.max_distance
     }
+}
 
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+impl NodeTrait for Sound {
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.local_bounding_box()
+    }
+
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.world_bounding_box()
+    }
+
+    // Prefab inheritance resolving.
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
+        if let Some(parent) = parent.cast::<Sound>() {
+            self.try_inherit_self_properties(parent)?;
+        }
+        Ok(())
+    }
+
+    fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
+    }
+
+    fn restore_resources(&mut self, resource_manager: ResourceManager) {
         if let Some(buffer) = self.buffer() {
             let state = buffer.state();
             self.set_buffer(Some(resource_manager.request_sound_buffer(state.path())));
         }
     }
 
-    // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Node::Sound(parent) = parent {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         self.base.remap_handles(old_new_mapping);
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
+    }
+
+    fn clean_up(&mut self, graph: &mut Graph) {
+        graph.sound_context.remove_sound(self.native.get());
+
+        Log::info(format!(
+            "Native sound source was removed for node: {}",
+            self.name()
+        ));
+    }
+
+    fn sync_native(&self, _self_handle: Handle<Node>, context: &mut SyncContext) {
+        context.sound_context.sync_to_sound(self)
+    }
+
+    fn sync_transform(&self, new_global_transform: &Matrix4<f32>, context: &mut SyncContext) {
+        if !m4x4_approx_eq(&new_global_transform, &self.global_transform()) {
+            context.sound_context.set_sound_position(self);
+        }
+    }
+
+    fn update(&mut self, context: &mut UpdateContext) -> bool {
+        context.sound_context.sync_with_sound(self);
+
+        self.base.update_lifetime(context.dt)
+            && !(self.is_play_once() && self.status() == Status::Stopped)
     }
 }
 
@@ -456,7 +505,7 @@ impl SoundBuilder {
     /// Creates a new [`Sound`] node.
     #[must_use]
     pub fn build_node(self) -> Node {
-        Node::Sound(self.build_sound())
+        Node::new(self.build_sound())
     }
 
     /// Create a new [`Sound`] node and adds it to the graph.
@@ -467,6 +516,7 @@ impl SoundBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::node::NodeTrait;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         node::Node,

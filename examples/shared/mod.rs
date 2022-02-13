@@ -4,6 +4,9 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
+use fyrox::scene::collider::Collider;
+use fyrox::scene::pivot::PivotBuilder;
+use fyrox::scene::rigidbody::RigidBody;
 use fyrox::scene::sound::effect::{BaseEffectBuilder, Effect, ReverbEffectBuilder};
 use fyrox::scene::sound::listener::ListenerBuilder;
 use fyrox::{
@@ -427,9 +430,9 @@ impl Player {
 
         let camera;
         let camera_hinge;
-        let camera_pivot = BaseBuilder::new()
-            .with_children(&[{
-                camera_hinge = BaseBuilder::new()
+        let camera_pivot = PivotBuilder::new(BaseBuilder::new().with_children(&[{
+            camera_hinge = PivotBuilder::new(
+                BaseBuilder::new()
                     .with_local_transform(
                         TransformBuilder::new()
                             .with_local_position(Vector3::new(0.0, 1.0, 0.0))
@@ -443,11 +446,12 @@ impl Player {
                         )
                         .await;
                         camera
-                    }])
-                    .build(&mut scene.graph);
-                camera_hinge
-            }])
+                    }]),
+            )
             .build(&mut scene.graph);
+            camera_hinge
+        }]))
+        .build(&mut scene.graph);
 
         context
             .lock()
@@ -501,9 +505,9 @@ impl Player {
                         capsule_collider
                     },
                     {
-                        pivot = BaseBuilder::new()
-                            .with_children(&[model_handle])
-                            .build(&mut scene.graph);
+                        pivot =
+                            PivotBuilder::new(BaseBuilder::new().with_children(&[model_handle]))
+                                .build(&mut scene.graph);
                         pivot
                     },
                 ]),
@@ -574,7 +578,8 @@ impl Player {
             .unwrap_or_default();
         let is_moving = velocity.norm_squared() > 0.0;
 
-        let body = scene.graph[self.body].as_rigid_body_mut();
+        //let body = scene.graph[self.body].as_rigid_body_mut();
+        let body = scene.graph[self.body].cast_mut::<RigidBody>().unwrap();
 
         let position = **body.local_transform().position();
 
@@ -658,7 +663,11 @@ impl Player {
             ));
 
         let mut has_ground_contact = false;
-        if let Some(Node::Collider(collider)) = scene.graph.try_get(self.capsule_collider) {
+        if let Some(collider) = scene
+            .graph
+            .try_get(self.capsule_collider)
+            .and_then(|n| n.cast::<Collider>())
+        {
             'outer_loop: for contact in collider.contacts(&scene.graph.physics) {
                 for manifold in contact.manifolds.iter() {
                     if manifold.local_n1.y > 0.7 {

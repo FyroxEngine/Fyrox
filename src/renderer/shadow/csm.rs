@@ -1,3 +1,5 @@
+use crate::scene::mesh::Mesh;
+use crate::scene::terrain::Terrain;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -23,7 +25,6 @@ use crate::{
         camera::Camera,
         graph::Graph,
         light::directional::{DirectionalLight, FrustumSplitOptions, CSM_NUM_CASCADES},
-        node::Node,
     },
 };
 use fyrox_core::algebra::Vector2;
@@ -242,12 +243,12 @@ impl CsmRenderer {
                     for instance in batch.instances.iter() {
                         let node = &graph[instance.owner];
 
-                        let visible = match node {
-                            Node::Mesh(mesh) => mesh.global_visibility() && mesh.cast_shadows(),
-                            Node::Terrain(terrain) => {
-                                terrain.global_visibility() && terrain.cast_shadows()
-                            }
-                            _ => false,
+                        let visible = if let Some(mesh) = node.cast::<Mesh>() {
+                            mesh.global_visibility() && mesh.cast_shadows()
+                        } else if let Some(terrain) = node.cast::<Terrain>() {
+                            terrain.global_visibility() && terrain.cast_shadows()
+                        } else {
+                            false
                         };
 
                         if !visible {

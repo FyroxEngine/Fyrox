@@ -22,6 +22,8 @@
 //! Light scattering feature may significantly impact performance on low-end
 //! hardware!
 
+use crate::scene::base::Base;
+use crate::scene::node::NodeTrait;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -33,17 +35,20 @@ use crate::{
     resource::texture::Texture,
     scene::{
         graph::Graph,
-        light::{BaseLight, BaseLightBuilder, Light},
+        light::{BaseLight, BaseLightBuilder},
         node::Node,
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
+use fyrox_core::math::aabb::AxisAlignedBoundingBox;
+use fyrox_core::uuid::Uuid;
 use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
 
 /// See module docs.
-#[derive(Debug, Inspect)]
+#[derive(Debug, Inspect, Clone)]
 pub struct SpotLight {
     base_light: BaseLight,
 
@@ -77,16 +82,16 @@ impl_directly_inheritable_entity_trait!(SpotLight;
 );
 
 impl Deref for SpotLight {
-    type Target = BaseLight;
+    type Target = Base;
 
     fn deref(&self) -> &Self::Target {
-        &self.base_light
+        &self.base_light.base
     }
 }
 
 impl DerefMut for SpotLight {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base_light
+        &mut self.base_light.base
     }
 }
 
@@ -104,6 +109,18 @@ impl Default for SpotLight {
 }
 
 impl SpotLight {
+    pub fn type_uuid() -> Uuid {
+        Uuid::from_str("9856a3c1-ced7-47ec-b682-4dc4dea89d8f").unwrap()
+    }
+
+    pub fn base_light_ref(&self) -> &BaseLight {
+        &self.base_light
+    }
+
+    pub fn base_light_mut(&mut self) -> &mut BaseLight {
+        &mut self.base_light
+    }
+
     /// Returns hotspot angle of light.
     #[inline]
     pub fn hotspot_cone_angle(&self) -> f32 {
@@ -182,46 +199,43 @@ impl SpotLight {
     pub fn cookie_texture_ref(&self) -> Option<&Texture> {
         self.cookie_texture.as_ref()
     }
+}
 
-    /// Creates a raw copy of a light node.
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            base_light: self.base_light.raw_copy(),
-            hotspot_cone_angle: self.hotspot_cone_angle.clone(),
-            falloff_angle_delta: self.falloff_angle_delta.clone(),
-            shadow_bias: self.shadow_bias.clone(),
-            distance: self.distance.clone(),
-            cookie_texture: self.cookie_texture.clone(),
-        }
+impl NodeTrait for SpotLight {
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base_light.base.local_bounding_box()
     }
 
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base_light.base.world_bounding_box()
+    }
+
+    // Prefab inheritance resolving.
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        if let Some(parent) = parent.cast::<SpotLight>() {
+            self.base_light.inherit(parent.base_light_ref())?;
+            self.try_inherit_self_properties(parent)?;
+        }
+        Ok(())
+    }
+
+    fn reset_inheritable_properties(&mut self) {
+        self.base_light.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
+    }
+
+    fn restore_resources(&mut self, resource_manager: ResourceManager) {
         let mut state = resource_manager.state();
         let texture_container = &mut state.containers_mut().textures;
         texture_container.try_restore_template_resource(&mut self.cookie_texture);
     }
 
-    // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        if let Node::Light(parent) = parent {
-            self.base_light.inherit(parent)?;
-            if let Light::Spot(parent) = parent {
-                self.try_inherit_self_properties(parent)?;
-            }
-        }
-        Ok(())
-    }
-
-    pub(crate) fn reset_inheritable_properties(&mut self) {
-        self.base_light.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         self.base_light.remap_handles(old_new_mapping);
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
     }
 }
 
@@ -308,7 +322,7 @@ impl SpotLightBuilder {
 
     /// Creates new spot light node.
     pub fn build_node(self) -> Node {
-        Node::Light(Light::Spot(self.build_spot_light()))
+        Node::new(self.build_spot_light())
     }
 
     /// Creates new spot light instance and adds it to the graph.
@@ -324,7 +338,7 @@ mod test {
         scene::{
             base::{test::check_inheritable_properties_equality, BaseBuilder},
             light::{spot::SpotLightBuilder, BaseLightBuilder, Light},
-            node::Node,
+            node::{Node, NodeTrait},
         },
     };
 

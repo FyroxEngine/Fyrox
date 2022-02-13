@@ -6,7 +6,7 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::{Handle, Pool},
     },
-    scene::{graph::Graph, light::Light, node::Node},
+    scene::{graph::Graph, node::Node},
 };
 
 #[allow(dead_code)]
@@ -34,26 +34,6 @@ pub struct Octree {
     root: Handle<OctreeNode>,
 }
 
-fn bounding_box(node: &Node) -> AxisAlignedBoundingBox {
-    let local_aabb = match node {
-        Node::Base(_) | Node::Camera(_) | Node::Decal(_) => AxisAlignedBoundingBox::unit(),
-        Node::Light(light) => match light {
-            Light::Directional(_) => AxisAlignedBoundingBox::unit(),
-            Light::Spot(spot) => AxisAlignedBoundingBox::from_radius(spot.distance()),
-            Light::Point(point) => AxisAlignedBoundingBox::from_radius(point.radius()),
-        },
-        Node::Mesh(mesh) => mesh.local_bounding_box(),
-        Node::Sprite(sprite) => AxisAlignedBoundingBox::from_radius(sprite.size()),
-        Node::Terrain(terrain) => terrain.local_bounding_box(),
-        _ => {
-            // TODO
-            AxisAlignedBoundingBox::unit()
-        }
-    };
-
-    local_aabb.transform(&node.global_transform.get())
-}
-
 impl Octree {
     pub fn new(graph: &Graph, split_threshold: usize) -> Self {
         // Calculate bounds.
@@ -61,7 +41,7 @@ impl Octree {
 
         let mut entries = Vec::new();
         for (handle, node) in graph.pair_iter() {
-            let aabb = bounding_box(node);
+            let aabb = node.world_bounding_box();
             entries.push(Entry {
                 node: handle,
                 world_aabb: aabb,

@@ -17,6 +17,8 @@
 //! can easily ruin performance of your game, especially on low-end hardware. Light
 //! scattering is relatively heavy too.
 
+use crate::scene::base::Base;
+use crate::scene::node::NodeTrait;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -27,7 +29,7 @@ use crate::{
     impl_directly_inheritable_entity_trait,
     scene::{
         graph::Graph,
-        light::{BaseLight, BaseLightBuilder, Light},
+        light::{BaseLight, BaseLightBuilder},
         node::Node,
         variable::InheritError,
         variable::TemplateVariable,
@@ -35,10 +37,13 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_core::math::aabb::AxisAlignedBoundingBox;
+use fyrox_core::uuid::Uuid;
 use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
 
 /// See module docs.
-#[derive(Debug, Inspect)]
+#[derive(Debug, Inspect, Clone)]
 pub struct PointLight {
     base_light: BaseLight,
 
@@ -55,20 +60,32 @@ impl_directly_inheritable_entity_trait!(PointLight;
 );
 
 impl Deref for PointLight {
-    type Target = BaseLight;
+    type Target = Base;
 
     fn deref(&self) -> &Self::Target {
-        &self.base_light
+        &self.base_light.base
     }
 }
 
 impl DerefMut for PointLight {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base_light
+        &mut self.base_light.base
     }
 }
 
 impl PointLight {
+    pub fn type_uuid() -> Uuid {
+        Uuid::from_str("c81dcc31-7cb9-465f-abd9-b385ac6f4d37").unwrap()
+    }
+
+    pub fn base_light_ref(&self) -> &BaseLight {
+        &self.base_light
+    }
+
+    pub fn base_light_mut(&mut self) -> &mut BaseLight {
+        &mut self.base_light
+    }
+
     /// Sets radius of point light. This parameter also affects radius of spherical
     /// light volume that is used in light scattering.
     #[inline]
@@ -92,39 +109,39 @@ impl PointLight {
     pub fn shadow_bias(&self) -> f32 {
         *self.shadow_bias
     }
+}
 
-    /// Creates a raw copy of a point light node.
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            base_light: self.base_light.raw_copy(),
-            radius: self.radius.clone(),
-            shadow_bias: self.shadow_bias.clone(),
-        }
+impl NodeTrait for PointLight {
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base_light.base.local_bounding_box()
     }
 
-    pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base_light.base.world_bounding_box()
+    }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        if let Node::Light(parent) = parent {
-            self.base_light.inherit(parent)?;
-            if let Light::Point(parent) = parent {
-                self.try_inherit_self_properties(parent)?;
-            }
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        if let Some(parent) = parent.cast::<Self>() {
+            self.base_light.inherit(parent.base_light_ref())?;
+            self.try_inherit_self_properties(parent)?;
         }
         Ok(())
     }
 
-    pub(crate) fn reset_inheritable_properties(&mut self) {
+    fn reset_inheritable_properties(&mut self) {
         self.base_light.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
     }
 
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
+
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         self.base_light.remap_handles(old_new_mapping);
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
     }
 }
 
@@ -190,7 +207,7 @@ impl PointLightBuilder {
 
     /// Builds new instance of point light node.
     pub fn build_node(self) -> Node {
-        Node::Light(Light::Point(self.build_point_light()))
+        Node::new(self.build_point_light())
     }
 
     /// Builds new instance of point light and adds it to the graph.
@@ -204,7 +221,7 @@ mod test {
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         light::{point::PointLightBuilder, BaseLightBuilder, Light},
-        node::Node,
+        node::{Node, NodeTrait},
     };
 
     #[test]

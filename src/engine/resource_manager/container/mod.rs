@@ -31,7 +31,7 @@ pub(crate) trait Container {
 /// etc.
 pub struct ResourceContainer<T, O, L>
 where
-    T: Clone,
+    T: Clone + 'static,
     O: ImportOptions,
     L: ResourceLoader<T, O>,
 {
@@ -46,7 +46,7 @@ where
 
 impl<T, R, E, O, L> ResourceContainer<T, O, L>
 where
-    T: Deref<Target = Resource<R, E>> + Clone + Send + Future + From<Resource<R, E>>,
+    T: Deref<Target = Resource<R, E>> + Clone + Send + Future + From<Resource<R, E>> + 'static,
     R: ResourceData,
     E: ResourceLoadError,
     O: ImportOptions,

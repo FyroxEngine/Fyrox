@@ -1,6 +1,7 @@
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
 
+use crate::scene::node::{NodeTrait, SyncContext};
 use crate::utils::log::Log;
 use crate::{
     core::{
@@ -22,7 +23,10 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_core::math::aabb::AxisAlignedBoundingBox;
+use fyrox_core::uuid::Uuid;
 use rapier2d::geometry::ColliderHandle;
+use std::str::FromStr;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -318,11 +322,10 @@ impl DerefMut for Collider {
     }
 }
 
-impl Collider {
-    /// Creates a raw copy of the collider. This method is for internal use only!
-    pub fn raw_copy(&self) -> Self {
+impl Clone for Collider {
+    fn clone(&self) -> Self {
         Self {
-            base: self.base.raw_copy(),
+            base: self.base.clone(),
             shape: self.shape.clone(),
             friction: self.friction.clone(),
             density: self.density.clone(),
@@ -335,6 +338,12 @@ impl Collider {
             // Do not copy.
             native: Cell::new(ColliderHandle::invalid()),
         }
+    }
+}
+
+impl Collider {
+    pub fn type_uuid() -> Uuid {
+        Uuid::from_str("2b1659ea-a116-4224-bcd4-7931e3ae3b40").unwrap()
     }
 
     /// Sets the new shape to the collider.
@@ -517,22 +526,6 @@ impl Collider {
         physics.contacts_with(self.native.get())
     }
 
-    pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
-
-    // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Node::Collider2D(parent) = parent {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
     pub(crate) fn needs_sync_model(&self) -> bool {
         self.shape.need_sync()
             || self.friction.need_sync()
@@ -544,11 +537,34 @@ impl Collider {
             || self.friction_combine_rule.need_sync()
             || self.restitution_combine_rule.need_sync()
     }
+}
 
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+impl NodeTrait for Collider {
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.local_bounding_box()
+    }
+
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.world_bounding_box()
+    }
+
+    // Prefab inheritance resolving.
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
+        if let Some(parent) = parent.cast::<Self>() {
+            self.try_inherit_self_properties(parent)?;
+        }
+        Ok(())
+    }
+
+    fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
+    }
+
+    fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
+
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         self.base.remap_handles(old_new_mapping);
 
         match self.shape.get_mut_silent() {
@@ -579,9 +595,28 @@ impl Collider {
             _ => (),
         }
     }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
+    }
+
+    fn clean_up(&mut self, graph: &mut Graph) {
+        graph.physics2d.remove_collider(self.native.get());
+
+        Log::info(format!(
+            "Native collider 2D was removed for node: {}",
+            self.name()
+        ));
+    }
+
+    fn sync_native(&self, self_handle: Handle<Node>, context: &mut SyncContext) {
+        context
+            .physics2d
+            .sync_to_collider_node(context.nodes, self_handle, self);
+    }
 }
 
-/// Collider builder allows you to build a collider node in declarative mannner.
+/// Collider builder allows you to build a collider node in declarative manner.
 pub struct ColliderBuilder {
     base_builder: BaseBuilder,
     shape: ColliderShape,
@@ -685,7 +720,7 @@ impl ColliderBuilder {
 
     /// Creates collider node, but does not add it to a graph.
     pub fn build_node(self) -> Node {
-        Node::Collider2D(self.build_collider())
+        Node::new(self.build_collider())
     }
 
     /// Creates collider node and adds it to the graph.
@@ -696,6 +731,7 @@ impl ColliderBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::node::NodeTrait;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         dim2::collider::{ColliderBuilder, ColliderShape, InteractionGroups},

@@ -6,10 +6,7 @@ use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         math::{clampf, wrapf},
-        pool::{
-            Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
-            Ticket,
-        },
+        pool::{Handle, Pool, Ticket},
         visitor::{Visit, VisitResult, Visitor},
     },
     resource::model::Model,
@@ -781,22 +778,22 @@ impl AnimationContainer {
     }
 
     #[inline]
-    pub fn iter(&self) -> PoolIterator<Animation> {
+    pub fn iter(&self) -> impl Iterator<Item = &Animation> {
         self.pool.iter()
     }
 
     #[inline]
-    pub fn pair_iter(&self) -> PoolPairIterator<Animation> {
+    pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Animation>, &Animation)> {
         self.pool.pair_iter()
     }
 
     #[inline]
-    pub fn pair_iter_mut(&mut self) -> PoolPairIteratorMut<Animation> {
+    pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Animation>, &mut Animation)> {
         self.pool.pair_iter_mut()
     }
 
     #[inline]
-    pub fn iter_mut(&mut self) -> PoolIteratorMut<Animation> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Animation> {
         self.pool.iter_mut()
     }
 

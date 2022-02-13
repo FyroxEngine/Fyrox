@@ -45,7 +45,7 @@ where
 
 impl<T> Default for ResourceEventBroadcaster<T>
 where
-    T: Send + Clone,
+    T: Send + Clone + 'static,
 {
     fn default() -> Self {
         Self::new()
@@ -54,7 +54,7 @@ where
 
 impl<T> ResourceEventBroadcaster<T>
 where
-    T: Send + Clone,
+    T: Send + Clone + 'static,
 {
     /// Creates new empty event broadcaster.
     pub fn new() -> Self {

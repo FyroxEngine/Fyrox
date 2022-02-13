@@ -1,5 +1,9 @@
 //! A renderer responsible for drawing 2D scenes.
 
+use crate::scene::dim2::rectangle::Rectangle;
+use crate::scene::light::directional::DirectionalLight;
+use crate::scene::light::point::PointLight;
+use crate::scene::light::spot::SpotLight;
 use crate::{
     core::{
         algebra::{Vector2, Vector3, Vector4},
@@ -18,7 +22,7 @@ use crate::{
         renderer2d::cache::{GeometryCache, InstanceData, Mesh},
         RenderPassStatistics, TextureCache,
     },
-    scene::{camera::Camera, graph::Graph, light::Light, node::Node},
+    scene::{camera::Camera, graph::Graph},
     utils::value_as_u8_slice,
 };
 use fxhash::{FxHashMap, FxHasher};
@@ -94,7 +98,7 @@ impl SpriteBatchStorage {
 
         let mut batch_index = 0;
         for node in graph.linear_iter() {
-            if let Node::Rectangle(rectangle) = node {
+            if let Some(rectangle) = node.cast::<Rectangle>() {
                 if !rectangle.global_visibility() {
                     continue;
                 }
@@ -214,38 +218,39 @@ impl Renderer2d {
         let mut light_direction = [Vector3::default(); MAX_LIGHTS];
         let mut light_parameters = [Vector2::default(); MAX_LIGHTS];
 
-        for light in graph.linear_iter().filter_map(|n| {
-            if let Node::Light(l) = n {
-                Some(l)
-            } else {
-                None
-            }
-        }) {
+        for light in graph.linear_iter() {
             if !light.global_visibility() || light_count == MAX_LIGHTS {
                 continue;
             }
 
-            let (radius, half_cone_angle_cos, half_hotspot_angle_cos) = match light {
-                Light::Point(point) => (
-                    point.radius(),
-                    std::f32::consts::PI.cos(),
-                    std::f32::consts::PI.cos(),
-                ),
-                Light::Spot(spot) => (
-                    spot.distance(),
-                    (spot.hotspot_cone_angle() * 0.5).cos(),
-                    (spot.full_cone_angle() * 0.5).cos(),
-                ),
-                Light::Directional(_) => (
-                    f32::INFINITY,
-                    std::f32::consts::PI.cos(),
-                    std::f32::consts::PI.cos(),
-                ),
-            };
+            let (radius, half_cone_angle_cos, half_hotspot_angle_cos, color) =
+                if let Some(point) = light.cast::<PointLight>() {
+                    (
+                        point.radius(),
+                        std::f32::consts::PI.cos(),
+                        std::f32::consts::PI.cos(),
+                        point.base_light_ref().color().as_frgb(),
+                    )
+                } else if let Some(spot) = light.cast::<SpotLight>() {
+                    (
+                        spot.distance(),
+                        (spot.hotspot_cone_angle() * 0.5).cos(),
+                        (spot.full_cone_angle() * 0.5).cos(),
+                        spot.base_light_ref().color().as_frgb(),
+                    )
+                } else if let Some(directional) = light.cast::<DirectionalLight>() {
+                    (
+                        f32::INFINITY,
+                        std::f32::consts::PI.cos(),
+                        std::f32::consts::PI.cos(),
+                        directional.base_light_ref().color().as_frgb(),
+                    )
+                } else {
+                    continue;
+                };
 
             if frustum.is_intersects_aabb(&light.world_bounding_box()) {
                 let light_num = light_count as usize;
-                let color = light.color().as_frgb();
 
                 light_position[light_num] = light.global_position();
                 light_direction[light_num] = light.up_vector();

@@ -1,7 +1,9 @@
 #![warn(clippy::too_many_arguments)]
 
 use crate::core::math::frustum::Frustum;
+use crate::scene::mesh::Mesh;
 use crate::scene::node::Node;
+use crate::scene::terrain::Terrain;
 
 pub mod csm;
 pub mod point;
@@ -18,18 +20,16 @@ pub fn cascade_size(base_size: usize, cascade: usize) -> usize {
 
 fn should_cast_shadows(node: &Node, light_frustum: &Frustum) -> bool {
     node.global_visibility() && {
-        match node {
-            Node::Mesh(mesh) => {
-                mesh.cast_shadows()
-                    && (!mesh.frustum_culling()
-                        || light_frustum.is_intersects_aabb(&mesh.world_bounding_box()))
-            }
-            Node::Terrain(terrain) => {
-                terrain.cast_shadows()
-                    && (!terrain.frustum_culling()
-                        || light_frustum.is_intersects_aabb(&terrain.world_bounding_box()))
-            }
-            _ => false,
+        if let Some(mesh) = node.cast::<Mesh>() {
+            mesh.cast_shadows()
+                && (!mesh.frustum_culling()
+                    || light_frustum.is_intersects_aabb(&mesh.world_bounding_box()))
+        } else if let Some(terrain) = node.cast::<Terrain>() {
+            terrain.cast_shadows()
+                && (!terrain.frustum_culling()
+                    || light_frustum.is_intersects_aabb(&terrain.world_bounding_box()))
+        } else {
+            false
         }
     }
 }

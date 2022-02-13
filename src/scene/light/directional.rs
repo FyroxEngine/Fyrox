@@ -7,6 +7,8 @@
 //! Current directional light does *not* support shadows, it is still
 //! on list of features that should be implemented.
 
+use crate::scene::base::Base;
+use crate::scene::node::NodeTrait;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -17,14 +19,17 @@ use crate::{
     impl_directly_inheritable_entity_trait,
     scene::{
         graph::Graph,
-        light::{BaseLight, BaseLightBuilder, Light},
+        light::{BaseLight, BaseLightBuilder},
         node::Node,
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
+use fyrox_core::math::aabb::AxisAlignedBoundingBox;
+use fyrox_core::uuid::Uuid;
 use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Maximum amount of cascades.
@@ -99,7 +104,7 @@ impl CsmOptions {
 }
 
 /// See module docs.
-#[derive(Default, Debug, Visit, Inspect)]
+#[derive(Default, Debug, Visit, Inspect, Clone)]
 pub struct DirectionalLight {
     base_light: BaseLight,
     /// See [`CsmOptions`].
@@ -122,51 +127,65 @@ impl From<BaseLight> for DirectionalLight {
 }
 
 impl Deref for DirectionalLight {
-    type Target = BaseLight;
+    type Target = Base;
 
     fn deref(&self) -> &Self::Target {
-        &self.base_light
+        &self.base_light.base
     }
 }
 
 impl DerefMut for DirectionalLight {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base_light
+        &mut self.base_light.base
     }
 }
 
 impl DirectionalLight {
-    /// Creates a raw copy of a directional light node.
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            base_light: self.base_light.raw_copy(),
-            csm_options: self.csm_options.clone(),
-        }
+    pub fn type_uuid() -> Uuid {
+        Uuid::from_str("8b8248e1-1cdf-42a3-9abe-0691de82c519").unwrap()
     }
 
-    pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
+    pub fn base_light_ref(&self) -> &BaseLight {
+        &self.base_light
+    }
+
+    pub fn base_light_mut(&mut self) -> &mut BaseLight {
+        &mut self.base_light
+    }
+}
+
+impl NodeTrait for DirectionalLight {
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base_light.base.local_bounding_box()
+    }
+
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base_light.base.world_bounding_box()
+    }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        if let Node::Light(parent) = parent {
-            self.base_light.inherit(parent)?;
-            if let Light::Directional(parent) = parent {
-                self.try_inherit_self_properties(parent)?;
-            }
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        if let Some(parent) = parent.cast::<DirectionalLight>() {
+            self.base_light.inherit(parent.base_light_ref())?;
+            self.try_inherit_self_properties(parent)?;
         }
+
         Ok(())
     }
 
-    pub(crate) fn reset_inheritable_properties(&mut self) {
+    fn reset_inheritable_properties(&mut self) {
         self.base_light.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
     }
 
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
+
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         self.base_light.remap_handles(old_new_mapping);
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
     }
 }
 
@@ -201,7 +220,7 @@ impl DirectionalLightBuilder {
 
     /// Creates new instance of directional light node.
     pub fn build_node(self) -> Node {
-        Node::Light(Light::Directional(self.build_directional_light()))
+        Node::new(self.build_directional_light())
     }
 
     /// Creates new instance of directional light and adds it to the graph.
@@ -218,7 +237,7 @@ mod test {
             directional::{CsmOptions, DirectionalLightBuilder, FrustumSplitOptions},
             BaseLightBuilder, Light,
         },
-        node::Node,
+        node::{Node, NodeTrait},
     };
 
     #[test]

@@ -20,7 +20,10 @@ impl<B> Default for LeafNode<B> {
     }
 }
 
-impl<B> LeafNode<B> {
+impl<B> LeafNode<B>
+where
+    B: 'static,
+{
     /// Creates new leaf node with given action.
     pub fn new(behavior: B) -> Self {
         Self {

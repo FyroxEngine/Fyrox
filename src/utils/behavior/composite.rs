@@ -47,7 +47,10 @@ impl<B> Default for CompositeNode<B> {
     }
 }
 
-impl<B> CompositeNode<B> {
+impl<B> CompositeNode<B>
+where
+    B: 'static,
+{
     /// Creates new composite node of given kind and set of children nodes.
     pub fn new(kind: CompositeNodeKind, children: Vec<Handle<BehaviorNode<B>>>) -> Self {
         Self { children, kind }

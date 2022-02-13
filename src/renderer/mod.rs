@@ -74,7 +74,7 @@ use crate::{
         ui_renderer::{UiRenderContext, UiRenderer},
     },
     resource::texture::{Texture, TextureKind},
-    scene::{camera::Camera, mesh::surface::SurfaceData, node::Node, Scene, SceneContainer},
+    scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
@@ -1409,7 +1409,7 @@ impl Renderer {
             }
 
             for camera in graph.linear_iter().filter_map(|node| {
-                if let Node::Camera(camera) = node {
+                if let Some(camera) = node.cast::<Camera>() {
                     if camera.is_enabled() {
                         Some(camera)
                     } else {

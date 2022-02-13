@@ -4,101 +4,116 @@
 
 #![warn(missing_docs)]
 
+use crate::scene::light::spot::SpotLight;
 use crate::{
-    asset::core::inspect::PropertyInfo,
     core::{
-        define_is_as,
         inspect::Inspect,
         math::aabb::AxisAlignedBoundingBox,
+        pool::Handle,
+        uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
     scene::{
+        self,
         base::Base,
         camera::Camera,
-        collider::Collider,
         decal::Decal,
         dim2::{self, rectangle::Rectangle},
-        joint::Joint,
-        light::Light,
+        graph::{self, Graph, NodePool},
+        light::point::PointLight,
         mesh::Mesh,
         particle_system::ParticleSystem,
-        rigidbody::RigidBody,
-        sound::{listener::Listener, Sound},
+        sound::{context::SoundContext, listener::Listener, Sound},
         sprite::Sprite,
         terrain::Terrain,
         variable::InheritError,
     },
 };
 use fxhash::FxHashMap;
-use fyrox_core::pool::Handle;
-use std::ops::{Deref, DerefMut};
+use fyrox_core::algebra::{Matrix4, Vector2};
+use std::{
+    any::Any,
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
 
-/// Helper macros to reduce code bloat - its purpose it to dispatch specified call by
-/// actual enum variant.
-macro_rules! static_dispatch {
-    ($self:ident, $func:ident, $($args:expr),*) => {
-        match $self {
-            Node::Base(v) => v.$func($($args),*),
-            Node::Mesh(v) => v.$func($($args),*),
-            Node::Camera(v) => v.$func($($args),*),
-            Node::Light(v) => v.$func($($args),*),
-            Node::ParticleSystem(v) => v.$func($($args),*),
-            Node::Sprite(v) => v.$func($($args),*),
-            Node::Terrain(v) => v.$func($($args),*),
-            Node::Decal(v) => v.$func($($args),*),
-            Node::RigidBody(v) => v.$func($($args),*),
-            Node::Collider(v) => v.$func($($args),*),
-            Node::Joint(v) => v.$func($($args),*),
-            Node::Rectangle(v) => v.$func($($args),*),
-            Node::RigidBody2D(v) => v.$func($($args),*),
-            Node::Collider2D(v) => v.$func($($args),*),
-            Node::Joint2D(v) => v.$func($($args),*),
-            Node::Sound(v) => v.$func($($args),*),
-            Node::Listener(v) => v.$func($($args),*),
-        }
-    };
+pub trait BaseNodeTrait:
+    Any + Debug + Deref<Target = Base> + DerefMut + Inspect + Visit + Send
+{
+    /// This method creates raw copy of a node, it should never be called in normal circumstances
+    /// because internally nodes may (and most likely will) contain handles to other nodes. To
+    /// correctly clone a node you have to use [copy_node](struct.Graph.html#method.copy_node).
+    fn clone_box(&self) -> Node;
+
+    fn as_any(&self) -> &dyn Any;
+
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-macro_rules! static_dispatch_inherit {
-    ($self:ident, $arg:expr) => {
-        match $self {
-            Node::Base(v) => v.inherit_properties($arg),
-            Node::Mesh(v) => v.inherit($arg),
-            Node::Camera(v) => v.inherit($arg),
-            Node::Light(v) => v.inherit($arg),
-            Node::ParticleSystem(v) => v.inherit($arg),
-            Node::Sprite(v) => v.inherit($arg),
-            Node::Terrain(v) => v.inherit($arg),
-            Node::Decal(v) => v.inherit($arg),
-            Node::RigidBody(v) => v.inherit($arg),
-            Node::Collider(v) => v.inherit($arg),
-            Node::Joint(v) => v.inherit($arg),
-            Node::Rectangle(v) => v.inherit($arg),
-            Node::RigidBody2D(v) => v.inherit($arg),
-            Node::Collider2D(v) => v.inherit($arg),
-            Node::Joint2D(v) => v.inherit($arg),
-            Node::Sound(v) => v.inherit($arg),
-            Node::Listener(v) => v.inherit($arg),
-        }
-    };
-}
+impl<T> BaseNodeTrait for T
+where
+    T: Clone + NodeTrait + 'static,
+{
+    fn clone_box(&self) -> Node {
+        Node(Box::new(self.clone()))
+    }
 
-impl Visit for Node {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut kind_id = self.id();
-        kind_id.visit("KindId", visitor)?;
-        if visitor.is_reading() {
-            *self = Node::from_id(kind_id)?;
-        }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 
-        static_dispatch!(self, visit, name, visitor)
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
-impl Inspect for Node {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        static_dispatch!(self, properties,)
+pub struct SyncContext<'a> {
+    pub nodes: &'a NodePool,
+    pub physics: &'a mut graph::physics::PhysicsWorld,
+    pub physics2d: &'a mut dim2::physics::PhysicsWorld,
+    pub sound_context: &'a mut SoundContext,
+}
+
+pub struct UpdateContext<'a> {
+    pub frame_size: Vector2<f32>,
+    pub dt: f32,
+    pub nodes: &'a NodePool,
+    pub physics: &'a mut graph::physics::PhysicsWorld,
+    pub physics2d: &'a mut dim2::physics::PhysicsWorld,
+    pub sound_context: &'a mut SoundContext,
+}
+
+pub trait NodeTrait: BaseNodeTrait {
+    /// Returns axis-aligned bounding box in **local space** of the node.
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox;
+
+    /// Returns axis-aligned bounding box in **world space** of the node.
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox;
+
+    /// Prefab inheritance resolving.
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError>;
+
+    fn reset_inheritable_properties(&mut self);
+
+    fn restore_resources(&mut self, resource_manager: ResourceManager);
+
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>);
+
+    /// Returns actual variant id.
+    fn id(&self) -> Uuid;
+
+    fn clean_up(&mut self, _graph: &mut Graph) {}
+
+    fn sync_native(&self, _self_handle: Handle<Node>, _context: &mut SyncContext) {}
+
+    /// Called when node's global transform changes.
+    fn sync_transform(&self, _new_global_transform: &Matrix4<f32>, _context: &mut SyncContext) {}
+
+    /// Updates internal state of the node and returns true if the node is still alive,
+    /// or false - otherwise. "Dead" nodes automatically removed from the parent graph.
+    fn update(&mut self, context: &mut UpdateContext) -> bool {
+        self.deref_mut().update_lifetime(context.dt)
     }
 }
 
@@ -153,242 +168,83 @@ impl Inspect for Node {
 ///
 /// The node could control which children nodes should be drawn based on the distance to a camera, this is so called
 /// level of detail functionality. There is a separate article about LODs, it can be found [here](super::base::LevelOfDetail).
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
-pub enum Node {
-    /// A node that offers basic functionality, every other node shares this functionality.
-    ///
-    /// For more info see [`Base`] node docs.
-    Base(Base),
-
-    /// A node that represents various light sources.
-    ///
-    /// For more info see [`Light`] node docs.
-    Light(Light),
-
-    /// A node that could be described as "our eyes in the world", a scene should have at least one camera for you
-    /// to be able to see anything.
-    ///
-    /// For more info see [`Camera`] node docs.
-    Camera(Camera),
-
-    /// A node that is used for any kind of 3D models.
-    ///
-    /// For more info see [`Mesh`] node docs.
-    Mesh(Mesh),
-
-    /// Special variation of [`Mesh`](Node::Mesh) variant which ensures that a rectangular face (billboard) is always rotated
-    /// in way so it always faces the camera.
-    ///
-    /// For more info see [`Sprite`] node docs.
-    Sprite(Sprite),
-
-    /// Collections of particles that is used to simulate clouds of particles, usually it is used to simulate dust, smoke, sparks
-    /// etc in scenes.
-    ///
-    /// For more info see [`ParticleSystem`] node docs.
-    ParticleSystem(ParticleSystem),
-
-    /// A heightmap with multiple layers.
-    ///
-    /// For more info see [`Terrain`] node docs.
-    Terrain(Terrain),
-
-    /// A node that paints on other nodes using a texture. It is used to simulate cracks in concrete walls, damaged parts of the road,
-    /// blood splatters, bullet holes, etc.
-    ///
-    /// For more info see Decal node docs.
-    Decal(Decal),
-
-    /// See [`RigidBody`] node docs.
-    RigidBody(RigidBody),
-
-    /// See [`Collider`] node docs.
-    Collider(Collider),
-
-    /// See [`Joint`] node docs.
-    Joint(Joint),
-
-    /// See [`dim2::rigidbody::RigidBody`] node docs.
-    RigidBody2D(dim2::rigidbody::RigidBody),
-
-    /// See [`dim2::collider::Collider`] node docs.
-    Collider2D(dim2::collider::Collider),
-
-    /// See [`dim2::joint::Joint`] node docs.
-    Joint2D(dim2::joint::Joint),
-
-    /// Rectangle node. See [`Rectangle`] node docs.
-    Rectangle(dim2::rectangle::Rectangle),
-
-    /// See [`Sound`] node docs.
-    Sound(Sound),
-
-    /// See [`Listener`] node docs.
-    Listener(Listener),
-}
-
-macro_rules! static_dispatch_deref {
-    ($self:ident) => {
-        match $self {
-            Node::Base(v) => v,
-            Node::Mesh(v) => v,
-            Node::Camera(v) => v,
-            Node::Light(v) => v,
-            Node::ParticleSystem(v) => v,
-            Node::Sprite(v) => v,
-            Node::Terrain(v) => v,
-            Node::Decal(v) => v,
-            Node::RigidBody(v) => v,
-            Node::Collider(v) => v,
-            Node::Joint(v) => v,
-            Node::Rectangle(v) => v,
-            Node::RigidBody2D(v) => v,
-            Node::Collider2D(v) => v,
-            Node::Joint2D(v) => v,
-            Node::Sound(v) => v,
-            Node::Listener(v) => v,
-        }
-    };
-}
+pub struct Node(Box<dyn NodeTrait>);
 
 impl Deref for Node {
-    type Target = Base;
+    type Target = dyn NodeTrait;
 
     fn deref(&self) -> &Self::Target {
-        static_dispatch_deref!(self)
+        self.0.deref()
     }
 }
 
 impl DerefMut for Node {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        static_dispatch_deref!(self)
+        self.0.deref_mut()
     }
 }
 
-impl Default for Node {
-    fn default() -> Self {
-        Self::Base(Default::default())
-    }
+/// Defines as_(variant), as_mut_(variant) and is_(variant) methods.
+#[macro_export]
+macro_rules! define_is_as {
+    ($typ:ty => fn $is:ident, fn $as_ref:ident, fn $as_mut:ident) => {
+        /// Returns true if node is instance of given type.
+        pub fn $is(&self) -> bool {
+            self.cast::<$typ>().is_some()
+        }
+
+        /// Tries to cast shared reference to a node to given type, panics if
+        /// cast is not possible.
+        pub fn $as_ref(&self) -> &$typ {
+            self.cast::<$typ>()
+                .unwrap_or_else(|| panic!("Cast to {} failed!", stringify!($kind)))
+        }
+
+        /// Tries to cast mutable reference to a node to given type, panics if
+        /// cast is not possible.
+        pub fn $as_mut(&mut self) -> &mut $typ {
+            self.cast_mut::<$typ>()
+                .unwrap_or_else(|| panic!("Cast to {} failed!", stringify!($kind)))
+        }
+    };
 }
 
 impl Node {
-    /// Returns axis-aligned bounding box in **local space** of the node.
-    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
-        static_dispatch!(self, local_bounding_box,)
+    pub fn new<T: NodeTrait>(node: T) -> Self {
+        Self(Box::new(node))
     }
 
-    /// Returns axis-aligned bounding box in **world space** of the node.
-    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
-        static_dispatch!(self, world_bounding_box,)
+    pub fn cast<T: NodeTrait>(&self) -> Option<&T> {
+        self.0.as_any().downcast_ref::<T>()
     }
 
-    // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        static_dispatch_inherit!(self, parent)
+    pub fn cast_mut<T: NodeTrait>(&mut self) -> Option<&mut T> {
+        self.0.as_any_mut().downcast_mut::<T>()
     }
 
-    pub(crate) fn reset_inheritable_properties(&mut self) {
-        static_dispatch!(self, reset_inheritable_properties,)
-    }
+    define_is_as!(Mesh => fn is_mesh, fn as_mesh, fn as_mesh_mut);
+    define_is_as!(Camera  => fn is_camera, fn as_camera, fn as_camera_mut);
+    define_is_as!(SpotLight  => fn is_spot_light, fn as_spot_light, fn as_spot_light_mut);
+    define_is_as!(PointLight  => fn is_point_light, fn as_point_light, fn as_point_light_mut);
+    define_is_as!(PointLight  => fn is_directional_light, fn as_directional_light, fn as_directional_light_mut);
+    define_is_as!(ParticleSystem => fn is_particle_system, fn as_particle_system, fn as_particle_system_mut);
+    define_is_as!(Sprite  => fn is_sprite, fn as_sprite, fn as_sprite_mut);
+    define_is_as!(Terrain  => fn is_terrain, fn as_terrain, fn as_terrain_mut);
+    define_is_as!(Decal => fn is_decal, fn as_decal, fn as_decal_mut);
+    define_is_as!(Rectangle => fn is_rectangle, fn as_rectangle, fn as_rectangle_mut);
+    define_is_as!(scene::rigidbody::RigidBody  => fn is_rigid_body, fn as_rigid_body, fn as_rigid_body_mut);
+    define_is_as!(scene::collider::Collider => fn is_collider, fn as_collider, fn as_collider_mut);
+    define_is_as!(scene::joint::Joint  => fn is_joint, fn as_joint, fn as_joint_mut);
+    define_is_as!(dim2::rigidbody::RigidBody => fn is_rigid_body2d, fn as_rigid_body2d, fn as_rigid_body2d_mut);
+    define_is_as!(dim2::collider::Collider => fn is_collider2d, fn as_collider2d, fn as_collider2d_mut);
+    define_is_as!(dim2::joint::Joint => fn is_joint2d, fn as_joint2d, fn as_joint2d_mut);
+    define_is_as!(Sound => fn is_sound, fn as_sound, fn as_sound_mut);
+    define_is_as!(Listener => fn is_listener, fn as_listener, fn as_listener_mut);
+}
 
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        static_dispatch!(self, restore_resources, resource_manager)
+impl Visit for Node {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
     }
-
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
-        static_dispatch!(self, remap_handles, old_new_mapping)
-    }
-
-    /// Creates new Node based on variant id.
-    pub fn from_id(id: u8) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::Base(Default::default())),
-            1 => Ok(Self::Light(Default::default())),
-            2 => Ok(Self::Camera(Default::default())),
-            3 => Ok(Self::Mesh(Default::default())),
-            4 => Ok(Self::Sprite(Default::default())),
-            5 => Ok(Self::ParticleSystem(Default::default())),
-            6 => Ok(Self::Terrain(Default::default())),
-            7 => Ok(Self::Decal(Default::default())),
-            8 => Ok(Self::RigidBody(Default::default())),
-            9 => Ok(Self::Collider(Default::default())),
-            10 => Ok(Self::Joint(Default::default())),
-            11 => Ok(Self::Rectangle(Default::default())),
-            12 => Ok(Self::RigidBody2D(Default::default())),
-            13 => Ok(Self::Collider2D(Default::default())),
-            14 => Ok(Self::Joint2D(Default::default())),
-            15 => Ok(Self::Sound(Default::default())),
-            16 => Ok(Self::Listener(Default::default())),
-            _ => Err(format!("Invalid node kind {}", id)),
-        }
-    }
-
-    /// Returns actual variant id.
-    pub fn id(&self) -> u8 {
-        match self {
-            Self::Base(_) => 0,
-            Self::Light(_) => 1,
-            Self::Camera(_) => 2,
-            Self::Mesh(_) => 3,
-            Self::Sprite(_) => 4,
-            Self::ParticleSystem(_) => 5,
-            Self::Terrain(_) => 6,
-            Self::Decal(_) => 7,
-            Self::RigidBody(_) => 8,
-            Self::Collider(_) => 9,
-            Self::Joint(_) => 10,
-            Self::Rectangle(_) => 11,
-            Self::RigidBody2D(_) => 12,
-            Self::Collider2D(_) => 13,
-            Self::Joint2D(_) => 14,
-            Self::Sound(_) => 15,
-            Self::Listener(_) => 16,
-        }
-    }
-
-    /// This method creates raw copy of a node, it should never be called in normal circumstances
-    /// because internally nodes may (and most likely will) contain handles to other nodes. To
-    /// correctly clone a node you have to use [copy_node](struct.Graph.html#method.copy_node).
-    pub fn raw_copy(&self) -> Self {
-        match self {
-            Node::Base(v) => Node::Base(v.raw_copy()),
-            Node::Light(v) => Node::Light(v.raw_copy()),
-            Node::Camera(v) => Node::Camera(v.raw_copy()),
-            Node::Mesh(v) => Node::Mesh(v.raw_copy()),
-            Node::Sprite(v) => Node::Sprite(v.raw_copy()),
-            Node::ParticleSystem(v) => Node::ParticleSystem(v.raw_copy()),
-            Node::Terrain(v) => Node::Terrain(v.raw_copy()),
-            Node::Decal(v) => Node::Decal(v.raw_copy()),
-            Node::RigidBody(v) => Node::RigidBody(v.raw_copy()),
-            Node::Collider(v) => Node::Collider(v.raw_copy()),
-            Node::Joint(v) => Node::Joint(v.raw_copy()),
-            Node::Rectangle(v) => Node::Rectangle(v.raw_copy()),
-            Node::RigidBody2D(v) => Node::RigidBody2D(v.raw_copy()),
-            Node::Collider2D(v) => Node::Collider2D(v.raw_copy()),
-            Node::Joint2D(v) => Node::Joint2D(v.raw_copy()),
-            Node::Sound(v) => Node::Sound(v.raw_copy()),
-            Node::Listener(v) => Node::Listener(v.raw_copy()),
-        }
-    }
-
-    define_is_as!(Node : Mesh -> ref Mesh => fn is_mesh, fn as_mesh, fn as_mesh_mut);
-    define_is_as!(Node : Camera -> ref Camera => fn is_camera, fn as_camera, fn as_camera_mut);
-    define_is_as!(Node : Light -> ref Light => fn is_light, fn as_light, fn as_light_mut);
-    define_is_as!(Node : ParticleSystem -> ref ParticleSystem => fn is_particle_system, fn as_particle_system, fn as_particle_system_mut);
-    define_is_as!(Node : Sprite -> ref Sprite => fn is_sprite, fn as_sprite, fn as_sprite_mut);
-    define_is_as!(Node : Terrain -> ref Terrain => fn is_terrain, fn as_terrain, fn as_terrain_mut);
-    define_is_as!(Node : Decal -> ref Decal => fn is_decal, fn as_decal, fn as_decal_mut);
-    define_is_as!(Node : Rectangle -> ref Rectangle => fn is_rectangle, fn as_rectangle, fn as_rectangle_mut);
-    define_is_as!(Node : RigidBody -> ref RigidBody => fn is_rigid_body, fn as_rigid_body, fn as_rigid_body_mut);
-    define_is_as!(Node : Collider -> ref Collider => fn is_collider, fn as_collider, fn as_collider_mut);
-    define_is_as!(Node : Joint -> ref Joint => fn is_joint, fn as_joint, fn as_joint_mut);
-    define_is_as!(Node : RigidBody2D -> ref dim2::rigidbody::RigidBody => fn is_rigid_body2d, fn as_rigid_body2d, fn as_rigid_body2d_mut);
-    define_is_as!(Node : Collider2D -> ref dim2::collider::Collider => fn is_collider2d, fn as_collider2d, fn as_collider2d_mut);
-    define_is_as!(Node : Joint2D -> ref dim2::joint::Joint => fn is_joint2d, fn as_joint2d, fn as_joint2d_mut);
-    define_is_as!(Node : Sound -> ref Sound => fn is_sound, fn as_sound, fn as_sound_mut);
-    define_is_as!(Node : Listener -> ref Listener => fn is_listener, fn as_listener, fn as_listener_mut);
 }

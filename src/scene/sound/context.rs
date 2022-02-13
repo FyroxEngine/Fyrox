@@ -1,5 +1,6 @@
 //! Sound context.
 
+use crate::scene::graph::NodePool;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -169,16 +170,19 @@ impl SoundContext {
         self.master_gain
     }
 
-    pub(crate) fn update(&mut self, nodes: &Pool<Node>) {
+    pub(crate) fn update(&mut self, nodes: &NodePool) {
         let mut state = self.native.state();
 
         fn sync_effect_inputs(
             native_effect: &mut fyrox_sound::effects::BaseEffect,
             inputs: &[sound::effect::EffectInput],
-            nodes: &Pool<Node>,
+            nodes: &NodePool,
         ) {
             for input in inputs.iter() {
-                if let Some(Node::Sound(sound)) = nodes.try_borrow(input.sound) {
+                if let Some(sound) = nodes
+                    .try_borrow(input.sound)
+                    .and_then(|n| n.cast::<Sound>())
+                {
                     match input.filter.as_ref() {
                         None => {
                             native_effect.add_input(EffectInput::direct(sound.native.get()));

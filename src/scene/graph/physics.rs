@@ -1,6 +1,5 @@
 //! Scene physics module.
 
-use crate::scene::variable::VariableFlags;
 use crate::{
     core::{
         algebra::{
@@ -12,7 +11,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         instant,
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
-        pool::{Handle, Pool},
+        pool::Handle,
         visitor::prelude::*,
         BiDirHashMap,
     },
@@ -21,6 +20,7 @@ use crate::{
         collider::{self, ColliderShape, GeometrySource},
         debug::{Line, SceneDrawingContext},
         graph::isometric_global_transform,
+        graph::NodePool,
         mesh::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
             Mesh,
@@ -28,6 +28,7 @@ use crate::{
         node::Node,
         rigidbody::ApplyAction,
         terrain::Terrain,
+        variable::VariableFlags,
     },
     utils::{
         log::{Log, MessageKind},
@@ -395,7 +396,7 @@ fn make_trimesh(
     owner_inv_transform: Matrix4<f32>,
     owner: Handle<Node>,
     sources: &[GeometrySource],
-    nodes: &Pool<Node>,
+    nodes: &NodePool,
 ) -> SharedShape {
     let mut mesh_builder = RawMeshBuilder::new(0, 0);
 
@@ -407,7 +408,7 @@ fn make_trimesh(
     let root_inv_transform = owner_inv_transform;
 
     for &source in sources {
-        if let Some(Node::Mesh(mesh)) = nodes.try_borrow(source.0) {
+        if let Some(mesh) = nodes.try_borrow(source.0).and_then(|n| n.cast::<Mesh>()) {
             let global_transform = root_inv_transform * mesh.global_transform();
 
             for surface in mesh.surfaces() {
@@ -614,7 +615,7 @@ fn collider_shape_into_native_shape(
     shape: &ColliderShape,
     owner_inv_global_transform: Matrix4<f32>,
     owner_collider: Handle<Node>,
-    pool: &Pool<Node>,
+    pool: &NodePool,
 ) -> Option<SharedShape> {
     match shape {
         ColliderShape::Ball(ball) => Some(SharedShape::ball(ball.radius)),
@@ -653,14 +654,20 @@ fn collider_shape_into_native_shape(
             }
         }
         ColliderShape::Heightfield(heightfield) => {
-            if let Some(Node::Terrain(terrain)) = pool.try_borrow(heightfield.geometry_source.0) {
+            if let Some(terrain) = pool
+                .try_borrow(heightfield.geometry_source.0)
+                .and_then(|n| n.cast::<Terrain>())
+            {
                 Some(make_heightfield(terrain))
             } else {
                 None
             }
         }
         ColliderShape::Polyhedron(polyhedron) => {
-            if let Some(Node::Mesh(mesh)) = pool.try_borrow(polyhedron.geometry_source.0) {
+            if let Some(mesh) = pool
+                .try_borrow(polyhedron.geometry_source.0)
+                .and_then(|n| n.cast::<Mesh>())
+            {
                 Some(make_polyhedron_shape(owner_inv_global_transform, mesh))
             } else {
                 None
@@ -1089,7 +1096,7 @@ impl PhysicsWorld {
         handle
     }
 
-    pub(super) fn remove_body(&mut self, handle: RigidBodyHandle) {
+    pub(crate) fn remove_body(&mut self, handle: RigidBodyHandle) {
         assert!(self.bodies.map.remove_by_key(&handle).is_some());
         self.bodies.set.remove(
             handle,
@@ -1113,7 +1120,7 @@ impl PhysicsWorld {
         handle
     }
 
-    pub(super) fn remove_collider(&mut self, handle: ColliderHandle) -> bool {
+    pub(crate) fn remove_collider(&mut self, handle: ColliderHandle) -> bool {
         if self
             .colliders
             .set
@@ -1139,7 +1146,7 @@ impl PhysicsWorld {
         handle
     }
 
-    pub(super) fn remove_joint(&mut self, handle: JointHandle) {
+    pub(crate) fn remove_joint(&mut self, handle: JointHandle) {
         assert!(self.joints.map.remove_by_key(&handle).is_some());
         self.joints
             .set
@@ -1216,7 +1223,7 @@ impl PhysicsWorld {
         );
     }
 
-    pub(super) fn set_rigid_body_position(
+    pub(crate) fn set_rigid_body_position(
         &mut self,
         rigid_body: &scene::rigidbody::RigidBody,
         new_global_transform: &Matrix4<f32>,
@@ -1241,7 +1248,7 @@ impl PhysicsWorld {
         }
     }
 
-    pub(super) fn sync_rigid_body_node(
+    pub(crate) fn sync_rigid_body_node(
         &mut self,
         rigid_body: &mut scene::rigidbody::RigidBody,
         parent_transform: Matrix4<f32>,
@@ -1277,7 +1284,7 @@ impl PhysicsWorld {
         }
     }
 
-    pub(super) fn sync_to_rigid_body_node(
+    pub(crate) fn sync_to_rigid_body_node(
         &mut self,
         handle: Handle<Node>,
         rigid_body_node: &scene::rigidbody::RigidBody,
@@ -1424,9 +1431,9 @@ impl PhysicsWorld {
         }
     }
 
-    pub(super) fn sync_to_collider_node(
+    pub(crate) fn sync_to_collider_node(
         &mut self,
-        nodes: &Pool<Node>,
+        nodes: &NodePool,
         handle: Handle<Node>,
         collider_node: &scene::collider::Collider,
     ) {
@@ -1486,7 +1493,9 @@ impl PhysicsWorld {
                         .try_sync_model(|v| native.set_restitution_combine_rule(v.into()));
                 }
             }
-        } else if let Some(Node::RigidBody(parent_body)) = nodes.try_borrow(collider_node.parent())
+        } else if let Some(parent_body) = nodes
+            .try_borrow(collider_node.parent())
+            .and_then(|n| n.cast::<scene::rigidbody::RigidBody>())
         {
             if parent_body.native.get() != RigidBodyHandle::invalid() {
                 let inv_global_transform = isometric_global_transform(nodes, handle)
@@ -1541,9 +1550,9 @@ impl PhysicsWorld {
         }
     }
 
-    pub(super) fn sync_to_joint_node(
+    pub(crate) fn sync_to_joint_node(
         &mut self,
-        nodes: &Pool<Node>,
+        nodes: &NodePool,
         handle: Handle<Node>,
         joint: &scene::joint::Joint,
     ) {
@@ -1552,12 +1561,18 @@ impl PhysicsWorld {
                 .params
                 .try_sync_model(|v| native.params = convert_joint_params(v));
             joint.body1.try_sync_model(|v| {
-                if let Some(Node::RigidBody(rigid_body_node)) = nodes.try_borrow(v) {
+                if let Some(rigid_body_node) = nodes
+                    .try_borrow(v)
+                    .and_then(|n| n.cast::<scene::rigidbody::RigidBody>())
+                {
                     native.body1 = rigid_body_node.native.get();
                 }
             });
             joint.body2.try_sync_model(|v| {
-                if let Some(Node::RigidBody(rigid_body_node)) = nodes.try_borrow(v) {
+                if let Some(rigid_body_node) = nodes
+                    .try_borrow(v)
+                    .and_then(|n| n.cast::<scene::rigidbody::RigidBody>())
+                {
                     native.body2 = rigid_body_node.native.get();
                 }
             });
@@ -1567,9 +1582,13 @@ impl PhysicsWorld {
             let params = joint.params().clone();
 
             // A native joint can be created iff both rigid bodies are correctly assigned.
-            if let (Some(Node::RigidBody(body1)), Some(Node::RigidBody(body2))) = (
-                nodes.try_borrow(body1_handle),
-                nodes.try_borrow(body2_handle),
+            if let (Some(body1), Some(body2)) = (
+                nodes
+                    .try_borrow(body1_handle)
+                    .and_then(|n| n.cast::<scene::rigidbody::RigidBody>()),
+                nodes
+                    .try_borrow(body2_handle)
+                    .and_then(|n| n.cast::<scene::rigidbody::RigidBody>()),
             ) {
                 let native_body1 = body1.native.get();
                 let native_body2 = body2.native.get();

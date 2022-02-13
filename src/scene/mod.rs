@@ -17,6 +17,7 @@ pub mod light;
 pub mod mesh;
 pub mod node;
 pub mod particle_system;
+pub mod pivot;
 pub mod rigidbody;
 pub mod sound;
 pub mod sprite;
@@ -25,7 +26,9 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
+use crate::scene::camera::Camera;
 use crate::scene::graph::GraphPerformanceStatistics;
+use crate::scene::mesh::Mesh;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -33,7 +36,7 @@ use crate::{
         color::Color,
         futures::future::join_all,
         instant,
-        pool::{Handle, Pool, PoolIterator, PoolIteratorMut, Ticket},
+        pool::{Handle, Pool, Ticket},
         sstorage::ImmutableString,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
@@ -377,7 +380,7 @@ impl SceneLoader {
         // to re-create cube map.
         let mut skybox_textures = Vec::new();
         for node in scene.graph.linear_iter() {
-            if let Node::Camera(camera) = node {
+            if let Some(camera) = node.cast::<Camera>() {
                 if let Some(skybox) = camera.skybox_ref() {
                     skybox_textures.extend(skybox.textures().iter().filter_map(|t| t.clone()));
                 }
@@ -461,7 +464,7 @@ impl Scene {
             // look in patch data if we have patch for data.
             let mut unique_data_set = FxHashMap::default();
             for &handle in lightmap.map.keys() {
-                if let Node::Mesh(mesh) = &mut self.graph[handle] {
+                if let Some(mesh) = self.graph[handle].cast_mut::<Mesh>() {
                     for surface in mesh.surfaces() {
                         let data = surface.data();
                         let key = &*data as *const _ as u64;
@@ -523,7 +526,7 @@ impl Scene {
 
             // Apply textures.
             for (&handle, entries) in lightmap.map.iter_mut() {
-                if let Node::Mesh(mesh) = &mut self.graph[handle] {
+                if let Some(mesh) = self.graph[handle].cast_mut::<Mesh>() {
                     for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
                         if let Err(e) = surface.material().lock().set_property(
                             &ImmutableString::new("lightmapTexture"),
@@ -552,7 +555,7 @@ impl Scene {
     pub fn set_lightmap(&mut self, lightmap: Lightmap) -> Result<Option<Lightmap>, &'static str> {
         // Assign textures to surfaces.
         for (handle, lightmaps) in lightmap.map.iter() {
-            if let Node::Mesh(mesh) = &mut self.graph[*handle] {
+            if let Some(mesh) = self.graph[*handle].cast_mut::<Mesh>() {
                 if mesh.surfaces().len() != lightmaps.len() {
                     return Err("failed to set lightmap, surface count mismatch");
                 }
@@ -681,13 +684,13 @@ impl SceneContainer {
 
     /// Creates new iterator over scenes in container.
     #[inline]
-    pub fn iter(&self) -> PoolIterator<Scene> {
+    pub fn iter(&self) -> impl Iterator<Item = &Scene> {
         self.pool.iter()
     }
 
     /// Creates new mutable iterator over scenes in container.
     #[inline]
-    pub fn iter_mut(&mut self) -> PoolIteratorMut<Scene> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Scene> {
         self.pool.iter_mut()
     }
 

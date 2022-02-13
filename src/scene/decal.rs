@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Decal`]
 
+use crate::scene::node::NodeTrait;
 use crate::{
     core::{
         color::Color,
@@ -22,7 +23,9 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_core::uuid::Uuid;
 use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
 
 /// Decal is an image that gets projected to a geometry of a scene. Blood splatters, bullet holes, scratches
 /// etc. are done via decals.
@@ -84,7 +87,7 @@ use std::ops::{Deref, DerefMut};
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Visit, Default, Inspect)]
+#[derive(Debug, Visit, Default, Clone, Inspect)]
 pub struct Decal {
     base: Base,
 
@@ -125,15 +128,8 @@ impl DerefMut for Decal {
 }
 
 impl Decal {
-    /// Creates a raw copy of Decal node.
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            base: self.base.raw_copy(),
-            diffuse_texture: self.diffuse_texture.clone(),
-            normal_texture: self.normal_texture.clone(),
-            color: self.color.clone(),
-            layer: self.layer.clone(),
-        }
+    pub fn type_uuid() -> Uuid {
+        Uuid::from_str("c4d24e48-edd1-4fb2-ad82-4b3d3ea985d8").unwrap()
     }
 
     /// Sets new diffuse texture.
@@ -189,45 +185,48 @@ impl Decal {
     pub fn layer(&self) -> u8 {
         *self.layer
     }
+}
 
+impl NodeTrait for Decal {
     /// Returns current **local-space** bounding box.
     #[inline]
-    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         // TODO: Maybe calculate AABB using frustum corners?
         self.base.local_bounding_box()
     }
 
     /// Returns current **world-space** bounding box.
-    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.world_bounding_box()
     }
 
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+    // Prefab inheritance resolving.
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
+        if let Some(parent) = parent.cast::<Self>() {
+            self.try_inherit_self_properties(parent)?;
+        }
+        Ok(())
+    }
+
+    fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
+    }
+
+    fn restore_resources(&mut self, resource_manager: ResourceManager) {
         let mut state = resource_manager.state();
         let texture_container = &mut state.containers_mut().textures;
         texture_container.try_restore_template_resource(&mut self.diffuse_texture);
         texture_container.try_restore_template_resource(&mut self.normal_texture);
     }
 
-    // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Node::Decal(parent) = parent {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         self.base.remap_handles(old_new_mapping);
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
     }
 }
 
@@ -289,7 +288,7 @@ impl DecalBuilder {
 
     /// Creates new Decal node.
     pub fn build_node(self) -> Node {
-        Node::Decal(self.build_decal())
+        Node::new(self.build_decal())
     }
 
     /// Creates new instance of Decal node and puts it in the given graph.
@@ -300,6 +299,7 @@ impl DecalBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::node::NodeTrait;
     use crate::{
         core::color::Color,
         resource::texture::test::create_test_texture,

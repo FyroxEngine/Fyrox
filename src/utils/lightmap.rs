@@ -9,6 +9,10 @@
 
 #![forbid(unsafe_code)]
 
+use crate::scene::light::directional::DirectionalLight;
+use crate::scene::light::point::PointLight;
+use crate::scene::light::spot::SpotLight;
+use crate::scene::mesh::Mesh;
 use crate::{
     asset::Resource,
     core::{
@@ -23,7 +27,6 @@ use crate::{
     engine::resource_manager::{ResourceManager, TextureRegistrationError},
     resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
     scene::{
-        light::Light,
         mesh::{
             buffer::{VertexAttributeUsage, VertexFetchError, VertexReadTrait},
             surface::SurfaceData,
@@ -257,7 +260,10 @@ impl Lightmap {
         // same time modify meshes. Also it precomputes a lot of things for faster calculations.
         let mut light_count = 0;
         for node in scene.graph.linear_iter() {
-            if matches!(node, Node::Light(_)) {
+            if node.cast::<PointLight>().is_some()
+                || node.cast::<SpotLight>().is_some()
+                || node.cast::<DirectionalLight>().is_some()
+            {
                 light_count += 1;
             }
         }
@@ -266,35 +272,27 @@ impl Lightmap {
 
         let mut lights = Vec::with_capacity(light_count as usize);
 
-        for (handle, light) in scene.graph.pair_iter().filter_map(|(h, n)| {
-            if let Node::Light(light) = n {
-                Some((h, light))
-            } else {
-                None
-            }
-        }) {
+        for (handle, light) in scene.graph.pair_iter() {
             if cancellation_token.is_cancelled() {
                 return Err(LightmapGenerationError::Cancelled);
             }
 
-            match light {
-                Light::Directional(_) => {
-                    lights.push(LightDefinition::Directional(DirectionalLightDefinition {
-                        handle,
-                        intensity: 1.0,
-                        direction: light
-                            .up_vector()
-                            .try_normalize(std::f32::EPSILON)
-                            .unwrap_or_else(Vector3::y),
-                        color: light.color().srgb_to_linear().as_frgb(),
-                    }))
-                }
-                Light::Spot(spot) => lights.push(LightDefinition::Spot(SpotLightDefinition {
+            if let Some(point) = light.cast::<PointLight>() {
+                lights.push(LightDefinition::Point(PointLightDefinition {
+                    handle,
+                    intensity: 1.0,
+                    position: light.global_position(),
+                    color: point.base_light_ref().color().srgb_to_linear().as_frgb(),
+                    radius: point.radius(),
+                    sqr_radius: point.radius() * point.radius(),
+                }))
+            } else if let Some(spot) = light.cast::<SpotLight>() {
+                lights.push(LightDefinition::Spot(SpotLightDefinition {
                     handle,
                     intensity: 1.0,
                     edge0: ((spot.hotspot_cone_angle() + spot.falloff_angle_delta()) * 0.5).cos(),
                     edge1: (spot.hotspot_cone_angle() * 0.5).cos(),
-                    color: light.color().srgb_to_linear().as_frgb(),
+                    color: spot.base_light_ref().color().srgb_to_linear().as_frgb(),
                     direction: light
                         .up_vector()
                         .try_normalize(std::f32::EPSILON)
@@ -302,16 +300,24 @@ impl Lightmap {
                     position: light.global_position(),
                     distance: spot.distance(),
                     sqr_distance: spot.distance() * spot.distance(),
-                })),
-                Light::Point(point) => lights.push(LightDefinition::Point(PointLightDefinition {
+                }))
+            } else if let Some(directional) = light.cast::<DirectionalLight>() {
+                lights.push(LightDefinition::Directional(DirectionalLightDefinition {
                     handle,
                     intensity: 1.0,
-                    position: light.global_position(),
-                    color: light.color().srgb_to_linear().as_frgb(),
-                    radius: point.radius(),
-                    sqr_radius: point.radius() * point.radius(),
-                })),
-            }
+                    direction: light
+                        .up_vector()
+                        .try_normalize(std::f32::EPSILON)
+                        .unwrap_or_else(Vector3::y),
+                    color: directional
+                        .base_light_ref()
+                        .color()
+                        .srgb_to_linear()
+                        .as_frgb(),
+                }))
+            } else {
+                continue;
+            };
 
             progress_indicator.advance_progress()
         }
@@ -320,7 +326,7 @@ impl Lightmap {
         let mut data_set = FxHashMap::default();
 
         for (handle, node) in scene.graph.pair_iter() {
-            if let Node::Mesh(mesh) = node {
+            if let Some(mesh) = node.cast::<Mesh>() {
                 if !mesh.global_visibility() {
                     continue;
                 }

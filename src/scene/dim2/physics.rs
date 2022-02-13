@@ -1,5 +1,7 @@
 //! Scene physics module.
 
+use crate::scene::dim2;
+use crate::scene::graph::NodePool;
 use crate::scene::variable::VariableFlags;
 use crate::{
     core::{
@@ -13,7 +15,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         instant,
         math::Matrix4Ext,
-        pool::{Handle, Pool},
+        pool::Handle,
         visitor::prelude::*,
         BiDirHashMap,
     },
@@ -803,7 +805,7 @@ impl PhysicsWorld {
 
     pub(crate) fn sync_to_collider_node(
         &mut self,
-        nodes: &Pool<Node>,
+        nodes: &NodePool,
         handle: Handle<Node>,
         collider_node: &scene::dim2::collider::Collider,
     ) {
@@ -857,8 +859,9 @@ impl PhysicsWorld {
                         .try_sync_model(|v| native.set_restitution_combine_rule(v.into()));
                 }
             }
-        } else if let Some(Node::RigidBody2D(parent_body)) =
-            nodes.try_borrow(collider_node.parent())
+        } else if let Some(parent_body) = nodes
+            .try_borrow(collider_node.parent())
+            .and_then(|n| n.cast::<dim2::rigidbody::RigidBody>())
         {
             if parent_body.native.get() != RigidBodyHandle::invalid() {
                 let rigid_body_native = parent_body.native.get();
@@ -909,7 +912,7 @@ impl PhysicsWorld {
 
     pub(crate) fn sync_to_joint_node(
         &mut self,
-        nodes: &Pool<Node>,
+        nodes: &NodePool,
         handle: Handle<Node>,
         joint: &scene::dim2::joint::Joint,
     ) {
@@ -918,12 +921,18 @@ impl PhysicsWorld {
                 .params
                 .try_sync_model(|v| native.params = convert_joint_params(v));
             joint.body1.try_sync_model(|v| {
-                if let Some(Node::RigidBody2D(rigid_body_node)) = nodes.try_borrow(v) {
+                if let Some(rigid_body_node) = nodes
+                    .try_borrow(v)
+                    .and_then(|n| n.cast::<dim2::rigidbody::RigidBody>())
+                {
                     native.body1 = rigid_body_node.native.get();
                 }
             });
             joint.body2.try_sync_model(|v| {
-                if let Some(Node::RigidBody2D(rigid_body_node)) = nodes.try_borrow(v) {
+                if let Some(rigid_body_node) = nodes
+                    .try_borrow(v)
+                    .and_then(|n| n.cast::<dim2::rigidbody::RigidBody>())
+                {
                     native.body2 = rigid_body_node.native.get();
                 }
             });
@@ -933,9 +942,13 @@ impl PhysicsWorld {
             let params = joint.params().clone();
 
             // A native joint can be created iff both rigid bodies are correctly assigned.
-            if let (Some(Node::RigidBody2D(body1)), Some(Node::RigidBody2D(body2))) = (
-                nodes.try_borrow(body1_handle),
-                nodes.try_borrow(body2_handle),
+            if let (Some(body1), Some(body2)) = (
+                nodes
+                    .try_borrow(body1_handle)
+                    .and_then(|n| n.cast::<dim2::rigidbody::RigidBody>()),
+                nodes
+                    .try_borrow(body2_handle)
+                    .and_then(|n| n.cast::<dim2::rigidbody::RigidBody>()),
             ) {
                 let native_body1 = body1.native.get();
                 let native_body2 = body2.native.get();

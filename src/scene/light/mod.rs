@@ -20,16 +20,13 @@ use crate::{
     core::{
         algebra::Vector3,
         color::Color,
-        define_is_as,
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
-    engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
-        light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         node::Node,
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
@@ -54,148 +51,10 @@ pub const DEFAULT_SCATTER_G: f32 = 0.03;
 /// significant value and you'll clearly see light volume with such settings.
 pub const DEFAULT_SCATTER_B: f32 = 0.03;
 
-/// Engine supports limited amount of light source kinds
-#[derive(Debug)]
-pub enum Light {
-    /// See [DirectionalLight](struct.DirectionalLight.html)
-    Directional(DirectionalLight),
-
-    /// See [SpotLight](struct.SpotLight.html)
-    Spot(SpotLight),
-
-    /// See [PointLight](struct.PointLight.html)
-    Point(PointLight),
-}
-
-impl Inspect for Light {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        match self {
-            Light::Directional(v) => v.properties(),
-            Light::Spot(v) => v.properties(),
-            Light::Point(v) => v.properties(),
-        }
-    }
-}
-
-impl Default for Light {
-    fn default() -> Self {
-        Self::Directional(Default::default())
-    }
-}
-
-impl Light {
-    fn new(id: u32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::Spot(Default::default())),
-            1 => Ok(Self::Point(Default::default())),
-            2 => Ok(Self::Directional(Default::default())),
-            _ => Err(format!("Invalid light kind {}", id)),
-        }
-    }
-
-    fn id(&self) -> u32 {
-        match self {
-            Self::Spot(_) => 0,
-            Self::Point(_) => 1,
-            Self::Directional(_) => 2,
-        }
-    }
-
-    /// Creates a raw copy of a light node.
-    pub fn raw_copy(&self) -> Self {
-        match self {
-            Light::Directional(v) => Self::Directional(v.raw_copy()),
-            Light::Spot(v) => Self::Spot(v.raw_copy()),
-            Light::Point(v) => Self::Point(v.raw_copy()),
-        }
-    }
-
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        match self {
-            Light::Directional(v) => v.inherit(parent),
-            Light::Spot(v) => v.inherit(parent),
-            Light::Point(v) => v.inherit(parent),
-        }
-    }
-
-    pub(crate) fn reset_inheritable_properties(&mut self) {
-        match self {
-            Light::Directional(v) => v.reset_inheritable_properties(),
-            Light::Spot(v) => v.reset_inheritable_properties(),
-            Light::Point(v) => v.reset_inheritable_properties(),
-        }
-    }
-
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        match self {
-            Light::Directional(v) => v.restore_resources(resource_manager),
-            Light::Spot(v) => v.restore_resources(resource_manager),
-            Light::Point(v) => v.restore_resources(resource_manager),
-        }
-    }
-
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
-        match self {
-            Light::Directional(v) => v.remap_handles(old_new_mapping),
-            Light::Spot(v) => v.remap_handles(old_new_mapping),
-            Light::Point(v) => v.remap_handles(old_new_mapping),
-        }
-    }
-
-    define_is_as!(Light : Directional -> ref DirectionalLight => fn is_directional, fn as_directional, fn as_directional_mut);
-    define_is_as!(Light : Spot -> ref SpotLight => fn is_spot, fn as_spot, fn as_spot_mut);
-    define_is_as!(Light : Point -> ref PointLight => fn is_point, fn as_point, fn as_point_mut);
-}
-
-impl Deref for Light {
-    type Target = BaseLight;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Self::Directional(v) => v.deref(),
-            Self::Spot(v) => v.deref(),
-            Self::Point(v) => v.deref(),
-        }
-    }
-}
-
-impl DerefMut for Light {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            Self::Directional(v) => v.deref_mut(),
-            Self::Spot(v) => v.deref_mut(),
-            Self::Point(v) => v.deref_mut(),
-        }
-    }
-}
-
-impl Visit for Light {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let mut kind_id = self.id();
-        kind_id.visit("KindId", visitor)?;
-        if visitor.is_reading() {
-            *self = Self::new(kind_id)?;
-        }
-
-        match self {
-            Self::Spot(spot_light) => spot_light.visit("Data", visitor)?,
-            Self::Point(point_light) => point_light.visit("Data", visitor)?,
-            Self::Directional(directional_light) => directional_light.visit("Data", visitor)?,
-        }
-
-        visitor.leave_region()
-    }
-}
-
 /// Light scene node. It contains common properties of light such as color,
 /// scattering factor (per color channel) and other useful properties. Exact
 /// behavior defined by specific light kind.
-#[derive(Debug, Inspect)]
+#[derive(Debug, Inspect, Clone)]
 pub struct BaseLight {
     base: Base,
 
@@ -343,18 +202,6 @@ impl BaseLight {
     #[inline]
     pub fn is_scatter_enabled(&self) -> bool {
         *self.scatter_enabled
-    }
-
-    /// Creates a raw copy of a base light node.
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            base: self.base.raw_copy(),
-            color: self.color.clone(),
-            cast_shadows: self.cast_shadows.clone(),
-            scatter: self.scatter.clone(),
-            scatter_enabled: self.scatter_enabled.clone(),
-            intensity: self.intensity.clone(),
-        }
     }
 
     // Prefab inheritance resolving.

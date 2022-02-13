@@ -38,13 +38,67 @@ use std::{
 
 const INVALID_GENERATION: u32 = 0;
 
+pub trait PayloadContainer: Sized {
+    type Element: Sized;
+
+    fn new_empty() -> Self;
+
+    fn new(element: Self::Element) -> Self;
+
+    fn is_some(&self) -> bool;
+
+    fn as_ref(&self) -> Option<&Self::Element>;
+
+    fn as_mut(&mut self) -> Option<&mut Self::Element>;
+
+    fn replace(&mut self, element: Self::Element) -> Option<Self::Element>;
+
+    fn take(&mut self) -> Option<Self::Element>;
+}
+
+impl<T> PayloadContainer for Option<T> {
+    type Element = T;
+
+    fn new_empty() -> Self {
+        Self::None
+    }
+
+    fn new(element: Self::Element) -> Self {
+        Self::Some(element)
+    }
+
+    fn is_some(&self) -> bool {
+        Option::is_some(self)
+    }
+
+    fn as_ref(&self) -> Option<&Self::Element> {
+        Option::as_ref(self)
+    }
+
+    fn as_mut(&mut self) -> Option<&mut Self::Element> {
+        Option::as_mut(self)
+    }
+
+    fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
+        Option::replace(self, element)
+    }
+
+    fn take(&mut self) -> Option<Self::Element> {
+        Option::take(self)
+    }
+}
+
 /// Pool allows to create as many objects as you want in contiguous memory
 /// block. It allows to create and delete objects much faster than if they'll
 /// be allocated on heap. Also since objects stored in contiguous memory block
 /// they can be effectively accessed because such memory layout is cache-friendly.
 #[derive(Debug)]
-pub struct Pool<T: Sized> {
-    records: Vec<PoolRecord<T>>,
+pub struct Pool<T, P = Option<T>>
+where
+    T: Sized,
+    P: PayloadContainer<Element = T>,
+{
+    records: Vec<PoolRecord<T, P>>,
     free_stack: Vec<u32>,
 }
 
@@ -214,13 +268,17 @@ impl<T> Debug for Handle<T> {
 }
 
 #[derive(Debug)]
-struct PoolRecord<T: Sized> {
+struct PoolRecord<T, P = Option<T>>
+where
+    T: Sized,
+    P: PayloadContainer<Element = T>,
+{
     /// Generation number, used to keep info about lifetime. The handle is valid
     /// only if record it points to is of the same generation as the pool record.
     /// Notes: Zero is unknown generation used for None handles.
     generation: u32,
     /// Actual payload.
-    payload: Option<T>,
+    payload: P,
 }
 
 impl<T: PartialEq> PartialEq for PoolRecord<T> {
@@ -229,18 +287,22 @@ impl<T: PartialEq> PartialEq for PoolRecord<T> {
     }
 }
 
-impl<T> Default for PoolRecord<T> {
+impl<T, P> Default for PoolRecord<T, P>
+where
+    P: PayloadContainer<Element = T> + 'static,
+{
     fn default() -> Self {
         Self {
             generation: INVALID_GENERATION,
-            payload: None,
+            payload: P::new_empty(),
         }
     }
 }
 
-impl<T> Visit for PoolRecord<T>
+impl<T, P> Visit for PoolRecord<T, P>
 where
-    T: Visit + Default + 'static,
+    T: Visit + 'static,
+    P: PayloadContainer<Element = T> + Visit,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -272,9 +334,10 @@ impl<T> PartialEq for Handle<T> {
     }
 }
 
-impl<T> Visit for Pool<T>
+impl<T, P> Visit for Pool<T, P>
 where
-    T: Default + Visit + 'static,
+    T: Visit + 'static,
+    P: PayloadContainer<Element = T> + Default + Visit + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -328,7 +391,10 @@ impl<T> Handle<T> {
     }
 }
 
-impl<T> Default for Pool<T> {
+impl<T> Default for Pool<T>
+where
+    T: 'static,
+{
     fn default() -> Self {
         Self::new()
     }
@@ -358,7 +424,10 @@ impl<T: Clone> Clone for Pool<T> {
     }
 }
 
-impl<T> Pool<T> {
+impl<T, P> Pool<T, P>
+where
+    P: PayloadContainer<Element = T> + 'static,
+{
     #[inline]
     pub fn new() -> Self {
         Pool {
@@ -380,12 +449,12 @@ impl<T> Pool<T> {
         u32::try_from(self.records.len()).expect("Number of records overflowed u32")
     }
 
-    fn records_get(&self, index: u32) -> Option<&PoolRecord<T>> {
+    fn records_get(&self, index: u32) -> Option<&PoolRecord<T, P>> {
         let index = usize::try_from(index).expect("Index overflowed usize");
         self.records.get(index)
     }
 
-    fn records_get_mut(&mut self, index: u32) -> Option<&mut PoolRecord<T>> {
+    fn records_get_mut(&mut self, index: u32) -> Option<&mut PoolRecord<T, P>> {
         let index = usize::try_from(index).expect("Index overflowed usize");
         self.records.get_mut(index)
     }
@@ -441,7 +510,7 @@ impl<T> Pool<T> {
     ) -> Result<Handle<T>, T> {
         let index_usize = usize::try_from(index).expect("index overflowed usize");
         match self.records.get_mut(index_usize) {
-            Some(record) => match record.payload {
+            Some(record) => match record.payload.as_ref() {
                 Some(_) => Err(payload),
                 None => {
                     let position = self
@@ -459,7 +528,7 @@ impl<T> Pool<T> {
                     };
 
                     record.generation = generation;
-                    record.payload = Some(payload);
+                    record.payload = P::new(payload);
 
                     Ok(Handle::new(index, generation))
                 }
@@ -469,7 +538,7 @@ impl<T> Pool<T> {
                 for i in self.records_len()..index {
                     self.records.push(PoolRecord {
                         generation: 1,
-                        payload: None,
+                        payload: P::new_empty(),
                     });
                     self.free_stack.push(i);
                 }
@@ -482,7 +551,7 @@ impl<T> Pool<T> {
 
                 self.records.push(PoolRecord {
                     generation,
-                    payload: Some(payload),
+                    payload: P::new(payload),
                 });
 
                 Ok(Handle::new(index, generation))
@@ -533,7 +602,7 @@ impl<T> Pool<T> {
 
             let record = PoolRecord {
                 generation,
-                payload: Some(payload),
+                payload: P::new(payload),
             };
 
             self.records.push(record);
@@ -588,7 +657,7 @@ impl<T> Pool<T> {
 
             let record = PoolRecord {
                 generation,
-                payload: Some(payload),
+                payload: P::new(payload),
             };
 
             self.records.push(record);
@@ -609,7 +678,7 @@ impl<T> Pool<T> {
     pub fn borrow(&self, handle: Handle<T>) -> &T {
         if let Some(record) = self.records_get(handle.index) {
             if record.generation == handle.generation {
-                if let Some(ref payload) = record.payload {
+                if let Some(payload) = record.payload.as_ref() {
                     payload
                 } else {
                     panic!("Attempt to borrow destroyed object at {:?} handle.", handle);
@@ -652,7 +721,7 @@ impl<T> Pool<T> {
         let record_count = self.records.len();
         if let Some(record) = self.records_get_mut(handle.index) {
             if record.generation == handle.generation {
-                if let Some(ref mut payload) = record.payload {
+                if let Some(payload) = record.payload.as_mut() {
                     payload
                 } else {
                     panic!("Attempt to borrow destroyed object at {:?} handle.", handle);
@@ -830,7 +899,7 @@ impl<T> Pool<T> {
     where
         F: FnOnce(&T) -> Handle<T>,
     {
-        let this = unsafe { &mut *(self as *mut Pool<T>) };
+        let this = unsafe { &mut *(self as *mut Pool<T, P>) };
         let first = self.try_borrow_mut(handle);
         if let Some(first_object) = first.as_ref() {
             let second_handle = func(first_object);
@@ -1096,7 +1165,7 @@ impl<T> Pool<T> {
     /// assert_eq!(*iter.next().unwrap(), 321);
     /// ```
     #[must_use]
-    pub fn iter(&self) -> PoolIterator<T> {
+    pub fn iter(&self) -> PoolIterator<T, P> {
         unsafe {
             PoolIterator {
                 ptr: self.records.as_ptr(),
@@ -1109,7 +1178,7 @@ impl<T> Pool<T> {
     /// Creates new pair iterator that iterates over filled records using pair (handle, payload)
     /// Can be useful when there is a need to iterate over pool records and know a handle of
     /// that record.
-    pub fn pair_iter(&self) -> PoolPairIterator<T> {
+    pub fn pair_iter(&self) -> PoolPairIterator<T, P> {
         PoolPairIterator {
             pool: self,
             current: 0,
@@ -1131,7 +1200,7 @@ impl<T> Pool<T> {
     /// assert_eq!(*iter.next().unwrap(), 321);
     /// ```
     #[must_use]
-    pub fn iter_mut(&mut self) -> PoolIteratorMut<T> {
+    pub fn iter_mut(&mut self) -> PoolIteratorMut<T, P> {
         unsafe {
             PoolIteratorMut {
                 ptr: self.records.as_mut_ptr(),
@@ -1144,7 +1213,7 @@ impl<T> Pool<T> {
     /// Creates new pair iterator that iterates over filled records using pair (handle, payload)
     /// Can be useful when there is a need to iterate over pool records and know a handle of
     /// that record.
-    pub fn pair_iter_mut(&mut self) -> PoolPairIteratorMut<T> {
+    pub fn pair_iter_mut(&mut self) -> PoolPairIteratorMut<T, P> {
         unsafe {
             PoolPairIteratorMut {
                 current: 0,
@@ -1179,11 +1248,11 @@ impl<T> Pool<T> {
         }
     }
 
-    fn end(&self) -> *const PoolRecord<T> {
+    fn end(&self) -> *const PoolRecord<T, P> {
         unsafe { self.records.as_ptr().add(self.records.len()) }
     }
 
-    fn begin(&self) -> *const PoolRecord<T> {
+    fn begin(&self) -> *const PoolRecord<T, P> {
         self.records.as_ptr()
     }
 
@@ -1204,7 +1273,10 @@ impl<T> Pool<T> {
     }
 }
 
-impl<T> FromIterator<T> for Pool<T> {
+impl<T> FromIterator<T> for Pool<T>
+where
+    T: 'static,
+{
     fn from_iter<C: IntoIterator<Item = T>>(iter: C) -> Self {
         let iter = iter.into_iter();
         let (lower_bound, upper_bound) = iter.size_hint();
@@ -1219,7 +1291,11 @@ impl<T> FromIterator<T> for Pool<T> {
     }
 }
 
-impl<T> Index<Handle<T>> for Pool<T> {
+impl<T, P> Index<Handle<T>> for Pool<T, P>
+where
+    T: 'static,
+    P: PayloadContainer<Element = T> + 'static,
+{
     type Output = T;
 
     fn index(&self, index: Handle<T>) -> &Self::Output {
@@ -1227,44 +1303,60 @@ impl<T> Index<Handle<T>> for Pool<T> {
     }
 }
 
-impl<T> IndexMut<Handle<T>> for Pool<T> {
+impl<T, P> IndexMut<Handle<T>> for Pool<T, P>
+where
+    T: 'static,
+    P: PayloadContainer<Element = T> + 'static,
+{
     fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
         self.borrow_mut(index)
     }
 }
 
-impl<'a, T> IntoIterator for &'a Pool<T> {
+impl<'a, T, P> IntoIterator for &'a Pool<T, P>
+where
+    P: PayloadContainer<Element = T> + 'static,
+{
     type Item = &'a T;
-    type IntoIter = PoolIterator<'a, T>;
+    type IntoIter = PoolIterator<'a, T, P>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-impl<'a, T> IntoIterator for &'a mut Pool<T> {
+impl<'a, T, P> IntoIterator for &'a mut Pool<T, P>
+where
+    P: PayloadContainer<Element = T> + 'static,
+{
     type Item = &'a mut T;
-    type IntoIter = PoolIteratorMut<'a, T>;
+    type IntoIter = PoolIteratorMut<'a, T, P>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
     }
 }
 
-pub struct PoolIterator<'a, T> {
-    ptr: *const PoolRecord<T>,
-    end: *const PoolRecord<T>,
+pub struct PoolIterator<'a, T, P>
+where
+    P: PayloadContainer<Element = T>,
+{
+    ptr: *const PoolRecord<T, P>,
+    end: *const PoolRecord<T, P>,
     marker: PhantomData<&'a T>,
 }
 
-impl<'a, T> Iterator for PoolIterator<'a, T> {
+impl<'a, T, P> Iterator for PoolIterator<'a, T, P>
+where
+    P: PayloadContainer<Element = T> + 'static,
+{
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
             while self.ptr != self.end {
                 let current = &*self.ptr;
-                if let Some(ref payload) = current.payload {
+                if let Some(payload) = current.payload.as_ref() {
                     self.ptr = self.ptr.offset(1);
                     return Some(payload);
                 }
@@ -1276,19 +1368,22 @@ impl<'a, T> Iterator for PoolIterator<'a, T> {
     }
 }
 
-pub struct PoolPairIterator<'a, T> {
-    pool: &'a Pool<T>,
+pub struct PoolPairIterator<'a, T, P: PayloadContainer<Element = T>> {
+    pool: &'a Pool<T, P>,
     current: usize,
 }
 
-impl<'a, T> Iterator for PoolPairIterator<'a, T> {
+impl<'a, T, P> Iterator for PoolPairIterator<'a, T, P>
+where
+    P: PayloadContainer<Element = T>,
+{
     type Item = (Handle<T>, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.pool.records.get(self.current) {
                 Some(record) => {
-                    if let Some(payload) = &record.payload {
+                    if let Some(payload) = record.payload.as_ref() {
                         let handle = Handle::new(self.current as u32, record.generation);
                         self.current += 1;
                         return Some((handle, payload));
@@ -1301,20 +1396,26 @@ impl<'a, T> Iterator for PoolPairIterator<'a, T> {
     }
 }
 
-pub struct PoolIteratorMut<'a, T> {
-    ptr: *mut PoolRecord<T>,
-    end: *mut PoolRecord<T>,
+pub struct PoolIteratorMut<'a, T, P>
+where
+    P: PayloadContainer<Element = T>,
+{
+    ptr: *mut PoolRecord<T, P>,
+    end: *mut PoolRecord<T, P>,
     marker: PhantomData<&'a mut T>,
 }
 
-impl<'a, T> Iterator for PoolIteratorMut<'a, T> {
+impl<'a, T, P> Iterator for PoolIteratorMut<'a, T, P>
+where
+    P: PayloadContainer<Element = T> + 'static,
+{
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
             while self.ptr != self.end {
                 let current = &mut *self.ptr;
-                if let Some(ref mut payload) = current.payload {
+                if let Some(payload) = current.payload.as_mut() {
                     self.ptr = self.ptr.offset(1);
                     return Some(payload);
                 }
@@ -1326,21 +1427,27 @@ impl<'a, T> Iterator for PoolIteratorMut<'a, T> {
     }
 }
 
-pub struct PoolPairIteratorMut<'a, T> {
-    ptr: *mut PoolRecord<T>,
-    end: *mut PoolRecord<T>,
+pub struct PoolPairIteratorMut<'a, T, P>
+where
+    P: PayloadContainer<Element = T>,
+{
+    ptr: *mut PoolRecord<T, P>,
+    end: *mut PoolRecord<T, P>,
     marker: PhantomData<&'a mut T>,
     current: usize,
 }
 
-impl<'a, T> Iterator for PoolPairIteratorMut<'a, T> {
+impl<'a, T, P> Iterator for PoolPairIteratorMut<'a, T, P>
+where
+    P: PayloadContainer<Element = T> + 'static,
+{
     type Item = (Handle<T>, &'a mut T);
 
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
             while self.ptr != self.end {
                 let current = &mut *self.ptr;
-                if let Some(ref mut payload) = current.payload {
+                if let Some(payload) = current.payload.as_mut() {
                     let handle = Handle::new(self.current as u32, current.generation);
                     self.ptr = self.ptr.offset(1);
                     self.current += 1;

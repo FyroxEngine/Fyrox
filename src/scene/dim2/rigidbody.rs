@@ -8,6 +8,8 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
+use crate::scene::node::{NodeTrait, SyncContext, UpdateContext};
+use crate::utils::log::Log;
 use crate::{
     core::{
         algebra::Vector2,
@@ -28,7 +30,12 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_core::algebra::Matrix4;
+use fyrox_core::math::aabb::AxisAlignedBoundingBox;
+use fyrox_core::math::m4x4_approx_eq;
+use fyrox_core::uuid::Uuid;
 use rapier2d::prelude::RigidBodyHandle;
+use std::str::FromStr;
 use std::{
     cell::Cell,
     collections::VecDeque,
@@ -173,11 +180,10 @@ impl DerefMut for RigidBody {
     }
 }
 
-impl RigidBody {
-    /// Creates a raw copy of the RigidBody node. This method is for internal use only.
-    pub fn raw_copy(&self) -> Self {
+impl Clone for RigidBody {
+    fn clone(&self) -> Self {
         Self {
-            base: self.base.raw_copy(),
+            base: self.base.clone(),
             lin_vel: self.lin_vel.clone(),
             ang_vel: self.ang_vel.clone(),
             lin_damping: self.lin_damping.clone(),
@@ -195,6 +201,12 @@ impl RigidBody {
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
         }
+    }
+}
+
+impl RigidBody {
+    pub fn type_uuid() -> Uuid {
+        Uuid::from_str("0b242335-75a4-4c65-9685-3e82a8979047").unwrap()
     }
 
     /// Sets new linear velocity of the rigid body. Changing this parameter will wake up the rigid
@@ -385,22 +397,6 @@ impl RigidBody {
         self.actions.get_mut().push_back(ApplyAction::WakeUp)
     }
 
-    pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
-
-    // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Node::RigidBody2D(parent) = parent {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
     pub(crate) fn need_sync_model(&self) -> bool {
         self.lin_vel.need_sync()
             || self.ang_vel.need_sync()
@@ -415,12 +411,68 @@ impl RigidBody {
             || self.dominance.need_sync()
             || self.gravity_scale.need_sync()
     }
+}
 
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+impl NodeTrait for RigidBody {
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.local_bounding_box()
+    }
+
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.world_bounding_box()
+    }
+
+    // Prefab inheritance resolving.
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
+        if let Some(parent) = parent.cast::<Self>() {
+            self.try_inherit_self_properties(parent)?;
+        }
+        Ok(())
+    }
+
+    fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
+    }
+
+    fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
+
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         self.base.remap_handles(old_new_mapping);
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
+    }
+
+    fn clean_up(&mut self, graph: &mut Graph) {
+        graph.physics2d.remove_body(self.native.get());
+
+        Log::info(format!(
+            "Native rigid body was removed for node: {}",
+            self.name()
+        ));
+    }
+
+    fn sync_native(&self, self_handle: Handle<Node>, context: &mut SyncContext) {
+        context.physics2d.sync_to_rigid_body_node(self_handle, self);
+    }
+
+    fn sync_transform(&self, new_global_transform: &Matrix4<f32>, context: &mut SyncContext) {
+        if !m4x4_approx_eq(&new_global_transform, &self.global_transform()) {
+            context
+                .physics2d
+                .set_rigid_body_position(self, &new_global_transform);
+        }
+    }
+
+    fn update(&mut self, context: &mut UpdateContext) -> bool {
+        context
+            .physics2d
+            .sync_rigid_body_node(self, context.nodes[self.parent].global_transform());
+
+        self.base.update_lifetime(context.dt)
     }
 }
 
@@ -565,7 +617,7 @@ impl RigidBodyBuilder {
 
     /// Creates RigidBody node but does not add it to the graph.
     pub fn build_node(self) -> Node {
-        Node::RigidBody2D(self.build_rigid_body())
+        Node::new(self.build_rigid_body())
     }
 
     /// Creates RigidBody node and adds it to the graph.
@@ -576,6 +628,7 @@ impl RigidBodyBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::node::NodeTrait;
     use crate::{
         core::algebra::Vector2,
         scene::{

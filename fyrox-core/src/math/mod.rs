@@ -1060,6 +1060,13 @@ pub fn vector_to_quat(vec: Vector3<f32>) -> UnitQuaternion<f32> {
     }
 }
 
+#[inline]
+pub fn m4x4_approx_eq(a: &Matrix4<f32>, b: &Matrix4<f32>) -> bool {
+    a.iter()
+        .zip(b.iter())
+        .all(|(a, b)| (*a - *b).abs() <= 0.001)
+}
+
 #[cfg(test)]
 mod test {
     use crate::algebra::Vector2;

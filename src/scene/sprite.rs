@@ -2,14 +2,13 @@
 //!
 //! For more info see [`Sprite`].
 
-use crate::scene::variable::InheritError;
-use crate::scene::DirectlyInheritableEntity;
 use crate::{
     core::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -18,12 +17,16 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::Node,
-        variable::TemplateVariable,
+        node::{Node, NodeTrait},
+        variable::{InheritError, TemplateVariable},
+        DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    str::FromStr,
+};
 
 /// Sprite is billboard which always faces towards camera. It can be used as a "model" for bullets, and so on.
 ///
@@ -64,7 +67,7 @@ use std::ops::{Deref, DerefMut};
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Inspect)]
+#[derive(Debug, Inspect, Clone, Visit)]
 pub struct Sprite {
     base: Base,
     #[inspect(getter = "Deref::deref")]
@@ -105,15 +108,8 @@ impl Default for Sprite {
 }
 
 impl Sprite {
-    /// Creates a raw copy of a sprite node.
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            base: self.base.raw_copy(),
-            texture: self.texture.clone(),
-            color: self.color.clone(),
-            size: self.size.clone(),
-            rotation: self.rotation.clone(),
-        }
+    pub fn type_uuid() -> Uuid {
+        Uuid::from_str("60fd7e34-46c1-4ae9-8803-1f5f4c341518").unwrap()
     }
 
     /// Sets new size of sprite. Since sprite is always square, size defines half of width or height, so actual size
@@ -163,57 +159,43 @@ impl Sprite {
     pub fn texture_ref(&self) -> Option<&Texture> {
         self.texture.as_ref()
     }
+}
 
-    /// Returns current **local-space** bounding box.
-    #[inline]
-    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+impl NodeTrait for Sprite {
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::from_radius(*self.size)
     }
 
-    /// Returns current **world-space** bounding box.
-    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.world_bounding_box()
     }
 
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        let mut state = resource_manager.state();
-        let texture_container = &mut state.containers_mut().textures;
-        texture_container.try_restore_template_resource(&mut self.texture);
-    }
-
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
         self.base.inherit_properties(parent)?;
-        if let Node::Sprite(parent) = parent {
+        if let Some(parent) = parent.cast::<Self>() {
             self.try_inherit_self_properties(parent)?;
         }
         Ok(())
     }
 
-    pub(crate) fn reset_inheritable_properties(&mut self) {
+    fn reset_inheritable_properties(&mut self) {
         self.base.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
     }
 
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        let mut state = resource_manager.state();
+        let texture_container = &mut state.containers_mut().textures;
+        texture_container.try_restore_template_resource(&mut self.texture);
+    }
+
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         self.base.remap_handles(old_new_mapping);
     }
-}
 
-impl Visit for Sprite {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.texture.visit("Texture", visitor)?;
-        self.color.visit("Color", visitor)?;
-        self.size.visit("Size", visitor)?;
-        self.rotation.visit("Rotation", visitor)?;
-        self.base.visit("Base", visitor)?;
-
-        visitor.leave_region()
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
     }
 }
 
@@ -281,7 +263,7 @@ impl SpriteBuilder {
 
     /// Creates new sprite instance.
     pub fn build_node(self) -> Node {
-        Node::Sprite(self.build_sprite())
+        Node::new(self.build_sprite())
     }
 
     /// Creates new sprite instance and adds it to the graph.
@@ -292,6 +274,7 @@ impl SpriteBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::node::NodeTrait;
     use crate::{
         core::color::Color,
         resource::texture::test::create_test_texture,

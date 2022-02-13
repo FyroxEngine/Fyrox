@@ -3,6 +3,8 @@
 //!
 //! See [`Listener`] docs for more info.
 
+use crate::engine::resource_manager::ResourceManager;
+use crate::scene::node::{NodeTrait, SyncContext};
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -16,8 +18,12 @@ use crate::{
         variable::InheritError,
     },
 };
+use fxhash::FxHashMap;
 use fyrox_core::math::aabb::AxisAlignedBoundingBox;
+use fyrox_core::math::Matrix4Ext;
+use fyrox_core::uuid::Uuid;
 use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
 
 /// Listener represents directional microphone-like device. It receives sound from surroundings
 /// and plays it through output device (headphones, speakers, etc.). Orientation of the listener
@@ -33,7 +39,7 @@ use std::ops::{Deref, DerefMut};
 ///
 /// 2D sound sources (with spatial blend == 0.0) are not influenced by listener's position and
 /// orientation.
-#[derive(Visit, Inspect, Default, Debug)]
+#[derive(Visit, Inspect, Default, Clone, Debug)]
 pub struct Listener {
     base: Base,
 }
@@ -53,29 +59,49 @@ impl DerefMut for Listener {
 }
 
 impl Listener {
-    /// Creates raw copy of the listener.
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            base: self.base.raw_copy(),
-        }
+    pub fn type_uuid() -> Uuid {
+        Uuid::from_str("2c7dabc1-5666-4256-b020-01532701e4c6").unwrap()
     }
+}
 
-    // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)
-    }
-
-    pub(crate) fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-    }
-
+impl NodeTrait for Listener {
     /// Returns local bounding box of the listener, since listener cannot have any bounds -
     /// returned bounding box is collapsed into a point.
-    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox {
             min: Default::default(),
             max: Default::default(),
         }
+    }
+
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.world_bounding_box()
+    }
+
+    // Prefab inheritance resolving.
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)
+    }
+
+    fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+    }
+
+    fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
+
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+        self.base.remap_handles(old_new_mapping);
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
+    }
+
+    fn sync_native(&self, _self_handle: Handle<Node>, context: &mut SyncContext) {
+        let mut state = context.sound_context.native.state();
+        let native = state.listener_mut();
+        native.set_position(self.global_position());
+        native.set_basis(self.global_transform().basis());
     }
 }
 
@@ -99,7 +125,7 @@ impl ListenerBuilder {
 
     /// Creates [`Node::Listener`] node.
     pub fn build_node(self) -> Node {
-        Node::Listener(self.build_listener())
+        Node::new(self.build_listener())
     }
 
     /// Creates [`Node::Listener`] node and adds it to the scene graph.
@@ -110,6 +136,7 @@ impl ListenerBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::node::NodeTrait;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         node::Node,
