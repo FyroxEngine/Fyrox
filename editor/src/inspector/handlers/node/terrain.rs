@@ -15,7 +15,7 @@ pub fn handle_terrain_property_changed(
     node: &Node,
     graph: &Graph,
 ) -> Option<SceneCommand> {
-    if let Node::Terrain(_) = node {
+    if node.is_terrain() {
         match args.value {
             FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
                 Terrain::LAYERS => match &**collection_changed {

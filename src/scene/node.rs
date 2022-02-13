@@ -32,15 +32,14 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::algebra::{Matrix4, Vector2};
+use fyrox_core::inspect::PropertyInfo;
 use std::{
     any::Any,
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
 
-pub trait BaseNodeTrait:
-    Any + Debug + Deref<Target = Base> + DerefMut + Inspect + Visit + Send
-{
+pub trait BaseNodeTrait: Any + Debug + Deref<Target = Base> + DerefMut + Send {
     /// This method creates raw copy of a node, it should never be called in normal circumstances
     /// because internally nodes may (and most likely will) contain handles to other nodes. To
     /// correctly clone a node you have to use [copy_node](struct.Graph.html#method.copy_node).
@@ -84,7 +83,7 @@ pub struct UpdateContext<'a> {
     pub sound_context: &'a mut SoundContext,
 }
 
-pub trait NodeTrait: BaseNodeTrait {
+pub trait NodeTrait: BaseNodeTrait + Inspect + Visit {
     /// Returns axis-aligned bounding box in **local space** of the node.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox;
 
@@ -246,5 +245,11 @@ impl Node {
 impl Visit for Node {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.0.visit(name, visitor)
+    }
+}
+
+impl Inspect for Node {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        self.0.properties()
     }
 }

@@ -10,7 +10,7 @@ use fyrox::{
             directional::{CsmOptions, DirectionalLight, FrustumSplitOptions},
             point::PointLight,
             spot::SpotLight,
-            BaseLight, Light,
+            BaseLight,
         },
         node::Node,
     },
@@ -44,7 +44,7 @@ pub fn handle_spot_light_property_changed(
     handle: Handle<Node>,
     node: &Node,
 ) -> Option<SceneCommand> {
-    if let Node::Light(Light::Spot(_)) = node {
+    if node.is_spot_light() {
         match args.value {
             FieldKind::Object(ref value) => {
                 handle_properties!(args.name.as_ref(), handle, value,
@@ -71,7 +71,7 @@ pub fn handle_point_light_property_changed(
     handle: Handle<Node>,
     node: &Node,
 ) -> Option<SceneCommand> {
-    if let Node::Light(Light::Point(_)) = node {
+    if node.is_point_light() {
         match args.value {
             FieldKind::Object(ref value) => {
                 handle_properties!(args.name.as_ref(), handle, value,
@@ -95,7 +95,7 @@ pub fn handle_directional_light_property_changed(
     handle: Handle<Node>,
     node: &Node,
 ) -> Option<SceneCommand> {
-    if let Node::Light(Light::Directional(_)) = node {
+    if node.is_directional_light() {
         match args.value {
             FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
                 DirectionalLight::BASE_LIGHT => {

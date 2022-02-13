@@ -13,7 +13,7 @@ pub fn handle_rectangle_property_changed(
     handle: Handle<Node>,
     node: &Node,
 ) -> Option<SceneCommand> {
-    if let Node::Rectangle(_) = node {
+    if node.is_rectangle() {
         match args.value {
             FieldKind::Object(ref value) => match args.name.as_ref() {
                 Rectangle::TEXTURE => {

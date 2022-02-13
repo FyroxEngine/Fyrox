@@ -220,57 +220,54 @@ impl ScaleGizmo {
         let graph = &engine.scenes[editor_scene.scene].graph;
         let node_global_transform = graph[self.origin].global_transform();
 
-        if let Node::Camera(camera) = &graph[camera] {
-            let inv_node_transform = node_global_transform.try_inverse().unwrap_or_default();
+        let camera = &graph[camera].as_camera();
+        let inv_node_transform = node_global_transform.try_inverse().unwrap_or_default();
 
-            // Create two rays in object space.
-            let initial_ray = camera
-                .make_ray(mouse_position, frame_size)
-                .transform(inv_node_transform);
-            let offset_ray = camera
-                .make_ray(mouse_position + mouse_offset, frame_size)
-                .transform(inv_node_transform);
+        // Create two rays in object space.
+        let initial_ray = camera
+            .make_ray(mouse_position, frame_size)
+            .transform(inv_node_transform);
+        let offset_ray = camera
+            .make_ray(mouse_position + mouse_offset, frame_size)
+            .transform(inv_node_transform);
 
-            let dlook = inv_node_transform
-                .transform_vector(&(node_global_transform.position() - camera.global_position()));
+        let dlook = inv_node_transform
+            .transform_vector(&(node_global_transform.position() - camera.global_position()));
 
-            // Select plane by current active mode.
-            let plane = match self.mode {
-                ScaleGizmoMode::None => return Vector3::default(),
-                ScaleGizmoMode::X => Plane::from_normal_and_point(
-                    &Vector3::new(0.0, dlook.y, dlook.z),
-                    &Vector3::default(),
-                ),
-                ScaleGizmoMode::Y => Plane::from_normal_and_point(
-                    &Vector3::new(dlook.x, 0.0, dlook.z),
-                    &Vector3::default(),
-                ),
-                ScaleGizmoMode::Z => Plane::from_normal_and_point(
-                    &Vector3::new(dlook.x, dlook.y, 0.0),
-                    &Vector3::default(),
-                ),
-                ScaleGizmoMode::Uniform => {
-                    Plane::from_normal_and_point(&dlook, &Vector3::default())
-                }
-            }
-            .unwrap_or_default();
+        // Select plane by current active mode.
+        let plane = match self.mode {
+            ScaleGizmoMode::None => return Vector3::default(),
+            ScaleGizmoMode::X => Plane::from_normal_and_point(
+                &Vector3::new(0.0, dlook.y, dlook.z),
+                &Vector3::default(),
+            ),
+            ScaleGizmoMode::Y => Plane::from_normal_and_point(
+                &Vector3::new(dlook.x, 0.0, dlook.z),
+                &Vector3::default(),
+            ),
+            ScaleGizmoMode::Z => Plane::from_normal_and_point(
+                &Vector3::new(dlook.x, dlook.y, 0.0),
+                &Vector3::default(),
+            ),
+            ScaleGizmoMode::Uniform => Plane::from_normal_and_point(&dlook, &Vector3::default()),
+        }
+        .unwrap_or_default();
 
-            // Get two intersection points with plane and use delta between them to calculate scale delta.
-            if let Some(initial_point) = initial_ray.plane_intersection_point(&plane) {
-                if let Some(next_point) = offset_ray.plane_intersection_point(&plane) {
-                    let delta = next_point - initial_point;
-                    return match self.mode {
-                        ScaleGizmoMode::None => unreachable!(),
-                        ScaleGizmoMode::X => Vector3::new(-delta.x, 0.0, 0.0),
-                        ScaleGizmoMode::Y => Vector3::new(0.0, delta.y, 0.0),
-                        ScaleGizmoMode::Z => Vector3::new(0.0, 0.0, delta.z),
-                        ScaleGizmoMode::Uniform => {
-                            // TODO: Still may behave weird.
-                            let amount = delta.norm() * (delta.y + delta.x + delta.z).signum();
-                            Vector3::new(amount, amount, amount)
-                        }
-                    };
-                }
+        // Get two intersection points with plane and use delta between them to calculate scale delta.
+        if let Some(initial_point) = initial_ray.plane_intersection_point(&plane) {
+            if let Some(next_point) = offset_ray.plane_intersection_point(&plane) {
+                let delta = next_point - initial_point;
+                return match self.mode {
+                    ScaleGizmoMode::None => unreachable!(),
+                    ScaleGizmoMode::X => Vector3::new(-delta.x, 0.0, 0.0),
+                    ScaleGizmoMode::Y => Vector3::new(0.0, delta.y, 0.0),
+                    ScaleGizmoMode::Z => Vector3::new(0.0, 0.0, delta.z),
+                    ScaleGizmoMode::Uniform => {
+                        // TODO: Still may behave weird.
+                        let amount = delta.norm() * (delta.y + delta.x + delta.z).signum();
+                        Vector3::new(amount, amount, amount)
+                    }
+                };
             }
         }
 

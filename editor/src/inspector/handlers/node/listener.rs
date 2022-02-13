@@ -10,7 +10,7 @@ pub fn handle_listener_property_changed(
     handle: Handle<Node>,
     node: &Node,
 ) -> Option<SceneCommand> {
-    if let Node::Listener(_) = node {
+    if node.is_listener() {
         match args.value {
             FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
                 Listener::BASE => handle_base_property_changed(inner, handle, node),
