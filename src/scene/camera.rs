@@ -329,6 +329,7 @@ impl Default for Camera {
 }
 
 impl Camera {
+    /// Returns type UUID.
     pub fn type_uuid() -> Uuid {
         Uuid::from_str("198d3aca-433c-4ce1-bb25-3190699b757f").unwrap()
     }
@@ -566,6 +567,8 @@ impl Camera {
 }
 
 impl NodeTrait for Camera {
+    crate::impl_query_component!();
+
     /// Returns current **local-space** bounding box.
     #[inline]
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

@@ -1,12 +1,12 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
-use crate::scene::node::{NodeTrait, SyncContext};
-use crate::utils::log::Log;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        uuid::Uuid,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -14,19 +14,18 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::Node,
+        node::{Node, NodeTrait, SyncContext},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
+    utils::log::Log,
 };
 use fxhash::FxHashMap;
-use fyrox_core::math::aabb::AxisAlignedBoundingBox;
-use fyrox_core::uuid::Uuid;
 use rapier3d::dynamics::JointHandle;
-use std::str::FromStr;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
+    str::FromStr,
 };
 
 /// Ball joint locks any translational moves between two objects on the axis between objects, but
@@ -243,6 +242,7 @@ impl Clone for Joint {
 }
 
 impl Joint {
+    /// Returns type UUID.
     pub fn type_uuid() -> Uuid {
         Uuid::from_str("439d48f5-e3a3-4255-aa08-353c1ca42e3b").unwrap()
     }
@@ -282,6 +282,8 @@ impl Joint {
 }
 
 impl NodeTrait for Joint {
+    crate::impl_query_component!();
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

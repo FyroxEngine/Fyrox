@@ -12,21 +12,10 @@ use fyrox::{
         node::Node,
     },
 };
+use std::any::TypeId;
 
-#[allow(unsafe_code)]
 fn node_base_light_mut(node: &mut Node) -> &mut BaseLight {
-    let a = unsafe { &mut *(node as *mut Node) };
-    let b = unsafe { &mut *(node as *mut Node) };
-
-    if let Some(spot) = node.cast_mut::<SpotLight>() {
-        spot.base_light_mut()
-    } else if let Some(point) = a.cast_mut::<PointLight>() {
-        point.base_light_mut()
-    } else if let Some(directional) = b.cast_mut::<DirectionalLight>() {
-        directional.base_light_mut()
-    } else {
-        unreachable!()
-    }
+    node.query_component_mut::<BaseLight>().unwrap()
 }
 
 define_swap_command! {

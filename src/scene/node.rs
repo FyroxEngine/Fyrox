@@ -4,10 +4,10 @@
 
 #![warn(missing_docs)]
 
-use crate::scene::light::spot::SpotLight;
 use crate::{
     core::{
-        inspect::Inspect,
+        algebra::{Matrix4, Vector2},
+        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         uuid::Uuid,
@@ -21,7 +21,7 @@ use crate::{
         decal::Decal,
         dim2::{self, rectangle::Rectangle},
         graph::{self, Graph, NodePool},
-        light::point::PointLight,
+        light::{point::PointLight, spot::SpotLight},
         mesh::Mesh,
         particle_system::ParticleSystem,
         sound::{context::SoundContext, listener::Listener, Sound},
@@ -31,22 +31,23 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use fyrox_core::algebra::{Matrix4, Vector2};
-use fyrox_core::inspect::PropertyInfo;
 use std::{
-    any::Any,
+    any::{Any, TypeId},
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
 
+/// A set of useful methods that is possible to auto-implement.
 pub trait BaseNodeTrait: Any + Debug + Deref<Target = Base> + DerefMut + Send {
     /// This method creates raw copy of a node, it should never be called in normal circumstances
     /// because internally nodes may (and most likely will) contain handles to other nodes. To
     /// correctly clone a node you have to use [copy_node](struct.Graph.html#method.copy_node).
     fn clone_box(&self) -> Node;
 
+    /// Returns self as shared reference to [`Any`].
     fn as_any(&self) -> &dyn Any;
 
+    /// Returns self as mutable reference to [`Any`].
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
@@ -67,23 +68,77 @@ where
     }
 }
 
+/// A data for synchronization. See [`NodeTrait::sync_native`] for more info.
 pub struct SyncContext<'a> {
+    /// A reference to a pool with nodes from a scene graph.
     pub nodes: &'a NodePool,
+    /// A mutable reference to 3D physics world.
     pub physics: &'a mut graph::physics::PhysicsWorld,
+    /// A mutable reference to 2D physics world.
     pub physics2d: &'a mut dim2::physics::PhysicsWorld,
+    /// A mutable reference to sound context.
     pub sound_context: &'a mut SoundContext,
 }
 
+/// A data for update tick. See [`NodeTrait::update`] for more info.
 pub struct UpdateContext<'a> {
+    /// Size of client area of the window.
     pub frame_size: Vector2<f32>,
+    /// A time that have passed since last update call.
     pub dt: f32,
+    /// A reference to a pool with nodes from a scene graph.
     pub nodes: &'a NodePool,
+    /// A mutable reference to 3D physics world.
     pub physics: &'a mut graph::physics::PhysicsWorld,
+    /// A mutable reference to 2D physics world.
     pub physics2d: &'a mut dim2::physics::PhysicsWorld,
+    /// A mutable reference to sound context.
     pub sound_context: &'a mut SoundContext,
+}
+
+#[macro_export]
+macro_rules! impl_query_component {
+    ($($comp_field:ident: $comp_type:ty),*) => {
+        fn query_component_ref(&self, type_id: std::any::TypeId) -> Option<&dyn std::any::Any> {
+            if type_id == std::any::TypeId::of::<Self>() {
+                return Some(self);
+            }
+
+            $(
+                if type_id == std::any::TypeId::of::<$comp_type>() {
+                    return Some(&self.$comp_field)
+                }
+            )*
+
+            None
+        }
+
+        fn query_component_mut(
+            &mut self,
+            type_id: std::any::TypeId,
+        ) -> Option<&mut dyn std::any::Any> {
+            if type_id == std::any::TypeId::of::<Self>() {
+                return Some(self);
+            }
+
+            $(
+                if type_id == std::any::TypeId::of::<$comp_type>() {
+                    return Some(&mut self.$comp_field)
+                }
+            )*
+
+            None
+        }
+    };
 }
 
 pub trait NodeTrait: BaseNodeTrait + Inspect + Visit {
+    /// Allows a node to provide access to inner components.
+    fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any>;
+
+    /// Allows a node to provide access to inner components.
+    fn query_component_mut(&mut self, type_id: TypeId) -> Option<&mut dyn Any>;
+
     /// Returns axis-aligned bounding box in **local space** of the node.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox;
 
@@ -93,17 +148,32 @@ pub trait NodeTrait: BaseNodeTrait + Inspect + Visit {
     /// Prefab inheritance resolving.
     fn inherit(&mut self, parent: &Node) -> Result<(), InheritError>;
 
+    /// Resets inheritable property flags after cloning the node.
     fn reset_inheritable_properties(&mut self);
 
+    /// Restores resource handles, it is used to re-map "shallow" resource handles to fully loaded
+    /// ones after the scene is loaded in the engine. This is needed because when the engine
+    /// serializes resource handle, it just writes a path to the resource, not its content. So we
+    /// must get real resource after the node is loaded from a scene.
     fn restore_resources(&mut self, resource_manager: ResourceManager);
 
+    /// Re-maps internal handles after cloning or property inheritance. It is needed because a node
+    /// might store handles to other nodes in scene graph, for example a skinned mesh stores handles
+    /// to bones and when we copy the mesh, handles must be mapped to respective copies of each bone.
     fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>);
 
-    /// Returns actual variant id.
+    /// Returns actual type id. It will be used for serialization, the type will be saved together
+    /// with node's data allowing you to create correct node instance on deserialization.
     fn id(&self) -> Uuid;
 
+    /// Gives an opportunity to perform clean up after the node was extracted from the scene graph
+    /// (or deleted).
     fn clean_up(&mut self, _graph: &mut Graph) {}
 
+    /// Synchronizes internal state of the node with components of scene graph. It has limited usage
+    /// and mostly allows you to sync the state of backing entity with the state of the node.
+    /// For example the engine use it to sync native rigid body properties after some property was
+    /// changed in the [`crate::scene::rigidbody::RigidBody`] node.  
     fn sync_native(&self, _self_handle: Handle<Node>, _context: &mut SyncContext) {}
 
     /// Called when node's global transform changes.
@@ -210,16 +280,95 @@ macro_rules! define_is_as {
 }
 
 impl Node {
+    /// Creates a new node instance from any type that implements [`NodeTrait`].
     pub fn new<T: NodeTrait>(node: T) -> Self {
         Self(Box::new(node))
     }
 
+    /// Performs downcasting to a particular type.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use fyrox::scene::mesh::Mesh;
+    /// # use fyrox::scene::node::Node;
+    ///
+    /// fn node_as_mesh_ref(node: &Node) -> &Mesh {
+    ///     node.cast::<Mesh>().expect("Expected to be an instance of Mesh")
+    /// }
+    /// ```
     pub fn cast<T: NodeTrait>(&self) -> Option<&T> {
         self.0.as_any().downcast_ref::<T>()
     }
 
+    /// Performs downcasting to a particular type.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use fyrox::scene::mesh::Mesh;
+    /// # use fyrox::scene::node::Node;
+    ///
+    /// fn node_as_mesh_mut(node: &mut Node) -> &mut Mesh {
+    ///     node.cast_mut::<Mesh>().expect("Expected to be an instance of Mesh")
+    /// }
+    /// ```
     pub fn cast_mut<T: NodeTrait>(&mut self) -> Option<&mut T> {
         self.0.as_any_mut().downcast_mut::<T>()
+    }
+
+    /// Allows a node to provide access to a component of specified type.
+    ///
+    /// # Example
+    ///
+    /// A good example is a light source node, it gives access to internal `BaseLight`:
+    ///
+    /// ```rust
+    /// # use fyrox::scene::light::BaseLight;
+    /// # use fyrox::scene::light::directional::DirectionalLight;
+    /// # use fyrox::scene::node::{Node};
+    ///  
+    /// fn base_light_ref(directional_light: &Node) -> &BaseLight {
+    ///     directional_light.query_component_ref::<BaseLight>().expect("Must have base light")
+    /// }
+    ///
+    /// ```
+    ///
+    /// Some nodes could also provide access to inner components, check documentation of a node.
+    pub fn query_component_ref<T>(&self) -> Option<&T>
+    where
+        T: 'static,
+    {
+        self.0
+            .query_component_ref(TypeId::of::<T>())
+            .and_then(|c| c.downcast_ref::<T>())
+    }
+
+    /// Allows a node to provide access to a component of specified type.
+    ///
+    /// # Example
+    ///
+    /// A good example is a light source node, it gives access to internal `BaseLight`:
+    ///
+    /// ```rust
+    /// # use fyrox::scene::light::BaseLight;
+    /// # use fyrox::scene::light::directional::DirectionalLight;
+    /// # use fyrox::scene::node::{Node};
+    ///  
+    /// fn base_light_mut(directional_light: &mut Node) -> &mut BaseLight {
+    ///     directional_light.query_component_mut::<BaseLight>().expect("Must have base light")
+    /// }
+    ///
+    /// ```
+    ///
+    /// Some nodes could also provide access to inner components, check documentation of a node.
+    pub fn query_component_mut<T>(&mut self) -> Option<&mut T>
+    where
+        T: 'static,
+    {
+        self.0
+            .query_component_mut(TypeId::of::<T>())
+            .and_then(|c| c.downcast_mut::<T>())
     }
 
     define_is_as!(Mesh => fn is_mesh, fn as_mesh, fn as_mesh_mut);

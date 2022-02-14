@@ -839,6 +839,7 @@ impl BaseBuilder {
         self
     }
 
+    /// Creates an instance of [`Base`].
     pub fn build_base(self) -> Base {
         Base {
             name: self.name.into(),

@@ -228,7 +228,7 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
                     let mut light_id = 0u32;
                     light_id.visit("KindId", visitor)?;
 
-                    let light_node = match light_id {
+                    let mut light_node = match light_id {
                         0 => Node::new(SpotLight::default()),
                         1 => Node::new(PointLight::default()),
                         2 => Node::new(DirectionalLight::default()),
@@ -239,6 +239,8 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
                             )))
                         }
                     };
+
+                    light_node.visit("Data", visitor)?;
 
                     visitor.leave_region()?;
 

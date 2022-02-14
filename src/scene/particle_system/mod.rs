@@ -198,6 +198,7 @@ impl DerefMut for ParticleSystem {
 }
 
 impl ParticleSystem {
+    /// Returns type UUID.
     pub fn type_uuid() -> Uuid {
         Uuid::from_str("8b210eff-97a4-494f-ba7a-a581d3f4a442").unwrap()
     }
@@ -363,6 +364,8 @@ impl Default for ParticleSystem {
 }
 
 impl NodeTrait for ParticleSystem {
+    crate::impl_query_component!();
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

@@ -159,6 +159,7 @@ impl DerefMut for Mesh {
 }
 
 impl Mesh {
+    /// Returns type UUID.
     pub fn type_uuid() -> Uuid {
         Uuid::from_str("caaf9d7b-bd74-48ce-b7cc-57e9dc65c2e6").unwrap()
     }
@@ -283,6 +284,8 @@ impl Mesh {
 }
 
 impl NodeTrait for Mesh {
+    crate::impl_query_component!();
+
     /// Returns current bounding box. Bounding box presented in *local coordinates*
     /// WARNING: This method does *not* includes bounds of bones!
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

@@ -22,30 +22,31 @@
 //! Light scattering feature may significantly impact performance on low-end
 //! hardware!
 
-use crate::scene::base::Base;
-use crate::scene::node::NodeTrait;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     resource::texture::Texture,
     scene::{
+        base::Base,
         graph::Graph,
         light::{BaseLight, BaseLightBuilder},
-        node::Node,
+        node::{Node, NodeTrait},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
-use fyrox_core::math::aabb::AxisAlignedBoundingBox;
-use fyrox_core::uuid::Uuid;
-use std::ops::{Deref, DerefMut};
-use std::str::FromStr;
+use std::{
+    ops::{Deref, DerefMut},
+    str::FromStr,
+};
 
 /// See module docs.
 #[derive(Debug, Inspect, Clone)]
@@ -202,6 +203,8 @@ impl SpotLight {
 }
 
 impl NodeTrait for SpotLight {
+    crate::impl_query_component!(base_light: BaseLight);
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base_light.base.local_bounding_box()
     }

@@ -277,6 +277,7 @@ impl Clone for RigidBody {
 }
 
 impl RigidBody {
+    /// Returns type UUID.
     pub fn type_uuid() -> Uuid {
         Uuid::from_str("4be15a7c-3566-49c4-bba8-2f4ccc57ffed").unwrap()
     }
@@ -515,6 +516,8 @@ impl RigidBody {
 }
 
 impl NodeTrait for RigidBody {
+    crate::impl_query_component!();
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

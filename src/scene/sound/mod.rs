@@ -320,6 +320,8 @@ impl Sound {
 }
 
 impl NodeTrait for Sound {
+    crate::impl_query_component!();
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

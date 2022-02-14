@@ -1,4 +1,4 @@
-#![deny(unsafe_code)]
+#![forbid(unsafe_code)]
 #![allow(irrefutable_let_patterns)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::large_enum_variant)]

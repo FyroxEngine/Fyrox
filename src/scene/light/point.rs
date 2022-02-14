@@ -17,30 +17,30 @@
 //! can easily ruin performance of your game, especially on low-end hardware. Light
 //! scattering is relatively heavy too.
 
-use crate::scene::base::Base;
-use crate::scene::node::NodeTrait;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     scene::{
+        base::Base,
         graph::Graph,
         light::{BaseLight, BaseLightBuilder},
-        node::Node,
-        variable::InheritError,
-        variable::TemplateVariable,
+        node::{Node, NodeTrait},
+        variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
-use fyrox_core::math::aabb::AxisAlignedBoundingBox;
-use fyrox_core::uuid::Uuid;
-use std::ops::{Deref, DerefMut};
-use std::str::FromStr;
+use std::{
+    ops::{Deref, DerefMut},
+    str::FromStr,
+};
 
 /// See module docs.
 #[derive(Debug, Inspect, Clone)]
@@ -112,6 +112,8 @@ impl PointLight {
 }
 
 impl NodeTrait for PointLight {
+    crate::impl_query_component!(base_light: BaseLight);
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base_light.base.local_bounding_box()
     }

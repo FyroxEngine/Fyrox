@@ -2,13 +2,13 @@
 //!
 //! For more info see [`Decal`]
 
-use crate::scene::node::NodeTrait;
 use crate::{
     core::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        uuid::Uuid,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -17,15 +17,16 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::Node,
+        node::{Node, NodeTrait},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
-use fyrox_core::uuid::Uuid;
-use std::ops::{Deref, DerefMut};
-use std::str::FromStr;
+use std::{
+    ops::{Deref, DerefMut},
+    str::FromStr,
+};
 
 /// Decal is an image that gets projected to a geometry of a scene. Blood splatters, bullet holes, scratches
 /// etc. are done via decals.
@@ -128,6 +129,7 @@ impl DerefMut for Decal {
 }
 
 impl Decal {
+    /// Returns type UUID.
     pub fn type_uuid() -> Uuid {
         Uuid::from_str("c4d24e48-edd1-4fb2-ad82-4b3d3ea985d8").unwrap()
     }
@@ -188,6 +190,8 @@ impl Decal {
 }
 
 impl NodeTrait for Decal {
+    crate::impl_query_component!();
+
     /// Returns current **local-space** bounding box.
     #[inline]
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

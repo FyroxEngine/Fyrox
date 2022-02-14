@@ -215,6 +215,7 @@ impl Clone for Joint {
 }
 
 impl Joint {
+    /// Returns type UUID.
     pub fn type_uuid() -> Uuid {
         Uuid::from_str("b8d66eda-b69f-4c57-80ba-d76665573565").unwrap()
     }
@@ -254,6 +255,8 @@ impl Joint {
 }
 
 impl NodeTrait for Joint {
+    crate::impl_query_component!();
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

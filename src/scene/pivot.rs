@@ -1,16 +1,24 @@
-use crate::core::inspect::{Inspect, PropertyInfo};
-use crate::core::visitor::prelude::*;
-use crate::engine::resource_manager::ResourceManager;
-use crate::scene::base::{Base, BaseBuilder};
-use crate::scene::graph::Graph;
-use crate::scene::node::{Node, NodeTrait};
-use crate::scene::variable::InheritError;
+use crate::{
+    core::{
+        inspect::{Inspect, PropertyInfo},
+        math::aabb::AxisAlignedBoundingBox,
+        pool::Handle,
+        uuid::Uuid,
+        visitor::prelude::*,
+    },
+    engine::resource_manager::ResourceManager,
+    scene::{
+        base::{Base, BaseBuilder},
+        graph::Graph,
+        node::{Node, NodeTrait},
+        variable::InheritError,
+    },
+};
 use fxhash::FxHashMap;
-use fyrox_core::math::aabb::AxisAlignedBoundingBox;
-use fyrox_core::pool::Handle;
-use fyrox_core::uuid::Uuid;
-use std::ops::{Deref, DerefMut};
-use std::str::FromStr;
+use std::{
+    ops::{Deref, DerefMut},
+    str::FromStr,
+};
 
 #[derive(Clone, Inspect, Default, Debug)]
 pub struct Pivot {
@@ -44,6 +52,8 @@ impl DerefMut for Pivot {
 }
 
 impl NodeTrait for Pivot {
+    crate::impl_query_component!();
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

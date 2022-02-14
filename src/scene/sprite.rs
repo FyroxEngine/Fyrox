@@ -108,6 +108,7 @@ impl Default for Sprite {
 }
 
 impl Sprite {
+    /// Returns type UUID.
     pub fn type_uuid() -> Uuid {
         Uuid::from_str("60fd7e34-46c1-4ae9-8803-1f5f4c341518").unwrap()
     }
@@ -162,6 +163,8 @@ impl Sprite {
 }
 
 impl NodeTrait for Sprite {
+    crate::impl_query_component!();
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::from_radius(*self.size)
     }

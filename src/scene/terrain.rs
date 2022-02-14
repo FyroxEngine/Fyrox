@@ -318,6 +318,7 @@ fn project(global_transform: Matrix4<f32>, p: Vector3<f32>) -> Option<Vector2<f3
 }
 
 impl Terrain {
+    /// Returns type UUID.
     pub fn type_uuid() -> Uuid {
         Uuid::from_str("4b0a7927-bcd8-41a3-949a-dd10fba8e16a").unwrap()
     }
@@ -620,6 +621,8 @@ impl Terrain {
 }
 
 impl NodeTrait for Terrain {
+    crate::impl_query_component!();
+
     /// Returns pre-cached bounding axis-aligned bounding box of the terrain. Keep in mind that
     /// if you're modified terrain, bounding box will be recalculated and it is not fast.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

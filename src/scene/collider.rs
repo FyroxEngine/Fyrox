@@ -474,6 +474,7 @@ impl Clone for Collider {
 }
 
 impl Collider {
+    /// Returns type UUID.
     pub fn type_uuid() -> Uuid {
         Uuid::from_str("bfaa2e82-9c19-4b99-983b-3bc115744a1d").unwrap()
     }
@@ -672,6 +673,8 @@ impl Collider {
 }
 
 impl NodeTrait for Collider {
+    crate::impl_query_component!();
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

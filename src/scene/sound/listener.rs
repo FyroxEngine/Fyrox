@@ -59,12 +59,15 @@ impl DerefMut for Listener {
 }
 
 impl Listener {
+    /// Returns type UUID.
     pub fn type_uuid() -> Uuid {
         Uuid::from_str("2c7dabc1-5666-4256-b020-01532701e4c6").unwrap()
     }
 }
 
 impl NodeTrait for Listener {
+    crate::impl_query_component!();
+
     /// Returns local bounding box of the listener, since listener cannot have any bounds -
     /// returned bounding box is collapsed into a point.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
