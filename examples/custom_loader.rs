@@ -16,6 +16,8 @@ use fyrox::engine::resource_manager::container::event::ResourceEventBroadcaster;
 use fyrox::engine::resource_manager::loader::{ResourceLoader, BoxedLoaderFuture};
 use fyrox::engine::resource_manager::loader::model::ModelLoader;
 use fyrox::engine::resource_manager::loader::texture::TextureLoader;
+use fyrox::event::{Event, WindowEvent};
+use fyrox::event_loop::{ControlFlow, EventLoop};
 use fyrox::material::{Material, PropertyValue};
 use fyrox::material::shader::SamplerFallback;
 use fyrox::resource::model::{ModelImportOptions, Model};
@@ -27,8 +29,12 @@ use fyrox::scene::light::point::PointLightBuilder;
 use fyrox::scene::mesh::MeshBuilder;
 use fyrox::scene::mesh::surface::{SurfaceBuilder, SurfaceData};
 use fyrox::scene::transform::TransformBuilder;
+use fyrox::utils::log::{MessageKind, Log};
+use fyrox::utils::translate_event;
+use fyrox::window::WindowBuilder;
 use fyrox_core::algebra::{Matrix4, Vector3};
 use fyrox_core::color::Color;
+use fyrox_core::instant::Instant;
 use fyrox_core::parking_lot::Mutex;
 use fyrox_core::pool::Handle;
 use fyrox_core::sstorage::ImmutableString;
@@ -196,8 +202,73 @@ impl GameState for Game {
 }
 
 fn main() {
-    Framework::<Game>::new()
-        .unwrap()
-        .title("Example 11 - Custom resource loader")
-        .run();
+    let event_loop = EventLoop::new();
+
+    let window_builder = WindowBuilder::new().with_title("Game").with_resizable(true);
+    let resource_manager = ResourceManager::new();
+
+    //set up our custom loaders
+    {
+        let mut state =  resource_manager.state();
+        let containers = state.containers_mut();
+        containers.set_model_loader(CustomModelLoader(Arc::new(ModelLoader{ resource_manager:resource_manager.clone()})));
+        containers.set_texture_loader(CustomTextureLoader(Arc::new(TextureLoader)));
+    }
+
+    let mut engine = Engine::new(window_builder, resource_manager, &event_loop, false).unwrap();
+    engine.get_window().set_title("Example 11 - Custom resource loader");
+    
+    let mut state = Game::init(&mut engine);
+    let clock = Instant::now();
+    let fixed_timestep = 1.0 / 60.0;
+    let mut elapsed_time = 0.0;
+
+    event_loop
+        .run(move |event, _, control_flow| match event {
+            Event::MainEventsCleared => {
+                let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
+                while dt >= fixed_timestep {
+                    dt -= fixed_timestep;
+                    elapsed_time += fixed_timestep;
+
+                    state.on_tick(&mut engine, fixed_timestep, control_flow);
+
+                    engine.update(fixed_timestep);
+                }
+
+                while let Some(ui_msg) = engine.user_interface.poll_message() {
+                    state.on_ui_message(&mut engine, ui_msg);
+                }
+
+                engine.get_window().request_redraw();
+            }
+            Event::RedrawRequested(_) => {
+                engine.render().unwrap();
+            }
+            Event::WindowEvent { event, .. } => {
+                match event {
+                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                    WindowEvent::Resized(size) => {
+                        if let Err(e) = engine.set_frame_size(size.into()) {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Unable to set frame size: {:?}", e),
+                            );
+                        }
+                    }
+                    _ => (),
+                }
+
+                if let Some(os_event) = translate_event(&event) {
+                    engine.user_interface.process_os_event(&os_event);
+                }
+
+                state.on_window_event(&mut engine, event);
+            }
+            Event::DeviceEvent { device_id, event } => {
+                state.on_device_event(&mut engine, device_id, event);
+            }
+            Event::LoopDestroyed => state.on_exit(&mut engine),
+            _ => *control_flow = ControlFlow::Poll,
+        });
 }
