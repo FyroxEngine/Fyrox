@@ -1158,9 +1158,10 @@ impl Graph {
     /// ```
     /// use fyrox::scene::node::Node;
     /// use fyrox::scene::graph::Graph;
+    /// use fyrox::scene::pivot::Pivot;
     /// let mut graph = Graph::new();
-    /// graph.add_node(Node::Base(Default::default()));
-    /// graph.add_node(Node::Base(Default::default()));
+    /// graph.add_node(Node::new(Pivot::default()));
+    /// graph.add_node(Node::new(Pivot::default()));
     /// for i in 0..graph.capacity() {
     ///     let handle = graph.handle_from_index(i);
     ///     if handle.is_some() {
@@ -1179,9 +1180,10 @@ impl Graph {
     /// ```
     /// use fyrox::scene::node::Node;
     /// use fyrox::scene::graph::Graph;
+    /// use fyrox::scene::pivot::Pivot;
     /// let mut graph = Graph::new();
-    /// graph.add_node(Node::Base(Default::default()));
-    /// graph.add_node(Node::Base(Default::default()));
+    /// graph.add_node(Node::new(Pivot::default()));
+    /// graph.add_node(Node::new(Pivot::default()));
     /// for i in 0..graph.capacity() {
     ///     let handle = graph.handle_from_index(i);
     ///     if handle.is_some() {
@@ -1489,6 +1491,7 @@ impl Visit for Graph {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::pivot::Pivot;
     use crate::{
         core::pool::Handle,
         scene::{base::Base, graph::Graph, node::Node},
@@ -1504,9 +1507,9 @@ mod test {
     #[test]
     fn graph_node_test() {
         let mut graph = Graph::new();
-        graph.add_node(Node::Base(Base::default()));
-        graph.add_node(Node::Base(Base::default()));
-        graph.add_node(Node::Base(Base::default()));
+        graph.add_node(Node::new(Pivot::default()));
+        graph.add_node(Node::new(Pivot::default()));
+        graph.add_node(Node::new(Pivot::default()));
         assert_eq!(graph.pool.alive_count(), 4);
     }
 }

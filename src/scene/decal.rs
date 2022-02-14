@@ -303,6 +303,7 @@ impl DecalBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::decal::Decal;
     use crate::scene::node::NodeTrait;
     use crate::{
         core::color::Color,
@@ -327,9 +328,9 @@ mod test {
 
         child.inherit(&parent).unwrap();
 
-        if let Node::Decal(parent) = parent {
-            check_inheritable_properties_equality(&child.base, &parent.base);
-            check_inheritable_properties_equality(&child, &parent);
-        }
+        let parent = parent.cast::<Decal>().unwrap();
+
+        check_inheritable_properties_equality(&child.base, &parent.base);
+        check_inheritable_properties_equality(&child, &parent);
     }
 }

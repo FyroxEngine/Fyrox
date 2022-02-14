@@ -519,6 +519,7 @@ impl SoundBuilder {
 #[cfg(test)]
 mod test {
     use crate::scene::node::NodeTrait;
+    use crate::scene::sound::Sound;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         node::Node,
@@ -544,11 +545,9 @@ mod test {
 
         child.inherit(&parent).unwrap();
 
-        if let Node::Sound(parent) = parent {
-            check_inheritable_properties_equality(&child.base, &parent.base);
-            check_inheritable_properties_equality(&child, &parent);
-        } else {
-            unreachable!();
-        }
+        let parent = parent.cast::<Sound>().unwrap();
+
+        check_inheritable_properties_equality(&child.base, &parent.base);
+        check_inheritable_properties_equality(&child, &parent);
     }
 }

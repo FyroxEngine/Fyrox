@@ -631,6 +631,7 @@ impl RigidBodyBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::dim2::rigidbody::RigidBody;
     use crate::scene::node::NodeTrait;
     use crate::{
         core::algebra::Vector2,
@@ -663,10 +664,8 @@ mod test {
 
         child.inherit(&parent).unwrap();
 
-        if let Node::RigidBody2D(parent) = parent {
-            check_inheritable_properties_equality(&child, &parent);
-        } else {
-            unreachable!()
-        }
+        let parent = parent.cast::<RigidBody>().unwrap();
+
+        check_inheritable_properties_equality(&child, &parent);
     }
 }

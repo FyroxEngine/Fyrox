@@ -278,6 +278,7 @@ impl SpriteBuilder {
 #[cfg(test)]
 mod test {
     use crate::scene::node::NodeTrait;
+    use crate::scene::sprite::Sprite;
     use crate::{
         core::color::Color,
         resource::texture::test::create_test_texture,
@@ -301,11 +302,9 @@ mod test {
 
         child.inherit(&parent).unwrap();
 
-        if let Node::Sprite(parent) = parent {
-            check_inheritable_properties_equality(&child.base, &parent.base);
-            check_inheritable_properties_equality(&child, &parent)
-        } else {
-            unreachable!()
-        }
+        let parent = parent.cast::<Sprite>().unwrap();
+
+        check_inheritable_properties_equality(&child.base, &parent.base);
+        check_inheritable_properties_equality(&child, &parent)
     }
 }

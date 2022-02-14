@@ -140,6 +140,7 @@ impl ListenerBuilder {
 #[cfg(test)]
 mod test {
     use crate::scene::node::NodeTrait;
+    use crate::scene::sound::listener::Listener;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         node::Node,
@@ -154,10 +155,8 @@ mod test {
 
         child.inherit(&parent).unwrap();
 
-        if let Node::Listener(parent) = parent {
-            check_inheritable_properties_equality(&child.base, &parent.base);
-        } else {
-            unreachable!()
-        }
+        let parent = parent.cast::<Listener>().unwrap();
+
+        check_inheritable_properties_equality(&child.base, &parent.base);
     }
 }

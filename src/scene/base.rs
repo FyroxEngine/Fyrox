@@ -272,10 +272,11 @@ pub struct Property {
 /// use fyrox::scene::graph::Graph;
 /// use fyrox::scene::node::Node;
 /// use fyrox::core::pool::Handle;
+/// use fyrox::scene::pivot::PivotBuilder;
 ///
-/// fn create_base_node(graph: &mut Graph) -> Handle<Node> {
-///     BaseBuilder::new()
-///         .with_name("BaseNode")
+/// fn create_pivot_node(graph: &mut Graph) -> Handle<Node> {
+///     PivotBuilder::new(BaseBuilder::new()
+///         .with_name("BaseNode"))
 ///         .build(graph)
 /// }
 /// ```
@@ -904,7 +905,7 @@ pub mod test {
                     objects: vec![],
                 }],
             })
-            .build_node();
+            .build_base();
 
         let mut child = BaseBuilder::new().build_base();
 

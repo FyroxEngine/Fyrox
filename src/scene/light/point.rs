@@ -220,9 +220,10 @@ impl PointLightBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::light::point::PointLight;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
-        light::{point::PointLightBuilder, BaseLightBuilder, Light},
+        light::{point::PointLightBuilder, BaseLightBuilder},
         node::{Node, NodeTrait},
     };
 
@@ -238,12 +239,10 @@ mod test {
 
         child.inherit(&parent).unwrap();
 
-        if let Node::Light(Light::Point(parent)) = parent {
-            check_inheritable_properties_equality(&child.base, &parent.base);
-            check_inheritable_properties_equality(&child.base_light, &parent.base_light);
-            check_inheritable_properties_equality(&child, &parent);
-        } else {
-            unreachable!()
-        }
+        let parent = parent.cast::<PointLight>().unwrap();
+
+        check_inheritable_properties_equality(&child.base_light.base, &parent.base_light.base);
+        check_inheritable_properties_equality(&child.base_light, &parent.base_light);
+        check_inheritable_properties_equality(&child, &parent);
     }
 }

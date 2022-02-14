@@ -1521,7 +1521,7 @@ mod test {
             data: String,
         }
 
-        let mut pool = Pool::new();
+        let mut pool = Pool::<Value>::new();
         let foobar = pool.spawn(Value {
             data: "Foobar".to_string(),
         });
@@ -1538,7 +1538,7 @@ mod test {
 
     #[test]
     fn pool_test_spawn_at() {
-        let mut pool = Pool::new();
+        let mut pool = Pool::<Payload>::new();
 
         #[derive(Debug, Eq, PartialEq)]
         struct Payload;

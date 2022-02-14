@@ -570,6 +570,7 @@ impl ParticleSystemBuilder {
 #[cfg(test)]
 mod test {
     use crate::scene::node::NodeTrait;
+    use crate::scene::particle_system::ParticleSystem;
     use crate::{
         core::algebra::Vector3,
         resource::texture::test::create_test_texture,
@@ -591,11 +592,9 @@ mod test {
 
         child.inherit(&parent).unwrap();
 
-        if let Node::ParticleSystem(parent) = parent {
-            check_inheritable_properties_equality(&child.base, &parent.base);
-            check_inheritable_properties_equality(&child, &parent);
-        } else {
-            unreachable!()
-        }
+        let parent = parent.cast::<ParticleSystem>().unwrap();
+
+        check_inheritable_properties_equality(&child.base, &parent.base);
+        check_inheritable_properties_equality(&child, &parent);
     }
 }

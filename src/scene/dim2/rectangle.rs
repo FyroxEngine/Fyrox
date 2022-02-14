@@ -249,6 +249,7 @@ impl RectangleBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::dim2::rectangle::Rectangle;
     use crate::scene::node::NodeTrait;
     use crate::{
         core::color::Color,
@@ -271,11 +272,9 @@ mod test {
 
         child.inherit(&parent).unwrap();
 
-        if let Node::Rectangle(parent) = parent {
-            check_inheritable_properties_equality(&child.base, &parent.base);
-            check_inheritable_properties_equality(&child, &parent);
-        } else {
-            unreachable!()
-        }
+        let parent = parent.cast::<Rectangle>().unwrap();
+
+        check_inheritable_properties_equality(&child.base, &parent.base);
+        check_inheritable_properties_equality(&child, &parent);
     }
 }
