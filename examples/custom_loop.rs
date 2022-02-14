@@ -23,11 +23,11 @@ fn main() {
         .with_title("Example - Custom Game Loop")
         .with_resizable(true);
 
-    let resource_manager_builder = fyrox::engine::resource_manager::ResourceManagerBuilder::new();
+    let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
 
     // Then initialize the engine.
     let mut engine =
-        Engine::new(window_builder, resource_manager_builder, &event_loop, true).unwrap();
+        Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
 
     // Define game loop variables.
     let clock = Instant::now();

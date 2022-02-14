@@ -12,7 +12,6 @@ use crate::{
         loader::ResourceLoader,
         options::ImportOptions,
         task::TaskPool,
-        ResourceManager,
     },
     scene::variable::TemplateVariable,
     utils::log::Log,
@@ -38,7 +37,6 @@ where
     resources: Vec<TimedEntry<T>>,
     default_import_options: O,
     task_pool: Arc<TaskPool>,
-    resource_manager: ResourceManager,
     loader: Box<dyn ResourceLoader<T, O>>,
 
     /// Event broadcaster can be used to "subscribe" for events happening inside the container.    
@@ -54,17 +52,23 @@ where
 {
     pub(crate) fn new(
         task_pool: Arc<TaskPool>,
-        resource_manager: ResourceManager,
         loader: Box<dyn ResourceLoader<T, O>>,
     ) -> Self {
         Self {
             resources: Default::default(),
             default_import_options: Default::default(),
             task_pool,
-            resource_manager,
             loader,
             event_broadcaster: ResourceEventBroadcaster::new(),
         }
+    }
+
+    /// Sets the loader to load resources with.
+    pub fn set_loader<L>(&mut self, loader: L)
+    where
+        L: 'static + ResourceLoader<T, O>,
+    {
+        self.loader = Box::new(loader);
     }
 
     /// Adds a new resource in the container.
@@ -219,7 +223,6 @@ where
                 self.task_pool.spawn_task(self.loader.load(
                     resource.clone(),
                     self.default_import_options.clone(),
-                    self.resource_manager.clone(),
                     self.event_broadcaster.clone(),
                     false,
                 ));
@@ -236,7 +239,6 @@ where
         self.task_pool.spawn_task(self.loader.load(
             resource,
             self.default_import_options.clone(),
-            self.resource_manager.clone(),
             self.event_broadcaster.clone(),
             true,
         ));
@@ -256,7 +258,6 @@ where
             self.task_pool.spawn_task(self.loader.load(
                 resource,
                 self.default_import_options.clone(),
-                self.resource_manager.clone(),
                 self.event_broadcaster.clone(),
                 true,
             ));

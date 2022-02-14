@@ -1,13 +1,15 @@
+//! Curve loader. 
+
 use crate::{
     engine::resource_manager::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
-        ResourceManager,
     },
     resource::curve::{CurveImportOptions, CurveResource, CurveResourceState},
     utils::log::Log,
 };
 
+/// Default implementation for curve loading.
 pub struct CurveLoader;
 
 impl ResourceLoader<CurveResource, CurveImportOptions> for CurveLoader {
@@ -15,7 +17,6 @@ impl ResourceLoader<CurveResource, CurveImportOptions> for CurveLoader {
         &self,
         curve: CurveResource,
         _default_import_options: CurveImportOptions,
-        _resource_manager: ResourceManager,
         event_broadcaster: ResourceEventBroadcaster<CurveResource>,
         reload: bool,
     ) -> BoxedLoaderFuture {

@@ -1,13 +1,15 @@
+//! Shader loader. 
+
 use crate::{
     engine::resource_manager::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
-        ResourceManager,
     },
     material::shader::{Shader, ShaderImportOptions, ShaderState},
     utils::log::Log,
 };
 
+/// Default implementation for shader loading.
 pub struct ShaderLoader;
 
 impl ResourceLoader<Shader, ShaderImportOptions> for ShaderLoader {
@@ -15,7 +17,6 @@ impl ResourceLoader<Shader, ShaderImportOptions> for ShaderLoader {
         &self,
         shader: Shader,
         _default_import_options: ShaderImportOptions,
-        _resource_manager: ResourceManager,
         event_broadcaster: ResourceEventBroadcaster<Shader>,
         reload: bool,
     ) -> BoxedLoaderFuture {

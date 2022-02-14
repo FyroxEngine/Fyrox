@@ -54,68 +54,46 @@ pub struct ContainersStorage {
     pub curves: ResourceContainer<CurveResource, CurveImportOptions>,
 }
 
-pub struct ResourceManagerBuilder {
-    texture_loader: Box<dyn ResourceLoader<Texture, TextureImportOptions>>,
-    model_loader: Box<dyn ResourceLoader<Model, ModelImportOptions>>,
-    sound_buffer_loader: Box<dyn ResourceLoader<SoundBufferResource, SoundBufferImportOptions>>,
-    shader_loader: Box<dyn ResourceLoader<Shader, ShaderImportOptions>>,
-    curve_loader: Box<dyn ResourceLoader<CurveResource, CurveImportOptions>>,
-}
-
-impl ResourceManagerBuilder {
-    pub fn new() -> ResourceManagerBuilder {
-        ResourceManagerBuilder {
-            texture_loader: Box::new(TextureLoader),
-            model_loader: Box::new(ModelLoader),
-            sound_buffer_loader: Box::new(SoundBufferLoader),
-            shader_loader: Box::new(ShaderLoader),
-            curve_loader: Box::new(CurveLoader),
-        }
-    }
-
-    #[must_use]
-    pub fn with_texture_loader<L>(mut self, loader: L) -> Self
+impl ContainersStorage {
+    /// Sets a custom texture loader.
+    pub fn set_texture_loader<L>(&mut self, loader: L)
     where
         L: 'static + ResourceLoader<Texture, TextureImportOptions>,
     {
-        self.texture_loader = Box::new(loader);
-        self
+        self.textures.set_loader(loader);
     }
 
-    #[must_use]
-    pub fn with_model_loader<L>(mut self, loader: L) -> Self
+
+    /// Sets a custom model loader.
+    pub fn set_model_loader<L>(&mut self, loader: L)
     where
         L: 'static + ResourceLoader<Model, ModelImportOptions>,
     {
-        self.model_loader = Box::new(loader);
-        self
+        self.models.set_loader(loader);
     }
 
-    #[must_use]
-    pub fn with_sound_buffer_loader<L>(mut self, loader: L) -> Self
+    /// Sets a custom sound buffer loader.
+    pub fn set_sound_buffer_loader<L>(&mut self, loader: L)
     where
         L: 'static + ResourceLoader<SoundBufferResource, SoundBufferImportOptions>,
     {
-        self.sound_buffer_loader = Box::new(loader);
-        self
+        self.sound_buffers.set_loader(loader);
     }
 
-    #[must_use]
-    pub fn with_shader_loader<L>(mut self, loader: L) -> Self
+    /// Sets a custom shader loader.
+    pub fn with_shader_loader<L>(&mut self, loader: L)
     where
         L: 'static + ResourceLoader<Shader, ShaderImportOptions>,
     {
-        self.shader_loader = Box::new(loader);
-        self
+        self.shaders.set_loader(loader);
     }
 
-    #[must_use]
-    pub fn with_curve_loader<L>(mut self, loader: L) -> Self
+    /// Sets a custom curve loader.
+    pub fn set_curve_loader<L>(&mut self, loader: L)
     where
         L: 'static + ResourceLoader<CurveResource, CurveImportOptions>,
     {
-        self.curve_loader = Box::new(loader);
-        self
+        self.curves.set_loader(loader);
     }
 }
 
@@ -152,7 +130,8 @@ impl From<TextureError> for TextureRegistrationError {
 }
 
 impl ResourceManager {
-    pub(in crate) fn new(builder: ResourceManagerBuilder) -> Self {
+    /// Creates a resource manager with default settings and loaders.
+    pub fn new() -> Self {
         let resource_manager = Self {
             state: Arc::new(Mutex::new(ResourceManagerState::new())),
         };
@@ -162,28 +141,23 @@ impl ResourceManager {
         resource_manager.state().containers_storage = Some(ContainersStorage {
             textures: ResourceContainer::new(
                 task_pool.clone(),
-                resource_manager.clone(),
-                builder.texture_loader,
+                Box::new(TextureLoader)
             ),
             models: ResourceContainer::new(
                 task_pool.clone(),
-                resource_manager.clone(),
-                builder.model_loader,
+                Box::new(ModelLoader{ resource_manager: resource_manager.clone() }),
             ),
             sound_buffers: ResourceContainer::new(
-                task_pool.clone(),
-                resource_manager.clone(),
-                builder.sound_buffer_loader,
+                task_pool.clone(), 
+                Box::new(SoundBufferLoader)
             ),
             shaders: ResourceContainer::new(
                 task_pool.clone(),
-                resource_manager.clone(),
-                builder.shader_loader,
+                Box::new(ShaderLoader),
             ),
             curves: ResourceContainer::new(
                 task_pool,
-                resource_manager.clone(),
-                builder.curve_loader,
+                Box::new(CurveLoader),
             ),
         });
 

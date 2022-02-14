@@ -1,3 +1,5 @@
+//! Model loader. 
+
 use crate::{
     engine::resource_manager::{
         container::event::ResourceEventBroadcaster,
@@ -9,17 +11,22 @@ use crate::{
     utils::log::Log,
 };
 
-pub struct ModelLoader;
+/// Default implementation for model loading.
+pub struct ModelLoader {
+    /// Resource manager to allow complex model loading.
+    pub resource_manager: ResourceManager,
+}
 
 impl ResourceLoader<Model, ModelImportOptions> for ModelLoader {
     fn load(
         &self,
         model: Model,
         default_import_options: ModelImportOptions,
-        resource_manager: ResourceManager,
         event_broadcaster: ResourceEventBroadcaster<Model>,
         reload: bool,
     ) -> BoxedLoaderFuture {
+        let resource_manager = self.resource_manager.clone();
+
         Box::pin(async move {
             let path = model.state().path().to_path_buf();
 

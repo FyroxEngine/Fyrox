@@ -119,11 +119,11 @@ impl Game {
             .with_title(title)
             .with_resizable(true);
 
-        let resource_manager_builder =
-            fyrox::engine::resource_manager::ResourceManagerBuilder::new();
+        let resource_manager =
+            fyrox::engine::resource_manager::ResourceManager::new();
 
         let mut engine =
-            Engine::new(window_builder, resource_manager_builder, &event_loop, false).unwrap();
+            Engine::new(window_builder, resource_manager, &event_loop, false).unwrap();
 
         engine
             .renderer

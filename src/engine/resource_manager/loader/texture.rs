@@ -1,15 +1,17 @@
+//! Texture loader. 
+
 use crate::{
     core::instant,
     engine::resource_manager::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::try_get_import_settings,
-        ResourceManager,
     },
     resource::texture::{Texture, TextureData, TextureImportOptions},
     utils::log::Log,
 };
 
+/// Default implementation for texture loading.
 pub struct TextureLoader;
 
 impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
@@ -17,7 +19,6 @@ impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
         &self,
         texture: Texture,
         default_import_options: TextureImportOptions,
-        _resource_manager: ResourceManager,
         event_broadcaster: ResourceEventBroadcaster<Texture>,
         reload: bool,
     ) -> BoxedLoaderFuture {

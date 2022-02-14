@@ -115,10 +115,10 @@ fn main() {
         .with_title("Example - User Interface")
         .with_resizable(true);
 
-    let resource_manager_builder = fyrox::engine::resource_manager::ResourceManagerBuilder::new();
+    let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
 
     let mut engine =
-        Engine::new(window_builder, resource_manager_builder, &event_loop, true).unwrap();
+        Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
 
     // Create simple user interface that will show some useful info.
     let interface = create_ui(&mut engine);

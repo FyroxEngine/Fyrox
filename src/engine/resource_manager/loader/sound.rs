@@ -1,10 +1,11 @@
+//! Sound buffer loader. 
+
 use crate::{
     core::inspect::{Inspect, PropertyInfo},
     engine::resource_manager::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::{try_get_import_settings, ImportOptions},
-        ResourceManager,
     },
     utils::log::Log,
 };
@@ -22,6 +23,7 @@ pub struct SoundBufferImportOptions {
 
 impl ImportOptions for SoundBufferImportOptions {}
 
+/// Default implementation for sound buffer loading.
 pub struct SoundBufferLoader;
 
 impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBufferLoader {
@@ -29,7 +31,6 @@ impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBuff
         &self,
         resource: SoundBufferResource,
         default_import_options: SoundBufferImportOptions,
-        _resource_manager: ResourceManager,
         event_broadcaster: ResourceEventBroadcaster<SoundBufferResource>,
         reload: bool,
     ) -> BoxedLoaderFuture {
