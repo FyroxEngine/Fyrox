@@ -80,3 +80,7 @@ impact.
 ## Example 11 - Simple game
 
 - TODO
+
+## Example 12 - Custom resource loader
+
+This example shows how to register custom resource loaders. (WIP)

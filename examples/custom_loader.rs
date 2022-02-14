@@ -216,7 +216,7 @@ fn main() {
     }
 
     let mut engine = Engine::new(window_builder, resource_manager, &event_loop, false).unwrap();
-    engine.get_window().set_title("Example 11 - Custom resource loader");
+    engine.get_window().set_title("Example 12 - Custom resource loader");
     
     let mut state = Game::init(&mut engine);
     let clock = Instant::now();
