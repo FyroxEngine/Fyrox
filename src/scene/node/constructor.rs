@@ -89,6 +89,6 @@ impl NodeConstructorContainer {
     /// Makes an attempt to create a node using provided type UUID. It may fail if there is no
     /// node constructor for specified type UUID.
     pub fn try_create(&self, type_uuid: &Uuid) -> Option<Node> {
-        self.map.lock().get_mut(&type_uuid).map(|c| (c)())
+        self.map.lock().get_mut(type_uuid).map(|c| (c)())
     }
 }

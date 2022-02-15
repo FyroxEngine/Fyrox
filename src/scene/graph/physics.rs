@@ -653,26 +653,14 @@ fn collider_shape_into_native_shape(
                 ))
             }
         }
-        ColliderShape::Heightfield(heightfield) => {
-            if let Some(terrain) = pool
-                .try_borrow(heightfield.geometry_source.0)
-                .and_then(|n| n.cast::<Terrain>())
-            {
-                Some(make_heightfield(terrain))
-            } else {
-                None
-            }
-        }
-        ColliderShape::Polyhedron(polyhedron) => {
-            if let Some(mesh) = pool
-                .try_borrow(polyhedron.geometry_source.0)
-                .and_then(|n| n.cast::<Mesh>())
-            {
-                Some(make_polyhedron_shape(owner_inv_global_transform, mesh))
-            } else {
-                None
-            }
-        }
+        ColliderShape::Heightfield(heightfield) => pool
+            .try_borrow(heightfield.geometry_source.0)
+            .and_then(|n| n.cast::<Terrain>())
+            .map(make_heightfield),
+        ColliderShape::Polyhedron(polyhedron) => pool
+            .try_borrow(polyhedron.geometry_source.0)
+            .and_then(|n| n.cast::<Mesh>())
+            .map(|mesh| make_polyhedron_shape(owner_inv_global_transform, mesh)),
     }
 }
 

@@ -138,12 +138,10 @@ impl ListenerBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::node::NodeTrait;
-    use crate::scene::sound::listener::Listener;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
-        node::Node,
-        sound::listener::ListenerBuilder,
+        node::NodeTrait,
+        sound::listener::{Listener, ListenerBuilder},
     };
 
     #[test]

@@ -2,17 +2,14 @@ use crate::{
     define_swap_command,
     scene::commands::{Command, SceneContext},
 };
-use fyrox::scene::light::directional::DirectionalLight;
-use fyrox::scene::light::BaseLight;
 use fyrox::{
     core::{algebra::Vector3, color::Color},
     resource::texture::Texture,
     scene::{
-        light::{point::PointLight, spot::SpotLight},
+        light::{point::PointLight, spot::SpotLight, BaseLight},
         node::Node,
     },
 };
-use std::any::TypeId;
 
 fn node_base_light_mut(node: &mut Node) -> &mut BaseLight {
     node.query_component_mut::<BaseLight>().unwrap()

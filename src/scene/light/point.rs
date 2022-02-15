@@ -225,11 +225,13 @@ impl PointLightBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::light::point::PointLight;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
-        light::{point::PointLightBuilder, BaseLightBuilder},
-        node::{Node, NodeTrait},
+        light::{
+            point::{PointLight, PointLightBuilder},
+            BaseLightBuilder,
+        },
+        node::NodeTrait,
     };
 
     #[test]
@@ -248,6 +250,6 @@ mod test {
 
         check_inheritable_properties_equality(&child.base_light.base, &parent.base_light.base);
         check_inheritable_properties_equality(&child.base_light, &parent.base_light);
-        check_inheritable_properties_equality(&child, &parent);
+        check_inheritable_properties_equality(&child, parent);
     }
 }

@@ -305,15 +305,13 @@ impl DecalBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::decal::Decal;
-    use crate::scene::node::NodeTrait;
     use crate::{
         core::color::Color,
         resource::texture::test::create_test_texture,
         scene::{
             base::{test::check_inheritable_properties_equality, BaseBuilder},
-            decal::DecalBuilder,
-            node::Node,
+            decal::{Decal, DecalBuilder},
+            node::NodeTrait,
         },
     };
 
@@ -333,6 +331,6 @@ mod test {
         let parent = parent.cast::<Decal>().unwrap();
 
         check_inheritable_properties_equality(&child.base, &parent.base);
-        check_inheritable_properties_equality(&child, &parent);
+        check_inheritable_properties_equality(&child, parent);
     }
 }

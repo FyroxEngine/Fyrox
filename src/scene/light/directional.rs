@@ -239,14 +239,15 @@ impl DirectionalLightBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::light::directional::DirectionalLight;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         light::{
-            directional::{CsmOptions, DirectionalLightBuilder, FrustumSplitOptions},
+            directional::{
+                CsmOptions, DirectionalLight, DirectionalLightBuilder, FrustumSplitOptions,
+            },
             BaseLightBuilder,
         },
-        node::{Node, NodeTrait},
+        node::NodeTrait,
     };
 
     #[test]
@@ -273,6 +274,6 @@ mod test {
 
         check_inheritable_properties_equality(&child.base_light.base, &parent.base_light.base);
         check_inheritable_properties_equality(&child.base_light, &parent.base_light);
-        check_inheritable_properties_equality(&child, &parent);
+        check_inheritable_properties_equality(&child, parent);
     }
 }

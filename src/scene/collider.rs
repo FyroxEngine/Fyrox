@@ -867,13 +867,11 @@ impl ColliderBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::collider::Collider;
-    use crate::scene::node::NodeTrait;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
-        collider::{ColliderBuilder, ColliderShape, InteractionGroups},
+        collider::{Collider, ColliderBuilder, ColliderShape, InteractionGroups},
         graph::physics::CoefficientCombineRule,
-        node::Node,
+        node::NodeTrait,
     };
 
     #[test]
@@ -897,6 +895,6 @@ mod test {
         let parent = parent.cast::<Collider>().unwrap();
 
         check_inheritable_properties_equality(&child.base, &parent.base);
-        check_inheritable_properties_equality(&child, &parent);
+        check_inheritable_properties_equality(&child, parent);
     }
 }

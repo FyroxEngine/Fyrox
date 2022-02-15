@@ -533,7 +533,7 @@ impl DeferredLightRenderer {
                     );
 
                     light_stats.spot_shadow_maps_rendered += 1;
-                } else if let Some(_) = light.cast::<PointLight>() {
+                } else if light.cast::<PointLight>().is_some() {
                     pass_stats +=
                         self.point_shadow_map_renderer
                             .render(PointShadowMapRenderContext {

@@ -341,13 +341,15 @@ impl SpotLightBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::light::spot::SpotLight;
     use crate::{
         resource::texture::test::create_test_texture,
         scene::{
             base::{test::check_inheritable_properties_equality, BaseBuilder},
-            light::{spot::SpotLightBuilder, BaseLightBuilder},
-            node::{Node, NodeTrait},
+            light::{
+                spot::{SpotLight, SpotLightBuilder},
+                BaseLightBuilder,
+            },
+            node::NodeTrait,
         },
     };
 
@@ -370,6 +372,6 @@ mod test {
 
         check_inheritable_properties_equality(&child.base_light.base, &parent.base_light.base);
         check_inheritable_properties_equality(&child.base_light, &parent.base_light);
-        check_inheritable_properties_equality(&child, &parent);
+        check_inheritable_properties_equality(&child, parent);
     }
 }

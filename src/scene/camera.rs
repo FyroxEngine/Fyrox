@@ -625,7 +625,7 @@ impl NodeTrait for Camera {
 
         self.visibility_cache.clear();
         self.visibility_cache.update(
-            &context.nodes,
+            context.nodes,
             self.global_position(),
             self.projection().z_near(),
             self.projection().z_far(),

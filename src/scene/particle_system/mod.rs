@@ -571,14 +571,13 @@ impl ParticleSystemBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::node::NodeTrait;
-    use crate::scene::particle_system::ParticleSystem;
     use crate::{
         core::algebra::Vector3,
         resource::texture::test::create_test_texture,
         scene::{
-            base::test::check_inheritable_properties_equality, base::BaseBuilder, node::Node,
-            particle_system::ParticleSystemBuilder,
+            base::{test::check_inheritable_properties_equality, BaseBuilder},
+            node::NodeTrait,
+            particle_system::{ParticleSystem, ParticleSystemBuilder},
         },
     };
 
@@ -597,6 +596,6 @@ mod test {
         let parent = parent.cast::<ParticleSystem>().unwrap();
 
         check_inheritable_properties_equality(&child.base, &parent.base);
-        check_inheritable_properties_equality(&child, &parent);
+        check_inheritable_properties_equality(&child, parent);
     }
 }

@@ -1220,10 +1220,9 @@ impl Visit for Graph {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::pivot::Pivot;
     use crate::{
         core::pool::Handle,
-        scene::{base::Base, graph::Graph, node::Node},
+        scene::{graph::Graph, node::Node, pivot::Pivot},
     };
 
     #[test]

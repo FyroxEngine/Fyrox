@@ -375,7 +375,7 @@ impl NodeTrait for Sound {
     }
 
     fn sync_transform(&self, new_global_transform: &Matrix4<f32>, context: &mut SyncContext) {
-        if !m4x4_approx_eq(&new_global_transform, &self.global_transform()) {
+        if !m4x4_approx_eq(new_global_transform, &self.global_transform()) {
             context.sound_context.set_sound_position(self);
         }
     }
@@ -520,12 +520,10 @@ impl SoundBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::node::NodeTrait;
-    use crate::scene::sound::Sound;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
-        node::Node,
-        sound::SoundBuilder,
+        node::NodeTrait,
+        sound::{Sound, SoundBuilder},
     };
     use fyrox_sound::source::Status;
     use std::time::Duration;
@@ -550,6 +548,6 @@ mod test {
         let parent = parent.cast::<Sound>().unwrap();
 
         check_inheritable_properties_equality(&child.base, &parent.base);
-        check_inheritable_properties_equality(&child, &parent);
+        check_inheritable_properties_equality(&child, parent);
     }
 }

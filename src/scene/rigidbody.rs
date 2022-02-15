@@ -566,10 +566,10 @@ impl NodeTrait for RigidBody {
     }
 
     fn sync_transform(&self, new_global_transform: &Matrix4<f32>, context: &mut SyncContext) {
-        if !m4x4_approx_eq(&new_global_transform, &self.global_transform()) {
+        if !m4x4_approx_eq(new_global_transform, &self.global_transform()) {
             context
                 .physics
-                .set_rigid_body_position(self, &new_global_transform);
+                .set_rigid_body_position(self, new_global_transform);
         }
     }
 
@@ -760,14 +760,12 @@ impl RigidBodyBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::node::NodeTrait;
-    use crate::scene::rigidbody::RigidBody;
     use crate::{
         core::algebra::Vector3,
         scene::{
             base::{test::check_inheritable_properties_equality, BaseBuilder},
-            node::Node,
-            rigidbody::{RigidBodyBuilder, RigidBodyType},
+            node::NodeTrait,
+            rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
         },
     };
 
@@ -795,6 +793,6 @@ mod test {
 
         let parent = parent.cast::<RigidBody>().unwrap();
 
-        check_inheritable_properties_equality(&child, &parent);
+        check_inheritable_properties_equality(&child, parent);
     }
 }

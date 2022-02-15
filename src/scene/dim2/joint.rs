@@ -389,14 +389,12 @@ impl JointBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::dim2::joint::Joint;
-    use crate::scene::node::NodeTrait;
     use crate::{
         core::algebra::Vector2,
         scene::{
             base::{test::check_inheritable_properties_equality, BaseBuilder},
-            dim2::joint::{BallJoint, JointBuilder, JointParams},
-            node::Node,
+            dim2::joint::{BallJoint, Joint, JointBuilder, JointParams},
+            node::NodeTrait,
         },
     };
 
@@ -420,6 +418,6 @@ mod test {
         let parent = parent.cast::<Joint>().unwrap();
 
         check_inheritable_properties_equality(&child.base, &parent.base);
-        check_inheritable_properties_equality(&child, &parent);
+        check_inheritable_properties_equality(&child, parent);
     }
 }
