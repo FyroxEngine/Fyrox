@@ -3,7 +3,7 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
-use crate::scene::node::NodeTrait;
+use crate::scene::node::{NodeTrait, TypeUuidProvider};
 use crate::{
     core::{
         color::Color,
@@ -124,12 +124,13 @@ impl DerefMut for Rectangle {
     }
 }
 
-impl Rectangle {
-    /// Returns type UUID.
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for Rectangle {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("bb57b5e0-367a-4490-bf30-7f547407d5b5").unwrap()
     }
+}
 
+impl Rectangle {
     /// Returns a texture used by the rectangle.
     pub fn texture(&self) -> Option<&Texture> {
         self.texture.as_ref()

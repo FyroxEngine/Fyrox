@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Decal`]
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         color::Color,
@@ -128,12 +129,13 @@ impl DerefMut for Decal {
     }
 }
 
-impl Decal {
-    /// Returns type UUID.
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for Decal {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("c4d24e48-edd1-4fb2-ad82-4b3d3ea985d8").unwrap()
     }
+}
 
+impl Decal {
     /// Sets new diffuse texture.
     pub fn set_diffuse_texture(&mut self, diffuse_texture: Option<Texture>) -> Option<Texture> {
         std::mem::replace(self.diffuse_texture.get_mut(), diffuse_texture)

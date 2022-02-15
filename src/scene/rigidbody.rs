@@ -8,6 +8,7 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -276,12 +277,13 @@ impl Clone for RigidBody {
     }
 }
 
-impl RigidBody {
-    /// Returns type UUID.
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for RigidBody {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("4be15a7c-3566-49c4-bba8-2f4ccc57ffed").unwrap()
     }
+}
 
+impl RigidBody {
     /// Sets new linear velocity of the rigid body. Changing this parameter will wake up the rigid
     /// body!
     pub fn set_lin_vel(&mut self, lin_vel: Vector3<f32>) {

@@ -8,6 +8,7 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -158,12 +159,13 @@ impl DerefMut for Mesh {
     }
 }
 
-impl Mesh {
-    /// Returns type UUID.
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for Mesh {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("caaf9d7b-bd74-48ce-b7cc-57e9dc65c2e6").unwrap()
     }
+}
 
+impl Mesh {
     /// Returns shared reference to array of surfaces.
     #[inline]
     pub fn surfaces(&self) -> &[Surface] {

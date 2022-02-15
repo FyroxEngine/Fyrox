@@ -1,5 +1,6 @@
 //! Everything related to terrains.
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -317,12 +318,13 @@ fn project(global_transform: Matrix4<f32>, p: Vector3<f32>) -> Option<Vector2<f3
     }
 }
 
-impl Terrain {
-    /// Returns type UUID.
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for Terrain {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("4b0a7927-bcd8-41a3-949a-dd10fba8e16a").unwrap()
     }
+}
 
+impl Terrain {
     /// Returns width of the terrain in local coordinates.
     pub fn width(&self) -> f32 {
         self.width

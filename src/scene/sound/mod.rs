@@ -14,7 +14,7 @@ use std::{
 };
 
 // Re-export some the fyrox_sound entities.
-use crate::scene::node::{NodeTrait, SyncContext, UpdateContext};
+use crate::scene::node::{NodeTrait, SyncContext, TypeUuidProvider, UpdateContext};
 use crate::utils::log::Log;
 use crate::{
     core::{
@@ -152,11 +152,13 @@ impl Clone for Sound {
     }
 }
 
-impl Sound {
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for Sound {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("28621735-8cd1-4fad-8faf-ecd24bf8aa99").unwrap()
     }
+}
 
+impl Sound {
     /// Changes buffer of source. Source will continue playing from beginning, old
     /// position will be discarded.
     pub fn set_buffer(&mut self, buffer: Option<SoundBufferResource>) {

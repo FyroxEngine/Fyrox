@@ -4,7 +4,7 @@
 //! See [`Listener`] docs for more info.
 
 use crate::engine::resource_manager::ResourceManager;
-use crate::scene::node::{NodeTrait, SyncContext};
+use crate::scene::node::{NodeTrait, SyncContext, TypeUuidProvider};
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -58,9 +58,8 @@ impl DerefMut for Listener {
     }
 }
 
-impl Listener {
-    /// Returns type UUID.
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for Listener {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("2c7dabc1-5666-4256-b020-01532701e4c6").unwrap()
     }
 }

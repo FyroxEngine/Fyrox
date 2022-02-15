@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Sprite`].
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         color::Color,
@@ -107,12 +108,13 @@ impl Default for Sprite {
     }
 }
 
-impl Sprite {
-    /// Returns type UUID.
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for Sprite {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("60fd7e34-46c1-4ae9-8803-1f5f4c341518").unwrap()
     }
+}
 
+impl Sprite {
     /// Sets new size of sprite. Since sprite is always square, size defines half of width or height, so actual size
     /// will be doubled. Default value is 0.2.    
     ///

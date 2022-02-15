@@ -14,6 +14,7 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -328,12 +329,13 @@ impl Default for Camera {
     }
 }
 
-impl Camera {
-    /// Returns type UUID.
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for Camera {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("198d3aca-433c-4ce1-bb25-3190699b757f").unwrap()
     }
+}
 
+impl Camera {
     /// Explicitly calculates view and projection matrices. Normally, you should not call
     /// this method, it will be called automatically when new frame starts.
     #[inline]

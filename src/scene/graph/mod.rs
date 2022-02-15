@@ -22,46 +22,30 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::camera::Camera;
-use crate::scene::decal::Decal;
-use crate::scene::dim2::rectangle::Rectangle;
-use crate::scene::light::directional::DirectionalLight;
-use crate::scene::light::point::PointLight;
-use crate::scene::light::spot::SpotLight;
-use crate::scene::mesh::Mesh;
-use crate::scene::node::{SyncContext, UpdateContext};
-use crate::scene::particle_system::ParticleSystem;
-use crate::scene::pivot::Pivot;
-use crate::scene::sound::listener::Listener;
-use crate::scene::sound::Sound;
-use crate::scene::sprite::Sprite;
-use crate::scene::terrain::Terrain;
 use crate::{
     asset::ResourceState,
-    core::instant,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
+        instant,
         math::Matrix4Ext,
         pool::{Handle, Pool, Ticket},
         visitor::{Visit, VisitResult, Visitor},
     },
     resource::model::{Model, NodeMapping},
-    scene,
     scene::{
-        dim2,
+        self,
+        camera::Camera,
+        dim2::{self},
         graph::physics::{PhysicsPerformanceStatistics, PhysicsWorld},
-        node::Node,
+        mesh::Mesh,
+        node::{container::NodeContainer, Node, SyncContext, UpdateContext},
+        pivot::Pivot,
         sound::context::SoundContext,
         transform::TransformBuilder,
     },
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
-use fyrox_core::parking_lot::Mutex;
-use fyrox_core::pool::PayloadContainer;
-use fyrox_core::uuid::Uuid;
-use fyrox_core::visitor::VisitError;
-use lazy_static::lazy_static;
 use rapier3d::geometry::ColliderHandle;
 use std::{
     fmt::Debug,
@@ -104,262 +88,7 @@ impl GraphPerformanceStatistics {
     }
 }
 
-pub type NodeConstructor = Box<dyn FnMut() -> Node + Send>;
-
-#[derive(Default)]
-pub struct NodeConstructorContainer {
-    map: Mutex<FxHashMap<Uuid, NodeConstructor>>,
-}
-
-impl NodeConstructorContainer {
-    pub fn add(&self, type_uuid: Uuid, constructor: NodeConstructor) {
-        self.map.lock().insert(type_uuid, constructor);
-    }
-
-    pub fn remove(&self, type_uuid: Uuid) {
-        self.map.lock().remove(&type_uuid);
-    }
-}
-
-lazy_static! {
-    static ref NODE_CONSTRUCTORS: NodeConstructorContainer = {
-        let container = NodeConstructorContainer::default();
-
-        container.add(
-            dim2::collider::Collider::type_uuid(),
-            Box::new(|| Node::new(dim2::collider::Collider::default())),
-        );
-
-        container.add(
-            dim2::joint::Joint::type_uuid(),
-            Box::new(|| Node::new(dim2::joint::Joint::default())),
-        );
-
-        container.add(
-            Rectangle::type_uuid(),
-            Box::new(|| Node::new(Rectangle::default())),
-        );
-
-        container.add(
-            dim2::rigidbody::RigidBody::type_uuid(),
-            Box::new(|| Node::new(dim2::rigidbody::RigidBody::default())),
-        );
-
-        container.add(
-            DirectionalLight::type_uuid(),
-            Box::new(|| Node::new(DirectionalLight::default())),
-        );
-
-        container.add(
-            PointLight::type_uuid(),
-            Box::new(|| Node::new(PointLight::default())),
-        );
-
-        container.add(
-            SpotLight::type_uuid(),
-            Box::new(|| Node::new(SpotLight::default())),
-        );
-
-        container.add(Mesh::type_uuid(), Box::new(|| Node::new(Mesh::default())));
-
-        container.add(
-            ParticleSystem::type_uuid(),
-            Box::new(|| Node::new(ParticleSystem::default())),
-        );
-
-        container.add(Sound::type_uuid(), Box::new(|| Node::new(Sound::default())));
-
-        container.add(
-            Listener::type_uuid(),
-            Box::new(|| Node::new(Listener::default())),
-        );
-
-        container.add(
-            Camera::type_uuid(),
-            Box::new(|| Node::new(Camera::default())),
-        );
-
-        container.add(
-            scene::collider::Collider::type_uuid(),
-            Box::new(|| Node::new(scene::collider::Collider::default())),
-        );
-
-        container.add(Decal::type_uuid(), Box::new(|| Node::new(Decal::default())));
-
-        container.add(
-            scene::joint::Joint::type_uuid(),
-            Box::new(|| Node::new(scene::joint::Joint::default())),
-        );
-
-        container.add(Pivot::type_uuid(), Box::new(|| Node::new(Pivot::default())));
-
-        container.add(
-            scene::rigidbody::RigidBody::type_uuid(),
-            Box::new(|| Node::new(scene::rigidbody::RigidBody::default())),
-        );
-
-        container.add(
-            Sprite::type_uuid(),
-            Box::new(|| Node::new(Sprite::default())),
-        );
-
-        container.add(
-            Terrain::type_uuid(),
-            Box::new(|| Node::new(Terrain::default())),
-        );
-
-        container
-    };
-}
-
-#[derive(Debug, Default)]
-pub struct NodeContainer(Option<Node>);
-
-fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
-    let node = {
-        // Handle legacy nodes.
-        let mut kind_id = 0u8;
-        if kind_id.visit("KindId", visitor).is_ok() {
-            let mut node = match kind_id {
-                0 => Node::new(Pivot::default()),
-                1 => {
-                    visitor.enter_region(name)?;
-
-                    let mut light_id = 0u32;
-                    light_id.visit("KindId", visitor)?;
-
-                    let mut light_node = match light_id {
-                        0 => Node::new(SpotLight::default()),
-                        1 => Node::new(PointLight::default()),
-                        2 => Node::new(DirectionalLight::default()),
-                        _ => {
-                            return Err(VisitError::User(format!(
-                                "Invalid legacy light kind {}",
-                                light_id
-                            )))
-                        }
-                    };
-
-                    light_node.visit("Data", visitor)?;
-
-                    visitor.leave_region()?;
-
-                    return Ok(light_node);
-                }
-                2 => Node::new(Camera::default()),
-                3 => Node::new(Mesh::default()),
-                4 => Node::new(Sprite::default()),
-                5 => Node::new(ParticleSystem::default()),
-                6 => Node::new(Terrain::default()),
-                7 => Node::new(Decal::default()),
-                8 => Node::new(scene::rigidbody::RigidBody::default()),
-                9 => Node::new(scene::collider::Collider::default()),
-                10 => Node::new(scene::joint::Joint::default()),
-                11 => Node::new(Rectangle::default()),
-                12 => Node::new(dim2::rigidbody::RigidBody::default()),
-                13 => Node::new(dim2::collider::Collider::default()),
-                14 => Node::new(dim2::joint::Joint::default()),
-                15 => Node::new(Sound::default()),
-                16 => Node::new(Listener::default()),
-                _ => {
-                    return Err(VisitError::User(format!(
-                        "Invalid legacy node kind {}",
-                        kind_id
-                    )))
-                }
-            };
-
-            node.visit(name, visitor)?;
-
-            node
-        } else {
-            // Latest version
-            visitor.enter_region(name)?;
-
-            let mut id = Uuid::default();
-            id.visit("TypeUuid", visitor)?;
-
-            let mut node = NODE_CONSTRUCTORS
-                .map
-                .lock()
-                .get_mut(&id)
-                .map(|c| (c)())
-                .ok_or_else(|| VisitError::User(format!("Unknown node type uuid {}!", id)))?;
-
-            node.visit("NodeData", visitor)?;
-
-            visitor.leave_region()?;
-
-            node
-        }
-    };
-
-    Ok(node)
-}
-
-fn write_node(name: &str, node: &mut Node, visitor: &mut Visitor) -> VisitResult {
-    visitor.enter_region(name)?;
-
-    let mut id = node.id();
-    id.visit("TypeUuid", visitor)?;
-
-    node.visit("NodeData", visitor)?;
-
-    visitor.leave_region()
-}
-
-impl Visit for NodeContainer {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let mut is_some = if self.is_some() { 1u8 } else { 0u8 };
-        is_some.visit("IsSome", visitor)?;
-
-        if is_some != 0 {
-            if visitor.is_reading() {
-                *self = NodeContainer(Some(read_node("Data", visitor)?));
-            } else {
-                write_node("Data", self.0.as_mut().unwrap(), visitor)?;
-            }
-        }
-
-        visitor.leave_region()?;
-        Ok(())
-    }
-}
-
-impl PayloadContainer for NodeContainer {
-    type Element = Node;
-
-    fn new_empty() -> Self {
-        Self(None)
-    }
-
-    fn new(element: Self::Element) -> Self {
-        Self(Some(element))
-    }
-
-    fn is_some(&self) -> bool {
-        self.0.is_some()
-    }
-
-    fn as_ref(&self) -> Option<&Self::Element> {
-        self.0.as_ref()
-    }
-
-    fn as_mut(&mut self) -> Option<&mut Self::Element> {
-        self.0.as_mut()
-    }
-
-    fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
-        self.0.replace(element)
-    }
-
-    fn take(&mut self) -> Option<Self::Element> {
-        self.0.take()
-    }
-}
-
+/// A helper type alias for node pool.
 pub type NodePool = Pool<Node, NodeContainer>;
 
 /// See module docs.

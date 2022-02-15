@@ -1,6 +1,6 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
-use crate::scene::node::{NodeTrait, SyncContext};
+use crate::scene::node::{NodeTrait, SyncContext, TypeUuidProvider};
 use crate::utils::log::Log;
 use crate::{
     core::{
@@ -214,12 +214,13 @@ impl Clone for Joint {
     }
 }
 
-impl Joint {
-    /// Returns type UUID.
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for Joint {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("b8d66eda-b69f-4c57-80ba-d76665573565").unwrap()
     }
+}
 
+impl Joint {
     /// Returns a shared reference to the current joint parameters.
     pub fn params(&self) -> &JointParams {
         &self.params

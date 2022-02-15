@@ -1,3 +1,4 @@
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -39,8 +40,8 @@ impl Deref for Pivot {
     }
 }
 
-impl Pivot {
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for Pivot {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("dd2ecb96-b1f4-4ee0-943b-2a4d1844e3bb").unwrap()
     }
 }

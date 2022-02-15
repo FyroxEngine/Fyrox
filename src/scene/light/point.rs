@@ -17,6 +17,7 @@
 //! can easily ruin performance of your game, especially on low-end hardware. Light
 //! scattering is relatively heavy too.
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -73,11 +74,13 @@ impl DerefMut for PointLight {
     }
 }
 
-impl PointLight {
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for PointLight {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("c81dcc31-7cb9-465f-abd9-b385ac6f4d37").unwrap()
     }
+}
 
+impl PointLight {
     pub fn base_light_ref(&self) -> &BaseLight {
         &self.base_light
     }

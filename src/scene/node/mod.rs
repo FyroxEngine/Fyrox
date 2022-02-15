@@ -37,6 +37,13 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+pub mod constructor;
+pub mod container;
+
+pub trait TypeUuidProvider: Sized {
+    fn type_uuid() -> Uuid;
+}
+
 /// A set of useful methods that is possible to auto-implement.
 pub trait BaseNodeTrait: Any + Debug + Deref<Target = Base> + DerefMut + Send {
     /// This method creates raw copy of a node, it should never be called in normal circumstances

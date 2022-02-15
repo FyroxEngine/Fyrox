@@ -22,6 +22,7 @@
 //! Light scattering feature may significantly impact performance on low-end
 //! hardware!
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -109,11 +110,13 @@ impl Default for SpotLight {
     }
 }
 
-impl SpotLight {
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for SpotLight {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("9856a3c1-ced7-47ec-b682-4dc4dea89d8f").unwrap()
     }
+}
 
+impl SpotLight {
     pub fn base_light_ref(&self) -> &BaseLight {
         &self.base_light
     }

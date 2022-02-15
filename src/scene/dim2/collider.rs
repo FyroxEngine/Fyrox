@@ -1,7 +1,7 @@
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
 
-use crate::scene::node::{NodeTrait, SyncContext};
+use crate::scene::node::{NodeTrait, SyncContext, TypeUuidProvider};
 use crate::utils::log::Log;
 use crate::{
     core::{
@@ -341,12 +341,13 @@ impl Clone for Collider {
     }
 }
 
-impl Collider {
-    /// Returns type UUID.
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for Collider {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("2b1659ea-a116-4224-bcd4-7931e3ae3b40").unwrap()
     }
+}
 
+impl Collider {
     /// Sets the new shape to the collider.
     ///
     /// # Performance

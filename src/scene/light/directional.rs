@@ -7,6 +7,7 @@
 //! Current directional light does *not* support shadows, it is still
 //! on list of features that should be implemented.
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -141,11 +142,13 @@ impl DerefMut for DirectionalLight {
     }
 }
 
-impl DirectionalLight {
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for DirectionalLight {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("8b8248e1-1cdf-42a3-9abe-0691de82c519").unwrap()
     }
+}
 
+impl DirectionalLight {
     pub fn base_light_ref(&self) -> &BaseLight {
         &self.base_light
     }

@@ -70,6 +70,7 @@
 //! }
 //! ```
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
@@ -197,12 +198,13 @@ impl DerefMut for ParticleSystem {
     }
 }
 
-impl ParticleSystem {
-    /// Returns type UUID.
-    pub fn type_uuid() -> Uuid {
+impl TypeUuidProvider for ParticleSystem {
+    fn type_uuid() -> Uuid {
         Uuid::from_str("8b210eff-97a4-494f-ba7a-a581d3f4a442").unwrap()
     }
+}
 
+impl ParticleSystem {
     /// Returns current acceleration for particles in particle system.
     pub fn acceleration(&self) -> Vector3<f32> {
         *self.acceleration
