@@ -848,34 +848,35 @@ impl Graph {
         self.sound_context.update(&self.pool);
         self.performance_statistics.sound_update_time = self.sound_context.full_render_duration();
 
-        let mut update_context = UpdateContext {
-            frame_size,
-            dt,
-            // SAFETY: There multiple reasons why this is safe to get immutable reference to nodes
-            // along with mutable reference:
-            //
-            // 1) `Pool` uses indexes to reference data, any internal buffer reallocation in the
-            //    pool will **not** invalidate anything.
-            // 2) Internal pool reallocation is not possible, because use it for mutable iteration,
-            //    and does **not** allow any other code to call dangerous methods, because second
-            //    reference is immutable.
-            // 3) `Pool::free` does not cause any memory reallocation, so pointers in pool iterators
-            //    will be valid.
-            // 4) There is no multithreading in update calls, so no data races.
-            nodes: unsafe { &(*(self as *const Graph)).pool },
-            physics: &mut self.physics,
-            physics2d: &mut self.physics2d,
-            sound_context: &mut self.sound_context,
-        };
-
         for i in 0..self.pool.get_capacity() {
+            let mut update_context = UpdateContext {
+                frame_size,
+                dt,
+                // SAFETY: There multiple reasons why this is safe to get immutable reference to nodes
+                // along with mutable reference:
+                //
+                // 1) `Pool` uses indexes to reference data, any internal buffer reallocation in the
+                //    pool will **not** invalidate anything.
+                // 2) Internal pool reallocation is not possible, because use it for mutable iteration,
+                //    and does **not** allow any other code to call dangerous methods, because second
+                //    reference is immutable.
+                // 3) `Pool::free` does not cause any memory reallocation, so pointers in pool iterators
+                //    will be valid.
+                // 4) There is no multithreading in update calls, so no data races.
+                nodes: unsafe { &(*(self as *const Graph)).pool },
+                physics: &mut self.physics,
+                physics2d: &mut self.physics2d,
+                sound_context: &mut self.sound_context,
+            };
+
+            let handle = self.pool.handle_from_index(i);
             if let Some(node) = self.pool.at_mut(i) {
                 node.transform_modified.set(false);
 
                 let is_alive = node.update(&mut update_context);
 
                 if !is_alive {
-                    self.pool.free(self.pool.handle_from_index(i));
+                    self.remove_node(handle);
                 }
             }
         }
