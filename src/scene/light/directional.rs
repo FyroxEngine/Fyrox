@@ -149,10 +149,12 @@ impl TypeUuidProvider for DirectionalLight {
 }
 
 impl DirectionalLight {
+    /// Returns a reference to base light.
     pub fn base_light_ref(&self) -> &BaseLight {
         &self.base_light
     }
 
+    /// Returns a reference to base light.
     pub fn base_light_mut(&mut self) -> &mut BaseLight {
         &mut self.base_light
     }

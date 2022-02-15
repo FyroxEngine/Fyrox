@@ -1,4 +1,4 @@
-use crate::scene::node::TypeUuidProvider;
+//! A simplest possible node which represents point in space.
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -11,7 +11,7 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait},
+        node::{Node, NodeTrait, TypeUuidProvider},
         variable::InheritError,
     },
 };
@@ -21,6 +21,7 @@ use std::{
     str::FromStr,
 };
 
+/// A simplest possible node which represents point in space.
 #[derive(Clone, Inspect, Default, Debug)]
 pub struct Pivot {
     base: Base,
@@ -84,21 +85,25 @@ impl NodeTrait for Pivot {
     }
 }
 
+/// Allows you to create pivot node in declarative manner.
 pub struct PivotBuilder {
     base_builder: BaseBuilder,
 }
 
 impl PivotBuilder {
+    /// Creates new pivot builder.
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self { base_builder }
     }
 
+    /// Creates new Pivot node.
     pub fn build_node(self) -> Node {
         Node::new(Pivot {
             base: self.base_builder.build_base(),
         })
     }
 
+    /// Creates new Pivot node and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
     }

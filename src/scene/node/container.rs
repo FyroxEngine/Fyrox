@@ -1,3 +1,6 @@
+//! A wrapper for node pool record that allows to define custom visit method to have full
+//! control over instantiation process at deserialization.
+
 use crate::{
     core::{
         pool::PayloadContainer,
@@ -20,6 +23,8 @@ use crate::{
     },
 };
 
+/// A wrapper for node pool record that allows to define custom visit method to have full
+/// control over instantiation process at deserialization.
 #[derive(Debug, Default)]
 pub struct NodeContainer(Option<Node>);
 

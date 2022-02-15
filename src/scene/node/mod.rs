@@ -40,7 +40,9 @@ use std::{
 pub mod constructor;
 pub mod container;
 
+/// A trait for an entity that has unique type identifier.
 pub trait TypeUuidProvider: Sized {
+    /// Return type UUID.
     fn type_uuid() -> Uuid;
 }
 
@@ -103,6 +105,8 @@ pub struct UpdateContext<'a> {
     pub sound_context: &'a mut SoundContext,
 }
 
+/// Implements [`NodeTrait::query_component_ref`] and [`NodeTrait::query_component_mut`] in a much
+/// shorter way.
 #[macro_export]
 macro_rules! impl_query_component {
     ($($comp_field:ident: $comp_type:ty),*) => {
@@ -139,6 +143,7 @@ macro_rules! impl_query_component {
     };
 }
 
+/// A main trait for any scene graph node.
 pub trait NodeTrait: BaseNodeTrait + Inspect + Visit {
     /// Allows a node to provide access to inner components.
     fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any>;
