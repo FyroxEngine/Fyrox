@@ -1,3 +1,5 @@
+//! Texture loader. 
+
 use crate::{
     core::instant,
     engine::resource_manager::{
@@ -9,18 +11,17 @@ use crate::{
     utils::log::Log,
 };
 
+/// Default implementation for texture loading.
 pub struct TextureLoader;
 
 impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
-    type Output = BoxedLoaderFuture;
-
     fn load(
-        &mut self,
+        &self,
         texture: Texture,
         default_import_options: TextureImportOptions,
         event_broadcaster: ResourceEventBroadcaster<Texture>,
         reload: bool,
-    ) -> Self::Output {
+    ) -> BoxedLoaderFuture {
         Box::pin(async move {
             let path = texture.state().path().to_path_buf();
 

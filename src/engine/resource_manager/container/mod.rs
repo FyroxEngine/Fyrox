@@ -29,30 +29,31 @@ pub(crate) trait Container {
 /// track resources life time and remove unused timed-out resources. It also provides useful
 /// methods to search resources, count loaded or pending, wait until all resources are loading,
 /// etc.
-pub struct ResourceContainer<T, O, L>
+pub struct ResourceContainer<T, O>
 where
     T: Clone + 'static,
     O: ImportOptions,
-    L: ResourceLoader<T, O>,
 {
     resources: Vec<TimedEntry<T>>,
     default_import_options: O,
     task_pool: Arc<TaskPool>,
-    loader: L,
+    loader: Box<dyn ResourceLoader<T, O>>,
 
     /// Event broadcaster can be used to "subscribe" for events happening inside the container.    
     pub event_broadcaster: ResourceEventBroadcaster<T>,
 }
 
-impl<T, R, E, O, L> ResourceContainer<T, O, L>
+impl<T, R, E, O> ResourceContainer<T, O>
 where
     T: Deref<Target = Resource<R, E>> + Clone + Send + Future + From<Resource<R, E>> + 'static,
     R: ResourceData,
     E: ResourceLoadError,
     O: ImportOptions,
-    L: ResourceLoader<T, O>,
 {
-    pub(crate) fn new(task_pool: Arc<TaskPool>, loader: L) -> Self {
+    pub(crate) fn new(
+        task_pool: Arc<TaskPool>,
+        loader: Box<dyn ResourceLoader<T, O>>,
+    ) -> Self {
         Self {
             resources: Default::default(),
             default_import_options: Default::default(),
@@ -60,6 +61,14 @@ where
             loader,
             event_broadcaster: ResourceEventBroadcaster::new(),
         }
+    }
+
+    /// Sets the loader to load resources with.
+    pub fn set_loader<L>(&mut self, loader: L)
+    where
+        L: 'static + ResourceLoader<T, O>,
+    {
+        self.loader = Box::new(loader);
     }
 
     /// Adds a new resource in the container.
@@ -289,13 +298,12 @@ where
     }
 }
 
-impl<T, R, E, O, L> Container for ResourceContainer<T, O, L>
+impl<T, R, E, O> Container for ResourceContainer<T, O>
 where
     T: Deref<Target = Resource<R, E>> + Clone + Send + Future + From<Resource<R, E>>,
     R: ResourceData,
     E: ResourceLoadError,
     O: ImportOptions,
-    L: ResourceLoader<T, O>,
 {
     fn try_reload_resource_from_path(&mut self, path: &Path) -> bool {
         if let Some(resource) = self.find(path).cloned() {

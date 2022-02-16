@@ -1,3 +1,5 @@
+//! Shader loader. 
+
 use crate::{
     engine::resource_manager::{
         container::event::ResourceEventBroadcaster,
@@ -7,18 +9,17 @@ use crate::{
     utils::log::Log,
 };
 
+/// Default implementation for shader loading.
 pub struct ShaderLoader;
 
 impl ResourceLoader<Shader, ShaderImportOptions> for ShaderLoader {
-    type Output = BoxedLoaderFuture;
-
     fn load(
-        &mut self,
+        &self,
         shader: Shader,
         _default_import_options: ShaderImportOptions,
         event_broadcaster: ResourceEventBroadcaster<Shader>,
         reload: bool,
-    ) -> Self::Output {
+    ) -> BoxedLoaderFuture {
         Box::pin(async move {
             let path = shader.state().path().to_path_buf();
 
