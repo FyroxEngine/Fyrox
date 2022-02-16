@@ -1,6 +1,7 @@
 #![warn(clippy::too_many_arguments)]
 
 use crate::core::math::frustum::Frustum;
+use crate::renderer::batch::{SurfaceInstance, SurfaceInstanceFlags};
 use crate::scene::mesh::Mesh;
 use crate::scene::node::Node;
 use crate::scene::terrain::Terrain;
@@ -18,18 +19,15 @@ pub fn cascade_size(base_size: usize, cascade: usize) -> usize {
     }
 }
 
-fn should_cast_shadows(node: &Node, light_frustum: &Frustum) -> bool {
-    node.global_visibility() && {
-        if let Some(mesh) = node.cast::<Mesh>() {
-            mesh.cast_shadows()
-                && (!mesh.frustum_culling()
-                    || light_frustum.is_intersects_aabb(&mesh.world_bounding_box()))
-        } else if let Some(terrain) = node.cast::<Terrain>() {
-            terrain.cast_shadows()
-                && (!terrain.frustum_culling()
-                    || light_frustum.is_intersects_aabb(&terrain.world_bounding_box()))
-        } else {
-            false
-        }
-    }
+fn should_cast_shadows(surface_instance: &SurfaceInstance, light_frustum: &Frustum) -> bool {
+    surface_instance
+        .flags
+        .contains(SurfaceInstanceFlags::IS_VISIBLE)
+        && surface_instance
+            .flags
+            .contains(SurfaceInstanceFlags::CAST_SHADOWS)
+        && (!surface_instance
+            .flags
+            .contains(SurfaceInstanceFlags::FRUSTUM_CULLING)
+            || light_frustum.is_intersects_aabb(&surface_instance.world_aabb))
 }

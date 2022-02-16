@@ -151,9 +151,7 @@ impl SpotShadowMapRenderer {
                 .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
             {
                 for instance in batch.instances.iter() {
-                    let node = &graph[instance.owner];
-
-                    if should_cast_shadows(node, &frustum) {
+                    if should_cast_shadows(instance, &frustum) {
                         statistics += framebuffer.draw(
                             geometry,
                             state,

@@ -263,9 +263,6 @@ pub struct Terrain {
     #[inspect(getter = "Deref::deref")]
     decal_layer_index: TemplateVariable<u8>,
 
-    #[inspect(getter = "Deref::deref")]
-    cast_shadows: TemplateVariable<bool>,
-
     #[inspect(read_only)]
     width: f32,
     #[inspect(read_only)]
@@ -288,8 +285,7 @@ pub struct Terrain {
 
 impl_directly_inheritable_entity_trait!(Terrain;
     layers,
-    decal_layer_index,
-    cast_shadows
+    decal_layer_index
 );
 
 impl Deref for Terrain {
@@ -365,16 +361,6 @@ impl Terrain {
     /// Returns current decal index.
     pub fn decal_layer_index(&self) -> u8 {
         *self.decal_layer_index
-    }
-
-    /// Returns true if terrain should cast shadows.
-    pub fn cast_shadows(&self) -> bool {
-        *self.cast_shadows
-    }
-
-    /// Sets whether terrain should cast shadows or not.
-    pub fn set_cast_shadows(&mut self, value: bool) {
-        self.cast_shadows.set(value);
     }
 
     /// Projects given 3D point on the surface of terrain and returns 2D vector
@@ -781,7 +767,6 @@ pub struct TerrainBuilder {
     height_map_resolution: f32,
     layers: Vec<LayerDefinition>,
     decal_layer_index: u8,
-    cast_shadows: bool,
 }
 
 fn make_divisible_by_2(n: u32) -> u32 {
@@ -831,7 +816,6 @@ impl TerrainBuilder {
             height_map_resolution: 8.0,
             layers: Default::default(),
             decal_layer_index: 0,
-            cast_shadows: true,
         }
     }
 
@@ -886,12 +870,6 @@ impl TerrainBuilder {
     /// Sets desired decal layer index.
     pub fn with_decal_layer_index(mut self, decal_layer_index: u8) -> Self {
         self.decal_layer_index = decal_layer_index;
-        self
-    }
-
-    /// Sets whether terrain should cast shadows or not.
-    pub fn with_cast_shadows(mut self, value: bool) -> Self {
-        self.cast_shadows = value;
         self
     }
 
@@ -956,7 +934,6 @@ impl TerrainBuilder {
             width_chunks: self.width_chunks as u32,
             length_chunks: self.length_chunks as u32,
             decal_layer_index: self.decal_layer_index.into(),
-            cast_shadows: self.cast_shadows.into(),
         };
 
         Node::new(terrain)

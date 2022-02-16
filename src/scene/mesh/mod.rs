@@ -98,9 +98,6 @@ pub struct Mesh {
     surfaces: TemplateVariable<Vec<Surface>>,
 
     #[inspect(getter = "Deref::deref")]
-    cast_shadows: TemplateVariable<bool>,
-
-    #[inspect(getter = "Deref::deref")]
     #[visit(optional)]
     render_path: TemplateVariable<RenderPath>,
 
@@ -122,7 +119,6 @@ pub struct Mesh {
 
 impl_directly_inheritable_entity_trait!(Mesh;
     surfaces,
-    cast_shadows,
     render_path,
     decal_layer_index
 );
@@ -138,7 +134,6 @@ impl Default for Mesh {
             local_bounding_box: Default::default(),
             world_bounding_box: Default::default(),
             local_bounding_box_dirty: Cell::new(true),
-            cast_shadows: TemplateVariable::new(true),
             render_path: TemplateVariable::new(RenderPath::Deferred),
             decal_layer_index: TemplateVariable::new(0),
         }
@@ -190,18 +185,6 @@ impl Mesh {
     pub fn add_surface(&mut self, surface: Surface) {
         self.surfaces.get_mut().push(surface);
         self.local_bounding_box_dirty.set(true);
-    }
-
-    /// Returns true if mesh should cast shadows, false - otherwise.
-    #[inline]
-    pub fn cast_shadows(&self) -> bool {
-        *self.cast_shadows
-    }
-
-    /// Sets whether mesh should cast shadows or not.
-    #[inline]
-    pub fn set_cast_shadows(&mut self, cast_shadows: bool) {
-        self.cast_shadows.set(cast_shadows);
     }
 
     /// Sets new render path for the mesh.
@@ -378,7 +361,6 @@ impl NodeTrait for Mesh {
 pub struct MeshBuilder {
     base_builder: BaseBuilder,
     surfaces: Vec<Surface>,
-    cast_shadows: bool,
     render_path: RenderPath,
     decal_layer_index: u8,
 }
@@ -389,7 +371,6 @@ impl MeshBuilder {
         Self {
             base_builder,
             surfaces: Default::default(),
-            cast_shadows: true,
             render_path: RenderPath::Deferred,
             decal_layer_index: 0,
         }
@@ -398,12 +379,6 @@ impl MeshBuilder {
     /// Sets desired surfaces for mesh.
     pub fn with_surfaces(mut self, surfaces: Vec<Surface>) -> Self {
         self.surfaces = surfaces;
-        self
-    }
-
-    /// Sets whether mesh should cast shadows or not.
-    pub fn with_cast_shadows(mut self, cast_shadows: bool) -> Self {
-        self.cast_shadows = cast_shadows;
         self
     }
 
@@ -424,7 +399,6 @@ impl MeshBuilder {
     pub fn build_node(self) -> Node {
         Node::new(Mesh {
             base: self.base_builder.build_base(),
-            cast_shadows: self.cast_shadows.into(),
             surfaces: self.surfaces.into(),
             local_bounding_box: Default::default(),
             local_bounding_box_dirty: Cell::new(true),

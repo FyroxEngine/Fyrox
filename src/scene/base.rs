@@ -307,6 +307,9 @@ pub struct Base {
     #[inspect(getter = "Deref::deref")]
     tag: TemplateVariable<String>,
 
+    #[inspect(getter = "Deref::deref")]
+    cast_shadows: TemplateVariable<bool>,
+
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
     #[inspect(getter = "Deref::deref")]
@@ -382,6 +385,7 @@ impl Clone for Base {
             properties: self.properties.clone(),
             frustum_culling: self.frustum_culling.clone(),
             depth_offset: self.depth_offset.clone(),
+            cast_shadows: self.cast_shadows.clone(),
 
             // Rest of data is *not* copied!
             parent: Default::default(),
@@ -632,6 +636,18 @@ impl Base {
         self.frustum_culling.set(frustum_culling);
     }
 
+    /// Returns true if the node should cast shadows, false - otherwise.
+    #[inline]
+    pub fn cast_shadows(&self) -> bool {
+        *self.cast_shadows
+    }
+
+    /// Sets whether the mesh should cast shadows or not.
+    #[inline]
+    pub fn set_cast_shadows(&mut self, cast_shadows: bool) {
+        self.cast_shadows.set(cast_shadows);
+    }
+
     /// Updates node lifetime and returns true if the node is still alive, false - otherwise.
     pub(crate) fn update_lifetime(&mut self, dt: f32) -> bool {
         if let Some(lifetime) = self.lifetime.get_mut_silent().as_mut() {
@@ -723,6 +739,7 @@ impl Visit for Base {
         self.tag.visit("Tag", visitor)?;
         let _ = self.properties.visit("Properties", visitor);
         let _ = self.frustum_culling.visit("FrustumCulling", visitor);
+        let _ = self.cast_shadows.visit("CastShadows", visitor);
 
         visitor.leave_region()
     }
@@ -741,6 +758,7 @@ pub struct BaseBuilder {
     inv_bind_pose_transform: Matrix4<f32>,
     tag: String,
     frustum_culling: bool,
+    cast_shadows: bool,
 }
 
 impl Default for BaseBuilder {
@@ -764,6 +782,7 @@ impl BaseBuilder {
             inv_bind_pose_transform: Matrix4::identity(),
             tag: Default::default(),
             frustum_culling: true,
+            cast_shadows: true,
         }
     }
 
@@ -840,6 +859,12 @@ impl BaseBuilder {
         self
     }
 
+    /// Sets whether mesh should cast shadows or not.
+    pub fn with_cast_shadows(mut self, cast_shadows: bool) -> Self {
+        self.cast_shadows = cast_shadows;
+        self
+    }
+
     /// Creates an instance of [`Base`].
     pub fn build_base(self) -> Base {
         Base {
@@ -862,6 +887,7 @@ impl BaseBuilder {
             properties: Default::default(),
             transform_modified: Cell::new(false),
             frustum_culling: self.frustum_culling.into(),
+            cast_shadows: self.cast_shadows.into(),
         }
     }
 }

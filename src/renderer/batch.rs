@@ -15,7 +15,9 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
+use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHasher};
+use fyrox_core::math::aabb::AxisAlignedBoundingBox;
 use std::{
     fmt::{Debug, Formatter},
     hash::Hasher,
@@ -25,12 +27,41 @@ use std::{
 /// Maximum amount of bone matrices per instance.
 pub const BONE_MATRICES_COUNT: usize = 64;
 
+bitflags! {
+    pub struct SurfaceInstanceFlags: u32 {
+        const NONE = 0;
+        const IS_VISIBLE = 0b0000_0001;
+        const CAST_SHADOWS = 0b0000_0010;
+        const FRUSTUM_CULLING = 0b0000_0100;
+    }
+}
+
+impl SurfaceInstanceFlags {
+    pub fn from_node(node: &Node) -> Self {
+        let mut flags = Self::NONE;
+
+        if node.cast_shadows() {
+            flags.insert(SurfaceInstanceFlags::CAST_SHADOWS);
+        }
+        if node.global_visibility() {
+            flags.insert(SurfaceInstanceFlags::IS_VISIBLE);
+        }
+        if node.frustum_culling() {
+            flags.insert(SurfaceInstanceFlags::FRUSTUM_CULLING);
+        }
+
+        flags
+    }
+}
+
 /// A set of data of a surface for rendering.  
 pub struct SurfaceInstance {
     /// A handle to an owner node.
     pub owner: Handle<Node>,
     /// A world matrix.
     pub world_transform: Matrix4<f32>,
+    pub flags: SurfaceInstanceFlags,
+    pub world_aabb: AxisAlignedBoundingBox,
     /// A set of bone matrices.
     pub bone_matrices: ArrayVec<Matrix4<f32>, BONE_MATRICES_COUNT>,
     /// A depth-hack value.
@@ -124,6 +155,8 @@ impl BatchStorage {
 
                     batch.instances.push(SurfaceInstance {
                         world_transform: world,
+                        flags: SurfaceInstanceFlags::from_node(node),
+                        world_aabb: node.world_bounding_box(),
                         bone_matrices: surface
                             .bones
                             .iter()
@@ -181,6 +214,8 @@ impl BatchStorage {
 
                                 batch.instances.push(SurfaceInstance {
                                     world_transform: terrain.global_transform(),
+                                    flags: SurfaceInstanceFlags::from_node(node),
+                                    world_aabb: terrain.world_bounding_box(),
                                     bone_matrices: Default::default(),
                                     owner: handle,
                                     depth_offset: terrain.depth_offset_factor(),
