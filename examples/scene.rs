@@ -80,7 +80,10 @@ fn main() {
         .with_title("Example - Scene")
         .with_resizable(true);
 
-    let mut engine = Engine::new(window_builder, &event_loop, true).unwrap();
+    let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
+
+    let mut engine =
+        Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
 
     // Create simple user interface that will show some useful info.
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());

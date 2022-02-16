@@ -1,3 +1,5 @@
+//! Sound buffer loader. 
+
 use crate::{
     core::inspect::{Inspect, PropertyInfo},
     engine::resource_manager::{
@@ -21,18 +23,17 @@ pub struct SoundBufferImportOptions {
 
 impl ImportOptions for SoundBufferImportOptions {}
 
+/// Default implementation for sound buffer loading.
 pub struct SoundBufferLoader;
 
 impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBufferLoader {
-    type Output = BoxedLoaderFuture;
-
     fn load(
-        &mut self,
+        &self,
         resource: SoundBufferResource,
         default_import_options: SoundBufferImportOptions,
         event_broadcaster: ResourceEventBroadcaster<SoundBufferResource>,
         reload: bool,
-    ) -> Self::Output {
+    ) -> BoxedLoaderFuture {
         Box::pin(async move {
             let path = resource.state().path().to_path_buf();
 
