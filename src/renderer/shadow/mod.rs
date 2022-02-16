@@ -2,9 +2,6 @@
 
 use crate::core::math::frustum::Frustum;
 use crate::renderer::batch::{SurfaceInstance, SurfaceInstanceFlags};
-use crate::scene::mesh::Mesh;
-use crate::scene::node::Node;
-use crate::scene::terrain::Terrain;
 
 pub mod csm;
 pub mod point;

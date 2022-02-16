@@ -1,7 +1,5 @@
 //! The module responsible for batch generation for rendering optimizations.
 
-use crate::scene::mesh::Mesh;
-use crate::scene::terrain::Terrain;
 use crate::{
     core::{
         algebra::Matrix4, arrayvec::ArrayVec, parking_lot::Mutex, pool::Handle, scope_profile,
@@ -10,8 +8,9 @@ use crate::{
     material::{Material, PropertyValue},
     scene::{
         graph::Graph,
-        mesh::{surface::SurfaceData, RenderPath},
+        mesh::{surface::SurfaceData, Mesh, RenderPath},
         node::Node,
+        terrain::Terrain,
     },
     utils::log::{Log, MessageKind},
 };
@@ -28,15 +27,22 @@ use std::{
 pub const BONE_MATRICES_COUNT: usize = 64;
 
 bitflags! {
+    /// A set of flags for surface instance. It is just a compact way for storing multiple boolean
+    /// flags.
     pub struct SurfaceInstanceFlags: u32 {
+        /// Empty flags.
         const NONE = 0;
+        /// Whether the instance is visible or not.
         const IS_VISIBLE = 0b0000_0001;
+        /// Whether the instance is able to cast shadows or not.
         const CAST_SHADOWS = 0b0000_0010;
+        /// Whether the isntance should use frustum culling or not.
         const FRUSTUM_CULLING = 0b0000_0100;
     }
 }
 
 impl SurfaceInstanceFlags {
+    /// Fills surface instance flags using node properties.
     pub fn from_node(node: &Node) -> Self {
         let mut flags = Self::NONE;
 
@@ -60,7 +66,9 @@ pub struct SurfaceInstance {
     pub owner: Handle<Node>,
     /// A world matrix.
     pub world_transform: Matrix4<f32>,
+    /// A set of flags for surface instance.
     pub flags: SurfaceInstanceFlags,
+    /// World space axis-aligned bounding box.
     pub world_aabb: AxisAlignedBoundingBox,
     /// A set of bone matrices.
     pub bone_matrices: ArrayVec<Matrix4<f32>, BONE_MATRICES_COUNT>,
@@ -70,6 +78,7 @@ pub struct SurfaceInstance {
 
 /// A set of surface instances that share the same vertex/index data and a material.
 pub struct Batch {
+    id: u64,
     /// A pointer to shared surface data.
     pub data: Arc<Mutex<SurfaceData>>,
     /// A set of instances.
@@ -100,7 +109,7 @@ impl Debug for Batch {
 /// rendering by reducing amount of state changes of OpenGL context.
 #[derive(Default)]
 pub struct BatchStorage {
-    buffers: Vec<Vec<SurfaceInstance>>,
+    buffers: FxHashMap<u64, Vec<SurfaceInstance>>,
     batch_map: FxHashMap<u64, usize>,
     /// Sorted list of batches.
     pub batches: Vec<Batch>,
@@ -112,7 +121,8 @@ impl BatchStorage {
 
         for batch in self.batches.iter_mut() {
             batch.instances.clear();
-            self.buffers.push(std::mem::take(&mut batch.instances));
+            self.buffers
+                .insert(batch.id, std::mem::take(&mut batch.instances));
         }
 
         self.batches.clear();
@@ -137,11 +147,16 @@ impl BatchStorage {
                     } else {
                         self.batch_map.insert(batch_id, self.batches.len());
                         self.batches.push(Batch {
+                            id: batch_id,
                             data,
                             // Batches from meshes will be sorted using materials.
                             // This will significantly reduce pipeline state changes.
                             sort_index: surface.material_id(),
-                            instances: self.buffers.pop().unwrap_or_default(),
+                            instances: self
+                                .buffers
+                                .remove_entry(&batch_id)
+                                .map(|(_, buf)| buf)
+                                .unwrap_or_default(),
                             material: surface.material().clone(),
                             is_skinned: !surface.bones.is_empty(),
                             render_path: mesh.render_path(),
@@ -198,8 +213,13 @@ impl BatchStorage {
                                 } else {
                                     self.batch_map.insert(key, self.batches.len());
                                     self.batches.push(Batch {
+                                        id: key,
                                         data: data.clone(),
-                                        instances: self.buffers.pop().unwrap_or_default(),
+                                        instances: self
+                                            .buffers
+                                            .remove_entry(&key)
+                                            .map(|(_, buf)| buf)
+                                            .unwrap_or_default(),
                                         material: material.clone(),
                                         is_skinned: false,
                                         render_path: RenderPath::Deferred,
@@ -236,7 +256,11 @@ impl BatchStorage {
         }
 
         for batch in self.batches.iter_mut() {
-            batch.instances.shrink_to_fit();
+            // We have to shrink instance storage if it has a lot of backing memory, to keep memory
+            // consumption at reasonable levels.
+            if batch.instances.capacity() >= 3 * batch.instances.len() {
+                batch.instances.shrink_to_fit();
+            }
         }
 
         self.batches.sort_unstable_by_key(|b| b.sort_index);

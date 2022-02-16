@@ -22,7 +22,6 @@ use crate::{
         shadow::{cascade_size, should_cast_shadows},
         GeometryCache, MaterialContext, RenderPassStatistics, ShadowMapPrecision,
     },
-    scene::graph::Graph,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -40,9 +39,8 @@ struct PointShadowCubeMapFace {
     up: Vector3<f32>,
 }
 
-pub(in crate) struct PointShadowMapRenderContext<'a, 'c> {
+pub(in crate) struct PointShadowMapRenderContext<'a> {
     pub state: &'a mut PipelineState,
-    pub graph: &'c Graph,
     pub light_pos: Vector3<f32>,
     pub light_radius: f32,
     pub geom_cache: &'a mut GeometryCache,
@@ -192,7 +190,6 @@ impl PointShadowMapRenderer {
 
         let PointShadowMapRenderContext {
             state,
-            graph,
             light_pos,
             light_radius,
             geom_cache,

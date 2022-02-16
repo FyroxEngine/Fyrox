@@ -520,7 +520,6 @@ impl DeferredLightRenderer {
 
                     pass_stats += self.spot_shadow_map_renderer.render(
                         state,
-                        &scene.graph,
                         &light_view_projection,
                         batch_storage,
                         geometry_cache,
@@ -538,7 +537,6 @@ impl DeferredLightRenderer {
                         self.point_shadow_map_renderer
                             .render(PointShadowMapRenderContext {
                                 state,
-                                graph: &scene.graph,
                                 light_pos: light_position,
                                 light_radius,
                                 geom_cache: geometry_cache,
