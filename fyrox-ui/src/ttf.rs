@@ -4,6 +4,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use std::{
+    borrow::Cow,
     fmt::{Debug, Formatter},
     ops::{Deref, Range},
     path::Path,
@@ -139,7 +140,7 @@ impl Font {
     }
 
     pub fn from_memory(
-        data: Vec<u8>,
+        data: impl Deref<Target = [u8]>,
         height: f32,
         char_set: &[Range<u32>],
     ) -> Result<Self, &'static str> {
@@ -292,5 +293,64 @@ impl Font {
                 println!("Insufficient atlas size!");
             }
         }
+    }
+}
+
+/// Font builder allows you to load fonts in declarative manner.
+pub struct FontBuilder<'a> {
+    height: Option<f32>,
+    char_set: Option<Cow<'a, [Range<u32>]>>,
+}
+impl<'a> FontBuilder<'a> {
+    const DEFAULT_HEIGHT: f32 = 16.0;
+
+    /// Creates a default FontBuilder.
+    pub fn new() -> Self {
+        Self {
+            height: None,
+            char_set: None,
+        }
+    }
+
+    /// Sets the desired font height for the produced font.
+    #[inline]
+    pub fn with_height(mut self, height: f32) -> Self {
+        self.height = Some(height);
+        self
+    }
+
+    /// Sets the desired character set for the produced font.
+    #[inline]
+    pub fn with_char_set(mut self, char_set: impl Into<Cow<'a, [Range<u32>]>>) -> Self {
+        self.char_set = Some(char_set.into());
+        self
+    }
+
+    /// Creates a new font from the data at the specified path.
+    pub async fn build_from_file(self, path: impl AsRef<Path>) -> Result<Font, &'static str> {
+        Font::from_file(path, self.height(), self.char_set()).await
+    }
+
+    /// Creates a new font from bytes in memory.
+    pub fn build_from_memory(self, data: impl Deref<Target = [u8]>) -> Result<Font, &'static str> {
+        Font::from_memory(data, self.height(), self.char_set())
+    }
+
+    /// Creates a new font using the built-in font face.
+    pub fn build_builtin(self) -> Result<Font, &'static str> {
+        let font_bytes = std::include_bytes!("./built_in_font.ttf").to_vec();
+        self.build_from_memory(font_bytes)
+    }
+
+    #[inline]
+    fn height(&self) -> f32 {
+        self.height.unwrap_or(Self::DEFAULT_HEIGHT)
+    }
+
+    #[inline]
+    fn char_set(&self) -> &[Range<u32>] {
+        self.char_set
+            .as_deref()
+            .unwrap_or_else(|| Font::default_char_set())
     }
 }
