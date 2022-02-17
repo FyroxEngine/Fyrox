@@ -467,6 +467,7 @@ define_swap_command! {
     SetLifetimeCommand(Option<f32>): lifetime, set_lifetime, "Set Lifetime";
     SetMobilityCommand(Mobility): mobility, set_mobility, "Set Mobility";
     SetDepthOffsetCommand(f32): depth_offset_factor, set_depth_offset_factor, "Set Depth Offset";
+    SetCastShadowsCommand(bool): cast_shadows, set_cast_shadows, "Set Cast Shadows";
 }
 
 define_node_command! {

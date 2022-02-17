@@ -95,12 +95,12 @@ impl BrushGizmo {
 
         let brush = MeshBuilder::new(
             BaseBuilder::new()
+                .with_cast_shadows(false)
                 .with_depth_offset(0.01)
                 .with_name("Brush")
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)
-        .with_cast_shadows(false)
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
             SurfaceData::make_quad(&Matrix4::identity()),
         )))

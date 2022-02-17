@@ -44,14 +44,16 @@ fn make_rotation_ribbon(
     name: &str,
 ) -> Handle<Node> {
     MeshBuilder::new(
-        BaseBuilder::new().with_name(name).with_local_transform(
-            TransformBuilder::new()
-                .with_local_rotation(rotation)
-                .build(),
-        ),
+        BaseBuilder::new()
+            .with_cast_shadows(false)
+            .with_name(name)
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_rotation(rotation)
+                    .build(),
+            ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_cast_shadows(false)
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
         SurfaceData::make_cylinder(
             30,
@@ -73,11 +75,11 @@ impl RotationGizmo {
 
         let origin = MeshBuilder::new(
             BaseBuilder::new()
+                .with_cast_shadows(false)
                 .with_name("Origin")
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)
-        .with_cast_shadows(false)
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
             SurfaceData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
         )))

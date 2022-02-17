@@ -64,7 +64,6 @@ impl ContainersStorage {
         self.textures.set_loader(loader);
     }
 
-
     /// Sets a custom model loader.
     pub fn set_model_loader<L>(&mut self, loader: L)
     where
@@ -130,6 +129,12 @@ impl From<TextureError> for TextureRegistrationError {
     }
 }
 
+impl Default for ResourceManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ResourceManager {
     /// Creates a resource manager with default settings and loaders.
     pub fn new() -> Self {
@@ -140,26 +145,16 @@ impl ResourceManager {
         let task_pool = Arc::new(TaskPool::new());
 
         resource_manager.state().containers_storage = Some(ContainersStorage {
-            textures: ResourceContainer::new(
-                task_pool.clone(),
-                Box::new(TextureLoader)
-            ),
+            textures: ResourceContainer::new(task_pool.clone(), Box::new(TextureLoader)),
             models: ResourceContainer::new(
                 task_pool.clone(),
-                Box::new(ModelLoader{ resource_manager: resource_manager.clone() }),
+                Box::new(ModelLoader {
+                    resource_manager: resource_manager.clone(),
+                }),
             ),
-            sound_buffers: ResourceContainer::new(
-                task_pool.clone(), 
-                Box::new(SoundBufferLoader)
-            ),
-            shaders: ResourceContainer::new(
-                task_pool.clone(),
-                Box::new(ShaderLoader),
-            ),
-            curves: ResourceContainer::new(
-                task_pool,
-                Box::new(CurveLoader),
-            ),
+            sound_buffers: ResourceContainer::new(task_pool.clone(), Box::new(SoundBufferLoader)),
+            shaders: ResourceContainer::new(task_pool.clone(), Box::new(ShaderLoader)),
+            curves: ResourceContainer::new(task_pool, Box::new(CurveLoader)),
         });
 
         resource_manager

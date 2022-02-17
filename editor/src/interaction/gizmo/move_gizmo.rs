@@ -50,9 +50,11 @@ fn make_move_axis(
     let arrow;
     let axis = MeshBuilder::new(
         BaseBuilder::new()
+            .with_cast_shadows(false)
             .with_children(&[{
                 arrow = MeshBuilder::new(
                     BaseBuilder::new()
+                        .with_cast_shadows(false)
                         .with_name(name_prefix.to_owned() + "Arrow")
                         .with_local_transform(
                             TransformBuilder::new()
@@ -61,7 +63,6 @@ fn make_move_axis(
                         ),
                 )
                 .with_render_path(RenderPath::Forward)
-                .with_cast_shadows(false)
                 .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
                     SurfaceData::make_cone(10, 0.05, 0.1, &Matrix4::identity()),
                 )))
@@ -78,7 +79,6 @@ fn make_move_axis(
             ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_cast_shadows(false)
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
         SurfaceData::make_cylinder(10, 0.015, 1.0, true, &Matrix4::identity()),
     )))
@@ -96,14 +96,16 @@ fn create_quad_plane(
     name: &str,
 ) -> Handle<Node> {
     MeshBuilder::new(
-        BaseBuilder::new().with_name(name).with_local_transform(
-            TransformBuilder::new()
-                .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
-                .build(),
-        ),
+        BaseBuilder::new()
+            .with_cast_shadows(false)
+            .with_name(name)
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
+                    .build(),
+            ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_cast_shadows(false)
     .with_surfaces(vec![{
         SurfaceBuilder::new(Arc::new(Mutex::new(SurfaceData::make_quad(
             &(transform

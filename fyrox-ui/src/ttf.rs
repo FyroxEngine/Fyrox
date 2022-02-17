@@ -348,6 +348,7 @@ impl<'a> FontBuilder<'a> {
     }
 
     #[inline]
+    #[allow(clippy::redundant_closure)]
     fn char_set(&self) -> &[Range<u32>] {
         self.char_set
             .as_deref()

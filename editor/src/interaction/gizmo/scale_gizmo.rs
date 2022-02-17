@@ -51,9 +51,11 @@ fn make_scale_axis(
     let arrow;
     let axis = MeshBuilder::new(
         BaseBuilder::new()
+            .with_cast_shadows(false)
             .with_children(&[{
                 arrow = MeshBuilder::new(
                     BaseBuilder::new()
+                        .with_cast_shadows(false)
                         .with_name(name_prefix.to_owned() + "Arrow")
                         .with_local_transform(
                             TransformBuilder::new()
@@ -62,7 +64,6 @@ fn make_scale_axis(
                         ),
                 )
                 .with_render_path(RenderPath::Forward)
-                .with_cast_shadows(false)
                 .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
                     SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                         0.1, 0.1, 0.1,
@@ -81,7 +82,6 @@ fn make_scale_axis(
             ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_cast_shadows(false)
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
         SurfaceData::make_cylinder(10, 0.015, 1.0, true, &Matrix4::identity()),
     )))
@@ -99,11 +99,11 @@ impl ScaleGizmo {
 
         let origin = MeshBuilder::new(
             BaseBuilder::new()
+                .with_cast_shadows(false)
                 .with_name("Origin")
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)
-        .with_cast_shadows(false)
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
             SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                 0.1, 0.1, 0.1,
