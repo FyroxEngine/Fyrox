@@ -72,7 +72,7 @@ use crate::{
         UiMessage,
     },
     popup::{Placement, PopupMessage},
-    ttf::{Font, SharedFont},
+    ttf::{Font, FontBuilder, SharedFont},
     widget::{Widget, WidgetBuilder, WidgetMessage},
 };
 use copypasta::ClipboardContext;
@@ -83,10 +83,7 @@ use std::{
     collections::VecDeque,
     fmt::Debug,
     ops::{Deref, DerefMut, Index, IndexMut},
-    sync::{
-        mpsc::{self, Receiver, Sender, TryRecvError},
-        Arc, Mutex,
-    },
+    sync::mpsc::{self, Receiver, Sender, TryRecvError},
 };
 
 // TODO: Make this part of UserInterface struct.
@@ -531,11 +528,8 @@ pub struct UserInterface {
 }
 
 lazy_static! {
-    pub static ref DEFAULT_FONT: SharedFont = {
-        let font_bytes = std::include_bytes!("./built_in_font.ttf").to_vec();
-        let font = Font::from_memory(font_bytes, 16.0, Font::default_char_set()).unwrap();
-        Arc::new(Mutex::new(font)).into()
-    };
+    pub static ref DEFAULT_FONT: SharedFont =
+        SharedFont::new(FontBuilder::new().build_builtin().unwrap());
 }
 
 fn draw_node(
