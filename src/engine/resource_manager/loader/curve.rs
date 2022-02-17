@@ -1,4 +1,4 @@
-//! Curve loader. 
+//! Curve loader.
 
 use crate::{
     engine::resource_manager::{

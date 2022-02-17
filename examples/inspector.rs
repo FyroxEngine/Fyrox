@@ -117,8 +117,7 @@ fn main() {
 
     let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
 
-    let mut engine =
-        Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
+    let mut engine = Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
 
     // Create simple user interface that will show some useful info.
     let interface = create_ui(&mut engine);

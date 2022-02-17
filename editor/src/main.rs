@@ -1568,8 +1568,7 @@ fn main() {
 
     let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
 
-    let mut engine =
-        GameEngine::new(window_builder, resource_manager, &event_loop, true).unwrap();
+    let mut engine = GameEngine::new(window_builder, resource_manager, &event_loop, true).unwrap();
 
     let overlay_pass = OverlayRenderPass::new(engine.renderer.pipeline_state());
     engine.renderer.add_render_pass(overlay_pass);
