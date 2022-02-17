@@ -1,4 +1,6 @@
 use crate::fyrox::core::math::Matrix4Ext;
+use fyrox::scene::camera::Camera;
+use fyrox::scene::pivot::PivotBuilder;
 use fyrox::scene::sound::listener::ListenerBuilder;
 use fyrox::{
     core::{
@@ -61,25 +63,27 @@ struct PickContext {
 impl CameraController {
     pub fn new(graph: &mut Graph, root: Handle<Node>) -> Self {
         let camera;
-        let pivot = BaseBuilder::new()
-            .with_children(&[{
-                camera = CameraBuilder::new(
-                    BaseBuilder::new()
-                        .with_children(&[ListenerBuilder::new(BaseBuilder::new()).build(graph)])
-                        .with_name("EditorCamera"),
-                )
-                .with_exposure(Exposure::Manual(std::f32::consts::E))
-                .with_z_far(512.0)
-                .build(graph);
-                camera
-            }])
-            .with_name("EditorCameraPivot")
-            .with_local_transform(
-                TransformBuilder::new()
-                    .with_local_position(Vector3::new(0.0, 1.0, DEFAULT_Z_OFFSET))
-                    .build(),
-            )
-            .build(graph);
+        let pivot = PivotBuilder::new(
+            BaseBuilder::new()
+                .with_children(&[{
+                    camera = CameraBuilder::new(
+                        BaseBuilder::new()
+                            .with_children(&[ListenerBuilder::new(BaseBuilder::new()).build(graph)])
+                            .with_name("EditorCamera"),
+                    )
+                    .with_exposure(Exposure::Manual(std::f32::consts::E))
+                    .with_z_far(512.0)
+                    .build(graph);
+                    camera
+                }])
+                .with_name("EditorCameraPivot")
+                .with_local_transform(
+                    TransformBuilder::new()
+                        .with_local_position(Vector3::new(0.0, 1.0, DEFAULT_Z_OFFSET))
+                        .build(),
+                ),
+        )
+        .build(graph);
 
         graph.link_nodes(pivot, root);
 
@@ -305,8 +309,7 @@ impl CameraController {
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
-        let camera = &graph[self.camera];
-        if let Node::Camera(camera) = camera {
+        if let Some(camera) = graph[self.camera].cast::<Camera>() {
             let ray = camera.make_ray(cursor_pos, screen_size);
 
             self.stack.clear();
@@ -413,13 +416,10 @@ impl CameraController {
         viewport_size: Vector2<f32>,
         transform: Matrix4<f32>,
     ) -> Option<Vector3<f32>> {
-        if let Node::Camera(camera) = &graph[self.camera] {
-            camera
-                .make_ray(mouse_position, viewport_size)
-                .transform(transform)
-                .plane_intersection_point(&plane)
-        } else {
-            unreachable!()
-        }
+        graph[self.camera]
+            .as_camera()
+            .make_ray(mouse_position, viewport_size)
+            .transform(transform)
+            .plane_intersection_point(&plane)
     }
 }

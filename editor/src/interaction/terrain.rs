@@ -8,6 +8,7 @@ use crate::{
     settings::Settings,
     GameEngine, Message, MSG_SYNC_FLAG,
 };
+use fyrox::scene::camera::Camera;
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -94,12 +95,12 @@ impl BrushGizmo {
 
         let brush = MeshBuilder::new(
             BaseBuilder::new()
+                .with_cast_shadows(false)
                 .with_depth_offset(0.01)
                 .with_name("Brush")
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)
-        .with_cast_shadows(false)
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
             SurfaceData::make_quad(&Matrix4::identity()),
         )))
@@ -138,7 +139,7 @@ impl InteractionMode for TerrainInteractionMode {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let handle = selection.nodes()[0];
 
-                if let Node::Terrain(terrain) = &graph[handle] {
+                if let Some(terrain) = &graph[handle].cast::<Terrain>() {
                     match self.brush.mode {
                         BrushMode::ModifyHeightMap { .. } => {
                             self.heightmaps = terrain
@@ -170,7 +171,7 @@ impl InteractionMode for TerrainInteractionMode {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let handle = selection.nodes()[0];
 
-                if let Node::Terrain(terrain) = &graph[handle] {
+                if let Some(terrain) = &graph[handle].cast::<Terrain>() {
                     if self.interacting {
                         let new_heightmaps = terrain
                             .chunks_ref()
@@ -227,9 +228,9 @@ impl InteractionMode for TerrainInteractionMode {
                 let handle = selection.nodes()[0];
 
                 let camera = &graph[camera];
-                if let Node::Camera(camera) = camera {
+                if let Some(camera) = camera.cast::<Camera>() {
                     let ray = camera.make_ray(mouse_position, frame_size);
-                    if let Node::Terrain(terrain) = &mut graph[handle] {
+                    if let Some(terrain) = graph[handle].cast_mut::<Terrain>() {
                         let mut intersections = ArrayVec::<TerrainRayCastResult, 128>::new();
                         terrain.raycast(ray, &mut intersections, true);
 

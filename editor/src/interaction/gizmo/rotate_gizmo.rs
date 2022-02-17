@@ -44,14 +44,16 @@ fn make_rotation_ribbon(
     name: &str,
 ) -> Handle<Node> {
     MeshBuilder::new(
-        BaseBuilder::new().with_name(name).with_local_transform(
-            TransformBuilder::new()
-                .with_local_rotation(rotation)
-                .build(),
-        ),
+        BaseBuilder::new()
+            .with_cast_shadows(false)
+            .with_name(name)
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_rotation(rotation)
+                    .build(),
+            ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_cast_shadows(false)
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
         SurfaceData::make_cylinder(
             30,
@@ -73,11 +75,11 @@ impl RotationGizmo {
 
         let origin = MeshBuilder::new(
             BaseBuilder::new()
+                .with_cast_shadows(false)
                 .with_name("Origin")
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)
-        .with_cast_shadows(false)
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
             SurfaceData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
         )))
@@ -174,41 +176,40 @@ impl RotationGizmo {
     ) -> UnitQuaternion<f32> {
         let graph = &engine.scenes[editor_scene.scene].graph;
 
-        if let Node::Camera(camera) = &graph[camera] {
-            let transform = graph[self.origin].global_transform();
+        let camera = &graph[camera].as_camera();
+        let transform = graph[self.origin].global_transform();
 
-            let initial_ray = camera.make_ray(mouse_position, frame_size);
-            let offset_ray = camera.make_ray(mouse_position + mouse_offset, frame_size);
+        let initial_ray = camera.make_ray(mouse_position, frame_size);
+        let offset_ray = camera.make_ray(mouse_position + mouse_offset, frame_size);
 
-            let oriented_axis = match self.mode {
-                RotateGizmoMode::Pitch => transform.side(),
-                RotateGizmoMode::Yaw => transform.up(),
-                RotateGizmoMode::Roll => transform.look(),
-            };
+        let oriented_axis = match self.mode {
+            RotateGizmoMode::Pitch => transform.side(),
+            RotateGizmoMode::Yaw => transform.up(),
+            RotateGizmoMode::Roll => transform.look(),
+        };
 
-            let plane = Plane::from_normal_and_point(&oriented_axis, &transform.position())
-                .unwrap_or_default();
+        let plane =
+            Plane::from_normal_and_point(&oriented_axis, &transform.position()).unwrap_or_default();
 
-            if let Some(old_pos) = initial_ray.plane_intersection_point(&plane) {
-                if let Some(new_pos) = offset_ray.plane_intersection_point(&plane) {
-                    let center = transform.position();
-                    let old = (old_pos - center)
-                        .try_normalize(std::f32::EPSILON)
-                        .unwrap_or_default();
-                    let new = (new_pos - center)
-                        .try_normalize(std::f32::EPSILON)
-                        .unwrap_or_default();
+        if let Some(old_pos) = initial_ray.plane_intersection_point(&plane) {
+            if let Some(new_pos) = offset_ray.plane_intersection_point(&plane) {
+                let center = transform.position();
+                let old = (old_pos - center)
+                    .try_normalize(std::f32::EPSILON)
+                    .unwrap_or_default();
+                let new = (new_pos - center)
+                    .try_normalize(std::f32::EPSILON)
+                    .unwrap_or_default();
 
-                    let angle_delta = old.dot(&new).max(-1.0).min(1.0).acos();
-                    let sign = old.cross(&new).dot(&oriented_axis).signum();
+                let angle_delta = old.dot(&new).max(-1.0).min(1.0).acos();
+                let sign = old.cross(&new).dot(&oriented_axis).signum();
 
-                    let static_axis = match self.mode {
-                        RotateGizmoMode::Pitch => Vector3::x_axis(),
-                        RotateGizmoMode::Yaw => Vector3::y_axis(),
-                        RotateGizmoMode::Roll => Vector3::z_axis(),
-                    };
-                    return UnitQuaternion::from_axis_angle(&static_axis, sign * angle_delta);
-                }
+                let static_axis = match self.mode {
+                    RotateGizmoMode::Pitch => Vector3::x_axis(),
+                    RotateGizmoMode::Yaw => Vector3::y_axis(),
+                    RotateGizmoMode::Roll => Vector3::z_axis(),
+                };
+                return UnitQuaternion::from_axis_angle(&static_axis, sign * angle_delta);
             }
         }
 

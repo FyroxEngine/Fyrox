@@ -13,7 +13,7 @@ use fyrox::{
         RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
     },
     resource::texture::{CompressionOptions, Texture},
-    scene::{mesh::surface::SurfaceData, node::Node},
+    scene::mesh::surface::SurfaceData,
 };
 use std::sync::{Arc, Mutex};
 
@@ -100,11 +100,17 @@ impl SceneRenderPass for OverlayRenderPass {
             .get(ctx.pipeline_state, &self.light_icon)
             .unwrap();
 
-        for (position, icon) in ctx.scene.graph.linear_iter().filter_map(|n| match n {
-            Node::Light(light) => Some((light.global_position(), light_icon.clone())),
-            Node::Sound(sound) => Some((sound.global_position(), sound_icon.clone())),
-            _ => None,
-        }) {
+        for node in ctx.scene.graph.linear_iter() {
+            let icon =
+                if node.is_directional_light() || node.is_spot_light() || node.is_point_light() {
+                    light_icon.clone()
+                } else if node.is_sound() {
+                    sound_icon.clone()
+                } else {
+                    continue;
+                };
+
+            let position = node.global_position();
             let world_matrix = Matrix4::new_translation(&position);
 
             ctx.framebuffer.draw(

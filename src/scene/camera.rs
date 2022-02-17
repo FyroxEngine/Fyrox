@@ -14,12 +14,14 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         inspect::{Inspect, PropertyInfo},
-        math::{aabb::AxisAlignedBoundingBox, ray::Ray, Rect},
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, ray::Ray, Rect},
         pool::Handle,
+        uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -28,7 +30,7 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::Node,
+        node::{Node, NodeTrait, UpdateContext},
         variable::{InheritError, TemplateVariable},
         visibility::VisibilityCache,
         DirectlyInheritableEntity,
@@ -37,6 +39,7 @@ use crate::{
 use fxhash::FxHashMap;
 use std::{
     ops::{Deref, DerefMut},
+    str::FromStr,
     sync::Arc,
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
@@ -249,7 +252,7 @@ impl Default for Exposure {
 }
 
 /// See module docs.
-#[derive(Debug, Visit, Inspect)]
+#[derive(Debug, Visit, Inspect, Clone)]
 pub struct Camera {
     base: Base,
 
@@ -323,6 +326,12 @@ impl DerefMut for Camera {
 impl Default for Camera {
     fn default() -> Self {
         CameraBuilder::new(BaseBuilder::new()).build_camera()
+    }
+}
+
+impl TypeUuidProvider for Camera {
+    fn type_uuid() -> Uuid {
+        Uuid::from_str("198d3aca-433c-4ce1-bb25-3190699b757f").unwrap()
     }
 }
 
@@ -484,18 +493,6 @@ impl Camera {
         (*self.environment).clone()
     }
 
-    /// Returns current **local-space** bounding box.
-    #[inline]
-    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
-        // TODO: Maybe calculate AABB using frustum corners?
-        self.base.local_bounding_box()
-    }
-
-    /// Returns current **world-space** bounding box.
-    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
-        self.base.world_bounding_box()
-    }
-
     /// Creates picking ray from given screen coordinates.
     pub fn make_ray(&self, screen_coord: Vector2<f32>, screen_size: Vector2<f32>) -> Ray {
         let viewport = self.viewport_pixels(screen_size);
@@ -535,25 +532,6 @@ impl Camera {
         }
     }
 
-    /// Creates a raw copy of a camera node.
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            base: self.base.raw_copy(),
-            projection: self.projection.clone(),
-            viewport: self.viewport.clone(),
-            view_matrix: self.view_matrix,
-            projection_matrix: self.projection_matrix,
-            enabled: self.enabled.clone(),
-            sky_box: self.sky_box.clone(),
-            environment: self.environment.clone(),
-            exposure: self.exposure.clone(),
-            color_grading_lut: self.color_grading_lut.clone(),
-            color_grading_enabled: self.color_grading_enabled.clone(),
-            // No need to copy cache. It is valid only for one frame.
-            visibility_cache: Default::default(),
-        }
-    }
-
     /// Sets new color grading LUT.
     pub fn set_color_grading_map(&mut self, lut: Option<ColorGradingLut>) {
         self.color_grading_lut.set(lut);
@@ -588,8 +566,38 @@ impl Camera {
     pub fn exposure(&self) -> Exposure {
         *self.exposure
     }
+}
 
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+impl NodeTrait for Camera {
+    crate::impl_query_component!();
+
+    /// Returns current **local-space** bounding box.
+    #[inline]
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        // TODO: Maybe calculate AABB using frustum corners?
+        self.base.local_bounding_box()
+    }
+
+    /// Returns current **world-space** bounding box.
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.world_bounding_box()
+    }
+
+    // Prefab inheritance resolving.
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
+        if let Some(parent) = parent.cast::<Self>() {
+            self.try_inherit_self_properties(parent)?;
+        }
+        Ok(())
+    }
+
+    fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
+    }
+
+    fn restore_resources(&mut self, resource_manager: ResourceManager) {
         let mut state = resource_manager.state();
         let texture_container = &mut state.containers_mut().textures;
         texture_container.try_restore_template_resource(&mut self.environment);
@@ -604,25 +612,27 @@ impl Camera {
         }
     }
 
-    // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Node::Camera(parent) = parent {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         self.base.remap_handles(old_new_mapping);
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
+    }
+
+    fn update(&mut self, context: &mut UpdateContext) -> bool {
+        self.calculate_matrices(context.frame_size);
+
+        self.visibility_cache.clear();
+        self.visibility_cache.update(
+            context.nodes,
+            self.global_position(),
+            self.projection().z_near(),
+            self.projection().z_far(),
+            Some(&[&Frustum::from(self.view_projection_matrix()).unwrap_or_default()]),
+        );
+
+        self.base.update_lifetime(context.dt)
     }
 }
 
@@ -916,7 +926,7 @@ impl CameraBuilder {
 
     /// Creates new instance of camera node.
     pub fn build_node(self) -> Node {
-        Node::Camera(self.build_camera())
+        Node::new(self.build_camera())
     }
 
     /// Creates new instance of camera node and adds it to the graph.

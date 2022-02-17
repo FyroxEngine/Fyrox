@@ -8,6 +8,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::scene::light::BaseLight;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -248,7 +249,7 @@ fn create_scene_async(
                     scene.set_lightmap(lightmap).unwrap();
 
                     for node in scene.graph.linear_iter_mut() {
-                        if let Node::Light(_) = node {
+                        if node.query_component_ref::<BaseLight>().is_some() {
                             node.set_visibility(false);
                         }
                     }
@@ -290,8 +291,7 @@ fn main() {
 
     let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
 
-    let mut engine =
-        Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
+    let mut engine = Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
 
     // Create simple user interface that will show some useful info.
     let window = engine.get_window();

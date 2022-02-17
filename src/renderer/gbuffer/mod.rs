@@ -11,6 +11,7 @@
 
 use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::geometry_buffer::{GeometryBuffer, GeometryBufferKind};
+use crate::scene::decal::Decal;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -35,9 +36,7 @@ use crate::{
         gbuffer::decal::DecalShader,
         GeometryCache, MaterialContext, RenderPassStatistics, TextureCache,
     },
-    scene::{
-        camera::Camera, graph::Graph, mesh::surface::SurfaceData, mesh::RenderPath, node::Node,
-    },
+    scene::{camera::Camera, graph::Graph, mesh::surface::SurfaceData, mesh::RenderPath},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -347,13 +346,7 @@ impl GBuffer {
         // for rendering. We'll render in the G-Buffer, but depth will be used from final frame, since
         // decals do not modify depth (only diffuse and normal maps).
         let unit_cube = &self.cube;
-        for decal in graph.linear_iter().filter_map(|n| {
-            if let Node::Decal(d) = n {
-                Some(d)
-            } else {
-                None
-            }
-        }) {
+        for decal in graph.linear_iter().filter_map(|n| n.cast::<Decal>()) {
             let shader = &self.decal_shader;
             let program = &self.decal_shader.program;
 

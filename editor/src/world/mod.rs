@@ -78,9 +78,18 @@ fn make_graph_node_item(
     ctx: &mut BuildContext,
     context_menu: Handle<UiNode>,
 ) -> Handle<UiNode> {
-    let icon = match node {
-        Node::Light(_) => load_image(include_bytes!("../../resources/embed/light.png")),
-        _ => load_image(include_bytes!("../../resources/embed/cube.png")),
+    let icon = if node.is_point_light() || node.is_directional_light() || node.is_spot_light() {
+        load_image(include_bytes!("../../resources/embed/light.png"))
+    } else if node.is_joint() || node.is_joint2d() {
+        load_image(include_bytes!("../../resources/embed/joint.png"))
+    } else if node.is_joint() || node.is_joint2d() {
+        load_image(include_bytes!("../../resources/embed/rigid_body.png"))
+    } else if node.is_collider() || node.is_collider2d() {
+        load_image(include_bytes!("../../resources/embed/collider.png"))
+    } else if node.is_sound() {
+        load_image(include_bytes!("../../resources/embed/sound_source.png"))
+    } else {
+        load_image(include_bytes!("../../resources/embed/cube.png"))
     };
 
     SceneItemBuilder::new(TreeBuilder::new(

@@ -973,40 +973,37 @@ impl Editor {
                                                 let texture = tex.clone();
                                                 let texture = texture.state();
                                                 if let TextureState::Ok(_) = *texture {
-                                                    match &mut engine.scenes[editor_scene.scene]
-                                                        .graph[result.node]
-                                                    {
-                                                        Node::Mesh(_) => {
-                                                            self.message_sender
-                                                                .send(Message::do_scene_command(
-                                                                    SetMeshTextureCommand::new(
-                                                                        result.node,
-                                                                        tex,
-                                                                    ),
-                                                                ))
-                                                                .unwrap();
-                                                        }
-                                                        Node::Sprite(_) => {
-                                                            self.message_sender
-                                                                .send(Message::do_scene_command(
-                                                                    SetSpriteTextureCommand::new(
-                                                                        result.node,
-                                                                        Some(tex),
-                                                                    ),
-                                                                ))
-                                                                .unwrap();
-                                                        }
-                                                        Node::ParticleSystem(_) => {
-                                                            self.message_sender
-                                                                .send(Message::do_scene_command(
-                                                                    SetParticleSystemTextureCommand::new(
-                                                                        result.node, Some(tex),
-                                                                    ),
+                                                    let node = &mut engine.scenes
+                                                        [editor_scene.scene]
+                                                        .graph[result.node];
+
+                                                    if node.is_mesh() {
+                                                        self.message_sender
+                                                            .send(Message::do_scene_command(
+                                                                SetMeshTextureCommand::new(
+                                                                    result.node,
+                                                                    tex,
                                                                 ),
-                                                                )
-                                                                .unwrap();
-                                                        }
-                                                        _ => {}
+                                                            ))
+                                                            .unwrap();
+                                                    } else if node.is_sprite() {
+                                                        self.message_sender
+                                                            .send(Message::do_scene_command(
+                                                                SetSpriteTextureCommand::new(
+                                                                    result.node,
+                                                                    Some(tex),
+                                                                ),
+                                                            ))
+                                                            .unwrap();
+                                                    } else if node.is_particle_system() {
+                                                        self.message_sender
+                                                            .send(Message::do_scene_command(
+                                                                SetParticleSystemTextureCommand::new(
+                                                                    result.node, Some(tex),
+                                                                ),
+                                                            ),
+                                                            )
+                                                            .unwrap();
                                                     }
                                                 }
                                             }
@@ -1411,75 +1408,70 @@ impl Editor {
                 }
 
                 let node = &graph[node];
-                match node {
-                    Node::Base(_) => {
-                        if show_bounds {
-                            ctx.draw_oob(
-                                &AxisAlignedBoundingBox::unit(),
-                                node.global_transform(),
-                                Color::opaque(255, 127, 39),
-                            );
-                        }
-                    }
-                    Node::Mesh(mesh) => {
-                        if show_tbn {
-                            // TODO: Add switch to settings to turn this on/off
-                            let transform = node.global_transform();
 
-                            for surface in mesh.surfaces() {
-                                for vertex in surface.data().lock().vertex_buffer.iter() {
-                                    let len = 0.025;
-                                    let position = transform
-                                        .transform_point(&Point3::from(
-                                            vertex
-                                                .read_3_f32(VertexAttributeUsage::Position)
-                                                .unwrap(),
-                                        ))
-                                        .coords;
-                                    let vertex_tangent =
-                                        vertex.read_4_f32(VertexAttributeUsage::Tangent).unwrap();
-                                    let tangent = transform
-                                        .transform_vector(&vertex_tangent.xyz())
-                                        .normalize()
-                                        .scale(len);
-                                    let normal = transform
-                                        .transform_vector(
-                                            &vertex
-                                                .read_3_f32(VertexAttributeUsage::Normal)
-                                                .unwrap()
-                                                .xyz(),
-                                        )
-                                        .normalize()
-                                        .scale(len);
-                                    let binormal = tangent
-                                        .xyz()
-                                        .cross(&normal)
-                                        .scale(vertex_tangent.w)
-                                        .normalize()
-                                        .scale(len);
+                if show_bounds {
+                    ctx.draw_oob(
+                        &AxisAlignedBoundingBox::unit(),
+                        node.global_transform(),
+                        Color::opaque(255, 127, 39),
+                    );
+                }
 
-                                    ctx.add_line(Line {
-                                        begin: position,
-                                        end: position + tangent,
-                                        color: Color::RED,
-                                    });
+                if let Some(mesh) = node.cast::<Mesh>() {
+                    if show_tbn {
+                        // TODO: Add switch to settings to turn this on/off
+                        let transform = node.global_transform();
 
-                                    ctx.add_line(Line {
-                                        begin: position,
-                                        end: position + normal,
-                                        color: Color::BLUE,
-                                    });
+                        for surface in mesh.surfaces() {
+                            for vertex in surface.data().lock().vertex_buffer.iter() {
+                                let len = 0.025;
+                                let position = transform
+                                    .transform_point(&Point3::from(
+                                        vertex.read_3_f32(VertexAttributeUsage::Position).unwrap(),
+                                    ))
+                                    .coords;
+                                let vertex_tangent =
+                                    vertex.read_4_f32(VertexAttributeUsage::Tangent).unwrap();
+                                let tangent = transform
+                                    .transform_vector(&vertex_tangent.xyz())
+                                    .normalize()
+                                    .scale(len);
+                                let normal = transform
+                                    .transform_vector(
+                                        &vertex
+                                            .read_3_f32(VertexAttributeUsage::Normal)
+                                            .unwrap()
+                                            .xyz(),
+                                    )
+                                    .normalize()
+                                    .scale(len);
+                                let binormal = tangent
+                                    .xyz()
+                                    .cross(&normal)
+                                    .scale(vertex_tangent.w)
+                                    .normalize()
+                                    .scale(len);
 
-                                    ctx.add_line(Line {
-                                        begin: position,
-                                        end: position + binormal,
-                                        color: Color::GREEN,
-                                    });
-                                }
+                                ctx.add_line(Line {
+                                    begin: position,
+                                    end: position + tangent,
+                                    color: Color::RED,
+                                });
+
+                                ctx.add_line(Line {
+                                    begin: position,
+                                    end: position + normal,
+                                    color: Color::BLUE,
+                                });
+
+                                ctx.add_line(Line {
+                                    begin: position,
+                                    end: position + binormal,
+                                    color: Color::GREEN,
+                                });
                             }
                         }
                     }
-                    _ => {}
                 }
 
                 for &child in node.children() {
@@ -1576,8 +1568,7 @@ fn main() {
 
     let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
 
-    let mut engine =
-        GameEngine::new(window_builder, resource_manager, &event_loop, true).unwrap();
+    let mut engine = GameEngine::new(window_builder, resource_manager, &event_loop, true).unwrap();
 
     let overlay_pass = OverlayRenderPass::new(engine.renderer.pipeline_state());
     engine.renderer.add_render_pass(overlay_pass);

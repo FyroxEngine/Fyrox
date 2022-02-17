@@ -92,7 +92,7 @@ pub fn handle_camera_property_changed(
     handle: Handle<Node>,
     node: &Node,
 ) -> Option<SceneCommand> {
-    if let Node::Camera(camera) = node {
+    if let Some(camera) = node.cast::<Camera>() {
         match args.value {
             FieldKind::Object(ref value) => {
                 handle_properties!(args.name.as_ref(), handle, value,

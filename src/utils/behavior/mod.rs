@@ -90,7 +90,10 @@ pub struct BehaviorTree<B> {
     root: Handle<BehaviorNode<B>>,
 }
 
-impl<B> Default for BehaviorTree<B> {
+impl<B> Default for BehaviorTree<B>
+where
+    B: 'static,
+{
     fn default() -> Self {
         Self {
             nodes: Default::default(),
@@ -99,7 +102,10 @@ impl<B> Default for BehaviorTree<B> {
     }
 }
 
-impl<B> BehaviorTree<B> {
+impl<B> BehaviorTree<B>
+where
+    B: 'static,
+{
     /// Creates new behavior tree with single root node.
     pub fn new() -> Self {
         let mut nodes = Pool::new();
@@ -195,7 +201,7 @@ impl<B> BehaviorTree<B> {
     }
 }
 
-impl<B> Index<Handle<BehaviorNode<B>>> for BehaviorTree<B> {
+impl<B: 'static> Index<Handle<BehaviorNode<B>>> for BehaviorTree<B> {
     type Output = BehaviorNode<B>;
 
     fn index(&self, index: Handle<BehaviorNode<B>>) -> &Self::Output {
@@ -203,7 +209,7 @@ impl<B> Index<Handle<BehaviorNode<B>>> for BehaviorTree<B> {
     }
 }
 
-impl<B> IndexMut<Handle<BehaviorNode<B>>> for BehaviorTree<B> {
+impl<B: 'static> IndexMut<Handle<BehaviorNode<B>>> for BehaviorTree<B> {
     fn index_mut(&mut self, index: Handle<BehaviorNode<B>>) -> &mut Self::Output {
         &mut self.nodes[index]
     }

@@ -9,6 +9,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -48,14 +49,15 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     scene.ambient_lighting_color = Color::opaque(80, 80, 80);
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let pivot = BaseBuilder::new()
-        .with_children(&[create_camera(
+    let pivot = PivotBuilder::new(
+        BaseBuilder::new().with_children(&[create_camera(
             resource_manager.clone(),
             Vector3::new(0.0, 4.0, -8.0),
             &mut scene.graph,
         )
-        .await])
-        .build(&mut scene.graph);
+        .await]),
+    )
+    .build(&mut scene.graph);
 
     // There is no difference between scene created in Fyroxed and any other
     // model file, so any scene can be used directly as resource.
@@ -82,8 +84,7 @@ fn main() {
 
     let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
 
-    let mut engine =
-        Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
+    let mut engine = Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
 
     // Create simple user interface that will show some useful info.
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());

@@ -1,11 +1,13 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
-use crate::utils::log::Log;
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        uuid::Uuid,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -13,16 +15,18 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::Node,
+        node::{Node, NodeTrait, SyncContext},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
+    utils::log::Log,
 };
 use fxhash::FxHashMap;
 use rapier3d::dynamics::JointHandle;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
+    str::FromStr,
 };
 
 /// Ball joint locks any translational moves between two objects on the axis between objects, but
@@ -226,18 +230,25 @@ impl DerefMut for Joint {
     }
 }
 
-impl Joint {
-    /// Creates a raw copy of the joint node. This is for internal use only!
-    pub fn raw_copy(&self) -> Self {
+impl Clone for Joint {
+    fn clone(&self) -> Self {
         Self {
-            base: self.base.raw_copy(),
+            base: self.base.clone(),
             params: self.params.clone(),
             body1: self.body1.clone(),
             body2: self.body2.clone(),
             native: Cell::new(JointHandle::invalid()),
         }
     }
+}
 
+impl TypeUuidProvider for Joint {
+    fn type_uuid() -> Uuid {
+        Uuid::from_str("439d48f5-e3a3-4255-aa08-353c1ca42e3b").unwrap()
+    }
+}
+
+impl Joint {
     /// Returns a shared reference to the current joint parameters.
     pub fn params(&self) -> &JointParams {
         &self.params
@@ -270,27 +281,36 @@ impl Joint {
     pub fn body2(&self) -> Handle<Node> {
         *self.body2
     }
+}
 
-    pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
+impl NodeTrait for Joint {
+    crate::impl_query_component!();
+
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.local_bounding_box()
+    }
+
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.world_bounding_box()
+    }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
         self.base.inherit_properties(parent)?;
-        if let Node::Joint(parent) = parent {
+        if let Some(parent) = parent.cast::<Self>() {
             self.try_inherit_self_properties(parent)?;
         }
         Ok(())
     }
 
-    pub(crate) fn reset_inheritable_properties(&mut self) {
+    fn reset_inheritable_properties(&mut self) {
         self.base.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
     }
 
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
+
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         if let Some(entry) = old_new_mapping.get(&self.body1()) {
             self.body1.set_silent(*entry);
         } else {
@@ -310,6 +330,25 @@ impl Joint {
                 self.body2()
             ))
         }
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
+    }
+
+    fn clean_up(&mut self, graph: &mut Graph) {
+        graph.physics.remove_joint(self.native.get());
+
+        Log::info(format!(
+            "Native joint was removed for node: {}",
+            self.name()
+        ));
+    }
+
+    fn sync_native(&self, self_handle: Handle<Node>, context: &mut SyncContext) {
+        context
+            .physics
+            .sync_to_joint_node(context.nodes, self_handle, self);
     }
 }
 
@@ -365,7 +404,7 @@ impl JointBuilder {
 
     /// Creates new Joint node, but does not add it to the graph.
     pub fn build_node(self) -> Node {
-        Node::Joint(self.build_joint())
+        Node::new(self.build_joint())
     }
 
     /// Creates new Joint node and adds it to the graph.
@@ -380,8 +419,8 @@ mod test {
         core::algebra::Vector3,
         scene::{
             base::{test::check_inheritable_properties_equality, BaseBuilder},
-            joint::{BallJoint, JointBuilder, JointParams},
-            node::Node,
+            joint::{BallJoint, Joint, JointBuilder, JointParams},
+            node::NodeTrait,
         },
     };
 
@@ -402,11 +441,9 @@ mod test {
 
         child.inherit(&parent).unwrap();
 
-        if let Node::Joint(parent) = parent {
-            check_inheritable_properties_equality(&child.base, &parent.base);
-            check_inheritable_properties_equality(&child, &parent);
-        } else {
-            unreachable!();
-        }
+        let parent = parent.cast::<Joint>().unwrap();
+
+        check_inheritable_properties_equality(&child.base, &parent.base);
+        check_inheritable_properties_equality(&child, parent);
     }
 }

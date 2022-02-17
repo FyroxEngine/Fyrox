@@ -124,7 +124,7 @@ impl Command for SetCameraPreviewCommand {
                 .pair_iter_mut()
                 .filter(|(handle, _)| handle != &self.handle && handle != &editor_camera_handle)
                 .filter_map(|(handle, node)| {
-                    if let Node::Camera(cam) = node {
+                    if let Some(cam) = node.cast_mut::<Camera>() {
                         if cam.is_enabled() {
                             cam.set_enabled(false);
                             Some(handle)

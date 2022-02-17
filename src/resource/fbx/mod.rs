@@ -11,6 +11,8 @@ pub mod error;
 mod scene;
 
 use crate::resource::model::{MaterialSearchOptions, ModelImportOptions};
+use crate::scene::mesh::Mesh;
+use crate::scene::pivot::PivotBuilder;
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
     core::{
@@ -534,7 +536,7 @@ async fn convert_model(
     } else if model.light.is_some() {
         fbx_scene.get(model.light).as_light()?.convert(base, graph)
     } else {
-        base.build(graph)
+        PivotBuilder::new(base).build(graph)
     };
 
     // Convert animations
@@ -653,7 +655,7 @@ async fn convert(
     // Remap handles from fbx model to handles of instantiated nodes
     // on each surface of each mesh.
     for &handle in fbx_model_to_node_map.values() {
-        if let Node::Mesh(mesh) = &mut scene.graph[handle] {
+        if let Some(mesh) = scene.graph[handle].cast_mut::<Mesh>() {
             let mut surface_bones = FxHashSet::default();
             for surface in mesh.surfaces_mut() {
                 for weight_set in surface.vertex_weights.iter_mut() {

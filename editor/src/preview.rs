@@ -1,4 +1,6 @@
 use crate::GameEngine;
+use fyrox::scene::mesh::Mesh;
+use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -107,28 +109,26 @@ impl PreviewPanel {
 
         let camera;
         let hinge;
-        let camera_pivot = BaseBuilder::new()
-            .with_children(&[{
-                hinge = BaseBuilder::new()
-                    .with_children(&[{
-                        camera = CameraBuilder::new(
-                            BaseBuilder::new().with_local_transform(
-                                TransformBuilder::new()
-                                    .with_local_rotation(UnitQuaternion::from_axis_angle(
-                                        &Vector3::y_axis(),
-                                        180.0f32.to_radians(),
-                                    ))
-                                    .with_local_position(Vector3::new(0.0, 0.0, 3.0))
-                                    .build(),
-                            ),
-                        )
-                        .build(&mut scene.graph);
-                        camera
-                    }])
-                    .build(&mut scene.graph);
-                hinge
-            }])
+        let camera_pivot = PivotBuilder::new(BaseBuilder::new().with_children(&[{
+            hinge = PivotBuilder::new(BaseBuilder::new().with_children(&[{
+                camera = CameraBuilder::new(
+                    BaseBuilder::new().with_local_transform(
+                        TransformBuilder::new()
+                            .with_local_rotation(UnitQuaternion::from_axis_angle(
+                                &Vector3::y_axis(),
+                                180.0f32.to_radians(),
+                            ))
+                            .with_local_position(Vector3::new(0.0, 0.0, 3.0))
+                            .build(),
+                    ),
+                )
+                .build(&mut scene.graph);
+                camera
+            }]))
             .build(&mut scene.graph);
+            hinge
+        }]))
+        .build(&mut scene.graph);
 
         scene.graph.link_nodes(hinge, camera_pivot);
 
@@ -186,7 +186,7 @@ impl PreviewPanel {
     pub fn fit_to_model(&mut self, scene: &mut Scene) {
         let mut bounding_box = AxisAlignedBoundingBox::default();
         for node in scene.graph.linear_iter() {
-            if let Node::Mesh(mesh) = node {
+            if let Some(mesh) = node.cast::<Mesh>() {
                 bounding_box.add_box(mesh.accurate_world_bounding_box(&scene.graph))
             }
         }

@@ -24,29 +24,28 @@
 
 use crate::{
     asset::ResourceState,
-    core::instant,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
-        math::{frustum::Frustum, Matrix4Ext},
-        pool::{
-            Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
-            Ticket,
-        },
+        instant,
+        math::Matrix4Ext,
+        pool::{Handle, Pool, Ticket},
         visitor::{Visit, VisitResult, Visitor},
     },
     resource::model::{Model, NodeMapping},
     scene::{
-        dim2,
+        self,
+        camera::Camera,
+        dim2::{self},
         graph::physics::{PhysicsPerformanceStatistics, PhysicsWorld},
-        node::Node,
+        mesh::Mesh,
+        node::{container::NodeContainer, Node, SyncContext, UpdateContext},
+        pivot::Pivot,
         sound::context::SoundContext,
         transform::TransformBuilder,
-        visibility::VisibilityCache,
     },
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
-use fyrox_sound::source::Status;
 use rapier3d::geometry::ColliderHandle;
 use std::{
     fmt::Debug,
@@ -89,11 +88,14 @@ impl GraphPerformanceStatistics {
     }
 }
 
+/// A helper type alias for node pool.
+pub type NodePool = Pool<Node, NodeContainer>;
+
 /// See module docs.
 #[derive(Debug)]
 pub struct Graph {
     root: Handle<Node>,
-    pool: Pool<Node>,
+    pool: NodePool,
     stack: Vec<Handle<Node>>,
 
     /// Backing physics "world". It is responsible for the physics simulation.
@@ -147,7 +149,7 @@ fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_g
     dest_graph.sound_context.remap_handles(old_new_mapping);
 }
 
-fn isometric_local_transform(nodes: &Pool<Node>, node: Handle<Node>) -> Matrix4<f32> {
+fn isometric_local_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f32> {
     let transform = nodes[node].local_transform();
     TransformBuilder::new()
         .with_local_position(**transform.position())
@@ -158,7 +160,7 @@ fn isometric_local_transform(nodes: &Pool<Node>, node: Handle<Node>) -> Matrix4<
         .matrix()
 }
 
-fn isometric_global_transform(nodes: &Pool<Node>, node: Handle<Node>) -> Matrix4<f32> {
+fn isometric_global_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f32> {
     let parent = nodes[node].parent();
     if parent.is_some() {
         isometric_global_transform(nodes, parent) * isometric_local_transform(nodes, node)
@@ -171,7 +173,7 @@ impl Graph {
     /// Creates new graph instance with single root node.
     pub fn new() -> Self {
         let mut pool = Pool::new();
-        let mut root = Node::Base(Default::default());
+        let mut root = Node::new(Pivot::default());
         root.set_name("__ROOT__");
         let root = pool.spawn(root);
         Self {
@@ -261,71 +263,13 @@ impl Graph {
             }
 
             // Remove associated entities.
-            let node = self.pool.free(handle);
-            self.clean_up_for_node(&node);
+            let mut node = self.pool.free(handle);
+            self.clean_up_for_node(&mut node);
         }
     }
 
-    fn clean_up_for_node(&mut self, node: &Node) {
-        match node {
-            Node::RigidBody(body) => {
-                self.physics.remove_body(body.native.get());
-
-                Log::info(format!(
-                    "Native rigid body was removed for node: {}",
-                    body.name()
-                ));
-            }
-            Node::Collider(collider) => {
-                self.physics.remove_collider(collider.native.get());
-
-                Log::info(format!(
-                    "Native collider was removed for node: {}",
-                    collider.name()
-                ));
-            }
-            Node::Joint(joint) => {
-                self.physics.remove_joint(joint.native.get());
-
-                Log::info(format!(
-                    "Native joint was removed for node: {}",
-                    joint.name()
-                ));
-            }
-            Node::RigidBody2D(body) => {
-                self.physics2d.remove_body(body.native.get());
-
-                Log::info(format!(
-                    "Native rigid body was removed for node: {}",
-                    body.name()
-                ));
-            }
-            Node::Collider2D(collider) => {
-                self.physics2d.remove_collider(collider.native.get());
-
-                Log::info(format!(
-                    "Native collider 2D was removed for node: {}",
-                    collider.name()
-                ));
-            }
-            Node::Joint2D(joint) => {
-                self.physics2d.remove_joint(joint.native.get());
-
-                Log::info(format!(
-                    "Native joint 2D was removed for node: {}",
-                    joint.name()
-                ));
-            }
-            Node::Sound(sound) => {
-                self.sound_context.remove_sound(sound.native.get());
-
-                Log::info(format!(
-                    "Native sound source was removed for node: {}",
-                    sound.name()
-                ));
-            }
-            _ => (),
-        }
+    fn clean_up_for_node(&mut self, node: &mut Node) {
+        node.clean_up(self);
     }
 
     fn unlink_internal(&mut self, node_handle: Handle<Node>) {
@@ -341,12 +285,13 @@ impl Graph {
         }
 
         let node_ref = &mut self.pool[node_handle];
+
         // Remove native collider when detaching a collider node from rigid body node.
-        if let Node::Collider(collider) = node_ref {
+        if let Some(collider) = node_ref.cast_mut::<scene::collider::Collider>() {
             if self.physics.remove_collider(collider.native.get()) {
                 collider.native.set(ColliderHandle::invalid());
             }
-        } else if let Node::Collider2D(ref mut collider2d) = node_ref {
+        } else if let Some(collider2d) = node_ref.cast_mut::<dim2::collider::Collider>() {
             if self.physics2d.remove_collider(collider2d.native.get()) {
                 collider2d
                     .native
@@ -518,7 +463,7 @@ impl Graph {
 
         for (parent, children) in to_copy.iter() {
             // Copy parent first.
-            let parent_copy = self.pool[*parent].raw_copy();
+            let parent_copy = self.pool[*parent].clone_box();
             let parent_copy_handle = self.add_node(parent_copy);
             old_new_mapping.insert(*parent, parent_copy_handle);
 
@@ -529,7 +474,7 @@ impl Graph {
             // Copy children and link to new parent.
             for &child in children {
                 if filter(child, &self.pool[child]) {
-                    let child_copy = self.pool[child].raw_copy();
+                    let child_copy = self.pool[child].clone_box();
                     let child_copy_handle = self.add_node(child_copy);
                     old_new_mapping.insert(child, child_copy_handle);
                     self.link_nodes(child_copy_handle, parent_copy_handle);
@@ -549,10 +494,10 @@ impl Graph {
     /// this method returns copied node directly, it does not inserts it in any graph.
     pub fn copy_single_node(&self, node_handle: Handle<Node>) -> Node {
         let node = &self.pool[node_handle];
-        let mut clone = node.raw_copy();
+        let mut clone = node.clone_box();
         clone.parent = Handle::NONE;
         clone.children.clear();
-        if let Node::Mesh(ref mut mesh) = clone {
+        if let Some(ref mut mesh) = clone.cast_mut::<Mesh>() {
             for surface in mesh.surfaces_mut() {
                 surface.bones.clear();
             }
@@ -571,7 +516,7 @@ impl Graph {
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
         let src_node = &self.pool[root_handle];
-        let dest_node = src_node.raw_copy();
+        let dest_node = src_node.clone_box();
         let dest_copy_handle = dest_graph.add_node(dest_node);
         old_new_mapping.insert(root_handle, dest_copy_handle);
         for &src_child_handle in src_node.children() {
@@ -797,7 +742,7 @@ impl Graph {
 
         // Update cube maps for sky boxes.
         for node in self.linear_iter_mut() {
-            if let Node::Camera(camera) = node {
+            if let Some(camera) = node.cast_mut::<Camera>() {
                 if let Some(skybox) = camera.skybox_mut() {
                     Log::verify(skybox.create_cubemap());
                 }
@@ -816,14 +761,8 @@ impl Graph {
     /// need to know global transform of nodes before entering update loop, then you can call
     /// this method.
     pub fn update_hierarchical_data(&mut self) {
-        fn m4x4_approx_eq(a: &Matrix4<f32>, b: &Matrix4<f32>) -> bool {
-            a.iter()
-                .zip(b.iter())
-                .all(|(a, b)| (*a - *b).abs() <= 0.001)
-        }
-
         fn update_recursively(
-            nodes: &Pool<Node>,
+            nodes: &NodePool,
             sound_context: &mut SoundContext,
             physics: &mut PhysicsWorld,
             physics2d: &mut dim2::physics::PhysicsWorld,
@@ -841,24 +780,15 @@ impl Graph {
             let new_global_transform = parent_global_transform * node.local_transform().matrix();
 
             // TODO: Detect changes from user code here.
-            match node {
-                Node::RigidBody(rigid_body) => {
-                    if !m4x4_approx_eq(&new_global_transform, &node.global_transform()) {
-                        physics.set_rigid_body_position(rigid_body, &new_global_transform);
-                    }
-                }
-                Node::RigidBody2D(rigid_body) => {
-                    if !m4x4_approx_eq(&new_global_transform, &node.global_transform()) {
-                        physics2d.set_rigid_body_position(rigid_body, &new_global_transform);
-                    }
-                }
-                Node::Sound(sound) => {
-                    if !m4x4_approx_eq(&new_global_transform, &node.global_transform()) {
-                        sound_context.set_sound_position(sound);
-                    }
-                }
-                _ => {}
-            }
+            node.sync_transform(
+                &new_global_transform,
+                &mut SyncContext {
+                    nodes,
+                    physics,
+                    physics2d,
+                    sound_context,
+                },
+            );
 
             node.global_transform.set(new_global_transform);
             node.global_visibility
@@ -884,44 +814,20 @@ impl Graph {
     }
 
     fn sync_native(&mut self) {
+        let mut sync_context = SyncContext {
+            nodes: &self.pool,
+            physics: &mut self.physics,
+            physics2d: &mut self.physics2d,
+            sound_context: &mut self.sound_context,
+        };
+
         for (handle, node) in self.pool.pair_iter() {
-            match node {
-                Node::RigidBody(rigid_body) => {
-                    self.physics.sync_to_rigid_body_node(handle, rigid_body);
-                }
-                Node::Collider(collider) => {
-                    self.physics
-                        .sync_to_collider_node(&self.pool, handle, collider);
-                }
-                Node::Joint(joint) => {
-                    self.physics.sync_to_joint_node(&self.pool, handle, joint);
-                }
-                Node::RigidBody2D(rigid_body) => {
-                    self.physics2d.sync_to_rigid_body_node(handle, rigid_body);
-                }
-                Node::Collider2D(collider) => {
-                    self.physics2d
-                        .sync_to_collider_node(&self.pool, handle, collider);
-                }
-                Node::Joint2D(joint) => {
-                    self.physics2d.sync_to_joint_node(&self.pool, handle, joint);
-                }
-                Node::Sound(sound) => self.sound_context.sync_to_sound(sound),
-                Node::Listener(listener) => {
-                    let mut state = self.sound_context.native.state();
-                    let native = state.listener_mut();
-                    native.set_position(listener.global_position());
-                    native.set_basis(listener.global_transform().basis());
-                }
-                _ => (),
-            }
+            node.sync_native(handle, &mut sync_context);
         }
     }
 
     /// Updates nodes in graph using given delta time. There is no need to call it manually.
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
-        let this = unsafe { &*(self as *const Graph) };
-
         let last_time = instant::Instant::now();
         self.update_hierarchical_data();
         self.performance_statistics.hierarchical_properties_time =
@@ -943,69 +849,34 @@ impl Graph {
         self.performance_statistics.sound_update_time = self.sound_context.full_render_duration();
 
         for i in 0..self.pool.get_capacity() {
+            let mut update_context = UpdateContext {
+                frame_size,
+                dt,
+                // SAFETY: There multiple reasons why this is safe to get immutable reference to nodes
+                // along with mutable reference:
+                //
+                // 1) `Pool` uses indexes to reference data, any internal buffer reallocation in the
+                //    pool will **not** invalidate anything.
+                // 2) Internal pool reallocation is not possible, because use it for mutable iteration,
+                //    and does **not** allow any other code to call dangerous methods, because second
+                //    reference is immutable.
+                // 3) `Pool::free` does not cause any memory reallocation, so pointers in pool iterators
+                //    will be valid.
+                // 4) There is no multithreading in update calls, so no data races.
+                nodes: unsafe { &(*(self as *const Graph)).pool },
+                physics: &mut self.physics,
+                physics2d: &mut self.physics2d,
+                sound_context: &mut self.sound_context,
+            };
+
             let handle = self.pool.handle_from_index(i);
-
             if let Some(node) = self.pool.at_mut(i) {
-                let mut remove = if let Some(lifetime) = node.lifetime.get_mut_silent().as_mut() {
-                    *lifetime -= dt;
-                    *lifetime <= 0.0
-                } else {
-                    false
-                };
+                node.transform_modified.set(false);
 
-                if let Node::Sound(sound) = node {
-                    remove |= sound.status() == Status::Stopped && sound.is_play_once()
-                }
+                let is_alive = node.update(&mut update_context);
 
-                if remove {
+                if !is_alive {
                     self.remove_node(handle);
-                } else {
-                    node.transform_modified.set(false);
-
-                    match node {
-                        Node::Camera(camera) => {
-                            camera.calculate_matrices(frame_size);
-
-                            let old_cache = camera.visibility_cache.invalidate();
-                            let mut new_cache = VisibilityCache::from(old_cache);
-                            let observer_position = camera.global_position();
-                            let z_near = camera.projection().z_near();
-                            let z_far = camera.projection().z_far();
-                            let frustum =
-                                Frustum::from(camera.view_projection_matrix()).unwrap_or_default();
-                            new_cache.update(
-                                self,
-                                observer_position,
-                                z_near,
-                                z_far,
-                                Some(&[&frustum]),
-                            );
-                            // We have to re-borrow camera again because borrow check cannot proof that
-                            // camera reference is still valid after passing `self` to `new_cache.update(...)`
-                            // This is ok since there are only few camera per level and there performance
-                            // penalty is negligible.
-                            self.pool
-                                .at_mut(i)
-                                .unwrap()
-                                .as_camera_mut()
-                                .visibility_cache = new_cache;
-                        }
-                        Node::ParticleSystem(particle_system) => particle_system.update(dt),
-                        Node::Terrain(terrain) => terrain.update(),
-                        Node::Mesh(_) => self.pool.at(i).unwrap().as_mesh().update(self),
-                        // We have to sync rigid body parameters back after each physics step, hopefully there is
-                        // not many data that has to be synced.
-                        Node::RigidBody(rigid_body) => self.physics.sync_rigid_body_node(
-                            rigid_body,
-                            this.pool[rigid_body.parent].global_transform(),
-                        ),
-                        Node::RigidBody2D(rigid_body) => self.physics2d.sync_rigid_body_node(
-                            rigid_body,
-                            this.pool[rigid_body.parent].global_transform(),
-                        ),
-                        Node::Sound(sound) => self.sound_context.sync_with_sound(sound),
-                        _ => (),
-                    }
                 }
             }
         }
@@ -1017,9 +888,10 @@ impl Graph {
     /// ```
     /// use fyrox::scene::node::Node;
     /// use fyrox::scene::graph::Graph;
+    /// use fyrox::scene::pivot::Pivot;
     /// let mut graph = Graph::new();
-    /// graph.add_node(Node::Base(Default::default()));
-    /// graph.add_node(Node::Base(Default::default()));
+    /// graph.add_node(Node::new(Pivot::default()));
+    /// graph.add_node(Node::new(Pivot::default()));
     /// for i in 0..graph.capacity() {
     ///     let handle = graph.handle_from_index(i);
     ///     if handle.is_some() {
@@ -1038,9 +910,10 @@ impl Graph {
     /// ```
     /// use fyrox::scene::node::Node;
     /// use fyrox::scene::graph::Graph;
+    /// use fyrox::scene::pivot::Pivot;
     /// let mut graph = Graph::new();
-    /// graph.add_node(Node::Base(Default::default()));
-    /// graph.add_node(Node::Base(Default::default()));
+    /// graph.add_node(Node::new(Pivot::default()));
+    /// graph.add_node(Node::new(Pivot::default()));
     /// for i in 0..graph.capacity() {
     ///     let handle = graph.handle_from_index(i);
     ///     if handle.is_some() {
@@ -1055,23 +928,23 @@ impl Graph {
 
     /// Creates an iterator that has linear iteration order over internal collection
     /// of nodes. It does *not* perform any tree traversal!
-    pub fn linear_iter(&self) -> PoolIterator<Node> {
+    pub fn linear_iter(&self) -> impl Iterator<Item = &Node> {
         self.pool.iter()
     }
 
     /// Creates an iterator that has linear iteration order over internal collection
     /// of nodes. It does *not* perform any tree traversal!
-    pub fn linear_iter_mut(&mut self) -> PoolIteratorMut<Node> {
+    pub fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Node> {
         self.pool.iter_mut()
     }
 
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
-    pub fn pair_iter(&self) -> PoolPairIterator<Node> {
+    pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Node>, &Node)> {
         self.pool.pair_iter()
     }
 
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
-    pub fn pair_iter_mut(&mut self) -> PoolPairIteratorMut<Node> {
+    pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Node>, &mut Node)> {
         self.pool.pair_iter_mut()
     }
 
@@ -1091,9 +964,9 @@ impl Graph {
     }
 
     /// Makes node handle vacant again.
-    pub fn forget_ticket(&mut self, ticket: Ticket<Node>, node: Node) -> Node {
+    pub fn forget_ticket(&mut self, ticket: Ticket<Node>, mut node: Node) -> Node {
         self.pool.forget_ticket(ticket);
-        self.clean_up_for_node(&node);
+        self.clean_up_for_node(&mut node);
         node
     }
 
@@ -1135,13 +1008,13 @@ impl Graph {
 
     /// Forgets the entire sub-graph making handles to nodes invalid.
     pub fn forget_sub_graph(&mut self, sub_graph: SubGraph) {
-        for (ticket, node) in sub_graph.descendants {
+        for (ticket, mut node) in sub_graph.descendants {
             self.pool.forget_ticket(ticket);
-            self.clean_up_for_node(&node);
+            self.clean_up_for_node(&mut node);
         }
-        let (ticket, root) = sub_graph.root;
+        let (ticket, mut root) = sub_graph.root;
         self.pool.forget_ticket(ticket);
-        self.clean_up_for_node(&root);
+        self.clean_up_for_node(&mut root);
     }
 
     /// Returns the number of nodes in the graph.
@@ -1350,7 +1223,7 @@ impl Visit for Graph {
 mod test {
     use crate::{
         core::pool::Handle,
-        scene::{base::Base, graph::Graph, node::Node},
+        scene::{graph::Graph, node::Node, pivot::Pivot},
     };
 
     #[test]
@@ -1363,9 +1236,9 @@ mod test {
     #[test]
     fn graph_node_test() {
         let mut graph = Graph::new();
-        graph.add_node(Node::Base(Base::default()));
-        graph.add_node(Node::Base(Base::default()));
-        graph.add_node(Node::Base(Base::default()));
+        graph.add_node(Node::new(Pivot::default()));
+        graph.add_node(Node::new(Pivot::default()));
+        graph.add_node(Node::new(Pivot::default()));
         assert_eq!(graph.pool.alive_count(), 4);
     }
 }

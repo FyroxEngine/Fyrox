@@ -1,3 +1,4 @@
+use crate::scene::sprite::Sprite;
 use crate::{
     core::{
         math::{Matrix4Ext, Rect},
@@ -15,7 +16,7 @@ use crate::{
         },
         RenderPassStatistics, TextureCache,
     },
-    scene::{camera::Camera, graph::Graph, mesh::surface::SurfaceData, node::Node},
+    scene::{camera::Camera, graph::Graph, mesh::surface::SurfaceData},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -112,11 +113,7 @@ impl SpriteRenderer {
                 return None;
             }
 
-            if let Node::Sprite(sprite) = node {
-                Some(sprite)
-            } else {
-                None
-            }
+            node.cast::<Sprite>()
         }) {
             let view_projection = if sprite.depth_offset_factor() != 0.0 {
                 let mut projection = camera.projection_matrix();

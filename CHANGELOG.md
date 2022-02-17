@@ -8,6 +8,11 @@
 - Access to simulation properties of the physics.
 - Engine and Resource manager are nonserializable anymore, check migration guide to find how to create
 save files in the correct way.
+- `Node` enumeration was removed and replaced with dynamic dispatch. This allows you to define your own 
+types of scene nodes.
+- `Base` is not a scene node anymore, it was replaced with `Pivot` node (see migration guide for more info)
+- `Base` now has `cast_shadows` property, respective property setters/getters was removed from `Mesh` and 
+`Terrain` nodes.
 - **WIP**
 
 ## Migration guide
@@ -18,6 +23,63 @@ any of your scene had any sound, they will be lost!
 Now there is limited access to `fyrox_sound` entities, there is no way to create sound contexts, sounds, 
 effects manually. You have to use respective scene nodes (`Sound`, `Listener`) and `Effect` from 
 `fyrox::scene::sound` module (and children modules). 
+
+### Nodes
+
+Since `Node` enumeration was removed, there is a new way of managing nodes:
+
+- `Node` now is just `Box<dyn NodeTrait>` wrapped in a new-type-struct.
+- Pattern matching was replaced with `cast` and `cast_mut` methods.
+- In addition to `cast/cast_mut` there are two more complex methods for polymorphism: `query_component_ref` and
+`query_component_mut` which are able to extract references to internal parts of the nodes. This now has only one
+usage - `Light` enumeration was removed and `PointLight`, `SpotLight`, `DirectionalLight` provides unified access
+to `BaseLight` component via `query_component_ref/query_component_mut`. `query_component` could be a bit slower,
+since it might involve additional branching while attempting to query component. 
+- `Base` node was replaced with `Pivot` node (and respective `PivotBuilder`), it happend due to problems with 
+`Deref<Target = Base>/DerefMut` implementation, if `Base` is implementing `NodeTrait` then it must implement `Deref`
+but implementing `Deref` for `Base` causes infinite deref coercion loop.
+- To be able to create custom scene nodes and having the ability to serialize/deserialize scene graph with such
+nodes, `NodeConstructorContainer` was added. It contains a simple map `UUID -> NodeConstructor` which allows to
+pick the right node constructor based on type uuid at deserialization stage.
+
+#### Replacing `BaseBuilder` with `PivotBuilder`
+
+It is very simply, just wrap `BaseBuilder` with a `PivotBuilder` and call `build` on `PivotBuilder` instance:
+
+```rust
+// Before
+fn create_pivot_node(graph: &mut Graph) -> Handle<Node> {
+    BaseBuilder::new().build(graph)    
+}
+
+// After
+fn create_pivot_node(graph: &mut Graph) -> Handle<Node> {
+    PivotBuilder::new(BaseBuilder::new()).build(graph)
+}
+```
+
+#### Pattern matching replacement
+
+Pattern matching was replaced with 4 new methods `cast/cast_mut/query_component_ref/query_component_mut`:
+
+```rust
+fn set_sprite_color(node: &mut Node, color: Color) {
+    // Use `cast_mut` when you are sure about the real node type.
+    if let Some(sprite) = node.cast_mut::<Sprite>() {
+        sprite.set_color(color);
+    }
+}
+
+fn set_light_color(node: &mut Node, color: Color) {
+    // Use query_component_mut if you unsure what is the exact type of the node.
+    // In this example the `node` could be either PointLight, SpotLight, DirectionalLight,
+    // since they're all provide access to `BaseLight` via `query_component_x` the function
+    // will work with any of those types.
+    if let Some(base_light) = node.query_component_mut::<BaseLight>() {
+        base_light.set_color(color);
+    }
+}
+```
 
 ### Listener
 

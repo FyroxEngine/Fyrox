@@ -2,42 +2,55 @@
 //!
 //! Difficulty: Moderate.
 //!
-//! This example shows how to create a custom loader. It is a very basic example and in future it should be improved by 
+//! This example shows how to create a custom loader. It is a very basic example and in future it should be improved by
 //! writing some more complex loader such as loading a model from ply or obj file.
 
 /// For simplicity we just simply wrap the default loader and log the invocation t
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::engine::framework::{GameState, Framework};
-use fyrox::engine::resource_manager::ResourceManager;
-use fyrox::engine::Engine;
-use fyrox::engine::resource_manager::container::event::ResourceEventBroadcaster;
-use fyrox::engine::resource_manager::loader::{ResourceLoader, BoxedLoaderFuture};
-use fyrox::engine::resource_manager::loader::model::ModelLoader;
-use fyrox::engine::resource_manager::loader::texture::TextureLoader;
-use fyrox::event::{Event, WindowEvent};
-use fyrox::event_loop::{ControlFlow, EventLoop};
-use fyrox::material::{Material, PropertyValue};
-use fyrox::material::shader::SamplerFallback;
-use fyrox::resource::model::{ModelImportOptions, Model};
-use fyrox::resource::texture::{TextureImportOptions, Texture};
-use fyrox::scene::Scene;
-use fyrox::scene::base::BaseBuilder;
-use fyrox::scene::light::BaseLightBuilder;
-use fyrox::scene::light::point::PointLightBuilder;
-use fyrox::scene::mesh::MeshBuilder;
-use fyrox::scene::mesh::surface::{SurfaceBuilder, SurfaceData};
-use fyrox::scene::transform::TransformBuilder;
-use fyrox::utils::log::{MessageKind, Log};
-use fyrox::utils::translate_event;
-use fyrox::window::WindowBuilder;
-use fyrox_core::algebra::{Matrix4, Vector3};
-use fyrox_core::color::Color;
-use fyrox_core::instant::Instant;
-use fyrox_core::parking_lot::Mutex;
-use fyrox_core::pool::Handle;
-use fyrox_core::sstorage::ImmutableString;
+use fyrox::{
+    core::{
+        algebra::{Matrix4, Vector3},
+        color::Color,
+        instant::Instant,
+        parking_lot::Mutex,
+        sstorage::ImmutableString,
+    },
+    engine::{
+        framework::GameState,
+        resource_manager::{
+            container::event::ResourceEventBroadcaster,
+            loader::{
+                model::ModelLoader, texture::TextureLoader, BoxedLoaderFuture, ResourceLoader,
+            },
+            ResourceManager,
+        },
+        Engine,
+    },
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+    material::{shader::SamplerFallback, Material, PropertyValue},
+    resource::{
+        model::{Model, ModelImportOptions},
+        texture::{Texture, TextureImportOptions},
+    },
+    scene::{
+        base::BaseBuilder,
+        light::{point::PointLightBuilder, BaseLightBuilder},
+        mesh::{
+            surface::{SurfaceBuilder, SurfaceData},
+            MeshBuilder,
+        },
+        transform::TransformBuilder,
+        Scene,
+    },
+    utils::{
+        log::{Log, MessageKind},
+        translate_event,
+    },
+    window::WindowBuilder,
+};
 use std::sync::Arc;
 
 struct CustomModelLoader(Arc<ModelLoader>);
@@ -50,22 +63,14 @@ impl ResourceLoader<Model, ModelImportOptions> for CustomModelLoader {
         event_broadcaster: ResourceEventBroadcaster<Model>,
         reload: bool,
     ) -> BoxedLoaderFuture {
-        // Arc is required as BoxedLoaderFuture has a static lifetime and hence self cannot be 
-        // moved into an async block. 
+        // Arc is required as BoxedLoaderFuture has a static lifetime and hence self cannot be
+        // moved into an async block.
         let loader = self.0.clone();
 
         Box::pin(async move {
-            println!(
-                "CUSTOM LOADER: loading model {:?}",
-                resource.state().path()
-            );
+            println!("CUSTOM LOADER: loading model {:?}", resource.state().path());
             loader
-                .load(
-                    resource,
-                    default_import_options,
-                    event_broadcaster,
-                    reload,
-                )
+                .load(resource, default_import_options, event_broadcaster, reload)
                 .await
         })
     }
@@ -82,8 +87,8 @@ impl ResourceLoader<Texture, TextureImportOptions> for CustomTextureLoader {
         event_broadcaster: ResourceEventBroadcaster<Texture>,
         reload: bool,
     ) -> BoxedLoaderFuture {
-        // Arc is required as BoxedLoaderFuture has a static lifetime and hence self cannot be 
-        // moved into an async block. 
+        // Arc is required as BoxedLoaderFuture has a static lifetime and hence self cannot be
+        // moved into an async block.
         let loader = self.0.clone();
 
         Box::pin(async move {
@@ -92,19 +97,14 @@ impl ResourceLoader<Texture, TextureImportOptions> for CustomTextureLoader {
                 resource.state().path()
             );
             loader
-                .load(
-                    resource,
-                    default_import_options,
-                    event_broadcaster,
-                    reload,
-                )
+                .load(resource, default_import_options, event_broadcaster, reload)
                 .await
         })
     }
 }
 
 struct GameSceneLoader {
-    scene: Scene
+    scene: Scene,
 }
 
 impl GameSceneLoader {
@@ -134,21 +134,14 @@ impl GameSceneLoader {
         .build(&mut scene.graph);
 
         // Add some model with animation.
-        let (model_resource, walk_animation_resource) = fyrox::core::futures::join!(
-            resource_manager.request_model("examples/data/mutant/mutant.FBX",),
-            resource_manager.request_model("examples/data/mutant/walk.fbx",)
-        );
+        let model_resource = resource_manager
+            .request_model("examples/data/mutant/mutant.FBX")
+            .await;
 
         let model_handle = model_resource.unwrap().instantiate_geometry(&mut scene);
         scene.graph[model_handle]
             .local_transform_mut()
             .set_scale(Vector3::new(0.05, 0.05, 0.05));
-
-        let walk_animation = *walk_animation_resource
-            .unwrap()
-            .retarget_animations(model_handle, &mut scene)
-            .get(0)
-            .unwrap();
 
         let mut material = Material::standard();
         material
@@ -178,15 +171,11 @@ impl GameSceneLoader {
         .build()])
         .build(&mut scene.graph);
 
-        Self {
-            scene,
-        }
+        Self { scene }
     }
 }
 
-struct Game {
-    scene: Handle<Scene>,
-}
+struct Game {}
 
 impl GameState for Game {
     fn init(engine: &mut Engine) -> Self
@@ -197,7 +186,9 @@ impl GameState for Game {
             engine.resource_manager.clone(),
         ));
 
-        Game{ scene: engine.scenes.add(scene.scene) }
+        engine.scenes.add(scene.scene);
+
+        Game {}
     }
 }
 
@@ -209,66 +200,69 @@ fn main() {
 
     //set up our custom loaders
     {
-        let mut state =  resource_manager.state();
+        let mut state = resource_manager.state();
         let containers = state.containers_mut();
-        containers.set_model_loader(CustomModelLoader(Arc::new(ModelLoader{ resource_manager:resource_manager.clone()})));
+        containers.set_model_loader(CustomModelLoader(Arc::new(ModelLoader {
+            resource_manager: resource_manager.clone(),
+        })));
         containers.set_texture_loader(CustomTextureLoader(Arc::new(TextureLoader)));
     }
 
     let mut engine = Engine::new(window_builder, resource_manager, &event_loop, false).unwrap();
-    engine.get_window().set_title("Example 12 - Custom resource loader");
-    
+    engine
+        .get_window()
+        .set_title("Example 12 - Custom resource loader");
+
     let mut state = Game::init(&mut engine);
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
     let mut elapsed_time = 0.0;
 
-    event_loop
-        .run(move |event, _, control_flow| match event {
-            Event::MainEventsCleared => {
-                let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
-                while dt >= fixed_timestep {
-                    dt -= fixed_timestep;
-                    elapsed_time += fixed_timestep;
+    event_loop.run(move |event, _, control_flow| match event {
+        Event::MainEventsCleared => {
+            let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
+            while dt >= fixed_timestep {
+                dt -= fixed_timestep;
+                elapsed_time += fixed_timestep;
 
-                    state.on_tick(&mut engine, fixed_timestep, control_flow);
+                state.on_tick(&mut engine, fixed_timestep, control_flow);
 
-                    engine.update(fixed_timestep);
-                }
-
-                while let Some(ui_msg) = engine.user_interface.poll_message() {
-                    state.on_ui_message(&mut engine, ui_msg);
-                }
-
-                engine.get_window().request_redraw();
+                engine.update(fixed_timestep);
             }
-            Event::RedrawRequested(_) => {
-                engine.render().unwrap();
+
+            while let Some(ui_msg) = engine.user_interface.poll_message() {
+                state.on_ui_message(&mut engine, ui_msg);
             }
-            Event::WindowEvent { event, .. } => {
-                match event {
-                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                    WindowEvent::Resized(size) => {
-                        if let Err(e) = engine.set_frame_size(size.into()) {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!("Unable to set frame size: {:?}", e),
-                            );
-                        }
+
+            engine.get_window().request_redraw();
+        }
+        Event::RedrawRequested(_) => {
+            engine.render().unwrap();
+        }
+        Event::WindowEvent { event, .. } => {
+            match event {
+                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                WindowEvent::Resized(size) => {
+                    if let Err(e) = engine.set_frame_size(size.into()) {
+                        Log::writeln(
+                            MessageKind::Error,
+                            format!("Unable to set frame size: {:?}", e),
+                        );
                     }
-                    _ => (),
                 }
-
-                if let Some(os_event) = translate_event(&event) {
-                    engine.user_interface.process_os_event(&os_event);
-                }
-
-                state.on_window_event(&mut engine, event);
+                _ => (),
             }
-            Event::DeviceEvent { device_id, event } => {
-                state.on_device_event(&mut engine, device_id, event);
+
+            if let Some(os_event) = translate_event(&event) {
+                engine.user_interface.process_os_event(&os_event);
             }
-            Event::LoopDestroyed => state.on_exit(&mut engine),
-            _ => *control_flow = ControlFlow::Poll,
-        });
+
+            state.on_window_event(&mut engine, event);
+        }
+        Event::DeviceEvent { device_id, event } => {
+            state.on_device_event(&mut engine, device_id, event);
+        }
+        Event::LoopDestroyed => state.on_exit(&mut engine),
+        _ => *control_flow = ControlFlow::Poll,
+    });
 }

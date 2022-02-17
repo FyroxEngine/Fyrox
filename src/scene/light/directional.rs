@@ -7,24 +7,31 @@
 //! Current directional light does *not* support shadows, it is still
 //! on list of features that should be implemented.
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     scene::{
+        base::Base,
         graph::Graph,
-        light::{BaseLight, BaseLightBuilder, Light},
-        node::Node,
+        light::{BaseLight, BaseLightBuilder},
+        node::{Node, NodeTrait},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    str::FromStr,
+};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Maximum amount of cascades.
@@ -99,7 +106,7 @@ impl CsmOptions {
 }
 
 /// See module docs.
-#[derive(Default, Debug, Visit, Inspect)]
+#[derive(Default, Debug, Visit, Inspect, Clone)]
 pub struct DirectionalLight {
     base_light: BaseLight,
     /// See [`CsmOptions`].
@@ -122,51 +129,71 @@ impl From<BaseLight> for DirectionalLight {
 }
 
 impl Deref for DirectionalLight {
-    type Target = BaseLight;
+    type Target = Base;
 
     fn deref(&self) -> &Self::Target {
-        &self.base_light
+        &self.base_light.base
     }
 }
 
 impl DerefMut for DirectionalLight {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base_light
+        &mut self.base_light.base
+    }
+}
+
+impl TypeUuidProvider for DirectionalLight {
+    fn type_uuid() -> Uuid {
+        Uuid::from_str("8b8248e1-1cdf-42a3-9abe-0691de82c519").unwrap()
     }
 }
 
 impl DirectionalLight {
-    /// Creates a raw copy of a directional light node.
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            base_light: self.base_light.raw_copy(),
-            csm_options: self.csm_options.clone(),
-        }
+    /// Returns a reference to base light.
+    pub fn base_light_ref(&self) -> &BaseLight {
+        &self.base_light
     }
 
-    pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
+    /// Returns a reference to base light.
+    pub fn base_light_mut(&mut self) -> &mut BaseLight {
+        &mut self.base_light
+    }
+}
+
+impl NodeTrait for DirectionalLight {
+    crate::impl_query_component!(base_light: BaseLight);
+
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base_light.base.local_bounding_box()
+    }
+
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base_light.base.world_bounding_box()
+    }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        if let Node::Light(parent) = parent {
-            self.base_light.inherit(parent)?;
-            if let Light::Directional(parent) = parent {
-                self.try_inherit_self_properties(parent)?;
-            }
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        if let Some(parent) = parent.cast::<DirectionalLight>() {
+            self.base_light.inherit(parent.base_light_ref())?;
+            self.try_inherit_self_properties(parent)?;
         }
+
         Ok(())
     }
 
-    pub(crate) fn reset_inheritable_properties(&mut self) {
+    fn reset_inheritable_properties(&mut self) {
         self.base_light.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
     }
 
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
+
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         self.base_light.remap_handles(old_new_mapping);
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
     }
 }
 
@@ -201,7 +228,7 @@ impl DirectionalLightBuilder {
 
     /// Creates new instance of directional light node.
     pub fn build_node(self) -> Node {
-        Node::Light(Light::Directional(self.build_directional_light()))
+        Node::new(self.build_directional_light())
     }
 
     /// Creates new instance of directional light and adds it to the graph.
@@ -215,10 +242,12 @@ mod test {
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         light::{
-            directional::{CsmOptions, DirectionalLightBuilder, FrustumSplitOptions},
-            BaseLightBuilder, Light,
+            directional::{
+                CsmOptions, DirectionalLight, DirectionalLightBuilder, FrustumSplitOptions,
+            },
+            BaseLightBuilder,
         },
-        node::Node,
+        node::NodeTrait,
     };
 
     #[test]
@@ -241,12 +270,10 @@ mod test {
 
         child.inherit(&parent).unwrap();
 
-        if let Node::Light(Light::Directional(parent)) = parent {
-            check_inheritable_properties_equality(&child.base, &parent.base);
-            check_inheritable_properties_equality(&child.base_light, &parent.base_light);
-            check_inheritable_properties_equality(&child, &parent);
-        } else {
-            unreachable!();
-        }
+        let parent = parent.cast::<DirectionalLight>().unwrap();
+
+        check_inheritable_properties_equality(&child.base_light.base, &parent.base_light.base);
+        check_inheritable_properties_equality(&child.base_light, &parent.base_light);
+        check_inheritable_properties_equality(&child, parent);
     }
 }

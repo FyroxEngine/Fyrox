@@ -8,17 +8,17 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
-use crate::engine::resource_manager::ResourceManager;
-use crate::scene::variable::{InheritError, TemplateVariable, VariableFlags};
-use crate::scene::DirectlyInheritableEntity;
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
+    engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
@@ -27,13 +27,16 @@ use crate::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
             surface::Surface,
         },
-        node::Node,
+        node::{Node, NodeTrait, UpdateContext},
+        variable::{InheritError, TemplateVariable, VariableFlags},
+        DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
+    str::FromStr,
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -86,16 +89,13 @@ impl RenderPath {
 }
 
 /// See module docs.
-#[derive(Debug, Inspect, Visit)]
+#[derive(Debug, Inspect, Clone, Visit)]
 pub struct Mesh {
     #[visit(rename = "Common")]
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
     surfaces: TemplateVariable<Vec<Surface>>,
-
-    #[inspect(getter = "Deref::deref")]
-    cast_shadows: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
     #[visit(optional)]
@@ -119,7 +119,6 @@ pub struct Mesh {
 
 impl_directly_inheritable_entity_trait!(Mesh;
     surfaces,
-    cast_shadows,
     render_path,
     decal_layer_index
 );
@@ -135,7 +134,6 @@ impl Default for Mesh {
             local_bounding_box: Default::default(),
             world_bounding_box: Default::default(),
             local_bounding_box_dirty: Cell::new(true),
-            cast_shadows: TemplateVariable::new(true),
             render_path: TemplateVariable::new(RenderPath::Deferred),
             decal_layer_index: TemplateVariable::new(0),
         }
@@ -153,6 +151,12 @@ impl Deref for Mesh {
 impl DerefMut for Mesh {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
+    }
+}
+
+impl TypeUuidProvider for Mesh {
+    fn type_uuid() -> Uuid {
+        Uuid::from_str("caaf9d7b-bd74-48ce-b7cc-57e9dc65c2e6").unwrap()
     }
 }
 
@@ -181,71 +185,6 @@ impl Mesh {
     pub fn add_surface(&mut self, surface: Surface) {
         self.surfaces.get_mut().push(surface);
         self.local_bounding_box_dirty.set(true);
-    }
-
-    /// Returns true if mesh should cast shadows, false - otherwise.
-    #[inline]
-    pub fn cast_shadows(&self) -> bool {
-        *self.cast_shadows
-    }
-
-    /// Sets whether mesh should cast shadows or not.
-    #[inline]
-    pub fn set_cast_shadows(&mut self, cast_shadows: bool) {
-        self.cast_shadows.set(cast_shadows);
-    }
-
-    /// Returns current bounding box. Bounding box presented in *local coordinates*
-    /// WARNING: This method does *not* includes bounds of bones!
-    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
-        self.local_bounding_box.get()
-    }
-
-    /// Returns current **world-space** bounding box.
-    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
-        self.world_bounding_box.get()
-    }
-
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        for surface in self.surfaces_mut() {
-            surface.material().lock().resolve(resource_manager.clone());
-        }
-    }
-
-    pub(in crate) fn update(&self, graph: &Graph) {
-        if self.local_bounding_box_dirty.get() {
-            let mut bounding_box = AxisAlignedBoundingBox::default();
-            for surface in self.surfaces.iter() {
-                let data = surface.data();
-                let data = data.lock();
-                for view in data.vertex_buffer.iter() {
-                    bounding_box
-                        .add_point(view.read_3_f32(VertexAttributeUsage::Position).unwrap());
-                }
-            }
-            self.local_bounding_box.set(bounding_box);
-            self.local_bounding_box_dirty.set(false);
-        }
-
-        if self.surfaces.iter().any(|s| !s.bones.is_empty()) {
-            let mut world_aabb = self
-                .local_bounding_box()
-                .transform(&self.global_transform());
-
-            // Special case for skinned meshes.
-            for surface in self.surfaces.iter() {
-                for &bone in surface.bones() {
-                    world_aabb.add_point(graph[bone].global_position())
-                }
-            }
-
-            self.world_bounding_box.set(world_aabb)
-        } else {
-            self.world_bounding_box.set(
-                self.local_bounding_box()
-                    .transform(&self.global_transform()),
-            );
-        }
     }
 
     /// Sets new render path for the mesh.
@@ -327,39 +266,43 @@ impl Mesh {
     pub fn decal_layer_index(&self) -> u8 {
         *self.decal_layer_index
     }
+}
 
-    /// Creates a raw copy of a mesh node.
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            base: self.base.raw_copy(),
-            surfaces: self.surfaces.clone(),
-            local_bounding_box: self.local_bounding_box.clone(),
-            local_bounding_box_dirty: self.local_bounding_box_dirty.clone(),
-            world_bounding_box: Default::default(),
-            cast_shadows: self.cast_shadows.clone(),
-            render_path: self.render_path.clone(),
-            decal_layer_index: self.decal_layer_index.clone(),
-        }
+impl NodeTrait for Mesh {
+    crate::impl_query_component!();
+
+    /// Returns current bounding box. Bounding box presented in *local coordinates*
+    /// WARNING: This method does *not* includes bounds of bones!
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.local_bounding_box.get()
+    }
+
+    /// Returns current **world-space** bounding box.
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.world_bounding_box.get()
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
         self.base.inherit_properties(parent)?;
-        if let Node::Mesh(parent) = parent {
+        if let Some(parent) = parent.cast::<Self>() {
             self.try_inherit_self_properties(parent)?;
         }
         Ok(())
     }
 
-    pub(crate) fn reset_inheritable_properties(&mut self) {
+    fn reset_inheritable_properties(&mut self) {
         self.base.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
     }
 
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        for surface in self.surfaces_mut() {
+            surface.material().lock().resolve(resource_manager.clone());
+        }
+    }
+
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         self.base.remap_handles(old_new_mapping);
 
         for surface in self.surfaces.get_mut_silent() {
@@ -370,13 +313,54 @@ impl Mesh {
             }
         }
     }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
+    }
+
+    fn update(&mut self, context: &mut UpdateContext) -> bool {
+        if self.local_bounding_box_dirty.get() {
+            let mut bounding_box = AxisAlignedBoundingBox::default();
+            for surface in self.surfaces.iter() {
+                let data = surface.data();
+                let data = data.lock();
+                for view in data.vertex_buffer.iter() {
+                    bounding_box
+                        .add_point(view.read_3_f32(VertexAttributeUsage::Position).unwrap());
+                }
+            }
+            self.local_bounding_box.set(bounding_box);
+            self.local_bounding_box_dirty.set(false);
+        }
+
+        if self.surfaces.iter().any(|s| !s.bones.is_empty()) {
+            let mut world_aabb = self
+                .local_bounding_box()
+                .transform(&self.global_transform());
+
+            // Special case for skinned meshes.
+            for surface in self.surfaces.iter() {
+                for &bone in surface.bones() {
+                    world_aabb.add_point(context.nodes[bone].global_position())
+                }
+            }
+
+            self.world_bounding_box.set(world_aabb)
+        } else {
+            self.world_bounding_box.set(
+                self.local_bounding_box()
+                    .transform(&self.global_transform()),
+            );
+        }
+
+        self.base.update_lifetime(context.dt)
+    }
 }
 
 /// Mesh builder allows you to construct mesh in declarative manner.
 pub struct MeshBuilder {
     base_builder: BaseBuilder,
     surfaces: Vec<Surface>,
-    cast_shadows: bool,
     render_path: RenderPath,
     decal_layer_index: u8,
 }
@@ -387,7 +371,6 @@ impl MeshBuilder {
         Self {
             base_builder,
             surfaces: Default::default(),
-            cast_shadows: true,
             render_path: RenderPath::Deferred,
             decal_layer_index: 0,
         }
@@ -396,12 +379,6 @@ impl MeshBuilder {
     /// Sets desired surfaces for mesh.
     pub fn with_surfaces(mut self, surfaces: Vec<Surface>) -> Self {
         self.surfaces = surfaces;
-        self
-    }
-
-    /// Sets whether mesh should cast shadows or not.
-    pub fn with_cast_shadows(mut self, cast_shadows: bool) -> Self {
-        self.cast_shadows = cast_shadows;
         self
     }
 
@@ -420,9 +397,8 @@ impl MeshBuilder {
 
     /// Creates new mesh.
     pub fn build_node(self) -> Node {
-        Node::Mesh(Mesh {
+        Node::new(Mesh {
             base: self.base_builder.build_base(),
-            cast_shadows: self.cast_shadows.into(),
             surfaces: self.surfaces.into(),
             local_bounding_box: Default::default(),
             local_bounding_box_dirty: Cell::new(true),

@@ -93,7 +93,7 @@ use crate::{
         Animation, AnimationContainer, AnimationPose,
     },
     core::{
-        pool::{Handle, Pool, PoolIterator},
+        pool::{Handle, Pool},
         visitor::{Visit, VisitResult, Visitor},
     },
     utils::log::{Log, MessageKind},
@@ -632,7 +632,7 @@ impl Machine {
         self.active_state = self.entry_state;
     }
 
-    pub fn nodes(&self) -> PoolIterator<PoseNode> {
+    pub fn nodes(&self) -> impl Iterator<Item = &PoseNode> {
         self.nodes.iter()
     }
 

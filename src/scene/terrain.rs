@@ -1,5 +1,6 @@
 //! Everything related to terrains.
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -10,6 +11,7 @@ use crate::{
         },
         parking_lot::Mutex,
         pool::Handle,
+        uuid::Uuid,
         visitor::{prelude::*, PodVecView},
     },
     engine::resource_manager::ResourceManager,
@@ -24,7 +26,7 @@ use crate::{
             surface::SurfaceData,
             vertex::StaticVertex,
         },
-        node::Node,
+        node::{Node, NodeTrait, UpdateContext},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
@@ -34,6 +36,7 @@ use std::{
     cell::Cell,
     cmp::Ordering,
     ops::{Deref, DerefMut},
+    str::FromStr,
     sync::Arc,
 };
 
@@ -249,7 +252,7 @@ pub struct TerrainRayCastResult {
 /// are inheritable. You cannot inherit width, height, chunks and other things because these cannot
 /// be modified at runtime because changing width (for example) will invalidate the entire height
 /// map which makes runtime modification useless.  
-#[derive(Visit, Debug, Default, Inspect)]
+#[derive(Visit, Debug, Default, Inspect, Clone)]
 pub struct Terrain {
     base: Base,
 
@@ -259,9 +262,6 @@ pub struct Terrain {
     #[visit(optional)] // Backward compatibility
     #[inspect(getter = "Deref::deref")]
     decal_layer_index: TemplateVariable<u8>,
-
-    #[inspect(getter = "Deref::deref")]
-    cast_shadows: TemplateVariable<bool>,
 
     #[inspect(read_only)]
     width: f32,
@@ -285,8 +285,7 @@ pub struct Terrain {
 
 impl_directly_inheritable_entity_trait!(Terrain;
     layers,
-    decal_layer_index,
-    cast_shadows
+    decal_layer_index
 );
 
 impl Deref for Terrain {
@@ -312,6 +311,12 @@ fn project(global_transform: Matrix4<f32>, p: Vector3<f32>) -> Option<Vector2<f3
         Some(map_to_local(local_p))
     } else {
         None
+    }
+}
+
+impl TypeUuidProvider for Terrain {
+    fn type_uuid() -> Uuid {
+        Uuid::from_str("4b0a7927-bcd8-41a3-949a-dd10fba8e16a").unwrap()
     }
 }
 
@@ -356,68 +361,6 @@ impl Terrain {
     /// Returns current decal index.
     pub fn decal_layer_index(&self) -> u8 {
         *self.decal_layer_index
-    }
-
-    /// Returns true if terrain should cast shadows.
-    pub fn cast_shadows(&self) -> bool {
-        *self.cast_shadows
-    }
-
-    /// Sets whether terrain should cast shadows or not.
-    pub fn set_cast_shadows(&mut self, value: bool) {
-        self.cast_shadows.set(value);
-    }
-
-    /// Creates raw copy of the terrain. Do not use this method directly, use
-    /// Graph::copy_node.
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            width: self.width,
-            length: self.length,
-            mask_resolution: self.mask_resolution,
-            height_map_resolution: self.height_map_resolution,
-            base: self.base.raw_copy(),
-            chunks: self.chunks.clone(),
-            width_chunks: self.width_chunks,
-            length_chunks: self.length_chunks,
-            bounding_box_dirty: Cell::new(true),
-            bounding_box: Default::default(),
-            decal_layer_index: self.decal_layer_index.clone(),
-            layers: self.layers.clone(),
-            cast_shadows: self.cast_shadows.clone(),
-        }
-    }
-
-    /// Returns pre-cached bounding axis-aligned bounding box of the terrain. Keep in mind that
-    /// if you're modified terrain, bounding box will be recalculated and it is not fast.
-    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
-        if self.bounding_box_dirty.get() {
-            let mut max_height = -f32::MAX;
-            for chunk in self.chunks.iter() {
-                for &height in chunk.heightmap.iter() {
-                    if height > max_height {
-                        max_height = height;
-                    }
-                }
-            }
-
-            let bounding_box = AxisAlignedBoundingBox::from_min_max(
-                Default::default(),
-                Vector3::new(self.width, max_height, self.length),
-            );
-            self.bounding_box.set(bounding_box);
-            self.bounding_box_dirty.set(false);
-
-            bounding_box
-        } else {
-            self.bounding_box.get()
-        }
-    }
-
-    /// Returns current **world-space** bounding box.
-    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
-        self.local_bounding_box()
-            .transform(&self.global_transform())
     }
 
     /// Projects given 3D point on the surface of terrain and returns 2D vector
@@ -608,14 +551,6 @@ impl Terrain {
         !results.is_empty()
     }
 
-    /// Updates terrain's chunks. There is no need to call this method in normal circumstances,
-    /// engine will automatically call this method when needed.
-    pub fn update(&mut self) {
-        for chunk in self.chunks.iter_mut() {
-            chunk.update();
-        }
-    }
-
     /// Returns a reference to a slice with layers of the terrain.
     pub fn layers(&self) -> &[Layer] {
         &self.layers
@@ -671,32 +606,77 @@ impl Terrain {
                 .collect(),
         }
     }
+}
 
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        for layer in self.layers() {
-            layer.material.lock().resolve(resource_manager.clone());
+impl NodeTrait for Terrain {
+    crate::impl_query_component!();
+
+    /// Returns pre-cached bounding axis-aligned bounding box of the terrain. Keep in mind that
+    /// if you're modified terrain, bounding box will be recalculated and it is not fast.
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        if self.bounding_box_dirty.get() {
+            let mut max_height = -f32::MAX;
+            for chunk in self.chunks.iter() {
+                for &height in chunk.heightmap.iter() {
+                    if height > max_height {
+                        max_height = height;
+                    }
+                }
+            }
+
+            let bounding_box = AxisAlignedBoundingBox::from_min_max(
+                Default::default(),
+                Vector3::new(self.width, max_height, self.length),
+            );
+            self.bounding_box.set(bounding_box);
+            self.bounding_box_dirty.set(false);
+
+            bounding_box
+        } else {
+            self.bounding_box.get()
         }
     }
 
+    /// Returns current **world-space** bounding box.
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.local_bounding_box()
+            .transform(&self.global_transform())
+    }
+
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
         self.base.inherit_properties(parent)?;
-        if let Node::Terrain(parent) = parent {
+        if let Some(parent) = parent.cast::<Self>() {
             self.try_inherit_self_properties(parent)?;
         }
         Ok(())
     }
 
-    pub(crate) fn reset_inheritable_properties(&mut self) {
+    fn reset_inheritable_properties(&mut self) {
         self.base.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
     }
 
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        for layer in self.layers() {
+            layer.material.lock().resolve(resource_manager.clone());
+        }
+    }
+
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         self.base.remap_handles(old_new_mapping);
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
+    }
+
+    fn update(&mut self, context: &mut UpdateContext) -> bool {
+        for chunk in self.chunks.iter_mut() {
+            chunk.update();
+        }
+
+        self.base.update_lifetime(context.dt)
     }
 }
 
@@ -787,7 +767,6 @@ pub struct TerrainBuilder {
     height_map_resolution: f32,
     layers: Vec<LayerDefinition>,
     decal_layer_index: u8,
-    cast_shadows: bool,
 }
 
 fn make_divisible_by_2(n: u32) -> u32 {
@@ -837,7 +816,6 @@ impl TerrainBuilder {
             height_map_resolution: 8.0,
             layers: Default::default(),
             decal_layer_index: 0,
-            cast_shadows: true,
         }
     }
 
@@ -892,12 +870,6 @@ impl TerrainBuilder {
     /// Sets desired decal layer index.
     pub fn with_decal_layer_index(mut self, decal_layer_index: u8) -> Self {
         self.decal_layer_index = decal_layer_index;
-        self
-    }
-
-    /// Sets whether terrain should cast shadows or not.
-    pub fn with_cast_shadows(mut self, value: bool) -> Self {
-        self.cast_shadows = value;
         self
     }
 
@@ -962,10 +934,9 @@ impl TerrainBuilder {
             width_chunks: self.width_chunks as u32,
             length_chunks: self.length_chunks as u32,
             decal_layer_index: self.decal_layer_index.into(),
-            cast_shadows: self.cast_shadows.into(),
         };
 
-        Node::Terrain(terrain)
+        Node::new(terrain)
     }
 
     /// Builds terrain node and adds it to given graph.

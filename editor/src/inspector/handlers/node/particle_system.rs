@@ -126,7 +126,7 @@ impl ParticleSystemHandler {
         node: &Node,
         ui: &UserInterface,
     ) -> Option<SceneCommand> {
-        if let Node::ParticleSystem(particle_system) = node {
+        if let Some(particle_system) = node.cast::<ParticleSystem>() {
             match args.value {
                 FieldKind::Object(ref value) => {
                     handle_properties!(args.name.as_ref(), handle, value,

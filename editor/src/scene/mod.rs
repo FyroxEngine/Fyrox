@@ -9,6 +9,8 @@ use crate::{
     world::graph::selection::GraphSelection,
     GameEngine,
 };
+use fyrox::scene::particle_system::ParticleSystem;
+use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{
         math::TriangleDefinition,
@@ -38,7 +40,7 @@ pub struct EditorScene {
 
 impl EditorScene {
     pub fn from_native_scene(mut scene: Scene, engine: &mut Engine, path: Option<PathBuf>) -> Self {
-        let root = BaseBuilder::new().build(&mut scene.graph);
+        let root = PivotBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
         let camera_controller = CameraController::new(&mut scene.graph, root);
 
         // Prevent physics simulation in while editing scene.
@@ -95,7 +97,7 @@ impl EditorScene {
             // Reset state of nodes. For some nodes (such as particles systems) we use scene as preview
             // so before saving scene, we have to reset state of such nodes.
             for node in pure_scene.graph.linear_iter_mut() {
-                if let Node::ParticleSystem(particle_system) = node {
+                if let Some(particle_system) = node.cast_mut::<ParticleSystem>() {
                     // Particle system must not save generated vertices.
                     particle_system.clear_particles();
                 }

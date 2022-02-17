@@ -22,7 +22,6 @@ use crate::{
         shadow::{cascade_size, should_cast_shadows},
         GeometryCache, MaterialContext, RenderPassStatistics, ShadowMapPrecision,
     },
-    scene::graph::Graph,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -119,7 +118,6 @@ impl SpotShadowMapRenderer {
     pub(in crate) fn render(
         &mut self,
         state: &mut PipelineState,
-        graph: &Graph,
         light_view_projection: &Matrix4<f32>,
         batches: &BatchStorage,
         geom_cache: &mut GeometryCache,
@@ -151,9 +149,7 @@ impl SpotShadowMapRenderer {
                 .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
             {
                 for instance in batch.instances.iter() {
-                    let node = &graph[instance.owner];
-
-                    if should_cast_shadows(node, &frustum) {
+                    if should_cast_shadows(instance, &frustum) {
                         statistics += framebuffer.draw(
                             geometry,
                             state,

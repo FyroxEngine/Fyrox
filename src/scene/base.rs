@@ -15,7 +15,6 @@ use crate::{
     impl_directly_inheritable_entity_trait,
     resource::model::Model,
     scene::{
-        graph::Graph,
         node::Node,
         transform::Transform,
         variable::{InheritError, TemplateVariable},
@@ -273,10 +272,11 @@ pub struct Property {
 /// use fyrox::scene::graph::Graph;
 /// use fyrox::scene::node::Node;
 /// use fyrox::core::pool::Handle;
+/// use fyrox::scene::pivot::PivotBuilder;
 ///
-/// fn create_base_node(graph: &mut Graph) -> Handle<Node> {
-///     BaseBuilder::new()
-///         .with_name("BaseNode")
+/// fn create_pivot_node(graph: &mut Graph) -> Handle<Node> {
+///     PivotBuilder::new(BaseBuilder::new()
+///         .with_name("BaseNode"))
 ///         .build(graph)
 /// }
 /// ```
@@ -306,6 +306,9 @@ pub struct Base {
 
     #[inspect(getter = "Deref::deref")]
     tag: TemplateVariable<String>,
+
+    #[inspect(getter = "Deref::deref")]
+    cast_shadows: TemplateVariable<bool>,
 
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
@@ -362,6 +365,35 @@ impl_directly_inheritable_entity_trait!(Base;
     properties,
     frustum_culling
 );
+
+impl Clone for Base {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            local_transform: self.local_transform.clone(),
+            global_transform: self.global_transform.clone(),
+            visibility: self.visibility.clone(),
+            global_visibility: self.global_visibility.clone(),
+            inv_bind_pose_transform: self.inv_bind_pose_transform,
+            resource: self.resource.clone(),
+            original_handle_in_resource: self.original_handle_in_resource,
+            is_resource_instance_root: self.is_resource_instance_root,
+            lifetime: self.lifetime.clone(),
+            mobility: self.mobility.clone(),
+            tag: self.tag.clone(),
+            lod_group: self.lod_group.clone(),
+            properties: self.properties.clone(),
+            frustum_culling: self.frustum_culling.clone(),
+            depth_offset: self.depth_offset.clone(),
+            cast_shadows: self.cast_shadows.clone(),
+
+            // Rest of data is *not* copied!
+            parent: Default::default(),
+            children: Default::default(),
+            transform_modified: Cell::new(false),
+        }
+    }
+}
 
 impl Base {
     /// Sets name of node. Can be useful to mark a node to be able to find it later on.
@@ -594,34 +626,6 @@ impl Base {
         self.tag.set(tag);
     }
 
-    /// Shallow copy of node data. You should never use this directly, shallow copy
-    /// will produce invalid node in most cases!
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            name: self.name.clone(),
-            local_transform: self.local_transform.clone(),
-            global_transform: self.global_transform.clone(),
-            visibility: self.visibility.clone(),
-            global_visibility: self.global_visibility.clone(),
-            inv_bind_pose_transform: self.inv_bind_pose_transform,
-            resource: self.resource.clone(),
-            original_handle_in_resource: self.original_handle_in_resource,
-            is_resource_instance_root: self.is_resource_instance_root,
-            lifetime: self.lifetime.clone(),
-            mobility: self.mobility.clone(),
-            tag: self.tag.clone(),
-            lod_group: self.lod_group.clone(),
-            properties: self.properties.clone(),
-            frustum_culling: self.frustum_culling.clone(),
-            depth_offset: self.depth_offset.clone(),
-
-            // Rest of data is *not* copied!
-            parent: Default::default(),
-            children: Default::default(),
-            transform_modified: Cell::new(false),
-        }
-    }
-
     /// Return the frustum_culling flag
     pub fn frustum_culling(&self) -> bool {
         *self.frustum_culling
@@ -630,6 +634,28 @@ impl Base {
     /// Sets whether to use frustum culling or not
     pub fn set_frustum_culling(&mut self, frustum_culling: bool) {
         self.frustum_culling.set(frustum_culling);
+    }
+
+    /// Returns true if the node should cast shadows, false - otherwise.
+    #[inline]
+    pub fn cast_shadows(&self) -> bool {
+        *self.cast_shadows
+    }
+
+    /// Sets whether the mesh should cast shadows or not.
+    #[inline]
+    pub fn set_cast_shadows(&mut self, cast_shadows: bool) {
+        self.cast_shadows.set(cast_shadows);
+    }
+
+    /// Updates node lifetime and returns true if the node is still alive, false - otherwise.
+    pub(crate) fn update_lifetime(&mut self, dt: f32) -> bool {
+        if let Some(lifetime) = self.lifetime.get_mut_silent().as_mut() {
+            *lifetime -= dt;
+            *lifetime >= 0.0
+        } else {
+            true
+        }
     }
 
     pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
@@ -713,6 +739,7 @@ impl Visit for Base {
         self.tag.visit("Tag", visitor)?;
         let _ = self.properties.visit("Properties", visitor);
         let _ = self.frustum_culling.visit("FrustumCulling", visitor);
+        let _ = self.cast_shadows.visit("CastShadows", visitor);
 
         visitor.leave_region()
     }
@@ -731,6 +758,7 @@ pub struct BaseBuilder {
     inv_bind_pose_transform: Matrix4<f32>,
     tag: String,
     frustum_culling: bool,
+    cast_shadows: bool,
 }
 
 impl Default for BaseBuilder {
@@ -754,6 +782,7 @@ impl BaseBuilder {
             inv_bind_pose_transform: Matrix4::identity(),
             tag: Default::default(),
             frustum_culling: true,
+            cast_shadows: true,
         }
     }
 
@@ -830,7 +859,14 @@ impl BaseBuilder {
         self
     }
 
-    pub(in crate) fn build_base(self) -> Base {
+    /// Sets whether mesh should cast shadows or not.
+    pub fn with_cast_shadows(mut self, cast_shadows: bool) -> Self {
+        self.cast_shadows = cast_shadows;
+        self
+    }
+
+    /// Creates an instance of [`Base`].
+    pub fn build_base(self) -> Base {
         Base {
             name: self.name.into(),
             children: self.children,
@@ -851,17 +887,8 @@ impl BaseBuilder {
             properties: Default::default(),
             transform_modified: Cell::new(false),
             frustum_culling: self.frustum_culling.into(),
+            cast_shadows: self.cast_shadows.into(),
         }
-    }
-
-    /// Creates new instance of base node.
-    pub fn build_node(self) -> Node {
-        Node::Base(self.build_base())
-    }
-
-    /// Creates new instance of base node and adds it to the graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
     }
 }
 
@@ -904,7 +931,7 @@ pub mod test {
                     objects: vec![],
                 }],
             })
-            .build_node();
+            .build_base();
 
         let mut child = BaseBuilder::new().build_base();
 

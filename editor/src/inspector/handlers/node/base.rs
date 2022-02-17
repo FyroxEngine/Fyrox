@@ -28,7 +28,8 @@ pub fn handle_base_property_changed(
                 Base::MOBILITY => SetMobilityCommand,
                 Base::LIFETIME => SetLifetimeCommand,
                 Base::DEPTH_OFFSET => SetDepthOffsetCommand,
-                Base::LOD_GROUP => SetLodGroupCommand
+                Base::LOD_GROUP => SetLodGroupCommand,
+                Base::CAST_SHADOWS => SetCastShadowsCommand
             )
         }
         FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {

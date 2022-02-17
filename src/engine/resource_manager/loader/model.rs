@@ -1,4 +1,4 @@
-//! Model loader. 
+//! Model loader.
 
 use crate::{
     engine::resource_manager::{

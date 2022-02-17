@@ -44,7 +44,7 @@ pub struct QuadTree<T> {
     split_threshold: usize,
 }
 
-impl<T> Default for QuadTree<T> {
+impl<T: 'static> Default for QuadTree<T> {
     fn default() -> Self {
         Self {
             nodes: Default::default(),
@@ -74,13 +74,16 @@ struct Entry<I: Clone> {
     bounds: Rect<f32>,
 }
 
-fn build_recursive<I: Clone>(
+fn build_recursive<I>(
     nodes: &mut Pool<QuadTreeNode<I>>,
     bounds: Rect<f32>,
     entries: &[Entry<I>],
     split_threshold: usize,
     depth: usize,
-) -> Result<Handle<QuadTreeNode<I>>, QuadTreeBuildError> {
+) -> Result<Handle<QuadTreeNode<I>>, QuadTreeBuildError>
+where
+    I: Clone + 'static,
+{
     if depth >= 64 {
         Err(QuadTreeBuildError::ReachedRecursionLimit)
     } else if entries.len() <= split_threshold {
@@ -117,7 +120,10 @@ fn build_recursive<I: Clone>(
     }
 }
 
-impl<I: Clone> QuadTree<I> {
+impl<I> QuadTree<I>
+where
+    I: Clone + 'static,
+{
     pub fn new<T: BoundsProvider<Id = I>>(
         root_bounds: Rect<f32>,
         objects: impl Iterator<Item = T>,

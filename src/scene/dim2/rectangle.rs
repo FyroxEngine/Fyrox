@@ -3,6 +3,7 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
+use crate::scene::node::{NodeTrait, TypeUuidProvider};
 use crate::{
     core::{
         color::Color,
@@ -22,7 +23,10 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_core::math::aabb::AxisAlignedBoundingBox;
+use fyrox_core::uuid::Uuid;
 use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
 
 /// Rectangle is the simplest "2D" node, it can be used to create "2D" graphics. 2D is in quotes
 /// here because the node is actually a 3D node, like everything else in the engine.
@@ -90,7 +94,7 @@ use std::ops::{Deref, DerefMut};
 /// scene lights, but it will be a very simple diffuse lighting without any "physically correct"
 /// lighting. This is perfectly ok for 95% of 2D games, if you want to add custom lighting then
 /// you should use custom shader.
-#[derive(Visit, Inspect, Debug, Default)]
+#[derive(Visit, Inspect, Debug, Clone, Default)]
 pub struct Rectangle {
     base: Base,
 
@@ -120,6 +124,12 @@ impl DerefMut for Rectangle {
     }
 }
 
+impl TypeUuidProvider for Rectangle {
+    fn type_uuid() -> Uuid {
+        Uuid::from_str("bb57b5e0-367a-4490-bf30-7f547407d5b5").unwrap()
+    }
+}
+
 impl Rectangle {
     /// Returns a texture used by the rectangle.
     pub fn texture(&self) -> Option<&Texture> {
@@ -145,17 +155,20 @@ impl Rectangle {
     pub fn set_color(&mut self, color: Color) {
         self.color.set(color);
     }
+}
 
-    /// Creates raw copy of the rectangle.
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            base: self.base.raw_copy(),
-            texture: self.texture.clone(),
-            color: self.color.clone(),
-        }
+impl NodeTrait for Rectangle {
+    crate::impl_query_component!();
+
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.local_bounding_box()
     }
 
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.world_bounding_box()
+    }
+
+    fn restore_resources(&mut self, resource_manager: ResourceManager) {
         resource_manager
             .state()
             .containers_mut()
@@ -163,25 +176,26 @@ impl Rectangle {
             .try_restore_template_resource(&mut self.texture);
     }
 
-    pub(crate) fn reset_inheritable_properties(&mut self) {
+    fn reset_inheritable_properties(&mut self) {
         self.base.reset_inheritable_properties();
         self.reset_self_inheritable_properties();
     }
 
     // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
         self.base.inherit_properties(parent)?;
-        if let Node::Rectangle(parent) = parent {
+        if let Some(parent) = parent.cast::<Self>() {
             self.try_inherit_self_properties(parent)?;
         }
         Ok(())
     }
 
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         self.base.remap_handles(old_new_mapping);
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
     }
 }
 
@@ -225,7 +239,7 @@ impl RectangleBuilder {
 
     /// Creates new [`Node::Rectangle`] instance.
     pub fn build_node(self) -> Node {
-        Node::Rectangle(self.build_rectangle())
+        Node::new(self.build_rectangle())
     }
 
     /// Creates new [`Node::Rectangle`] instance and adds it to the graph.
@@ -241,8 +255,8 @@ mod test {
         resource::texture::test::create_test_texture,
         scene::{
             base::{test::check_inheritable_properties_equality, BaseBuilder},
-            dim2::rectangle::RectangleBuilder,
-            node::Node,
+            dim2::rectangle::{Rectangle, RectangleBuilder},
+            node::NodeTrait,
         },
     };
 
@@ -257,11 +271,9 @@ mod test {
 
         child.inherit(&parent).unwrap();
 
-        if let Node::Rectangle(parent) = parent {
-            check_inheritable_properties_equality(&child.base, &parent.base);
-            check_inheritable_properties_equality(&child, &parent);
-        } else {
-            unreachable!()
-        }
+        let parent = parent.cast::<Rectangle>().unwrap();
+
+        check_inheritable_properties_equality(&child.base, &parent.base);
+        check_inheritable_properties_equality(&child, parent);
     }
 }

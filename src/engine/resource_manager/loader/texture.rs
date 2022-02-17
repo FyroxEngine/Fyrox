@@ -1,4 +1,4 @@
-//! Texture loader. 
+//! Texture loader.
 
 use crate::{
     core::instant,

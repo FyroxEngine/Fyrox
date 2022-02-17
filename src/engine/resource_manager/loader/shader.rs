@@ -1,4 +1,4 @@
-//! Shader loader. 
+//! Shader loader.
 
 use crate::{
     engine::resource_manager::{

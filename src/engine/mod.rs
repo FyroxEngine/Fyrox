@@ -13,9 +13,7 @@ use crate::{
     core::{algebra::Vector2, instant},
     engine::{
         error::EngineError,
-        resource_manager::{
-            container::event::ResourceEvent, ResourceManager,
-        },
+        resource_manager::{container::event::ResourceEvent, ResourceManager},
     },
     event_loop::EventLoop,
     gui::UserInterface,
@@ -141,7 +139,7 @@ impl Engine {
     /// ```no_run
     /// use fyrox::engine::Engine;
     /// use fyrox::window::WindowBuilder;
-    /// use fyrox::resource_manager::ResourceManager;
+    /// use fyrox::engine::resource_manager::ResourceManager;
     /// use fyrox::event_loop::EventLoop;
     ///
     /// let evt = EventLoop::new();

@@ -31,7 +31,7 @@ pub(crate) trait Container {
 /// etc.
 pub struct ResourceContainer<T, O>
 where
-    T: Clone,
+    T: Clone + 'static,
     O: ImportOptions,
 {
     resources: Vec<TimedEntry<T>>,
@@ -45,15 +45,12 @@ where
 
 impl<T, R, E, O> ResourceContainer<T, O>
 where
-    T: Deref<Target = Resource<R, E>> + Clone + Send + Future + From<Resource<R, E>>,
+    T: Deref<Target = Resource<R, E>> + Clone + Send + Future + From<Resource<R, E>> + 'static,
     R: ResourceData,
     E: ResourceLoadError,
     O: ImportOptions,
 {
-    pub(crate) fn new(
-        task_pool: Arc<TaskPool>,
-        loader: Box<dyn ResourceLoader<T, O>>,
-    ) -> Self {
+    pub(crate) fn new(task_pool: Arc<TaskPool>, loader: Box<dyn ResourceLoader<T, O>>) -> Self {
         Self {
             resources: Default::default(),
             default_import_options: Default::default(),

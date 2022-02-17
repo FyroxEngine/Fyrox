@@ -4,6 +4,7 @@ use crate::{
     scene::{EditorScene, Selection},
     set_mesh_diffuse_color, GameEngine,
 };
+use fyrox::scene::pivot::PivotBuilder;
 use fyrox::scene::transform::Transform;
 use fyrox::{
     core::{
@@ -49,9 +50,11 @@ fn make_move_axis(
     let arrow;
     let axis = MeshBuilder::new(
         BaseBuilder::new()
+            .with_cast_shadows(false)
             .with_children(&[{
                 arrow = MeshBuilder::new(
                     BaseBuilder::new()
+                        .with_cast_shadows(false)
                         .with_name(name_prefix.to_owned() + "Arrow")
                         .with_local_transform(
                             TransformBuilder::new()
@@ -60,7 +63,6 @@ fn make_move_axis(
                         ),
                 )
                 .with_render_path(RenderPath::Forward)
-                .with_cast_shadows(false)
                 .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
                     SurfaceData::make_cone(10, 0.05, 0.1, &Matrix4::identity()),
                 )))
@@ -77,7 +79,6 @@ fn make_move_axis(
             ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_cast_shadows(false)
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
         SurfaceData::make_cylinder(10, 0.015, 1.0, true, &Matrix4::identity()),
     )))
@@ -95,14 +96,16 @@ fn create_quad_plane(
     name: &str,
 ) -> Handle<Node> {
     MeshBuilder::new(
-        BaseBuilder::new().with_name(name).with_local_transform(
-            TransformBuilder::new()
-                .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
-                .build(),
-        ),
+        BaseBuilder::new()
+            .with_cast_shadows(false)
+            .with_name(name)
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
+                    .build(),
+            ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_cast_shadows(false)
     .with_surfaces(vec![{
         SurfaceBuilder::new(Arc::new(Mutex::new(SurfaceData::make_quad(
             &(transform
@@ -120,10 +123,12 @@ impl MoveGizmo {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
 
-        let origin = BaseBuilder::new()
-            .with_name("Origin")
-            .with_visibility(false)
-            .build(graph);
+        let origin = PivotBuilder::new(
+            BaseBuilder::new()
+                .with_name("Origin")
+                .with_visibility(false),
+        )
+        .build(graph);
 
         graph.link_nodes(origin, editor_scene.root);
 
@@ -264,33 +269,32 @@ impl MoveGizmo {
         let node_global_transform = graph[self.origin].global_transform();
         let node_local_transform = graph[self.origin].local_transform().matrix();
 
-        if let Node::Camera(camera) = &graph[camera] {
-            let inv_node_transform = node_global_transform
-                .try_inverse()
-                .unwrap_or_else(Matrix4::identity);
+        let camera = &graph[camera].as_camera();
+        let inv_node_transform = node_global_transform
+            .try_inverse()
+            .unwrap_or_else(Matrix4::identity);
 
-            // Create two rays in object space.
-            let initial_ray = camera
-                .make_ray(mouse_position, frame_size)
-                .transform(inv_node_transform);
-            let offset_ray = camera
-                .make_ray(mouse_position + mouse_offset, frame_size)
-                .transform(inv_node_transform);
+        // Create two rays in object space.
+        let initial_ray = camera
+            .make_ray(mouse_position, frame_size)
+            .transform(inv_node_transform);
+        let offset_ray = camera
+            .make_ray(mouse_position + mouse_offset, frame_size)
+            .transform(inv_node_transform);
 
-            let dlook = inv_node_transform
-                .transform_vector(&(node_global_transform.position() - camera.global_position()));
+        let dlook = inv_node_transform
+            .transform_vector(&(node_global_transform.position() - camera.global_position()));
 
-            // Select plane by current active mode.
-            let plane = plane_kind.make_plane_from_view(dlook);
+        // Select plane by current active mode.
+        let plane = plane_kind.make_plane_from_view(dlook);
 
-            // Get two intersection points with plane and use delta between them to calculate offset.
-            if let Some(initial_point) = initial_ray.plane_intersection_point(&plane) {
-                if let Some(next_point) = offset_ray.plane_intersection_point(&plane) {
-                    let delta = next_point - initial_point;
-                    let offset = plane_kind.project_point(delta);
-                    // Make sure offset will be in local coordinates.
-                    return node_local_transform.transform_vector(&offset);
-                }
+        // Get two intersection points with plane and use delta between them to calculate offset.
+        if let Some(initial_point) = initial_ray.plane_intersection_point(&plane) {
+            if let Some(next_point) = offset_ray.plane_intersection_point(&plane) {
+                let delta = next_point - initial_point;
+                let offset = plane_kind.project_point(delta);
+                // Make sure offset will be in local coordinates.
+                return node_local_transform.transform_vector(&offset);
             }
         }
 

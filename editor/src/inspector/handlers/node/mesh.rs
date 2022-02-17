@@ -13,11 +13,10 @@ pub fn handle_mesh_property_changed(
     handle: Handle<Node>,
     node: &Node,
 ) -> Option<SceneCommand> {
-    if let Node::Mesh(_) = node {
+    if node.is_mesh() {
         match args.value {
             FieldKind::Object(ref value) => {
                 handle_properties!(args.name.as_ref(), handle, value,
-                    Mesh::CAST_SHADOWS => SetMeshCastShadowsCommand,
                     Mesh::RENDER_PATH => SetMeshRenderPathCommand,
                     Mesh::DECAL_LAYER_INDEX => SetMeshDecalLayerIndexCommand
                 )

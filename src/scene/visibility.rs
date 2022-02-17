@@ -2,9 +2,10 @@
 //!
 //! For more info see [`VisibilityCache`]
 
+use crate::scene::graph::NodePool;
 use crate::{
     core::{algebra::Vector3, math::frustum::Frustum, pool::Handle},
-    scene::{graph::Graph, node::Node},
+    scene::node::Node,
 };
 use fxhash::FxHashMap;
 
@@ -22,7 +23,7 @@ use fxhash::FxHashMap;
 /// # Performance
 ///
 /// The cache is based on hash map, so it is very fast and has O(1) complexity for fetching.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct VisibilityCache {
     map: FxHashMap<Handle<Node>, bool>,
 }
@@ -40,11 +41,16 @@ impl VisibilityCache {
         std::mem::take(&mut self.map)
     }
 
+    /// Clears the cache.
+    pub fn clear(&mut self) {
+        self.map.clear()
+    }
+
     /// Updates visibility cache - checks visibility for each node in given graph, also performs
     /// frustum culling if frustum set is specified.
     pub fn update(
         &mut self,
-        graph: &Graph,
+        nodes: &NodePool,
         observer_position: Vector3<f32>,
         z_near: f32,
         z_far: f32,
@@ -53,11 +59,11 @@ impl VisibilityCache {
         self.map.clear();
 
         // Check LODs first, it has priority over other visibility settings.
-        for node in graph.linear_iter() {
+        for node in nodes.iter() {
             if let Some(lod_group) = node.lod_group() {
                 for level in lod_group.levels.iter() {
                     for &object in level.objects.iter() {
-                        if let Some(object_ref) = graph.try_get(*object) {
+                        if let Some(object_ref) = nodes.try_borrow(*object) {
                             let distance =
                                 observer_position.metric_distance(&object_ref.global_position());
                             let z_range = z_far - z_near;
@@ -72,7 +78,7 @@ impl VisibilityCache {
         }
 
         // Fill rest of data from global visibility flag of nodes and check frustums (if any).
-        for (handle, node) in graph.pair_iter() {
+        for (handle, node) in nodes.pair_iter() {
             // We need to fill only unfilled entries, none of visibility flags of a node can
             // make it visible again if lod group hid it.
             self.map.entry(handle).or_insert_with(|| {

@@ -113,7 +113,6 @@ impl Command for SetMeshTextureCommand {
 
 define_swap_command! {
     Node::as_mesh_mut,
-    SetMeshCastShadowsCommand(bool): cast_shadows, set_cast_shadows, "Set Mesh Cast Shadows";
     SetMeshRenderPathCommand(RenderPath): render_path, set_render_path, "Set Mesh Render Path";
     SetMeshDecalLayerIndexCommand(u8): decal_layer_index, set_decal_layer_index, "Set Mesh Decal Layer Index";
 }

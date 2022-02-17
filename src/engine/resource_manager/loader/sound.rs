@@ -1,4 +1,4 @@
-//! Sound buffer loader. 
+//! Sound buffer loader.
 
 use crate::{
     core::inspect::{Inspect, PropertyInfo},

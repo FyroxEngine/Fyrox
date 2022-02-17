@@ -7,6 +7,7 @@ use crate::{
     scene::commands::graph::AddNodeCommand,
     Message,
 };
+use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{algebra::Matrix4, parking_lot::Mutex, pool::Handle},
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
@@ -248,7 +249,7 @@ impl CreateEntityMenu {
                     .build_node(),
                 )
             } else if message.destination() == self.create_pivot {
-                Some(BaseBuilder::new().with_name("Pivot").build_node())
+                Some(PivotBuilder::new(BaseBuilder::new().with_name("Pivot")).build_node())
             } else if message.destination() == self.create_point_light {
                 Some(
                     PointLightBuilder::new(BaseLightBuilder::new(

@@ -2,7 +2,7 @@ use crate::core::color::Color;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
-        pool::{Handle, Pool, PoolPairIterator},
+        pool::{Handle, Pool},
     },
     resource::fbx::{
         document::{attribute::FbxAttribute, FbxDocument, FbxNode, FbxNodeContainer},
@@ -133,7 +133,7 @@ impl FbxScene {
         Ok(Self { components })
     }
 
-    pub fn pair_iter(&self) -> PoolPairIterator<FbxComponent> {
+    pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<FbxComponent>, &FbxComponent)> {
         self.components.pair_iter()
     }
 

@@ -1,5 +1,6 @@
 use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::state::{BlendFactor, BlendFunc};
+use crate::scene::particle_system::ParticleSystem;
 use crate::{
     core::{algebra::Vector2, math::Matrix4Ext, math::Rect, scope_profile},
     renderer::framework::{
@@ -14,7 +15,7 @@ use crate::{
         state::PipelineState,
     },
     renderer::{RenderPassStatistics, TextureCache},
-    scene::{camera::Camera, graph::Graph, node::Node, particle_system},
+    scene::{camera::Camera, graph::Graph, particle_system},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -160,13 +161,10 @@ impl ParticleSystemRenderer {
         let inv_screen_size = Vector2::new(1.0 / frame_width, 1.0 / frame_height);
         let proj_params = Vector2::new(camera.projection().z_far(), camera.projection().z_near());
 
-        for node in graph.linear_iter() {
-            let particle_system = if let Node::ParticleSystem(particle_system) = node {
-                particle_system
-            } else {
-                continue;
-            };
-
+        for particle_system in graph
+            .linear_iter()
+            .filter_map(|n| n.cast::<ParticleSystem>())
+        {
             particle_system.generate_draw_data(
                 &mut self.sorted_particles,
                 &mut self.draw_data,
@@ -179,7 +177,7 @@ impl ParticleSystemRenderer {
                 .bind(state)
                 .set_triangles(self.draw_data.triangles());
 
-            let global_transform = node.global_transform();
+            let global_transform = particle_system.global_transform();
 
             let draw_params = DrawParameters {
                 cull_face: None,

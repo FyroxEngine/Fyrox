@@ -70,14 +70,16 @@
 //! }
 //! ```
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
         color::Color,
         color_gradient::ColorGradient,
         inspect::{Inspect, PropertyInfo},
-        math::TriangleDefinition,
+        math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
+        uuid::Uuid,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -86,7 +88,7 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::Node,
+        node::{Node, NodeTrait, UpdateContext},
         particle_system::{
             draw::{DrawData, Vertex},
             emitter::{Emit, Emitter},
@@ -101,6 +103,7 @@ use std::{
     cmp::Ordering,
     fmt::Debug,
     ops::{Deref, DerefMut},
+    str::FromStr,
 };
 
 pub(crate) mod draw;
@@ -140,7 +143,7 @@ impl Visit for ParticleLimit {
 }
 
 /// See module docs.
-#[derive(Debug, Visit, Inspect)]
+#[derive(Debug, Visit, Clone, Inspect)]
 pub struct ParticleSystem {
     base: Base,
 
@@ -195,22 +198,13 @@ impl DerefMut for ParticleSystem {
     }
 }
 
-impl ParticleSystem {
-    /// Creates a raw copy of a particle system node.
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            base: self.base.raw_copy(),
-            particles: self.particles.clone(),
-            free_particles: self.free_particles.clone(),
-            emitters: self.emitters.clone(),
-            texture: self.texture.clone(),
-            acceleration: self.acceleration.clone(),
-            color_over_lifetime: self.color_over_lifetime.clone(),
-            soft_boundary_sharpness_factor: self.soft_boundary_sharpness_factor.clone(),
-            enabled: self.enabled.clone(),
-        }
+impl TypeUuidProvider for ParticleSystem {
+    fn type_uuid() -> Uuid {
+        Uuid::from_str("8b210eff-97a4-494f-ba7a-a581d3f4a442").unwrap()
     }
+}
 
+impl ParticleSystem {
     /// Returns current acceleration for particles in particle system.
     pub fn acceleration(&self) -> Vector3<f32> {
         *self.acceleration
@@ -257,69 +251,6 @@ impl ParticleSystem {
         self.free_particles.clear();
         for emitter in self.emitters.get_mut_silent().iter_mut() {
             emitter.alive_particles = 0;
-        }
-    }
-
-    /// Updates state of particle system, this means that it moves particles,
-    /// changes their color, size, rotation, etc. This method should not be
-    /// used directly, it will be automatically called by scene update.
-    pub fn update(&mut self, dt: f32) {
-        if !*self.enabled {
-            return;
-        }
-
-        for emitter in self.emitters.get_mut_silent().iter_mut() {
-            emitter.tick(dt);
-        }
-
-        for (i, emitter) in self.emitters.get_mut_silent().iter_mut().enumerate() {
-            for _ in 0..emitter.particles_to_spawn {
-                let mut particle = Particle {
-                    emitter_index: i as u32,
-                    ..Particle::default()
-                };
-                emitter.alive_particles += 1;
-                emitter.emit(&mut particle);
-                if let Some(free_index) = self.free_particles.pop() {
-                    self.particles[free_index as usize] = particle;
-                } else {
-                    self.particles.push(particle);
-                }
-            }
-        }
-
-        let acceleration_offset = self.acceleration.scale(dt * dt);
-
-        for (i, particle) in self.particles.iter_mut().enumerate() {
-            if particle.alive {
-                particle.lifetime += dt;
-                if particle.lifetime >= particle.initial_lifetime {
-                    self.free_particles.push(i as u32);
-                    if let Some(emitter) = self
-                        .emitters
-                        .get_mut()
-                        .get_mut(particle.emitter_index as usize)
-                    {
-                        emitter.alive_particles -= 1;
-                    }
-                    particle.alive = false;
-                    particle.lifetime = particle.initial_lifetime;
-                } else {
-                    particle.velocity += acceleration_offset;
-                    particle.position += particle.velocity;
-                    particle.size += particle.size_modifier * dt;
-                    if particle.size < 0.0 {
-                        particle.size = 0.0;
-                    }
-                    particle.rotation += particle.rotation_speed * dt;
-                    if let Some(color_over_lifetime) = self.color_over_lifetime.as_ref() {
-                        let k = particle.lifetime / particle.initial_lifetime;
-                        particle.color = color_over_lifetime.get_color(k);
-                    } else {
-                        particle.color = Color::WHITE;
-                    }
-                }
-            }
         }
     }
 
@@ -426,38 +357,113 @@ impl ParticleSystem {
     pub fn texture_ref(&self) -> Option<&Texture> {
         self.texture.as_ref()
     }
-
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        let mut state = resource_manager.state();
-        let texture_container = &mut state.containers_mut().textures;
-        texture_container.try_restore_template_resource(&mut self.texture);
-    }
-
-    // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Node::ParticleSystem(parent) = parent {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
-        self.base.remap_handles(old_new_mapping);
-    }
 }
 
 impl Default for ParticleSystem {
     fn default() -> Self {
         ParticleSystemBuilder::new(BaseBuilder::new()).build_particle_system()
+    }
+}
+
+impl NodeTrait for ParticleSystem {
+    crate::impl_query_component!();
+
+    fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.local_bounding_box()
+    }
+
+    fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.world_bounding_box()
+    }
+
+    // Prefab inheritance resolving.
+    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
+        self.base.inherit_properties(parent)?;
+        if let Some(parent) = parent.cast::<Self>() {
+            self.try_inherit_self_properties(parent)?;
+        }
+        Ok(())
+    }
+
+    fn reset_inheritable_properties(&mut self) {
+        self.base.reset_inheritable_properties();
+        self.reset_self_inheritable_properties();
+    }
+
+    fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        let mut state = resource_manager.state();
+        let texture_container = &mut state.containers_mut().textures;
+        texture_container.try_restore_template_resource(&mut self.texture);
+    }
+
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+        self.base.remap_handles(old_new_mapping);
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
+    }
+
+    fn update(&mut self, context: &mut UpdateContext) -> bool {
+        let dt = context.dt;
+
+        if *self.enabled {
+            for emitter in self.emitters.get_mut_silent().iter_mut() {
+                emitter.tick(dt);
+            }
+
+            for (i, emitter) in self.emitters.get_mut_silent().iter_mut().enumerate() {
+                for _ in 0..emitter.particles_to_spawn {
+                    let mut particle = Particle {
+                        emitter_index: i as u32,
+                        ..Particle::default()
+                    };
+                    emitter.alive_particles += 1;
+                    emitter.emit(&mut particle);
+                    if let Some(free_index) = self.free_particles.pop() {
+                        self.particles[free_index as usize] = particle;
+                    } else {
+                        self.particles.push(particle);
+                    }
+                }
+            }
+
+            let acceleration_offset = self.acceleration.scale(dt * dt);
+
+            for (i, particle) in self.particles.iter_mut().enumerate() {
+                if particle.alive {
+                    particle.lifetime += dt;
+                    if particle.lifetime >= particle.initial_lifetime {
+                        self.free_particles.push(i as u32);
+                        if let Some(emitter) = self
+                            .emitters
+                            .get_mut()
+                            .get_mut(particle.emitter_index as usize)
+                        {
+                            emitter.alive_particles -= 1;
+                        }
+                        particle.alive = false;
+                        particle.lifetime = particle.initial_lifetime;
+                    } else {
+                        particle.velocity += acceleration_offset;
+                        particle.position += particle.velocity;
+                        particle.size += particle.size_modifier * dt;
+                        if particle.size < 0.0 {
+                            particle.size = 0.0;
+                        }
+                        particle.rotation += particle.rotation_speed * dt;
+                        if let Some(color_over_lifetime) = self.color_over_lifetime.as_ref() {
+                            let k = particle.lifetime / particle.initial_lifetime;
+                            particle.color = color_over_lifetime.get_color(k);
+                        } else {
+                            particle.color = Color::WHITE;
+                        }
+                    }
+                }
+            }
+        }
+
+        self.base.update_lifetime(dt)
     }
 }
 
@@ -554,7 +560,7 @@ impl ParticleSystemBuilder {
 
     /// Creates new instance of particle system.
     pub fn build_node(self) -> Node {
-        Node::ParticleSystem(self.build_particle_system())
+        Node::new(self.build_particle_system())
     }
 
     /// Creates new instance of particle system and adds it to the graph.
@@ -569,8 +575,9 @@ mod test {
         core::algebra::Vector3,
         resource::texture::test::create_test_texture,
         scene::{
-            base::test::check_inheritable_properties_equality, base::BaseBuilder, node::Node,
-            particle_system::ParticleSystemBuilder,
+            base::{test::check_inheritable_properties_equality, BaseBuilder},
+            node::NodeTrait,
+            particle_system::{ParticleSystem, ParticleSystemBuilder},
         },
     };
 
@@ -586,11 +593,9 @@ mod test {
 
         child.inherit(&parent).unwrap();
 
-        if let Node::ParticleSystem(parent) = parent {
-            check_inheritable_properties_equality(&child.base, &parent.base);
-            check_inheritable_properties_equality(&child, &parent);
-        } else {
-            unreachable!()
-        }
+        let parent = parent.cast::<ParticleSystem>().unwrap();
+
+        check_inheritable_properties_equality(&child.base, &parent.base);
+        check_inheritable_properties_equality(&child, parent);
     }
 }
