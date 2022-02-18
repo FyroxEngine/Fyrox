@@ -11,6 +11,7 @@
 
 pub mod animation;
 pub mod engine;
+pub mod game;
 pub mod material;
 pub mod renderer;
 pub mod resource;

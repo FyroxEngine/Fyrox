@@ -56,6 +56,7 @@ fxhash = "0.2.1"
 strum = "0.23.0"
 strum_macros = "0.23.1"
 notify = "4.0"
+libloading = "0.7.3"
 
 [features]
 enable_profiler = ["fyrox-core/enable_profiler"]
