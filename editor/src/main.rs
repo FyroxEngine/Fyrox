@@ -68,7 +68,6 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::game::Game;
 use fyrox::{
     core::{
         algebra::{Point3, Vector2},
@@ -82,7 +81,6 @@ use fyrox::{
         sstorage::ImmutableString,
     },
     dpi::LogicalSize,
-    engine::resource_manager::watcher::ResourceWatcher,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -101,6 +99,7 @@ use fyrox::{
         BuildContext, UiNode, UserInterface, VerticalAlignment,
     },
     material::{shader::Shader, Material, PropertyValue},
+    plugin::PluginContext,
     resource::texture::{CompressionOptions, Texture, TextureKind, TextureState},
     scene::{
         camera::Projection,
@@ -113,6 +112,7 @@ use fyrox::{
         node::Node,
         Scene, SceneLoader,
     },
+    utils::watcher::FileSystemWatcher,
     utils::{into_gui_texture, log::MessageKind, translate_cursor_icon, translate_event},
 };
 use std::{
@@ -319,7 +319,6 @@ struct Editor {
     inspector: Inspector,
     curve_editor: CurveEditorWindow,
     audio_panel: AudioPanel,
-    game_plugin: Option<Game>,
 }
 
 impl Editor {
@@ -551,7 +550,6 @@ impl Editor {
             inspector,
             curve_editor,
             audio_panel,
-            game_plugin: None,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1102,25 +1100,10 @@ impl Editor {
         }
     }
 
-    fn try_load_game_plugin(&mut self) {
-        if self.game_plugin.is_none() {
-            if let Ok(mut game) =
-                // TODO: Detect game plugin automatically.
-                Game::try_load("../test_scripting/target/debug/test_scripting.dll")
-            {
-                game.on_init(engine);
-
-                self.game_plugin = Some(game);
-            }
-        }
-    }
-
     fn update(&mut self, engine: &mut GameEngine, dt: f32) {
         scope_profile!();
 
         let mut needs_sync = false;
-
-        self.try_load_game_plugin();
 
         while let Ok(message) = self.message_receiver.try_recv() {
             self.log.handle_message(&message, engine);
@@ -1275,11 +1258,19 @@ impl Editor {
 
                     std::env::set_current_dir(working_directory.clone()).unwrap();
 
+                    engine.plugins.rescan(&mut PluginContext {
+                        scenes: &mut engine.scenes,
+                        ui: &mut engine.user_interface,
+                        resource_manager: &engine.resource_manager,
+                        renderer: &mut engine.renderer,
+                        dt,
+                    });
+
                     engine
                         .get_window()
                         .set_title(&format!("Fyroxed: {}", working_directory.to_string_lossy()));
 
-                    match ResourceWatcher::new(&working_directory, Duration::from_secs(1)) {
+                    match FileSystemWatcher::new(&working_directory, Duration::from_secs(1)) {
                         Ok(watcher) => {
                             engine.resource_manager.state().set_watcher(Some(watcher));
                         }

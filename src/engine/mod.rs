@@ -7,6 +7,8 @@ pub mod error;
 pub mod framework;
 pub mod resource_manager;
 
+use crate::plugin::container::PluginContainer;
+use crate::plugin::PluginContext;
 use crate::utils::log::Log;
 use crate::{
     asset::ResourceState,
@@ -60,6 +62,9 @@ pub struct Engine {
     // because internally sound engine spawns separate thread to mix and send data to sound
     // device. For more info see docs for Context.
     sound_engine: Arc<Mutex<SoundEngine>>,
+
+    /// A set of plugins used by the engine.
+    pub plugins: PluginContainer,
 }
 
 struct ResourceGraphVertex {
@@ -243,6 +248,7 @@ impl Engine {
             context,
             #[cfg(target_arch = "wasm32")]
             window,
+            plugins: PluginContainer::new(),
         })
     }
 
@@ -295,9 +301,33 @@ impl Engine {
             scene.update(frame_size, dt);
         }
 
+        self.handle_plugins(dt);
+
         let time = instant::Instant::now();
         self.user_interface.update(window_size, dt);
         self.ui_time = instant::Instant::now() - time;
+    }
+
+    /// Handle hot-reloading of plugins and performs update of every plugin.
+    ///
+    /// # Important notes
+    ///
+    /// Normally, this is called from `Engine::update()`.
+    /// You should only call this manually if you don't use that method.
+    pub fn handle_plugins(&mut self, dt: f32) {
+        let mut context = PluginContext {
+            scenes: &mut self.scenes,
+            ui: &mut self.user_interface,
+            resource_manager: &self.resource_manager,
+            renderer: &mut self.renderer,
+            dt,
+        };
+
+        self.plugins.handle_fs_events(&mut context);
+
+        for plugin in self.plugins.plugins.iter_mut() {
+            plugin.update(&mut context);
+        }
     }
 
     /// Handle hot-reloading of resources.

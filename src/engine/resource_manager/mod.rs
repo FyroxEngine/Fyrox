@@ -1,6 +1,7 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
 use crate::utils::log::Log;
+use crate::utils::watcher::FileSystemWatcher;
 use crate::{
     core::{
         futures::future::join_all,
@@ -18,7 +19,6 @@ use crate::{
             ResourceLoader,
         },
         task::TaskPool,
-        watcher::ResourceWatcher,
     },
     material::shader::{Shader, ShaderImportOptions},
     resource::{
@@ -35,7 +35,6 @@ pub mod container;
 pub mod loader;
 pub mod options;
 mod task;
-pub mod watcher;
 
 /// Storage of resource containers.
 pub struct ContainersStorage {
@@ -100,7 +99,7 @@ impl ContainersStorage {
 /// See module docs.
 pub struct ResourceManagerState {
     containers_storage: Option<ContainersStorage>,
-    watcher: Option<ResourceWatcher>,
+    watcher: Option<FileSystemWatcher>,
 }
 
 /// See module docs.
@@ -349,7 +348,7 @@ impl ResourceManagerState {
     /// the manager to reload changed resources. By default there is no watcher, since it
     /// may be an undesired effect to reload resources at runtime. This is very useful thing
     /// for fast iterative development.
-    pub fn set_watcher(&mut self, watcher: Option<ResourceWatcher>) {
+    pub fn set_watcher(&mut self, watcher: Option<FileSystemWatcher>) {
         self.watcher = watcher;
     }
 
