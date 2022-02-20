@@ -388,4 +388,24 @@ impl Engine {
     pub fn sound_gain(&self) -> f32 {
         self.sound_engine.lock().unwrap().master_gain()
     }
+
+    pub fn unload_plugins(&mut self) {
+        self.plugins.clear(&mut PluginContext {
+            scenes: &mut self.scenes,
+            ui: &mut self.user_interface,
+            resource_manager: &self.resource_manager,
+            renderer: &mut self.renderer,
+            dt: 0.0,
+        });
+    }
+
+    pub fn reload_plugins(&mut self) {
+        self.plugins.rescan(&mut PluginContext {
+            scenes: &mut self.scenes,
+            ui: &mut self.user_interface,
+            resource_manager: &self.resource_manager,
+            renderer: &mut self.renderer,
+            dt: 0.0,
+        });
+    }
 }

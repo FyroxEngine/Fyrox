@@ -40,6 +40,8 @@ pub struct SceneViewer {
     navmesh_mode: Handle<UiNode>,
     terrain_mode: Handle<UiNode>,
     camera_projection: Handle<UiNode>,
+    unload_plugins: Handle<UiNode>,
+    reload_plugins: Handle<UiNode>,
     sender: Sender<Message>,
 }
 
@@ -120,6 +122,8 @@ impl SceneViewer {
         let terrain_mode;
         let selection_frame;
         let camera_projection;
+        let unload_plugins;
+        let reload_plugins;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
             .can_minimize(false)
@@ -132,6 +136,22 @@ impl SceneViewer {
                                 WidgetBuilder::new()
                                     .with_margin(Thickness::uniform(1.0))
                                     .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .with_child({
+                                        unload_plugins = ButtonBuilder::new(
+                                            WidgetBuilder::new().with_width(100.0),
+                                        )
+                                        .with_text("Unload Plugins")
+                                        .build(ctx);
+                                        unload_plugins
+                                    })
+                                    .with_child({
+                                        reload_plugins = ButtonBuilder::new(
+                                            WidgetBuilder::new().with_width(100.0),
+                                        )
+                                        .with_text("Reload Plugins")
+                                        .build(ctx);
+                                        reload_plugins
+                                    })
                                     .with_child({
                                         camera_projection = DropdownListBuilder::new(
                                             WidgetBuilder::new().with_width(150.0),
@@ -289,6 +309,8 @@ impl SceneViewer {
             terrain_mode,
             camera_projection,
             click_mouse_pos: None,
+            unload_plugins,
+            reload_plugins,
         }
     }
 }
@@ -332,6 +354,10 @@ impl SceneViewer {
                 self.sender
                     .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
                     .unwrap();
+            } else if message.destination() == self.unload_plugins {
+                self.sender.send(Message::UnloadPlugins).unwrap()
+            } else if message.destination() == self.reload_plugins {
+                self.sender.send(Message::ReloadPlugins).unwrap()
             }
         } else if let Some(WidgetMessage::MouseDown { button, .. }) =
             message.data::<WidgetMessage>()

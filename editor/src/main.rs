@@ -260,6 +260,8 @@ pub enum Message {
         handle: ErasedHandle,
     },
     SetEditorCameraProjection(Projection),
+    UnloadPlugins,
+    ReloadPlugins,
 }
 
 impl Message {
@@ -683,6 +685,8 @@ impl Editor {
             &mut engine.user_interface,
             engine.resource_manager.clone(),
         );
+        self.scene_viewer
+            .handle_ui_message(message, &engine.user_interface);
 
         if let Some(editor_scene) = self.scene.as_mut() {
             self.audio_panel
@@ -719,9 +723,6 @@ impl Editor {
 
             self.light_panel
                 .handle_ui_message(message, editor_scene, engine);
-
-            self.scene_viewer
-                .handle_ui_message(message, &engine.user_interface);
 
             self.material_editor
                 .handle_ui_message(message, engine, &self.message_sender);
@@ -1258,13 +1259,7 @@ impl Editor {
 
                     std::env::set_current_dir(working_directory.clone()).unwrap();
 
-                    engine.plugins.rescan(&mut PluginContext {
-                        scenes: &mut engine.scenes,
-                        ui: &mut engine.user_interface,
-                        resource_manager: &engine.resource_manager,
-                        renderer: &mut engine.renderer,
-                        dt,
-                    });
+                    engine.reload_plugins();
 
                     engine
                         .get_window()
@@ -1354,6 +1349,12 @@ impl Editor {
                             projection,
                         );
                     }
+                }
+                Message::UnloadPlugins => {
+                    engine.unload_plugins();
+                }
+                Message::ReloadPlugins => {
+                    engine.reload_plugins();
                 }
             }
         }
