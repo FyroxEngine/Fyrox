@@ -9,6 +9,7 @@ pub mod resource_manager;
 
 use crate::plugin::container::PluginContainer;
 use crate::plugin::PluginContext;
+use crate::script::ScriptContext;
 use crate::utils::log::Log;
 use crate::{
     asset::ResourceState,
@@ -24,6 +25,7 @@ use crate::{
     scene::{sound::SoundEngine, SceneContainer},
     window::{Window, WindowBuilder},
 };
+use std::any::Any;
 use std::{
     collections::HashSet,
     sync::{
@@ -327,6 +329,23 @@ impl Engine {
 
         for plugin in self.plugins.plugins.iter_mut() {
             plugin.update(&mut context);
+        }
+
+        for scene in self.scenes.iter_mut().filter(|s| s.enabled) {
+            for node in scene.graph.linear_iter_mut() {
+                if let Some(script) = node.script.as_mut() {
+                    if let Some(plugin) = self
+                        .plugins
+                        .plugins
+                        .iter_mut()
+                        .find(|p| p.type_uuid() == script.plugin_uuid())
+                    {
+                        script.on_update(&mut ScriptContext {
+                            plugin: &mut **plugin,
+                        });
+                    }
+                }
+            }
         }
     }
 

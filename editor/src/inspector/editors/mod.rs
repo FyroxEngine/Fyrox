@@ -1,3 +1,4 @@
+use crate::inspector::editors::script::ScriptPropertyEditorDefinition;
 use crate::{
     inspector::editors::{
         handle::HandlePropertyEditorDefinition,
@@ -57,6 +58,7 @@ use std::{rc::Rc, sync::mpsc::Sender};
 pub mod handle;
 pub mod material;
 pub mod resource;
+pub mod script;
 pub mod texture;
 
 pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Status> {
@@ -137,6 +139,7 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<MaterialSearchOptions>::new());
     container.insert(EnumPropertyEditorDefinition::<DistanceModel>::new());
     container.insert(EnumPropertyEditorDefinition::<sound::Renderer>::new());
+    container.insert(ScriptPropertyEditorDefinition {});
 
     Rc::new(container)
 }

@@ -6,6 +6,7 @@ use crate::{
     scene::SceneContainer,
     script::ScriptDefinitionStorage,
 };
+use fyrox_core::uuid::Uuid;
 use libloading::{Library, Symbol};
 use std::{
     ffi::{OsStr, OsString},
@@ -30,6 +31,8 @@ pub trait Plugin: Visit + Inspect {
     fn update(&mut self, context: &mut PluginContext);
 
     fn script_definition_storage(&self) -> &ScriptDefinitionStorage;
+
+    fn type_uuid(&self) -> Uuid;
 }
 
 pub type EntryPoint = extern "C" fn() -> Box<Box<dyn Plugin>>;

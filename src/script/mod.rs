@@ -3,8 +3,10 @@ use crate::core::{
     uuid::Uuid,
     visitor::{Visit, VisitResult, Visitor},
 };
+use crate::plugin::Plugin;
 use fxhash::FxHashMap;
 use std::fmt::Debug;
+use std::ops::{Deref, DerefMut};
 
 pub trait BaseScript: Visit + Inspect + Send + Debug + 'static {
     fn clone_box(&self) -> Box<dyn ScriptTrait>;
@@ -19,10 +21,18 @@ where
     }
 }
 
+pub struct ScriptContext<'a> {
+    pub plugin: &'a mut dyn Plugin,
+}
+
 pub trait ScriptTrait: BaseScript {
-    fn on_init(&mut self);
+    fn on_init(&mut self, context: &mut ScriptContext);
+
+    fn on_update(&mut self, context: &mut ScriptContext);
 
     fn type_uuid(&self) -> Uuid;
+
+    fn plugin_uuid(&self) -> Uuid;
 }
 
 pub struct ScriptDefinition {
@@ -33,6 +43,20 @@ pub struct ScriptDefinition {
 
 #[derive(Debug)]
 pub struct Script(pub Box<dyn ScriptTrait>);
+
+impl Deref for Script {
+    type Target = dyn ScriptTrait;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+impl DerefMut for Script {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut *self.0
+    }
+}
 
 impl Inspect for Script {
     fn properties(&self) -> Vec<PropertyInfo<'_>> {
