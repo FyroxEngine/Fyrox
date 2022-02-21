@@ -16,6 +16,7 @@ pub mod plugin;
 pub mod renderer;
 pub mod resource;
 pub mod scene;
+pub mod script;
 pub mod utils;
 
 pub use crate::core::rand;

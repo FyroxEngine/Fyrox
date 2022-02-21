@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Base`]
 
+use crate::script::Script;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -20,6 +21,7 @@ use crate::{
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
+    script::ScriptTrait,
     utils::log::Log,
 };
 use fxhash::FxHashMap;
@@ -352,6 +354,8 @@ pub struct Base {
     // was instantiated from.
     #[inspect(read_only)]
     pub(in crate) original_handle_in_resource: Handle<Node>,
+
+    pub script: Option<Script>,
 }
 
 impl_directly_inheritable_entity_trait!(Base;
@@ -386,6 +390,7 @@ impl Clone for Base {
             frustum_culling: self.frustum_culling.clone(),
             depth_offset: self.depth_offset.clone(),
             cast_shadows: self.cast_shadows.clone(),
+            script: self.script.clone(),
 
             // Rest of data is *not* copied!
             parent: Default::default(),
@@ -759,6 +764,7 @@ pub struct BaseBuilder {
     tag: String,
     frustum_culling: bool,
     cast_shadows: bool,
+    script: Option<Script>,
 }
 
 impl Default for BaseBuilder {
@@ -783,6 +789,7 @@ impl BaseBuilder {
             tag: Default::default(),
             frustum_culling: true,
             cast_shadows: true,
+            script: None,
         }
     }
 
@@ -865,6 +872,11 @@ impl BaseBuilder {
         self
     }
 
+    pub fn with_script(mut self, script: Script) -> Self {
+        self.script = Some(script);
+        self
+    }
+
     /// Creates an instance of [`Base`].
     pub fn build_base(self) -> Base {
         Base {
@@ -888,6 +900,7 @@ impl BaseBuilder {
             transform_modified: Cell::new(false),
             frustum_culling: self.frustum_culling.into(),
             cast_shadows: self.cast_shadows.into(),
+            script: self.script,
         }
     }
 }

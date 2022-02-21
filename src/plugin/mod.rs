@@ -1,11 +1,11 @@
 use crate::{
-    core::{inspect::Inspect, uuid::Uuid, visitor::Visit},
+    core::{inspect::Inspect, visitor::Visit},
     engine::resource_manager::ResourceManager,
     gui::UserInterface,
     renderer::Renderer,
     scene::SceneContainer,
+    script::ScriptDefinitionStorage,
 };
-use fxhash::FxHashMap;
 use libloading::{Library, Symbol};
 use std::{
     ffi::{OsStr, OsString},
@@ -77,28 +77,5 @@ impl DynamicPlugin {
 
     pub fn lib_path(&self) -> &OsStr {
         &self.lib_path
-    }
-}
-
-pub trait Script: Visit + Inspect {
-    fn on_init(&mut self);
-
-    fn type_uuid(&self) -> Uuid;
-}
-
-pub struct ScriptDefinition {
-    pub name: String,
-    pub type_uuid: Uuid,
-    pub constructor: Box<dyn FnMut() -> Box<dyn Script>>,
-}
-
-#[derive(Default)]
-pub struct ScriptDefinitionStorage {
-    map: FxHashMap<Uuid, ScriptDefinition>,
-}
-
-impl ScriptDefinitionStorage {
-    pub fn new() -> Self {
-        Self::default()
     }
 }
