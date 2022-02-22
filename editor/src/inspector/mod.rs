@@ -278,6 +278,14 @@ impl Inspector {
                         &engine.plugins,
                     )
                 }
+            } else {
+                engine
+                    .user_interface
+                    .send_message(InspectorMessage::context(
+                        self.inspector,
+                        MessageDirection::ToWidget,
+                        Default::default(),
+                    ));
             }
         }
     }
