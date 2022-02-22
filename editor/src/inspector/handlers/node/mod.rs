@@ -1,5 +1,6 @@
 use std::any::TypeId;
 
+use crate::inspector::handlers::node::pivot::handle_pivot_property_changed;
 use crate::{
     inspector::handlers::node::{
         base::handle_base_property_changed, camera::handle_camera_property_changed,
@@ -14,6 +15,7 @@ use crate::{
     },
     SceneCommand,
 };
+use fyrox::scene::pivot::Pivot;
 use fyrox::{
     core::pool::Handle,
     gui::{inspector::PropertyChanged, UserInterface},
@@ -48,6 +50,7 @@ pub mod light;
 pub mod listener;
 pub mod mesh;
 pub mod particle_system;
+pub mod pivot;
 pub mod rectangle;
 pub mod rigid_body;
 pub mod rigid_body2d;
@@ -71,6 +74,8 @@ impl SceneNodePropertyChangedHandler {
     ) -> Option<SceneCommand> {
         if args.owner_type_id == TypeId::of::<Base>() {
             handle_base_property_changed(args, handle, node)
+        } else if args.owner_type_id == TypeId::of::<Pivot>() {
+            handle_pivot_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<Camera>() {
             handle_camera_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<Sprite>() {
