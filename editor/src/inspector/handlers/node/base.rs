@@ -24,6 +24,7 @@ pub fn handle_base_property_changed(
             handle_properties!(args.name.as_ref(), handle, value,
                 Base::NAME => SetNameCommand,
                 Base::TAG => SetTagCommand,
+                Base::FRUSTUM_CULLING => SetFrustumCullingCommand,
                 Base::VISIBILITY => SetVisibleCommand,
                 Base::MOBILITY => SetMobilityCommand,
                 Base::LIFETIME => SetLifetimeCommand,

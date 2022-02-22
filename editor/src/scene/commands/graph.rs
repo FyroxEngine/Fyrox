@@ -463,6 +463,7 @@ define_swap_command! {
     node_mut,
     SetNameCommand(String): name_owned, set_name, "Set Name";
     SetTagCommand(String): tag_owned, set_tag, "Set Tag";
+    SetFrustumCullingCommand(bool): frustum_culling, set_frustum_culling, "Set Frustum Culling";
     SetVisibleCommand(bool): visibility, set_visibility, "Set Visible";
     SetLifetimeCommand(Option<f32>): lifetime, set_lifetime, "Set Lifetime";
     SetMobilityCommand(Mobility): mobility, set_mobility, "Set Mobility";
