@@ -1,3 +1,4 @@
+use crate::scene::node::Node;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -24,8 +25,9 @@ where
     }
 }
 
-pub struct ScriptContext<'a> {
+pub struct ScriptContext<'a, 'b> {
     pub plugin: &'a mut dyn Plugin,
+    pub node: &'b mut Node,
 }
 
 pub trait ScriptTrait: BaseScript {

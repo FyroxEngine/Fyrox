@@ -332,7 +332,7 @@ impl Engine {
 
         for scene in self.scenes.iter_mut().filter(|s| s.enabled) {
             for node in scene.graph.linear_iter_mut() {
-                if let Some(script) = node.script.as_mut() {
+                if let Some(mut script) = node.script.take() {
                     if let Some(plugin) = self
                         .plugins
                         .plugins
@@ -341,7 +341,10 @@ impl Engine {
                     {
                         script.on_update(&mut ScriptContext {
                             plugin: &mut **plugin,
+                            node,
                         });
+
+                        node.script = Some(script);
                     }
                 }
             }
