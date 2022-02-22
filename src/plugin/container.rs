@@ -4,9 +4,7 @@ use crate::{
     utils::{log::Log, watcher::FileSystemWatcher},
 };
 use notify::DebouncedEvent;
-use std::collections::HashMap;
-use std::ffi::OsString;
-use std::path::PathBuf;
+use std::{collections::HashMap, ffi::OsString, path::PathBuf};
 
 pub struct PluginContainer {
     pub(crate) plugins: Pool<DynamicPlugin>,
@@ -14,6 +12,17 @@ pub struct PluginContainer {
 }
 
 fn unload_plugin(mut plugin: DynamicPlugin, context: &mut PluginContext) {
+    // Destroy every script instance.
+    for scene in context.scenes.iter_mut() {
+        for node in scene.graph.linear_iter_mut() {
+            if let Some(script) = node.script.as_ref() {
+                if script.plugin_uuid() == plugin.type_uuid() {
+                    node.script = None;
+                }
+            }
+        }
+    }
+
     plugin.on_unload(context);
 }
 
