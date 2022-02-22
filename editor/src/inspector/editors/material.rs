@@ -1,4 +1,5 @@
 use crate::Message;
+use fyrox::gui::inspector::editors::PropertyEditorTranslationContext;
 use fyrox::{
     asset::core::pool::Handle,
     core::parking_lot::Mutex,
@@ -165,12 +166,7 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
         Ok(None)
     }
 
-    fn translate_message(
-        &self,
-        _name: &str,
-        _owner_type_id: TypeId,
-        _message: &UiMessage,
-    ) -> Option<PropertyChanged> {
+    fn translate_message(&self, _ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         None
     }
 }

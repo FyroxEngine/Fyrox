@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     border::BorderBuilder,
     check_box::CheckBoxBuilder,
@@ -529,12 +530,16 @@ impl Control for Inspector {
         // Check each message from descendant widget and try to translate it to
         // PropertyChanged message.
         if message.flags != self.context.sync_flag {
+            let env = self.context.environment.clone();
             for entry in self.context.entries.iter() {
                 if message.destination() == entry.property_editor {
                     if let Some(args) = entry.property_editor_definition.translate_message(
-                        &entry.property_name,
-                        entry.property_owner_type_id,
-                        message,
+                        PropertyEditorTranslationContext {
+                            environment: env.clone(),
+                            name: &entry.property_name,
+                            owner_type_id: entry.property_owner_type_id,
+                            message,
+                        },
                     ) {
                         ui.send_message(InspectorMessage::property_changed(
                             self.handle,

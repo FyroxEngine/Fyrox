@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     inspector::{
         editors::{
@@ -46,17 +47,12 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
         )))
     }
 
-    fn translate_message(
-        &self,
-        name: &str,
-        owner_type_id: TypeId,
-        message: &UiMessage,
-    ) -> Option<PropertyChanged> {
-        if message.direction() == MessageDirection::FromWidget {
-            if let Some(TextBoxMessage::Text(value)) = message.data::<TextBoxMessage>() {
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if ctx.message.direction() == MessageDirection::FromWidget {
+            if let Some(TextBoxMessage::Text(value)) = ctx.message.data::<TextBoxMessage>() {
                 return Some(PropertyChanged {
-                    owner_type_id,
-                    name: name.to_string(),
+                    owner_type_id: ctx.owner_type_id,
+                    name: ctx.name.to_string(),
                     value: FieldKind::object(value.clone()),
                 });
             }

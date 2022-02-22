@@ -53,6 +53,13 @@ pub struct PropertyEditorMessageContext<'a, 'b> {
     pub layer_index: usize,
 }
 
+pub struct PropertyEditorTranslationContext<'b, 'c> {
+    pub environment: Option<Rc<dyn InspectorEnvironment>>,
+    pub name: &'b str,
+    pub owner_type_id: TypeId,
+    pub message: &'c UiMessage,
+}
+
 pub enum PropertyEditorInstance {
     Simple {
         /// A property editor. Could be any widget that capable of editing a property
@@ -81,12 +88,7 @@ pub trait PropertyEditorDefinition: Debug {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError>;
 
-    fn translate_message(
-        &self,
-        name: &str,
-        owner_type_id: TypeId,
-        message: &UiMessage,
-    ) -> Option<PropertyChanged>;
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged>;
 }
 
 #[derive(Clone, Default)]

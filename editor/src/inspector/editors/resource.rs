@@ -1,4 +1,5 @@
 use crate::{asset::item::AssetItem, inspector::EditorEnvironment, load_image};
+use fyrox::gui::inspector::editors::PropertyEditorTranslationContext;
 use fyrox::{
     asset::{Resource, ResourceData, ResourceLoadError},
     core::{futures::executor::block_on, make_relative_path, pool::Handle},
@@ -75,12 +76,7 @@ impl PropertyEditorDefinition for ModelResourcePropertyEditorDefinition {
         )))
     }
 
-    fn translate_message(
-        &self,
-        _name: &str,
-        _owner_type_id: TypeId,
-        _message: &UiMessage,
-    ) -> Option<PropertyChanged> {
+    fn translate_message(&self, _ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         None
     }
 }
@@ -284,19 +280,14 @@ impl PropertyEditorDefinition for SoundBufferResourcePropertyEditorDefinition {
         )))
     }
 
-    fn translate_message(
-        &self,
-        name: &str,
-        owner_type_id: TypeId,
-        message: &UiMessage,
-    ) -> Option<PropertyChanged> {
-        if message.direction() == MessageDirection::FromWidget {
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if ctx.message.direction() == MessageDirection::FromWidget {
             if let Some(SoundBufferFieldMessage::Value(value)) =
-                message.data::<SoundBufferFieldMessage>()
+                ctx.message.data::<SoundBufferFieldMessage>()
             {
                 return Some(PropertyChanged {
-                    owner_type_id,
-                    name: name.to_string(),
+                    owner_type_id: ctx.owner_type_id,
+                    name: ctx.name.to_string(),
                     value: FieldKind::object(value.clone()),
                 });
             }

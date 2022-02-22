@@ -1,4 +1,5 @@
 use crate::{gui::make_dropdown_list_option, inspector::EditorEnvironment, DropdownListBuilder};
+use fyrox::gui::inspector::editors::PropertyEditorTranslationContext;
 use fyrox::gui::inspector::{Inspector, InspectorMessage};
 use fyrox::{
     core::{pool::Handle, uuid::Uuid},
@@ -75,6 +76,7 @@ impl Control for ScriptPropertyEditor {
                 && message.direction() == MessageDirection::ToWidget
             {
                 if self.selected_script_uuid != id.clone() {
+                    dbg!();
                     self.selected_script_uuid = id.clone();
                     ui.send_message(message.reverse());
                 }
@@ -353,19 +355,24 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
         }
     }
 
-    fn translate_message(
-        &self,
-        name: &str,
-        owner_type_id: TypeId,
-        message: &UiMessage,
-    ) -> Option<PropertyChanged> {
-        if message.direction() == MessageDirection::FromWidget {
-            if let Some(ScriptPropertyEditorMessage::Value(value)) = message.data() {
-                return Some(PropertyChanged {
-                    owner_type_id,
-                    name: name.to_string(),
-                    value: FieldKind::object(value.clone()),
-                });
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if ctx.message.direction() == MessageDirection::FromWidget {
+            if let Some(ScriptPropertyEditorMessage::Value(value)) = ctx.message.data() {
+                if let Some(env) = get_editor_environment(&ctx.environment) {
+                    let script = value.and_then(|uuid| {
+                        env.script_definitions
+                            .iter()
+                            .flat_map(|s| s.iter())
+                            .find(|d| d.type_uuid == uuid)
+                            .map(|d| Script((d.constructor)()))
+                    });
+
+                    return Some(PropertyChanged {
+                        owner_type_id: ctx.owner_type_id,
+                        name: ctx.name.to_string(),
+                        value: FieldKind::object(script),
+                    });
+                }
             }
         }
         None
