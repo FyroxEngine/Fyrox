@@ -99,7 +99,6 @@ use fyrox::{
         BuildContext, UiNode, UserInterface, VerticalAlignment,
     },
     material::{shader::Shader, Material, PropertyValue},
-    plugin::PluginContext,
     resource::texture::{CompressionOptions, Texture, TextureKind, TextureState},
     scene::{
         camera::Projection,

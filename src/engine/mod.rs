@@ -25,7 +25,6 @@ use crate::{
     scene::{sound::SoundEngine, SceneContainer},
     window::{Window, WindowBuilder},
 };
-use std::any::Any;
 use std::{
     collections::HashSet,
     sync::{
@@ -408,6 +407,7 @@ impl Engine {
         self.sound_engine.lock().unwrap().master_gain()
     }
 
+    /// Unloads all currently loaded plugins.
     pub fn unload_plugins(&mut self) {
         self.plugins.clear(&mut PluginContext {
             scenes: &mut self.scenes,
@@ -418,6 +418,7 @@ impl Engine {
         });
     }
 
+    /// Re-loads all available plugins.
     pub fn reload_plugins(&mut self) {
         self.plugins.rescan(&mut PluginContext {
             scenes: &mut self.scenes,

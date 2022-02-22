@@ -2,6 +2,7 @@ use crate::{
     command::Command, define_node_command, define_swap_command, define_vec_add_remove_commands,
     scene::commands::SceneContext,
 };
+use fyrox::script::Script;
 use fyrox::{
     animation::Animation,
     core::{
@@ -468,6 +469,7 @@ define_swap_command! {
     SetMobilityCommand(Mobility): mobility, set_mobility, "Set Mobility";
     SetDepthOffsetCommand(f32): depth_offset_factor, set_depth_offset_factor, "Set Depth Offset";
     SetCastShadowsCommand(bool): cast_shadows, set_cast_shadows, "Set Cast Shadows";
+    SetScriptCommand(Option<Script>): script_cloned, set_script, "Set Script";
 }
 
 define_node_command! {

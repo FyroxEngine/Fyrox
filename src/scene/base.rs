@@ -21,7 +21,6 @@ use crate::{
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
-    script::ScriptTrait,
     utils::log::Log,
 };
 use fxhash::FxHashMap;
@@ -355,6 +354,7 @@ pub struct Base {
     #[inspect(read_only)]
     pub(in crate) original_handle_in_resource: Handle<Node>,
 
+    /// Current script of the scene node.
     pub script: Option<Script>,
 }
 
@@ -653,6 +653,16 @@ impl Base {
         self.cast_shadows.set(cast_shadows);
     }
 
+    /// Sets new script for the scene node.
+    pub fn set_script(&mut self, script: Option<Script>) {
+        self.script = script;
+    }
+
+    /// Returns a copy of the current script.
+    pub fn script_cloned(&self) -> Option<Script> {
+        self.script.clone()
+    }
+
     /// Updates node lifetime and returns true if the node is still alive, false - otherwise.
     pub(crate) fn update_lifetime(&mut self, dt: f32) -> bool {
         if let Some(lifetime) = self.lifetime.get_mut_silent().as_mut() {
@@ -872,6 +882,7 @@ impl BaseBuilder {
         self
     }
 
+    /// Sets desired script of the node.
     pub fn with_script(mut self, script: Script) -> Self {
         self.script = Some(script);
         self

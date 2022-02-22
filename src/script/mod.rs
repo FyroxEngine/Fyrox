@@ -1,12 +1,15 @@
-use crate::core::{
-    inspect::{Inspect, PropertyInfo},
-    uuid::Uuid,
-    visitor::{Visit, VisitResult, Visitor},
+use crate::{
+    core::{
+        inspect::{Inspect, PropertyInfo},
+        uuid::Uuid,
+        visitor::{Visit, VisitResult, Visitor},
+    },
+    plugin::Plugin,
 };
-use crate::plugin::Plugin;
-use fxhash::FxHashMap;
-use std::fmt::Debug;
-use std::ops::{Deref, DerefMut};
+use std::{
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
 
 pub trait BaseScript: Visit + Inspect + Send + Debug + 'static {
     fn clone_box(&self) -> Box<dyn ScriptTrait>;
@@ -38,7 +41,7 @@ pub trait ScriptTrait: BaseScript {
 pub struct ScriptDefinition {
     pub name: String,
     pub type_uuid: Uuid,
-    pub constructor: Box<dyn FnMut() -> Box<dyn ScriptTrait>>,
+    pub constructor: Box<dyn Fn() -> Box<dyn ScriptTrait> + Send>,
 }
 
 #[derive(Debug)]
@@ -84,7 +87,7 @@ impl Script {
 
 #[derive(Default)]
 pub struct ScriptDefinitionStorage {
-    map: FxHashMap<Uuid, ScriptDefinition>,
+    vec: Vec<ScriptDefinition>,
 }
 
 impl ScriptDefinitionStorage {
@@ -93,7 +96,14 @@ impl ScriptDefinitionStorage {
     }
 
     pub fn add(&mut self, script_definition: ScriptDefinition) {
-        self.map
-            .insert(script_definition.type_uuid, script_definition);
+        self.vec.push(script_definition);
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &ScriptDefinition> {
+        self.vec.iter()
+    }
+
+    pub fn len(&self) -> usize {
+        self.vec.len()
     }
 }

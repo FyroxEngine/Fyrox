@@ -147,4 +147,8 @@ impl PluginContainer {
             }
         }
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = &DynamicPlugin> {
+        self.plugins.iter()
+    }
 }

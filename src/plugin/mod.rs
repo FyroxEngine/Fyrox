@@ -1,16 +1,16 @@
 use crate::{
-    core::{inspect::Inspect, visitor::Visit},
+    core::{inspect::Inspect, uuid::Uuid, visitor::Visit},
     engine::resource_manager::ResourceManager,
     gui::UserInterface,
     renderer::Renderer,
     scene::SceneContainer,
     script::ScriptDefinitionStorage,
 };
-use fyrox_core::uuid::Uuid;
 use libloading::{Library, Symbol};
 use std::{
     ffi::{OsStr, OsString},
     ops::{Deref, DerefMut},
+    sync::Arc,
 };
 
 pub mod container;
@@ -30,7 +30,7 @@ pub trait Plugin: Visit + Inspect {
 
     fn update(&mut self, context: &mut PluginContext);
 
-    fn script_definition_storage(&self) -> &ScriptDefinitionStorage;
+    fn script_definition_storage(&self) -> Arc<ScriptDefinitionStorage>;
 
     fn type_uuid(&self) -> Uuid;
 }

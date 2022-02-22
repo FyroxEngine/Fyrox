@@ -141,7 +141,7 @@ impl InspectorMessage {
     define_constructor!(InspectorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
-pub trait InspectorEnvironment: Any + Send + Sync {
+pub trait InspectorEnvironment: Any {
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -206,9 +206,9 @@ impl PartialEq for ContextEntry {
 pub struct InspectorContext {
     stack_panel: Handle<UiNode>,
     entries: Vec<ContextEntry>,
-    property_definitions: Rc<PropertyEditorDefinitionContainer>,
-    environment: Option<Rc<dyn InspectorEnvironment>>,
-    sync_flag: u64,
+    pub property_definitions: Rc<PropertyEditorDefinitionContainer>,
+    pub environment: Option<Rc<dyn InspectorEnvironment>>,
+    pub sync_flag: u64,
 }
 
 impl PartialEq for InspectorContext {
@@ -563,6 +563,13 @@ impl InspectorBuilder {
 
     pub fn with_context(mut self, context: InspectorContext) -> Self {
         self.context = context;
+        self
+    }
+
+    pub fn with_opt_context(mut self, context: Option<InspectorContext>) -> Self {
+        if let Some(context) = context {
+            self.context = context;
+        }
         self
     }
 
