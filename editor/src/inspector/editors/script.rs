@@ -1,6 +1,4 @@
 use crate::{gui::make_dropdown_list_option, inspector::EditorEnvironment, DropdownListBuilder};
-use fyrox::gui::inspector::editors::PropertyEditorTranslationContext;
-use fyrox::gui::inspector::{Inspector, InspectorMessage};
 use fyrox::{
     core::{pool::Handle, uuid::Uuid},
     gui::{
@@ -10,10 +8,10 @@ use fyrox::{
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition,
                 PropertyEditorDefinitionContainer, PropertyEditorInstance,
-                PropertyEditorMessageContext,
+                PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
-            make_expander_container, FieldKind, InspectorBuilder, InspectorContext,
-            InspectorEnvironment, InspectorError, PropertyChanged,
+            make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
+            InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
         },
         message::{MessageDirection, UiMessage},
         widget::{Widget, WidgetBuilder},
@@ -31,10 +29,12 @@ use std::{
 #[derive(Debug, PartialEq)]
 pub enum ScriptPropertyEditorMessage {
     Value(Option<Uuid>),
+    PropertyChanged(PropertyChanged),
 }
 
 impl ScriptPropertyEditorMessage {
     define_constructor!(ScriptPropertyEditorMessage:Value => fn value(Option<Uuid>), layout: false);
+    define_constructor!(ScriptPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
 #[derive(Clone, Debug)]
@@ -76,10 +76,21 @@ impl Control for ScriptPropertyEditor {
                 && message.direction() == MessageDirection::ToWidget
             {
                 if self.selected_script_uuid != id.clone() {
-                    dbg!();
                     self.selected_script_uuid = id.clone();
                     ui.send_message(message.reverse());
                 }
+            }
+        } else if let Some(InspectorMessage::PropertyChanged(property_changed)) =
+            message.data::<InspectorMessage>()
+        {
+            if message.destination() == self.inspector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                ui.send_message(ScriptPropertyEditorMessage::property_changed(
+                    self.handle(),
+                    MessageDirection::FromWidget,
+                    property_changed.clone(),
+                ))
             }
         }
     }
@@ -357,21 +368,32 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(ScriptPropertyEditorMessage::Value(value)) = ctx.message.data() {
-                if let Some(env) = get_editor_environment(&ctx.environment) {
-                    let script = value.and_then(|uuid| {
-                        env.script_definitions
-                            .iter()
-                            .flat_map(|s| s.iter())
-                            .find(|d| d.type_uuid == uuid)
-                            .map(|d| Script((d.constructor)()))
-                    });
+            if let Some(message) = ctx.message.data::<ScriptPropertyEditorMessage>() {
+                match message {
+                    ScriptPropertyEditorMessage::Value(value) => {
+                        if let Some(env) = get_editor_environment(&ctx.environment) {
+                            let script = value.and_then(|uuid| {
+                                env.script_definitions
+                                    .iter()
+                                    .flat_map(|s| s.iter())
+                                    .find(|d| d.type_uuid == uuid)
+                                    .map(|d| Script((d.constructor)()))
+                            });
 
-                    return Some(PropertyChanged {
-                        owner_type_id: ctx.owner_type_id,
-                        name: ctx.name.to_string(),
-                        value: FieldKind::object(script),
-                    });
+                            return Some(PropertyChanged {
+                                owner_type_id: ctx.owner_type_id,
+                                name: ctx.name.to_string(),
+                                value: FieldKind::object(script),
+                            });
+                        }
+                    }
+                    ScriptPropertyEditorMessage::PropertyChanged(property_changed) => {
+                        return Some(PropertyChanged {
+                            name: ctx.name.to_string(),
+                            owner_type_id: ctx.owner_type_id,
+                            value: FieldKind::Inspectable(Box::new(property_changed.clone())),
+                        })
+                    }
                 }
             }
         }
