@@ -182,15 +182,24 @@ fn create_items(
     definition_containers: &[Arc<ScriptDefinitionStorage>],
     ctx: &mut BuildContext,
 ) -> Vec<Handle<UiNode>> {
-    definition_containers
-        .iter()
-        .flat_map(|c| c.iter())
-        .map(|d| {
-            let item = make_dropdown_list_option(ctx, &d.name);
-            ctx[item].user_data = Some(Rc::new(d.type_uuid.clone()));
-            item
-        })
-        .collect()
+    let mut items = vec![{
+        let empty = make_dropdown_list_option(ctx, "<No Script>");
+        ctx[empty].user_data = Some(Rc::new(Uuid::default()));
+        empty
+    }];
+
+    items.extend(
+        definition_containers
+            .iter()
+            .flat_map(|c| c.iter())
+            .map(|d| {
+                let item = make_dropdown_list_option(ctx, &d.name);
+                ctx[item].user_data = Some(Rc::new(d.type_uuid.clone()));
+                item
+            }),
+    );
+
+    items
 }
 
 fn selected_script(
@@ -247,7 +256,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
         let items = create_items(&environment.script_definitions, ctx.build_context);
 
         let variant_selector = DropdownListBuilder::new(WidgetBuilder::new())
-            .with_opt_selected(selected_script(&environment.script_definitions, value))
+            .with_selected(selected_script(&environment.script_definitions, value).unwrap_or(0))
             .with_items(items)
             .build(ctx.build_context);
 
