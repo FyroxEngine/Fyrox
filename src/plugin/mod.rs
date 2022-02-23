@@ -7,9 +7,11 @@ use crate::{
     script::ScriptDefinitionStorage,
 };
 use libloading::{Library, Symbol};
+use serde::Deserialize;
 use std::{
     ffi::{OsStr, OsString},
     ops::{Deref, DerefMut},
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -36,6 +38,12 @@ pub trait Plugin: Visit + Inspect {
 }
 
 pub type EntryPoint = extern "C" fn() -> Box<Box<dyn Plugin>>;
+
+#[derive(Deserialize)]
+pub struct PluginDefinition {
+    name: String,
+    path: PathBuf,
+}
 
 pub struct DynamicPlugin {
     entry: Box<dyn Plugin>,

@@ -1,14 +1,27 @@
 use crate::{
     core::pool::{Handle, Pool},
-    plugin::{DynamicPlugin, PluginContext},
+    plugin::{DynamicPlugin, PluginContext, PluginDefinition},
     utils::{log::Log, watcher::FileSystemWatcher},
 };
 use notify::DebouncedEvent;
-use std::{collections::HashMap, ffi::OsString, path::PathBuf};
+use serde::Deserialize;
+use std::{error::Error, fs::File, path::Path};
 
 pub struct PluginContainer {
     pub(crate) plugins: Pool<DynamicPlugin>,
     watcher: Option<FileSystemWatcher>,
+}
+
+#[derive(Deserialize)]
+pub struct PluginContainerDefinition {
+    plugins: Vec<PluginDefinition>,
+}
+
+impl PluginContainerDefinition {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn Error>> {
+        let file = File::open(path)?;
+        Ok(ron::de::from_reader(file)?)
+    }
 }
 
 fn unload_plugin(mut plugin: DynamicPlugin, context: &mut PluginContext) {
@@ -34,63 +47,44 @@ impl PluginContainer {
         }
     }
 
-    pub fn rescan(&mut self, context: &mut PluginContext) {
+    pub fn reload(&mut self, context: &mut PluginContext) {
         self.clear(context);
 
-        Log::info("Looking for plugins recursively from working directory...".to_owned());
+        Log::info("Looking for `plugins.ron` in the working directory...".to_owned());
 
-        let mut libs = HashMap::<OsString, PathBuf>::new();
-        for dir in walkdir::WalkDir::new(".").into_iter().flatten() {
-            let path = dir.path();
-            if let (Some(file_name), Some(extension)) = (path.file_name(), path.extension()) {
-                if let Some(file_name_str) = path.file_stem().and_then(|s| s.to_str()) {
-                    if !file_name_str.ends_with("_plugin") {
-                        continue;
-                    }
-                } else {
-                    continue;
-                }
+        match PluginContainerDefinition::from_file("plugins.ron") {
+            Ok(definition) => {
+                for plugin_definition in definition.plugins {
+                    match DynamicPlugin::try_load(&plugin_definition.path) {
+                        Ok(mut plugin) => {
+                            plugin.on_init(context);
+                            let _ = self.plugins.spawn(plugin);
 
-                if extension == "dll" || extension == "dylib" || extension == "so" {
-                    if let Some(prev_candidate) = libs.get_mut(file_name) {
-                        if let (Ok(new_candidate_modified_time), Ok(prev_candidate_modified_time)) = (
-                            prev_candidate.metadata().and_then(|m| m.modified()),
-                            path.metadata().and_then(|m| m.modified()),
-                        ) {
-                            if new_candidate_modified_time > prev_candidate_modified_time {
-                                *prev_candidate = path.to_path_buf();
-                            }
+                            Log::info(format!(
+                                "Plugin {} was loaded from {} successfully!",
+                                plugin_definition.name,
+                                plugin_definition.path.display()
+                            ))
                         }
-                    } else {
-                        libs.insert(file_name.to_os_string(), path.to_path_buf());
+                        Err(e) => Log::err(format!(
+                            "Unable to load {} plugin from {}. Reason: {:?}",
+                            plugin_definition.name,
+                            plugin_definition.path.display(),
+                            e
+                        )),
                     }
                 }
+
+                Log::info(format!(
+                    "{} plugins were loaded successfully!",
+                    self.plugins.alive_count()
+                ));
             }
+            Err(e) => Log::err(format!(
+                "Unable to load plugin definition container. Reason {:?}",
+                e
+            )),
         }
-
-        for path in libs.values() {
-            match DynamicPlugin::try_load(path) {
-                Ok(mut plugin) => {
-                    plugin.on_init(context);
-                    let _ = self.plugins.spawn(plugin);
-
-                    Log::info(format!(
-                        "Plugin {} was loaded successfully!",
-                        path.display()
-                    ))
-                }
-                Err(e) => Log::err(format!(
-                    "Unable to load plugin from {}. Reason: {:?}",
-                    path.display(),
-                    e
-                )),
-            }
-        }
-
-        Log::info(format!(
-            "{} plugins were loaded successfully!",
-            self.plugins.alive_count()
-        ));
     }
 
     pub fn add(&mut self, wrapper: DynamicPlugin) -> Handle<DynamicPlugin> {

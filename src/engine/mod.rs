@@ -423,7 +423,7 @@ impl Engine {
 
     /// Re-loads all available plugins.
     pub fn reload_plugins(&mut self) {
-        self.plugins.rescan(&mut PluginContext {
+        self.plugins.reload(&mut PluginContext {
             scenes: &mut self.scenes,
             ui: &mut self.user_interface,
             resource_manager: &self.resource_manager,

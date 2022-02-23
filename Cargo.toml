@@ -23,6 +23,7 @@ members = [
     "fyrox-ui",
     "fyrox-resource",
     "examples/wasm",
+    "examples/scripting",
 	"editor"
 ]
 
