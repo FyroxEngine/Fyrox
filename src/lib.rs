@@ -10,6 +10,7 @@
 #![allow(clippy::approx_constant)]
 
 pub mod animation;
+pub mod editor;
 pub mod engine;
 pub mod material;
 pub mod plugin;

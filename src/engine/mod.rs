@@ -7,6 +7,7 @@ pub mod error;
 pub mod framework;
 pub mod resource_manager;
 
+use crate::script::constructor::ScriptConstructorContainer;
 use crate::{
     asset::ResourceState,
     core::{algebra::Vector2, instant},
@@ -32,6 +33,23 @@ use std::{
     },
     time::Duration,
 };
+
+/// Serialization context holds runtime type information that allows to create unknown types using
+/// their UUIDs and a respective constructors.
+#[derive(Default)]
+pub struct SerializationContext {
+    /// A node constructor container.
+    pub node_constructors: NodeConstructorContainer,
+    /// A script constructor container.
+    pub script_constructors: ScriptConstructorContainer,
+}
+
+impl SerializationContext {
+    /// Creates default serialization context.
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
 
 /// See module docs.
 pub struct Engine {
@@ -68,7 +86,7 @@ pub struct Engine {
 
     /// A special container that is able to create nodes by their type UUID. Use a copy of this
     /// value whenever you need it as a parameter in other parts of the engine.
-    pub node_constructors: Arc<NodeConstructorContainer>,
+    pub serialization_context: Arc<SerializationContext>,
 }
 
 struct ResourceGraphVertex {
@@ -143,7 +161,7 @@ pub struct EngineInitParams<'a> {
     /// A window builder.
     pub window_builder: WindowBuilder,
     /// A special container that is able to create nodes by their type UUID.
-    pub node_constructors: Arc<NodeConstructorContainer>,
+    pub serialization_context: Arc<SerializationContext>,
     /// A resource manager.
     pub resource_manager: ResourceManager,
     /// OS event loop.
@@ -168,17 +186,17 @@ impl Engine {
     /// use fyrox::engine::resource_manager::ResourceManager;
     /// use fyrox::event_loop::EventLoop;
     /// use std::sync::Arc;
-    /// use fyrox::scene::node::constructor::NodeConstructorContainer;
+    /// use fyrox::engine::SerializationContext;
     ///
     /// let evt = EventLoop::new();
     /// let window_builder = WindowBuilder::new()
     ///     .with_title("Test")
     ///     .with_fullscreen(None);
-    /// let node_constructors = Arc::new(NodeConstructorContainer::new());
+    /// let serialization_context = Arc::new(SerializationContext::new());
     /// let mut engine = Engine::new(EngineInitParams {
     ///     window_builder,
-    ///     resource_manager: ResourceManager::new(node_constructors.clone()),
-    ///     node_constructors,
+    ///     resource_manager: ResourceManager::new(serialization_context.clone()),
+    ///     serialization_context,
     ///     events_loop: &evt,
     ///     vsync: false,
     /// })
@@ -188,7 +206,7 @@ impl Engine {
     pub fn new(params: EngineInitParams) -> Result<Self, EngineError> {
         let EngineInitParams {
             window_builder,
-            node_constructors,
+            serialization_context: node_constructors,
             resource_manager,
             events_loop,
             vsync,
@@ -282,7 +300,7 @@ impl Engine {
             #[cfg(target_arch = "wasm32")]
             window,
             plugins: PluginContainer::new(),
-            node_constructors,
+            serialization_context: node_constructors,
         })
     }
 
@@ -355,6 +373,7 @@ impl Engine {
             resource_manager: &self.resource_manager,
             renderer: &mut self.renderer,
             dt,
+            serialization_context: &self.serialization_context,
         };
 
         self.plugins.handle_fs_events(&mut context);
@@ -451,6 +470,7 @@ impl Engine {
             resource_manager: &self.resource_manager,
             renderer: &mut self.renderer,
             dt: 0.0,
+            serialization_context: &self.serialization_context,
         });
     }
 
@@ -462,6 +482,7 @@ impl Engine {
             resource_manager: &self.resource_manager,
             renderer: &mut self.renderer,
             dt: 0.0,
+            serialization_context: &self.serialization_context,
         });
     }
 }

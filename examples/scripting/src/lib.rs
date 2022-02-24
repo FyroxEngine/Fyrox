@@ -7,19 +7,16 @@ use fyrox::{
         uuid::Uuid,
         visitor::prelude::*,
     },
+    gui::inspector::{FieldKind, PropertyChanged},
     material::PropertyValue,
     plugin::{Plugin, PluginContext},
-    scene::mesh::Mesh,
-    script::{ScriptContext, ScriptDefinition, ScriptDefinitionStorage, ScriptTrait},
+    scene::{mesh::Mesh, node::TypeUuidProvider},
+    script::{ScriptContext, ScriptTrait},
 };
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
 
 #[derive(Visit, Inspect, Default)]
-struct GamePlugin {
-    #[visit(skip)]
-    #[inspect(skip)]
-    script_storage: Arc<ScriptDefinitionStorage>,
-}
+struct GamePlugin {}
 
 impl GamePlugin {
     fn type_uuid() -> Uuid {
@@ -27,32 +24,21 @@ impl GamePlugin {
     }
 
     pub fn new() -> Self {
-        let mut script_storage = ScriptDefinitionStorage::new();
-
-        script_storage.add(ScriptDefinition {
-            name: "TestScript".to_string(),
-            type_uuid: TestScript::type_uuid(),
-            constructor: Box::new(|| Box::new(TestScript::default())),
-        });
-
-        Self {
-            script_storage: Arc::new(script_storage),
-        }
+        Self {}
     }
 }
 
 impl Plugin for GamePlugin {
-    fn on_init(&mut self, _engine: &mut PluginContext) {
-        println!("Hello, world!");
+    fn on_init(&mut self, engine: &mut PluginContext) {
+        engine
+            .serialization_context
+            .script_constructors
+            .add::<TestScript, &str>("TestScript");
     }
 
     fn on_unload(&mut self, _context: &mut PluginContext) {}
 
     fn update(&mut self, _context: &mut PluginContext) {}
-
-    fn script_definition_storage(&self) -> Arc<ScriptDefinitionStorage> {
-        self.script_storage.clone()
-    }
 
     fn type_uuid(&self) -> Uuid {
         Self::type_uuid()
@@ -75,13 +61,23 @@ impl Default for TestScript {
     }
 }
 
-impl TestScript {
+impl TypeUuidProvider for TestScript {
     fn type_uuid() -> Uuid {
         Uuid::from_str("4aa165aa-011b-479f-bc10-b90b2c4b5060").unwrap()
     }
 }
 
 impl ScriptTrait for TestScript {
+    fn on_property_changed(&mut self, args: &PropertyChanged) {
+        if let FieldKind::Object(ref value) = args.value {
+            match args.name.as_ref() {
+                Self::FOO => self.foo = value.cast_clone().unwrap(),
+                Self::HUE => self.hue = value.cast_clone().unwrap(),
+                _ => (),
+            }
+        }
+    }
+
     fn on_init(&mut self, _context: &mut ScriptContext) {}
 
     fn on_update(&mut self, context: &mut ScriptContext) {
@@ -105,7 +101,7 @@ impl ScriptTrait for TestScript {
         self.hue = (self.hue + 0.2) % 360.0;
     }
 
-    fn type_uuid(&self) -> Uuid {
+    fn id(&self) -> Uuid {
         Self::type_uuid()
     }
 

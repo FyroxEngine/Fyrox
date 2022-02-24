@@ -8,9 +8,6 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::engine::EngineInitParams;
-use fyrox::scene::light::BaseLight;
-use fyrox::scene::node::constructor::NodeConstructorContainer;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -19,7 +16,7 @@ use fyrox::{
         pool::Handle,
         visitor::Visitor,
     },
-    engine::{resource_manager::ResourceManager, Engine},
+    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -33,6 +30,7 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
+    scene::light::BaseLight,
     scene::{node::Node, Scene, SceneLoader},
     utils::{
         lightmap::{CancellationToken, Lightmap, ProgressIndicator, ProgressStage},
@@ -200,7 +198,7 @@ struct SceneLoadContext {
 }
 
 fn create_scene_async(
-    node_constructors: Arc<NodeConstructorContainer>,
+    serialization_context: Arc<SerializationContext>,
     resource_manager: ResourceManager,
     generate_lightmap: bool,
 ) -> Arc<Mutex<SceneLoadContext>> {
@@ -264,7 +262,7 @@ fn create_scene_async(
                     context.lock().unwrap().data = Some(GameScene { scene, root });
                 }
             } else {
-                let scene = SceneLoader::from_file(LIGHTMAP_SCENE_PATH, node_constructors)
+                let scene = SceneLoader::from_file(LIGHTMAP_SCENE_PATH, serialization_context)
                     .await
                     .unwrap()
                     .finish(resource_manager)
@@ -292,11 +290,11 @@ fn main() {
         .with_title("Example 09 - Lightmap")
         .with_resizable(true);
 
-    let node_constructors = Arc::new(NodeConstructorContainer::new());
+    let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
         window_builder,
-        resource_manager: ResourceManager::new(node_constructors.clone()),
-        node_constructors,
+        resource_manager: ResourceManager::new(serialization_context.clone()),
+        serialization_context,
         events_loop: &event_loop,
         vsync: true,
     })
@@ -327,7 +325,7 @@ fn main() {
         }))
     } else {
         create_scene_async(
-            engine.node_constructors.clone(),
+            engine.serialization_context.clone(),
             engine.resource_manager.clone(),
             true,
         )
@@ -484,7 +482,7 @@ fn main() {
                                     ));
                             } else if ui_event.destination() == interface.generate_new {
                                 game_scene = create_scene_async(
-                                    engine.node_constructors.clone(),
+                                    engine.serialization_context.clone(),
                                     engine.resource_manager.clone(),
                                     true,
                                 );
@@ -501,7 +499,7 @@ fn main() {
                                     ));
                             } else if ui_event.destination() == interface.load_existing {
                                 game_scene = create_scene_async(
-                                    engine.node_constructors.clone(),
+                                    engine.serialization_context.clone(),
                                     engine.resource_manager.clone(),
                                     false,
                                 );

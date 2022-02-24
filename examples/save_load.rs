@@ -129,10 +129,14 @@ async fn load(game: &mut Game) {
 
         let mut visitor = Visitor::load_binary(SAVE_FILE).await.unwrap();
 
-        let scene = SceneLoader::load("Scene", game.engine.node_constructors.clone(), &mut visitor)
-            .unwrap()
-            .finish(game.engine.resource_manager.clone())
-            .await;
+        let scene = SceneLoader::load(
+            "Scene",
+            game.engine.serialization_context.clone(),
+            &mut visitor,
+        )
+        .unwrap()
+        .finish(game.engine.resource_manager.clone())
+        .await;
 
         let mut game_scene = GameScene::default();
         game_scene.visit("GameScene", &mut visitor).unwrap();

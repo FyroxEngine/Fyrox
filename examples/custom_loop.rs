@@ -6,10 +6,9 @@
 
 use fyrox::{
     core::instant::Instant,
-    engine::{resource_manager::ResourceManager, Engine, EngineInitParams},
+    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    scene::node::constructor::NodeConstructorContainer,
     utils::{
         log::{Log, MessageKind},
         translate_event,
@@ -25,11 +24,11 @@ fn main() {
         .with_title("Example - Custom Game Loop")
         .with_resizable(true);
 
-    let node_constructors = Arc::new(NodeConstructorContainer::new());
+    let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
         window_builder,
-        resource_manager: ResourceManager::new(node_constructors.clone()),
-        node_constructors,
+        resource_manager: ResourceManager::new(serialization_context.clone()),
+        serialization_context,
         events_loop: &event_loop,
         vsync: true,
     })

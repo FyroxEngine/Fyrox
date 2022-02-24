@@ -1,6 +1,6 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::scene::node::constructor::NodeConstructorContainer;
+use crate::engine::SerializationContext;
 use crate::utils::log::Log;
 use crate::utils::watcher::FileSystemWatcher;
 use crate::{
@@ -131,7 +131,7 @@ impl From<TextureError> for TextureRegistrationError {
 
 impl ResourceManager {
     /// Creates a resource manager with default settings and loaders.
-    pub fn new(node_constructors: Arc<NodeConstructorContainer>) -> Self {
+    pub fn new(serialization_context: Arc<SerializationContext>) -> Self {
         let resource_manager = Self {
             state: Arc::new(Mutex::new(ResourceManagerState::new())),
         };
@@ -144,7 +144,7 @@ impl ResourceManager {
                 task_pool.clone(),
                 Box::new(ModelLoader {
                     resource_manager: resource_manager.clone(),
-                    node_constructors,
+                    serialization_context,
                 }),
             ),
             sound_buffers: ResourceContainer::new(task_pool.clone(), Box::new(SoundBufferLoader)),

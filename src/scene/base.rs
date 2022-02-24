@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Base`]
 
+use crate::engine::SerializationContext;
 use crate::script::Script;
 use crate::{
     core::{
@@ -733,6 +734,43 @@ impl Default for Base {
     }
 }
 
+fn visit_script(name: &str, script: &mut Option<Script>, visitor: &mut Visitor) -> VisitResult {
+    visitor.enter_region(name)?;
+
+    let mut script_type_uuid = script.as_ref().map(|s| s.id()).unwrap_or_default();
+    script_type_uuid.visit("TypeUuid", visitor)?;
+
+    if visitor.is_reading() {
+        *script = if script_type_uuid.is_nil() {
+            None
+        } else {
+            let serialization_context = visitor
+                .environment
+                .as_ref()
+                .and_then(|e| e.downcast_ref::<SerializationContext>())
+                .expect("Visitor environment must contain serialization context!");
+
+            Some(
+                serialization_context
+                    .script_constructors
+                    .try_create(&script_type_uuid)
+                    .ok_or_else(|| {
+                        VisitError::User(format!(
+                            "There is no corresponding script constructor for {} type!",
+                            script_type_uuid
+                        ))
+                    })?,
+            )
+        };
+    }
+
+    if let Some(script) = script {
+        script.visit("ScriptData", visitor)?;
+    }
+
+    visitor.leave_region()
+}
+
 impl Visit for Base {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -755,6 +793,8 @@ impl Visit for Base {
         let _ = self.properties.visit("Properties", visitor);
         let _ = self.frustum_culling.visit("FrustumCulling", visitor);
         let _ = self.cast_shadows.visit("CastShadows", visitor);
+
+        visit_script("Script", &mut self.script, visitor)?;
 
         visitor.leave_region()
     }

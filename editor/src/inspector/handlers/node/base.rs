@@ -183,8 +183,21 @@ pub fn handle_base_property_changed(
                 },
                 _ => None,
             },
+            Base::SCRIPT => handle_script_property_changed(inner_value, handle, base),
             Base::LOCAL_TRANSFORM => handle_transform_property_changed(inner_value, handle, base),
             _ => None,
         },
     }
+}
+
+fn handle_script_property_changed(
+    args: &PropertyChanged,
+    node_handle: Handle<Node>,
+    base: &Base,
+) -> Option<SceneCommand> {
+    /*
+    if let Some(script) = base.script.as_mut() {
+        script.on_property_changed(args);
+    }*/
+    None
 }

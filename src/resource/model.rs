@@ -17,8 +17,6 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native Fyroxed format) formats are supported.
-use crate::scene::graph::Graph;
-use crate::scene::node::constructor::NodeConstructorContainer;
 use crate::{
     animation::Animation,
     asset::{define_new_resource, Resource, ResourceData},
@@ -27,17 +25,20 @@ use crate::{
         pool::Handle,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::resource_manager::{options::ImportOptions, ResourceManager},
+    engine::{
+        resource_manager::{options::ImportOptions, ResourceManager},
+        SerializationContext,
+    },
     resource::fbx::{self, error::FbxError},
-    scene::{node::Node, Scene, SceneLoader},
+    scene::{graph::Graph, node::Node, Scene, SceneLoader},
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -366,7 +367,7 @@ impl From<VisitError> for ModelLoadError {
 impl ModelData {
     pub(in crate) async fn load<P: AsRef<Path>>(
         path: P,
-        node_constructors: Arc<NodeConstructorContainer>,
+        serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,
         model_import_options: ModelImportOptions,
     ) -> Result<Self, ModelLoadError> {
@@ -398,7 +399,7 @@ impl ModelData {
             // Scene can be used directly as model resource. Such scenes can be created in
             // Fyroxed.
             "rgs" => (
-                SceneLoader::from_file(path.as_ref(), node_constructors)
+                SceneLoader::from_file(path.as_ref(), serialization_context)
                     .await?
                     .finish(resource_manager)
                     .await,

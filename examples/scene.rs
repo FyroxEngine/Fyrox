@@ -9,16 +9,13 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::engine::EngineInitParams;
-use fyrox::scene::node::constructor::NodeConstructorContainer;
-use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         color::Color,
         pool::Handle,
     },
-    engine::{resource_manager::ResourceManager, Engine},
+    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -27,14 +24,13 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, UiNode,
     },
-    scene::{base::BaseBuilder, node::Node, Scene},
+    scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene},
     utils::{
         log::{Log, MessageKind},
         translate_event,
     },
 };
-use std::sync::Arc;
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
 fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
     TextBuilder::new(WidgetBuilder::new()).build(ctx)
@@ -85,11 +81,11 @@ fn main() {
         .with_title("Example - Scene")
         .with_resizable(true);
 
-    let node_constructors = Arc::new(NodeConstructorContainer::new());
+    let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
         window_builder,
-        resource_manager: ResourceManager::new(node_constructors.clone()),
-        node_constructors,
+        resource_manager: ResourceManager::new(serialization_context.clone()),
+        serialization_context,
         events_loop: &event_loop,
         vsync: true,
     })

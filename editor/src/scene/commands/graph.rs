@@ -510,3 +510,22 @@ define_node_command! {
         self.value = temp;
     }
 }
+
+#[derive(Debug)]
+pub struct ScriptDataBlobCommand {
+    handle: Handle<Node>,
+    old_value: Vec<u8>,
+    new_value: Vec<u8>,
+}
+
+impl Command for ScriptDataBlobCommand {
+    fn name(&mut self, context: &SceneContext) -> String {
+        "Change Script Property".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        todo!()
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {}
+}

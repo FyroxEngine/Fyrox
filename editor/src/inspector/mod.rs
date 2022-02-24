@@ -10,7 +10,7 @@ use crate::{
     scene::{EditorScene, Selection},
     Brush, CommandGroup, GameEngine, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
-use fyrox::plugin::container::PluginContainer;
+use fyrox::engine::SerializationContext;
 use fyrox::{
     core::{color::Color, inspect::Inspect, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -27,7 +27,6 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
-    script::ScriptDefinitionStorage,
     utils::log::{Log, MessageKind},
 };
 use std::{
@@ -41,8 +40,7 @@ pub mod handlers;
 
 pub struct EditorEnvironment {
     pub resource_manager: ResourceManager,
-    // Plugin UUID -> Script definition storage
-    pub script_definitions: Vec<Arc<ScriptDefinitionStorage>>,
+    pub serialization_context: Arc<SerializationContext>,
 }
 
 impl InspectorEnvironment for EditorEnvironment {
@@ -210,14 +208,11 @@ impl Inspector {
         obj: &dyn Inspect,
         ui: &mut UserInterface,
         resource_manager: ResourceManager,
-        plugins: &PluginContainer,
+        serialization_context: Arc<SerializationContext>,
     ) {
         let environment = Rc::new(EditorEnvironment {
             resource_manager,
-            script_definitions: plugins
-                .iter()
-                .map(|p| p.script_definition_storage())
-                .collect(),
+            serialization_context,
         });
 
         let context = InspectorContext::from_object(
@@ -275,7 +270,7 @@ impl Inspector {
                         obj,
                         &mut engine.user_interface,
                         engine.resource_manager.clone(),
-                        &engine.plugins,
+                        engine.serialization_context.clone(),
                     )
                 }
             } else {

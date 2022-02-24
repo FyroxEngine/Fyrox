@@ -4,9 +4,8 @@
 //! Once you get familiar with the engine, you should **not** use the framework because it is too
 //! limiting and may slow you down.
 
-use crate::engine::EngineInitParams;
+use crate::engine::{EngineInitParams, SerializationContext};
 use crate::gui::message::UiMessage;
-use crate::scene::node::constructor::NodeConstructorContainer;
 use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::instant::Instant,
@@ -64,12 +63,12 @@ impl<State: GameState> Framework<State> {
     pub fn new() -> Result<Self, EngineError> {
         let event_loop = EventLoop::new();
 
-        let node_constructors = Arc::new(NodeConstructorContainer::new());
+        let serialization_context = Arc::new(SerializationContext::new());
 
         let mut engine = Engine::new(EngineInitParams {
             window_builder: WindowBuilder::new().with_title("Game").with_resizable(true),
-            resource_manager: ResourceManager::new(node_constructors.clone()),
-            node_constructors,
+            resource_manager: ResourceManager::new(serialization_context.clone()),
+            serialization_context,
             events_loop: &event_loop,
             vsync: false,
         })?;

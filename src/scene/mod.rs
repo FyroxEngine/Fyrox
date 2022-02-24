@@ -26,10 +26,6 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
-use crate::scene::camera::Camera;
-use crate::scene::graph::GraphPerformanceStatistics;
-use crate::scene::mesh::Mesh;
-use crate::scene::node::constructor::NodeConstructorContainer;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -41,16 +37,18 @@ use crate::{
         sstorage::ImmutableString,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::resource_manager::ResourceManager,
+    engine::{resource_manager::ResourceManager, SerializationContext},
     material::{shader::SamplerFallback, PropertyValue},
     resource::texture::Texture,
     scene::{
+        camera::Camera,
         debug::SceneDrawingContext,
-        graph::Graph,
+        graph::{Graph, GraphPerformanceStatistics},
         mesh::buffer::{
             VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
             VertexWriteTrait,
         },
+        mesh::Mesh,
         node::Node,
         sound::SoundEngine,
         variable::{InheritError, InheritableVariable},
@@ -58,13 +56,13 @@ use crate::{
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::FxHashMap;
-use std::time::Duration;
 use std::{
     any::{Any, TypeId},
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
     path::Path,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 /// A trait for object that has any TemplateVariable and should support property inheritance.
@@ -321,16 +319,16 @@ impl SceneLoader {
     /// Such scenes can be made in rusty editor.
     pub async fn from_file<P: AsRef<Path>>(
         path: P,
-        node_constructors: Arc<NodeConstructorContainer>,
+        serialization_context: Arc<SerializationContext>,
     ) -> Result<Self, VisitError> {
         let mut visitor = Visitor::load_binary(path).await?;
-        Self::load("Scene", node_constructors, &mut visitor)
+        Self::load("Scene", serialization_context, &mut visitor)
     }
 
     /// Tries to load a scene using specified visitor and region name.
     pub fn load(
         region_name: &str,
-        node_constructors: Arc<NodeConstructorContainer>,
+        serialization_context: Arc<SerializationContext>,
         visitor: &mut Visitor,
     ) -> Result<Self, VisitError> {
         if !visitor.is_reading() {
@@ -339,7 +337,7 @@ impl SceneLoader {
             ));
         }
 
-        visitor.environment = Some(node_constructors);
+        visitor.environment = Some(serialization_context);
 
         let mut scene = Scene::default();
         scene.visit(region_name, visitor)?;

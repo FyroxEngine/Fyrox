@@ -1,10 +1,10 @@
+use crate::engine::SerializationContext;
 use crate::{
     core::{inspect::Inspect, uuid::Uuid, visitor::Visit},
     engine::resource_manager::ResourceManager,
     gui::UserInterface,
     renderer::Renderer,
     scene::SceneContainer,
-    script::ScriptDefinitionStorage,
 };
 use libloading::{Library, Symbol};
 use serde::Deserialize;
@@ -12,7 +12,6 @@ use std::{
     ffi::{OsStr, OsString},
     ops::{Deref, DerefMut},
     path::PathBuf,
-    sync::Arc,
 };
 
 pub mod container;
@@ -23,6 +22,7 @@ pub struct PluginContext<'a> {
     pub resource_manager: &'a ResourceManager,
     pub renderer: &'a mut Renderer,
     pub dt: f32,
+    pub serialization_context: &'a SerializationContext,
 }
 
 pub trait Plugin: Visit + Inspect {
@@ -31,8 +31,6 @@ pub trait Plugin: Visit + Inspect {
     fn on_unload(&mut self, context: &mut PluginContext);
 
     fn update(&mut self, context: &mut PluginContext);
-
-    fn script_definition_storage(&self) -> Arc<ScriptDefinitionStorage>;
 
     fn type_uuid(&self) -> Uuid;
 }

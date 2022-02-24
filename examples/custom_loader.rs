@@ -9,8 +9,6 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::engine::EngineInitParams;
-use fyrox::scene::node::constructor::NodeConstructorContainer;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -28,7 +26,7 @@ use fyrox::{
             },
             ResourceManager,
         },
-        Engine,
+        Engine, EngineInitParams, SerializationContext,
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -201,8 +199,8 @@ fn main() {
         .with_title("Example 12 - Custom resource loader")
         .with_resizable(true);
 
-    let node_constructors = Arc::new(NodeConstructorContainer::new());
-    let resource_manager = ResourceManager::new(node_constructors.clone());
+    let serialization_context = Arc::new(SerializationContext::new());
+    let resource_manager = ResourceManager::new(serialization_context.clone());
 
     // Set up our custom loaders
     {
@@ -210,15 +208,15 @@ fn main() {
         let containers = state.containers_mut();
         containers.set_model_loader(CustomModelLoader(Arc::new(ModelLoader {
             resource_manager: resource_manager.clone(),
-            node_constructors: node_constructors.clone(),
+            serialization_context: serialization_context.clone(),
         })));
         containers.set_texture_loader(CustomTextureLoader(Arc::new(TextureLoader)));
     }
 
     let mut engine = Engine::new(EngineInitParams {
         window_builder,
-        resource_manager: ResourceManager::new(node_constructors.clone()),
-        node_constructors,
+        resource_manager: ResourceManager::new(serialization_context.clone()),
+        serialization_context,
         events_loop: &event_loop,
         vsync: false,
     })

@@ -68,9 +68,6 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::engine::resource_manager::ResourceManager;
-use fyrox::engine::{Engine, EngineInitParams};
-use fyrox::scene::node::constructor::NodeConstructorContainer;
 use fyrox::{
     core::{
         algebra::{Point3, Vector2},
@@ -84,6 +81,7 @@ use fyrox::{
         sstorage::ImmutableString,
     },
     dpi::LogicalSize,
+    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -685,7 +683,7 @@ impl Editor {
         self.path_fixer.handle_ui_message(
             message,
             &mut engine.user_interface,
-            engine.node_constructors.clone(),
+            engine.serialization_context.clone(),
             engine.resource_manager.clone(),
         );
         self.scene_viewer
@@ -1203,7 +1201,7 @@ impl Editor {
                     let result = {
                         block_on(SceneLoader::from_file(
                             &scene_path,
-                            engine.node_constructors.clone(),
+                            engine.serialization_context.clone(),
                         ))
                     };
                     match result {
@@ -1584,11 +1582,11 @@ fn main() {
         .with_title("rusty editor")
         .with_resizable(true);
 
-    let node_constructors = Arc::new(NodeConstructorContainer::new());
+    let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
         window_builder,
-        resource_manager: ResourceManager::new(node_constructors.clone()),
-        node_constructors,
+        resource_manager: ResourceManager::new(serialization_context.clone()),
+        serialization_context,
         events_loop: &event_loop,
         vsync: true,
     })

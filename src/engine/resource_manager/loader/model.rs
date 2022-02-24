@@ -1,6 +1,6 @@
 //! Model loader.
 
-use crate::scene::node::constructor::NodeConstructorContainer;
+use crate::engine::SerializationContext;
 use crate::{
     engine::resource_manager::{
         container::event::ResourceEventBroadcaster,
@@ -19,7 +19,7 @@ pub struct ModelLoader {
     pub resource_manager: ResourceManager,
     /// Node constructors contains a set of constructors that allows to build a node using its
     /// type UUID.
-    pub node_constructors: Arc<NodeConstructorContainer>,
+    pub serialization_context: Arc<SerializationContext>,
 }
 
 impl ResourceLoader<Model, ModelImportOptions> for ModelLoader {
@@ -31,7 +31,7 @@ impl ResourceLoader<Model, ModelImportOptions> for ModelLoader {
         reload: bool,
     ) -> BoxedLoaderFuture {
         let resource_manager = self.resource_manager.clone();
-        let node_constructors = self.node_constructors.clone();
+        let node_constructors = self.serialization_context.clone();
 
         Box::pin(async move {
             let path = model.state().path().to_path_buf();

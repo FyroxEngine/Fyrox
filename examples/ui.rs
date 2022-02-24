@@ -9,8 +9,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::engine::EngineInitParams;
-use fyrox::scene::node::constructor::NodeConstructorContainer;
+use fyrox::engine::{EngineInitParams, SerializationContext};
 use fyrox::{
     animation::Animation,
     core::{
@@ -336,11 +335,11 @@ fn main() {
         .with_title("Example - User Interface")
         .with_resizable(true);
 
-    let node_constructors = Arc::new(NodeConstructorContainer::new());
+    let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
         window_builder,
-        resource_manager: ResourceManager::new(node_constructors.clone()),
-        node_constructors,
+        resource_manager: ResourceManager::new(serialization_context.clone()),
+        serialization_context,
         events_loop: &event_loop,
         vsync: false,
     })

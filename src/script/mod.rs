@@ -7,10 +7,13 @@ use crate::{
     },
     plugin::Plugin,
 };
+use fyrox_ui::inspector::PropertyChanged;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
+
+pub mod constructor;
 
 pub trait BaseScript: Visit + Inspect + Send + Debug + 'static {
     fn clone_box(&self) -> Box<dyn ScriptTrait>;
@@ -31,19 +34,17 @@ pub struct ScriptContext<'a, 'b> {
 }
 
 pub trait ScriptTrait: BaseScript {
+    /// Mutates the state of the script according to the [`PropertyChanged`] info. It is invoked
+    /// from the editor when user changes property of the script from the inspector.
+    fn on_property_changed(&mut self, args: &PropertyChanged);
+
     fn on_init(&mut self, context: &mut ScriptContext);
 
     fn on_update(&mut self, context: &mut ScriptContext);
 
-    fn type_uuid(&self) -> Uuid;
+    fn id(&self) -> Uuid;
 
     fn plugin_uuid(&self) -> Uuid;
-}
-
-pub struct ScriptDefinition {
-    pub name: String,
-    pub type_uuid: Uuid,
-    pub constructor: Box<dyn Fn() -> Box<dyn ScriptTrait> + Send>,
 }
 
 #[derive(Debug)]
@@ -84,28 +85,5 @@ impl Clone for Script {
 impl Script {
     pub fn new<T: ScriptTrait>(script_object: T) -> Self {
         Self(Box::new(script_object))
-    }
-}
-
-#[derive(Default)]
-pub struct ScriptDefinitionStorage {
-    vec: Vec<ScriptDefinition>,
-}
-
-impl ScriptDefinitionStorage {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn add(&mut self, script_definition: ScriptDefinition) {
-        self.vec.push(script_definition);
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &ScriptDefinition> {
-        self.vec.iter()
-    }
-
-    pub fn len(&self) -> usize {
-        self.vec.len()
     }
 }

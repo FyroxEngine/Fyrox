@@ -1,4 +1,5 @@
 use crate::{gui::make_dropdown_list_option, inspector::EditorEnvironment, DropdownListBuilder};
+use fyrox::engine::SerializationContext;
 use fyrox::{
     core::{pool::Handle, uuid::Uuid},
     gui::{
@@ -17,7 +18,7 @@ use fyrox::{
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, UiNode, UserInterface,
     },
-    script::{Script, ScriptDefinitionStorage},
+    script::Script,
 };
 use std::{
     any::{Any, TypeId},
@@ -179,7 +180,7 @@ impl ScriptPropertyEditorBuilder {
 }
 
 fn create_items(
-    definition_containers: &[Arc<ScriptDefinitionStorage>],
+    serialization_context: Arc<SerializationContext>,
     ctx: &mut BuildContext,
 ) -> Vec<Handle<UiNode>> {
     let mut items = vec![{
@@ -188,29 +189,27 @@ fn create_items(
         empty
     }];
 
-    items.extend(
-        definition_containers
-            .iter()
-            .flat_map(|c| c.iter())
-            .map(|d| {
-                let item = make_dropdown_list_option(ctx, &d.name);
-                ctx[item].user_data = Some(Rc::new(d.type_uuid.clone()));
-                item
-            }),
-    );
+    items.extend(serialization_context.script_constructors.map().iter().map(
+        |(type_uuid, constructor)| {
+            let item = make_dropdown_list_option(ctx, &constructor.name);
+            ctx[item].user_data = Some(Rc::new(type_uuid.clone()));
+            item
+        },
+    ));
 
     items
 }
 
 fn selected_script(
-    definition_containers: &[Arc<ScriptDefinitionStorage>],
+    serialization_context: Arc<SerializationContext>,
     value: &Option<Script>,
 ) -> Option<usize> {
     value.as_ref().and_then(|s| {
-        definition_containers
+        serialization_context
+            .script_constructors
+            .map()
             .iter()
-            .flat_map(|c| c.iter())
-            .position(|d| d.type_uuid == s.type_uuid())
+            .position(|(type_uuid, _)| *type_uuid == s.id())
     })
 }
 
@@ -233,7 +232,7 @@ fn fetch_script_definitions(
 
     let editor_environment = get_editor_environment(&environment);
 
-    editor_environment.map(|e| create_items(&e.script_definitions, &mut ui.build_ctx()))
+    editor_environment.map(|e| create_items(e.serialization_context.clone(), &mut ui.build_ctx()))
 }
 
 #[derive(Debug)]
@@ -253,10 +252,12 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
         let environment =
             get_editor_environment(&ctx.environment).expect("Must have editor environment!");
 
-        let items = create_items(&environment.script_definitions, ctx.build_context);
+        let items = create_items(environment.serialization_context.clone(), ctx.build_context);
 
         let variant_selector = DropdownListBuilder::new(WidgetBuilder::new())
-            .with_selected(selected_script(&environment.script_definitions, value).unwrap_or(0))
+            .with_selected(
+                selected_script(environment.serialization_context.clone(), value).unwrap_or(0),
+            )
             .with_items(items)
             .build(ctx.build_context);
 
@@ -268,7 +269,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             {
                 editor = ScriptPropertyEditorBuilder::new(WidgetBuilder::new()).build(
                     variant_selector,
-                    value.as_ref().map(|s| s.type_uuid()),
+                    value.as_ref().map(|s| s.id()),
                     ctx.environment.clone(),
                     ctx.sync_flag,
                     ctx.layer_index,
@@ -317,8 +318,13 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
 
         // Script list might change over time if some plugins were reloaded.
         if Some(variant_selector_ref.items().len())
-            != editor_environment
-                .map(|e| e.script_definitions.iter().flat_map(|c| c.iter()).count())
+            != editor_environment.map(|e| {
+                e.serialization_context
+                    .script_constructors
+                    .map()
+                    .values()
+                    .count()
+            })
         {
             if let Some(items) = new_script_definitions_items {
                 ctx.ui.send_message(DropdownListMessage::items(
@@ -329,16 +335,16 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 ctx.ui.send_message(ScriptPropertyEditorMessage::value(
                     ctx.instance,
                     MessageDirection::ToWidget,
-                    value.as_ref().map(|s| s.type_uuid()).clone(),
+                    value.as_ref().map(|s| s.id()).clone(),
                 ))
             }
         }
 
-        if instance_ref.selected_script_uuid != value.as_ref().map(|s| s.type_uuid()) {
+        if instance_ref.selected_script_uuid != value.as_ref().map(|s| s.id()) {
             ctx.ui.send_message(ScriptPropertyEditorMessage::value(
                 ctx.instance,
                 MessageDirection::ToWidget,
-                value.as_ref().map(|s| s.type_uuid()).clone(),
+                value.as_ref().map(|s| s.id()).clone(),
             ));
 
             let inspector = instance_ref.inspector;
@@ -382,11 +388,9 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                     ScriptPropertyEditorMessage::Value(value) => {
                         if let Some(env) = get_editor_environment(&ctx.environment) {
                             let script = value.and_then(|uuid| {
-                                env.script_definitions
-                                    .iter()
-                                    .flat_map(|s| s.iter())
-                                    .find(|d| d.type_uuid == uuid)
-                                    .map(|d| Script((d.constructor)()))
+                                env.serialization_context
+                                    .script_constructors
+                                    .try_create(&uuid)
                             });
 
                             return Some(PropertyChanged {
