@@ -1,4 +1,7 @@
-use crate::{gui::make_dropdown_list_option, inspector::EditorEnvironment, DropdownListBuilder};
+use crate::{
+    gui::make_dropdown_list_option, inspector::EditorEnvironment, send_sync_message,
+    DropdownListBuilder, MSG_SYNC_FLAG,
+};
 use fyrox::engine::SerializationContext;
 use fyrox::{
     core::{pool::Handle, uuid::Uuid},
@@ -77,6 +80,7 @@ impl Control for ScriptPropertyEditor {
                 && message.direction() == MessageDirection::ToWidget
             {
                 if self.selected_script_uuid != id.clone() {
+                    dbg!(&id);
                     self.selected_script_uuid = id.clone();
                     ui.send_message(message.reverse());
                 }
@@ -204,13 +208,19 @@ fn selected_script(
     serialization_context: Arc<SerializationContext>,
     value: &Option<Script>,
 ) -> Option<usize> {
-    value.as_ref().and_then(|s| {
-        serialization_context
-            .script_constructors
-            .map()
-            .iter()
-            .position(|(type_uuid, _)| *type_uuid == s.id())
-    })
+    value
+        .as_ref()
+        .and_then(|s| {
+            serialization_context
+                .script_constructors
+                .map()
+                .iter()
+                .position(|(type_uuid, _)| *type_uuid == s.id())
+        })
+        .map(|n| {
+            // Because the list has `<No Script>` element
+            n + 1
+        })
 }
 
 fn fetch_script_definitions(
@@ -327,25 +337,34 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             })
         {
             if let Some(items) = new_script_definitions_items {
-                ctx.ui.send_message(DropdownListMessage::items(
-                    instance_ref.variant_selector,
-                    MessageDirection::ToWidget,
-                    items,
-                ));
-                ctx.ui.send_message(ScriptPropertyEditorMessage::value(
-                    ctx.instance,
-                    MessageDirection::ToWidget,
-                    value.as_ref().map(|s| s.id()).clone(),
-                ))
+                send_sync_message(
+                    ctx.ui,
+                    DropdownListMessage::items(
+                        instance_ref.variant_selector,
+                        MessageDirection::ToWidget,
+                        items,
+                    ),
+                );
+                send_sync_message(
+                    ctx.ui,
+                    ScriptPropertyEditorMessage::value(
+                        ctx.instance,
+                        MessageDirection::ToWidget,
+                        value.as_ref().map(|s| s.id()).clone(),
+                    ),
+                );
             }
         }
 
         if instance_ref.selected_script_uuid != value.as_ref().map(|s| s.id()) {
-            ctx.ui.send_message(ScriptPropertyEditorMessage::value(
-                ctx.instance,
-                MessageDirection::ToWidget,
-                value.as_ref().map(|s| s.id()).clone(),
-            ));
+            send_sync_message(
+                ctx.ui,
+                ScriptPropertyEditorMessage::value(
+                    ctx.instance,
+                    MessageDirection::ToWidget,
+                    value.as_ref().map(|s| s.id()).clone(),
+                ),
+            );
 
             let inspector = instance_ref.inspector;
 
@@ -358,11 +377,9 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 ctx.layer_index + 1,
             );
 
-            Ok(Some(InspectorMessage::context(
-                inspector,
-                MessageDirection::ToWidget,
-                context,
-            )))
+            let mut msg = InspectorMessage::context(inspector, MessageDirection::ToWidget, context);
+            msg.flags = MSG_SYNC_FLAG;
+            Ok(Some(msg))
         } else {
             let layer_index = ctx.layer_index;
             let inspector_ctx = ctx

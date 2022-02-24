@@ -844,8 +844,7 @@ impl Visitor {
         out_string
     }
 
-    pub fn save_binary<P: AsRef<Path>>(&self, path: P) -> VisitResult {
-        let mut writer = BufWriter::new(File::create(path)?);
+    pub fn save_binary_to_memory<W: Write>(&self, mut writer: W) -> VisitResult {
         writer.write_all(Self::MAGIC.as_bytes())?;
         let mut stack = vec![self.root];
         while let Some(node_handle) = stack.pop() {
@@ -863,6 +862,11 @@ impl Visitor {
             stack.extend_from_slice(&node.children);
         }
         Ok(())
+    }
+
+    pub fn save_binary<P: AsRef<Path>>(&self, path: P) -> VisitResult {
+        let writer = BufWriter::new(File::create(path)?);
+        self.save_binary_to_memory(writer)
     }
 
     fn load_node_binary(&mut self, file: &mut dyn Read) -> Result<Handle<Node>, VisitError> {

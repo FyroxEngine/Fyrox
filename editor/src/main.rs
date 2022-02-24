@@ -1088,6 +1088,7 @@ impl Editor {
                     message_sender: self.message_sender.clone(),
                     editor_scene,
                     resource_manager: engine.resource_manager.clone(),
+                    serialization_context: engine.serialization_context.clone(),
                 },
                 &mut engine.user_interface,
             )
@@ -1127,6 +1128,7 @@ impl Editor {
                                 message_sender: self.message_sender.clone(),
                                 editor_scene,
                                 resource_manager: engine.resource_manager.clone(),
+                                serialization_context: engine.serialization_context.clone(),
                             },
                         );
                         needs_sync = true;
@@ -1139,6 +1141,7 @@ impl Editor {
                             message_sender: self.message_sender.clone(),
                             editor_scene,
                             resource_manager: engine.resource_manager.clone(),
+                            serialization_context: engine.serialization_context.clone(),
                         });
                         needs_sync = true;
                     }
@@ -1150,6 +1153,7 @@ impl Editor {
                             message_sender: self.message_sender.clone(),
                             editor_scene,
                             resource_manager: engine.resource_manager.clone(),
+                            serialization_context: engine.serialization_context.clone(),
                         });
                         needs_sync = true;
                     }
@@ -1161,6 +1165,7 @@ impl Editor {
                             message_sender: self.message_sender.clone(),
                             editor_scene,
                             resource_manager: engine.resource_manager.clone(),
+                            serialization_context: engine.serialization_context.clone(),
                         });
                         needs_sync = true;
                     }

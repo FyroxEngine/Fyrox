@@ -6,10 +6,12 @@ use crate::{
     },
     GameEngine, Message,
 };
+use fyrox::engine::SerializationContext;
 use fyrox::{
     engine::resource_manager::ResourceManager,
     scene::{graph::SubGraph, Scene},
 };
+use std::sync::Arc;
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -55,6 +57,7 @@ pub struct SceneContext<'a> {
     pub scene: &'a mut Scene,
     pub message_sender: Sender<Message>,
     pub resource_manager: ResourceManager,
+    pub serialization_context: Arc<SerializationContext>,
 }
 
 #[derive(Debug)]

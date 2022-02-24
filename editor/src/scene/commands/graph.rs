@@ -2,6 +2,8 @@ use crate::{
     command::Command, define_node_command, define_swap_command, define_vec_add_remove_commands,
     scene::commands::SceneContext,
 };
+use fyrox::core::visitor::Visitor;
+use fyrox::scene::base::visit_opt_script;
 use fyrox::script::Script;
 use fyrox::{
     animation::Animation,
@@ -15,6 +17,7 @@ use fyrox::{
         node::Node,
     },
 };
+use std::io::Cursor;
 
 #[derive(Debug)]
 pub struct MoveNodeCommand {
@@ -470,7 +473,6 @@ define_swap_command! {
     SetMobilityCommand(Mobility): mobility, set_mobility, "Set Mobility";
     SetDepthOffsetCommand(f32): depth_offset_factor, set_depth_offset_factor, "Set Depth Offset";
     SetCastShadowsCommand(bool): cast_shadows, set_cast_shadows, "Set Cast Shadows";
-    SetScriptCommand(Option<Script>): script_cloned, set_script, "Set Script";
 }
 
 define_node_command! {
@@ -508,6 +510,69 @@ define_node_command! {
         let temp = **node.local_transform().scaling_pivot();
         node.local_transform_mut().set_scaling_pivot(self.value);
         self.value = temp;
+    }
+}
+
+#[derive(Debug)]
+pub enum SetScriptCommandState {
+    Undefined,
+    NonExecuted { script: Option<Script> },
+    Executed,
+    Reverted { data: Vec<u8> },
+}
+
+#[derive(Debug)]
+pub struct SetScriptCommand {
+    handle: Handle<Node>,
+    state: SetScriptCommandState,
+}
+
+impl SetScriptCommand {
+    pub fn new(handle: Handle<Node>, script: Option<Script>) -> Self {
+        Self {
+            handle,
+            state: SetScriptCommandState::NonExecuted { script },
+        }
+    }
+}
+
+impl Command for SetScriptCommand {
+    fn name(&mut self, context: &SceneContext) -> String {
+        "Set Script Command".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        let node = &mut context.scene.graph[self.handle];
+
+        match std::mem::replace(&mut self.state, SetScriptCommandState::Executed) {
+            SetScriptCommandState::NonExecuted { script } => {
+                node.script = script;
+            }
+            SetScriptCommandState::Reverted { data } => {
+                let mut visitor = Visitor::load_from_memory(data).unwrap();
+                visitor.environment = Some(context.serialization_context.clone());
+                visit_opt_script("Script", &mut node.script, &mut visitor).unwrap();
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        let node = &mut context.scene.graph[self.handle];
+        match std::mem::replace(&mut self.state, SetScriptCommandState::Undefined) {
+            SetScriptCommandState::Executed => {
+                let mut script = node.script.take();
+                let mut visitor = Visitor::new();
+                visitor.environment = Some(context.serialization_context.clone());
+                visit_opt_script("Script", &mut script, &mut visitor).unwrap();
+                let mut data = Cursor::new(Vec::<u8>::new());
+                visitor.save_binary_to_memory(&mut data).unwrap();
+                self.state = SetScriptCommandState::Reverted {
+                    data: data.into_inner(),
+                }
+            }
+            _ => unreachable!(),
+        }
     }
 }
 

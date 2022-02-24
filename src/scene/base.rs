@@ -734,7 +734,11 @@ impl Default for Base {
     }
 }
 
-fn visit_script(name: &str, script: &mut Option<Script>, visitor: &mut Visitor) -> VisitResult {
+pub fn visit_opt_script(
+    name: &str,
+    script: &mut Option<Script>,
+    visitor: &mut Visitor,
+) -> VisitResult {
     visitor.enter_region(name)?;
 
     let mut script_type_uuid = script.as_ref().map(|s| s.id()).unwrap_or_default();
@@ -794,7 +798,7 @@ impl Visit for Base {
         let _ = self.frustum_culling.visit("FrustumCulling", visitor);
         let _ = self.cast_shadows.visit("CastShadows", visitor);
 
-        visit_script("Script", &mut self.script, visitor)?;
+        visit_opt_script("Script", &mut self.script, visitor)?;
 
         visitor.leave_region()
     }
