@@ -129,7 +129,7 @@ async fn load(game: &mut Game) {
 
         let mut visitor = Visitor::load_binary(SAVE_FILE).await.unwrap();
 
-        let scene = SceneLoader::load("Scene", &mut visitor)
+        let scene = SceneLoader::load("Scene", game.engine.node_constructors.clone(), &mut visitor)
             .unwrap()
             .finish(game.engine.resource_manager.clone())
             .await;

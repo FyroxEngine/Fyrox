@@ -6,14 +6,16 @@
 
 use fyrox::{
     core::instant::Instant,
-    engine::Engine,
+    engine::{resource_manager::ResourceManager, Engine, EngineInitParams},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
+    scene::node::constructor::NodeConstructorContainer,
     utils::{
         log::{Log, MessageKind},
         translate_event,
     },
 };
+use std::sync::Arc;
 
 fn main() {
     let event_loop = EventLoop::new();
@@ -23,10 +25,15 @@ fn main() {
         .with_title("Example - Custom Game Loop")
         .with_resizable(true);
 
-    let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
-
-    // Then initialize the engine.
-    let mut engine = Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
+    let node_constructors = Arc::new(NodeConstructorContainer::new());
+    let mut engine = Engine::new(EngineInitParams {
+        window_builder,
+        resource_manager: ResourceManager::new(node_constructors.clone()),
+        node_constructors,
+        events_loop: &event_loop,
+        vsync: true,
+    })
+    .unwrap();
 
     // Define game loop variables.
     let clock = Instant::now();

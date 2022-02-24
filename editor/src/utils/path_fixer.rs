@@ -7,6 +7,7 @@ use fyrox::scene::decal::Decal;
 use fyrox::scene::dim2::rectangle::Rectangle;
 use fyrox::scene::light::spot::SpotLight;
 use fyrox::scene::mesh::Mesh;
+use fyrox::scene::node::constructor::NodeConstructorContainer;
 use fyrox::scene::particle_system::ParticleSystem;
 use fyrox::scene::sprite::Sprite;
 use fyrox::scene::terrain::Terrain;
@@ -37,6 +38,7 @@ use fyrox::{
     resource::{model::Model, texture::Texture},
     scene::{Scene, SceneLoader},
 };
+use std::sync::Arc;
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
@@ -309,6 +311,7 @@ impl PathFixer {
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
+        node_constructors: Arc<NodeConstructorContainer>,
         resource_manager: ResourceManager,
     ) {
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
@@ -316,7 +319,7 @@ impl PathFixer {
                 let message;
                 match block_on(Visitor::load_binary(path)) {
                     Ok(mut visitor) => {
-                        match SceneLoader::load("Scene", &mut visitor) {
+                        match SceneLoader::load("Scene", node_constructors, &mut visitor) {
                             Err(e) => {
                                 message = format!(
                                     "Failed to load a scene {}\nReason: {}",

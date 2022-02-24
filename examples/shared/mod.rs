@@ -4,7 +4,9 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
+use fyrox::engine::EngineInitParams;
 use fyrox::scene::collider::Collider;
+use fyrox::scene::node::constructor::NodeConstructorContainer;
 use fyrox::scene::pivot::PivotBuilder;
 use fyrox::scene::rigidbody::RigidBody;
 use fyrox::scene::sound::effect::{BaseEffectBuilder, Effect, ReverbEffectBuilder};
@@ -122,9 +124,15 @@ impl Game {
             .with_title(title)
             .with_resizable(true);
 
-        let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
-
-        let mut engine = Engine::new(window_builder, resource_manager, &event_loop, false).unwrap();
+        let node_constructors = Arc::new(NodeConstructorContainer::new());
+        let mut engine = Engine::new(EngineInitParams {
+            window_builder,
+            resource_manager: ResourceManager::new(node_constructors.clone()),
+            node_constructors,
+            events_loop: &event_loop,
+            vsync: false,
+        })
+        .unwrap();
 
         engine
             .renderer

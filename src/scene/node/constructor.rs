@@ -18,7 +18,6 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use lazy_static::lazy_static;
 
 /// A simple type alias for boxed node constructor.
 pub type NodeConstructor = Box<dyn FnMut() -> Node + Send>;
@@ -29,12 +28,9 @@ pub struct NodeConstructorContainer {
     map: Mutex<FxHashMap<Uuid, NodeConstructor>>,
 }
 
-lazy_static! {
-    static ref NODE_CONSTRUCTORS: NodeConstructorContainer = NodeConstructorContainer::new();
-}
-
 impl NodeConstructorContainer {
-    fn new() -> Self {
+    /// Creates default node constructor container with constructors for built-in engine nodes.
+    pub fn new() -> Self {
         let container = NodeConstructorContainer::default();
 
         container.add::<dim2::collider::Collider>();
@@ -58,11 +54,6 @@ impl NodeConstructorContainer {
         container.add::<Terrain>();
 
         container
-    }
-
-    /// Returns a reference to global node constructor container.
-    pub fn instance() -> &'static Self {
-        &NODE_CONSTRUCTORS
     }
 
     /// Adds new type constructor for a given type and return previous constructor for the type

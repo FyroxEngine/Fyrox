@@ -29,6 +29,7 @@ pub mod visibility;
 use crate::scene::camera::Camera;
 use crate::scene::graph::GraphPerformanceStatistics;
 use crate::scene::mesh::Mesh;
+use crate::scene::node::constructor::NodeConstructorContainer;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -318,18 +319,27 @@ pub struct SceneLoader {
 impl SceneLoader {
     /// Tries to load scene from given file. File can contain any scene in native engine format.
     /// Such scenes can be made in rusty editor.
-    pub async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, VisitError> {
+    pub async fn from_file<P: AsRef<Path>>(
+        path: P,
+        node_constructors: Arc<NodeConstructorContainer>,
+    ) -> Result<Self, VisitError> {
         let mut visitor = Visitor::load_binary(path).await?;
-        Self::load("Scene", &mut visitor)
+        Self::load("Scene", node_constructors, &mut visitor)
     }
 
     /// Tries to load a scene using specified visitor and region name.
-    pub fn load(region_name: &str, visitor: &mut Visitor) -> Result<Self, VisitError> {
+    pub fn load(
+        region_name: &str,
+        node_constructors: Arc<NodeConstructorContainer>,
+        visitor: &mut Visitor,
+    ) -> Result<Self, VisitError> {
         if !visitor.is_reading() {
             return Err(VisitError::User(
                 "Visitor must be in read mode!".to_string(),
             ));
         }
+
+        visitor.environment = Some(node_constructors);
 
         let mut scene = Scene::default();
         scene.visit(region_name, visitor)?;

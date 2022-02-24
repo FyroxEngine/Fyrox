@@ -68,6 +68,9 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use fyrox::engine::resource_manager::ResourceManager;
+use fyrox::engine::{Engine, EngineInitParams};
+use fyrox::scene::node::constructor::NodeConstructorContainer;
 use fyrox::{
     core::{
         algebra::{Point3, Vector2},
@@ -682,6 +685,7 @@ impl Editor {
         self.path_fixer.handle_ui_message(
             message,
             &mut engine.user_interface,
+            engine.node_constructors.clone(),
             engine.resource_manager.clone(),
         );
         self.scene_viewer
@@ -1196,7 +1200,12 @@ impl Editor {
                     }
                 }
                 Message::LoadScene(scene_path) => {
-                    let result = { block_on(SceneLoader::from_file(&scene_path)) };
+                    let result = {
+                        block_on(SceneLoader::from_file(
+                            &scene_path,
+                            engine.node_constructors.clone(),
+                        ))
+                    };
                     match result {
                         Ok(loader) => {
                             let scene = block_on(loader.finish(engine.resource_manager.clone()));
@@ -1575,9 +1584,15 @@ fn main() {
         .with_title("rusty editor")
         .with_resizable(true);
 
-    let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
-
-    let mut engine = GameEngine::new(window_builder, resource_manager, &event_loop, true).unwrap();
+    let node_constructors = Arc::new(NodeConstructorContainer::new());
+    let mut engine = Engine::new(EngineInitParams {
+        window_builder,
+        resource_manager: ResourceManager::new(node_constructors.clone()),
+        node_constructors,
+        events_loop: &event_loop,
+        vsync: true,
+    })
+    .unwrap();
 
     let overlay_pass = OverlayRenderPass::new(engine.renderer.pipeline_state());
     engine.renderer.add_render_pass(overlay_pass);

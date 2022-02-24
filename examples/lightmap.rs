@@ -8,7 +8,9 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::engine::EngineInitParams;
 use fyrox::scene::light::BaseLight;
+use fyrox::scene::node::constructor::NodeConstructorContainer;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -198,6 +200,7 @@ struct SceneLoadContext {
 }
 
 fn create_scene_async(
+    node_constructors: Arc<NodeConstructorContainer>,
     resource_manager: ResourceManager,
     generate_lightmap: bool,
 ) -> Arc<Mutex<SceneLoadContext>> {
@@ -261,7 +264,7 @@ fn create_scene_async(
                     context.lock().unwrap().data = Some(GameScene { scene, root });
                 }
             } else {
-                let scene = SceneLoader::from_file(LIGHTMAP_SCENE_PATH)
+                let scene = SceneLoader::from_file(LIGHTMAP_SCENE_PATH, node_constructors)
                     .await
                     .unwrap()
                     .finish(resource_manager)
@@ -289,9 +292,15 @@ fn main() {
         .with_title("Example 09 - Lightmap")
         .with_resizable(true);
 
-    let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
-
-    let mut engine = Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
+    let node_constructors = Arc::new(NodeConstructorContainer::new());
+    let mut engine = Engine::new(EngineInitParams {
+        window_builder,
+        resource_manager: ResourceManager::new(node_constructors.clone()),
+        node_constructors,
+        events_loop: &event_loop,
+        vsync: true,
+    })
+    .unwrap();
 
     // Create simple user interface that will show some useful info.
     let window = engine.get_window();
@@ -317,7 +326,11 @@ fn main() {
             generate_lightmap: false,
         }))
     } else {
-        create_scene_async(engine.resource_manager.clone(), true)
+        create_scene_async(
+            engine.node_constructors.clone(),
+            engine.resource_manager.clone(),
+            true,
+        )
     };
 
     // Initially these handles are None, once scene is loaded they'll be assigned.
@@ -470,8 +483,11 @@ fn main() {
                                         true,
                                     ));
                             } else if ui_event.destination() == interface.generate_new {
-                                game_scene =
-                                    create_scene_async(engine.resource_manager.clone(), true);
+                                game_scene = create_scene_async(
+                                    engine.node_constructors.clone(),
+                                    engine.resource_manager.clone(),
+                                    true,
+                                );
                                 engine.user_interface.send_message(WindowMessage::close(
                                     interface.choice_window,
                                     MessageDirection::ToWidget,
@@ -484,8 +500,11 @@ fn main() {
                                         true,
                                     ));
                             } else if ui_event.destination() == interface.load_existing {
-                                game_scene =
-                                    create_scene_async(engine.resource_manager.clone(), false);
+                                game_scene = create_scene_async(
+                                    engine.node_constructors.clone(),
+                                    engine.resource_manager.clone(),
+                                    false,
+                                );
                                 engine.user_interface.send_message(WindowMessage::close(
                                     interface.choice_window,
                                     MessageDirection::ToWidget,

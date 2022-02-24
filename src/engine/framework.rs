@@ -4,7 +4,9 @@
 //! Once you get familiar with the engine, you should **not** use the framework because it is too
 //! limiting and may slow you down.
 
+use crate::engine::EngineInitParams;
 use crate::gui::message::UiMessage;
+use crate::scene::node::constructor::NodeConstructorContainer;
 use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::instant::Instant,
@@ -14,6 +16,7 @@ use crate::{
     utils::translate_event,
     window::WindowBuilder,
 };
+use std::sync::Arc;
 
 #[doc(hidden)]
 pub mod prelude {
@@ -61,10 +64,15 @@ impl<State: GameState> Framework<State> {
     pub fn new() -> Result<Self, EngineError> {
         let event_loop = EventLoop::new();
 
-        let window_builder = WindowBuilder::new().with_title("Game").with_resizable(true);
-        let resource_manager = ResourceManager::new();
+        let node_constructors = Arc::new(NodeConstructorContainer::new());
 
-        let mut engine = Engine::new(window_builder, resource_manager, &event_loop, false)?;
+        let mut engine = Engine::new(EngineInitParams {
+            window_builder: WindowBuilder::new().with_title("Game").with_resizable(true),
+            resource_manager: ResourceManager::new(node_constructors.clone()),
+            node_constructors,
+            events_loop: &event_loop,
+            vsync: false,
+        })?;
 
         Ok(Self {
             title: "Game".to_owned(),

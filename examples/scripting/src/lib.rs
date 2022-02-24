@@ -1,18 +1,17 @@
-use fyrox::core::algebra::{UnitQuaternion, Vector3};
-use fyrox::core::sstorage::ImmutableString;
-use fyrox::material::PropertyValue;
-use fyrox::scene::mesh::Mesh;
 use fyrox::{
     core::{
+        algebra::{UnitQuaternion, Vector3},
         color::Hsv,
         inspect::{Inspect, PropertyInfo},
+        sstorage::ImmutableString,
         uuid::Uuid,
         visitor::prelude::*,
     },
+    material::PropertyValue,
     plugin::{Plugin, PluginContext},
+    scene::mesh::Mesh,
     script::{ScriptContext, ScriptDefinition, ScriptDefinitionStorage, ScriptTrait},
 };
-use std::any::TypeId;
 use std::{str::FromStr, sync::Arc};
 
 #[derive(Visit, Inspect, Default)]

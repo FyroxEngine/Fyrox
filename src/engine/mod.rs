@@ -7,10 +7,6 @@ pub mod error;
 pub mod framework;
 pub mod resource_manager;
 
-use crate::plugin::container::PluginContainer;
-use crate::plugin::PluginContext;
-use crate::script::ScriptContext;
-use crate::utils::log::Log;
 use crate::{
     asset::ResourceState,
     core::{algebra::Vector2, instant},
@@ -20,9 +16,12 @@ use crate::{
     },
     event_loop::EventLoop,
     gui::UserInterface,
+    plugin::{container::PluginContainer, PluginContext},
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{model::Model, texture::TextureKind},
-    scene::{sound::SoundEngine, SceneContainer},
+    scene::{node::constructor::NodeConstructorContainer, sound::SoundEngine, SceneContainer},
+    script::ScriptContext,
+    utils::log::Log,
     window::{Window, WindowBuilder},
 };
 use std::{
@@ -66,6 +65,10 @@ pub struct Engine {
 
     /// A set of plugins used by the engine.
     pub plugins: PluginContainer,
+
+    /// A special container that is able to create nodes by their type UUID. Use a copy of this
+    /// value whenever you need it as a parameter in other parts of the engine.
+    pub node_constructors: Arc<NodeConstructorContainer>,
 }
 
 struct ResourceGraphVertex {
@@ -135,33 +138,62 @@ impl ResourceDependencyGraph {
     }
 }
 
+/// Engine initialization parameters.
+pub struct EngineInitParams<'a> {
+    /// A window builder.
+    pub window_builder: WindowBuilder,
+    /// A special container that is able to create nodes by their type UUID.
+    pub node_constructors: Arc<NodeConstructorContainer>,
+    /// A resource manager.
+    pub resource_manager: ResourceManager,
+    /// OS event loop.
+    pub events_loop: &'a EventLoop<()>,
+    /// Whether to use vertical synchronization or not. V-sync will force your game to render
+    /// frames with the synchronization rate of your monitor (which is ~60 FPS). Keep in mind
+    /// vertical synchronization could not be available on your OS and engine might fail to
+    /// initialize if v-sync is on.
+    pub vsync: bool,
+}
+
 impl Engine {
-    /// Creates new instance of engine from given window builder and events loop.
+    /// Creates new instance of engine from given initialization parameters.
     ///
     /// Automatically creates all sub-systems (renderer, sound, ui, etc.).
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use fyrox::engine::Engine;
+    /// use fyrox::engine::{Engine, EngineInitParams};
     /// use fyrox::window::WindowBuilder;
     /// use fyrox::engine::resource_manager::ResourceManager;
     /// use fyrox::event_loop::EventLoop;
+    /// use std::sync::Arc;
+    /// use fyrox::scene::node::constructor::NodeConstructorContainer;
     ///
     /// let evt = EventLoop::new();
-    /// let resource_manager = ResourceManager::new();
     /// let window_builder = WindowBuilder::new()
     ///     .with_title("Test")
     ///     .with_fullscreen(None);
-    /// let mut engine: Engine = Engine::new(window_builder, resource_manager, &evt, true).unwrap();
+    /// let node_constructors = Arc::new(NodeConstructorContainer::new());
+    /// let mut engine = Engine::new(EngineInitParams {
+    ///     window_builder,
+    ///     resource_manager: ResourceManager::new(node_constructors.clone()),
+    ///     node_constructors,
+    ///     events_loop: &evt,
+    ///     vsync: false,
+    /// })
+    /// .unwrap();
     /// ```
     #[inline]
-    pub fn new(
-        window_builder: WindowBuilder,
-        resource_manager: ResourceManager,
-        events_loop: &EventLoop<()>,
-        #[allow(unused_variables)] vsync: bool,
-    ) -> Result<Self, EngineError> {
+    pub fn new(params: EngineInitParams) -> Result<Self, EngineError> {
+        let EngineInitParams {
+            window_builder,
+            node_constructors,
+            resource_manager,
+            events_loop,
+            vsync,
+        } = params;
+
         #[cfg(not(target_arch = "wasm32"))]
         let (context, client_size) = {
             let context_wrapper: glutin::WindowedContext<glutin::NotCurrent> =
@@ -250,6 +282,7 @@ impl Engine {
             #[cfg(target_arch = "wasm32")]
             window,
             plugins: PluginContainer::new(),
+            node_constructors,
         })
     }
 

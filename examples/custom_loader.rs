@@ -9,6 +9,8 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::engine::EngineInitParams;
+use fyrox::scene::node::constructor::NodeConstructorContainer;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -195,23 +197,32 @@ impl GameState for Game {
 fn main() {
     let event_loop = EventLoop::new();
 
-    let window_builder = WindowBuilder::new().with_title("Game").with_resizable(true);
-    let resource_manager = ResourceManager::new();
+    let window_builder = WindowBuilder::new()
+        .with_title("Example 12 - Custom resource loader")
+        .with_resizable(true);
 
-    //set up our custom loaders
+    let node_constructors = Arc::new(NodeConstructorContainer::new());
+    let resource_manager = ResourceManager::new(node_constructors.clone());
+
+    // Set up our custom loaders
     {
         let mut state = resource_manager.state();
         let containers = state.containers_mut();
         containers.set_model_loader(CustomModelLoader(Arc::new(ModelLoader {
             resource_manager: resource_manager.clone(),
+            node_constructors: node_constructors.clone(),
         })));
         containers.set_texture_loader(CustomTextureLoader(Arc::new(TextureLoader)));
     }
 
-    let mut engine = Engine::new(window_builder, resource_manager, &event_loop, false).unwrap();
-    engine
-        .get_window()
-        .set_title("Example 12 - Custom resource loader");
+    let mut engine = Engine::new(EngineInitParams {
+        window_builder,
+        resource_manager: ResourceManager::new(node_constructors.clone()),
+        node_constructors,
+        events_loop: &event_loop,
+        vsync: false,
+    })
+    .unwrap();
 
     let mut state = Game::init(&mut engine);
     let clock = Instant::now();

@@ -9,6 +9,8 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::engine::EngineInitParams;
+use fyrox::scene::node::constructor::NodeConstructorContainer;
 use fyrox::{
     animation::Animation,
     core::{
@@ -42,6 +44,7 @@ use fyrox::{
     },
     window::Fullscreen,
 };
+use std::sync::Arc;
 use std::time::Instant;
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;
@@ -333,9 +336,15 @@ fn main() {
         .with_title("Example - User Interface")
         .with_resizable(true);
 
-    let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
-
-    let mut engine = Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
+    let node_constructors = Arc::new(NodeConstructorContainer::new());
+    let mut engine = Engine::new(EngineInitParams {
+        window_builder,
+        resource_manager: ResourceManager::new(node_constructors.clone()),
+        node_constructors,
+        events_loop: &event_loop,
+        vsync: false,
+    })
+    .unwrap();
 
     // Create simple user interface that will show some useful info.
     let interface = create_ui(&mut engine);

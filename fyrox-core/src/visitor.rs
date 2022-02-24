@@ -716,6 +716,7 @@ pub struct Visitor {
     reading: bool,
     current_node: Handle<Node>,
     root: Handle<Node>,
+    pub environment: Option<Arc<dyn Any>>,
 }
 
 pub trait Visit {
@@ -741,6 +742,7 @@ impl Visitor {
             reading: false,
             current_node: root,
             root,
+            environment: None,
         }
     }
 
@@ -914,6 +916,7 @@ impl Visitor {
             reading: true,
             current_node: Handle::NONE,
             root: Handle::NONE,
+            environment: None,
         };
         visitor.root = visitor.load_node_binary(&mut reader)?;
         visitor.current_node = visitor.root;

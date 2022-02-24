@@ -9,6 +9,8 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::engine::EngineInitParams;
+use fyrox::scene::node::constructor::NodeConstructorContainer;
 use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{
@@ -31,6 +33,7 @@ use fyrox::{
         translate_event,
     },
 };
+use std::sync::Arc;
 use std::time::Instant;
 
 fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
@@ -82,9 +85,15 @@ fn main() {
         .with_title("Example - Scene")
         .with_resizable(true);
 
-    let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
-
-    let mut engine = Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
+    let node_constructors = Arc::new(NodeConstructorContainer::new());
+    let mut engine = Engine::new(EngineInitParams {
+        window_builder,
+        resource_manager: ResourceManager::new(node_constructors.clone()),
+        node_constructors,
+        events_loop: &event_loop,
+        vsync: true,
+    })
+    .unwrap();
 
     // Create simple user interface that will show some useful info.
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());

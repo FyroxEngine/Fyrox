@@ -92,7 +92,13 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
             let mut id = Uuid::default();
             id.visit("TypeUuid", visitor)?;
 
-            let mut node = NodeConstructorContainer::instance()
+            let constructor_container = visitor
+                .environment
+                .as_ref()
+                .and_then(|e| e.downcast_ref::<NodeConstructorContainer>())
+                .expect("Visitor environment must contain node constructor container!");
+
+            let mut node = constructor_container
                 .try_create(&id)
                 .ok_or_else(|| VisitError::User(format!("Unknown node type uuid {}!", id)))?;
 
