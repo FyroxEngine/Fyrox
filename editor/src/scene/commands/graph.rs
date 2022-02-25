@@ -537,7 +537,7 @@ impl SetScriptCommand {
 }
 
 impl Command for SetScriptCommand {
-    fn name(&mut self, context: &SceneContext) -> String {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Set Script Command".to_string()
     }
 
@@ -585,13 +585,10 @@ pub struct ScriptDataBlobCommand {
 
 impl ScriptDataBlobCommand {
     fn swap(&mut self, context: &mut SceneContext) {
+        let data = self.new_value.clone();
         std::mem::swap(&mut self.old_value, &mut self.new_value);
         if let Some(script) = context.scene.graph[self.handle].script.as_mut() {
-            *script = deserialize_script(
-                self.new_value.clone(),
-                context.serialization_context.clone(),
-            )
-            .unwrap();
+            *script = deserialize_script(data, context.serialization_context.clone()).unwrap();
         } else {
             unreachable!()
         }
@@ -599,7 +596,7 @@ impl ScriptDataBlobCommand {
 }
 
 impl Command for ScriptDataBlobCommand {
-    fn name(&mut self, context: &SceneContext) -> String {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Change Script Property".to_string()
     }
 

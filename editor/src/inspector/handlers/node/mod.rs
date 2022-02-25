@@ -35,7 +35,6 @@ use fyrox::{
         sound::Sound,
         sprite::Sprite,
         terrain::Terrain,
-        Scene,
     },
 };
 

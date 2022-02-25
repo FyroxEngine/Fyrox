@@ -737,6 +737,7 @@ impl Default for Base {
     }
 }
 
+/// Serializes script in a data blob.
 pub fn serialize_script(script: &Script) -> Result<Vec<u8>, VisitError> {
     let mut visitor = Visitor::new();
 
@@ -754,6 +755,7 @@ pub fn serialize_script(script: &Script) -> Result<Vec<u8>, VisitError> {
     Ok(writer.into_inner())
 }
 
+/// Deserializes script from the data blob.
 pub fn deserialize_script(
     data: Vec<u8>,
     serialization_context: Arc<SerializationContext>,
@@ -784,6 +786,7 @@ pub fn deserialize_script(
     }
 }
 
+/// Serializes Option<Script> using given serializer.
 pub fn visit_opt_script(
     name: &str,
     script: &mut Option<Script>,
