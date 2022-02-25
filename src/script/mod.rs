@@ -29,6 +29,7 @@ where
 }
 
 pub struct ScriptContext<'a, 'b> {
+    pub dt: f32,
     pub plugin: &'a mut dyn Plugin,
     pub node: &'b mut Node,
 }

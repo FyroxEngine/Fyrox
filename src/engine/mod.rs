@@ -392,6 +392,7 @@ impl Engine {
                         .find(|p| p.id() == script.plugin_uuid())
                     {
                         script.on_update(&mut ScriptContext {
+                            dt,
                             plugin: &mut **plugin,
                             node,
                         });

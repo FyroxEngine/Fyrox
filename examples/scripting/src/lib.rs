@@ -100,7 +100,7 @@ impl ScriptTrait for TestScript {
                     .unwrap();
             }
         }
-        self.hue = (self.hue + 0.2) % 360.0;
+        self.hue = (self.hue + 60.0 * context.dt) % 360.0;
     }
 
     fn id(&self) -> Uuid {
