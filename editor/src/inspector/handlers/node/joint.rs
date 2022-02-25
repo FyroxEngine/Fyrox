@@ -13,7 +13,7 @@ use std::any::TypeId;
 pub fn handle_joint_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    joint: &Joint,
+    joint: &mut Joint,
 ) -> Option<SceneCommand> {
     match args.value {
         FieldKind::Object(ref value) => {

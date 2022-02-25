@@ -4,7 +4,7 @@ use crate::{
 };
 use fyrox::{
     core::pool::Handle,
-    scene::{graph::Graph, node::Node, terrain::Layer},
+    scene::{node::Node, terrain::Layer, terrain::Terrain},
 };
 
 #[derive(Debug)]
@@ -14,9 +14,7 @@ pub struct AddTerrainLayerCommand {
 }
 
 impl AddTerrainLayerCommand {
-    pub fn new(terrain_handle: Handle<Node>, graph: &Graph) -> Self {
-        let terrain = graph[terrain_handle].as_terrain();
-
+    pub fn new(terrain_handle: Handle<Node>, terrain: &Terrain) -> Self {
         Self {
             terrain: terrain_handle,
             layer: Some(terrain.create_layer(

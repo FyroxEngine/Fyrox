@@ -3,7 +3,7 @@ use crate::{
     scene::commands::SceneContext,
 };
 use fyrox::core::visitor::Visitor;
-use fyrox::scene::base::visit_opt_script;
+use fyrox::scene::base::{deserialize_script, visit_opt_script};
 use fyrox::script::Script;
 use fyrox::{
     animation::Animation,
@@ -578,9 +578,24 @@ impl Command for SetScriptCommand {
 
 #[derive(Debug)]
 pub struct ScriptDataBlobCommand {
-    handle: Handle<Node>,
-    old_value: Vec<u8>,
-    new_value: Vec<u8>,
+    pub handle: Handle<Node>,
+    pub old_value: Vec<u8>,
+    pub new_value: Vec<u8>,
+}
+
+impl ScriptDataBlobCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        std::mem::swap(&mut self.old_value, &mut self.new_value);
+        if let Some(script) = context.scene.graph[self.handle].script.as_mut() {
+            *script = deserialize_script(
+                self.new_value.clone(),
+                context.serialization_context.clone(),
+            )
+            .unwrap();
+        } else {
+            unreachable!()
+        }
+    }
 }
 
 impl Command for ScriptDataBlobCommand {
@@ -589,8 +604,10 @@ impl Command for ScriptDataBlobCommand {
     }
 
     fn execute(&mut self, context: &mut SceneContext) {
-        todo!()
+        self.swap(context);
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {}
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context);
+    }
 }

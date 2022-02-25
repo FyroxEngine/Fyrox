@@ -11,7 +11,7 @@ use fyrox::{
 pub fn handle_rigid_body_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    rigid_body: &RigidBody,
+    rigid_body: &mut RigidBody,
 ) -> Option<SceneCommand> {
     match args.value {
         FieldKind::Object(ref value) => {

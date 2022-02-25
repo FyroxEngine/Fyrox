@@ -8,7 +8,7 @@ use fyrox::{
 pub fn handle_listener_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    node: &Node,
+    node: &mut Node,
 ) -> Option<SceneCommand> {
     if node.is_listener() {
         match args.value {

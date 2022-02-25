@@ -292,7 +292,7 @@ impl Inspector {
         engine: &mut GameEngine,
         sender: &Sender<Message>,
     ) {
-        let scene = &engine.scenes[editor_scene.scene];
+        let scene = &mut engine.scenes[editor_scene.scene];
 
         // Special case for particle systems.
         if let Selection::Graph(selection) = &editor_scene.selection {
@@ -322,9 +322,8 @@ impl Inspector {
                                 self.node_property_changed_handler.handle(
                                     args,
                                     node_handle,
-                                    &scene.graph[node_handle],
+                                    &mut scene.graph[node_handle],
                                     &engine.user_interface,
-                                    scene,
                                 )
                             } else {
                                 None
