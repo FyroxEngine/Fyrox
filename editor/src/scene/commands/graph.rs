@@ -2,20 +2,19 @@ use crate::{
     command::Command, define_node_command, define_swap_command, define_vec_add_remove_commands,
     scene::commands::SceneContext,
 };
-use fyrox::core::visitor::Visitor;
-use fyrox::scene::base::{deserialize_script, visit_opt_script};
-use fyrox::script::Script;
 use fyrox::{
     animation::Animation,
     core::{
         algebra::{UnitQuaternion, Vector3},
         pool::{Handle, Ticket},
+        visitor::Visitor,
     },
     scene::{
-        base::{Mobility, Property, PropertyValue},
+        base::{deserialize_script, visit_opt_script, Mobility, Property, PropertyValue},
         graph::{Graph, SubGraph},
         node::Node,
     },
+    script::Script,
 };
 use std::io::Cursor;
 

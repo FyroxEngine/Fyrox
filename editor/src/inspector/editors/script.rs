@@ -80,7 +80,6 @@ impl Control for ScriptPropertyEditor {
                 && message.direction() == MessageDirection::ToWidget
             {
                 if self.selected_script_uuid != id.clone() {
-                    dbg!(&id);
                     self.selected_script_uuid = id.clone();
                     ui.send_message(message.reverse());
                 }

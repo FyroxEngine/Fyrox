@@ -389,15 +389,15 @@ impl Engine {
                         .plugins
                         .plugins
                         .iter_mut()
-                        .find(|p| p.type_uuid() == script.plugin_uuid())
+                        .find(|p| p.id() == script.plugin_uuid())
                     {
                         script.on_update(&mut ScriptContext {
                             plugin: &mut **plugin,
                             node,
                         });
-
-                        node.script = Some(script);
                     }
+
+                    node.script = Some(script);
                 }
             }
         }

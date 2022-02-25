@@ -29,12 +29,19 @@ fn unload_plugin(mut plugin: DynamicPlugin, context: &mut PluginContext) {
     for scene in context.scenes.iter_mut() {
         for node in scene.graph.linear_iter_mut() {
             if let Some(script) = node.script.as_ref() {
-                if script.plugin_uuid() == plugin.type_uuid() {
+                if script.plugin_uuid() == plugin.id() {
                     node.script = None;
                 }
             }
         }
     }
+
+    // Unregister script constructors.
+    context
+        .serialization_context
+        .script_constructors
+        .map()
+        .retain(|_, constructor| constructor.plugin_uuid != plugin.id());
 
     plugin.on_unload(context);
 }

@@ -11,6 +11,9 @@ use crate::{
 use std::collections::BTreeMap;
 
 pub struct ScriptConstructor {
+    /// Parent plugin UUID.
+    pub plugin_uuid: Uuid,
+
     /// A simple type alias for boxed node constructor.
     pub constructor: Box<dyn FnMut() -> Script + Send>,
 
@@ -31,20 +34,27 @@ impl ScriptConstructorContainer {
         ScriptConstructorContainer::default()
     }
 
-    /// Adds new type constructor for a given type and return previous constructor for the type
-    /// (if any).
-    pub fn add<T, N>(&self, name: N) -> Option<ScriptConstructor>
+    /// Adds new type constructor for a given type.
+    ///
+    /// # Panic
+    ///
+    /// The method will panic if there is already a constructor for given type uuid.
+    pub fn add<P, T, N>(&self, name: N)
     where
+        P: TypeUuidProvider,
         T: TypeUuidProvider + ScriptTrait + Default,
         N: AsRef<str>,
     {
-        self.map.lock().insert(
+        let old = self.map.lock().insert(
             T::type_uuid(),
             ScriptConstructor {
+                plugin_uuid: P::type_uuid(),
                 constructor: Box::new(|| Script::new(T::default())),
                 name: name.as_ref().to_string(),
             },
-        )
+        );
+
+        assert!(old.is_none());
     }
 
     /// Adds custom type constructor.

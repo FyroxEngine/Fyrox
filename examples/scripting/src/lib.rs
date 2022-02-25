@@ -19,12 +19,14 @@ use std::str::FromStr;
 struct GamePlugin {}
 
 impl GamePlugin {
-    fn type_uuid() -> Uuid {
-        Uuid::from_str("a9507fb2-0945-4fc1-91ce-115ae7c8a615").unwrap()
-    }
-
     pub fn new() -> Self {
         Self {}
+    }
+}
+
+impl TypeUuidProvider for GamePlugin {
+    fn type_uuid() -> Uuid {
+        Uuid::from_str("a9507fb2-0945-4fc1-91ce-115ae7c8a615").unwrap()
     }
 }
 
@@ -33,14 +35,14 @@ impl Plugin for GamePlugin {
         engine
             .serialization_context
             .script_constructors
-            .add::<TestScript, &str>("TestScript");
+            .add::<GamePlugin, TestScript, &str>("TestScript");
     }
 
     fn on_unload(&mut self, _context: &mut PluginContext) {}
 
     fn update(&mut self, _context: &mut PluginContext) {}
 
-    fn type_uuid(&self) -> Uuid {
+    fn id(&self) -> Uuid {
         Self::type_uuid()
     }
 }

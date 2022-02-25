@@ -32,7 +32,7 @@ pub trait Plugin: Visit + Inspect {
 
     fn update(&mut self, context: &mut PluginContext);
 
-    fn type_uuid(&self) -> Uuid;
+    fn id(&self) -> Uuid;
 }
 
 pub type EntryPoint = extern "C" fn() -> Box<Box<dyn Plugin>>;
