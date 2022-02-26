@@ -58,13 +58,16 @@ impl NodeConstructorContainer {
 
     /// Adds new type constructor for a given type and return previous constructor for the type
     /// (if any).
-    pub fn add<T>(&self) -> Option<NodeConstructor>
+    pub fn add<T>(&self)
     where
         T: TypeUuidProvider + NodeTrait + Default,
     {
-        self.map
+        let previous = self
+            .map
             .lock()
-            .insert(T::type_uuid(), Box::new(|| Node::new(T::default())))
+            .insert(T::type_uuid(), Box::new(|| Node::new(T::default())));
+
+        assert!(previous.is_none());
     }
 
     /// Adds custom type constructor.
@@ -81,5 +84,10 @@ impl NodeConstructorContainer {
     /// node constructor for specified type UUID.
     pub fn try_create(&self, type_uuid: &Uuid) -> Option<Node> {
         self.map.lock().get_mut(type_uuid).map(|c| (c)())
+    }
+
+    /// Returns total amount of constructors.
+    pub fn len(&self) -> usize {
+        self.map.lock().len()
     }
 }

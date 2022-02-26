@@ -38,7 +38,6 @@ use std::{
 
 /// Serialization context holds runtime type information that allows to create unknown types using
 /// their UUIDs and a respective constructors.
-#[derive(Default)]
 pub struct SerializationContext {
     /// A node constructor container.
     pub node_constructors: NodeConstructorContainer,
@@ -49,7 +48,10 @@ pub struct SerializationContext {
 impl SerializationContext {
     /// Creates default serialization context.
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            node_constructors: NodeConstructorContainer::new(),
+            script_constructors: ScriptConstructorContainer::new(),
+        }
     }
 }
 
