@@ -1099,6 +1099,8 @@ impl Editor {
             let handle = engine.scenes.add(purified_scene);
 
             self.mode = Mode::Play { scene: handle };
+
+            engine.renderer.flush();
         }
     }
 
@@ -1114,6 +1116,8 @@ impl Editor {
             let render_target = engine.scenes[editor_scene.scene].render_target.clone();
             self.scene_viewer
                 .set_render_target(&engine.user_interface, render_target);
+
+            engine.renderer.flush();
         }
     }
 
@@ -1150,6 +1154,30 @@ impl Editor {
     fn post_update(&mut self, engine: &mut GameEngine) {
         if let Some(scene) = self.scene.as_mut() {
             self.world_viewer.post_update(scene, engine);
+        }
+    }
+
+    fn handle_resize(&mut self, engine: &mut Engine) {
+        if let Some(editor_scene) = self.scene.as_ref() {
+            let scene = match self.mode {
+                Mode::Edit => &mut engine.scenes[editor_scene.scene],
+                Mode::Play { scene } => &mut engine.scenes[scene],
+            };
+
+            // Create new render target if preview frame has changed its size.
+            if let TextureKind::Rectangle { width, height } =
+                scene.render_target.clone().unwrap().data_ref().kind()
+            {
+                let frame_size = self.scene_viewer.frame_bounds(&engine.user_interface).size;
+                if width != frame_size.x as u32 || height != frame_size.y as u32 {
+                    scene.render_target = Some(Texture::new_render_target(
+                        frame_size.x as u32,
+                        frame_size.y as u32,
+                    ));
+                    self.scene_viewer
+                        .set_render_target(&engine.user_interface, scene.render_target.clone());
+                }
+            }
         }
     }
 
@@ -1434,6 +1462,8 @@ impl Editor {
             self.sync_to_model(engine);
         }
 
+        self.handle_resize(engine);
+
         if let Some(editor_scene) = self.scene.as_mut() {
             // Adjust camera viewport to size of frame.
             let scene = &mut engine.scenes[editor_scene.scene];
@@ -1448,21 +1478,6 @@ impl Editor {
             camera
                 .projection_mut()
                 .set_z_far(self.settings.graphics.z_far);
-
-            // Create new render target if preview frame has changed its size.
-            if let TextureKind::Rectangle { width, height } =
-                scene.render_target.clone().unwrap().data_ref().kind()
-            {
-                let frame_size = self.scene_viewer.frame_bounds(&engine.user_interface).size;
-                if width != frame_size.x as u32 || height != frame_size.y as u32 {
-                    scene.render_target = Some(Texture::new_render_target(
-                        frame_size.x as u32,
-                        frame_size.y as u32,
-                    ));
-                    self.scene_viewer
-                        .set_render_target(&engine.user_interface, scene.render_target.clone());
-                }
-            }
 
             if let Selection::Graph(selection) = &editor_scene.selection {
                 for &node in selection.nodes() {
