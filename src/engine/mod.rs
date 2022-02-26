@@ -7,26 +7,26 @@ pub mod error;
 pub mod framework;
 pub mod resource_manager;
 
-use crate::scene::Scene;
-use crate::script::constructor::ScriptConstructorContainer;
 use crate::{
     asset::ResourceState,
-    core::{algebra::Vector2, instant},
+    core::{algebra::Vector2, instant, pool::Handle},
     engine::{
         error::EngineError,
         resource_manager::{container::event::ResourceEvent, ResourceManager},
     },
+    event::Event,
     event_loop::EventLoop,
     gui::UserInterface,
     plugin::{container::PluginContainer, PluginContext},
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{model::Model, texture::TextureKind},
-    scene::{node::constructor::NodeConstructorContainer, sound::SoundEngine, SceneContainer},
-    script::ScriptContext,
+    scene::{
+        node::constructor::NodeConstructorContainer, sound::SoundEngine, Scene, SceneContainer,
+    },
+    script::{constructor::ScriptConstructorContainer, Script, ScriptContext},
     utils::log::Log,
     window::{Window, WindowBuilder},
 };
-use fyrox_core::pool::Handle;
 use std::{
     collections::HashSet,
     sync::{
@@ -387,15 +387,10 @@ impl Engine {
         }
     }
 
-    /// Updates scripts of specified scene. It must be called manually! Usually the editor
-    /// calls this for you when it is in the play mode.
-    ///
-    /// # Important notes
-    ///
-    /// This method is intended to be used by the editor and game runner. If you're using the
-    /// engine as a framework, then you should not call this method because you'll most likely
-    /// do something wrong.
-    pub fn update_scene_scripts(&mut self, scene: Handle<Scene>, dt: f32) {
+    pub(crate) fn process_scripts<T>(&mut self, scene: Handle<Scene>, dt: f32, mut func: T)
+    where
+        T: FnMut(&mut Script, ScriptContext),
+    {
         let scene = &mut self.scenes[scene];
 
         // Iterate over the nodes without borrowing, we'll move data around to solve borrowing issues.
@@ -437,7 +432,7 @@ impl Engine {
                     scene,
                 };
 
-                script.on_update(context);
+                func(&mut script, context);
             }
 
             // Put the script back to the node.
@@ -446,6 +441,24 @@ impl Engine {
             // Put the node back in the graph.
             scene.graph.put_back_internal(ticket, node);
         }
+    }
+
+    /// Updates scripts of specified scene. It must be called manually! Usually the editor
+    /// calls this for you when it is in the play mode.
+    ///
+    /// # Important notes
+    ///
+    /// This method is intended to be used by the editor and game runner. If you're using the
+    /// engine as a framework, then you should not call this method because you'll most likely
+    /// do something wrong.
+    pub fn update_scene_scripts(&mut self, scene: Handle<Scene>, dt: f32) {
+        self.process_scripts(scene, dt, |script, context| script.on_update(context));
+    }
+
+    pub fn handle_os_event_by_scripts(&mut self, event: &Event<()>, scene: Handle<Scene>, dt: f32) {
+        self.process_scripts(scene, dt, |script, context| {
+            script.on_os_event(event, context)
+        })
     }
 
     /// Handle hot-reloading of resources.

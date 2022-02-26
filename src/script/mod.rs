@@ -51,7 +51,7 @@ pub trait ScriptTrait: BaseScript {
     fn on_init(&mut self, context: &mut ScriptContext);
 
     /// Called when there is an event from the OS.
-    fn on_os_event(&mut self, _event: &Event<()>, _context: &mut ScriptContext) {}
+    fn on_os_event(&mut self, _event: &Event<()>, _context: ScriptContext) {}
 
     /// Performs a single update tick of the script.
     ///
