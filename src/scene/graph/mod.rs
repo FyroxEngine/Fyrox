@@ -953,14 +953,22 @@ impl Graph {
     /// detached from its parent!
     pub fn take_reserve(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
         self.unlink_internal(handle);
+        self.take_reserve_internal(handle)
+    }
+
+    pub(crate) fn take_reserve_internal(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
         self.pool.take_reserve(handle)
     }
 
     /// Puts node back by given ticket. Attaches back to root node of graph.
     pub fn put_back(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
-        let handle = self.pool.put_back(ticket, node);
+        let handle = self.put_back_internal(ticket, node);
         self.link_nodes(handle, self.root);
         handle
+    }
+
+    pub(crate) fn put_back_internal(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
+        self.pool.put_back(ticket, node)
     }
 
     /// Makes node handle vacant again.

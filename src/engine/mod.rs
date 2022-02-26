@@ -397,23 +397,54 @@ impl Engine {
     /// do something wrong.
     pub fn update_scene_scripts(&mut self, scene: Handle<Scene>, dt: f32) {
         let scene = &mut self.scenes[scene];
-        for node in scene.graph.linear_iter_mut() {
-            if let Some(mut script) = node.script.take() {
-                if let Some(plugin) = self
-                    .plugins
-                    .plugins
-                    .iter_mut()
-                    .find(|p| p.id() == script.plugin_uuid())
-                {
-                    script.on_update(&mut ScriptContext {
-                        dt,
-                        plugin: &mut **plugin,
-                        node,
-                    });
-                }
 
-                node.script = Some(script);
+        // Iterate over the nodes without borrowing, we'll move data around to solve borrowing issues.
+        for node_index in 0..scene.graph.capacity() {
+            let handle = scene.graph.handle_from_index(node_index);
+
+            // We're interested only in nodes with scripts.
+            if scene
+                .graph
+                .try_get(handle)
+                .map_or(true, |node| node.script.is_none())
+            {
+                continue;
             }
+
+            // If a node has script assigned, then temporarily move it out of the pool with taking
+            // the ownership to satisfy borrow checker. Moving a node out of the pool is fast, because
+            // it is just a copy of 16 bytes which can be performed in a single instruction on modern
+            // CPUs.
+            let (ticket, mut node) = scene.graph.take_reserve_internal(handle);
+
+            // Take the script off the node to get mutable borrow to it without mutably borrowing
+            // the node itself. This operation is fast as well.
+            let mut script = node.script.take().unwrap();
+
+            // Find respective plugin.
+            if let Some(plugin) = self
+                .plugins
+                .plugins
+                .iter_mut()
+                .find(|p| p.id() == script.plugin_uuid())
+            {
+                // Form the context with all available data.
+                let context = ScriptContext {
+                    dt,
+                    plugin: &mut **plugin,
+                    node: &mut node,
+                    handle,
+                    scene,
+                };
+
+                script.on_update(context);
+            }
+
+            // Put the script back to the node.
+            node.script = Some(script);
+
+            // Put the node back in the graph.
+            scene.graph.put_back_internal(ticket, node);
         }
     }
 

@@ -82,7 +82,7 @@ impl ScriptTrait for TestScript {
 
     fn on_init(&mut self, _context: &mut ScriptContext) {}
 
-    fn on_update(&mut self, context: &mut ScriptContext) {
+    fn on_update(&mut self, context: ScriptContext) {
         let transform = context.node.local_transform_mut();
         let new_rotation = **transform.rotation()
             * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 1.0f32.to_radians());

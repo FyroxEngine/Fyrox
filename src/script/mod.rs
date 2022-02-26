@@ -1,3 +1,5 @@
+use crate::event::Event;
+use crate::scene::Scene;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -8,6 +10,7 @@ use crate::{
     plugin::Plugin,
     scene::node::Node,
 };
+use fyrox_core::pool::Handle;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -28,10 +31,12 @@ where
     }
 }
 
-pub struct ScriptContext<'a, 'b> {
+pub struct ScriptContext<'a, 'b, 'c> {
     pub dt: f32,
     pub plugin: &'a mut dyn Plugin,
     pub node: &'b mut Node,
+    pub handle: Handle<Node>,
+    pub scene: &'c mut Scene,
 }
 
 pub trait ScriptTrait: BaseScript {
@@ -45,12 +50,15 @@ pub trait ScriptTrait: BaseScript {
 
     fn on_init(&mut self, context: &mut ScriptContext);
 
+    /// Called when there is an event from the OS.
+    fn on_os_event(&mut self, _event: &Event<()>, _context: &mut ScriptContext) {}
+
     /// Performs a single update tick of the script.
     ///
     /// # Editor mode
     ///
     /// Does not work in editor mode.
-    fn on_update(&mut self, context: &mut ScriptContext);
+    fn on_update(&mut self, context: ScriptContext);
 
     /// Script instance type UUID.
     fn id(&self) -> Uuid;
