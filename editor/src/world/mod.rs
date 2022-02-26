@@ -784,7 +784,7 @@ impl WorldViewer {
         }
     }
 
-    pub fn clear(&mut self, ui: &mut UserInterface) {
+    pub fn clear(&mut self, ui: &UserInterface) {
         self.node_to_view_map.clear();
 
         for folder in [self.graph_folder] {

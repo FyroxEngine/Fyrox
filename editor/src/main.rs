@@ -68,6 +68,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use fyrox::scene::camera::Camera;
 use fyrox::{
     core::{
         algebra::{Point3, Vector2},
@@ -262,6 +263,9 @@ pub enum Message {
     SetEditorCameraProjection(Projection),
     UnloadPlugins,
     ReloadPlugins,
+    SwitchToPlayMode,
+    SwitchToEditMode,
+    SwitchMode,
 }
 
 impl Message {
@@ -294,6 +298,11 @@ pub fn make_save_file_selector(ctx: &mut BuildContext) -> Handle<UiNode> {
     .build(ctx)
 }
 
+enum Mode {
+    Edit,
+    Play { scene: Handle<Scene> },
+}
+
 struct Editor {
     scene: Option<EditorScene>,
     command_stack: CommandStack,
@@ -321,6 +330,7 @@ struct Editor {
     inspector: Inspector,
     curve_editor: CurveEditorWindow,
     audio_panel: AudioPanel,
+    mode: Mode,
 }
 
 impl Editor {
@@ -552,6 +562,7 @@ impl Editor {
             inspector,
             curve_editor,
             audio_panel,
+            mode: Mode::Edit,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1068,6 +1079,44 @@ impl Editor {
         }
     }
 
+    fn set_play_mode(&mut self, engine: &mut GameEngine) {
+        if let Some(editor_scene) = self.scene.as_ref() {
+            let mut purified_scene = editor_scene.make_purified_scene(engine);
+
+            // Hack. Turn on cameras.
+            for node in purified_scene.graph.linear_iter_mut() {
+                if let Some(camera) = node.cast_mut::<Camera>() {
+                    camera.set_enabled(true);
+                }
+            }
+
+            purified_scene.render_target = Some(Texture::new_render_target(0, 0));
+
+            // Force previewer to use play-mode scene.
+            self.scene_viewer
+                .set_render_target(&engine.user_interface, purified_scene.render_target.clone());
+
+            let handle = engine.scenes.add(purified_scene);
+
+            self.mode = Mode::Play { scene: handle };
+        }
+    }
+
+    fn set_editor_mode(&mut self, engine: &mut GameEngine) {
+        if let Some(editor_scene) = self.scene.as_ref() {
+            // Destroy play mode scene.
+            if let Mode::Play { scene } = self.mode {
+                engine.scenes.remove(scene);
+                self.mode = Mode::Edit;
+            }
+
+            // Force previewer to use editor's scene.
+            let render_target = engine.scenes[editor_scene.scene].render_target.clone();
+            self.scene_viewer
+                .set_render_target(&engine.user_interface, render_target);
+        }
+    }
+
     fn sync_to_model(&mut self, engine: &mut GameEngine) {
         scope_profile!();
 
@@ -1093,7 +1142,8 @@ impl Editor {
                 &mut engine.user_interface,
             )
         } else {
-            self.world_viewer.clear(&mut engine.user_interface);
+            self.inspector.clear(&engine.user_interface);
+            self.world_viewer.clear(&engine.user_interface);
         }
     }
 
@@ -1105,6 +1155,10 @@ impl Editor {
 
     fn update(&mut self, engine: &mut GameEngine, dt: f32) {
         scope_profile!();
+
+        if let Mode::Play { scene } = self.mode {
+            engine.update_scene_scripts(scene, dt);
+        }
 
         let mut needs_sync = false;
 
@@ -1367,6 +1421,12 @@ impl Editor {
                 Message::ReloadPlugins => {
                     engine.reload_plugins();
                 }
+                Message::SwitchMode => match self.mode {
+                    Mode::Edit => self.set_play_mode(engine),
+                    Mode::Play { .. } => self.set_editor_mode(engine),
+                },
+                Message::SwitchToPlayMode => self.set_play_mode(engine),
+                Message::SwitchToEditMode => self.set_editor_mode(engine),
             }
         }
 

@@ -81,9 +81,58 @@ impl EditorScene {
         }
     }
 
-    pub fn save(&mut self, path: PathBuf, engine: &mut GameEngine) -> Result<String, String> {
+    pub fn make_purified_scene(&self, engine: &mut GameEngine) -> Scene {
         let scene = &mut engine.scenes[self.scene];
 
+        let editor_root = self.root;
+        let (mut pure_scene, _) = scene.clone(&mut |node, _| node != editor_root);
+
+        // Reset state of nodes. For some nodes (such as particles systems) we use scene as preview
+        // so before saving scene, we have to reset state of such nodes.
+        for node in pure_scene.graph.linear_iter_mut() {
+            if let Some(particle_system) = node.cast_mut::<ParticleSystem>() {
+                // Particle system must not save generated vertices.
+                particle_system.clear_particles();
+            }
+        }
+
+        pure_scene.navmeshes.clear();
+
+        for navmesh in self.navmeshes.iter() {
+            // Sparse-to-dense mapping - handle to index.
+            let mut vertex_map = HashMap::new();
+
+            let vertices = navmesh
+                .vertices
+                .pair_iter()
+                .enumerate()
+                .map(|(i, (handle, vertex))| {
+                    vertex_map.insert(handle, i);
+                    vertex.position
+                })
+                .collect::<Vec<_>>();
+
+            let triangles = navmesh
+                .triangles
+                .iter()
+                .map(|triangle| {
+                    TriangleDefinition([
+                        vertex_map[&triangle.a] as u32,
+                        vertex_map[&triangle.b] as u32,
+                        vertex_map[&triangle.c] as u32,
+                    ])
+                })
+                .collect::<Vec<_>>();
+
+            pure_scene
+                .navmeshes
+                .add(fyrox::utils::navmesh::Navmesh::new(&triangles, &vertices));
+        }
+
+        pure_scene
+    }
+
+    pub fn save(&mut self, path: PathBuf, engine: &mut GameEngine) -> Result<String, String> {
         // Validate first.
         let valid = true;
         let mut reason = "Scene is not saved, because validation failed:\n".to_owned();
@@ -91,50 +140,7 @@ impl EditorScene {
         if valid {
             self.path = Some(path.clone());
 
-            let editor_root = self.root;
-            let (mut pure_scene, _) = scene.clone(&mut |node, _| node != editor_root);
-
-            // Reset state of nodes. For some nodes (such as particles systems) we use scene as preview
-            // so before saving scene, we have to reset state of such nodes.
-            for node in pure_scene.graph.linear_iter_mut() {
-                if let Some(particle_system) = node.cast_mut::<ParticleSystem>() {
-                    // Particle system must not save generated vertices.
-                    particle_system.clear_particles();
-                }
-            }
-
-            pure_scene.navmeshes.clear();
-
-            for navmesh in self.navmeshes.iter() {
-                // Sparse-to-dense mapping - handle to index.
-                let mut vertex_map = HashMap::new();
-
-                let vertices = navmesh
-                    .vertices
-                    .pair_iter()
-                    .enumerate()
-                    .map(|(i, (handle, vertex))| {
-                        vertex_map.insert(handle, i);
-                        vertex.position
-                    })
-                    .collect::<Vec<_>>();
-
-                let triangles = navmesh
-                    .triangles
-                    .iter()
-                    .map(|triangle| {
-                        TriangleDefinition([
-                            vertex_map[&triangle.a] as u32,
-                            vertex_map[&triangle.b] as u32,
-                            vertex_map[&triangle.c] as u32,
-                        ])
-                    })
-                    .collect::<Vec<_>>();
-
-                pure_scene
-                    .navmeshes
-                    .add(fyrox::utils::navmesh::Navmesh::new(&triangles, &vertices));
-            }
+            let mut pure_scene = self.make_purified_scene(engine);
 
             let mut visitor = Visitor::new();
             pure_scene.save("Scene", &mut visitor).unwrap();

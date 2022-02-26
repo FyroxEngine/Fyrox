@@ -7,6 +7,7 @@ pub mod error;
 pub mod framework;
 pub mod resource_manager;
 
+use crate::scene::Scene;
 use crate::script::constructor::ScriptConstructorContainer;
 use crate::{
     asset::ResourceState,
@@ -25,6 +26,7 @@ use crate::{
     utils::log::Log,
     window::{Window, WindowBuilder},
 };
+use fyrox_core::pool::Handle;
 use std::{
     collections::HashSet,
     sync::{
@@ -360,7 +362,7 @@ impl Engine {
         self.ui_time = instant::Instant::now() - time;
     }
 
-    /// Handle hot-reloading of plugins and performs update of every plugin.
+    /// Performs update of every plugin.
     ///
     /// # Important notes
     ///
@@ -381,25 +383,34 @@ impl Engine {
         for plugin in self.plugins.plugins.iter_mut() {
             plugin.update(&mut context);
         }
+    }
 
-        for scene in self.scenes.iter_mut().filter(|s| s.enabled) {
-            for node in scene.graph.linear_iter_mut() {
-                if let Some(mut script) = node.script.take() {
-                    if let Some(plugin) = self
-                        .plugins
-                        .plugins
-                        .iter_mut()
-                        .find(|p| p.id() == script.plugin_uuid())
-                    {
-                        script.on_update(&mut ScriptContext {
-                            dt,
-                            plugin: &mut **plugin,
-                            node,
-                        });
-                    }
-
-                    node.script = Some(script);
+    /// Updates scripts of specified scene. It must be called manually! Usually the editor
+    /// calls this for you when it is in the play mode.
+    ///
+    /// # Important notes
+    ///
+    /// This method is intended to be used by the editor and game runner. If you're using the
+    /// engine as a framework, then you should not call this method because you'll most likely
+    /// do something wrong.
+    pub fn update_scene_scripts(&mut self, scene: Handle<Scene>, dt: f32) {
+        let scene = &mut self.scenes[scene];
+        for node in scene.graph.linear_iter_mut() {
+            if let Some(mut script) = node.script.take() {
+                if let Some(plugin) = self
+                    .plugins
+                    .plugins
+                    .iter_mut()
+                    .find(|p| p.id() == script.plugin_uuid())
+                {
+                    script.on_update(&mut ScriptContext {
+                        dt,
+                        plugin: &mut **plugin,
+                        node,
+                    });
                 }
+
+                node.script = Some(script);
             }
         }
     }

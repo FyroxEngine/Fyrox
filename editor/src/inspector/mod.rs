@@ -274,15 +274,17 @@ impl Inspector {
                     )
                 }
             } else {
-                engine
-                    .user_interface
-                    .send_message(InspectorMessage::context(
-                        self.inspector,
-                        MessageDirection::ToWidget,
-                        Default::default(),
-                    ));
+                self.clear(&engine.user_interface);
             }
         }
+    }
+
+    pub fn clear(&self, ui: &UserInterface) {
+        ui.send_message(InspectorMessage::context(
+            self.inspector,
+            MessageDirection::ToWidget,
+            Default::default(),
+        ));
     }
 
     pub fn handle_ui_message(

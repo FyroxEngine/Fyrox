@@ -42,6 +42,7 @@ pub struct SceneViewer {
     camera_projection: Handle<UiNode>,
     unload_plugins: Handle<UiNode>,
     reload_plugins: Handle<UiNode>,
+    switch_mode: Handle<UiNode>,
     sender: Sender<Message>,
 }
 
@@ -124,6 +125,7 @@ impl SceneViewer {
         let camera_projection;
         let unload_plugins;
         let reload_plugins;
+        let switch_mode;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
             .can_minimize(false)
@@ -136,6 +138,14 @@ impl SceneViewer {
                                 WidgetBuilder::new()
                                     .with_margin(Thickness::uniform(1.0))
                                     .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .with_child({
+                                        switch_mode = ButtonBuilder::new(
+                                            WidgetBuilder::new().with_width(100.0),
+                                        )
+                                        .with_text("Play/Stop")
+                                        .build(ctx);
+                                        switch_mode
+                                    })
                                     .with_child({
                                         unload_plugins = ButtonBuilder::new(
                                             WidgetBuilder::new().with_width(100.0),
@@ -311,6 +321,7 @@ impl SceneViewer {
             click_mouse_pos: None,
             unload_plugins,
             reload_plugins,
+            switch_mode,
         }
     }
 }
@@ -358,6 +369,8 @@ impl SceneViewer {
                 self.sender.send(Message::UnloadPlugins).unwrap()
             } else if message.destination() == self.reload_plugins {
                 self.sender.send(Message::ReloadPlugins).unwrap()
+            } else if message.destination() == self.switch_mode {
+                self.sender.send(Message::SwitchMode).unwrap();
             }
         } else if let Some(WidgetMessage::MouseDown { button, .. }) =
             message.data::<WidgetMessage>()

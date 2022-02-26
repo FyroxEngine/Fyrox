@@ -1,13 +1,13 @@
-use crate::scene::node::Node;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
+    gui::inspector::PropertyChanged,
     plugin::Plugin,
+    scene::node::Node,
 };
-use fyrox_ui::inspector::PropertyChanged;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -37,14 +37,25 @@ pub struct ScriptContext<'a, 'b> {
 pub trait ScriptTrait: BaseScript {
     /// Mutates the state of the script according to the [`PropertyChanged`] info. It is invoked
     /// from the editor when user changes property of the script from the inspector.
+    ///
+    /// # Editor mode
+    ///
+    /// Works only in editor mode.
     fn on_property_changed(&mut self, args: &PropertyChanged);
 
     fn on_init(&mut self, context: &mut ScriptContext);
 
+    /// Performs a single update tick of the script.
+    ///
+    /// # Editor mode
+    ///
+    /// Does not work in editor mode.
     fn on_update(&mut self, context: &mut ScriptContext);
 
+    /// Script instance type UUID.
     fn id(&self) -> Uuid;
 
+    /// Parent plugin UUID.
     fn plugin_uuid(&self) -> Uuid;
 }
 
