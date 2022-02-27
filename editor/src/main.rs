@@ -1184,6 +1184,230 @@ impl Editor {
         }
     }
 
+    fn do_scene_command(&mut self, command: SceneCommand, engine: &mut GameEngine) -> bool {
+        if let Some(editor_scene) = self.scene.as_mut() {
+            self.command_stack.do_command(
+                command.into_inner(),
+                SceneContext {
+                    scene: &mut engine.scenes[editor_scene.scene],
+                    message_sender: self.message_sender.clone(),
+                    editor_scene,
+                    resource_manager: engine.resource_manager.clone(),
+                    serialization_context: engine.serialization_context.clone(),
+                },
+            );
+            true
+        } else {
+            false
+        }
+    }
+
+    fn undo_scene_command(&mut self, engine: &mut GameEngine) -> bool {
+        if let Some(editor_scene) = self.scene.as_mut() {
+            self.command_stack.undo(SceneContext {
+                scene: &mut engine.scenes[editor_scene.scene],
+                message_sender: self.message_sender.clone(),
+                editor_scene,
+                resource_manager: engine.resource_manager.clone(),
+                serialization_context: engine.serialization_context.clone(),
+            });
+            true
+        } else {
+            false
+        }
+    }
+
+    fn redo_scene_command(&mut self, engine: &mut GameEngine) -> bool {
+        if let Some(editor_scene) = self.scene.as_mut() {
+            self.command_stack.redo(SceneContext {
+                scene: &mut engine.scenes[editor_scene.scene],
+                message_sender: self.message_sender.clone(),
+                editor_scene,
+                resource_manager: engine.resource_manager.clone(),
+                serialization_context: engine.serialization_context.clone(),
+            });
+            true
+        } else {
+            false
+        }
+    }
+
+    fn clear_scene_command_stack(&mut self, engine: &mut Engine) -> bool {
+        if let Some(editor_scene) = self.scene.as_mut() {
+            self.command_stack.clear(SceneContext {
+                scene: &mut engine.scenes[editor_scene.scene],
+                message_sender: self.message_sender.clone(),
+                editor_scene,
+                resource_manager: engine.resource_manager.clone(),
+                serialization_context: engine.serialization_context.clone(),
+            });
+            true
+        } else {
+            false
+        }
+    }
+
+    fn save_current_scene(&mut self, path: PathBuf, engine: &mut Engine) {
+        if let Some(editor_scene) = self.scene.as_mut() {
+            match editor_scene.save(path.clone(), engine) {
+                Ok(message) => {
+                    self.scene_viewer.set_title(
+                        &engine.user_interface,
+                        format!("Scene Preview - {}", path.display()),
+                    );
+
+                    self.message_sender.send(Message::Log(message)).unwrap();
+                }
+                Err(message) => {
+                    self.message_sender
+                        .send(Message::Log(message.clone()))
+                        .unwrap();
+
+                    engine.user_interface.send_message(MessageBoxMessage::open(
+                        self.validation_message_box,
+                        MessageDirection::ToWidget,
+                        None,
+                        Some(message),
+                    ));
+                }
+            }
+        }
+    }
+
+    fn load_scene(&mut self, scene_path: PathBuf, engine: &mut Engine) {
+        let result = {
+            block_on(SceneLoader::from_file(
+                &scene_path,
+                engine.serialization_context.clone(),
+            ))
+        };
+        match result {
+            Ok(loader) => {
+                let scene = block_on(loader.finish(engine.resource_manager.clone()));
+
+                self.set_scene(engine, scene, Some(scene_path));
+            }
+            Err(e) => {
+                self.message_sender
+                    .send(Message::Log(e.to_string()))
+                    .unwrap();
+            }
+        }
+    }
+
+    fn exit(&mut self, force: bool, engine: &mut Engine) {
+        if force {
+            self.exit = true;
+        } else if self.scene.is_some() {
+            engine.user_interface.send_message(MessageBoxMessage::open(
+                self.exit_message_box,
+                MessageDirection::ToWidget,
+                None,
+                None,
+            ));
+        } else {
+            self.exit = true;
+        }
+    }
+
+    fn close_current_scene(&mut self, engine: &mut Engine) -> bool {
+        if let Some(editor_scene) = self.scene.take() {
+            engine.scenes.remove(editor_scene.scene);
+
+            // Preview frame has scene frame texture assigned, it must be cleared explicitly,
+            // otherwise it will show last rendered frame in preview which is not what we want.
+            self.scene_viewer
+                .set_render_target(&engine.user_interface, None);
+            // Set default title scene
+            self.scene_viewer
+                .set_title(&engine.user_interface, "Scene Preview".to_string());
+
+            true
+        } else {
+            false
+        }
+    }
+
+    fn create_new_scene(&mut self, engine: &mut Engine) {
+        let mut scene = Scene::new();
+
+        scene.ambient_lighting_color = Color::opaque(200, 200, 200);
+
+        self.set_scene(engine, scene, None);
+    }
+
+    fn configure(&mut self, working_directory: PathBuf, engine: &mut Engine) {
+        assert!(self.scene.is_none());
+
+        self.asset_browser.clear_preview(engine);
+
+        std::env::set_current_dir(working_directory.clone()).unwrap();
+
+        engine.reload_plugins();
+
+        engine
+            .get_window()
+            .set_title(&format!("Fyroxed: {}", working_directory.to_string_lossy()));
+
+        match FileSystemWatcher::new(&working_directory, Duration::from_secs(1)) {
+            Ok(watcher) => {
+                engine.resource_manager.state().set_watcher(Some(watcher));
+            }
+            Err(e) => {
+                self.message_sender
+                    .send(Message::Log(format!(
+                        "Unable to create resource watcher. Reason {:?}",
+                        e
+                    )))
+                    .unwrap();
+            }
+        }
+
+        engine.resource_manager.state().destroy_unused_resources();
+
+        engine.renderer.flush();
+
+        self.asset_browser
+            .set_working_directory(engine, &working_directory);
+
+        self.message_sender
+            .send(Message::Log(format!(
+                "New working directory was successfully set: {:?}",
+                working_directory
+            )))
+            .unwrap();
+    }
+
+    fn select_object(&mut self, type_id: TypeId, handle: ErasedHandle) {
+        if let Some(scene) = self.scene.as_ref() {
+            let new_selection = if type_id == TypeId::of::<Node>() {
+                Some(Selection::Graph(GraphSelection::single_or_empty(
+                    handle.into(),
+                )))
+            } else {
+                None
+            };
+
+            if let Some(new_selection) = new_selection {
+                self.message_sender
+                    .send(Message::DoSceneCommand(SceneCommand::new(
+                        ChangeSelectionCommand::new(new_selection, scene.selection.clone()),
+                    )))
+                    .unwrap()
+            }
+        }
+    }
+
+    fn open_material_editor(&mut self, material: Arc<Mutex<Material>>, engine: &mut Engine) {
+        self.material_editor.set_material(Some(material), engine);
+
+        engine.user_interface.send_message(WindowMessage::open(
+            self.material_editor.window,
+            MessageDirection::ToWidget,
+            true,
+        ));
+    }
+
     fn update(&mut self, engine: &mut GameEngine, dt: f32) {
         scope_profile!();
 
@@ -1205,55 +1429,16 @@ impl Editor {
 
             match message {
                 Message::DoSceneCommand(command) => {
-                    if let Some(editor_scene) = self.scene.as_mut() {
-                        self.command_stack.do_command(
-                            command.into_inner(),
-                            SceneContext {
-                                scene: &mut engine.scenes[editor_scene.scene],
-                                message_sender: self.message_sender.clone(),
-                                editor_scene,
-                                resource_manager: engine.resource_manager.clone(),
-                                serialization_context: engine.serialization_context.clone(),
-                            },
-                        );
-                        needs_sync = true;
-                    }
+                    needs_sync |= self.do_scene_command(command, engine);
                 }
                 Message::UndoSceneCommand => {
-                    if let Some(editor_scene) = self.scene.as_mut() {
-                        self.command_stack.undo(SceneContext {
-                            scene: &mut engine.scenes[editor_scene.scene],
-                            message_sender: self.message_sender.clone(),
-                            editor_scene,
-                            resource_manager: engine.resource_manager.clone(),
-                            serialization_context: engine.serialization_context.clone(),
-                        });
-                        needs_sync = true;
-                    }
+                    needs_sync |= self.undo_scene_command(engine);
                 }
                 Message::RedoSceneCommand => {
-                    if let Some(editor_scene) = self.scene.as_mut() {
-                        self.command_stack.redo(SceneContext {
-                            scene: &mut engine.scenes[editor_scene.scene],
-                            message_sender: self.message_sender.clone(),
-                            editor_scene,
-                            resource_manager: engine.resource_manager.clone(),
-                            serialization_context: engine.serialization_context.clone(),
-                        });
-                        needs_sync = true;
-                    }
+                    needs_sync |= self.redo_scene_command(engine);
                 }
                 Message::ClearSceneCommandStack => {
-                    if let Some(editor_scene) = self.scene.as_mut() {
-                        self.command_stack.clear(SceneContext {
-                            scene: &mut engine.scenes[editor_scene.scene],
-                            message_sender: self.message_sender.clone(),
-                            editor_scene,
-                            resource_manager: engine.resource_manager.clone(),
-                            serialization_context: engine.serialization_context.clone(),
-                        });
-                        needs_sync = true;
-                    }
+                    needs_sync |= self.clear_scene_command_stack(engine);
                 }
                 Message::SelectionChanged => {
                     self.world_viewer.sync_selection = true;
@@ -1261,134 +1446,21 @@ impl Editor {
                 Message::SyncToModel => {
                     needs_sync = true;
                 }
-                Message::SaveScene(path) => {
-                    if let Some(editor_scene) = self.scene.as_mut() {
-                        match editor_scene.save(path.clone(), engine) {
-                            Ok(message) => {
-                                self.scene_viewer.set_title(
-                                    &engine.user_interface,
-                                    format!("Scene Preview - {}", path.display()),
-                                );
-
-                                self.message_sender.send(Message::Log(message)).unwrap();
-                            }
-                            Err(message) => {
-                                self.message_sender
-                                    .send(Message::Log(message.clone()))
-                                    .unwrap();
-
-                                engine.user_interface.send_message(MessageBoxMessage::open(
-                                    self.validation_message_box,
-                                    MessageDirection::ToWidget,
-                                    None,
-                                    Some(message),
-                                ));
-                            }
-                        }
-                    }
-                }
-                Message::LoadScene(scene_path) => {
-                    let result = {
-                        block_on(SceneLoader::from_file(
-                            &scene_path,
-                            engine.serialization_context.clone(),
-                        ))
-                    };
-                    match result {
-                        Ok(loader) => {
-                            let scene = block_on(loader.finish(engine.resource_manager.clone()));
-
-                            self.set_scene(engine, scene, Some(scene_path));
-                        }
-                        Err(e) => {
-                            self.message_sender
-                                .send(Message::Log(e.to_string()))
-                                .unwrap();
-                        }
-                    }
-                }
+                Message::SaveScene(path) => self.save_current_scene(path, engine),
+                Message::LoadScene(scene_path) => self.load_scene(scene_path, engine),
                 Message::SetInteractionMode(mode_kind) => {
-                    self.set_interaction_mode(Some(mode_kind), engine);
+                    self.set_interaction_mode(Some(mode_kind), engine)
                 }
-                Message::Exit { force } => {
-                    if force {
-                        self.exit = true;
-                    } else if self.scene.is_some() {
-                        engine.user_interface.send_message(MessageBoxMessage::open(
-                            self.exit_message_box,
-                            MessageDirection::ToWidget,
-                            None,
-                            None,
-                        ));
-                    } else {
-                        self.exit = true;
-                    }
-                }
+                Message::Exit { force } => self.exit(force, engine),
                 Message::Log(msg) => {
-                    println!("{}", msg);
+                    println!("{}", msg)
                 }
                 Message::CloseScene => {
-                    if let Some(editor_scene) = self.scene.take() {
-                        engine.scenes.remove(editor_scene.scene);
-                        needs_sync = true;
-
-                        // Preview frame has scene frame texture assigned, it must be cleared explicitly,
-                        // otherwise it will show last rendered frame in preview which is not what we want.
-                        self.scene_viewer
-                            .set_render_target(&engine.user_interface, None);
-                        // Set default title scene
-                        self.scene_viewer
-                            .set_title(&engine.user_interface, "Scene Preview".to_string());
-                    }
+                    needs_sync |= self.close_current_scene(engine);
                 }
-                Message::NewScene => {
-                    let mut scene = Scene::new();
-
-                    scene.ambient_lighting_color = Color::opaque(200, 200, 200);
-
-                    self.set_scene(engine, scene, None);
-                }
+                Message::NewScene => self.create_new_scene(engine),
                 Message::Configure { working_directory } => {
-                    assert!(self.scene.is_none());
-
-                    self.asset_browser.clear_preview(engine);
-
-                    std::env::set_current_dir(working_directory.clone()).unwrap();
-
-                    engine.reload_plugins();
-
-                    engine
-                        .get_window()
-                        .set_title(&format!("Fyroxed: {}", working_directory.to_string_lossy()));
-
-                    match FileSystemWatcher::new(&working_directory, Duration::from_secs(1)) {
-                        Ok(watcher) => {
-                            engine.resource_manager.state().set_watcher(Some(watcher));
-                        }
-                        Err(e) => {
-                            self.message_sender
-                                .send(Message::Log(format!(
-                                    "Unable to create resource watcher. Reason {:?}",
-                                    e
-                                )))
-                                .unwrap();
-                        }
-                    }
-
-                    engine.resource_manager.state().destroy_unused_resources();
-
-                    engine.renderer.flush();
-
-                    self.asset_browser
-                        .set_working_directory(engine, &working_directory);
-
-                    self.message_sender
-                        .send(Message::Log(format!(
-                            "New working directory was successfully set: {:?}",
-                            working_directory
-                        )))
-                        .unwrap();
-
+                    self.configure(working_directory, engine);
                     needs_sync = true;
                 }
                 Message::OpenSettings(section) => {
@@ -1399,13 +1471,7 @@ impl Editor {
                     );
                 }
                 Message::OpenMaterialEditor(material) => {
-                    self.material_editor.set_material(Some(material), engine);
-
-                    engine.user_interface.send_message(WindowMessage::open(
-                        self.material_editor.window,
-                        MessageDirection::ToWidget,
-                        true,
-                    ));
+                    self.open_material_editor(material, engine)
                 }
                 Message::ShowInAssetBrowser(path) => {
                     self.asset_browser.locate_path(&engine.user_interface, path);
@@ -1417,26 +1483,7 @@ impl Editor {
                     self.world_viewer.try_locate_object(type_id, handle, engine)
                 }
                 Message::SelectObject { type_id, handle } => {
-                    if let Some(scene) = self.scene.as_ref() {
-                        let new_selection = if type_id == TypeId::of::<Node>() {
-                            Some(Selection::Graph(GraphSelection::single_or_empty(
-                                handle.into(),
-                            )))
-                        } else {
-                            None
-                        };
-
-                        if let Some(new_selection) = new_selection {
-                            self.message_sender
-                                .send(Message::DoSceneCommand(SceneCommand::new(
-                                    ChangeSelectionCommand::new(
-                                        new_selection,
-                                        scene.selection.clone(),
-                                    ),
-                                )))
-                                .unwrap()
-                        }
-                    }
+                    self.select_object(type_id, handle);
                 }
                 Message::SetEditorCameraProjection(projection) => {
                     if let Some(editor_scene) = self.scene.as_ref() {
@@ -1446,12 +1493,8 @@ impl Editor {
                         );
                     }
                 }
-                Message::UnloadPlugins => {
-                    engine.unload_plugins();
-                }
-                Message::ReloadPlugins => {
-                    engine.reload_plugins();
-                }
+                Message::UnloadPlugins => engine.unload_plugins(),
+                Message::ReloadPlugins => engine.reload_plugins(),
                 Message::SwitchMode => match self.mode {
                     Mode::Edit => self.set_play_mode(engine),
                     Mode::Play { .. } => self.set_editor_mode(engine),
