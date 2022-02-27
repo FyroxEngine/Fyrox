@@ -68,14 +68,12 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::scene::camera::Camera;
 use fyrox::{
     core::{
-        algebra::{Point3, Vector2},
+        algebra::Vector2,
         color::Color,
         futures::executor::block_on,
         make_relative_path,
-        math::aabb::AxisAlignedBoundingBox,
         parking_lot::Mutex,
         pool::{ErasedHandle, Handle},
         scope_profile,
@@ -103,18 +101,15 @@ use fyrox::{
     material::{shader::Shader, Material, PropertyValue},
     resource::texture::{CompressionOptions, Texture, TextureKind, TextureState},
     scene::{
-        camera::Projection,
-        debug::{Line, SceneDrawingContext},
-        graph::Graph,
-        mesh::{
-            buffer::{VertexAttributeUsage, VertexReadTrait},
-            Mesh,
-        },
+        camera::{Camera, Projection},
+        mesh::Mesh,
         node::Node,
         Scene, SceneLoader,
     },
-    utils::watcher::FileSystemWatcher,
-    utils::{into_gui_texture, log::MessageKind, translate_cursor_icon, translate_event},
+    utils::{
+        into_gui_texture, log::MessageKind, translate_cursor_icon, translate_event,
+        watcher::FileSystemWatcher,
+    },
 };
 use std::{
     any::TypeId,
@@ -301,6 +296,16 @@ pub fn make_save_file_selector(ctx: &mut BuildContext) -> Handle<UiNode> {
 enum Mode {
     Edit,
     Play { scene: Handle<Scene> },
+}
+
+impl Mode {
+    pub fn is_edit(&self) -> bool {
+        !self.is_play()
+    }
+
+    pub fn is_play(&self) -> bool {
+        matches!(self, Mode::Play { .. })
+    }
 }
 
 struct Editor {
@@ -1090,6 +1095,7 @@ impl Editor {
                 }
             }
 
+            purified_scene.drawing_context.clear_lines();
             purified_scene.render_target = Some(Texture::new_render_target(0, 0));
 
             // Force previewer to use play-mode scene.
@@ -1511,10 +1517,11 @@ impl Editor {
         self.handle_resize(engine);
 
         if let Some(editor_scene) = self.scene.as_mut() {
-            // Adjust camera viewport to size of frame.
-            let scene = &mut engine.scenes[editor_scene.scene];
+            if self.mode.is_edit() {
+                editor_scene.draw_debug(engine, &self.settings.debugging);
+            }
 
-            scene.drawing_context.clear_lines();
+            let scene = &mut engine.scenes[editor_scene.scene];
 
             let camera = scene.graph[editor_scene.camera_controller.camera].as_camera_mut();
 
@@ -1525,118 +1532,8 @@ impl Editor {
                 .projection_mut()
                 .set_z_far(self.settings.graphics.z_far);
 
-            if let Selection::Graph(selection) = &editor_scene.selection {
-                for &node in selection.nodes() {
-                    let node = &scene.graph[node];
-                    scene.drawing_context.draw_oob(
-                        &node.local_bounding_box(),
-                        node.global_transform(),
-                        Color::GREEN,
-                    );
-                }
-            }
-
-            fn draw_recursively(
-                node: Handle<Node>,
-                graph: &Graph,
-                ctx: &mut SceneDrawingContext,
-                editor_scene: &EditorScene,
-                show_tbn: bool,
-                show_bounds: bool,
-            ) {
-                // Ignore editor nodes.
-                if node == editor_scene.root {
-                    return;
-                }
-
-                let node = &graph[node];
-
-                if show_bounds {
-                    ctx.draw_oob(
-                        &AxisAlignedBoundingBox::unit(),
-                        node.global_transform(),
-                        Color::opaque(255, 127, 39),
-                    );
-                }
-
-                if let Some(mesh) = node.cast::<Mesh>() {
-                    if show_tbn {
-                        // TODO: Add switch to settings to turn this on/off
-                        let transform = node.global_transform();
-
-                        for surface in mesh.surfaces() {
-                            for vertex in surface.data().lock().vertex_buffer.iter() {
-                                let len = 0.025;
-                                let position = transform
-                                    .transform_point(&Point3::from(
-                                        vertex.read_3_f32(VertexAttributeUsage::Position).unwrap(),
-                                    ))
-                                    .coords;
-                                let vertex_tangent =
-                                    vertex.read_4_f32(VertexAttributeUsage::Tangent).unwrap();
-                                let tangent = transform
-                                    .transform_vector(&vertex_tangent.xyz())
-                                    .normalize()
-                                    .scale(len);
-                                let normal = transform
-                                    .transform_vector(
-                                        &vertex
-                                            .read_3_f32(VertexAttributeUsage::Normal)
-                                            .unwrap()
-                                            .xyz(),
-                                    )
-                                    .normalize()
-                                    .scale(len);
-                                let binormal = tangent
-                                    .xyz()
-                                    .cross(&normal)
-                                    .scale(vertex_tangent.w)
-                                    .normalize()
-                                    .scale(len);
-
-                                ctx.add_line(Line {
-                                    begin: position,
-                                    end: position + tangent,
-                                    color: Color::RED,
-                                });
-
-                                ctx.add_line(Line {
-                                    begin: position,
-                                    end: position + normal,
-                                    color: Color::BLUE,
-                                });
-
-                                ctx.add_line(Line {
-                                    begin: position,
-                                    end: position + binormal,
-                                    color: Color::GREEN,
-                                });
-                            }
-                        }
-                    }
-                }
-
-                for &child in node.children() {
-                    draw_recursively(child, graph, ctx, editor_scene, show_tbn, show_bounds)
-                }
-            }
-
-            // Draw pivots.
-            draw_recursively(
-                scene.graph.get_root(),
-                &scene.graph,
-                &mut scene.drawing_context,
-                editor_scene,
-                self.settings.debugging.show_tbn,
-                self.settings.debugging.show_bounds,
-            );
-
             let graph = &mut scene.graph;
 
-            if self.settings.debugging.show_physics {
-                graph.physics.draw(&mut scene.drawing_context);
-                graph.physics2d.draw(&mut scene.drawing_context);
-            }
             editor_scene.camera_controller.update(graph, dt);
 
             if let Some(mode) = self.current_interaction_mode {

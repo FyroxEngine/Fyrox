@@ -6,19 +6,32 @@ use crate::{
         selection::NavmeshSelection,
     },
     scene::clipboard::Clipboard,
+    settings::debugging::DebuggingSettings,
     world::graph::selection::GraphSelection,
     GameEngine,
 };
-use fyrox::scene::particle_system::ParticleSystem;
-use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{
-        math::TriangleDefinition,
+        algebra::Point3,
+        color::Color,
+        math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::{Handle, Pool},
         visitor::Visitor,
     },
     engine::Engine,
-    scene::{base::BaseBuilder, node::Node, Scene},
+    scene::{
+        base::BaseBuilder,
+        debug::{Line, SceneDrawingContext},
+        graph::Graph,
+        mesh::{
+            buffer::{VertexAttributeUsage, VertexReadTrait},
+            Mesh,
+        },
+        node::Node,
+        particle_system::ParticleSystem,
+        pivot::PivotBuilder,
+        Scene,
+    },
 };
 use std::{collections::HashMap, fmt::Write, path::PathBuf};
 
@@ -154,6 +167,121 @@ impl EditorScene {
 
             Err(reason)
         }
+    }
+
+    pub fn draw_debug(&mut self, engine: &mut Engine, settings: &DebuggingSettings) {
+        let scene = &mut engine.scenes[self.scene];
+
+        scene.drawing_context.clear_lines();
+
+        if let Selection::Graph(selection) = &self.selection {
+            for &node in selection.nodes() {
+                let node = &scene.graph[node];
+                scene.drawing_context.draw_oob(
+                    &node.local_bounding_box(),
+                    node.global_transform(),
+                    Color::GREEN,
+                );
+            }
+        }
+
+        if settings.show_physics {
+            scene.graph.physics.draw(&mut scene.drawing_context);
+            scene.graph.physics2d.draw(&mut scene.drawing_context);
+        }
+
+        fn draw_recursively(
+            node: Handle<Node>,
+            graph: &Graph,
+            ctx: &mut SceneDrawingContext,
+            editor_scene: &EditorScene,
+            settings: &DebuggingSettings,
+        ) {
+            // Ignore editor nodes.
+            if node == editor_scene.root {
+                return;
+            }
+
+            let node = &graph[node];
+
+            if settings.show_bounds {
+                ctx.draw_oob(
+                    &AxisAlignedBoundingBox::unit(),
+                    node.global_transform(),
+                    Color::opaque(255, 127, 39),
+                );
+            }
+
+            if let Some(mesh) = node.cast::<Mesh>() {
+                if settings.show_tbn {
+                    // TODO: Add switch to settings to turn this on/off
+                    let transform = node.global_transform();
+
+                    for surface in mesh.surfaces() {
+                        for vertex in surface.data().lock().vertex_buffer.iter() {
+                            let len = 0.025;
+                            let position = transform
+                                .transform_point(&Point3::from(
+                                    vertex.read_3_f32(VertexAttributeUsage::Position).unwrap(),
+                                ))
+                                .coords;
+                            let vertex_tangent =
+                                vertex.read_4_f32(VertexAttributeUsage::Tangent).unwrap();
+                            let tangent = transform
+                                .transform_vector(&vertex_tangent.xyz())
+                                .normalize()
+                                .scale(len);
+                            let normal = transform
+                                .transform_vector(
+                                    &vertex
+                                        .read_3_f32(VertexAttributeUsage::Normal)
+                                        .unwrap()
+                                        .xyz(),
+                                )
+                                .normalize()
+                                .scale(len);
+                            let binormal = tangent
+                                .xyz()
+                                .cross(&normal)
+                                .scale(vertex_tangent.w)
+                                .normalize()
+                                .scale(len);
+
+                            ctx.add_line(Line {
+                                begin: position,
+                                end: position + tangent,
+                                color: Color::RED,
+                            });
+
+                            ctx.add_line(Line {
+                                begin: position,
+                                end: position + normal,
+                                color: Color::BLUE,
+                            });
+
+                            ctx.add_line(Line {
+                                begin: position,
+                                end: position + binormal,
+                                color: Color::GREEN,
+                            });
+                        }
+                    }
+                }
+            }
+
+            for &child in node.children() {
+                draw_recursively(child, graph, ctx, editor_scene, settings)
+            }
+        }
+
+        // Draw pivots.
+        draw_recursively(
+            scene.graph.get_root(),
+            &scene.graph,
+            &mut scene.drawing_context,
+            self,
+            settings,
+        );
     }
 }
 
