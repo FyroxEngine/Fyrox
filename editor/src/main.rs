@@ -1098,6 +1098,9 @@ impl Editor {
 
             let handle = engine.scenes.add(purified_scene);
 
+            // Initialize scripts.
+            engine.initialize_scene_scripts(handle, 0.0);
+
             self.mode = Mode::Play { scene: handle };
 
             engine.renderer.flush();

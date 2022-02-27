@@ -143,7 +143,12 @@ pub struct SubGraph {
 fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_graph: &mut Graph) {
     // Iterate over instantiated nodes and remap handles.
     for (_, &new_node_handle) in old_new_mapping.iter() {
-        dest_graph.pool[new_node_handle].remap_handles(old_new_mapping);
+        let dest_node = &mut dest_graph.pool[new_node_handle];
+        dest_node.remap_handles(old_new_mapping);
+
+        if let Some(script) = dest_node.script.as_mut() {
+            script.remap_handles(&old_new_mapping);
+        }
     }
 
     dest_graph.sound_context.remap_handles(old_new_mapping);

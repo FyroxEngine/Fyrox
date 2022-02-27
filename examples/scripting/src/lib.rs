@@ -1,16 +1,16 @@
+use fyrox::core::pool::Handle;
+use fyrox::scene::node::Node;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
-        color::Hsv,
         inspect::{Inspect, PropertyInfo},
-        sstorage::ImmutableString,
         uuid::Uuid,
         visitor::prelude::*,
     },
+    event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
     gui::inspector::{FieldKind, PropertyChanged},
-    material::PropertyValue,
     plugin::{Plugin, PluginContext},
-    scene::{mesh::Mesh, node::TypeUuidProvider},
+    scene::{node::TypeUuidProvider, rigidbody::RigidBody},
     script::{ScriptContext, ScriptTrait},
 };
 use std::str::FromStr;
@@ -35,7 +35,7 @@ impl Plugin for GamePlugin {
         engine
             .serialization_context
             .script_constructors
-            .add::<GamePlugin, TestScript, &str>("TestScript");
+            .add::<GamePlugin, Player, &str>("Player");
     }
 
     fn on_unload(&mut self, _context: &mut PluginContext) {}
@@ -47,60 +47,171 @@ impl Plugin for GamePlugin {
     }
 }
 
-#[derive(Visit, Inspect, Debug, Clone)]
-struct TestScript {
-    foo: String,
-
-    hue: f32,
+#[derive(Default, Debug, Clone)]
+pub struct InputController {
+    walk_forward: bool,
+    walk_backward: bool,
+    walk_left: bool,
+    walk_right: bool,
+    jump: bool,
 }
 
-impl Default for TestScript {
+#[derive(Visit, Inspect, Debug, Clone)]
+struct Player {
+    speed: f32,
+    yaw: f32,
+
+    #[visit(optional)]
+    pitch: f32,
+
+    #[visit(optional)]
+    camera: Handle<Node>,
+
+    #[visit(skip)]
+    #[inspect(skip)]
+    controller: InputController,
+}
+
+impl Default for Player {
     fn default() -> Self {
         Self {
-            foo: "Test String".to_string(),
-            hue: 0.0,
+            speed: 0.1,
+            yaw: 0.0,
+            pitch: 0.0,
+            camera: Default::default(),
+            controller: Default::default(),
         }
     }
 }
 
-impl TypeUuidProvider for TestScript {
+impl TypeUuidProvider for Player {
     fn type_uuid() -> Uuid {
         Uuid::from_str("4aa165aa-011b-479f-bc10-b90b2c4b5060").unwrap()
     }
 }
 
-impl ScriptTrait for TestScript {
+impl ScriptTrait for Player {
     fn on_property_changed(&mut self, args: &PropertyChanged) {
         if let FieldKind::Object(ref value) = args.value {
             match args.name.as_ref() {
-                Self::FOO => self.foo = value.cast_clone().unwrap(),
-                Self::HUE => self.hue = value.cast_clone().unwrap(),
+                Self::SPEED => self.speed = value.cast_clone().unwrap(),
+                Self::YAW => self.yaw = value.cast_clone().unwrap(),
+                Self::CAMERA => self.camera = value.cast_clone().unwrap(),
                 _ => (),
             }
         }
     }
 
-    fn on_init(&mut self, _context: &mut ScriptContext) {}
+    fn on_init(&mut self, context: ScriptContext) {
+        let ScriptContext { node, scene, .. } = context;
 
-    fn on_update(&mut self, context: ScriptContext) {
-        let transform = context.node.local_transform_mut();
-        let new_rotation = **transform.rotation()
-            * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 1.0f32.to_radians());
-        transform.set_rotation(new_rotation);
-
-        if let Some(mesh) = context.node.cast_mut::<Mesh>() {
-            for surface in mesh.surfaces_mut() {
-                surface
-                    .material()
-                    .lock()
-                    .set_property(
-                        &ImmutableString::new("diffuseColor"),
-                        PropertyValue::Color(Hsv::new(self.hue, 100.0, 100.0).into()),
-                    )
-                    .unwrap();
+        for &child in node.children() {
+            if scene.graph[child].name() == "Camera" {
+                self.camera = child;
+                break;
             }
         }
-        self.hue = (self.hue + 60.0 * context.dt) % 360.0;
+    }
+
+    fn on_update(&mut self, context: ScriptContext) {
+        let ScriptContext {
+            dt, node, scene, ..
+        } = context;
+
+        node.local_transform_mut()
+            .set_rotation(UnitQuaternion::from_axis_angle(
+                &Vector3::y_axis(),
+                self.yaw,
+            ));
+
+        if let Some(body) = node.cast_mut::<RigidBody>() {
+            let look_vector = body
+                .look_vector()
+                .try_normalize(f32::EPSILON)
+                .unwrap_or_else(Vector3::z);
+
+            let side_vector = body
+                .side_vector()
+                .try_normalize(f32::EPSILON)
+                .unwrap_or_else(Vector3::x);
+
+            let mut velocity = Vector3::default();
+
+            if self.controller.walk_right {
+                velocity -= side_vector;
+            }
+            if self.controller.walk_left {
+                velocity += side_vector;
+            }
+            if self.controller.walk_forward {
+                velocity += look_vector;
+            }
+            if self.controller.walk_backward {
+                velocity -= look_vector;
+            }
+
+            let speed = 2.0 * dt;
+            let velocity = velocity
+                .try_normalize(f32::EPSILON)
+                .map(|v| v.scale(speed))
+                .unwrap_or_default();
+
+            body.set_ang_vel(Default::default());
+            body.set_lin_vel(Vector3::new(
+                velocity.x / dt,
+                body.lin_vel().y,
+                velocity.z / dt,
+            ));
+        }
+
+        if let Some(camera) = scene.graph.try_get_mut(self.camera) {
+            camera
+                .local_transform_mut()
+                .set_rotation(UnitQuaternion::from_axis_angle(
+                    &Vector3::x_axis(),
+                    self.pitch,
+                ));
+        }
+    }
+
+    fn on_os_event(&mut self, event: &Event<()>, _context: ScriptContext) {
+        match event {
+            Event::DeviceEvent { event, .. } => {
+                if let DeviceEvent::MouseMotion { delta } = event {
+                    let mouse_sens = 0.025;
+
+                    self.yaw -= mouse_sens * delta.0 as f32;
+                    self.pitch = (self.pitch + (delta.1 as f32) * mouse_sens)
+                        .max(-90.0f32.to_radians())
+                        .min(90.0f32.to_radians());
+                }
+            }
+            Event::WindowEvent { event, .. } => {
+                if let WindowEvent::KeyboardInput { input, .. } = event {
+                    if let Some(key_code) = input.virtual_keycode {
+                        match key_code {
+                            VirtualKeyCode::W => {
+                                self.controller.walk_forward = input.state == ElementState::Pressed
+                            }
+                            VirtualKeyCode::S => {
+                                self.controller.walk_backward = input.state == ElementState::Pressed
+                            }
+                            VirtualKeyCode::A => {
+                                self.controller.walk_left = input.state == ElementState::Pressed
+                            }
+                            VirtualKeyCode::D => {
+                                self.controller.walk_right = input.state == ElementState::Pressed
+                            }
+                            VirtualKeyCode::Space => {
+                                self.controller.jump = input.state == ElementState::Pressed
+                            }
+                            _ => (),
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 
     fn id(&self) -> Uuid {

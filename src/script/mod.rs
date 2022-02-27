@@ -10,6 +10,7 @@ use crate::{
     plugin::Plugin,
     scene::node::Node,
 };
+use fxhash::FxHashMap;
 use fyrox_core::pool::Handle;
 use std::{
     fmt::Debug,
@@ -48,7 +49,8 @@ pub trait ScriptTrait: BaseScript {
     /// Works only in editor mode.
     fn on_property_changed(&mut self, args: &PropertyChanged);
 
-    fn on_init(&mut self, context: &mut ScriptContext);
+    /// Called when on parent scene initialization.
+    fn on_init(&mut self, context: ScriptContext);
 
     /// Called when there is an event from the OS.
     fn on_os_event(&mut self, _event: &Event<()>, _context: ScriptContext) {}
@@ -59,6 +61,9 @@ pub trait ScriptTrait: BaseScript {
     ///
     /// Does not work in editor mode.
     fn on_update(&mut self, context: ScriptContext);
+
+    /// Called when the scene is copied, giving you the ability to remap handles to nodes.
+    fn remap_handles(&mut self, _old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {}
 
     /// Script instance type UUID.
     fn id(&self) -> Uuid;

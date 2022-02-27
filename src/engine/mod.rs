@@ -455,10 +455,29 @@ impl Engine {
         self.process_scripts(scene, dt, |script, context| script.on_update(context));
     }
 
+    /// Passes specified OS event to every script of the specified scene.
+    ///
+    /// # Important notes
+    ///
+    /// This method is intended to be used by the editor and game runner. If you're using the
+    /// engine as a framework, then you should not call this method because you'll most likely
+    /// do something wrong.
     pub fn handle_os_event_by_scripts(&mut self, event: &Event<()>, scene: Handle<Scene>, dt: f32) {
         self.process_scripts(scene, dt, |script, context| {
             script.on_os_event(event, context)
         })
+    }
+
+    /// Initializes every script in the scene.
+    ///
+    ///
+    /// # Important notes
+    ///
+    /// This method is intended to be used by the editor and game runner. If you're using the
+    /// engine as a framework, then you should not call this method because you'll most likely
+    /// do something wrong.
+    pub fn initialize_scene_scripts(&mut self, scene: Handle<Scene>, dt: f32) {
+        self.process_scripts(scene, dt, |script, context| script.on_init(context))
     }
 
     /// Handle hot-reloading of resources.
