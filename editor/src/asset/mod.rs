@@ -1,3 +1,4 @@
+use crate::utils::window_content;
 use crate::{
     asset::{
         inspector::{
@@ -8,7 +9,7 @@ use crate::{
     },
     gui::AssetItemMessage,
     preview::PreviewPanel,
-    AssetItem, AssetKind, GameEngine, Message,
+    AssetItem, AssetKind, GameEngine, Message, Mode,
 };
 use fyrox::{
     core::{
@@ -310,5 +311,13 @@ impl AssetBrowser {
 
     pub fn update(&mut self, engine: &mut GameEngine) {
         self.preview.update(engine)
+    }
+
+    pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
+        ui.send_message(WidgetMessage::enabled(
+            window_content(self.window, ui),
+            MessageDirection::ToWidget,
+            mode.is_edit(),
+        ));
     }
 }

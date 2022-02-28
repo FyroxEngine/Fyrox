@@ -1,3 +1,4 @@
+use crate::utils::window_content;
 use crate::{
     interaction::{
         calculate_gizmo_distance_scaling,
@@ -21,8 +22,9 @@ use crate::{
     },
     send_sync_message,
     settings::Settings,
-    GameEngine, Message, MSG_SYNC_FLAG,
+    GameEngine, Message, Mode, MSG_SYNC_FLAG,
 };
+use fyrox::gui::UserInterface;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -332,6 +334,14 @@ impl NavmeshPanel {
                 }
             }
         }
+    }
+
+    pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
+        ui.send_message(WidgetMessage::enabled(
+            window_content(self.window, ui),
+            MessageDirection::ToWidget,
+            mode.is_edit(),
+        ));
     }
 }
 

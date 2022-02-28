@@ -5,8 +5,11 @@ use crate::{
         physics2d::Physics2dMenu,
     },
     scene::commands::graph::AddNodeCommand,
-    Message,
+    Message, Mode,
 };
+use fyrox::gui::message::MessageDirection;
+use fyrox::gui::widget::WidgetMessage;
+use fyrox::gui::UserInterface;
 use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{algebra::Matrix4, parking_lot::Mutex, pool::Handle},
@@ -56,6 +59,14 @@ impl CreateEntityRootMenu {
         parent: Handle<Node>,
     ) {
         self.sub_menus.handle_ui_message(message, sender, parent)
+    }
+
+    pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
+        ui.send_message(WidgetMessage::enabled(
+            self.menu,
+            MessageDirection::ToWidget,
+            mode.is_edit(),
+        ));
     }
 }
 

@@ -1,3 +1,8 @@
+use fyrox::{
+    core::pool::Handle,
+    gui::{window::Window, UiNode, UserInterface},
+};
+
 pub mod path_fixer;
 
 pub fn is_slice_equal_permutation<T: PartialEq>(a: &[T], b: &[T]) -> bool {
@@ -19,4 +24,11 @@ pub fn is_slice_equal_permutation<T: PartialEq>(a: &[T], b: &[T]) -> bool {
         }
         true
     }
+}
+
+pub fn window_content(window: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
+    ui.node(window)
+        .cast::<Window>()
+        .map(|w| w.content())
+        .unwrap_or_default()
 }

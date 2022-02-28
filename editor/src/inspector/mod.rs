@@ -1,3 +1,4 @@
+use crate::utils::window_content;
 use crate::{
     inspector::{
         editors::make_property_editors_container,
@@ -8,7 +9,7 @@ use crate::{
         },
     },
     scene::{EditorScene, Selection},
-    Brush, CommandGroup, GameEngine, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
+    Brush, CommandGroup, GameEngine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
 use fyrox::engine::SerializationContext;
 use fyrox::{
@@ -284,6 +285,14 @@ impl Inspector {
             self.inspector,
             MessageDirection::ToWidget,
             Default::default(),
+        ));
+    }
+
+    pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
+        ui.send_message(WidgetMessage::enabled(
+            window_content(self.window, ui),
+            MessageDirection::ToWidget,
+            mode.is_edit(),
         ));
     }
 

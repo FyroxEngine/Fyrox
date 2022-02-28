@@ -821,9 +821,10 @@ impl Editor {
             // Initialize scripts.
             engine.initialize_scene_scripts(handle, 0.0);
 
-            self.mode = Mode::Play { scene: handle };
-
             engine.renderer.flush();
+
+            self.mode = Mode::Play { scene: handle };
+            self.on_mode_changed(engine);
         }
     }
 
@@ -832,16 +833,30 @@ impl Editor {
             // Destroy play mode scene.
             if let Mode::Play { scene } = self.mode {
                 engine.scenes.remove(scene);
+
+                // Force previewer to use editor's scene.
+                let render_target = engine.scenes[editor_scene.scene].render_target.clone();
+                self.scene_viewer
+                    .set_render_target(&engine.user_interface, render_target);
+
+                engine.renderer.flush();
+
                 self.mode = Mode::Edit;
+                self.on_mode_changed(engine);
             }
-
-            // Force previewer to use editor's scene.
-            let render_target = engine.scenes[editor_scene.scene].render_target.clone();
-            self.scene_viewer
-                .set_render_target(&engine.user_interface, render_target);
-
-            engine.renderer.flush();
         }
+    }
+
+    fn on_mode_changed(&mut self, engine: &mut GameEngine) {
+        let ui = &engine.user_interface;
+        self.scene_viewer.on_mode_changed(ui, &self.mode);
+        self.world_viewer.on_mode_changed(ui, &self.mode);
+        self.asset_browser.on_mode_changed(ui, &self.mode);
+        self.command_stack_viewer.on_mode_changed(ui, &self.mode);
+        self.inspector.on_mode_changed(ui, &self.mode);
+        self.audio_panel.on_mode_changed(ui, &self.mode);
+        self.navmesh_panel.on_mode_changed(ui, &self.mode);
+        self.menu.on_mode_changed(ui, &self.mode);
     }
 
     fn sync_to_model(&mut self, engine: &mut GameEngine) {

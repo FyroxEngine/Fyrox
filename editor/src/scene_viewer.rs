@@ -49,6 +49,7 @@ pub struct SceneViewer {
     reload_plugins: Handle<UiNode>,
     switch_mode: Handle<UiNode>,
     sender: Sender<Message>,
+    interaction_mode_panel: Handle<UiNode>,
 }
 
 fn make_interaction_mode_button(
@@ -131,6 +132,7 @@ impl SceneViewer {
         let unload_plugins;
         let reload_plugins;
         let switch_mode;
+        let interaction_mode_panel;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
             .can_minimize(false)
@@ -226,8 +228,8 @@ impl SceneViewer {
                                         )
                                         .build(ctx),
                                     )
-                                    .with_child(
-                                        StackPanelBuilder::new(
+                                    .with_child({
+                                        interaction_mode_panel = StackPanelBuilder::new(
                                             WidgetBuilder::new()
                                                 .with_margin(Thickness::uniform(1.0))
                                                 .on_row(0)
@@ -293,8 +295,9 @@ impl SceneViewer {
                                                     terrain_mode
                                                 }),
                                         )
-                                        .build(ctx),
-                                    ),
+                                        .build(ctx);
+                                        interaction_mode_panel
+                                    }),
                             )
                             .add_row(Row::stretch())
                             .add_column(Column::auto())
@@ -327,6 +330,7 @@ impl SceneViewer {
             unload_plugins,
             reload_plugins,
             switch_mode,
+            interaction_mode_panel,
         }
     }
 }
@@ -444,6 +448,22 @@ impl SceneViewer {
                     _ => {}
                 }
             }
+        }
+    }
+
+    pub fn on_mode_changed(&self, ui: &UserInterface, mode: &Mode) {
+        let enabled = mode.is_edit();
+        for widget in [
+            self.unload_plugins,
+            self.reload_plugins,
+            self.interaction_mode_panel,
+            self.camera_projection,
+        ] {
+            ui.send_message(WidgetMessage::enabled(
+                widget,
+                MessageDirection::ToWidget,
+                enabled,
+            ));
         }
     }
 

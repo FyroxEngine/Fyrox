@@ -1,6 +1,9 @@
+use crate::utils::window_content;
 use crate::{
     command::CommandStack, load_image, scene::commands::SceneContext, send_sync_message, Message,
+    Mode,
 };
+use fyrox::gui::widget::WidgetMessage;
 use fyrox::{
     core::{color::Color, pool::Handle, scope_profile},
     gui::{
@@ -183,5 +186,13 @@ impl CommandStackViewer {
             ui,
             ListViewMessage::items(self.list, MessageDirection::ToWidget, items),
         );
+    }
+
+    pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
+        ui.send_message(WidgetMessage::enabled(
+            window_content(self.window, ui),
+            MessageDirection::ToWidget,
+            mode.is_edit(),
+        ));
     }
 }

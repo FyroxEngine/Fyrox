@@ -1,7 +1,9 @@
+use crate::utils::window_content;
 use crate::{
     scene::commands::effect::AddEffectCommand, ChangeSelectionCommand, EditorScene, GridBuilder,
-    Message, MessageDirection, SceneCommand, Selection, UserInterface,
+    Message, MessageDirection, Mode, SceneCommand, Selection, UserInterface,
 };
+use fyrox::gui::widget::WidgetMessage;
 use fyrox::{
     core::pool::Handle,
     engine::Engine,
@@ -215,5 +217,13 @@ impl AudioPanel {
             }
             _ => (),
         }
+    }
+
+    pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
+        ui.send_message(WidgetMessage::enabled(
+            window_content(self.window, ui),
+            MessageDirection::ToWidget,
+            mode.is_edit(),
+        ));
     }
 }
