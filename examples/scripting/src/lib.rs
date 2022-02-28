@@ -1,16 +1,18 @@
-use fyrox::core::pool::Handle;
-use fyrox::scene::node::Node;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
+        pool::Handle,
         uuid::Uuid,
         visitor::prelude::*,
     },
     event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
     gui::inspector::{FieldKind, PropertyChanged},
     plugin::{Plugin, PluginContext},
-    scene::{node::TypeUuidProvider, rigidbody::RigidBody},
+    scene::{
+        node::{Node, TypeUuidProvider},
+        rigidbody::RigidBody,
+    },
     script::{ScriptContext, ScriptTrait},
 };
 use std::str::FromStr;
@@ -36,6 +38,11 @@ impl Plugin for GamePlugin {
             .serialization_context
             .script_constructors
             .add::<GamePlugin, Player, &str>("Player");
+
+        engine
+            .serialization_context
+            .script_constructors
+            .add::<GamePlugin, Jumper, &str>("Jumper");
     }
 
     fn on_unload(&mut self, _context: &mut PluginContext) {}
@@ -211,6 +218,53 @@ impl ScriptTrait for Player {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
+    }
+
+    fn plugin_uuid(&self) -> Uuid {
+        GamePlugin::type_uuid()
+    }
+}
+
+#[derive(Visit, Inspect, Debug, Clone, Default)]
+struct Jumper {
+    timer: f32,
+
+    #[visit(optional)]
+    period: f32,
+}
+
+impl TypeUuidProvider for Jumper {
+    fn type_uuid() -> Uuid {
+        Uuid::from_str("942e9f5b-e036-4357-b514-91060d4059f5").unwrap()
+    }
+}
+
+impl ScriptTrait for Jumper {
+    fn on_property_changed(&mut self, args: &PropertyChanged) {
+        if let FieldKind::Object(ref value) = args.value {
+            match args.name.as_ref() {
+                Self::TIMER => self.timer = value.cast_clone().unwrap(),
+                Self::PERIOD => self.period = value.cast_clone().unwrap(),
+                _ => (),
+            }
+        }
+    }
+
+    fn on_init(&mut self, _context: ScriptContext) {}
+
+    fn on_update(&mut self, context: ScriptContext) {
+        if let Some(rigid_body) = context.node.cast_mut::<RigidBody>() {
+            if self.timer > 0.6 {
+                rigid_body.apply_force(Vector3::new(0.0, 200.0, 0.0));
+                self.timer = 0.0;
+            }
+
+            self.timer += context.dt;
         }
     }
 
