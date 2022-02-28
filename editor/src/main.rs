@@ -73,7 +73,6 @@ use fyrox::{
         algebra::Vector2,
         color::Color,
         futures::executor::block_on,
-        make_relative_path,
         parking_lot::Mutex,
         pool::{ErasedHandle, Handle},
         scope_profile,
@@ -91,7 +90,7 @@ use fyrox::{
         file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        message::{KeyCode, MessageDirection, MouseButton, UiMessage},
+        message::{MessageDirection, UiMessage},
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
         ttf::Font,
         widget::{WidgetBuilder, WidgetMessage},
@@ -99,7 +98,7 @@ use fyrox::{
         BuildContext, UiNode, UserInterface, VerticalAlignment,
     },
     material::{shader::Shader, Material, PropertyValue},
-    resource::texture::{CompressionOptions, Texture, TextureKind, TextureState},
+    resource::texture::{CompressionOptions, Texture, TextureKind},
     scene::{
         camera::{Camera, Projection},
         mesh::Mesh,
@@ -261,6 +260,7 @@ pub enum Message {
     SwitchToPlayMode,
     SwitchToEditMode,
     SwitchMode,
+    OpenLoadSceneDialog,
 }
 
 impl Message {
@@ -293,7 +293,7 @@ pub fn make_save_file_selector(ctx: &mut BuildContext) -> Handle<UiNode> {
     .build(ctx)
 }
 
-enum Mode {
+pub enum Mode {
     Edit,
     Play { scene: Handle<Scene> },
 }
@@ -702,8 +702,15 @@ impl Editor {
             engine.serialization_context.clone(),
             engine.resource_manager.clone(),
         );
-        self.scene_viewer
-            .handle_ui_message(message, &engine.user_interface);
+        self.scene_viewer.handle_ui_message(
+            message,
+            engine,
+            self.scene.as_mut(),
+            self.current_interaction_mode
+                .and_then(|i| self.interaction_modes.get_mut(i as usize)),
+            &self.settings,
+            &self.mode,
+        );
 
         if let Some(editor_scene) = self.scene.as_mut() {
             self.audio_panel
@@ -743,299 +750,6 @@ impl Editor {
 
             self.material_editor
                 .handle_ui_message(message, engine, &self.message_sender);
-
-            let screen_bounds = self.scene_viewer.frame_bounds(&engine.user_interface);
-            let frame_size = screen_bounds.size;
-
-            if message.destination() == self.scene_viewer.frame() {
-                if let Some(msg) = message.data::<WidgetMessage>() {
-                    match *msg {
-                        WidgetMessage::MouseDown { button, pos, .. } => {
-                            engine
-                                .user_interface
-                                .capture_mouse(self.scene_viewer.frame());
-
-                            if button == MouseButton::Left {
-                                if let Some(current_im) = self.current_interaction_mode {
-                                    let rel_pos = pos - screen_bounds.position;
-
-                                    self.scene_viewer.click_mouse_pos = Some(rel_pos);
-
-                                    self.interaction_modes[current_im as usize]
-                                        .on_left_mouse_button_down(
-                                            editor_scene,
-                                            engine,
-                                            rel_pos,
-                                            frame_size,
-                                        );
-                                }
-                            }
-                            editor_scene.camera_controller.on_mouse_button_down(button);
-                        }
-                        WidgetMessage::MouseUp { button, pos, .. } => {
-                            engine.user_interface.release_mouse_capture();
-
-                            if button == MouseButton::Left {
-                                self.scene_viewer.click_mouse_pos = None;
-                                if let Some(current_im) = self.current_interaction_mode {
-                                    let rel_pos = pos - screen_bounds.position;
-                                    self.interaction_modes[current_im as usize]
-                                        .on_left_mouse_button_up(
-                                            editor_scene,
-                                            engine,
-                                            rel_pos,
-                                            frame_size,
-                                        );
-                                }
-                            }
-                            editor_scene.camera_controller.on_mouse_button_up(button);
-                        }
-                        WidgetMessage::MouseWheel { amount, .. } => {
-                            let graph = &mut engine.scenes[editor_scene.scene].graph;
-                            editor_scene.camera_controller.on_mouse_wheel(amount, graph);
-                        }
-                        WidgetMessage::MouseMove { pos, .. } => {
-                            let last_pos = *self.scene_viewer.last_mouse_pos.get_or_insert(pos);
-                            let mouse_offset = pos - last_pos;
-                            editor_scene.camera_controller.on_mouse_move(mouse_offset);
-                            let rel_pos = pos - screen_bounds.position;
-
-                            if let Some(current_im) = self.current_interaction_mode {
-                                self.interaction_modes[current_im as usize].on_mouse_move(
-                                    mouse_offset,
-                                    rel_pos,
-                                    editor_scene.camera_controller.camera,
-                                    editor_scene,
-                                    engine,
-                                    frame_size,
-                                    &self.settings,
-                                );
-                            }
-                            self.scene_viewer.last_mouse_pos = Some(pos);
-                        }
-                        WidgetMessage::KeyUp(key) => {
-                            editor_scene.camera_controller.on_key_up(key);
-
-                            if let Some(current_im) = self.current_interaction_mode {
-                                self.interaction_modes[current_im as usize].on_key_up(
-                                    key,
-                                    editor_scene,
-                                    engine,
-                                );
-                            }
-                        }
-                        WidgetMessage::KeyDown(key) => {
-                            editor_scene.camera_controller.on_key_down(key);
-
-                            if let Some(current_im) = self.current_interaction_mode {
-                                self.interaction_modes[current_im as usize].on_key_down(
-                                    key,
-                                    editor_scene,
-                                    engine,
-                                );
-                            }
-
-                            match key {
-                                KeyCode::Y => {
-                                    if engine.user_interface.keyboard_modifiers().control {
-                                        self.message_sender
-                                            .send(Message::RedoSceneCommand)
-                                            .unwrap();
-                                    }
-                                }
-                                KeyCode::Z => {
-                                    if engine.user_interface.keyboard_modifiers().control {
-                                        self.message_sender
-                                            .send(Message::UndoSceneCommand)
-                                            .unwrap();
-                                    }
-                                }
-                                KeyCode::Key1 => self.set_interaction_mode(
-                                    Some(InteractionModeKind::Select),
-                                    engine,
-                                ),
-                                KeyCode::Key2 => self
-                                    .set_interaction_mode(Some(InteractionModeKind::Move), engine),
-                                KeyCode::Key3 => self.set_interaction_mode(
-                                    Some(InteractionModeKind::Rotate),
-                                    engine,
-                                ),
-                                KeyCode::Key4 => self
-                                    .set_interaction_mode(Some(InteractionModeKind::Scale), engine),
-                                KeyCode::L
-                                    if engine.user_interface.keyboard_modifiers().control =>
-                                {
-                                    self.menu
-                                        .open_load_file_selector(&mut engine.user_interface);
-                                }
-                                KeyCode::C
-                                    if engine.user_interface.keyboard_modifiers().control =>
-                                {
-                                    if let Selection::Graph(graph_selection) =
-                                        &editor_scene.selection
-                                    {
-                                        editor_scene.clipboard.fill_from_selection(
-                                            graph_selection,
-                                            editor_scene.scene,
-                                            engine,
-                                        );
-                                    }
-                                }
-                                KeyCode::V
-                                    if engine.user_interface.keyboard_modifiers().control =>
-                                {
-                                    if !editor_scene.clipboard.is_empty() {
-                                        self.message_sender
-                                            .send(Message::do_scene_command(PasteCommand::new()))
-                                            .unwrap();
-                                    }
-                                }
-                                KeyCode::Delete => {
-                                    if !editor_scene.selection.is_empty() {
-                                        if let Selection::Graph(_) = editor_scene.selection {
-                                            self.message_sender
-                                                .send(Message::DoSceneCommand(
-                                                    make_delete_selection_command(
-                                                        editor_scene,
-                                                        engine,
-                                                    ),
-                                                ))
-                                                .unwrap();
-                                        }
-                                    }
-                                }
-                                _ => (),
-                            }
-                        }
-                        WidgetMessage::Drop(handle) => {
-                            if handle.is_some() {
-                                if let Some(item) =
-                                    engine.user_interface.node(handle).cast::<AssetItem>()
-                                {
-                                    // Make sure all resources loaded with relative paths only.
-                                    // This will make scenes portable.
-                                    let relative_path = make_relative_path(&item.path);
-
-                                    match item.kind {
-                                        AssetKind::Model => {
-                                            // No model was loaded yet, do it.
-                                            if let Ok(model) =
-                                                fyrox::core::futures::executor::block_on(
-                                                    engine
-                                                        .resource_manager
-                                                        .request_model(&item.path),
-                                                )
-                                            {
-                                                let scene = &mut engine.scenes[editor_scene.scene];
-
-                                                // Instantiate the model.
-                                                let instance = model.instantiate(scene);
-                                                // Enable instantiated animations.
-                                                for &animation in instance.animations.iter() {
-                                                    scene.animations[animation].set_enabled(true);
-                                                }
-
-                                                // Immediately after extract if from the scene to subgraph. This is required to not violate
-                                                // the rule of one place of execution, only commands allowed to modify the scene.
-                                                let sub_graph = scene
-                                                    .graph
-                                                    .take_reserve_sub_graph(instance.root);
-                                                let animations_container = instance
-                                                    .animations
-                                                    .iter()
-                                                    .map(|&anim| {
-                                                        scene.animations.take_reserve(anim)
-                                                    })
-                                                    .collect();
-
-                                                let group = vec![
-                                                    SceneCommand::new(AddModelCommand::new(
-                                                        sub_graph,
-                                                        animations_container,
-                                                    )),
-                                                    // We also want to select newly instantiated model.
-                                                    SceneCommand::new(ChangeSelectionCommand::new(
-                                                        Selection::Graph(
-                                                            GraphSelection::single_or_empty(
-                                                                instance.root,
-                                                            ),
-                                                        ),
-                                                        editor_scene.selection.clone(),
-                                                    )),
-                                                ];
-
-                                                self.message_sender
-                                                    .send(Message::do_scene_command(
-                                                        CommandGroup::from(group),
-                                                    ))
-                                                    .unwrap();
-                                            }
-                                        }
-                                        AssetKind::Texture => {
-                                            let cursor_pos =
-                                                engine.user_interface.cursor_position();
-                                            let rel_pos = cursor_pos - screen_bounds.position;
-                                            let graph = &engine.scenes[editor_scene.scene].graph;
-                                            if let Some(result) =
-                                                editor_scene.camera_controller.pick(
-                                                    rel_pos,
-                                                    graph,
-                                                    editor_scene.root,
-                                                    frame_size,
-                                                    false,
-                                                    |_, _| true,
-                                                )
-                                            {
-                                                let tex = engine
-                                                    .resource_manager
-                                                    .request_texture(&relative_path);
-                                                let texture = tex.clone();
-                                                let texture = texture.state();
-                                                if let TextureState::Ok(_) = *texture {
-                                                    let node = &mut engine.scenes
-                                                        [editor_scene.scene]
-                                                        .graph[result.node];
-
-                                                    if node.is_mesh() {
-                                                        self.message_sender
-                                                            .send(Message::do_scene_command(
-                                                                SetMeshTextureCommand::new(
-                                                                    result.node,
-                                                                    tex,
-                                                                ),
-                                                            ))
-                                                            .unwrap();
-                                                    } else if node.is_sprite() {
-                                                        self.message_sender
-                                                            .send(Message::do_scene_command(
-                                                                SetSpriteTextureCommand::new(
-                                                                    result.node,
-                                                                    Some(tex),
-                                                                ),
-                                                            ))
-                                                            .unwrap();
-                                                    } else if node.is_particle_system() {
-                                                        self.message_sender
-                                                            .send(Message::do_scene_command(
-                                                                SetParticleSystemTextureCommand::new(
-                                                                    result.node, Some(tex),
-                                                                ),
-                                                            ),
-                                                            )
-                                                            .unwrap();
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
 
             if let Some(MessageBoxMessage::Close(result)) = message.data::<MessageBoxMessage>() {
                 if message.destination() == self.exit_message_box {
@@ -1507,6 +1221,10 @@ impl Editor {
                 },
                 Message::SwitchToPlayMode => self.set_play_mode(engine),
                 Message::SwitchToEditMode => self.set_editor_mode(engine),
+                Message::OpenLoadSceneDialog => {
+                    self.menu
+                        .open_load_file_selector(&mut engine.user_interface);
+                }
             }
         }
 
