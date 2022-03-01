@@ -864,6 +864,12 @@ impl Visitor {
         Ok(())
     }
 
+    pub fn save_binary_to_vec(&self) -> Result<Vec<u8>, VisitError> {
+        let mut writer = Cursor::new(Vec::new());
+        self.save_binary_to_memory(&mut writer)?;
+        Ok(writer.into_inner())
+    }
+
     pub fn save_binary<P: AsRef<Path>>(&self, path: P) -> VisitResult {
         let writer = BufWriter::new(File::create(path)?);
         self.save_binary_to_memory(writer)

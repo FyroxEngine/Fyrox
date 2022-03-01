@@ -68,6 +68,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use fyrox::plugin::container::PluginInstanceData;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -336,6 +337,7 @@ struct Editor {
     curve_editor: CurveEditorWindow,
     audio_panel: AudioPanel,
     mode: Mode,
+    plugin_instances_data: Vec<PluginInstanceData>,
 }
 
 impl Editor {
@@ -568,6 +570,7 @@ impl Editor {
             curve_editor,
             audio_panel,
             mode: Mode::Edit,
+            plugin_instances_data: Default::default(),
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1078,7 +1081,9 @@ impl Editor {
 
         std::env::set_current_dir(working_directory.clone()).unwrap();
 
-        engine.reload_plugins();
+        // This is safe to do, because at this point we guarantee that there is no scene with
+        // scripts loaded.
+        engine.load_plugins();
 
         engine
             .get_window()
@@ -1155,7 +1160,9 @@ impl Editor {
         while let Ok(message) = self.message_receiver.try_recv() {
             self.log.handle_message(&message, engine);
             self.path_fixer
-                .handle_message(&message, &mut engine.user_interface);
+                .handle_message(&message, &engine.user_interface);
+            self.scene_viewer
+                .handle_message(&message, &engine.user_interface);
 
             if let Some(editor_scene) = self.scene.as_ref() {
                 self.inspector
@@ -1228,8 +1235,14 @@ impl Editor {
                         );
                     }
                 }
-                Message::UnloadPlugins => engine.unload_plugins(),
-                Message::ReloadPlugins => engine.reload_plugins(),
+                Message::UnloadPlugins => {
+                    // Consecutive plugin unloads is prohibited!
+                    assert_eq!(self.plugin_instances_data.len(), 0);
+                    self.plugin_instances_data = engine.unload_plugins();
+                }
+                Message::ReloadPlugins => {
+                    engine.reload_plugins(std::mem::take(&mut self.plugin_instances_data));
+                }
                 Message::SwitchMode => match self.mode {
                     Mode::Edit => self.set_play_mode(engine),
                     Mode::Play { .. } => self.set_editor_mode(engine),

@@ -610,7 +610,7 @@ impl PathFixer {
         }
     }
 
-    pub fn handle_message(&mut self, message: &Message, ui: &mut UserInterface) {
+    pub fn handle_message(&mut self, message: &Message, ui: &UserInterface) {
         if let Message::Configure { working_directory } = message {
             ui.send_message(FileSelectorMessage::root(
                 self.new_path_selector,

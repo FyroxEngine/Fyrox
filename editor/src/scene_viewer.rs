@@ -1,3 +1,4 @@
+use crate::utils::enable_widget;
 use crate::{
     gui::make_dropdown_list_option_with_height, load_image, make_delete_selection_command,
     AddModelCommand, AssetItem, AssetKind, ChangeSelectionCommand, CommandGroup,
@@ -50,6 +51,7 @@ pub struct SceneViewer {
     switch_mode: Handle<UiNode>,
     sender: Sender<Message>,
     interaction_mode_panel: Handle<UiNode>,
+    contextual_actions: Handle<UiNode>,
 }
 
 fn make_interaction_mode_button(
@@ -132,7 +134,129 @@ impl SceneViewer {
         let unload_plugins;
         let reload_plugins;
         let switch_mode;
-        let interaction_mode_panel;
+
+        let interaction_mode_panel = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .on_row(0)
+                .on_column(0)
+                .with_child({
+                    select_mode = make_interaction_mode_button(
+                        ctx,
+                        include_bytes!("../resources/embed/select.png"),
+                        select_mode_tooltip,
+                    );
+                    select_mode
+                })
+                .with_child({
+                    move_mode = make_interaction_mode_button(
+                        ctx,
+                        include_bytes!("../resources/embed/move_arrow.png"),
+                        move_mode_tooltip,
+                    );
+                    move_mode
+                })
+                .with_child({
+                    rotate_mode = make_interaction_mode_button(
+                        ctx,
+                        include_bytes!("../resources/embed/rotate_arrow.png"),
+                        rotate_mode_tooltip,
+                    );
+                    rotate_mode
+                })
+                .with_child({
+                    scale_mode = make_interaction_mode_button(
+                        ctx,
+                        include_bytes!("../resources/embed/scale_arrow.png"),
+                        scale_mode_tooltip,
+                    );
+                    scale_mode
+                })
+                .with_child({
+                    navmesh_mode = make_interaction_mode_button(
+                        ctx,
+                        include_bytes!("../resources/embed/navmesh.png"),
+                        navmesh_mode_tooltip,
+                    );
+                    navmesh_mode
+                })
+                .with_child({
+                    terrain_mode = make_interaction_mode_button(
+                        ctx,
+                        include_bytes!("../resources/embed/terrain.png"),
+                        terrain_mode_tooltip,
+                    );
+                    terrain_mode
+                }),
+        )
+        .build(ctx);
+
+        let contextual_actions = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .on_column(1)
+                .with_margin(Thickness::uniform(1.0))
+                .with_horizontal_alignment(HorizontalAlignment::Right)
+                .with_child({
+                    unload_plugins = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_width(100.0),
+                    )
+                    .with_text("Unload Plugins")
+                    .build(ctx);
+                    unload_plugins
+                })
+                .with_child({
+                    reload_plugins = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            // Disabled by default, because plugins must
+                            // be unloaded before reloading.
+                            .with_enabled(false)
+                            .with_width(100.0),
+                    )
+                    .with_text("Reload Plugins")
+                    .build(ctx);
+                    reload_plugins
+                })
+                .with_child({
+                    camera_projection = DropdownListBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_width(150.0),
+                    )
+                    .with_items(vec![
+                        make_dropdown_list_option_with_height(ctx, "Perspective (3D)", 22.0),
+                        make_dropdown_list_option_with_height(ctx, "Orthographic (2D)", 22.0),
+                    ])
+                    .with_selected(0)
+                    .build(ctx);
+                    camera_projection
+                }),
+        )
+        .with_orientation(Orientation::Horizontal)
+        .build(ctx);
+
+        let top_ribbon = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child({
+                    switch_mode = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_horizontal_alignment(HorizontalAlignment::Right)
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_width(100.0),
+                    )
+                    .with_text("Play/Stop")
+                    .build(ctx);
+                    switch_mode
+                })
+                .with_child(contextual_actions),
+        )
+        .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .add_row(Row::stretch())
+        .build(ctx);
+
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
             .can_minimize(false)
@@ -140,59 +264,7 @@ impl SceneViewer {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .on_row(0)
-                        .with_child(
-                            StackPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(1.0))
-                                    .with_horizontal_alignment(HorizontalAlignment::Right)
-                                    .with_child({
-                                        switch_mode = ButtonBuilder::new(
-                                            WidgetBuilder::new().with_width(100.0),
-                                        )
-                                        .with_text("Play/Stop")
-                                        .build(ctx);
-                                        switch_mode
-                                    })
-                                    .with_child({
-                                        unload_plugins = ButtonBuilder::new(
-                                            WidgetBuilder::new().with_width(100.0),
-                                        )
-                                        .with_text("Unload Plugins")
-                                        .build(ctx);
-                                        unload_plugins
-                                    })
-                                    .with_child({
-                                        reload_plugins = ButtonBuilder::new(
-                                            WidgetBuilder::new().with_width(100.0),
-                                        )
-                                        .with_text("Reload Plugins")
-                                        .build(ctx);
-                                        reload_plugins
-                                    })
-                                    .with_child({
-                                        camera_projection = DropdownListBuilder::new(
-                                            WidgetBuilder::new().with_width(150.0),
-                                        )
-                                        .with_items(vec![
-                                            make_dropdown_list_option_with_height(
-                                                ctx,
-                                                "Perspective (3D)",
-                                                22.0,
-                                            ),
-                                            make_dropdown_list_option_with_height(
-                                                ctx,
-                                                "Orthographic (2D)",
-                                                22.0,
-                                            ),
-                                        ])
-                                        .with_selected(0)
-                                        .build(ctx);
-                                        camera_projection
-                                    }),
-                            )
-                            .with_orientation(Orientation::Horizontal)
-                            .build(ctx),
-                        )
+                        .with_child(top_ribbon)
                         .with_child(
                             GridBuilder::new(
                                 WidgetBuilder::new()
@@ -228,76 +300,7 @@ impl SceneViewer {
                                         )
                                         .build(ctx),
                                     )
-                                    .with_child({
-                                        interaction_mode_panel = StackPanelBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .on_row(0)
-                                                .on_column(0)
-                                                .with_child({
-                                                    select_mode = make_interaction_mode_button(
-                                                        ctx,
-                                                        include_bytes!(
-                                                            "../resources/embed/select.png"
-                                                        ),
-                                                        select_mode_tooltip,
-                                                    );
-                                                    select_mode
-                                                })
-                                                .with_child({
-                                                    move_mode = make_interaction_mode_button(
-                                                        ctx,
-                                                        include_bytes!(
-                                                            "../resources/embed/move_arrow.png"
-                                                        ),
-                                                        move_mode_tooltip,
-                                                    );
-                                                    move_mode
-                                                })
-                                                .with_child({
-                                                    rotate_mode = make_interaction_mode_button(
-                                                        ctx,
-                                                        include_bytes!(
-                                                            "../resources/embed/rotate_arrow.png"
-                                                        ),
-                                                        rotate_mode_tooltip,
-                                                    );
-                                                    rotate_mode
-                                                })
-                                                .with_child({
-                                                    scale_mode = make_interaction_mode_button(
-                                                        ctx,
-                                                        include_bytes!(
-                                                            "../resources/embed/scale_arrow.png"
-                                                        ),
-                                                        scale_mode_tooltip,
-                                                    );
-                                                    scale_mode
-                                                })
-                                                .with_child({
-                                                    navmesh_mode = make_interaction_mode_button(
-                                                        ctx,
-                                                        include_bytes!(
-                                                            "../resources/embed/navmesh.png"
-                                                        ),
-                                                        navmesh_mode_tooltip,
-                                                    );
-                                                    navmesh_mode
-                                                })
-                                                .with_child({
-                                                    terrain_mode = make_interaction_mode_button(
-                                                        ctx,
-                                                        include_bytes!(
-                                                            "../resources/embed/terrain.png"
-                                                        ),
-                                                        terrain_mode_tooltip,
-                                                    );
-                                                    terrain_mode
-                                                }),
-                                        )
-                                        .build(ctx);
-                                        interaction_mode_panel
-                                    }),
+                                    .with_child(interaction_mode_panel),
                             )
                             .add_row(Row::stretch())
                             .add_column(Column::auto())
@@ -331,6 +334,7 @@ impl SceneViewer {
             reload_plugins,
             switch_mode,
             interaction_mode_panel,
+            contextual_actions,
         }
     }
 }
@@ -451,19 +455,24 @@ impl SceneViewer {
         }
     }
 
+    pub fn handle_message(&mut self, message: &Message, ui: &UserInterface) {
+        match message {
+            Message::UnloadPlugins => {
+                enable_widget(self.unload_plugins, false, ui);
+                enable_widget(self.reload_plugins, true, ui);
+            }
+            Message::ReloadPlugins => {
+                enable_widget(self.unload_plugins, true, ui);
+                enable_widget(self.reload_plugins, false, ui);
+            }
+            _ => (),
+        }
+    }
+
     pub fn on_mode_changed(&self, ui: &UserInterface, mode: &Mode) {
         let enabled = mode.is_edit();
-        for widget in [
-            self.unload_plugins,
-            self.reload_plugins,
-            self.interaction_mode_panel,
-            self.camera_projection,
-        ] {
-            ui.send_message(WidgetMessage::enabled(
-                widget,
-                MessageDirection::ToWidget,
-                enabled,
-            ));
+        for widget in [self.interaction_mode_panel, self.contextual_actions] {
+            enable_widget(widget, enabled, ui);
         }
     }
 

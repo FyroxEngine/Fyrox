@@ -1,3 +1,5 @@
+use fyrox::gui::message::MessageDirection;
+use fyrox::gui::widget::WidgetMessage;
 use fyrox::{
     core::pool::Handle,
     gui::{window::Window, UiNode, UserInterface},
@@ -31,4 +33,12 @@ pub fn window_content(window: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNo
         .cast::<Window>()
         .map(|w| w.content())
         .unwrap_or_default()
+}
+
+pub fn enable_widget(handle: Handle<UiNode>, state: bool, ui: &UserInterface) {
+    ui.send_message(WidgetMessage::enabled(
+        handle,
+        MessageDirection::ToWidget,
+        state,
+    ));
 }

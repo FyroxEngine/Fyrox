@@ -2,9 +2,8 @@
 //!
 //! For more info see [`Base`]
 
-use crate::engine::SerializationContext;
-use crate::script::Script;
 use crate::{
+    core::uuid::Uuid,
     core::{
         algebra::{Matrix4, Vector3},
         inspect::{Inspect, PropertyInfo},
@@ -13,7 +12,7 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
         VecExtensions,
     },
-    engine::resource_manager::ResourceManager,
+    engine::{resource_manager::ResourceManager, SerializationContext},
     impl_directly_inheritable_entity_trait,
     resource::model::Model,
     scene::{
@@ -22,12 +21,10 @@ use crate::{
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
+    script::Script,
     utils::log::Log,
 };
 use fxhash::FxHashMap;
-use fyrox_core::uuid::Uuid;
-use std::io::Cursor;
-use std::sync::Arc;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -749,16 +746,13 @@ pub fn serialize_script(script: &Script) -> Result<Vec<u8>, VisitError> {
     let script = unsafe { &mut *(script as *const _ as *mut Script) };
     script.visit("ScriptData", &mut visitor)?;
 
-    let mut writer = Cursor::new(Vec::new());
-    visitor.save_binary_to_memory(&mut writer)?;
-
-    Ok(writer.into_inner())
+    visitor.save_binary_to_vec()
 }
 
 /// Deserializes script from the data blob.
 pub fn deserialize_script(
     data: Vec<u8>,
-    serialization_context: Arc<SerializationContext>,
+    serialization_context: &SerializationContext,
 ) -> Result<Script, VisitError> {
     let mut visitor = Visitor::load_from_memory(data)?;
 

@@ -690,6 +690,21 @@ impl SceneContainer {
         self.pool.pair_iter()
     }
 
+    /// Returns pair iterator which yields (handle, scene_ref) pairs.
+    pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Scene>, &mut Scene)> {
+        self.pool.pair_iter_mut()
+    }
+
+    /// Tries to borrow a scene using its handle.
+    pub fn try_get(&self, handle: Handle<Scene>) -> Option<&Scene> {
+        self.pool.try_borrow(handle)
+    }
+
+    /// Tries to borrow a scene using its handle.
+    pub fn try_get_mut(&mut self, handle: Handle<Scene>) -> Option<&mut Scene> {
+        self.pool.try_borrow_mut(handle)
+    }
+
     /// Creates new iterator over scenes in container.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &Scene> {

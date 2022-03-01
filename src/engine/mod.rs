@@ -7,6 +7,7 @@ pub mod error;
 pub mod framework;
 pub mod resource_manager;
 
+use crate::plugin::container::PluginInstanceData;
 use crate::{
     asset::ResourceState,
     core::{algebra::Vector2, instant, pool::Handle},
@@ -539,8 +540,15 @@ impl Engine {
         self.sound_engine.lock().unwrap().master_gain()
     }
 
-    /// Unloads all currently loaded plugins.
-    pub fn unload_plugins(&mut self) {
+    /// Serializes all currently loaded plugins and unloads them. The returned value must be used
+    /// as an argument in [`Engine::reload_plugins`].
+    ///
+    /// # Important notes.
+    ///
+    /// Do not use this method unless you 100% sure what you are doing! This method is **destructive**
+    /// it will destroy script instances on every scene!
+    #[must_use]
+    pub fn unload_plugins(&mut self) -> Vec<PluginInstanceData> {
         self.plugins.clear(&mut PluginContext {
             scenes: &mut self.scenes,
             ui: &mut self.user_interface,
@@ -548,18 +556,49 @@ impl Engine {
             renderer: &mut self.renderer,
             dt: 0.0,
             serialization_context: &self.serialization_context,
-        });
+        })
     }
 
-    /// Re-loads all available plugins.
-    pub fn reload_plugins(&mut self) {
-        self.plugins.reload(&mut PluginContext {
+    /// Re-loads all available plugins. `instances` must be value from [`Engine::unload_plugins`]!
+    ///
+    /// # Important notes.
+    ///
+    /// Do not use this method unless you 100% sure what you are doing!
+    pub fn reload_plugins(&mut self, instances: Vec<PluginInstanceData>) {
+        self.plugins.reload(
+            &mut PluginContext {
+                scenes: &mut self.scenes,
+                ui: &mut self.user_interface,
+                resource_manager: &self.resource_manager,
+                renderer: &mut self.renderer,
+                dt: 0.0,
+                serialization_context: &self.serialization_context,
+            },
+            instances,
+        );
+    }
+
+    /// Unloads every loaded plugin and loads all available plugins.
+    ///
+    /// # Important notes.
+    ///
+    /// Do not use this method unless you 100% sure what you are doing! This method is **destructive**
+    /// it will destroy script instances on every scene! It is intended to be used in controlled
+    /// environment such as editor when there is some guarantees that it will **not** damage anything.
+    pub fn load_plugins(&mut self) {
+        let mut ctx = PluginContext {
             scenes: &mut self.scenes,
             ui: &mut self.user_interface,
             resource_manager: &self.resource_manager,
             renderer: &mut self.renderer,
             dt: 0.0,
             serialization_context: &self.serialization_context,
-        });
+        };
+
+        // Intentionally drop serialized plugin instances data. We'll not restore plugins at load.
+        let _ = self.plugins.clear(&mut ctx);
+
+        // Do a clean load of plugins.
+        self.plugins.load(&mut ctx);
     }
 }
