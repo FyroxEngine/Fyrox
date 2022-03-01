@@ -230,12 +230,21 @@ impl ScriptTrait for Player {
     }
 }
 
-#[derive(Visit, Inspect, Debug, Clone, Default)]
+#[derive(Visit, Inspect, Debug, Clone)]
 struct Jumper {
     timer: f32,
 
     #[visit(optional)]
     period: f32,
+}
+
+impl Default for Jumper {
+    fn default() -> Self {
+        Self {
+            timer: 0.0,
+            period: 0.5,
+        }
+    }
 }
 
 impl TypeUuidProvider for Jumper {
@@ -259,7 +268,7 @@ impl ScriptTrait for Jumper {
 
     fn on_update(&mut self, context: ScriptContext) {
         if let Some(rigid_body) = context.node.cast_mut::<RigidBody>() {
-            if self.timer > 0.6 {
+            if self.timer > self.period {
                 rigid_body.apply_force(Vector3::new(0.0, 200.0, 0.0));
                 self.timer = 0.0;
             }
