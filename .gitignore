@@ -2,7 +2,7 @@
 **/*.rs.bk
 /cloc
 *.lock
-/*.log
+*.log
 /*.png
 /examples/data/lightmaps
 /save.bin
