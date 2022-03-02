@@ -17,6 +17,8 @@ use std::{
 pub mod container;
 
 pub struct PluginContext<'a> {
+    /// `true` if  the plugin running under the editor, false - otherwise.
+    pub is_in_editor: bool,
     pub scenes: &'a mut SceneContainer,
     pub ui: &'a mut UserInterface,
     pub resource_manager: &'a ResourceManager,

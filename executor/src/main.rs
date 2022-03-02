@@ -27,7 +27,7 @@ fn main() {
     })
     .unwrap();
 
-    engine.load_plugins();
+    engine.load_plugins(false);
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
@@ -50,6 +50,8 @@ fn main() {
                 while dt >= fixed_timestep {
                     dt -= fixed_timestep;
                     elapsed_time += fixed_timestep;
+
+                    engine.update_plugins(fixed_timestep, false);
 
                     for &scene_handle in scenes.iter() {
                         engine.update_scene_scripts(scene_handle, fixed_timestep);

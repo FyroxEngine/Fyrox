@@ -358,8 +358,6 @@ impl Engine {
             scene.update(frame_size, dt);
         }
 
-        self.handle_plugins(dt);
-
         let time = instant::Instant::now();
         self.user_interface.update(window_size, dt);
         self.ui_time = instant::Instant::now() - time;
@@ -369,10 +367,12 @@ impl Engine {
     ///
     /// # Important notes
     ///
-    /// Normally, this is called from `Engine::update()`.
-    /// You should only call this manually if you don't use that method.
-    pub fn handle_plugins(&mut self, dt: f32) {
+    /// This method is intended to be used by the editor and game runner. If you're using the
+    /// engine as a framework, then you should not call this method because you'll most likely
+    /// do something wrong.
+    pub fn update_plugins(&mut self, dt: f32, is_in_editor: bool) {
         let mut context = PluginContext {
+            is_in_editor,
             scenes: &mut self.scenes,
             ui: &mut self.user_interface,
             resource_manager: &self.resource_manager,
@@ -548,8 +548,9 @@ impl Engine {
     /// Do not use this method unless you 100% sure what you are doing! This method is **destructive**
     /// it will destroy script instances on every scene!
     #[must_use]
-    pub fn unload_plugins(&mut self) -> Vec<PluginInstanceData> {
+    pub fn unload_plugins(&mut self, is_in_editor: bool) -> Vec<PluginInstanceData> {
         self.plugins.clear(&mut PluginContext {
+            is_in_editor,
             scenes: &mut self.scenes,
             ui: &mut self.user_interface,
             resource_manager: &self.resource_manager,
@@ -564,9 +565,10 @@ impl Engine {
     /// # Important notes.
     ///
     /// Do not use this method unless you 100% sure what you are doing!
-    pub fn reload_plugins(&mut self, instances: Vec<PluginInstanceData>) {
+    pub fn reload_plugins(&mut self, instances: Vec<PluginInstanceData>, is_in_editor: bool) {
         self.plugins.reload(
             &mut PluginContext {
+                is_in_editor,
                 scenes: &mut self.scenes,
                 ui: &mut self.user_interface,
                 resource_manager: &self.resource_manager,
@@ -585,8 +587,9 @@ impl Engine {
     /// Do not use this method unless you 100% sure what you are doing! This method is **destructive**
     /// it will destroy script instances on every scene! It is intended to be used in controlled
     /// environment such as editor when there is some guarantees that it will **not** damage anything.
-    pub fn load_plugins(&mut self) {
+    pub fn load_plugins(&mut self, is_in_editor: bool) {
         let mut ctx = PluginContext {
+            is_in_editor,
             scenes: &mut self.scenes,
             ui: &mut self.user_interface,
             resource_manager: &self.resource_manager,

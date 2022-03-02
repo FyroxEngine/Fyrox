@@ -1083,7 +1083,7 @@ impl Editor {
 
         // This is safe to do, because at this point we guarantee that there is no scene with
         // scripts loaded.
-        engine.load_plugins();
+        engine.load_plugins(true);
 
         engine
             .get_window()
@@ -1238,10 +1238,10 @@ impl Editor {
                 Message::UnloadPlugins => {
                     // Consecutive plugin unloads is prohibited!
                     assert_eq!(self.plugin_instances_data.len(), 0);
-                    self.plugin_instances_data = engine.unload_plugins();
+                    self.plugin_instances_data = engine.unload_plugins(true);
                 }
                 Message::ReloadPlugins => {
-                    engine.reload_plugins(std::mem::take(&mut self.plugin_instances_data));
+                    engine.reload_plugins(std::mem::take(&mut self.plugin_instances_data), true);
                 }
                 Message::SwitchMode => match self.mode {
                     Mode::Edit => self.set_play_mode(engine),
@@ -1323,6 +1323,9 @@ fn update(
     while dt >= fixed_timestep {
         dt -= fixed_timestep;
         *elapsed_time += fixed_timestep;
+
+        engine.update_plugins(fixed_timestep, true);
+
         engine.update(fixed_timestep);
         editor.update(engine, fixed_timestep);
 
