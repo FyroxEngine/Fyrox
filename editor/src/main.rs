@@ -296,7 +296,12 @@ pub fn make_save_file_selector(ctx: &mut BuildContext) -> Handle<UiNode> {
 
 pub enum Mode {
     Edit,
-    Play { scene: Handle<Scene> },
+    Play {
+        // Play mode scene.
+        scene: Handle<Scene>,
+        // List of scenes that existed before entering play mode.
+        existing_scenes: Vec<Handle<Scene>>,
+    },
 }
 
 impl Mode {
@@ -819,6 +824,12 @@ impl Editor {
             self.scene_viewer
                 .set_render_target(&engine.user_interface, purified_scene.render_target.clone());
 
+            let existing_scenes = engine
+                .scenes
+                .pair_iter()
+                .map(|(h, _)| h)
+                .collect::<Vec<_>>();
+
             let handle = engine.scenes.add(purified_scene);
 
             // Initialize scripts.
@@ -826,7 +837,10 @@ impl Editor {
 
             engine.renderer.flush();
 
-            self.mode = Mode::Play { scene: handle };
+            self.mode = Mode::Play {
+                scene: handle,
+                existing_scenes,
+            };
             self.on_mode_changed(engine);
         }
     }
@@ -834,8 +848,32 @@ impl Editor {
     fn set_editor_mode(&mut self, engine: &mut GameEngine) {
         if let Some(editor_scene) = self.scene.as_ref() {
             // Destroy play mode scene.
-            if let Mode::Play { scene } = self.mode {
+            if let Mode::Play {
+                scene,
+                existing_scenes,
+            } = std::mem::replace(&mut self.mode, Mode::Edit)
+            {
+                // Remove play mode scene.
                 engine.scenes.remove(scene);
+
+                // Remove every scene that was created in the play mode.
+                let scenes_to_destroy = engine
+                    .scenes
+                    .pair_iter()
+                    .filter_map(|(h, _)| {
+                        if existing_scenes.contains(&h) {
+                            // Keep existing scenes.
+                            None
+                        } else {
+                            // Destroy scenes that were created in play mode.
+                            Some(h)
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                for scene_to_destroy in scenes_to_destroy {
+                    engine.scenes.remove(scene_to_destroy);
+                }
 
                 // Force previewer to use editor's scene.
                 let render_target = engine.scenes[editor_scene.scene].render_target.clone();
@@ -844,7 +882,6 @@ impl Editor {
 
                 engine.renderer.flush();
 
-                self.mode = Mode::Edit;
                 self.on_mode_changed(engine);
             }
         }
@@ -902,7 +939,7 @@ impl Editor {
         if let Some(editor_scene) = self.scene.as_ref() {
             let scene = match self.mode {
                 Mode::Edit => &mut engine.scenes[editor_scene.scene],
-                Mode::Play { scene } => &mut engine.scenes[scene],
+                Mode::Play { scene, .. } => &mut engine.scenes[scene],
             };
 
             // Create new render target if preview frame has changed its size.
@@ -1151,7 +1188,7 @@ impl Editor {
     fn update(&mut self, engine: &mut GameEngine, dt: f32) {
         scope_profile!();
 
-        if let Mode::Play { scene } = self.mode {
+        if let Mode::Play { scene, .. } = self.mode {
             engine.update_scene_scripts(scene, dt);
         }
 
@@ -1296,7 +1333,7 @@ impl Editor {
     }
 
     fn handle_os_event(&self, event: &Event<()>, engine: &mut GameEngine) {
-        if let Mode::Play { scene } = self.mode {
+        if let Mode::Play { scene, .. } = self.mode {
             engine.handle_os_event_by_scripts(event, scene, 0.0);
         }
     }
