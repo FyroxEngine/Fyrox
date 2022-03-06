@@ -1,5 +1,7 @@
 #![allow(missing_docs)]
 
+use crate::core::pool::Handle;
+use crate::scene::Scene;
 use crate::{
     core::instant::Instant,
     engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
@@ -12,6 +14,7 @@ use crate::{
     },
     window::WindowBuilder,
 };
+use std::collections::HashSet;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -71,6 +74,7 @@ impl Executor {
         let clock = Instant::now();
         let fixed_timestep = 1.0 / 60.0;
         let mut elapsed_time = 0.0;
+        let mut initialized_scenes = HashSet::<Handle<Scene>>::default();
 
         event_loop.run(move |event, _, control_flow| {
             let scenes = engine
@@ -79,8 +83,13 @@ impl Executor {
                 .map(|(s, _)| s)
                 .collect::<Vec<_>>();
 
-            for &scene_handle in scenes.iter() {
-                engine.handle_os_event_by_scripts(&event, scene_handle, fixed_timestep);
+            for scene_handle in scenes.iter() {
+                if !initialized_scenes.contains(scene_handle) {
+                    engine.initialize_scene_scripts(*scene_handle, fixed_timestep);
+                    initialized_scenes.insert(*scene_handle);
+                }
+
+                engine.handle_os_event_by_scripts(&event, *scene_handle, fixed_timestep);
             }
 
             match event {

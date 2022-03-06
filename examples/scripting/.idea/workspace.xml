@@ -10,23 +10,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f1aceae8-7c33-40c3-a2da-82b82ccfcb24" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../../Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../../Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../editor/src/main.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../editor/src/scene_viewer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../editor/src/scene_viewer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/test_scripting.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/plugins.ron" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/profiling.log" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../executor/Cargo.toml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../executor/src/main.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../src/editor/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../src/engine/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/engine/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../src/plugin/container.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../src/plugin/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/plugin/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/engine/executor.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/engine/executor.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -60,7 +45,7 @@
     <property name="cidr.known.project.marker" value="true" />
     <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Cargo.Game Release">
     <configuration name="Editor Release" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="run --release --package editor" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
@@ -77,6 +62,26 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
+    <configuration name="Game Release" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="run --release --package executor" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="Cargo.Editor Release" />
+      <item itemvalue="Cargo.Game Release" />
+    </list>
   </component>
   <component name="RustProjectSettings">
     <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
@@ -89,7 +94,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1646589837689</updated>
-      <workItem from="1646589838952" duration="147000" />
+      <workItem from="1646589838952" duration="1395000" />
     </task>
     <servers />
   </component>
