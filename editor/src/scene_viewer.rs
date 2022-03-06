@@ -389,9 +389,9 @@ impl SceneViewer {
                     .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
                     .unwrap();
             } else if message.destination() == self.unload_plugins {
-                self.sender.send(Message::UnloadPlugins).unwrap()
+                //self.sender.send(Message::UnloadPlugins).unwrap()
             } else if message.destination() == self.reload_plugins {
-                self.sender.send(Message::ReloadPlugins).unwrap()
+                // self.sender.send(Message::ReloadPlugins).unwrap()
             } else if message.destination() == self.switch_mode {
                 self.sender.send(Message::SwitchMode).unwrap();
             }
@@ -452,20 +452,6 @@ impl SceneViewer {
                     _ => {}
                 }
             }
-        }
-    }
-
-    pub fn handle_message(&mut self, message: &Message, ui: &UserInterface) {
-        match message {
-            Message::UnloadPlugins => {
-                enable_widget(self.unload_plugins, false, ui);
-                enable_widget(self.reload_plugins, true, ui);
-            }
-            Message::ReloadPlugins => {
-                enable_widget(self.unload_plugins, true, ui);
-                enable_widget(self.reload_plugins, false, ui);
-            }
-            _ => (),
         }
     }
 

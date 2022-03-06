@@ -1,6 +1,7 @@
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
+        futures::executor::block_on,
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         uuid::Uuid,
@@ -8,21 +9,25 @@ use fyrox::{
     },
     event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
     gui::inspector::{FieldKind, PropertyChanged},
-    plugin::{Plugin, PluginContext},
+    plugin::{Plugin, PluginContext, PluginRegistrationContext},
     scene::{
-        node::{Node, TypeUuidProvider},
-        rigidbody::RigidBody,
+        camera::Camera, node::Node, node::TypeUuidProvider, rigidbody::RigidBody, Scene,
+        SceneLoader,
     },
     script::{ScriptContext, ScriptTrait},
 };
 use std::str::FromStr;
 
 #[derive(Visit, Inspect, Default)]
-struct GamePlugin {}
+pub struct GamePlugin {
+    scene: Handle<Scene>,
+}
 
 impl GamePlugin {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            scene: Default::default(),
+        }
     }
 }
 
@@ -33,21 +38,47 @@ impl TypeUuidProvider for GamePlugin {
 }
 
 impl Plugin for GamePlugin {
-    fn on_init(&mut self, engine: &mut PluginContext) {
-        engine
+    fn on_register(&mut self, context: PluginRegistrationContext) {
+        context
             .serialization_context
             .script_constructors
             .add::<GamePlugin, Player, &str>("Player");
 
-        engine
+        context
             .serialization_context
             .script_constructors
             .add::<GamePlugin, Jumper, &str>("Jumper");
     }
 
+    fn on_init(&mut self, context: PluginContext) {
+        let mut scene = block_on(
+            block_on(SceneLoader::from_file(
+                "unnamed.rgs",
+                context.serialization_context.clone(),
+            ))
+            .expect("Invalid scene!")
+            .finish(context.resource_manager.clone()),
+        );
+
+        for node in scene.graph.linear_iter_mut() {
+            if let Some(camera) = node.cast_mut::<Camera>() {
+                camera.set_enabled(true);
+            }
+        }
+
+        self.scene = context.scenes.add(scene);
+    }
+
     fn on_unload(&mut self, _context: &mut PluginContext) {}
 
-    fn update(&mut self, _context: &mut PluginContext) {}
+    fn update(&mut self, _context: &mut PluginContext) {
+        let scene = &mut _context.scenes[self.scene];
+        let dc = &mut scene.drawing_context;
+
+        dc.clear_lines();
+
+        scene.graph.physics.draw(dc);
+    }
 
     fn id(&self) -> Uuid {
         Self::type_uuid()
@@ -82,7 +113,7 @@ struct Player {
 impl Default for Player {
     fn default() -> Self {
         Self {
-            speed: 0.1,
+            speed: 0.2,
             yaw: 0.0,
             pitch: 0.0,
             camera: Default::default(),
@@ -221,12 +252,12 @@ impl ScriptTrait for Player {
         }
     }
 
-    fn id(&self) -> Uuid {
-        Self::type_uuid()
-    }
-
     fn plugin_uuid(&self) -> Uuid {
         GamePlugin::type_uuid()
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
     }
 }
 

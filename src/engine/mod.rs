@@ -4,10 +4,11 @@
 #![warn(missing_docs)]
 
 pub mod error;
+pub mod executor;
 pub mod framework;
 pub mod resource_manager;
 
-use crate::plugin::container::PluginInstanceData;
+use crate::plugin::{Plugin, PluginRegistrationContext};
 use crate::{
     asset::ResourceState,
     core::{algebra::Vector2, instant, pool::Handle},
@@ -18,7 +19,7 @@ use crate::{
     event::Event,
     event_loop::EventLoop,
     gui::UserInterface,
-    plugin::{container::PluginContainer, PluginContext},
+    plugin::PluginContext,
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{model::Model, texture::TextureKind},
     scene::{
@@ -86,8 +87,8 @@ pub struct Engine {
     // device. For more info see docs for Context.
     sound_engine: Arc<Mutex<SoundEngine>>,
 
-    /// A set of plugins used by the engine.
-    pub plugins: PluginContainer,
+    // A set of plugins used by the engine.
+    plugins: Vec<Box<dyn Plugin>>,
 
     /// A special container that is able to create nodes by their type UUID. Use a copy of this
     /// value whenever you need it as a parameter in other parts of the engine.
@@ -304,7 +305,7 @@ impl Engine {
             context,
             #[cfg(target_arch = "wasm32")]
             window,
-            plugins: PluginContainer::new(),
+            plugins: Default::default(),
             serialization_context: node_constructors,
         })
     }
@@ -378,12 +379,10 @@ impl Engine {
             resource_manager: &self.resource_manager,
             renderer: &mut self.renderer,
             dt,
-            serialization_context: &self.serialization_context,
+            serialization_context: self.serialization_context.clone(),
         };
 
-        self.plugins.handle_fs_events(&mut context);
-
-        for plugin in self.plugins.plugins.iter_mut() {
+        for plugin in self.plugins.iter_mut() {
             plugin.update(&mut context);
         }
     }
@@ -419,7 +418,6 @@ impl Engine {
 
             // Find respective plugin.
             if let Some(plugin) = self
-                .plugins
                 .plugins
                 .iter_mut()
                 .find(|p| p.id() == script.plugin_uuid())
@@ -540,68 +538,27 @@ impl Engine {
         self.sound_engine.lock().unwrap().master_gain()
     }
 
-    /// Serializes all currently loaded plugins and unloads them. The returned value must be used
-    /// as an argument in [`Engine::reload_plugins`].
-    ///
-    /// # Important notes.
-    ///
-    /// Do not use this method unless you 100% sure what you are doing! This method is **destructive**
-    /// it will destroy script instances on every scene!
-    #[must_use]
-    pub fn unload_plugins(&mut self, is_in_editor: bool) -> Vec<PluginInstanceData> {
-        self.plugins.clear(&mut PluginContext {
-            is_in_editor,
-            scenes: &mut self.scenes,
-            ui: &mut self.user_interface,
-            resource_manager: &self.resource_manager,
-            renderer: &mut self.renderer,
-            dt: 0.0,
-            serialization_context: &self.serialization_context,
-        })
-    }
+    /// Adds new plugin.
+    pub fn add_plugin<P>(&mut self, mut plugin: P, is_in_editor: bool, init: bool)
+    where
+        P: Plugin,
+    {
+        plugin.on_register(PluginRegistrationContext {
+            serialization_context: self.serialization_context.clone(),
+        });
 
-    /// Re-loads all available plugins. `instances` must be value from [`Engine::unload_plugins`]!
-    ///
-    /// # Important notes.
-    ///
-    /// Do not use this method unless you 100% sure what you are doing!
-    pub fn reload_plugins(&mut self, instances: Vec<PluginInstanceData>, is_in_editor: bool) {
-        self.plugins.reload(
-            &mut PluginContext {
+        if init {
+            plugin.on_init(PluginContext {
                 is_in_editor,
                 scenes: &mut self.scenes,
                 ui: &mut self.user_interface,
                 resource_manager: &self.resource_manager,
                 renderer: &mut self.renderer,
                 dt: 0.0,
-                serialization_context: &self.serialization_context,
-            },
-            instances,
-        );
-    }
+                serialization_context: self.serialization_context.clone(),
+            });
+        }
 
-    /// Unloads every loaded plugin and loads all available plugins.
-    ///
-    /// # Important notes.
-    ///
-    /// Do not use this method unless you 100% sure what you are doing! This method is **destructive**
-    /// it will destroy script instances on every scene! It is intended to be used in controlled
-    /// environment such as editor when there is some guarantees that it will **not** damage anything.
-    pub fn load_plugins(&mut self, is_in_editor: bool) {
-        let mut ctx = PluginContext {
-            is_in_editor,
-            scenes: &mut self.scenes,
-            ui: &mut self.user_interface,
-            resource_manager: &self.resource_manager,
-            renderer: &mut self.renderer,
-            dt: 0.0,
-            serialization_context: &self.serialization_context,
-        };
-
-        // Intentionally drop serialized plugin instances data. We'll not restore plugins at load.
-        let _ = self.plugins.clear(&mut ctx);
-
-        // Do a clean load of plugins.
-        self.plugins.load(&mut ctx);
+        self.plugins.push(Box::new(plugin));
     }
 }

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" ENABLED="true" CONFIG_NAME="Debug" />
+    </configurations>
+  </component>
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="f1aceae8-7c33-40c3-a2da-82b82ccfcb24" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../../Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../../Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../editor/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../editor/src/scene_viewer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../editor/src/scene_viewer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/test_scripting.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plugins.ron" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/profiling.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../executor/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../executor/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/editor/mod.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/engine/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/engine/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/plugin/container.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/plugin/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/plugin/mod.rs" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="3u453lsq" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectId" id="261SwU8heJn5w02r5CngiDqBXnY" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="RunOnceActivity.cidr.known.project.marker" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="cf.first.check.clang-format" value="false" />
+    <property name="cidr.known.project.marker" value="true" />
+    <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
+  </component>
+  <component name="RunManager">
+    <configuration name="Editor Release" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="run --release --package editor" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="RustProjectSettings">
+    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f1aceae8-7c33-40c3-a2da-82b82ccfcb24" name="Changes" comment="" />
+      <created>1646589837689</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1646589837689</updated>
+      <workItem from="1646589838952" duration="147000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>

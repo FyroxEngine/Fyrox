@@ -1,8 +1,0 @@
-(
-    plugins: [
-        (
-            name: "Scripting Plugin",
-            path: "../../target/debug/scripting.dll"
-        )
-    ]
-)
