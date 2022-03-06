@@ -45,7 +45,7 @@
     <property name="cidr.known.project.marker" value="true" />
     <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
   </component>
-  <component name="RunManager" selected="Cargo.Game Release">
+  <component name="RunManager" selected="Cargo.Editor Release">
     <configuration name="Editor Release" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="run --release --package editor" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />

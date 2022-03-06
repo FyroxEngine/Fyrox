@@ -1375,63 +1375,70 @@ impl Editor {
         let fixed_timestep = 1.0 / 60.0;
         let mut elapsed_time = 0.0;
 
-        event_loop.run(move |event, _, control_flow| match event {
-            Event::MainEventsCleared => {
-                update(&mut self, &mut elapsed_time, fixed_timestep, &clock);
+        event_loop.run(move |event, _, control_flow| {
+            if let Mode::Play { scene, .. } = self.mode {
+                self.engine
+                    .handle_os_event_by_scripts(&event, scene, fixed_timestep);
+            }
 
-                if self.exit {
-                    *control_flow = ControlFlow::Exit;
-                }
-            }
-            Event::RedrawRequested(_) => {
-                self.engine.render().unwrap();
-            }
-            Event::WindowEvent { event, .. } => {
-                match event {
-                    WindowEvent::CloseRequested => {
-                        self.message_sender
-                            .send(Message::Exit { force: false })
-                            .unwrap();
+            match event {
+                Event::MainEventsCleared => {
+                    update(&mut self, &mut elapsed_time, fixed_timestep, &clock);
+
+                    if self.exit {
+                        *control_flow = ControlFlow::Exit;
                     }
-                    WindowEvent::Resized(size) => {
-                        if let Err(e) = self.engine.set_frame_size(size.into()) {
-                            fyrox::utils::log::Log::writeln(
-                                MessageKind::Error,
-                                format!("Failed to set renderer size! Reason: {:?}", e),
-                            );
+                }
+                Event::RedrawRequested(_) => {
+                    self.engine.render().unwrap();
+                }
+                Event::WindowEvent { event, .. } => {
+                    match event {
+                        WindowEvent::CloseRequested => {
+                            self.message_sender
+                                .send(Message::Exit { force: false })
+                                .unwrap();
                         }
-                        self.engine
-                            .user_interface
-                            .send_message(WidgetMessage::width(
-                                self.root_grid,
-                                MessageDirection::ToWidget,
-                                size.width as f32,
-                            ));
-                        self.engine
-                            .user_interface
-                            .send_message(WidgetMessage::height(
-                                self.root_grid,
-                                MessageDirection::ToWidget,
-                                size.height as f32,
-                            ));
+                        WindowEvent::Resized(size) => {
+                            if let Err(e) = self.engine.set_frame_size(size.into()) {
+                                fyrox::utils::log::Log::writeln(
+                                    MessageKind::Error,
+                                    format!("Failed to set renderer size! Reason: {:?}", e),
+                                );
+                            }
+                            self.engine
+                                .user_interface
+                                .send_message(WidgetMessage::width(
+                                    self.root_grid,
+                                    MessageDirection::ToWidget,
+                                    size.width as f32,
+                                ));
+                            self.engine
+                                .user_interface
+                                .send_message(WidgetMessage::height(
+                                    self.root_grid,
+                                    MessageDirection::ToWidget,
+                                    size.height as f32,
+                                ));
+                        }
+                        _ => (),
                     }
-                    _ => (),
-                }
 
-                if let Some(os_event) = translate_event(&event) {
-                    self.engine.user_interface.process_os_event(&os_event);
-                }
-            }
-            Event::LoopDestroyed => {
-                if let Ok(profiling_results) = fyrox::core::profiler::print() {
-                    if let Ok(mut file) =
-                        fs::File::create(project_dirs::working_data_dir("profiling.log"))
-                    {
-                        let _ = writeln!(file, "{}", profiling_results);
+                    if let Some(os_event) = translate_event(&event) {
+                        self.engine.user_interface.process_os_event(&os_event);
                     }
                 }
+                Event::LoopDestroyed => {
+                    if let Ok(profiling_results) = fyrox::core::profiler::print() {
+                        if let Ok(mut file) =
+                            fs::File::create(project_dirs::working_data_dir("profiling.log"))
+                        {
+                            let _ = writeln!(file, "{}", profiling_results);
+                        }
+                    }
+                }
+                _ => *control_flow = ControlFlow::Poll,
             }
-            _ => *control_flow = ControlFlow::Poll,
         });
     }
 }
