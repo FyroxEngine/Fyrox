@@ -10,8 +10,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f1aceae8-7c33-40c3-a2da-82b82ccfcb24" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../src/engine/executor.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/engine/executor.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../editor/src/scene_viewer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../editor/src/scene_viewer.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -94,7 +93,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1646589837689</updated>
-      <workItem from="1646589838952" duration="1395000" />
+      <workItem from="1646589838952" duration="1739000" />
     </task>
     <servers />
   </component>

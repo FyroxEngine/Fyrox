@@ -46,8 +46,6 @@ pub struct SceneViewer {
     navmesh_mode: Handle<UiNode>,
     terrain_mode: Handle<UiNode>,
     camera_projection: Handle<UiNode>,
-    unload_plugins: Handle<UiNode>,
-    reload_plugins: Handle<UiNode>,
     switch_mode: Handle<UiNode>,
     sender: Sender<Message>,
     interaction_mode_panel: Handle<UiNode>,
@@ -131,8 +129,6 @@ impl SceneViewer {
         let terrain_mode;
         let selection_frame;
         let camera_projection;
-        let unload_plugins;
-        let reload_plugins;
         let switch_mode;
 
         let interaction_mode_panel = StackPanelBuilder::new(
@@ -196,29 +192,6 @@ impl SceneViewer {
                 .on_column(1)
                 .with_margin(Thickness::uniform(1.0))
                 .with_horizontal_alignment(HorizontalAlignment::Right)
-                .with_child({
-                    unload_plugins = ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_width(100.0),
-                    )
-                    .with_text("Unload Plugins")
-                    .build(ctx);
-                    unload_plugins
-                })
-                .with_child({
-                    reload_plugins = ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            // Disabled by default, because plugins must
-                            // be unloaded before reloading.
-                            .with_enabled(false)
-                            .with_width(100.0),
-                    )
-                    .with_text("Reload Plugins")
-                    .build(ctx);
-                    reload_plugins
-                })
                 .with_child({
                     camera_projection = DropdownListBuilder::new(
                         WidgetBuilder::new()
@@ -330,8 +303,6 @@ impl SceneViewer {
             terrain_mode,
             camera_projection,
             click_mouse_pos: None,
-            unload_plugins,
-            reload_plugins,
             switch_mode,
             interaction_mode_panel,
             contextual_actions,
@@ -388,10 +359,6 @@ impl SceneViewer {
                 self.sender
                     .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
                     .unwrap();
-            } else if message.destination() == self.unload_plugins {
-                //self.sender.send(Message::UnloadPlugins).unwrap()
-            } else if message.destination() == self.reload_plugins {
-                // self.sender.send(Message::ReloadPlugins).unwrap()
             } else if message.destination() == self.switch_mode {
                 self.sender.send(Message::SwitchMode).unwrap();
             }
