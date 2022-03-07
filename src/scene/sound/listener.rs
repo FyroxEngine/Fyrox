@@ -125,12 +125,12 @@ impl ListenerBuilder {
         }
     }
 
-    /// Creates [`Node::Listener`] node.
+    /// Creates [`Listener`] node.
     pub fn build_node(self) -> Node {
         Node::new(self.build_listener())
     }
 
-    /// Creates [`Node::Listener`] node and adds it to the scene graph.
+    /// Creates [`Listener`] node and adds it to the scene graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
     }
