@@ -372,12 +372,12 @@ impl Editor {
             window_builder,
             resource_manager: ResourceManager::new(serialization_context.clone()),
             serialization_context,
-            events_loop: &event_loop,
+            events_loop: event_loop,
             vsync: true,
         })
         .unwrap();
 
-        let overlay_pass = OverlayRenderPass::new(&mut engine.renderer.pipeline_state());
+        let overlay_pass = OverlayRenderPass::new(engine.renderer.pipeline_state());
         engine.renderer.add_render_pass(overlay_pass);
 
         let (message_sender, message_receiver) = mpsc::channel();
@@ -678,7 +678,7 @@ impl Editor {
         self.sync_to_model();
 
         self.scene_viewer.set_title(
-            &mut self.engine.user_interface,
+            &self.engine.user_interface,
             format!(
                 "Scene Preview - {}",
                 path.map_or("Unnamed Scene".to_string(), |p| p
@@ -1433,7 +1433,7 @@ impl Editor {
                         _ => (),
                     }
 
-                    if let Some(os_event) = translate_event(&event) {
+                    if let Some(os_event) = translate_event(event) {
                         self.engine.user_interface.process_os_event(&os_event);
                     }
                 }

@@ -735,6 +735,7 @@ impl Default for Base {
 }
 
 /// Serializes script in a data blob.
+#[allow(clippy::cast_ref_to_mut)] // See SAFETY block below
 pub fn serialize_script(script: &Script) -> Result<Vec<u8>, VisitError> {
     let mut visitor = Visitor::new();
 

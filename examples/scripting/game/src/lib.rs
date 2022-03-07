@@ -34,6 +34,12 @@ pub struct GamePlugin {
     ui: Rc<RefCell<UserInterface>>,
 }
 
+impl Default for GamePlugin {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GamePlugin {
     pub fn new() -> Self {
         Self {
@@ -156,7 +162,7 @@ impl Plugin for GamePlugin {
             }
         }
 
-        while let Some(_) = ui.poll_message() {}
+        while ui.poll_message().is_some() {}
     }
 
     fn id(&self) -> Uuid {
@@ -300,6 +306,7 @@ impl ScriptTrait for Player {
         }
     }
 
+    #[allow(clippy::collapsible_match)] // False positive
     fn on_os_event(&mut self, event: &Event<()>, _context: ScriptContext) {
         match event {
             Event::DeviceEvent { event, .. } => {
@@ -403,10 +410,4 @@ impl ScriptTrait for Jumper {
     fn plugin_uuid(&self) -> Uuid {
         GamePlugin::type_uuid()
     }
-}
-
-// Script entry point.
-#[no_mangle]
-pub extern "C" fn fyrox_main() -> Box<Box<dyn Plugin>> {
-    Box::new(Box::new(GamePlugin::new()))
 }

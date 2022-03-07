@@ -39,6 +39,12 @@ impl DerefMut for Executor {
     }
 }
 
+impl Default for Executor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Executor {
     pub fn new() -> Self {
         let event_loop = EventLoop::new();

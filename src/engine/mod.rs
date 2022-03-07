@@ -46,6 +46,12 @@ pub struct SerializationContext {
     pub script_constructors: ScriptConstructorContainer,
 }
 
+impl Default for SerializationContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SerializationContext {
     /// Creates default serialization context.
     pub fn new() -> Self {

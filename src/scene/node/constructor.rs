@@ -90,4 +90,9 @@ impl NodeConstructorContainer {
     pub fn len(&self) -> usize {
         self.map.lock().len()
     }
+
+    /// Returns true if the container is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }

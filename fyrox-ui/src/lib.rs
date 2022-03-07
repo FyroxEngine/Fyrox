@@ -1987,6 +1987,7 @@ impl UserInterface {
         root
     }
 
+    #[allow(clippy::unnecessary_to_owned)] // False positive
     fn copy_node_recursive(
         &mut self,
         node_handle: Handle<UiNode>,
@@ -2023,6 +2024,7 @@ impl UserInterface {
         root
     }
 
+    #[allow(clippy::unnecessary_to_owned)] // False positive
     fn copy_node_recursive_with_limit(
         &mut self,
         node_handle: Handle<UiNode>,

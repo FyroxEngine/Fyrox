@@ -78,11 +78,10 @@ impl Control for ScriptPropertyEditor {
         if let Some(ScriptPropertyEditorMessage::Value(id)) = message.data() {
             if message.destination() == self.handle()
                 && message.direction() == MessageDirection::ToWidget
+                && self.selected_script_uuid != *id
             {
-                if self.selected_script_uuid != id.clone() {
-                    self.selected_script_uuid = id.clone();
-                    ui.send_message(message.reverse());
-                }
+                self.selected_script_uuid = *id;
+                ui.send_message(message.reverse());
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) =
             message.data::<InspectorMessage>()
@@ -110,11 +109,10 @@ impl Control for ScriptPropertyEditor {
                     .expect("Must be DropdownList")
                     .items()[*i];
 
-                let new_selected_script_uuid = ui
+                let new_selected_script_uuid = *ui
                     .node(selected_item)
                     .user_data_ref::<Uuid>()
-                    .expect("Must be script UUID")
-                    .clone();
+                    .expect("Must be script UUID");
 
                 ui.send_message(ScriptPropertyEditorMessage::value(
                     self.handle(),
@@ -195,7 +193,7 @@ fn create_items(
     items.extend(serialization_context.script_constructors.map().iter().map(
         |(type_uuid, constructor)| {
             let item = make_dropdown_list_option(ctx, &constructor.name);
-            ctx[item].user_data = Some(Rc::new(type_uuid.clone()));
+            ctx[item].user_data = Some(Rc::new(*type_uuid));
             item
         },
     ));
@@ -349,7 +347,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                     ScriptPropertyEditorMessage::value(
                         ctx.instance,
                         MessageDirection::ToWidget,
-                        value.as_ref().map(|s| s.id()).clone(),
+                        value.as_ref().map(|s| s.id()),
                     ),
                 );
             }
@@ -361,7 +359,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 ScriptPropertyEditorMessage::value(
                     ctx.instance,
                     MessageDirection::ToWidget,
-                    value.as_ref().map(|s| s.id()).clone(),
+                    value.as_ref().map(|s| s.id()),
                 ),
             );
 

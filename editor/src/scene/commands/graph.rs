@@ -395,7 +395,7 @@ impl Command for AddNodeCommand {
 
 define_vec_add_remove_commands!(
     struct AddPropertyCommand, RemovePropertyCommand<Node, Property>
-    (self, context) { &mut context.scene.graph[self.handle].properties.get_mut() }
+    (self, context) { context.scene.graph[self.handle].properties.get_mut() }
 );
 
 #[derive(Debug)]

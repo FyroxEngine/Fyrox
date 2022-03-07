@@ -147,7 +147,7 @@ fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_g
         dest_node.remap_handles(old_new_mapping);
 
         if let Some(script) = dest_node.script.as_mut() {
-            script.remap_handles(&old_new_mapping);
+            script.remap_handles(old_new_mapping);
         }
     }
 
