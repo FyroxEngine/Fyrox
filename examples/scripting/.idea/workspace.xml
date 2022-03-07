@@ -10,20 +10,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f1aceae8-7c33-40c3-a2da-82b82ccfcb24" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../../editor/src/inspector/editors/script.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../editor/src/inspector/editors/script.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../editor/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../editor/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../editor/src/scene/commands/graph.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../editor/src/scene/commands/graph.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/game/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/game/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../fyrox-ui/src/file_browser.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../fyrox-ui/src/file_browser.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../fyrox-ui/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../fyrox-ui/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../fyrox-ui/src/list_view.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../fyrox-ui/src/list_view.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../fyrox-ui/src/scroll_viewer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../fyrox-ui/src/scroll_viewer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../src/engine/executor.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/engine/executor.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../src/engine/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/engine/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../src/scene/base.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/scene/base.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../src/scene/graph/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/scene/graph/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../src/scene/node/constructor.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/scene/node/constructor.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -137,6 +124,7 @@
       <workItem from="1646663852492" duration="147000" />
       <workItem from="1646664064437" duration="1933000" />
       <workItem from="1646666316370" duration="1584000" />
+      <workItem from="1646675451523" duration="805000" />
     </task>
     <servers />
   </component>

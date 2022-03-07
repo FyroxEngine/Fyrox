@@ -4,6 +4,7 @@
 //!
 //! Warning - Work in progress!
 
+use fyrox::engine::{EngineInitParams, SerializationContext};
 use fyrox::scene::sound::{SoundBuilder, Status};
 use fyrox::{
     animation::Animation,
@@ -282,8 +283,16 @@ pub fn main_js() {
         .with_title("Example - WASM")
         .with_resizable(true);
 
-    let resource_manager = ResourceManager::new();
-    let mut engine = Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
+    let serialization_context = Arc::new(SerializationContext::new());
+    let mut engine = Engine::new(EngineInitParams {
+        window_builder,
+        resource_manager: ResourceManager::new(serialization_context.clone()),
+        serialization_context,
+        events_loop: &event_loop,
+        vsync: true,
+    })
+    .unwrap();
+
     engine
         .renderer
         .set_backbuffer_clear_color(Color::opaque(150, 150, 255));

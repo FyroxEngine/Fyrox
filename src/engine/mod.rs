@@ -214,6 +214,7 @@ impl Engine {
     /// .unwrap();
     /// ```
     #[inline]
+    #[allow(unused_variables)]
     pub fn new(params: EngineInitParams) -> Result<Self, EngineError> {
         let EngineInitParams {
             window_builder,
