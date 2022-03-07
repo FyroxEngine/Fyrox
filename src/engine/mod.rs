@@ -8,7 +8,6 @@ pub mod executor;
 pub mod framework;
 pub mod resource_manager;
 
-use crate::plugin::{Plugin, PluginRegistrationContext};
 use crate::{
     asset::ResourceState,
     core::{algebra::Vector2, instant, pool::Handle},
@@ -19,7 +18,7 @@ use crate::{
     event::Event,
     event_loop::EventLoop,
     gui::UserInterface,
-    plugin::PluginContext,
+    plugin::{Plugin, PluginContext, PluginRegistrationContext},
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{model::Model, texture::TextureKind},
     scene::{
@@ -375,7 +374,6 @@ impl Engine {
         let mut context = PluginContext {
             is_in_editor,
             scenes: &mut self.scenes,
-            ui: &mut self.user_interface,
             resource_manager: &self.resource_manager,
             renderer: &mut self.renderer,
             dt,
@@ -384,6 +382,59 @@ impl Engine {
 
         for plugin in self.plugins.iter_mut() {
             plugin.update(&mut context);
+        }
+    }
+
+    /// Processes an OS event by every registered plugin.
+    pub fn handle_os_event_by_plugins(&mut self, event: &Event<()>, dt: f32, is_in_editor: bool) {
+        for plugin in self.plugins.iter_mut() {
+            plugin.on_os_event(
+                event,
+                PluginContext {
+                    is_in_editor,
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    renderer: &mut self.renderer,
+                    dt,
+                    serialization_context: self.serialization_context.clone(),
+                },
+            );
+        }
+    }
+
+    /// Calls [`Plugin::on_enter_play_mode`] for every plugin.
+    pub fn call_plugins_on_enter_play_mode(
+        &mut self,
+        scene: Handle<Scene>,
+        dt: f32,
+        is_in_editor: bool,
+    ) {
+        for plugin in self.plugins.iter_mut() {
+            plugin.on_enter_play_mode(
+                scene,
+                PluginContext {
+                    is_in_editor,
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    renderer: &mut self.renderer,
+                    dt,
+                    serialization_context: self.serialization_context.clone(),
+                },
+            );
+        }
+    }
+
+    /// Calls [`Plugin::on_leave_play_mode`] for every plugin.
+    pub fn call_plugins_on_leave_play_mode(&mut self, dt: f32, is_in_editor: bool) {
+        for plugin in self.plugins.iter_mut() {
+            plugin.on_leave_play_mode(PluginContext {
+                is_in_editor,
+                scenes: &mut self.scenes,
+                resource_manager: &self.resource_manager,
+                renderer: &mut self.renderer,
+                dt,
+                serialization_context: self.serialization_context.clone(),
+            });
         }
     }
 
@@ -548,10 +599,9 @@ impl Engine {
         });
 
         if init {
-            plugin.on_init(PluginContext {
+            plugin.on_standalone_init(PluginContext {
                 is_in_editor,
                 scenes: &mut self.scenes,
-                ui: &mut self.user_interface,
                 resource_manager: &self.resource_manager,
                 renderer: &mut self.renderer,
                 dt: 0.0,

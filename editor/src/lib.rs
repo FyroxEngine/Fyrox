@@ -34,6 +34,7 @@ mod settings;
 mod utils;
 mod world;
 
+use crate::utils::normalize_os_event;
 use crate::{
     asset::{item::AssetItem, item::AssetKind, AssetBrowser},
     audio::AudioPanel,
@@ -124,6 +125,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
 pub const MSG_SYNC_FLAG: u64 = 1;
 
 pub fn send_sync_message(ui: &UserInterface, mut msg: UiMessage) {
@@ -312,7 +314,13 @@ impl Mode {
     }
 }
 
+pub struct GameLoopData {
+    clock: Instant,
+    elapsed_time: f32,
+}
+
 pub struct Editor {
+    game_loop_data: GameLoopData,
     engine: Engine,
     scene: Option<EditorScene>,
     command_stack: CommandStack,
@@ -368,6 +376,9 @@ impl Editor {
             vsync: true,
         })
         .unwrap();
+
+        let overlay_pass = OverlayRenderPass::new(&mut engine.renderer.pipeline_state());
+        engine.renderer.add_render_pass(overlay_pass);
 
         let (message_sender, message_receiver) = mpsc::channel();
 
@@ -598,6 +609,10 @@ impl Editor {
             curve_editor,
             audio_panel,
             mode: Mode::Edit,
+            game_loop_data: GameLoopData {
+                clock: Instant::now(),
+                elapsed_time: 0.0,
+            },
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move));
@@ -857,6 +872,8 @@ impl Editor {
 
             let handle = engine.scenes.add(purified_scene);
 
+            engine.call_plugins_on_enter_play_mode(handle, FIXED_TIMESTEP, true);
+
             // Initialize scripts.
             engine.initialize_scene_scripts(handle, 0.0);
 
@@ -879,6 +896,8 @@ impl Editor {
                 existing_scenes,
             } = std::mem::replace(&mut self.mode, Mode::Edit)
             {
+                engine.call_plugins_on_leave_play_mode(FIXED_TIMESTEP, true);
+
                 // Remove play mode scene.
                 engine.scenes.remove(scene);
 
@@ -1229,6 +1248,8 @@ impl Editor {
         self.engine.update(dt);
 
         if let Mode::Play { scene, .. } = self.mode {
+            self.engine.update_plugins(dt, true);
+
             self.engine.update_scene_scripts(scene, dt);
         }
 
@@ -1368,22 +1389,10 @@ impl Editor {
     }
 
     pub fn run(mut self, event_loop: EventLoop<()>) -> ! {
-        let overlay_pass = OverlayRenderPass::new(&mut self.engine.renderer.pipeline_state());
-        self.engine.renderer.add_render_pass(overlay_pass);
-
-        let clock = Instant::now();
-        let fixed_timestep = 1.0 / 60.0;
-        let mut elapsed_time = 0.0;
-
-        event_loop.run(move |event, _, control_flow| {
-            if let Mode::Play { scene, .. } = self.mode {
-                self.engine
-                    .handle_os_event_by_scripts(&event, scene, fixed_timestep);
-            }
-
+        event_loop.run(move |mut event, _, control_flow| {
             match event {
                 Event::MainEventsCleared => {
-                    update(&mut self, &mut elapsed_time, fixed_timestep, &clock);
+                    update(&mut self);
 
                     if self.exit {
                         *control_flow = ControlFlow::Exit;
@@ -1392,7 +1401,7 @@ impl Editor {
                 Event::RedrawRequested(_) => {
                     self.engine.render().unwrap();
                 }
-                Event::WindowEvent { event, .. } => {
+                Event::WindowEvent { ref event, .. } => {
                     match event {
                         WindowEvent::CloseRequested => {
                             self.message_sender
@@ -1400,7 +1409,7 @@ impl Editor {
                                 .unwrap();
                         }
                         WindowEvent::Resized(size) => {
-                            if let Err(e) = self.engine.set_frame_size(size.into()) {
+                            if let Err(e) = self.engine.set_frame_size((*size).into()) {
                                 fyrox::utils::log::Log::writeln(
                                     MessageKind::Error,
                                     format!("Failed to set renderer size! Reason: {:?}", e),
@@ -1439,6 +1448,18 @@ impl Editor {
                 }
                 _ => *control_flow = ControlFlow::Poll,
             }
+
+            if let Mode::Play { scene, .. } = self.mode {
+                let screen_bounds = self.scene_viewer.frame_bounds(&self.engine.user_interface);
+
+                normalize_os_event(&mut event, screen_bounds.position, screen_bounds.size);
+
+                self.engine
+                    .handle_os_event_by_plugins(&event, FIXED_TIMESTEP, true);
+
+                self.engine
+                    .handle_os_event_by_scripts(&event, scene, FIXED_TIMESTEP);
+            }
         });
     }
 }
@@ -1451,21 +1472,22 @@ fn poll_ui_messages(editor: &mut Editor) {
     }
 }
 
-fn update(editor: &mut Editor, elapsed_time: &mut f32, fixed_timestep: f32, clock: &Instant) {
+fn update(editor: &mut Editor) {
     scope_profile!();
 
-    let mut dt = clock.elapsed().as_secs_f32() - *elapsed_time;
-    while dt >= fixed_timestep {
-        dt -= fixed_timestep;
-        *elapsed_time += fixed_timestep;
+    let mut dt =
+        editor.game_loop_data.clock.elapsed().as_secs_f32() - editor.game_loop_data.elapsed_time;
+    while dt >= FIXED_TIMESTEP {
+        dt -= FIXED_TIMESTEP;
+        editor.game_loop_data.elapsed_time += FIXED_TIMESTEP;
 
-        editor.update(fixed_timestep);
+        editor.update(FIXED_TIMESTEP);
 
         poll_ui_messages(editor);
 
         editor.post_update();
 
-        if dt >= 1.5 * fixed_timestep {
+        if dt >= 1.5 * FIXED_TIMESTEP {
             break;
         }
     }

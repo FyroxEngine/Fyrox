@@ -10,7 +10,18 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f1aceae8-7c33-40c3-a2da-82b82ccfcb24" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../../editor/src/scene_viewer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../editor/src/scene_viewer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../editor/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../editor/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../editor/src/overlay.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../editor/src/overlay.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../editor/src/utils/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../editor/src/utils/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/editor/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/editor/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/executor/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/executor/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/game/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/game/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/engine/executor.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/engine/executor.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/engine/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/engine/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/plugin/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/plugin/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/renderer/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/renderer/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/renderer/ui_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/renderer/ui_renderer.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,8 +54,9 @@
     <property name="cf.first.check.clang-format" value="false" />
     <property name="cidr.known.project.marker" value="true" />
     <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
+    <property name="settings.editor.selected.configurable" value="language.rust.rustfmt" />
   </component>
-  <component name="RunManager" selected="Cargo.Editor Release">
+  <component name="RunManager" selected="Cargo.Game Release">
     <configuration name="Editor Release" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="run --release --package editor" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
@@ -83,7 +95,10 @@
     </list>
   </component>
   <component name="RustProjectSettings">
+    <option name="runRustfmtOnSave" value="true" />
     <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+    <option name="useRustfmt" value="true" />
+    <option name="version" value="2" />
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
@@ -94,10 +109,22 @@
       <option name="presentableId" value="Default" />
       <updated>1646589837689</updated>
       <workItem from="1646589838952" duration="1739000" />
+      <workItem from="1646647229691" duration="1272000" />
+      <workItem from="1646652759757" duration="1352000" />
+      <workItem from="1646656251750" duration="1353000" />
+      <workItem from="1646659177553" duration="1603000" />
+      <workItem from="1646660930038" duration="185000" />
+      <workItem from="1646661132477" duration="2235000" />
+      <workItem from="1646663852492" duration="147000" />
+      <workItem from="1646664064437" duration="1933000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
   </component>
 </project>

@@ -15,7 +15,8 @@ use fyrox::{
     resource::texture::{CompressionOptions, Texture},
     scene::mesh::surface::SurfaceData,
 };
-use std::sync::{Arc, Mutex};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 struct OverlayShader {
     program: GpuProgram,
@@ -57,8 +58,8 @@ pub struct OverlayRenderPass {
 }
 
 impl OverlayRenderPass {
-    pub fn new(state: &mut PipelineState) -> Arc<Mutex<Self>> {
-        Arc::new(Mutex::new(Self {
+    pub fn new(state: &mut PipelineState) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Self {
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_collapsed_xy_quad(),
                 GeometryBufferKind::StaticDraw,
@@ -82,7 +83,7 @@ impl OverlayRenderPass {
 }
 
 impl SceneRenderPass for OverlayRenderPass {
-    fn render(
+    fn on_hdr_render(
         &mut self,
         ctx: SceneRenderPassContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {

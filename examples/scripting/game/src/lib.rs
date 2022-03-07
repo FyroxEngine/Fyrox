@@ -1,6 +1,6 @@
 use fyrox::{
     core::{
-        algebra::{UnitQuaternion, Vector3},
+        algebra::{UnitQuaternion, Vector2, Vector3},
         futures::executor::block_on,
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
@@ -8,26 +8,86 @@ use fyrox::{
         visitor::prelude::*,
     },
     event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
-    gui::inspector::{FieldKind, PropertyChanged},
+    gui::{
+        button::ButtonBuilder,
+        inspector::{FieldKind, PropertyChanged},
+        widget::WidgetBuilder,
+        UserInterface,
+    },
     plugin::{Plugin, PluginContext, PluginRegistrationContext},
+    renderer::{
+        framework::{error::FrameworkError, gpu_texture::GpuTextureKind},
+        ui_renderer::UiRenderContext,
+        RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
+    },
     scene::{
         camera::Camera, node::Node, node::TypeUuidProvider, rigidbody::RigidBody, Scene,
         SceneLoader,
     },
     script::{ScriptContext, ScriptTrait},
+    utils::translate_event,
 };
-use std::str::FromStr;
+use std::{cell::RefCell, rc::Rc, str::FromStr};
 
-#[derive(Visit, Inspect, Default)]
 pub struct GamePlugin {
     scene: Handle<Scene>,
+    ui: Rc<RefCell<UserInterface>>,
 }
 
 impl GamePlugin {
     pub fn new() -> Self {
         Self {
             scene: Default::default(),
+            ui: Rc::new(RefCell::new(UserInterface::new(Vector2::new(100.0, 100.0)))),
         }
+    }
+}
+
+struct UiRenderPass {
+    scene: Handle<Scene>,
+    ui: Rc<RefCell<UserInterface>>,
+}
+
+impl SceneRenderPass for UiRenderPass {
+    fn on_ldr_render(
+        &mut self,
+        ctx: SceneRenderPassContext,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
+        if ctx.scene_handle == self.scene {
+            let mut ui = self.ui.borrow_mut();
+
+            ctx.ui_renderer.render(UiRenderContext {
+                state: ctx.pipeline_state,
+                viewport: ctx.viewport,
+                frame_buffer: ctx.framebuffer,
+                frame_width: ctx.viewport.size.x as f32,
+                frame_height: ctx.viewport.size.y as f32,
+                drawing_context: ui.draw(),
+                white_dummy: ctx.white_dummy.clone(),
+                texture_cache: ctx.texture_cache,
+            })?;
+        }
+
+        Ok(Default::default())
+    }
+}
+
+impl GamePlugin {
+    pub fn set_scene(&mut self, scene: Handle<Scene>, context: PluginContext) {
+        self.scene = scene;
+
+        context
+            .renderer
+            .add_render_pass(Rc::new(RefCell::new(UiRenderPass {
+                scene,
+                ui: self.ui.clone(),
+            })));
+
+        let mut ui = self.ui.borrow_mut();
+        let ctx = &mut ui.build_ctx();
+        ButtonBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(32.0))
+            .with_text("Click me")
+            .build(ctx);
     }
 }
 
@@ -50,7 +110,7 @@ impl Plugin for GamePlugin {
             .add::<GamePlugin, Jumper, &str>("Jumper");
     }
 
-    fn on_init(&mut self, context: PluginContext) {
+    fn on_standalone_init(&mut self, context: PluginContext) {
         let mut scene = block_on(
             block_on(SceneLoader::from_file(
                 "unnamed.rgs",
@@ -66,22 +126,50 @@ impl Plugin for GamePlugin {
             }
         }
 
-        self.scene = context.scenes.add(scene);
+        self.set_scene(context.scenes.add(scene), context);
+    }
+
+    fn on_enter_play_mode(&mut self, scene: Handle<Scene>, context: PluginContext) {
+        self.set_scene(scene, context);
+    }
+
+    fn on_leave_play_mode(&mut self, _context: PluginContext) {
+        self.scene = Handle::NONE;
     }
 
     fn on_unload(&mut self, _context: &mut PluginContext) {}
 
-    fn update(&mut self, _context: &mut PluginContext) {
-        let scene = &mut _context.scenes[self.scene];
-        let dc = &mut scene.drawing_context;
+    fn update(&mut self, context: &mut PluginContext) {
+        let scene = &mut context.scenes[self.scene];
 
-        dc.clear_lines();
+        let drawing_context = &mut scene.drawing_context;
+        drawing_context.clear_lines();
+        scene.graph.physics.draw(drawing_context);
 
-        scene.graph.physics.draw(dc);
+        let mut ui = self.ui.borrow_mut();
+
+        if let Some(data) = context.renderer.scene_data_map.get(&self.scene) {
+            if let GpuTextureKind::Rectangle { width, height } =
+                data.ldr_scene_frame_texture().borrow().kind()
+            {
+                ui.update(Vector2::new(width as f32, height as f32), context.dt);
+            }
+        }
+
+        while let Some(_) = ui.poll_message() {}
     }
 
     fn id(&self) -> Uuid {
         Self::type_uuid()
+    }
+
+    fn on_os_event(&mut self, event: &Event<()>, _context: PluginContext) {
+        if let Event::WindowEvent { event, .. } = event {
+            if let Some(e) = translate_event(event) {
+                let mut ui = self.ui.borrow_mut();
+                ui.process_os_event(&e);
+            }
+        }
     }
 }
 

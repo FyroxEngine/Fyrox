@@ -77,6 +77,8 @@ impl Executor {
         let mut initialized_scenes = HashSet::<Handle<Scene>>::default();
 
         event_loop.run(move |event, _, control_flow| {
+            engine.handle_os_event_by_plugins(&event, fixed_timestep, true);
+
             let scenes = engine
                 .scenes
                 .pair_iter()
