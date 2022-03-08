@@ -319,6 +319,15 @@ pub struct GameLoopData {
     elapsed_time: f32,
 }
 
+pub struct StartupData {
+    /// Working directory that should be set when starting the editor. If it is empty, then
+    /// current working directory won't be changed.
+    pub working_directory: PathBuf,
+
+    /// A scene to load at the editor start. If it is empty, no scene will be loaded.
+    pub scene: PathBuf,
+}
+
 pub struct Editor {
     game_loop_data: GameLoopData,
     engine: Engine,
@@ -352,7 +361,7 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn new(event_loop: &EventLoop<()>) -> Self {
+    pub fn new(event_loop: &EventLoop<()>, startup_data: Option<StartupData>) -> Self {
         let inner_size = if let Some(primary_monitor) = event_loop.primary_monitor() {
             let mut monitor_dimensions = primary_monitor.size();
             monitor_dimensions.height = (monitor_dimensions.height as f32 * 0.7) as u32;
@@ -393,13 +402,6 @@ impl Editor {
             message_sender.clone(),
             &mut engine.user_interface.build_ctx(),
         );
-        engine
-            .user_interface
-            .send_message(WindowMessage::open_modal(
-                configurator.window,
-                MessageDirection::ToWidget,
-                true,
-            ));
 
         let mut settings = Settings::default();
 
@@ -616,6 +618,34 @@ impl Editor {
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move));
+
+        if let Some(data) = startup_data {
+            if data.working_directory != PathBuf::default() {
+                editor
+                    .message_sender
+                    .send(Message::Configure {
+                        working_directory: data.working_directory,
+                    })
+                    .unwrap();
+            }
+
+            if data.scene != PathBuf::default() {
+                editor
+                    .message_sender
+                    .send(Message::LoadScene(data.scene))
+                    .unwrap();
+            }
+        } else {
+            // Open configurator as usual.
+            editor
+                .engine
+                .user_interface
+                .send_message(WindowMessage::open_modal(
+                    editor.configurator.window,
+                    MessageDirection::ToWidget,
+                    true,
+                ));
+        }
 
         editor
     }

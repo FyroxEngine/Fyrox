@@ -105,7 +105,7 @@ pub trait ScriptTrait: BaseScript {
     /// }
     /// ```
     fn on_property_changed(&mut self, #[allow(unused_variables)] args: &PropertyChanged) -> bool {
-        return false;
+        false
     }
 
     /// Called on parent scene initialization. It is guaranteed to be called once, and before any

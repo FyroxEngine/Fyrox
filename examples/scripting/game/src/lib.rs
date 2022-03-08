@@ -33,6 +33,7 @@ use std::{cell::RefCell, rc::Rc, str::FromStr};
 pub struct GamePlugin {
     scene: Handle<Scene>,
     ui: Rc<RefCell<UserInterface>>,
+    debug_draw: bool,
 }
 
 impl Default for GamePlugin {
@@ -46,6 +47,7 @@ impl GamePlugin {
         Self {
             scene: Default::default(),
             ui: Rc::new(RefCell::new(UserInterface::new(Vector2::new(100.0, 100.0)))),
+            debug_draw: false,
         }
     }
 }
@@ -149,9 +151,11 @@ impl Plugin for GamePlugin {
     fn update(&mut self, context: &mut PluginContext) {
         let scene = &mut context.scenes[self.scene];
 
-        let drawing_context = &mut scene.drawing_context;
-        drawing_context.clear_lines();
-        scene.graph.physics.draw(drawing_context);
+        if self.debug_draw {
+            let drawing_context = &mut scene.drawing_context;
+            drawing_context.clear_lines();
+            scene.graph.physics.draw(drawing_context);
+        }
 
         let mut ui = self.ui.borrow_mut();
 
