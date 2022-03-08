@@ -10,7 +10,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f1aceae8-7c33-40c3-a2da-82b82ccfcb24" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../../editor/src/inspector/handlers/node/base.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../editor/src/inspector/handlers/node/base.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/game/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/game/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/unnamed.rgs" beforeDir="false" afterPath="$PROJECT_DIR$/unnamed.rgs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../fyrox-ui/src/inspector/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../fyrox-ui/src/inspector/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/script/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/script/mod.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -45,7 +51,7 @@
     <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
     <property name="settings.editor.selected.configurable" value="language.rust.rustfmt" />
   </component>
-  <component name="RunManager" selected="Cargo.Clippy">
+  <component name="RunManager" selected="Cargo.Editor Release">
     <configuration name="Clippy" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="clippy --workspace --all-targets --all-features" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
@@ -125,6 +131,11 @@
       <workItem from="1646664064437" duration="1933000" />
       <workItem from="1646666316370" duration="1584000" />
       <workItem from="1646675451523" duration="805000" />
+      <workItem from="1646728419343" duration="352000" />
+      <workItem from="1646728860906" duration="429000" />
+      <workItem from="1646729605140" duration="10000" />
+      <workItem from="1646730677754" duration="1167000" />
+      <workItem from="1646732845950" duration="1279000" />
     </task>
     <servers />
   </component>

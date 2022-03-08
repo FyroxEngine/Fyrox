@@ -20,6 +20,7 @@ pub mod script;
 pub mod utils;
 
 pub use crate::core::rand;
+pub use fxhash;
 #[cfg(not(target_arch = "wasm32"))]
 pub use glutin::*;
 pub use lazy_static;

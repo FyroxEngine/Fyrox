@@ -81,6 +81,16 @@ impl ObjectValue {
     pub fn cast_clone<T: Clone + 'static>(&self) -> Option<T> {
         (*self.value).as_any().downcast_ref::<T>().cloned()
     }
+
+    pub fn try_override<T: Clone + 'static>(&self, value: &mut T) -> bool {
+        (*self.value)
+            .as_any()
+            .downcast_ref::<T>()
+            .map_or(false, |v| {
+                *value = v.clone();
+                true
+            })
+    }
 }
 
 impl PartialEq for FieldKind {

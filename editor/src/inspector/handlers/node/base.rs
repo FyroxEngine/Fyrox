@@ -200,16 +200,15 @@ fn handle_script_property_changed(
     if let Some(script) = base.script.as_mut() {
         let old_data = serialize_script(script).expect("Script must be serializable!");
 
-        script.on_property_changed(args);
+        if script.on_property_changed(args) {
+            let new_data = serialize_script(script).expect("Script must be serializable!");
 
-        let new_data = serialize_script(script).expect("Script must be serializable!");
-
-        Some(SceneCommand::new(ScriptDataBlobCommand {
-            handle: node_handle,
-            old_value: old_data,
-            new_value: new_data,
-        }))
-    } else {
-        None
+            return Some(SceneCommand::new(ScriptDataBlobCommand {
+                handle: node_handle,
+                old_value: old_data,
+                new_value: new_data,
+            }));
+        }
     }
+    None
 }

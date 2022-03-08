@@ -1,17 +1,16 @@
-use crate::event::Event;
-use crate::scene::Scene;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
+        pool::Handle,
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
+    event::Event,
     gui::inspector::PropertyChanged,
     plugin::Plugin,
-    scene::node::Node,
+    scene::{node::Node, Scene},
 };
 use fxhash::FxHashMap;
-use fyrox_core::pool::Handle;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -44,31 +43,162 @@ pub trait ScriptTrait: BaseScript {
     /// Mutates the state of the script according to the [`PropertyChanged`] info. It is invoked
     /// from the editor when user changes property of the script from the inspector.
     ///
-    /// # Editor mode
+    /// # Motivation
     ///
-    /// Works only in editor mode.
-    fn on_property_changed(&mut self, args: &PropertyChanged);
-
-    /// Called when on parent scene initialization.
-    fn on_init(&mut self, context: ScriptContext);
-
-    /// Called when there is an event from the OS.
-    fn on_os_event(&mut self, _event: &Event<()>, _context: ScriptContext) {}
-
-    /// Performs a single update tick of the script.
+    /// Why the editor cannot mutate variable for me so I don't need to do it by hand? The answer
+    /// is pretty simple - UI system does not know anything about your object, it uses its own data
+    /// model, the only thing it could do is to indicate that some value was changed so you can
+    /// react to it.
     ///
-    /// # Editor mode
+    /// # Return value
     ///
-    /// Does not work in editor mode.
-    fn on_update(&mut self, context: ScriptContext);
+    /// The return value of the method indicates whether the change was applied to the script data
+    /// or not. If nothing changed (the return value was `false`)  the editor will give you a
+    /// diagnostic message that the change in Inspector had no effect and probably a property handler
+    /// is missing.
+    ///
+    /// # Important notes
+    ///
+    /// Works only in **editor mode**.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use fyrox::gui::inspector::{PropertyChanged, FieldKind};
+    /// use fyrox::script::ScriptTrait;
+    /// use fyrox::core::uuid::Uuid;
+    /// use fyrox::core::inspect::{Inspect, PropertyInfo};
+    /// use fyrox::core::visitor::prelude::*;
+    ///
+    /// #[derive(Inspect, Visit, Debug, Clone)]
+    /// struct MyScript {
+    ///     foo: f32,
+    ///     bar: String,
+    /// }
+    ///
+    /// // Some functions are intentionally omitted.
+    ///
+    /// impl ScriptTrait for MyScript {
+    ///     fn on_property_changed(&mut self, args: &PropertyChanged) -> bool {
+    ///         if let FieldKind::Object(ref value) = args.value {
+    ///             return match args.name.as_ref() {
+    ///                 Self::FOO => value.try_override(&mut self.foo),
+    ///                 Self::BAR => value.try_override(&mut self.bar),
+    ///                 _ => false
+    ///             }
+    ///         }
+    ///
+    ///         // Nothing changed, in this case the editor will give you a diagnostic message
+    ///         // that the change in Inspector had no effect and probably property handler is
+    ///         // missing.
+    ///         false
+    ///     }
+    ///
+    ///     // ...
+    ///    # fn id(&self) -> Uuid {
+    ///    #     todo!()
+    ///    # }
+    ///
+    ///    # fn plugin_uuid(&self) -> Uuid {
+    ///    #     todo!()
+    ///    # }
+    /// }
+    /// ```
+    fn on_property_changed(&mut self, #[allow(unused_variables)] args: &PropertyChanged) -> bool {
+        return false;
+    }
 
-    /// Called when the scene is copied, giving you the ability to remap handles to nodes.
-    fn remap_handles(&mut self, _old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {}
+    /// Called on parent scene initialization. It is guaranteed to be called once, and before any
+    /// other method of the script.
+    ///
+    /// # Editor-specific infomation
+    ///
+    /// In the editor, the method will be called on entering the play mode.
+    fn on_init(&mut self, #[allow(unused_variables)] context: ScriptContext) {}
 
-    /// Script instance type UUID.
+    /// Called when there is an event from the OS. The method allows you to "listen" for events
+    /// coming from the main window of your game (or the editor if the game running inside the
+    /// editor.
+    ///
+    /// # Editor-specific information
+    ///
+    /// When the game running inside the editor, every event related to position/size changes will
+    /// be modified to have position/size of the preview frame of the editor, not the main window.
+    /// For end user this means that the game will function as if it was run in standalone mode.
+    fn on_os_event(
+        &mut self,
+        #[allow(unused_variables)] event: &Event<()>,
+        #[allow(unused_variables)] context: ScriptContext,
+    ) {
+    }
+
+    /// Performs a single update tick of the script. The method may be called multiple times per
+    /// frame, but it is guaranteed that the rate of call is stable and usually it will be called
+    /// 60 times per second (this may change in future releases).
+    ///
+    /// # Editor-specific information
+    ///
+    /// Does not work in editor mode, works only in play mode.
+    fn on_update(&mut self, #[allow(unused_variables)] context: ScriptContext) {}
+
+    /// Called right after the parent node was copied, giving you the ability to remap handles to
+    /// nodes stored inside of your script.
+    ///
+    /// # Motivation
+    ///
+    /// Imagine that you have a character controller script that contains handles to some other
+    /// nodes in the scene, for example a collider. When you copy the node with the script, you
+    /// want the copy to contain references to respective copies, not the original objects.
+    /// The method allows you to do exactly this.
+    fn remap_handles(
+        &mut self,
+        #[allow(unused_variables)] old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
+    ) {
+    }
+
+    /// Script instance type UUID. The value will be used for serialization, to write type
+    /// identifier to a data source so the engine can restore the script from data source.
+    ///
+    /// # Example
+    ///
+    /// All you need to do in the method is to return `Self::type_uuid`.
+    ///
+    /// ```rust
+    /// use std::str::FromStr;
+    /// use fyrox::script::ScriptTrait;
+    /// use fyrox::core::uuid::Uuid;
+    /// use fyrox::core::inspect::{Inspect, PropertyInfo};
+    /// use fyrox::core::visitor::prelude::*;
+    /// use fyrox::scene::node::TypeUuidProvider;
+    ///
+    /// #[derive(Inspect, Visit, Debug, Clone)]
+    /// struct MyScript { }
+    ///
+    /// // Implement TypeUuidProvider trait that will return type uuid of the type.
+    /// // Every script must implement the trait so the script can be registered in
+    /// // serialization context of the engine.
+    /// impl TypeUuidProvider for MyScript {
+    ///     fn type_uuid() -> Uuid {
+    ///         // Use https://www.uuidgenerator.net/ to generate new UUID.
+    ///         Uuid::from_str("4cfbe65e-a2c1-474f-b123-57516d80b1f8").unwrap()
+    ///     }
+    /// }
+    ///
+    /// impl ScriptTrait for MyScript {
+    ///     fn id(&self) -> Uuid {
+    ///         Self::type_uuid()
+    ///     }
+    ///
+    ///    # fn plugin_uuid(&self) -> Uuid {
+    ///    #     todo!()
+    ///    # }
+    /// }
+    /// ```
     fn id(&self) -> Uuid;
 
-    /// Parent plugin UUID.
+    /// Returns parent plugin UUID. It is used to find respective plugin when processing scripts.
+    /// The engine makes an attempt to find a plugin by comparing type uuids and if one found,
+    /// it is passed on ScriptContext.
     fn plugin_uuid(&self) -> Uuid;
 }
 

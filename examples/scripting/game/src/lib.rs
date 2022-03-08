@@ -1,3 +1,4 @@
+use fyrox::fxhash::FxHashMap;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -223,25 +224,22 @@ impl TypeUuidProvider for Player {
 }
 
 impl ScriptTrait for Player {
-    fn on_property_changed(&mut self, args: &PropertyChanged) {
+    fn on_property_changed(&mut self, args: &PropertyChanged) -> bool {
         if let FieldKind::Object(ref value) = args.value {
-            match args.name.as_ref() {
-                Self::SPEED => self.speed = value.cast_clone().unwrap(),
-                Self::YAW => self.yaw = value.cast_clone().unwrap(),
-                Self::CAMERA => self.camera = value.cast_clone().unwrap(),
-                _ => (),
-            }
+            return match args.name.as_ref() {
+                Self::SPEED => value.try_override(&mut self.speed),
+                Self::YAW => value.try_override(&mut self.yaw),
+                Self::PITCH => value.try_override(&mut self.pitch),
+                Self::CAMERA => value.try_override(&mut self.camera),
+                _ => false,
+            };
         }
+        false
     }
 
-    fn on_init(&mut self, context: ScriptContext) {
-        let ScriptContext { node, scene, .. } = context;
-
-        for &child in node.children() {
-            if scene.graph[child].name() == "Camera" {
-                self.camera = child;
-                break;
-            }
+    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+        if let Some(camera) = old_new_mapping.get(&self.camera) {
+            self.camera = *camera;
         }
     }
 
@@ -380,14 +378,15 @@ impl TypeUuidProvider for Jumper {
 }
 
 impl ScriptTrait for Jumper {
-    fn on_property_changed(&mut self, args: &PropertyChanged) {
+    fn on_property_changed(&mut self, args: &PropertyChanged) -> bool {
         if let FieldKind::Object(ref value) = args.value {
-            match args.name.as_ref() {
-                Self::TIMER => self.timer = value.cast_clone().unwrap(),
-                Self::PERIOD => self.period = value.cast_clone().unwrap(),
-                _ => (),
-            }
+            return match args.name.as_ref() {
+                Self::TIMER => value.try_override(&mut self.timer),
+                Self::PERIOD => value.try_override(&mut self.period),
+                _ => false,
+            };
         }
+        false
     }
 
     fn on_init(&mut self, _context: ScriptContext) {}
