@@ -19,11 +19,11 @@ rust-version = "1.56"
 fyrox-core = { path = "../fyrox-core", version = "0.19.0" }
 lazy_static = "1.4.0"
 copypasta = "0.7.1"
-fontdue = "0.6.2"
+fontdue = "0.7.2"
 notify = "4.0"
 fxhash = "0.2.1"
-strum = "0.23.0"
-strum_macros = "0.23.1"
+strum = "0.24.0"
+strum_macros = "0.24.0"
 
 [features]
 enable_profiler = ["fyrox-core/enable_profiler"]

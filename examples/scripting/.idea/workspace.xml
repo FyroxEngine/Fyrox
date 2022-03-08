@@ -10,13 +10,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f1aceae8-7c33-40c3-a2da-82b82ccfcb24" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../../editor-standalone/Cargo.toml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../editor-standalone/src/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../.idea/rg3d-core.iml" beforeDir="false" afterPath="$PROJECT_DIR$/../../.idea/rg3d-core.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../../Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../editor/src/inspector/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../editor/src/inspector/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/game/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/game/src/lib.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -139,6 +133,7 @@
       <workItem from="1646738292422" duration="3646000" />
       <workItem from="1646743503532" duration="2478000" />
       <workItem from="1646747457133" duration="2369000" />
+      <workItem from="1646760618091" duration="231000" />
     </task>
     <servers />
   </component>

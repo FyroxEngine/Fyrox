@@ -845,8 +845,7 @@ impl Visit for Base {
         let _ = self.properties.visit("Properties", visitor);
         let _ = self.frustum_culling.visit("FrustumCulling", visitor);
         let _ = self.cast_shadows.visit("CastShadows", visitor);
-
-        visit_opt_script("Script", &mut self.script, visitor)?;
+        let _ = visit_opt_script("Script", &mut self.script, visitor);
 
         visitor.leave_region()
     }

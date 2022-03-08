@@ -21,8 +21,8 @@ fyrox-resource = { path = "../fyrox-resource", version = "0.3.0" }
 lewton = "0.10.2"
 hrtf = "0.8.0"
 hound = "3.4.0"
-strum = "0.23.0"
-strum_macros = "0.23.1"
+strum = "0.24.0"
+strum_macros = "0.24.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = {version = "0.3.9", features = ["minwindef", "winnt", "windef", "winuser", "dsound", "synchapi", "winbase" ] }

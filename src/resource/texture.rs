@@ -32,9 +32,7 @@ use crate::{
 };
 use ddsfile::{Caps2, D3DFormat};
 use fxhash::FxHasher;
-use image::{
-    imageops::FilterType, ColorType, DynamicImage, GenericImageView, ImageError, ImageFormat,
-};
+use image::{imageops::FilterType, ColorType, DynamicImage, ImageError, ImageFormat};
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
@@ -749,6 +747,12 @@ pub enum TexturePixelKind {
 
     /// Compressed RG8 texture (RGTC).
     RG8RGTC = 15,
+
+    /// Floating-point RGB texture with 32bit depth.
+    RGB32F = 16,
+
+    /// Floating-point RGBA texture with 32bit depth.
+    RGBA32F = 17,
 }
 
 impl TexturePixelKind {
@@ -770,6 +774,8 @@ impl TexturePixelKind {
             13 => Ok(Self::DXT5RGBA),
             14 => Ok(Self::R8RGTC),
             15 => Ok(Self::RG8RGTC),
+            16 => Ok(Self::RGB32F),
+            17 => Ok(Self::RGBA32F),
             _ => Err(format!("Invalid texture kind {}!", id)),
         }
     }
@@ -960,6 +966,8 @@ fn bytes_in_first_mip(kind: TextureKind, pixel_kind: TexturePixelKind) -> u32 {
         }
         TexturePixelKind::RGB16 => 6 * pixel_count,
         TexturePixelKind::RGBA16 => 8 * pixel_count,
+        TexturePixelKind::RGB32F => 12 * pixel_count,
+        TexturePixelKind::RGBA32F => 16 * pixel_count,
 
         // Compressed formats.
         TexturePixelKind::DXT1RGB
@@ -1122,12 +1130,13 @@ impl TextureData {
                 DynamicImage::ImageLumaA8(_) => TexturePixelKind::RG8,
                 DynamicImage::ImageRgb8(_) => TexturePixelKind::RGB8,
                 DynamicImage::ImageRgba8(_) => TexturePixelKind::RGBA8,
-                DynamicImage::ImageBgr8(_) => TexturePixelKind::BGR8,
-                DynamicImage::ImageBgra8(_) => TexturePixelKind::BGRA8,
                 DynamicImage::ImageLuma16(_) => TexturePixelKind::R16,
                 DynamicImage::ImageLumaA16(_) => TexturePixelKind::RG16,
                 DynamicImage::ImageRgb16(_) => TexturePixelKind::RGB16,
                 DynamicImage::ImageRgba16(_) => TexturePixelKind::RGBA16,
+                DynamicImage::ImageRgb32F(_) => TexturePixelKind::RGB32F,
+                DynamicImage::ImageRgba32F(_) => TexturePixelKind::RGBA32F,
+                _ => unreachable!(),
             };
 
             let mut mip_count = 0;
@@ -1348,16 +1357,18 @@ impl TextureData {
             TexturePixelKind::RG8 => ColorType::La8,
             TexturePixelKind::R16 => ColorType::L16,
             TexturePixelKind::RG16 => ColorType::La16,
-            TexturePixelKind::BGR8 => ColorType::Bgr8,
-            TexturePixelKind::BGRA8 => ColorType::Bgra8,
             TexturePixelKind::RGB16 => ColorType::Rgb16,
             TexturePixelKind::RGBA16 => ColorType::Rgba16,
+            TexturePixelKind::RGB32F => ColorType::Rgb32F,
+            TexturePixelKind::RGBA32F => ColorType::Rgba32F,
             TexturePixelKind::DXT1RGB
             | TexturePixelKind::DXT1RGBA
             | TexturePixelKind::DXT3RGBA
             | TexturePixelKind::DXT5RGBA
             | TexturePixelKind::R8RGTC
-            | TexturePixelKind::RG8RGTC => return Err(TextureError::UnsupportedFormat),
+            | TexturePixelKind::RG8RGTC
+            | TexturePixelKind::BGR8
+            | TexturePixelKind::BGRA8 => return Err(TextureError::UnsupportedFormat),
         };
         if let TextureKind::Rectangle { width, height } = self.kind {
             Ok(image::save_buffer(

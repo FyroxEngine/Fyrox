@@ -19,8 +19,8 @@ ron = "0.7.0"
 serde = "^1.0.0"
 toml = "0.5"
 directories = "4.0.1"
-strum = "0.23.0"
-strum_macros = "0.23.1"
+strum = "0.24.0"
+strum_macros = "0.24.0"
 
 [package.metadata.deb]
 maintainer = "Voodlaz <visotnik666@gmail.com>"

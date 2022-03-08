@@ -91,6 +91,7 @@ pub enum PixelKind {
     DXT1RGBA,
     DXT3RGBA,
     DXT5RGBA,
+    RGB32F,
     RGBA32F,
     RGBA16F,
     R8RGTC,
@@ -118,6 +119,8 @@ impl From<TexturePixelKind> for PixelKind {
             TexturePixelKind::DXT5RGBA => Self::DXT5RGBA,
             TexturePixelKind::R8RGTC => Self::R8RGTC,
             TexturePixelKind::RG8RGTC => Self::RG8RGTC,
+            TexturePixelKind::RGB32F => Self::RGB32F,
+            TexturePixelKind::RGBA32F => Self::RGBA32F,
         }
     }
 }
@@ -132,7 +135,7 @@ pub enum PixelElementKind {
 impl PixelKind {
     pub fn unpack_alignment(self) -> Option<i32> {
         match self {
-            Self::RGBA16 | Self::RGBA16F | Self::RGB16 | Self::RGBA32F => Some(8),
+            Self::RGBA16 | Self::RGBA16F | Self::RGB16 | Self::RGBA32F | Self::RGB32F => Some(8),
             Self::RGBA8
             | Self::SRGBA8
             | Self::RGB8
@@ -186,6 +189,7 @@ impl PixelKind {
             | Self::F16
             | Self::R8
             | Self::R8UI
+            | Self::RGB32F
             | Self::RGBA32F
             | Self::R11G11B10F
             | Self::RGB10A2 => false,
@@ -196,6 +200,7 @@ impl PixelKind {
         match self {
             Self::F32
             | Self::F16
+            | Self::RGB32F
             | Self::RGBA32F
             | Self::RGBA16F
             | Self::D32F
@@ -249,6 +254,7 @@ fn image_3d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize, depth
     let pixel_count = width * height * depth;
     match pixel_kind {
         PixelKind::RGBA32F => 16 * pixel_count,
+        PixelKind::RGB32F => 12 * pixel_count,
         PixelKind::RGBA16 | PixelKind::RGBA16F => 8 * pixel_count,
         PixelKind::RGB16 => 6 * pixel_count,
         PixelKind::RGBA8
@@ -278,6 +284,7 @@ fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> us
     let pixel_count = width * height;
     match pixel_kind {
         PixelKind::RGBA32F => 16 * pixel_count,
+        PixelKind::RGB32F => 12 * pixel_count,
         PixelKind::RGBA16 | PixelKind::RGBA16F => 8 * pixel_count,
         PixelKind::RGB16 => 6 * pixel_count,
         PixelKind::RGBA8
@@ -306,6 +313,7 @@ fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> us
 fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
     match pixel_kind {
         PixelKind::RGBA32F => 16 * length,
+        PixelKind::RGB32F => 12 * length,
         PixelKind::RGBA16 | PixelKind::RGBA16F => 8 * length,
         PixelKind::RGB16 => 6 * length,
         PixelKind::RGBA8
@@ -650,6 +658,7 @@ impl<'a> TextureBinding<'a> {
                 PixelKind::DXT5RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT),
                 PixelKind::R8RGTC => (0, 0, COMPRESSED_RED_RGTC1),
                 PixelKind::RG8RGTC => (0, 0, COMPRESSED_RG_RGTC2),
+                PixelKind::RGB32F => (glow::FLOAT, glow::RGB, glow::RGB32F),
                 PixelKind::RGBA32F => (glow::FLOAT, glow::RGBA, glow::RGBA32F),
                 PixelKind::RGBA16F => (glow::FLOAT, glow::RGBA, glow::RGBA16F),
                 PixelKind::R11G11B10F => (glow::FLOAT, glow::RGB, glow::R11F_G11F_B10F),
