@@ -373,7 +373,7 @@ impl Editor {
 
         let window_builder = fyrox::window::WindowBuilder::new()
             .with_inner_size(inner_size)
-            .with_title("rusty editor")
+            .with_title("Fyroxed")
             .with_resizable(true);
 
         let serialization_context = Arc::new(SerializationContext::new());
@@ -620,14 +620,16 @@ impl Editor {
         editor.set_interaction_mode(Some(InteractionModeKind::Move));
 
         if let Some(data) = startup_data {
-            if data.working_directory != PathBuf::default() {
-                editor
-                    .message_sender
-                    .send(Message::Configure {
-                        working_directory: data.working_directory,
-                    })
-                    .unwrap();
-            }
+            editor
+                .message_sender
+                .send(Message::Configure {
+                    working_directory: if data.working_directory == PathBuf::default() {
+                        std::env::current_dir().unwrap()
+                    } else {
+                        data.working_directory
+                    },
+                })
+                .unwrap();
 
             if data.scene != PathBuf::default() {
                 editor
