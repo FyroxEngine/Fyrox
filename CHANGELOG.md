@@ -1,5 +1,8 @@
 # 0.25 (future)
 
+- Static plugin system
+- User-defined scripts
+- Play mode for the editor
 - Some of sound entities were integrated in the scene graph.
 - New `Sound` and `Listener` scene nodes.
 - Sound buffer import options.
@@ -142,6 +145,40 @@ graph
 ### Filters
 
 Effect input filters API remain unchanged.
+
+### Engine initialization
+
+`Engine::new` signature has changed to accept `EngineInitParams`, all previous argument were moved to the 
+structure. However, there are some new engine initialization parameters, like `serialization_context` and
+`resource_manager`. Previously `resource_manager` was created implicitly, currently it has to be created
+outside and passed to `EngineInitParams`. This is because of new `SerializationContext` which contains
+a set of constructors for various types that may be used in the engine and be added by external plugins.
+Typical engine initialization could look something like this:
+
+```rust
+use fyrox::engine::{Engine, EngineInitParams};
+use fyrox::window::WindowBuilder;
+use fyrox::engine::resource_manager::ResourceManager;
+use fyrox::event_loop::EventLoop;
+use std::sync::Arc;
+use fyrox::engine::SerializationContext;
+
+fn init_engine() {
+    let evt = EventLoop::new();
+    let window_builder = WindowBuilder::new()
+        .with_title("Test")
+        .with_fullscreen(None);
+    let serialization_context = Arc::new(SerializationContext::new());
+    let mut engine = Engine::new(EngineInitParams {
+        window_builder,
+        resource_manager: ResourceManager::new(serialization_context.clone()),
+        serialization_context,
+        events_loop: &evt,
+        vsync: false,
+    })
+    .unwrap();
+}
+```
 
 ## Serialization
 
