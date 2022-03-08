@@ -122,7 +122,7 @@ impl Plugin for GamePlugin {
     fn on_standalone_init(&mut self, context: PluginContext) {
         let mut scene = block_on(
             block_on(SceneLoader::from_file(
-                "unnamed.rgs",
+                "data/scene.rgs",
                 context.serialization_context.clone(),
             ))
             .expect("Invalid scene!")

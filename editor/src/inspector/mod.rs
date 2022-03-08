@@ -120,6 +120,7 @@ impl Inspector {
                         .with_child({
                             warning_text = TextBuilder::new(
                                 WidgetBuilder::new()
+                                    .with_visibility(false)
                                     .with_margin(Thickness::left(4.0))
                                     .with_foreground(Brush::Solid(Color::RED))
                                     .on_row(0),
