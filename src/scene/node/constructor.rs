@@ -18,7 +18,6 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use lazy_static::lazy_static;
 
 /// A simple type alias for boxed node constructor.
 pub type NodeConstructor = Box<dyn FnMut() -> Node + Send>;
@@ -29,12 +28,9 @@ pub struct NodeConstructorContainer {
     map: Mutex<FxHashMap<Uuid, NodeConstructor>>,
 }
 
-lazy_static! {
-    static ref NODE_CONSTRUCTORS: NodeConstructorContainer = NodeConstructorContainer::new();
-}
-
 impl NodeConstructorContainer {
-    fn new() -> Self {
+    /// Creates default node constructor container with constructors for built-in engine nodes.
+    pub fn new() -> Self {
         let container = NodeConstructorContainer::default();
 
         container.add::<dim2::collider::Collider>();
@@ -60,20 +56,18 @@ impl NodeConstructorContainer {
         container
     }
 
-    /// Returns a reference to global node constructor container.
-    pub fn instance() -> &'static Self {
-        &NODE_CONSTRUCTORS
-    }
-
     /// Adds new type constructor for a given type and return previous constructor for the type
     /// (if any).
-    pub fn add<T>(&self) -> Option<NodeConstructor>
+    pub fn add<T>(&self)
     where
         T: TypeUuidProvider + NodeTrait + Default,
     {
-        self.map
+        let previous = self
+            .map
             .lock()
-            .insert(T::type_uuid(), Box::new(|| Node::new(T::default())))
+            .insert(T::type_uuid(), Box::new(|| Node::new(T::default())));
+
+        assert!(previous.is_none());
     }
 
     /// Adds custom type constructor.
@@ -90,5 +84,15 @@ impl NodeConstructorContainer {
     /// node constructor for specified type UUID.
     pub fn try_create(&self, type_uuid: &Uuid) -> Option<Node> {
         self.map.lock().get_mut(type_uuid).map(|c| (c)())
+    }
+
+    /// Returns total amount of constructors.
+    pub fn len(&self) -> usize {
+        self.map.lock().len()
+    }
+
+    /// Returns true if the container is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }

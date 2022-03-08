@@ -6,7 +6,7 @@
 
 use fyrox::{
     core::instant::Instant,
-    engine::Engine,
+    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     utils::{
@@ -14,6 +14,7 @@ use fyrox::{
         translate_event,
     },
 };
+use std::sync::Arc;
 
 fn main() {
     let event_loop = EventLoop::new();
@@ -23,10 +24,15 @@ fn main() {
         .with_title("Example - Custom Game Loop")
         .with_resizable(true);
 
-    let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
-
-    // Then initialize the engine.
-    let mut engine = Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
+    let serialization_context = Arc::new(SerializationContext::new());
+    let mut engine = Engine::new(EngineInitParams {
+        window_builder,
+        resource_manager: ResourceManager::new(serialization_context.clone()),
+        serialization_context,
+        events_loop: &event_loop,
+        vsync: true,
+    })
+    .unwrap();
 
     // Define game loop variables.
     let clock = Instant::now();

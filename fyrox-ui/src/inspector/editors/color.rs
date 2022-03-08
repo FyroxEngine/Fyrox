@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     color::{ColorFieldBuilder, ColorFieldMessage},
     core::color::Color,
@@ -48,17 +49,12 @@ impl PropertyEditorDefinition for ColorPropertyEditorDefinition {
         )))
     }
 
-    fn translate_message(
-        &self,
-        name: &str,
-        owner_type_id: TypeId,
-        message: &UiMessage,
-    ) -> Option<PropertyChanged> {
-        if message.direction() == MessageDirection::FromWidget {
-            if let Some(ColorFieldMessage::Color(value)) = message.data::<ColorFieldMessage>() {
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if ctx.message.direction() == MessageDirection::FromWidget {
+            if let Some(ColorFieldMessage::Color(value)) = ctx.message.data::<ColorFieldMessage>() {
                 return Some(PropertyChanged {
-                    name: name.to_string(),
-                    owner_type_id,
+                    name: ctx.name.to_string(),
+                    owner_type_id: ctx.owner_type_id,
                     value: FieldKind::object(*value),
                 });
             }

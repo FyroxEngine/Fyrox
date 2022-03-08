@@ -1,8 +1,11 @@
 use crate::{
     menu::{create_menu_item_shortcut, create_root_menu_item},
     scene::{commands::PasteCommand, EditorScene, Selection},
-    GameEngine, Message,
+    GameEngine, Message, Mode,
 };
+use fyrox::gui::message::MessageDirection;
+use fyrox::gui::widget::WidgetMessage;
+use fyrox::gui::UserInterface;
 use fyrox::{
     core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
@@ -83,5 +86,13 @@ impl EditMenu {
                 sender.send(Message::RedoSceneCommand).unwrap();
             }
         }
+    }
+
+    pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
+        ui.send_message(WidgetMessage::enabled(
+            self.menu,
+            MessageDirection::ToWidget,
+            mode.is_edit(),
+        ));
     }
 }

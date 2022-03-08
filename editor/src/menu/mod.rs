@@ -6,7 +6,7 @@ use crate::{
     scene::EditorScene,
     send_sync_message,
     settings::Settings,
-    CurveEditorWindow, GameEngine, Message,
+    CurveEditorWindow, GameEngine, Message, Mode,
 };
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
@@ -177,5 +177,11 @@ impl Menu {
         );
         self.view_menu
             .handle_ui_message(message, &ctx.engine.user_interface, &ctx.panels);
+    }
+
+    pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
+        self.create_entity_menu.on_mode_changed(ui, mode);
+        self.edit_menu.on_mode_changed(ui, mode);
+        self.file_menu.on_mode_changed(ui, mode);
     }
 }

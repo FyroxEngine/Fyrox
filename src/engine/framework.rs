@@ -4,6 +4,7 @@
 //! Once you get familiar with the engine, you should **not** use the framework because it is too
 //! limiting and may slow you down.
 
+use crate::engine::{EngineInitParams, SerializationContext};
 use crate::gui::message::UiMessage;
 use crate::utils::log::{Log, MessageKind};
 use crate::{
@@ -14,6 +15,7 @@ use crate::{
     utils::translate_event,
     window::WindowBuilder,
 };
+use std::sync::Arc;
 
 #[doc(hidden)]
 pub mod prelude {
@@ -61,10 +63,15 @@ impl<State: GameState> Framework<State> {
     pub fn new() -> Result<Self, EngineError> {
         let event_loop = EventLoop::new();
 
-        let window_builder = WindowBuilder::new().with_title("Game").with_resizable(true);
-        let resource_manager = ResourceManager::new();
+        let serialization_context = Arc::new(SerializationContext::new());
 
-        let mut engine = Engine::new(window_builder, resource_manager, &event_loop, false)?;
+        let mut engine = Engine::new(EngineInitParams {
+            window_builder: WindowBuilder::new().with_title("Game").with_resizable(true),
+            resource_manager: ResourceManager::new(serialization_context.clone()),
+            serialization_context,
+            events_loop: &event_loop,
+            vsync: false,
+        })?;
 
         Ok(Self {
             title: "Game".to_owned(),

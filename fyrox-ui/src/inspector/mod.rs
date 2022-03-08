@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     border::BorderBuilder,
     check_box::CheckBoxBuilder,
@@ -80,6 +81,16 @@ impl ObjectValue {
     pub fn cast_clone<T: Clone + 'static>(&self) -> Option<T> {
         (*self.value).as_any().downcast_ref::<T>().cloned()
     }
+
+    pub fn try_override<T: Clone + 'static>(&self, value: &mut T) -> bool {
+        (*self.value)
+            .as_any()
+            .downcast_ref::<T>()
+            .map_or(false, |v| {
+                *value = v.clone();
+                true
+            })
+    }
 }
 
 impl PartialEq for FieldKind {
@@ -141,7 +152,7 @@ impl InspectorMessage {
     define_constructor!(InspectorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
-pub trait InspectorEnvironment: Any + Send + Sync {
+pub trait InspectorEnvironment: Any {
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -206,9 +217,9 @@ impl PartialEq for ContextEntry {
 pub struct InspectorContext {
     stack_panel: Handle<UiNode>,
     entries: Vec<ContextEntry>,
-    property_definitions: Rc<PropertyEditorDefinitionContainer>,
-    environment: Option<Rc<dyn InspectorEnvironment>>,
-    sync_flag: u64,
+    pub property_definitions: Rc<PropertyEditorDefinitionContainer>,
+    pub environment: Option<Rc<dyn InspectorEnvironment>>,
+    pub sync_flag: u64,
 }
 
 impl PartialEq for InspectorContext {
@@ -529,12 +540,16 @@ impl Control for Inspector {
         // Check each message from descendant widget and try to translate it to
         // PropertyChanged message.
         if message.flags != self.context.sync_flag {
+            let env = self.context.environment.clone();
             for entry in self.context.entries.iter() {
                 if message.destination() == entry.property_editor {
                     if let Some(args) = entry.property_editor_definition.translate_message(
-                        &entry.property_name,
-                        entry.property_owner_type_id,
-                        message,
+                        PropertyEditorTranslationContext {
+                            environment: env.clone(),
+                            name: &entry.property_name,
+                            owner_type_id: entry.property_owner_type_id,
+                            message,
+                        },
                     ) {
                         ui.send_message(InspectorMessage::property_changed(
                             self.handle,
@@ -563,6 +578,13 @@ impl InspectorBuilder {
 
     pub fn with_context(mut self, context: InspectorContext) -> Self {
         self.context = context;
+        self
+    }
+
+    pub fn with_opt_context(mut self, context: Option<InspectorContext>) -> Self {
+        if let Some(context) = context {
+            self.context = context;
+        }
         self
     }
 

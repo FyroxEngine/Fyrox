@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     core::{
         algebra::{RealField, SimdRealField, SimdValue, UnitQuaternion, Vector3},
@@ -86,14 +87,11 @@ where
         )))
     }
 
-    fn translate_message(
-        &self,
-        name: &str,
-        owner_type_id: TypeId,
-        message: &UiMessage,
-    ) -> Option<PropertyChanged> {
-        if message.direction() == MessageDirection::FromWidget {
-            if let Some(Vec3EditorMessage::Value(value)) = message.data::<Vec3EditorMessage<T>>() {
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if ctx.message.direction() == MessageDirection::FromWidget {
+            if let Some(Vec3EditorMessage::Value(value)) =
+                ctx.message.data::<Vec3EditorMessage<T>>()
+            {
                 let euler = Vector3::new(
                     value.x.to_radians(),
                     value.y.to_radians(),
@@ -101,8 +99,8 @@ where
                 );
                 let rotation = quat_from_euler(euler, RotationOrder::XYZ);
                 return Some(PropertyChanged {
-                    owner_type_id,
-                    name: name.to_string(),
+                    owner_type_id: ctx.owner_type_id,
+                    name: ctx.name.to_string(),
                     value: FieldKind::object(rotation),
                 });
             }

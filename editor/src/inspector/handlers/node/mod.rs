@@ -35,7 +35,6 @@ use fyrox::{
         sound::Sound,
         sprite::Sprite,
         terrain::Terrain,
-        Scene,
     },
 };
 
@@ -68,9 +67,8 @@ impl SceneNodePropertyChangedHandler {
         &self,
         args: &PropertyChanged,
         handle: Handle<Node>,
-        node: &Node,
+        node: &mut Node,
         ui: &UserInterface,
-        scene: &Scene,
     ) -> Option<SceneCommand> {
         if args.owner_type_id == TypeId::of::<Base>() {
             handle_base_property_changed(args, handle, node)
@@ -91,21 +89,21 @@ impl SceneNodePropertyChangedHandler {
         } else if args.owner_type_id == TypeId::of::<Decal>() {
             handle_decal_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<Terrain>() {
-            handle_terrain_property_changed(args, handle, node, &scene.graph)
+            handle_terrain_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<Mesh>() {
             handle_mesh_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<RigidBody>() {
-            handle_rigid_body_property_changed(args, handle, node.as_rigid_body())
+            handle_rigid_body_property_changed(args, handle, node.as_rigid_body_mut())
         } else if args.owner_type_id == TypeId::of::<dim2::rigidbody::RigidBody>() {
-            handle_rigid_body2d_property_changed(args, handle, node.as_rigid_body2d())
+            handle_rigid_body2d_property_changed(args, handle, node.as_rigid_body2d_mut())
         } else if args.owner_type_id == TypeId::of::<Collider>() {
-            handle_collider_property_changed(args, handle, node.as_collider())
+            handle_collider_property_changed(args, handle, node.as_collider_mut())
         } else if args.owner_type_id == TypeId::of::<dim2::collider::Collider>() {
-            handle_collider2d_property_changed(args, handle, node.as_collider2d())
+            handle_collider2d_property_changed(args, handle, node.as_collider2d_mut())
         } else if args.owner_type_id == TypeId::of::<Joint>() {
-            handle_joint_property_changed(args, handle, node.as_joint())
+            handle_joint_property_changed(args, handle, node.as_joint_mut())
         } else if args.owner_type_id == TypeId::of::<dim2::joint::Joint>() {
-            handle_joint2d_property_changed(args, handle, node.as_joint2d())
+            handle_joint2d_property_changed(args, handle, node.as_joint2d_mut())
         } else if args.owner_type_id == TypeId::of::<dim2::rectangle::Rectangle>() {
             handle_rectangle_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<Sound>() {

@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     border::BorderBuilder,
     core::{inspect::Inspect, pool::Handle},
@@ -441,24 +442,19 @@ where
         }
     }
 
-    fn translate_message(
-        &self,
-        name: &str,
-        owner_type_id: TypeId,
-        message: &UiMessage,
-    ) -> Option<PropertyChanged> {
-        if let Some(msg) = message.data::<EnumPropertyEditorMessage>() {
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if let Some(msg) = ctx.message.data::<EnumPropertyEditorMessage>() {
             return match msg {
                 EnumPropertyEditorMessage::PropertyChanged(property_changed) => {
                     Some(PropertyChanged {
-                        name: name.to_string(),
-                        owner_type_id,
+                        name: ctx.name.to_string(),
+                        owner_type_id: ctx.owner_type_id,
                         value: FieldKind::Inspectable(Box::new(property_changed.clone())),
                     })
                 }
                 EnumPropertyEditorMessage::Variant(index) => Some(PropertyChanged {
-                    name: name.to_string(),
-                    owner_type_id,
+                    name: ctx.name.to_string(),
+                    owner_type_id: ctx.owner_type_id,
                     value: FieldKind::object((self.variant_generator)(*index)),
                 }),
             };

@@ -19,7 +19,7 @@ use fyrox::{
 pub fn handle_base_light_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    node: &Node,
+    node: &mut Node,
 ) -> Option<SceneCommand> {
     match args.value {
         FieldKind::Object(ref value) => {
@@ -42,7 +42,7 @@ pub fn handle_base_light_property_changed(
 pub fn handle_spot_light_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    node: &Node,
+    node: &mut Node,
 ) -> Option<SceneCommand> {
     if node.is_spot_light() {
         match args.value {
@@ -69,7 +69,7 @@ pub fn handle_spot_light_property_changed(
 pub fn handle_point_light_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    node: &Node,
+    node: &mut Node,
 ) -> Option<SceneCommand> {
     if node.is_point_light() {
         match args.value {
@@ -93,7 +93,7 @@ pub fn handle_point_light_property_changed(
 pub fn handle_directional_light_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    node: &Node,
+    node: &mut Node,
 ) -> Option<SceneCommand> {
     if node.is_directional_light() {
         match args.value {

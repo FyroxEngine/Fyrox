@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     check_box::{CheckBoxBuilder, CheckBoxMessage},
     inspector::{
@@ -49,17 +50,13 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
         )))
     }
 
-    fn translate_message(
-        &self,
-        name: &str,
-        owner_type_id: TypeId,
-        message: &UiMessage,
-    ) -> Option<PropertyChanged> {
-        if message.direction() == MessageDirection::FromWidget {
-            if let Some(CheckBoxMessage::Check(Some(value))) = message.data::<CheckBoxMessage>() {
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if ctx.message.direction() == MessageDirection::FromWidget {
+            if let Some(CheckBoxMessage::Check(Some(value))) = ctx.message.data::<CheckBoxMessage>()
+            {
                 return Some(PropertyChanged {
-                    name: name.to_string(),
-                    owner_type_id,
+                    name: ctx.name.to_string(),
+                    owner_type_id: ctx.owner_type_id,
                     value: FieldKind::object(*value),
                 });
             }

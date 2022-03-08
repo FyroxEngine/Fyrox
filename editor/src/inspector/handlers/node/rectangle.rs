@@ -11,7 +11,7 @@ use fyrox::{
 pub fn handle_rectangle_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    node: &Node,
+    node: &mut Node,
 ) -> Option<SceneCommand> {
     if node.is_rectangle() {
         match args.value {

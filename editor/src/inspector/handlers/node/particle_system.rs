@@ -123,7 +123,7 @@ impl ParticleSystemHandler {
         &self,
         args: &PropertyChanged,
         handle: Handle<Node>,
-        node: &Node,
+        node: &mut Node,
         ui: &UserInterface,
     ) -> Option<SceneCommand> {
         if let Some(particle_system) = node.cast::<ParticleSystem>() {

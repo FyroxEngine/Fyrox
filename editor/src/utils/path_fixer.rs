@@ -2,20 +2,12 @@
 //! moved a resource in a file system, but a scene has old path.
 
 use crate::{make_scene_file_filter, Message};
-use fyrox::scene::camera::Camera;
-use fyrox::scene::decal::Decal;
-use fyrox::scene::dim2::rectangle::Rectangle;
-use fyrox::scene::light::spot::SpotLight;
-use fyrox::scene::mesh::Mesh;
-use fyrox::scene::particle_system::ParticleSystem;
-use fyrox::scene::sprite::Sprite;
-use fyrox::scene::terrain::Terrain;
 use fyrox::{
     asset::ResourceData,
     core::{
         color::Color, futures::executor::block_on, pool::Handle, replace_slashes, visitor::Visitor,
     },
-    engine::resource_manager::ResourceManager,
+    engine::{resource_manager::ResourceManager, SerializationContext},
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -35,13 +27,17 @@ use fyrox::{
     },
     material::PropertyValue,
     resource::{model::Model, texture::Texture},
-    scene::{Scene, SceneLoader},
+    scene::{
+        camera::Camera, decal::Decal, dim2::rectangle::Rectangle, light::spot::SpotLight,
+        mesh::Mesh, particle_system::ParticleSystem, sprite::Sprite, terrain::Terrain, Scene,
+        SceneLoader,
+    },
 };
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
-    path::Path,
-    path::PathBuf,
+    path::{Path, PathBuf},
+    sync::Arc,
 };
 
 pub struct PathFixer {
@@ -309,6 +305,7 @@ impl PathFixer {
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
+        serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,
     ) {
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
@@ -316,7 +313,7 @@ impl PathFixer {
                 let message;
                 match block_on(Visitor::load_binary(path)) {
                     Ok(mut visitor) => {
-                        match SceneLoader::load("Scene", &mut visitor) {
+                        match SceneLoader::load("Scene", serialization_context, &mut visitor) {
                             Err(e) => {
                                 message = format!(
                                     "Failed to load a scene {}\nReason: {}",
@@ -613,7 +610,7 @@ impl PathFixer {
         }
     }
 
-    pub fn handle_message(&mut self, message: &Message, ui: &mut UserInterface) {
+    pub fn handle_message(&mut self, message: &Message, ui: &UserInterface) {
         if let Message::Configure { working_directory } = message {
             ui.send_message(FileSelectorMessage::root(
                 self.new_path_selector,

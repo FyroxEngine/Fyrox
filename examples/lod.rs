@@ -7,15 +7,15 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use std::sync::Arc;
 
-use fyrox::scene::base::LodControlledObject;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         color::Color,
         pool::Handle,
     },
-    engine::{resource_manager::ResourceManager, Engine},
+    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -25,7 +25,7 @@ use fyrox::{
         BuildContext, UiNode,
     },
     scene::{
-        base::{LevelOfDetail, LodGroup},
+        base::{LevelOfDetail, LodControlledObject, LodGroup},
         node::Node,
         Scene,
     },
@@ -136,9 +136,15 @@ fn main() {
         .with_title("Example 08 - Level of detail")
         .with_resizable(true);
 
-    let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
-
-    let mut engine = Engine::new(window_builder, resource_manager, &event_loop, true).unwrap();
+    let serialization_context = Arc::new(SerializationContext::new());
+    let mut engine = Engine::new(EngineInitParams {
+        window_builder,
+        resource_manager: ResourceManager::new(serialization_context.clone()),
+        serialization_context,
+        events_loop: &event_loop,
+        vsync: true,
+    })
+    .unwrap();
 
     // Create simple user interface that will show some useful info.
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());

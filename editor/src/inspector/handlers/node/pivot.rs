@@ -8,7 +8,7 @@ use fyrox::{
 pub fn handle_pivot_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    node: &Node,
+    node: &mut Node,
 ) -> Option<SceneCommand> {
     match args.value {
         FieldKind::Inspectable(ref inner) => match args.name.as_ref() {

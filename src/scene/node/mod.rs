@@ -309,8 +309,12 @@ impl Node {
     ///     node.cast::<Mesh>().expect("Expected to be an instance of Mesh")
     /// }
     /// ```
-    pub fn cast<T: NodeTrait>(&self) -> Option<&T> {
-        self.0.as_any().downcast_ref::<T>()
+    pub fn cast<T: NodeTrait + TypeUuidProvider>(&self) -> Option<&T> {
+        if self.id() == T::type_uuid() {
+            unsafe { Some(&*(&*self.0 as *const dyn NodeTrait as *const T)) }
+        } else {
+            None
+        }
     }
 
     /// Performs downcasting to a particular type.
@@ -325,8 +329,12 @@ impl Node {
     ///     node.cast_mut::<Mesh>().expect("Expected to be an instance of Mesh")
     /// }
     /// ```
-    pub fn cast_mut<T: NodeTrait>(&mut self) -> Option<&mut T> {
-        self.0.as_any_mut().downcast_mut::<T>()
+    pub fn cast_mut<T: NodeTrait + TypeUuidProvider>(&mut self) -> Option<&mut T> {
+        if self.id() == T::type_uuid() {
+            unsafe { Some(&mut *(&mut *self.0 as *mut dyn NodeTrait as *mut T)) }
+        } else {
+            None
+        }
     }
 
     /// Allows a node to provide access to a component of specified type.

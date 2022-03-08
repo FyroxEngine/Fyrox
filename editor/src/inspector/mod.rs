@@ -1,3 +1,4 @@
+use crate::utils::window_content;
 use crate::{
     inspector::{
         editors::make_property_editors_container,
@@ -8,8 +9,9 @@ use crate::{
         },
     },
     scene::{EditorScene, Selection},
-    Brush, CommandGroup, GameEngine, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
+    Brush, CommandGroup, GameEngine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
+use fyrox::engine::SerializationContext;
 use fyrox::{
     core::{color::Color, inspect::Inspect, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -28,13 +30,18 @@ use fyrox::{
     },
     utils::log::{Log, MessageKind},
 };
-use std::{any::Any, rc::Rc, sync::mpsc::Sender};
+use std::{
+    any::Any,
+    rc::Rc,
+    sync::{mpsc::Sender, Arc},
+};
 
 pub mod editors;
 pub mod handlers;
 
 pub struct EditorEnvironment {
-    resource_manager: ResourceManager,
+    pub resource_manager: ResourceManager,
+    pub serialization_context: Arc<SerializationContext>,
 }
 
 impl InspectorEnvironment for EditorEnvironment {
@@ -113,6 +120,7 @@ impl Inspector {
                         .with_child({
                             warning_text = TextBuilder::new(
                                 WidgetBuilder::new()
+                                    .with_visibility(false)
                                     .with_margin(Thickness::left(4.0))
                                     .with_foreground(Brush::Solid(Color::RED))
                                     .on_row(0),
@@ -202,8 +210,12 @@ impl Inspector {
         obj: &dyn Inspect,
         ui: &mut UserInterface,
         resource_manager: ResourceManager,
+        serialization_context: Arc<SerializationContext>,
     ) {
-        let environment = Rc::new(EditorEnvironment { resource_manager });
+        let environment = Rc::new(EditorEnvironment {
+            resource_manager,
+            serialization_context,
+        });
 
         let context = InspectorContext::from_object(
             obj,
@@ -260,10 +272,29 @@ impl Inspector {
                         obj,
                         &mut engine.user_interface,
                         engine.resource_manager.clone(),
+                        engine.serialization_context.clone(),
                     )
                 }
+            } else {
+                self.clear(&engine.user_interface);
             }
         }
+    }
+
+    pub fn clear(&self, ui: &UserInterface) {
+        ui.send_message(InspectorMessage::context(
+            self.inspector,
+            MessageDirection::ToWidget,
+            Default::default(),
+        ));
+    }
+
+    pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
+        ui.send_message(WidgetMessage::enabled(
+            window_content(self.window, ui),
+            MessageDirection::ToWidget,
+            mode.is_edit(),
+        ));
     }
 
     pub fn handle_ui_message(
@@ -273,7 +304,7 @@ impl Inspector {
         engine: &mut GameEngine,
         sender: &Sender<Message>,
     ) {
-        let scene = &engine.scenes[editor_scene.scene];
+        let scene = &mut engine.scenes[editor_scene.scene];
 
         // Special case for particle systems.
         if let Selection::Graph(selection) = &editor_scene.selection {
@@ -303,9 +334,8 @@ impl Inspector {
                                 self.node_property_changed_handler.handle(
                                     args,
                                     node_handle,
-                                    &scene.graph[node_handle],
+                                    &mut scene.graph[node_handle],
                                     &engine.user_interface,
-                                    scene,
                                 )
                             } else {
                                 None

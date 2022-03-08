@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     core::inspect::Inspect,
     inspector::{
@@ -111,17 +112,13 @@ where
         }
     }
 
-    fn translate_message(
-        &self,
-        name: &str,
-        owner_type_id: TypeId,
-        message: &UiMessage,
-    ) -> Option<PropertyChanged> {
-        if let Some(InspectorMessage::PropertyChanged(msg)) = message.data::<InspectorMessage>() {
-            if message.direction() == MessageDirection::FromWidget {
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if let Some(InspectorMessage::PropertyChanged(msg)) = ctx.message.data::<InspectorMessage>()
+        {
+            if ctx.message.direction() == MessageDirection::FromWidget {
                 return Some(PropertyChanged {
-                    name: name.to_owned(),
-                    owner_type_id,
+                    name: ctx.name.to_owned(),
+                    owner_type_id: ctx.owner_type_id,
                     value: FieldKind::Inspectable(Box::new(msg.clone())),
                 });
             }

@@ -26,7 +26,7 @@ use fyrox::{
             },
             ResourceManager,
         },
-        Engine,
+        Engine, EngineInitParams, SerializationContext,
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -195,23 +195,32 @@ impl GameState for Game {
 fn main() {
     let event_loop = EventLoop::new();
 
-    let window_builder = WindowBuilder::new().with_title("Game").with_resizable(true);
-    let resource_manager = ResourceManager::new();
+    let window_builder = WindowBuilder::new()
+        .with_title("Example 12 - Custom resource loader")
+        .with_resizable(true);
 
-    //set up our custom loaders
+    let serialization_context = Arc::new(SerializationContext::new());
+    let resource_manager = ResourceManager::new(serialization_context.clone());
+
+    // Set up our custom loaders
     {
         let mut state = resource_manager.state();
         let containers = state.containers_mut();
         containers.set_model_loader(CustomModelLoader(Arc::new(ModelLoader {
             resource_manager: resource_manager.clone(),
+            serialization_context: serialization_context.clone(),
         })));
         containers.set_texture_loader(CustomTextureLoader(Arc::new(TextureLoader)));
     }
 
-    let mut engine = Engine::new(window_builder, resource_manager, &event_loop, false).unwrap();
-    engine
-        .get_window()
-        .set_title("Example 12 - Custom resource loader");
+    let mut engine = Engine::new(EngineInitParams {
+        window_builder,
+        resource_manager: ResourceManager::new(serialization_context.clone()),
+        serialization_context,
+        events_loop: &event_loop,
+        vsync: false,
+    })
+    .unwrap();
 
     let mut state = Game::init(&mut engine);
     let clock = Instant::now();

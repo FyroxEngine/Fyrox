@@ -90,7 +90,7 @@ fn modify_skybox(
 pub fn handle_camera_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    node: &Node,
+    node: &mut Node,
 ) -> Option<SceneCommand> {
     if let Some(camera) = node.cast::<Camera>() {
         match args.value {

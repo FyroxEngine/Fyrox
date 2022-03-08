@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" ENABLED="true" CONFIG_NAME="Debug" />
+    </configurations>
+  </component>
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="f1aceae8-7c33-40c3-a2da-82b82ccfcb24" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/../../editor-standalone/Cargo.toml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../editor-standalone/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../.idea/rg3d-core.iml" beforeDir="false" afterPath="$PROJECT_DIR$/../../.idea/rg3d-core.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../../Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../editor/src/inspector/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../editor/src/inspector/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/game/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/game/src/lib.rs" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="3u453lsq" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectId" id="261SwU8heJn5w02r5CngiDqBXnY" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="RunOnceActivity.cidr.known.project.marker" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="cf.first.check.clang-format" value="false" />
+    <property name="cidr.known.project.marker" value="true" />
+    <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
+    <property name="settings.editor.selected.configurable" value="language.rust.rustfmt" />
+  </component>
+  <component name="RunManager" selected="Cargo.Editor Release">
+    <configuration name="Clippy" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="clippy --workspace --all-targets --all-features" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Editor Release" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="run --release --package editor" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Game Release" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="run --release --package executor" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="Cargo.Editor Release" />
+      <item itemvalue="Cargo.Game Release" />
+      <item itemvalue="Cargo.Clippy" />
+    </list>
+  </component>
+  <component name="RustProjectSettings">
+    <option name="runRustfmtOnSave" value="true" />
+    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+    <option name="useRustfmt" value="true" />
+    <option name="version" value="2" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f1aceae8-7c33-40c3-a2da-82b82ccfcb24" name="Changes" comment="" />
+      <created>1646589837689</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1646589837689</updated>
+      <workItem from="1646589838952" duration="1739000" />
+      <workItem from="1646647229691" duration="1272000" />
+      <workItem from="1646652759757" duration="1352000" />
+      <workItem from="1646656251750" duration="1353000" />
+      <workItem from="1646659177553" duration="1603000" />
+      <workItem from="1646660930038" duration="185000" />
+      <workItem from="1646661132477" duration="2235000" />
+      <workItem from="1646663852492" duration="147000" />
+      <workItem from="1646664064437" duration="1933000" />
+      <workItem from="1646666316370" duration="1584000" />
+      <workItem from="1646675451523" duration="805000" />
+      <workItem from="1646728419343" duration="352000" />
+      <workItem from="1646728860906" duration="429000" />
+      <workItem from="1646729605140" duration="10000" />
+      <workItem from="1646730677754" duration="1167000" />
+      <workItem from="1646732845950" duration="1279000" />
+      <workItem from="1646738292422" duration="3646000" />
+      <workItem from="1646743503532" duration="2478000" />
+      <workItem from="1646747457133" duration="2369000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+</project>

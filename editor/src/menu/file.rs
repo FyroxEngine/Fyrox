@@ -3,8 +3,9 @@ use crate::{
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     scene::EditorScene,
     settings::{Settings, SettingsWindow},
-    GameEngine, Message,
+    GameEngine, Message, Mode,
 };
+use fyrox::gui::widget::WidgetMessage;
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -226,5 +227,13 @@ impl FileMenu {
                 self.settings.open(&engine.user_interface, settings, None);
             }
         }
+    }
+
+    pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
+        ui.send_message(WidgetMessage::enabled(
+            self.menu,
+            MessageDirection::ToWidget,
+            mode.is_edit(),
+        ));
     }
 }

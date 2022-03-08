@@ -2,6 +2,7 @@ use crate::{
     world::graph::item::SceneItem, Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox::gui::button::ButtonMessage;
+use fyrox::gui::inspector::editors::PropertyEditorTranslationContext;
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -291,19 +292,14 @@ impl<T: 'static> PropertyEditorDefinition for HandlePropertyEditorDefinition<T> 
         )))
     }
 
-    fn translate_message(
-        &self,
-        name: &str,
-        owner_type_id: TypeId,
-        message: &UiMessage,
-    ) -> Option<PropertyChanged> {
-        if message.direction() == MessageDirection::FromWidget {
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if ctx.message.direction() == MessageDirection::FromWidget {
             if let Some(HandlePropertyEditorMessage::Value(value)) =
-                message.data::<HandlePropertyEditorMessage<T>>()
+                ctx.message.data::<HandlePropertyEditorMessage<T>>()
             {
                 return Some(PropertyChanged {
-                    owner_type_id,
-                    name: name.to_string(),
+                    owner_type_id: ctx.owner_type_id,
+                    name: ctx.name.to_string(),
                     value: FieldKind::object(*value),
                 });
             }

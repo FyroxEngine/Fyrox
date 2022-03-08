@@ -4,11 +4,6 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
-use fyrox::scene::collider::Collider;
-use fyrox::scene::pivot::PivotBuilder;
-use fyrox::scene::rigidbody::RigidBody;
-use fyrox::scene::sound::effect::{BaseEffectBuilder, Effect, ReverbEffectBuilder};
-use fyrox::scene::sound::listener::ListenerBuilder;
 use fyrox::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
@@ -20,7 +15,7 @@ use fyrox::{
         math::SmoothAngle,
         pool::Handle,
     },
-    engine::{resource_manager::ResourceManager, Engine},
+    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{DeviceEvent, ElementState, VirtualKeyCode},
     event_loop::EventLoop,
     gui::{
@@ -37,10 +32,15 @@ use fyrox::{
     scene::{
         base::BaseBuilder,
         camera::{CameraBuilder, SkyBoxBuilder},
-        collider::{ColliderBuilder, ColliderShape},
+        collider::{Collider, ColliderBuilder, ColliderShape},
         graph::Graph,
         node::Node,
-        rigidbody::{RigidBodyBuilder, RigidBodyType},
+        pivot::PivotBuilder,
+        rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
+        sound::{
+            effect::{BaseEffectBuilder, Effect, ReverbEffectBuilder},
+            listener::ListenerBuilder,
+        },
         transform::TransformBuilder,
         Scene,
     },
@@ -122,9 +122,15 @@ impl Game {
             .with_title(title)
             .with_resizable(true);
 
-        let resource_manager = fyrox::engine::resource_manager::ResourceManager::new();
-
-        let mut engine = Engine::new(window_builder, resource_manager, &event_loop, false).unwrap();
+        let serialization_context = Arc::new(SerializationContext::new());
+        let mut engine = Engine::new(EngineInitParams {
+            window_builder,
+            resource_manager: ResourceManager::new(serialization_context.clone()),
+            serialization_context,
+            events_loop: &event_loop,
+            vsync: false,
+        })
+        .unwrap();
 
         engine
             .renderer

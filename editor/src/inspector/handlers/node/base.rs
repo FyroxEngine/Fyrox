@@ -4,12 +4,14 @@ use crate::{
     scene::commands::{graph::*, lod::*},
     SceneCommand,
 };
-use fyrox::scene::base::{LodControlledObject, LodGroup};
 use fyrox::{
     core::pool::Handle,
     gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
     scene::{
-        base::{Base, LevelOfDetail, Property, PropertyValue},
+        base::{
+            serialize_script, Base, LevelOfDetail, LodControlledObject, LodGroup, Property,
+            PropertyValue,
+        },
         node::Node,
     },
 };
@@ -17,7 +19,7 @@ use fyrox::{
 pub fn handle_base_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    base: &Base,
+    base: &mut Base,
 ) -> Option<SceneCommand> {
     match args.value {
         FieldKind::Object(ref value) => {
@@ -30,7 +32,8 @@ pub fn handle_base_property_changed(
                 Base::LIFETIME => SetLifetimeCommand,
                 Base::DEPTH_OFFSET => SetDepthOffsetCommand,
                 Base::LOD_GROUP => SetLodGroupCommand,
-                Base::CAST_SHADOWS => SetCastShadowsCommand
+                Base::CAST_SHADOWS => SetCastShadowsCommand,
+                Base::SCRIPT => SetScriptCommand
             )
         }
         FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
@@ -182,8 +185,30 @@ pub fn handle_base_property_changed(
                 },
                 _ => None,
             },
+            Base::SCRIPT => handle_script_property_changed(inner_value, handle, base),
             Base::LOCAL_TRANSFORM => handle_transform_property_changed(inner_value, handle, base),
             _ => None,
         },
     }
+}
+
+fn handle_script_property_changed(
+    args: &PropertyChanged,
+    node_handle: Handle<Node>,
+    base: &mut Base,
+) -> Option<SceneCommand> {
+    if let Some(script) = base.script.as_mut() {
+        let old_data = serialize_script(script).expect("Script must be serializable!");
+
+        if script.on_property_changed(args) {
+            let new_data = serialize_script(script).expect("Script must be serializable!");
+
+            return Some(SceneCommand::new(ScriptDataBlobCommand {
+                handle: node_handle,
+                old_value: old_data,
+                new_value: new_data,
+            }));
+        }
+    }
+    None
 }

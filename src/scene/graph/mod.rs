@@ -143,7 +143,12 @@ pub struct SubGraph {
 fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_graph: &mut Graph) {
     // Iterate over instantiated nodes and remap handles.
     for (_, &new_node_handle) in old_new_mapping.iter() {
-        dest_graph.pool[new_node_handle].remap_handles(old_new_mapping);
+        let dest_node = &mut dest_graph.pool[new_node_handle];
+        dest_node.remap_handles(old_new_mapping);
+
+        if let Some(script) = dest_node.script.as_mut() {
+            script.remap_handles(old_new_mapping);
+        }
     }
 
     dest_graph.sound_context.remap_handles(old_new_mapping);
@@ -953,14 +958,22 @@ impl Graph {
     /// detached from its parent!
     pub fn take_reserve(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
         self.unlink_internal(handle);
+        self.take_reserve_internal(handle)
+    }
+
+    pub(crate) fn take_reserve_internal(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
         self.pool.take_reserve(handle)
     }
 
     /// Puts node back by given ticket. Attaches back to root node of graph.
     pub fn put_back(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
-        let handle = self.pool.put_back(ticket, node);
+        let handle = self.put_back_internal(ticket, node);
         self.link_nodes(handle, self.root);
         handle
+    }
+
+    pub(crate) fn put_back_internal(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
+        self.pool.put_back(ticket, node)
     }
 
     /// Makes node handle vacant again.

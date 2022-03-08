@@ -17,7 +17,7 @@ use std::any::TypeId;
 pub fn handle_collider2d_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    collider: &Collider,
+    collider: &mut Collider,
 ) -> Option<SceneCommand> {
     match args.value {
         FieldKind::Object(ref value) => {

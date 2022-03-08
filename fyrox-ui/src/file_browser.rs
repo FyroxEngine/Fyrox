@@ -553,7 +553,7 @@ fn build_tree_item<P: AsRef<Path>>(
                     path.as_ref()
                         .to_string_lossy()
                         .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
-                        .replace("\\", ""),
+                        .replace('\\', ""),
                 )
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .build(ctx),
@@ -608,7 +608,7 @@ fn build_all(
 ) -> BuildResult {
     let mut dest_path = PathBuf::new();
     if let Ok(canonical_final_path) = final_path.canonicalize() {
-        if let Some(canonical_root) = root.map(|r| r.canonicalize().ok()).flatten() {
+        if let Some(canonical_root) = root.and_then(|r| r.canonicalize().ok()) {
             if let Ok(stripped) = canonical_final_path.strip_prefix(canonical_root) {
                 dest_path = stripped.to_owned();
             }

@@ -206,9 +206,9 @@ impl Control for ScrollViewer {
             if message.destination() == self.handle() {
                 match msg {
                     ScrollViewerMessage::Content(content) => {
-                        for child in ui.node(self.scroll_panel).children().to_vec() {
+                        for child in ui.node(self.scroll_panel).children() {
                             ui.send_message(WidgetMessage::remove(
-                                child,
+                                *child,
                                 MessageDirection::ToWidget,
                             ));
                         }

@@ -4,22 +4,28 @@
 #![warn(missing_docs)]
 
 pub mod error;
+pub mod executor;
 pub mod framework;
 pub mod resource_manager;
 
-use crate::utils::log::Log;
 use crate::{
     asset::ResourceState,
-    core::{algebra::Vector2, instant},
+    core::{algebra::Vector2, instant, pool::Handle},
     engine::{
         error::EngineError,
         resource_manager::{container::event::ResourceEvent, ResourceManager},
     },
+    event::Event,
     event_loop::EventLoop,
     gui::UserInterface,
+    plugin::{Plugin, PluginContext, PluginRegistrationContext},
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{model::Model, texture::TextureKind},
-    scene::{sound::SoundEngine, SceneContainer},
+    scene::{
+        node::constructor::NodeConstructorContainer, sound::SoundEngine, Scene, SceneContainer,
+    },
+    script::{constructor::ScriptConstructorContainer, Script, ScriptContext},
+    utils::log::Log,
     window::{Window, WindowBuilder},
 };
 use std::{
@@ -30,6 +36,31 @@ use std::{
     },
     time::Duration,
 };
+
+/// Serialization context holds runtime type information that allows to create unknown types using
+/// their UUIDs and a respective constructors.
+pub struct SerializationContext {
+    /// A node constructor container.
+    pub node_constructors: NodeConstructorContainer,
+    /// A script constructor container.
+    pub script_constructors: ScriptConstructorContainer,
+}
+
+impl Default for SerializationContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SerializationContext {
+    /// Creates default serialization context.
+    pub fn new() -> Self {
+        Self {
+            node_constructors: NodeConstructorContainer::new(),
+            script_constructors: ScriptConstructorContainer::new(),
+        }
+    }
+}
 
 /// See module docs.
 pub struct Engine {
@@ -60,6 +91,13 @@ pub struct Engine {
     // because internally sound engine spawns separate thread to mix and send data to sound
     // device. For more info see docs for Context.
     sound_engine: Arc<Mutex<SoundEngine>>,
+
+    // A set of plugins used by the engine.
+    plugins: Vec<Box<dyn Plugin>>,
+
+    /// A special container that is able to create nodes by their type UUID. Use a copy of this
+    /// value whenever you need it as a parameter in other parts of the engine.
+    pub serialization_context: Arc<SerializationContext>,
 }
 
 struct ResourceGraphVertex {
@@ -129,33 +167,63 @@ impl ResourceDependencyGraph {
     }
 }
 
+/// Engine initialization parameters.
+pub struct EngineInitParams<'a> {
+    /// A window builder.
+    pub window_builder: WindowBuilder,
+    /// A special container that is able to create nodes by their type UUID.
+    pub serialization_context: Arc<SerializationContext>,
+    /// A resource manager.
+    pub resource_manager: ResourceManager,
+    /// OS event loop.
+    pub events_loop: &'a EventLoop<()>,
+    /// Whether to use vertical synchronization or not. V-sync will force your game to render
+    /// frames with the synchronization rate of your monitor (which is ~60 FPS). Keep in mind
+    /// vertical synchronization could not be available on your OS and engine might fail to
+    /// initialize if v-sync is on.
+    pub vsync: bool,
+}
+
 impl Engine {
-    /// Creates new instance of engine from given window builder and events loop.
+    /// Creates new instance of engine from given initialization parameters.
     ///
     /// Automatically creates all sub-systems (renderer, sound, ui, etc.).
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use fyrox::engine::Engine;
+    /// use fyrox::engine::{Engine, EngineInitParams};
     /// use fyrox::window::WindowBuilder;
     /// use fyrox::engine::resource_manager::ResourceManager;
     /// use fyrox::event_loop::EventLoop;
+    /// use std::sync::Arc;
+    /// use fyrox::engine::SerializationContext;
     ///
     /// let evt = EventLoop::new();
-    /// let resource_manager = ResourceManager::new();
     /// let window_builder = WindowBuilder::new()
     ///     .with_title("Test")
     ///     .with_fullscreen(None);
-    /// let mut engine: Engine = Engine::new(window_builder, resource_manager, &evt, true).unwrap();
+    /// let serialization_context = Arc::new(SerializationContext::new());
+    /// let mut engine = Engine::new(EngineInitParams {
+    ///     window_builder,
+    ///     resource_manager: ResourceManager::new(serialization_context.clone()),
+    ///     serialization_context,
+    ///     events_loop: &evt,
+    ///     vsync: false,
+    /// })
+    /// .unwrap();
     /// ```
     #[inline]
-    pub fn new(
-        window_builder: WindowBuilder,
-        resource_manager: ResourceManager,
-        events_loop: &EventLoop<()>,
-        #[allow(unused_variables)] vsync: bool,
-    ) -> Result<Self, EngineError> {
+    #[allow(unused_variables)]
+    pub fn new(params: EngineInitParams) -> Result<Self, EngineError> {
+        let EngineInitParams {
+            window_builder,
+            serialization_context: node_constructors,
+            resource_manager,
+            events_loop,
+            vsync,
+        } = params;
+
         #[cfg(not(target_arch = "wasm32"))]
         let (context, client_size) = {
             let context_wrapper: glutin::WindowedContext<glutin::NotCurrent> =
@@ -243,6 +311,8 @@ impl Engine {
             context,
             #[cfg(target_arch = "wasm32")]
             window,
+            plugins: Default::default(),
+            serialization_context: node_constructors,
         })
     }
 
@@ -298,6 +368,173 @@ impl Engine {
         let time = instant::Instant::now();
         self.user_interface.update(window_size, dt);
         self.ui_time = instant::Instant::now() - time;
+    }
+
+    /// Performs update of every plugin.
+    ///
+    /// # Important notes
+    ///
+    /// This method is intended to be used by the editor and game runner. If you're using the
+    /// engine as a framework, then you should not call this method because you'll most likely
+    /// do something wrong.
+    pub fn update_plugins(&mut self, dt: f32, is_in_editor: bool) {
+        let mut context = PluginContext {
+            is_in_editor,
+            scenes: &mut self.scenes,
+            resource_manager: &self.resource_manager,
+            renderer: &mut self.renderer,
+            dt,
+            serialization_context: self.serialization_context.clone(),
+        };
+
+        for plugin in self.plugins.iter_mut() {
+            plugin.update(&mut context);
+        }
+    }
+
+    /// Processes an OS event by every registered plugin.
+    pub fn handle_os_event_by_plugins(&mut self, event: &Event<()>, dt: f32, is_in_editor: bool) {
+        for plugin in self.plugins.iter_mut() {
+            plugin.on_os_event(
+                event,
+                PluginContext {
+                    is_in_editor,
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    renderer: &mut self.renderer,
+                    dt,
+                    serialization_context: self.serialization_context.clone(),
+                },
+            );
+        }
+    }
+
+    /// Calls [`Plugin::on_enter_play_mode`] for every plugin.
+    pub fn call_plugins_on_enter_play_mode(
+        &mut self,
+        scene: Handle<Scene>,
+        dt: f32,
+        is_in_editor: bool,
+    ) {
+        for plugin in self.plugins.iter_mut() {
+            plugin.on_enter_play_mode(
+                scene,
+                PluginContext {
+                    is_in_editor,
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    renderer: &mut self.renderer,
+                    dt,
+                    serialization_context: self.serialization_context.clone(),
+                },
+            );
+        }
+    }
+
+    /// Calls [`Plugin::on_leave_play_mode`] for every plugin.
+    pub fn call_plugins_on_leave_play_mode(&mut self, dt: f32, is_in_editor: bool) {
+        for plugin in self.plugins.iter_mut() {
+            plugin.on_leave_play_mode(PluginContext {
+                is_in_editor,
+                scenes: &mut self.scenes,
+                resource_manager: &self.resource_manager,
+                renderer: &mut self.renderer,
+                dt,
+                serialization_context: self.serialization_context.clone(),
+            });
+        }
+    }
+
+    pub(crate) fn process_scripts<T>(&mut self, scene: Handle<Scene>, dt: f32, mut func: T)
+    where
+        T: FnMut(&mut Script, ScriptContext),
+    {
+        let scene = &mut self.scenes[scene];
+
+        // Iterate over the nodes without borrowing, we'll move data around to solve borrowing issues.
+        for node_index in 0..scene.graph.capacity() {
+            let handle = scene.graph.handle_from_index(node_index);
+
+            // We're interested only in nodes with scripts.
+            if scene
+                .graph
+                .try_get(handle)
+                .map_or(true, |node| node.script.is_none())
+            {
+                continue;
+            }
+
+            // If a node has script assigned, then temporarily move it out of the pool with taking
+            // the ownership to satisfy borrow checker. Moving a node out of the pool is fast, because
+            // it is just a copy of 16 bytes which can be performed in a single instruction on modern
+            // CPUs.
+            let (ticket, mut node) = scene.graph.take_reserve_internal(handle);
+
+            // Take the script off the node to get mutable borrow to it without mutably borrowing
+            // the node itself. This operation is fast as well.
+            let mut script = node.script.take().unwrap();
+
+            // Find respective plugin.
+            if let Some(plugin) = self
+                .plugins
+                .iter_mut()
+                .find(|p| p.id() == script.plugin_uuid())
+            {
+                // Form the context with all available data.
+                let context = ScriptContext {
+                    dt,
+                    plugin: &mut **plugin,
+                    node: &mut node,
+                    handle,
+                    scene,
+                };
+
+                func(&mut script, context);
+            }
+
+            // Put the script back to the node.
+            node.script = Some(script);
+
+            // Put the node back in the graph.
+            scene.graph.put_back_internal(ticket, node);
+        }
+    }
+
+    /// Updates scripts of specified scene. It must be called manually! Usually the editor
+    /// calls this for you when it is in the play mode.
+    ///
+    /// # Important notes
+    ///
+    /// This method is intended to be used by the editor and game runner. If you're using the
+    /// engine as a framework, then you should not call this method because you'll most likely
+    /// do something wrong.
+    pub fn update_scene_scripts(&mut self, scene: Handle<Scene>, dt: f32) {
+        self.process_scripts(scene, dt, |script, context| script.on_update(context));
+    }
+
+    /// Passes specified OS event to every script of the specified scene.
+    ///
+    /// # Important notes
+    ///
+    /// This method is intended to be used by the editor and game runner. If you're using the
+    /// engine as a framework, then you should not call this method because you'll most likely
+    /// do something wrong.
+    pub fn handle_os_event_by_scripts(&mut self, event: &Event<()>, scene: Handle<Scene>, dt: f32) {
+        self.process_scripts(scene, dt, |script, context| {
+            script.on_os_event(event, context)
+        })
+    }
+
+    /// Initializes every script in the scene.
+    ///
+    ///
+    /// # Important notes
+    ///
+    /// This method is intended to be used by the editor and game runner. If you're using the
+    /// engine as a framework, then you should not call this method because you'll most likely
+    /// do something wrong.
+    pub fn initialize_scene_scripts(&mut self, scene: Handle<Scene>, dt: f32) {
+        self.process_scripts(scene, dt, |script, context| script.on_init(context))
     }
 
     /// Handle hot-reloading of resources.
@@ -357,5 +594,28 @@ impl Engine {
     /// Returns master gain of the sound engine.
     pub fn sound_gain(&self) -> f32 {
         self.sound_engine.lock().unwrap().master_gain()
+    }
+
+    /// Adds new plugin.
+    pub fn add_plugin<P>(&mut self, mut plugin: P, is_in_editor: bool, init: bool)
+    where
+        P: Plugin,
+    {
+        plugin.on_register(PluginRegistrationContext {
+            serialization_context: self.serialization_context.clone(),
+        });
+
+        if init {
+            plugin.on_standalone_init(PluginContext {
+                is_in_editor,
+                scenes: &mut self.scenes,
+                resource_manager: &self.resource_manager,
+                renderer: &mut self.renderer,
+                dt: 0.0,
+                serialization_context: self.serialization_context.clone(),
+            });
+        }
+
+        self.plugins.push(Box::new(plugin));
     }
 }

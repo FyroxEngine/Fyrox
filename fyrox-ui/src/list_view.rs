@@ -195,9 +195,9 @@ impl Control for ListView {
                 match msg {
                     ListViewMessage::Items(items) => {
                         // Remove previous items.
-                        for child in ui.node(self.panel).children().to_vec() {
+                        for child in ui.node(self.panel).children() {
                             ui.send_message(WidgetMessage::remove(
-                                child,
+                                *child,
                                 MessageDirection::ToWidget,
                             ));
                         }

@@ -5,22 +5,21 @@ use crate::{
 use fyrox::{
     core::pool::Handle,
     gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
-    scene::{graph::Graph, node::Node, terrain::Layer, terrain::Terrain},
+    scene::{node::Node, terrain::Layer, terrain::Terrain},
 };
 use std::any::TypeId;
 
 pub fn handle_terrain_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    node: &Node,
-    graph: &Graph,
+    node: &mut Node,
 ) -> Option<SceneCommand> {
-    if node.is_terrain() {
+    if let Some(terrain) = node.cast::<Terrain>() {
         match args.value {
             FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
                 Terrain::LAYERS => match &**collection_changed {
                     CollectionChanged::Add => Some(SceneCommand::new(AddTerrainLayerCommand::new(
-                        handle, graph,
+                        handle, terrain,
                     ))),
                     CollectionChanged::Remove(index) => Some(SceneCommand::new(
                         DeleteTerrainLayerCommand::new(handle, *index),

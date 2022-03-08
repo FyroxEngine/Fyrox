@@ -1,3 +1,4 @@
+use crate::utils::window_content;
 use crate::{
     load_image,
     scene::{
@@ -13,7 +14,7 @@ use crate::{
         },
         search::SearchBar,
     },
-    GameEngine, Message,
+    GameEngine, Message, Mode,
 };
 use fyrox::{
     core::{
@@ -784,7 +785,7 @@ impl WorldViewer {
         }
     }
 
-    pub fn clear(&mut self, ui: &mut UserInterface) {
+    pub fn clear(&mut self, ui: &UserInterface) {
         self.node_to_view_map.clear();
 
         for folder in [self.graph_folder] {
@@ -794,6 +795,14 @@ impl WorldViewer {
                 vec![],
             ));
         }
+    }
+
+    pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
+        ui.send_message(WidgetMessage::enabled(
+            window_content(self.window, ui),
+            MessageDirection::ToWidget,
+            mode.is_edit(),
+        ));
     }
 }
 

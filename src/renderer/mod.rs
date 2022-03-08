@@ -17,6 +17,7 @@ pub mod batch;
 pub mod cache;
 pub mod debug_renderer;
 pub mod renderer2d;
+pub mod ui_renderer;
 
 mod bloom;
 mod flat_shader;
@@ -31,9 +32,7 @@ mod shadow;
 mod skybox_shader;
 mod sprite_renderer;
 mod ssao;
-mod ui_renderer;
 
-use crate::material::shader::Shader;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -45,7 +44,10 @@ use crate::{
     },
     engine::resource_manager::{container::event::ResourceEvent, ResourceManager},
     gui::{draw::DrawingContext, UserInterface},
-    material::{shader::SamplerFallback, Material, PropertyValue},
+    material::{
+        shader::{SamplerFallback, Shader},
+        Material, PropertyValue,
+    },
     renderer::{
         batch::BatchStorage,
         bloom::BloomRenderer,
@@ -84,7 +86,7 @@ use std::{
     collections::hash_map::Entry,
     fmt::{Display, Formatter},
     rc::Rc,
-    sync::{mpsc::Receiver, Arc, Mutex},
+    sync::mpsc::Receiver,
 };
 
 /// Renderer statistics for one frame, also includes current frames per second
@@ -461,7 +463,8 @@ impl Default for Statistics {
     }
 }
 
-struct AssociatedSceneData {
+/// A set of frame buffers, renderers, that contains scene-specific data.
+pub struct AssociatedSceneData {
     /// G-Buffer of the scene.
     pub gbuffer: GBuffer,
 
@@ -484,6 +487,7 @@ struct AssociatedSceneData {
 }
 
 impl AssociatedSceneData {
+    /// Creates new scene data.
     pub fn new(
         state: &mut PipelineState,
         width: usize,
@@ -602,18 +606,21 @@ impl AssociatedSceneData {
         );
     }
 
+    /// Returns high-dynamic range frame buffer texture.
     pub fn hdr_scene_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
         self.hdr_scene_framebuffer.color_attachments()[0]
             .texture
             .clone()
     }
 
+    /// Returns low-dynamic range frame buffer texture (final frame).
     pub fn ldr_scene_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
         self.ldr_scene_framebuffer.color_attachments()[0]
             .texture
             .clone()
     }
 
+    /// Returns low-dynamic range frame buffer texture (accumulation frame).
     pub fn ldr_temp_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
         self.ldr_temp_framebuffer.color_attachments()[0]
             .texture
@@ -639,14 +646,14 @@ pub(in crate) fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
 /// See module docs.
 pub struct Renderer {
     backbuffer: FrameBuffer,
-    scene_render_passes: Vec<Arc<Mutex<dyn SceneRenderPass>>>,
+    scene_render_passes: Vec<Rc<RefCell<dyn SceneRenderPass>>>,
     deferred_light_renderer: DeferredLightRenderer,
     flat_shader: FlatShader,
     sprite_renderer: SpriteRenderer,
     particle_system_renderer: ParticleSystemRenderer,
-    // Dummy white one pixel texture which will be used as stub when rendering
-    // something without texture specified.
-    white_dummy: Rc<RefCell<GpuTexture>>,
+    /// Dummy white one pixel texture which will be used as stub when rendering
+    /// something without texture specified.
+    pub white_dummy: Rc<RefCell<GpuTexture>>,
     black_dummy: Rc<RefCell<GpuTexture>>,
     environment_dummy: Rc<RefCell<GpuTexture>>,
     // Dummy one pixel texture with (0, 1, 0) vector is used as stub when rendering
@@ -655,16 +662,19 @@ pub struct Renderer {
     // Dummy one pixel texture used as stub when rendering something without a
     // metallic texture. Default metalness is 0.0
     metallic_dummy: Rc<RefCell<GpuTexture>>,
-    ui_renderer: UiRenderer,
+    /// User interface renderer.
+    pub ui_renderer: UiRenderer,
     statistics: Statistics,
     quad: GeometryBuffer,
     frame_size: (u32, u32),
     quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
     pub debug_renderer: DebugRenderer,
-    scene_data_map: FxHashMap<Handle<Scene>, AssociatedSceneData>,
+    /// A set of associated data for each scene that was rendered.
+    pub scene_data_map: FxHashMap<Handle<Scene>, AssociatedSceneData>,
     backbuffer_clear_color: Color,
-    texture_cache: TextureCache,
+    /// Texture cache with GPU textures.
+    pub texture_cache: TextureCache,
     shader_cache: ShaderCache,
     geometry_cache: GeometryCache,
     batch_storage: BatchStorage,
@@ -678,7 +688,8 @@ pub struct Renderer {
     ui_frame_buffers: FxHashMap<usize, FrameBuffer>,
     // MUST BE LAST! Otherwise you'll get crash, because other parts of the renderer will
     // contain **pointer** to pipeline state. It must be dropped last!
-    state: Box<PipelineState>,
+    /// Pipeline state.
+    pub state: Box<PipelineState>,
 }
 
 fn make_ui_frame_buffer(
@@ -801,16 +812,30 @@ pub struct SceneRenderPassContext<'a, 'b> {
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
     /// have an ability to write to this texture.
     pub ambient_texture: Rc<RefCell<GpuTexture>>,
+
+    /// User interface renderer.
+    pub ui_renderer: &'a mut UiRenderer,
 }
 
 /// A trait for custom scene rendering pass. It could be used to add your own rendering techniques.
 pub trait SceneRenderPass {
-    /// Main rendering method. It will be called for **each** scene registered in the engine, but
-    /// you are able to filter out scene by its handle.
-    fn render(
+    /// Renders scene into high dynamic range target. It will be called for **each** scene
+    /// registered in the engine, but you are able to filter out scene by its handle.
+    fn on_hdr_render(
         &mut self,
-        ctx: SceneRenderPassContext,
-    ) -> Result<RenderPassStatistics, FrameworkError>;
+        _ctx: SceneRenderPassContext,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
+        Ok(RenderPassStatistics::default())
+    }
+
+    /// Renders scene into low dynamic range target. It will be called for **each** scene
+    /// registered in the engine, but you are able to filter out scene by its handle.
+    fn on_ldr_render(
+        &mut self,
+        _ctx: SceneRenderPassContext,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
+        Ok(RenderPassStatistics::default())
+    }
 }
 
 fn blit_pixels(
@@ -1118,7 +1143,7 @@ impl Renderer {
     }
 
     /// Adds a custom render pass.
-    pub fn add_render_pass(&mut self, pass: Arc<Mutex<dyn SceneRenderPass>>) {
+    pub fn add_render_pass(&mut self, pass: Rc<RefCell<dyn SceneRenderPass>>) {
         self.scene_render_passes.push(pass);
     }
 
@@ -1523,26 +1548,29 @@ impl Renderer {
 
                 for render_pass in self.scene_render_passes.iter() {
                     self.statistics +=
-                        render_pass.lock().unwrap().render(SceneRenderPassContext {
-                            pipeline_state: state,
-                            texture_cache: &mut self.texture_cache,
-                            geometry_cache: &mut self.geometry_cache,
-                            quality_settings: &self.quality_settings,
-                            batch_storage: &self.batch_storage,
-                            viewport,
-                            scene,
-                            camera,
-                            scene_handle,
-                            white_dummy: self.white_dummy.clone(),
-                            normal_dummy: self.normal_dummy.clone(),
-                            metallic_dummy: self.metallic_dummy.clone(),
-                            environment_dummy: self.environment_dummy.clone(),
-                            black_dummy: self.black_dummy.clone(),
-                            depth_texture: scene_associated_data.gbuffer.depth(),
-                            normal_texture: scene_associated_data.gbuffer.normal_texture(),
-                            ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
-                            framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
-                        })?;
+                        render_pass
+                            .borrow_mut()
+                            .on_hdr_render(SceneRenderPassContext {
+                                pipeline_state: state,
+                                texture_cache: &mut self.texture_cache,
+                                geometry_cache: &mut self.geometry_cache,
+                                quality_settings: &self.quality_settings,
+                                batch_storage: &self.batch_storage,
+                                viewport,
+                                scene,
+                                camera,
+                                scene_handle,
+                                white_dummy: self.white_dummy.clone(),
+                                normal_dummy: self.normal_dummy.clone(),
+                                metallic_dummy: self.metallic_dummy.clone(),
+                                environment_dummy: self.environment_dummy.clone(),
+                                black_dummy: self.black_dummy.clone(),
+                                depth_texture: scene_associated_data.gbuffer.depth(),
+                                normal_texture: scene_associated_data.gbuffer.normal_texture(),
+                                ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
+                                framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
+                                ui_renderer: &mut self.ui_renderer,
+                            })?;
                 }
 
                 let quad = &self.quad;
@@ -1598,6 +1626,33 @@ impl Renderer {
                     &scene.drawing_context,
                     camera,
                 );
+
+                for render_pass in self.scene_render_passes.iter() {
+                    self.statistics +=
+                        render_pass
+                            .borrow_mut()
+                            .on_ldr_render(SceneRenderPassContext {
+                                pipeline_state: state,
+                                texture_cache: &mut self.texture_cache,
+                                geometry_cache: &mut self.geometry_cache,
+                                quality_settings: &self.quality_settings,
+                                batch_storage: &self.batch_storage,
+                                viewport,
+                                scene,
+                                camera,
+                                scene_handle,
+                                white_dummy: self.white_dummy.clone(),
+                                normal_dummy: self.normal_dummy.clone(),
+                                metallic_dummy: self.metallic_dummy.clone(),
+                                environment_dummy: self.environment_dummy.clone(),
+                                black_dummy: self.black_dummy.clone(),
+                                depth_texture: scene_associated_data.gbuffer.depth(),
+                                normal_texture: scene_associated_data.gbuffer.normal_texture(),
+                                ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
+                                framebuffer: &mut scene_associated_data.ldr_scene_framebuffer,
+                                ui_renderer: &mut self.ui_renderer,
+                            })?;
+                }
             }
 
             // Optionally render everything into back buffer.

@@ -26,9 +26,6 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
-use crate::scene::camera::Camera;
-use crate::scene::graph::GraphPerformanceStatistics;
-use crate::scene::mesh::Mesh;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -40,16 +37,18 @@ use crate::{
         sstorage::ImmutableString,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::resource_manager::ResourceManager,
+    engine::{resource_manager::ResourceManager, SerializationContext},
     material::{shader::SamplerFallback, PropertyValue},
     resource::texture::Texture,
     scene::{
+        camera::Camera,
         debug::SceneDrawingContext,
-        graph::Graph,
+        graph::{Graph, GraphPerformanceStatistics},
         mesh::buffer::{
             VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
             VertexWriteTrait,
         },
+        mesh::Mesh,
         node::Node,
         sound::SoundEngine,
         variable::{InheritError, InheritableVariable},
@@ -57,13 +56,13 @@ use crate::{
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::FxHashMap;
-use std::time::Duration;
 use std::{
     any::{Any, TypeId},
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
     path::Path,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 /// A trait for object that has any TemplateVariable and should support property inheritance.
@@ -318,18 +317,27 @@ pub struct SceneLoader {
 impl SceneLoader {
     /// Tries to load scene from given file. File can contain any scene in native engine format.
     /// Such scenes can be made in rusty editor.
-    pub async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, VisitError> {
+    pub async fn from_file<P: AsRef<Path>>(
+        path: P,
+        serialization_context: Arc<SerializationContext>,
+    ) -> Result<Self, VisitError> {
         let mut visitor = Visitor::load_binary(path).await?;
-        Self::load("Scene", &mut visitor)
+        Self::load("Scene", serialization_context, &mut visitor)
     }
 
     /// Tries to load a scene using specified visitor and region name.
-    pub fn load(region_name: &str, visitor: &mut Visitor) -> Result<Self, VisitError> {
+    pub fn load(
+        region_name: &str,
+        serialization_context: Arc<SerializationContext>,
+        visitor: &mut Visitor,
+    ) -> Result<Self, VisitError> {
         if !visitor.is_reading() {
             return Err(VisitError::User(
                 "Visitor must be in read mode!".to_string(),
             ));
         }
+
+        visitor.environment = Some(serialization_context);
 
         let mut scene = Scene::default();
         scene.visit(region_name, visitor)?;
@@ -680,6 +688,21 @@ impl SceneContainer {
     /// Returns pair iterator which yields (handle, scene_ref) pairs.
     pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Scene>, &Scene)> {
         self.pool.pair_iter()
+    }
+
+    /// Returns pair iterator which yields (handle, scene_ref) pairs.
+    pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Scene>, &mut Scene)> {
+        self.pool.pair_iter_mut()
+    }
+
+    /// Tries to borrow a scene using its handle.
+    pub fn try_get(&self, handle: Handle<Scene>) -> Option<&Scene> {
+        self.pool.try_borrow(handle)
+    }
+
+    /// Tries to borrow a scene using its handle.
+    pub fn try_get_mut(&mut self, handle: Handle<Scene>) -> Option<&mut Scene> {
+        self.pool.try_borrow_mut(handle)
     }
 
     /// Creates new iterator over scenes in container.

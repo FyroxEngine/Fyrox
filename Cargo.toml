@@ -23,8 +23,10 @@ members = [
     "fyrox-ui",
     "fyrox-resource",
     "examples/wasm",
-	"editor"
+	"editor",
+    "editor-standalone"
 ]
+exclude = ["examples/scripting"]
 
 [profile.dev]
 opt-level = 0

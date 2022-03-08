@@ -15,6 +15,12 @@ use std::{
     sync::Arc,
 };
 
+#[derive(Clone, Debug)]
+struct State {
+    string: String,
+    hash: u64,
+}
+
 /// Immutable string is a string with constant content. Immutability gives some nice properties:
 ///
 /// - Address of the string could be used as a hash, which improves hashing performance dramatically
@@ -27,18 +33,18 @@ use std::{
 ///
 /// Most common use case for immutable strings is hash map keys in performance-critical places.
 #[derive(Clone, Debug)]
-pub struct ImmutableString(Arc<String>);
+pub struct ImmutableString(Arc<State>);
 
 impl Display for ImmutableString {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0.as_ref())
+        f.write_str(self.0.string.as_ref())
     }
 }
 
 impl Visit for ImmutableString {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         // Serialize/deserialize as ordinary string.
-        let mut string = self.0.deref().clone();
+        let mut string = self.0.string.clone();
         string.visit(name, visitor)?;
 
         // Deduplicate on deserialization.
@@ -73,13 +79,13 @@ impl ImmutableString {
     /// for a single session, uniqueness is not preserved between application runs.
     #[inline]
     pub fn id(&self) -> u64 {
-        &*self.0 as *const _ as u64
+        self.0.hash
     }
 
     /// Clones content of inner immutable string to a mutable string.
     #[inline]
     pub fn to_mutable(&self) -> String {
-        (*self.0).clone()
+        self.0.string.clone()
     }
 }
 
@@ -88,7 +94,7 @@ impl Deref for ImmutableString {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref()
+        self.0.string.as_ref()
     }
 }
 
@@ -112,7 +118,7 @@ impl Eq for ImmutableString {}
 /// storage is a singleton. In normal circumstances you should never use it directly.
 #[derive(Default)]
 pub struct ImmutableStringStorage {
-    vec: FxHashMap<u64, Arc<String>>,
+    vec: FxHashMap<u64, Arc<State>>,
 }
 
 impl ImmutableStringStorage {
@@ -125,7 +131,10 @@ impl ImmutableStringStorage {
         if let Some(existing) = self.vec.get(&hash) {
             ImmutableString(existing.clone())
         } else {
-            let immutable = Arc::new(string.as_ref().to_owned());
+            let immutable = Arc::new(State {
+                string: string.as_ref().to_owned(),
+                hash,
+            });
             self.vec.insert(hash, immutable.clone());
             ImmutableString(immutable)
         }

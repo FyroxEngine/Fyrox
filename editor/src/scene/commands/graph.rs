@@ -7,13 +7,16 @@ use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         pool::{Handle, Ticket},
+        visitor::Visitor,
     },
     scene::{
-        base::{Mobility, Property, PropertyValue},
+        base::{deserialize_script, visit_opt_script, Mobility, Property, PropertyValue},
         graph::{Graph, SubGraph},
         node::Node,
     },
+    script::Script,
 };
+use std::io::Cursor;
 
 #[derive(Debug)]
 pub struct MoveNodeCommand {
@@ -392,7 +395,7 @@ impl Command for AddNodeCommand {
 
 define_vec_add_remove_commands!(
     struct AddPropertyCommand, RemovePropertyCommand<Node, Property>
-    (self, context) { &mut context.scene.graph[self.handle].properties.get_mut() }
+    (self, context) { context.scene.graph[self.handle].properties.get_mut() }
 );
 
 #[derive(Debug)]
@@ -506,5 +509,101 @@ define_node_command! {
         let temp = **node.local_transform().scaling_pivot();
         node.local_transform_mut().set_scaling_pivot(self.value);
         self.value = temp;
+    }
+}
+
+#[derive(Debug)]
+pub enum SetScriptCommandState {
+    Undefined,
+    NonExecuted { script: Option<Script> },
+    Executed,
+    Reverted { data: Vec<u8> },
+}
+
+#[derive(Debug)]
+pub struct SetScriptCommand {
+    handle: Handle<Node>,
+    state: SetScriptCommandState,
+}
+
+impl SetScriptCommand {
+    pub fn new(handle: Handle<Node>, script: Option<Script>) -> Self {
+        Self {
+            handle,
+            state: SetScriptCommandState::NonExecuted { script },
+        }
+    }
+}
+
+impl Command for SetScriptCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Set Script Command".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        let node = &mut context.scene.graph[self.handle];
+
+        match std::mem::replace(&mut self.state, SetScriptCommandState::Executed) {
+            SetScriptCommandState::NonExecuted { script } => {
+                node.script = script;
+            }
+            SetScriptCommandState::Reverted { data } => {
+                let mut visitor = Visitor::load_from_memory(data).unwrap();
+                visitor.environment = Some(context.serialization_context.clone());
+                visit_opt_script("Script", &mut node.script, &mut visitor).unwrap();
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        let node = &mut context.scene.graph[self.handle];
+        match std::mem::replace(&mut self.state, SetScriptCommandState::Undefined) {
+            SetScriptCommandState::Executed => {
+                let mut script = node.script.take();
+                let mut visitor = Visitor::new();
+                visitor.environment = Some(context.serialization_context.clone());
+                visit_opt_script("Script", &mut script, &mut visitor).unwrap();
+                let mut data = Cursor::new(Vec::<u8>::new());
+                visitor.save_binary_to_memory(&mut data).unwrap();
+                self.state = SetScriptCommandState::Reverted {
+                    data: data.into_inner(),
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ScriptDataBlobCommand {
+    pub handle: Handle<Node>,
+    pub old_value: Vec<u8>,
+    pub new_value: Vec<u8>,
+}
+
+impl ScriptDataBlobCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        let data = self.new_value.clone();
+        std::mem::swap(&mut self.old_value, &mut self.new_value);
+        if let Some(script) = context.scene.graph[self.handle].script.as_mut() {
+            *script = deserialize_script(data, &context.serialization_context).unwrap();
+        } else {
+            unreachable!()
+        }
+    }
+}
+
+impl Command for ScriptDataBlobCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Change Script Property".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context);
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context);
     }
 }

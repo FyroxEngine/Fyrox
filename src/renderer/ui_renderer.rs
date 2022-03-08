@@ -1,3 +1,5 @@
+//! See [`UiRenderer`] docs.
+
 use crate::core::sstorage::ImmutableString;
 use crate::{
     asset::Resource,
@@ -82,20 +84,30 @@ impl UiShader {
     }
 }
 
+/// User interface renderer allows you to render drawing context in specified render target.
 pub struct UiRenderer {
     shader: UiShader,
     geometry_buffer: GeometryBuffer,
     clipping_geometry_buffer: GeometryBuffer,
 }
 
-pub(in crate) struct UiRenderContext<'a, 'b, 'c> {
+/// A set of parameters to render a specified user interface drawing context.
+pub struct UiRenderContext<'a, 'b, 'c> {
+    /// Render pipeline state.
     pub state: &'a mut PipelineState,
+    /// Viewport to where render the user interface.
     pub viewport: Rect<i32>,
+    /// Frame buffer to where render the user interface.
     pub frame_buffer: &'b mut FrameBuffer,
+    /// Width of the frame buffer to where render the user interface.
     pub frame_width: f32,
+    /// Height of the frame buffer to where render the user interface.
     pub frame_height: f32,
+    /// Drawing context of a user interface.
     pub drawing_context: &'c DrawingContext,
+    /// A reference of white-pixel texture.
     pub white_dummy: Rc<RefCell<GpuTexture>>,
+    /// GPU texture cache.
     pub texture_cache: &'a mut TextureCache,
 }
 
@@ -151,7 +163,8 @@ impl UiRenderer {
         })
     }
 
-    pub(in crate::renderer) fn render(
+    /// Renders given UI's drawing context to specified frame buffer.
+    pub fn render(
         &mut self,
         args: UiRenderContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
@@ -160,7 +173,7 @@ impl UiRenderer {
         let UiRenderContext {
             state,
             viewport,
-            frame_buffer: backbuffer,
+            frame_buffer,
             frame_width,
             frame_height,
             drawing_context,
@@ -204,7 +217,7 @@ impl UiRenderer {
             // Draw clipping geometry first if we have any. This is optional, because complex
             // clipping is very rare and in most cases scissor test will do the job.
             if let Some(clipping_geometry) = cmd.clipping_geometry.as_ref() {
-                backbuffer.clear(state, viewport, None, None, Some(0));
+                frame_buffer.clear(state, viewport, None, None, Some(0));
 
                 self.clipping_geometry_buffer.set_buffer_data(
                     state,
@@ -216,7 +229,7 @@ impl UiRenderer {
                     .set_triangles(&clipping_geometry.triangle_buffer);
 
                 // Draw
-                statistics += backbuffer.draw(
+                statistics += frame_buffer.draw(
                     &self.clipping_geometry_buffer,
                     state,
                     viewport,
@@ -312,7 +325,7 @@ impl UiRenderer {
             };
 
             let shader = &self.shader;
-            statistics += backbuffer.draw_part(
+            statistics += frame_buffer.draw_part(
                 &self.geometry_buffer,
                 state,
                 viewport,

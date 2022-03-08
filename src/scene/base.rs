@@ -3,6 +3,7 @@
 //! For more info see [`Base`]
 
 use crate::{
+    core::uuid::Uuid,
     core::{
         algebra::{Matrix4, Vector3},
         inspect::{Inspect, PropertyInfo},
@@ -11,7 +12,7 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
         VecExtensions,
     },
-    engine::resource_manager::ResourceManager,
+    engine::{resource_manager::ResourceManager, SerializationContext},
     impl_directly_inheritable_entity_trait,
     resource::model::Model,
     scene::{
@@ -20,6 +21,7 @@ use crate::{
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
+    script::Script,
     utils::log::Log,
 };
 use fxhash::FxHashMap;
@@ -352,6 +354,9 @@ pub struct Base {
     // was instantiated from.
     #[inspect(read_only)]
     pub(in crate) original_handle_in_resource: Handle<Node>,
+
+    /// Current script of the scene node.
+    pub script: Option<Script>,
 }
 
 impl_directly_inheritable_entity_trait!(Base;
@@ -386,6 +391,7 @@ impl Clone for Base {
             frustum_culling: self.frustum_culling.clone(),
             depth_offset: self.depth_offset.clone(),
             cast_shadows: self.cast_shadows.clone(),
+            script: self.script.clone(),
 
             // Rest of data is *not* copied!
             parent: Default::default(),
@@ -648,6 +654,16 @@ impl Base {
         self.cast_shadows.set(cast_shadows);
     }
 
+    /// Sets new script for the scene node.
+    pub fn set_script(&mut self, script: Option<Script>) {
+        self.script = script;
+    }
+
+    /// Returns a copy of the current script.
+    pub fn script_cloned(&self) -> Option<Script> {
+        self.script.clone()
+    }
+
     /// Updates node lifetime and returns true if the node is still alive, false - otherwise.
     pub(crate) fn update_lifetime(&mut self, dt: f32) -> bool {
         if let Some(lifetime) = self.lifetime.get_mut_silent().as_mut() {
@@ -718,6 +734,95 @@ impl Default for Base {
     }
 }
 
+/// Serializes script in a data blob.
+#[allow(clippy::cast_ref_to_mut)] // See SAFETY block below
+pub fn serialize_script(script: &Script) -> Result<Vec<u8>, VisitError> {
+    let mut visitor = Visitor::new();
+
+    let mut script_type_uuid = script.id();
+    script_type_uuid.visit("TypeUuid", &mut visitor)?;
+
+    // SAFETY: It is guaranteed that visitor will **not** modify internal state of the object
+    // if it is in "write" mode (serialization mode).
+    let script = unsafe { &mut *(script as *const _ as *mut Script) };
+    script.visit("ScriptData", &mut visitor)?;
+
+    visitor.save_binary_to_vec()
+}
+
+/// Deserializes script from the data blob.
+pub fn deserialize_script(
+    data: Vec<u8>,
+    serialization_context: &SerializationContext,
+) -> Result<Script, VisitError> {
+    let mut visitor = Visitor::load_from_memory(data)?;
+
+    let mut script_type_uuid = Uuid::default();
+    script_type_uuid.visit("TypeUuid", &mut visitor)?;
+
+    if script_type_uuid.is_nil() {
+        Err(VisitError::User(
+            "Unable to deserialize script with zero UUID!".to_string(),
+        ))
+    } else {
+        let mut script = serialization_context
+            .script_constructors
+            .try_create(&script_type_uuid)
+            .ok_or_else(|| {
+                VisitError::User(format!(
+                    "There is no corresponding script constructor for {} type!",
+                    script_type_uuid
+                ))
+            })?;
+
+        script.visit("ScriptData", &mut visitor)?;
+
+        Ok(script)
+    }
+}
+
+/// Serializes Option<Script> using given serializer.
+pub fn visit_opt_script(
+    name: &str,
+    script: &mut Option<Script>,
+    visitor: &mut Visitor,
+) -> VisitResult {
+    visitor.enter_region(name)?;
+
+    let mut script_type_uuid = script.as_ref().map(|s| s.id()).unwrap_or_default();
+    script_type_uuid.visit("TypeUuid", visitor)?;
+
+    if visitor.is_reading() {
+        *script = if script_type_uuid.is_nil() {
+            None
+        } else {
+            let serialization_context = visitor
+                .environment
+                .as_ref()
+                .and_then(|e| e.downcast_ref::<SerializationContext>())
+                .expect("Visitor environment must contain serialization context!");
+
+            Some(
+                serialization_context
+                    .script_constructors
+                    .try_create(&script_type_uuid)
+                    .ok_or_else(|| {
+                        VisitError::User(format!(
+                            "There is no corresponding script constructor for {} type!",
+                            script_type_uuid
+                        ))
+                    })?,
+            )
+        };
+    }
+
+    if let Some(script) = script {
+        script.visit("ScriptData", visitor)?;
+    }
+
+    visitor.leave_region()
+}
+
 impl Visit for Base {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -741,6 +846,8 @@ impl Visit for Base {
         let _ = self.frustum_culling.visit("FrustumCulling", visitor);
         let _ = self.cast_shadows.visit("CastShadows", visitor);
 
+        visit_opt_script("Script", &mut self.script, visitor)?;
+
         visitor.leave_region()
     }
 }
@@ -759,6 +866,7 @@ pub struct BaseBuilder {
     tag: String,
     frustum_culling: bool,
     cast_shadows: bool,
+    script: Option<Script>,
 }
 
 impl Default for BaseBuilder {
@@ -783,6 +891,7 @@ impl BaseBuilder {
             tag: Default::default(),
             frustum_culling: true,
             cast_shadows: true,
+            script: None,
         }
     }
 
@@ -865,6 +974,12 @@ impl BaseBuilder {
         self
     }
 
+    /// Sets desired script of the node.
+    pub fn with_script(mut self, script: Script) -> Self {
+        self.script = Some(script);
+        self
+    }
+
     /// Creates an instance of [`Base`].
     pub fn build_base(self) -> Base {
         Base {
@@ -888,6 +1003,7 @@ impl BaseBuilder {
             transform_modified: Cell::new(false),
             frustum_culling: self.frustum_culling.into(),
             cast_shadows: self.cast_shadows.into(),
+            script: self.script,
         }
     }
 }

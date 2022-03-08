@@ -716,6 +716,7 @@ pub struct Visitor {
     reading: bool,
     current_node: Handle<Node>,
     root: Handle<Node>,
+    pub environment: Option<Arc<dyn Any>>,
 }
 
 pub trait Visit {
@@ -741,6 +742,7 @@ impl Visitor {
             reading: false,
             current_node: root,
             root,
+            environment: None,
         }
     }
 
@@ -842,8 +844,7 @@ impl Visitor {
         out_string
     }
 
-    pub fn save_binary<P: AsRef<Path>>(&self, path: P) -> VisitResult {
-        let mut writer = BufWriter::new(File::create(path)?);
+    pub fn save_binary_to_memory<W: Write>(&self, mut writer: W) -> VisitResult {
         writer.write_all(Self::MAGIC.as_bytes())?;
         let mut stack = vec![self.root];
         while let Some(node_handle) = stack.pop() {
@@ -861,6 +862,17 @@ impl Visitor {
             stack.extend_from_slice(&node.children);
         }
         Ok(())
+    }
+
+    pub fn save_binary_to_vec(&self) -> Result<Vec<u8>, VisitError> {
+        let mut writer = Cursor::new(Vec::new());
+        self.save_binary_to_memory(&mut writer)?;
+        Ok(writer.into_inner())
+    }
+
+    pub fn save_binary<P: AsRef<Path>>(&self, path: P) -> VisitResult {
+        let writer = BufWriter::new(File::create(path)?);
+        self.save_binary_to_memory(writer)
     }
 
     fn load_node_binary(&mut self, file: &mut dyn Read) -> Result<Handle<Node>, VisitError> {
@@ -914,6 +926,7 @@ impl Visitor {
             reading: true,
             current_node: Handle::NONE,
             root: Handle::NONE,
+            environment: None,
         };
         visitor.root = visitor.load_node_binary(&mut reader)?;
         visitor.current_node = visitor.root;

@@ -7,6 +7,7 @@ use crate::{
         uuid::Uuid,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
+    engine::SerializationContext,
     scene::{
         self,
         camera::Camera,
@@ -14,7 +15,7 @@ use crate::{
         dim2::{self, rectangle::Rectangle},
         light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         mesh::Mesh,
-        node::{constructor::NodeConstructorContainer, Node},
+        node::Node,
         particle_system::ParticleSystem,
         pivot::Pivot,
         sound::{listener::Listener, Sound},
@@ -92,7 +93,14 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
             let mut id = Uuid::default();
             id.visit("TypeUuid", visitor)?;
 
-            let mut node = NodeConstructorContainer::instance()
+            let serialization_context = visitor
+                .environment
+                .as_ref()
+                .and_then(|e| e.downcast_ref::<SerializationContext>())
+                .expect("Visitor environment must contain serialization context!");
+
+            let mut node = serialization_context
+                .node_constructors
                 .try_create(&id)
                 .ok_or_else(|| VisitError::User(format!("Unknown node type uuid {}!", id)))?;
 

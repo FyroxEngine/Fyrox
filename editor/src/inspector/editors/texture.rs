@@ -1,4 +1,5 @@
 use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
+use fyrox::gui::inspector::editors::PropertyEditorTranslationContext;
 use fyrox::{
     core::{make_relative_path, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -197,19 +198,14 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
         )))
     }
 
-    fn translate_message(
-        &self,
-        name: &str,
-        owner_type_id: TypeId,
-        message: &UiMessage,
-    ) -> Option<PropertyChanged> {
-        if message.direction() == MessageDirection::FromWidget {
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if ctx.message.direction() == MessageDirection::FromWidget {
             if let Some(TextureEditorMessage::Texture(value)) =
-                message.data::<TextureEditorMessage>()
+                ctx.message.data::<TextureEditorMessage>()
             {
                 return Some(PropertyChanged {
-                    owner_type_id,
-                    name: name.to_string(),
+                    owner_type_id: ctx.owner_type_id,
+                    name: ctx.name.to_string(),
                     value: FieldKind::object(value.clone()),
                 });
             }

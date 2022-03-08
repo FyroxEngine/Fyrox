@@ -551,6 +551,10 @@ impl Window {
     pub fn can_resize(&self) -> bool {
         self.can_resize
     }
+
+    pub fn content(&self) -> Handle<UiNode> {
+        self.content
+    }
 }
 
 pub struct WindowBuilder {
