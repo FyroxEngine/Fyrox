@@ -907,8 +907,6 @@ impl Editor {
             // Initialize scripts.
             engine.initialize_scene_scripts(handle, 0.0);
 
-            engine.renderer.flush();
-
             self.mode = Mode::Play {
                 scene: handle,
                 existing_scenes,
@@ -954,8 +952,6 @@ impl Editor {
                 let render_target = engine.scenes[editor_scene.scene].render_target.clone();
                 self.scene_viewer
                     .set_render_target(&engine.user_interface, render_target);
-
-                engine.renderer.flush();
 
                 self.on_mode_changed();
             }
