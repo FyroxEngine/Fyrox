@@ -159,6 +159,11 @@ pub trait ScriptTrait: BaseScript {
     /// Script instance type UUID. The value will be used for serialization, to write type
     /// identifier to a data source so the engine can restore the script from data source.
     ///
+    /// # Important notes
+    ///
+    /// Do **not** use [`Uuid::new_v4`] or any other [`Uuid`] methods that generates ids, ids
+    /// generated using these methods are **random** and are not suitable for serialization!
+    ///
     /// # Example
     ///
     /// All you need to do in the method is to return `Self::type_uuid`.
