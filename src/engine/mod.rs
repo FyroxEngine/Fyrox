@@ -392,6 +392,28 @@ impl Engine {
         }
     }
 
+    /// Calls [`Plugin:on_unload`] of every plugin.
+    ///
+    /// # Important notes
+    ///
+    /// This method is intended to be used by the editor and game runner. If you're using the
+    /// engine as a framework, then you should not call this method because you'll most likely
+    /// do something wrong.
+    pub fn unload_plugins(&mut self, dt: f32, is_in_editor: bool) {
+        let mut context = PluginContext {
+            is_in_editor,
+            scenes: &mut self.scenes,
+            resource_manager: &self.resource_manager,
+            renderer: &mut self.renderer,
+            dt,
+            serialization_context: self.serialization_context.clone(),
+        };
+
+        for plugin in self.plugins.iter_mut() {
+            plugin.on_unload(&mut context);
+        }
+    }
+
     /// Processes an OS event by every registered plugin.
     pub fn handle_os_event_by_plugins(&mut self, event: &Event<()>, dt: f32, is_in_editor: bool) {
         for plugin in self.plugins.iter_mut() {
@@ -617,5 +639,11 @@ impl Engine {
         }
 
         self.plugins.push(Box::new(plugin));
+    }
+}
+
+impl Drop for Engine {
+    fn drop(&mut self) {
+        self.unload_plugins(0.0, false);
     }
 }
