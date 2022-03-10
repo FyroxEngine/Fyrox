@@ -107,6 +107,7 @@ use std::{
 pub mod blend_nodes;
 
 /// Specific machine event.
+#[derive(Debug)]
 pub enum Event {
     /// Occurs when enter some state. See module docs for example.
     StateEnter(Handle<State>),
@@ -119,7 +120,7 @@ pub enum Event {
 }
 
 /// Machine node that plays specified animation.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PlayAnimation {
     pub animation: Handle<Animation>,
     output_pose: RefCell<AnimationPose>,
@@ -148,7 +149,7 @@ impl Visit for PlayAnimation {
 /// Machine parameter.  Machine uses various parameters for specific actions. For example
 /// Rule parameter is used to check where transition from a state to state is possible.
 /// See module docs for example.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Parameter {
     /// Weight parameter is used to control blend weight in BlendAnimation node.
     Weight(f32),
@@ -206,6 +207,7 @@ impl Visit for Parameter {
 }
 
 /// Specific animation pose weight.
+#[derive(Debug)]
 pub enum PoseWeight {
     /// Fixed scalar value. Should not be negative (can't even realize what will happen
     /// with negative weight here)
@@ -258,6 +260,7 @@ impl Visit for PoseWeight {
 }
 
 /// Specialized node that provides animation pose. See documentation for each variant.
+#[derive(Debug)]
 pub enum PoseNode {
     /// See docs for `PlayAnimation`.
     PlayAnimation(PlayAnimation),
@@ -335,7 +338,7 @@ impl Visit for PoseNode {
 }
 
 /// State is a
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct State {
     name: String,
     root: Handle<PoseNode>,
@@ -424,7 +427,7 @@ impl Visit for State {
 
 /// Transition is a connection between two states with a rule that defines possibility
 /// of actual transition with blending.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Transition {
     name: String,
     /// Total amount of time to transition from `src` to `dst` state.
@@ -511,7 +514,7 @@ impl Transition {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Machine {
     nodes: Pool<PoseNode>,
     states: Pool<State>,
@@ -525,6 +528,7 @@ pub struct Machine {
     debug: bool,
 }
 
+#[derive(Debug)]
 struct LimitedEventQueue {
     queue: VecDeque<Event>,
     limit: u32,
