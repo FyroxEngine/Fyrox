@@ -1,4 +1,4 @@
-use fyrox::fxhash::FxHashMap;
+use crate::bot::Bot;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -9,6 +9,7 @@ use fyrox::{
         visitor::prelude::*,
     },
     event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
+    fxhash::FxHashMap,
     gui::{
         button::ButtonBuilder,
         inspector::{FieldKind, PropertyChanged},
@@ -29,6 +30,8 @@ use fyrox::{
     utils::translate_event,
 };
 use std::{cell::RefCell, rc::Rc, str::FromStr};
+
+mod bot;
 
 pub struct GamePlugin {
     scene: Handle<Scene>,
@@ -108,15 +111,11 @@ impl TypeUuidProvider for GamePlugin {
 
 impl Plugin for GamePlugin {
     fn on_register(&mut self, context: PluginRegistrationContext) {
-        context
-            .serialization_context
-            .script_constructors
-            .add::<GamePlugin, Player, &str>("Player");
+        let scripts = &context.serialization_context.script_constructors;
 
-        context
-            .serialization_context
-            .script_constructors
-            .add::<GamePlugin, Jumper, &str>("Jumper");
+        scripts.add::<GamePlugin, Player, &str>("Player");
+        scripts.add::<GamePlugin, Jumper, &str>("Jumper");
+        scripts.add::<GamePlugin, Bot, &str>("Bot");
     }
 
     fn on_standalone_init(&mut self, context: PluginContext) {

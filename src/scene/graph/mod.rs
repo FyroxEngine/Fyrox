@@ -313,6 +313,26 @@ impl Graph {
         self.pool[parent].children.push(child);
     }
 
+    /// Links specified child with specified parent, the parent must be a node that moved out
+    /// of graph but promised to be returned to it. If the condition is violated, then you'll
+    /// get panic.
+    ///
+    /// # Usage
+    ///
+    /// The main usage of the method is to link a child node to some node with script, while
+    /// being in some of script methods.
+    #[inline]
+    pub fn link_nodes_reserved(
+        &mut self,
+        child: Handle<Node>,
+        parent: &mut Node,
+        parent_handle: Handle<Node>,
+    ) {
+        self.unlink_internal(child);
+        self.pool[child].parent = parent_handle;
+        parent.children.push(child);
+    }
+
     /// Unlinks specified node from its parent and attaches it to root graph node.
     #[inline]
     pub fn unlink_node(&mut self, node_handle: Handle<Node>) {
