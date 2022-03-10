@@ -15,6 +15,7 @@ use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
+use crate::engine::resource_manager::ResourceManager;
 
 pub mod constructor;
 
@@ -37,6 +38,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
     pub node: &'b mut Node,
     pub handle: Handle<Node>,
     pub scene: &'c mut Scene,
+    pub resource_manager: &'a ResourceManager,
 }
 
 pub trait ScriptTrait: BaseScript {

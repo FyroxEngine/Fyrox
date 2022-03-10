@@ -509,6 +509,7 @@ impl Engine {
                     node: &mut node,
                     handle,
                     scene,
+                    resource_manager: &self.resource_manager,
                 };
 
                 func(&mut script, context);
