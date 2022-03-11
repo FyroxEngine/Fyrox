@@ -1,10 +1,14 @@
 //! Simple logger, it writes in file and in console at the same time.
 
+use crate::core::parking_lot::Mutex;
 use crate::lazy_static::lazy_static;
-use std::{fmt::Debug, sync::Mutex};
+use std::fmt::Debug;
 
+use fyrox_core::instant::Instant;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::{self, Write};
+use std::sync::mpsc::Sender;
+use std::time::Duration;
 
 #[cfg(target_arch = "wasm32")]
 use crate::core::wasm_bindgen::{self, prelude::*};
@@ -18,11 +22,24 @@ extern "C" {
     fn log(s: &str);
 }
 
+/// A message that could be sent by the logger to all listeners.
+pub struct LogMessage {
+    /// Kind of the message: information, warning or error.
+    pub kind: MessageKind,
+    /// The source message without logger prefixes.
+    pub content: String,
+    /// Time point at which the message was recorded. It is relative to the moment when the
+    /// logger was initialized.
+    pub time: Duration,
+}
+
 lazy_static! {
     static ref LOG: Mutex<Log> = Mutex::new(Log {
         #[cfg(not(target_arch = "wasm32"))]
         file: std::fs::File::create("fyrox.log").unwrap(),
-        verbosity: MessageKind::Information
+        verbosity: MessageKind::Information,
+        listeners: Default::default(),
+        time_origin: Instant::now()
     });
 }
 
@@ -53,11 +70,21 @@ pub struct Log {
     #[cfg(not(target_arch = "wasm32"))]
     file: std::fs::File,
     verbosity: MessageKind,
+    listeners: Vec<Sender<LogMessage>>,
+    time_origin: Instant,
 }
 
 impl Log {
     fn write_internal(&mut self, kind: MessageKind, mut msg: String) {
         if kind as u32 >= self.verbosity as u32 {
+            for listener in self.listeners.iter() {
+                let _ = listener.send(LogMessage {
+                    kind,
+                    content: msg.clone(),
+                    time: Instant::now() - self.time_origin,
+                });
+            }
+
             msg.insert_str(0, kind.as_str());
 
             #[cfg(target_arch = "wasm32")]
@@ -80,12 +107,12 @@ impl Log {
 
     /// Writes string into console and into file.
     pub fn write(kind: MessageKind, msg: String) {
-        LOG.lock().unwrap().write_internal(kind, msg);
+        LOG.lock().write_internal(kind, msg);
     }
 
     /// Writes line into console and into file.
     pub fn writeln(kind: MessageKind, msg: String) {
-        LOG.lock().unwrap().writeln_internal(kind, msg);
+        LOG.lock().writeln_internal(kind, msg);
     }
 
     /// Writes information message.
@@ -105,7 +132,12 @@ impl Log {
 
     /// Sets verbosity level.
     pub fn set_verbosity(kind: MessageKind) {
-        LOG.lock().unwrap().verbosity = kind;
+        LOG.lock().verbosity = kind;
+    }
+
+    /// Adds a listener that will receive a copy of every message passed into the log.
+    pub fn add_listener(listener: Sender<LogMessage>) {
+        LOG.lock().listeners.push(listener)
     }
 
     /// Allows you to verify that the result of operation is Ok, or print the error in the log.
