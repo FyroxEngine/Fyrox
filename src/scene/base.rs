@@ -845,7 +845,18 @@ impl Visit for Base {
         let _ = self.properties.visit("Properties", visitor);
         let _ = self.frustum_culling.visit("FrustumCulling", visitor);
         let _ = self.cast_shadows.visit("CastShadows", visitor);
-        let _ = visit_opt_script("Script", &mut self.script, visitor);
+
+        // Script visiting may fail for various reasons:
+        //
+        // 1) Data inside a script is not compatible with latest code (there is no backward
+        //    compatibility for the data)
+        // 2) Script was removed in the game.
+        //
+        // None of the reasons are fatal and we should still give an ability to load such node
+        // to edit or remove it.
+        if let Err(e) = visit_opt_script("Script", &mut self.script, visitor) {
+            Log::err(format!("Unable to visit script. Reason: {:?}", e))
+        }
 
         visitor.leave_region()
     }
