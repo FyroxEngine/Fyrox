@@ -194,6 +194,12 @@ impl Color {
         b: 0,
         a: 0,
     };
+    pub const ORANGE: Self = Self {
+        r: 255,
+        g: 69,
+        b: 0,
+        a: 255,
+    };
 
     #[inline]
     pub const fn opaque(r: u8, g: u8, b: u8) -> Self {
