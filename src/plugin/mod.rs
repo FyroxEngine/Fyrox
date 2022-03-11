@@ -208,7 +208,7 @@ pub trait Plugin: 'static {
     ///
     /// # How to obtain UUID
     ///
-    /// Use https://www.uuidgenerator.net/ to generate one.
+    /// Use <https://www.uuidgenerator.net/> to generate one.
     fn id(&self) -> Uuid;
 
     /// The method is called when the main window receives an event from the OS. The main use of

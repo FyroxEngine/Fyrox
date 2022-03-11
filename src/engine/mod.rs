@@ -392,7 +392,7 @@ impl Engine {
         }
     }
 
-    /// Calls [`Plugin:on_unload`] of every plugin.
+    /// Calls [`Plugin::on_unload`] of every plugin.
     ///
     /// # Important notes
     ///

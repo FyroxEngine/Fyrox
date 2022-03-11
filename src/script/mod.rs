@@ -1,3 +1,4 @@
+use crate::engine::resource_manager::ResourceManager;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -15,7 +16,6 @@ use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
-use crate::engine::resource_manager::ResourceManager;
 
 pub mod constructor;
 
