@@ -6,7 +6,7 @@ use crate::{
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     message::{MessageDirection, UiMessage},
-    scroll_viewer::{ScrollViewer, ScrollViewerBuilder},
+    scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARK,
@@ -23,6 +23,7 @@ pub enum ListViewMessage {
     Items(Vec<Handle<UiNode>>),
     AddItem(Handle<UiNode>),
     RemoveItem(Handle<UiNode>),
+    BringItemIntoView(Handle<UiNode>),
 }
 
 impl ListViewMessage {
@@ -30,6 +31,7 @@ impl ListViewMessage {
     define_constructor!(ListViewMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false);
     define_constructor!(ListViewMessage:AddItem => fn add_item(Handle<UiNode>), layout: false);
     define_constructor!(ListViewMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false);
+    define_constructor!(ListViewMessage:BringItemIntoView => fn bring_item_into_view(Handle<UiNode>), layout: false);
 }
 
 #[derive(Clone)]
@@ -39,6 +41,7 @@ pub struct ListView {
     item_containers: Vec<Handle<UiNode>>,
     panel: Handle<UiNode>,
     items: Vec<Handle<UiNode>>,
+    scroll_viewer: Handle<UiNode>,
 }
 
 crate::define_widget_deref!(ListView);
@@ -51,6 +54,7 @@ impl ListView {
             item_containers: items,
             panel: Default::default(),
             items: Default::default(),
+            scroll_viewer: Default::default(),
         }
     }
 
@@ -64,6 +68,10 @@ impl ListView {
 
     pub fn items(&self) -> &[Handle<UiNode>] {
         &self.items
+    }
+
+    pub fn scroll_viewer(&self) -> Handle<UiNode> {
+        self.scroll_viewer
     }
 
     fn fix_selection(&self, ui: &UserInterface) {
@@ -254,6 +262,15 @@ impl Control for ListView {
                             self.sync_decorators(ui);
                         }
                     }
+                    &ListViewMessage::BringItemIntoView(item) => {
+                        if self.items.contains(&item) {
+                            ui.send_message(ScrollViewerMessage::bring_into_view(
+                                self.scroll_viewer,
+                                MessageDirection::ToWidget,
+                                item,
+                            ));
+                        }
+                    }
                 }
             }
         }
@@ -329,6 +346,7 @@ impl ListViewBuilder {
             item_containers,
             items: self.items,
             panel,
+            scroll_viewer,
         };
 
         ctx.add_node(UiNode::new(list_box))
