@@ -96,7 +96,7 @@ impl Menu {
         message_sender: Sender<Message>,
         settings: &Settings,
     ) -> Self {
-        let file_menu = FileMenu::new(engine, &message_sender, settings);
+        let file_menu = FileMenu::new(engine, settings);
         let ctx = &mut engine.user_interface.build_ctx();
         let create_entity_menu = CreateEntityRootMenu::new(ctx);
         let edit_menu = EditMenu::new(ctx);

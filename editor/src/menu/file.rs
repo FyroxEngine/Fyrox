@@ -37,11 +37,7 @@ pub struct FileMenu {
 }
 
 impl FileMenu {
-    pub fn new(
-        engine: &mut GameEngine,
-        message_sender: &Sender<Message>,
-        settings: &Settings,
-    ) -> Self {
+    pub fn new(engine: &mut GameEngine, settings: &Settings) -> Self {
         let new_scene;
         let save;
         let save_as;
@@ -125,7 +121,7 @@ impl FileMenu {
             open_settings,
             configure,
             configure_message,
-            settings: SettingsWindow::new(engine, message_sender.clone(), settings),
+            settings: SettingsWindow::new(engine, settings),
         }
     }
 

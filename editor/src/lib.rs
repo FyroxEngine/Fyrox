@@ -52,7 +52,7 @@ use crate::{
         InteractionMode, InteractionModeKind,
     },
     light::LightPanel,
-    log::Log,
+    log::LogPanel,
     material::MaterialEditor,
     menu::{Menu, MenuContext, Panels},
     overlay::OverlayRenderPass,
@@ -70,6 +70,7 @@ use crate::{
     world::{graph::selection::GraphSelection, WorldViewer},
 };
 use fyrox::plugin::Plugin;
+use fyrox::utils::log::Log;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -112,6 +113,7 @@ use fyrox::{
         watcher::FileSystemWatcher,
     },
 };
+use std::sync::mpsc::channel;
 use std::{
     any::TypeId,
     fs,
@@ -237,7 +239,6 @@ pub enum Message {
     LoadScene(PathBuf),
     CloseScene,
     SetInteractionMode(InteractionModeKind),
-    Log(String),
     Configure {
         working_directory: PathBuf,
     },
@@ -347,7 +348,7 @@ pub struct Editor {
     menu: Menu,
     exit: bool,
     configurator: Configurator,
-    log: Log,
+    log: LogPanel,
     command_stack_viewer: CommandStackViewer,
     validation_message_box: Handle<UiNode>,
     navmesh_panel: NavmeshPanel,
@@ -362,6 +363,10 @@ pub struct Editor {
 
 impl Editor {
     pub fn new(event_loop: &EventLoop<()>, startup_data: Option<StartupData>) -> Self {
+        let (log_message_sender, log_message_receiver) = channel();
+
+        Log::add_listener(log_message_sender);
+
         let inner_size = if let Some(primary_monitor) = event_loop.primary_monitor() {
             let mut monitor_dimensions = primary_monitor.size();
             monitor_dimensions.height = (monitor_dimensions.height as f32 * 0.7) as u32;
@@ -441,7 +446,7 @@ impl Editor {
         let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
         let world_outliner = WorldViewer::new(ctx, message_sender.clone());
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
-        let log = Log::new(ctx);
+        let log = LogPanel::new(ctx, log_message_receiver);
         let inspector = Inspector::new(ctx, message_sender.clone());
 
         let root_grid = GridBuilder::new(
@@ -1112,14 +1117,10 @@ impl Editor {
                         &engine.user_interface,
                         format!("Scene Preview - {}", path.display()),
                     );
-
-                    self.message_sender.send(Message::Log(message)).unwrap();
+                    Log::info(message);
                 }
                 Err(message) => {
-                    self.message_sender
-                        .send(Message::Log(message.clone()))
-                        .unwrap();
-
+                    Log::err(message.clone());
                     engine.user_interface.send_message(MessageBoxMessage::open(
                         self.validation_message_box,
                         MessageDirection::ToWidget,
@@ -1146,9 +1147,7 @@ impl Editor {
                 self.set_scene(scene, Some(scene_path));
             }
             Err(e) => {
-                self.message_sender
-                    .send(Message::Log(e.to_string()))
-                    .unwrap();
+                Log::err(e.to_string());
             }
         }
     }
@@ -1214,12 +1213,7 @@ impl Editor {
                 engine.resource_manager.state().set_watcher(Some(watcher));
             }
             Err(e) => {
-                self.message_sender
-                    .send(Message::Log(format!(
-                        "Unable to create resource watcher. Reason {:?}",
-                        e
-                    )))
-                    .unwrap();
+                Log::err(format!("Unable to create resource watcher. Reason {:?}", e));
             }
         }
 
@@ -1230,12 +1224,10 @@ impl Editor {
         self.asset_browser
             .set_working_directory(engine, &working_directory);
 
-        self.message_sender
-            .send(Message::Log(format!(
-                "New working directory was successfully set: {:?}",
-                working_directory
-            )))
-            .unwrap();
+        Log::info(format!(
+            "New working directory was successfully set: {:?}",
+            working_directory
+        ));
     }
 
     fn select_object(&mut self, type_id: TypeId, handle: ErasedHandle) {
@@ -1275,6 +1267,8 @@ impl Editor {
 
         self.engine.update(dt);
 
+        self.log.update(&mut self.engine);
+
         if let Mode::Play { scene, .. } = self.mode {
             self.engine.update_plugins(dt, true);
 
@@ -1284,7 +1278,6 @@ impl Editor {
         let mut needs_sync = false;
 
         while let Ok(message) = self.message_receiver.try_recv() {
-            self.log.handle_message(&message, &mut self.engine);
             self.path_fixer
                 .handle_message(&message, &self.engine.user_interface);
 
@@ -1318,9 +1311,6 @@ impl Editor {
                     self.set_interaction_mode(Some(mode_kind))
                 }
                 Message::Exit { force } => self.exit(force),
-                Message::Log(msg) => {
-                    println!("{}", msg)
-                }
                 Message::CloseScene => {
                     needs_sync |= self.close_current_scene();
                 }

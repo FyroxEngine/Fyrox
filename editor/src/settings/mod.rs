@@ -1,12 +1,12 @@
-use crate::settings::rotate_mode::{RotateInteractionModeSettings, RotateModeSection};
 use crate::{
     scene::EditorScene,
     settings::{
         debugging::{DebuggingSection, DebuggingSettings},
         graphics::{GraphicsSection, GraphicsSettings},
         move_mode::{MoveInteractionModeSettings, MoveModeSection},
+        rotate_mode::{RotateInteractionModeSettings, RotateModeSection},
     },
-    GameEngine, Message, CONFIG_DIR,
+    GameEngine, CONFIG_DIR,
 };
 use fyrox::{
     core::{pool::Handle, scope_profile},
@@ -26,10 +26,11 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         VerticalAlignment,
     },
+    utils::log::Log,
 };
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
-use std::{fs::File, path::PathBuf, sync::mpsc::Sender};
+use std::{fs::File, path::PathBuf};
 
 pub mod debugging;
 pub mod graphics;
@@ -46,7 +47,6 @@ pub struct SettingsWindow {
     window: Handle<UiNode>,
     ok: Handle<UiNode>,
     default: Handle<UiNode>,
-    sender: Sender<Message>,
     graphics_section: GraphicsSection,
     move_mode_section: MoveModeSection,
     rotate_mode_section: RotateModeSection,
@@ -160,7 +160,7 @@ fn make_section(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
 }
 
 impl SettingsWindow {
-    pub fn new(engine: &mut GameEngine, sender: Sender<Message>, settings: &Settings) -> Self {
+    pub fn new(engine: &mut GameEngine, settings: &Settings) -> Self {
         let ok;
         let default;
 
@@ -308,7 +308,6 @@ impl SettingsWindow {
             sections_root,
             section_switches,
             window,
-            sender,
             ok,
             default,
             graphics_section,
@@ -406,28 +405,22 @@ impl SettingsWindow {
                     .renderer
                     .set_quality_settings(&settings.graphics.quality)
                 {
-                    self.sender
-                        .send(Message::Log(format!(
-                            "An error occurred at attempt to set new graphics settings: {:?}",
-                            e
-                        )))
-                        .unwrap();
+                    Log::err(format!(
+                        "An error occurred at attempt to set new graphics settings: {:?}",
+                        e
+                    ));
                 } else {
-                    self.sender
-                        .send(Message::Log(
-                            "New graphics quality settings were successfully set!".to_owned(),
-                        ))
-                        .unwrap();
+                    Log::info("New graphics quality settings were successfully set!".to_owned());
                 }
             }
 
             // Save config
             match settings.save() {
                 Ok(_) => {
-                    println!("Settings were successfully saved!");
+                    Log::info("Settings were successfully saved!".to_owned());
                 }
                 Err(e) => {
-                    println!("Unable to save settings! Reason: {:?}!", e);
+                    Log::err(format!("Unable to save settings! Reason: {:?}!", e));
                 }
             };
         }

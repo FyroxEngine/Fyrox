@@ -354,12 +354,7 @@ impl Inspector {
                 };
 
                 if group.is_empty() {
-                    sender
-                        .send(Message::Log(format!(
-                            "Failed to handle a property {}",
-                            args.path()
-                        )))
-                        .unwrap();
+                    Log::err(format!("Failed to handle a property {}", args.path()))
                 } else if group.len() == 1 {
                     sender
                         .send(Message::DoSceneCommand(group.into_iter().next().unwrap()))
