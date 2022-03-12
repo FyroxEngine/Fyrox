@@ -736,7 +736,7 @@ impl<'a> WindowBuilder {
         let header = BorderBuilder::new(
             WidgetBuilder::new()
                 .with_horizontal_alignment(HorizontalAlignment::Stretch)
-                .with_height(30.0)
+                .with_height(25.0)
                 .with_background(Brush::LinearGradient {
                     from: Vector2::new(0.5, 0.0),
                     to: Vector2::new(0.5, 1.0),

@@ -2,11 +2,13 @@ use crate::{Brush, Color, GameEngine};
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
+        border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        list_view::{ListViewBuilder, ListViewMessage},
+        list_view::{ListView, ListViewBuilder, ListViewMessage},
         message::{MessageDirection, UiMessage},
+        scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         vector_image::{Primitive, VectorImageBuilder},
@@ -73,6 +75,14 @@ impl LogPanel {
                                     .with_margin(Thickness::uniform(1.0))
                                     .on_column(1),
                             )
+                            .with_scroll_viewer(
+                                ScrollViewerBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(3.0)),
+                                )
+                                .with_horizontal_scroll_allowed(true)
+                                .with_vertical_scroll_allowed(true)
+                                .build(ctx),
+                            )
                             .build(ctx);
                             messages
                         }),
@@ -107,19 +117,40 @@ impl LogPanel {
     }
 
     pub fn update(&mut self, engine: &mut GameEngine) {
-        while let Ok(msg) = self.receiver.try_recv() {
-            let text = format!("[{:?}] {}", msg.time, msg.content);
+        let mut count = engine
+            .user_interface
+            .node(self.messages)
+            .cast::<ListView>()
+            .map(|v| v.items().len())
+            .unwrap_or_default();
 
-            let item = TextBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(
-                match msg.kind {
-                    MessageKind::Information => Color::WHITE,
-                    MessageKind::Warning => Color::ORANGE,
-                    MessageKind::Error => Color::RED,
-                },
-            )))
-            .with_text(text)
-            .with_wrap(WrapMode::Word)
-            .build(&mut engine.user_interface.build_ctx());
+        while let Ok(msg) = self.receiver.try_recv() {
+            let text = format!("[{:.2}s] {}", msg.time.as_secs_f32(), msg.content);
+
+            let ctx = &mut engine.user_interface.build_ctx();
+            let item = BorderBuilder::new(
+                WidgetBuilder::new()
+                    .with_background(Brush::Solid(if count % 2 == 0 {
+                        Color::opaque(70, 70, 70)
+                    } else {
+                        Color::opaque(40, 40, 40)
+                    }))
+                    .with_child(
+                        TextBuilder::new(
+                            WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(1.0))
+                                .with_foreground(Brush::Solid(match msg.kind {
+                                    MessageKind::Information => Color::opaque(210, 210, 210),
+                                    MessageKind::Warning => Color::ORANGE,
+                                    MessageKind::Error => Color::RED,
+                                })),
+                        )
+                        .with_text(text)
+                        .with_wrap(WrapMode::Word)
+                        .build(ctx),
+                    ),
+            )
+            .build(ctx);
 
             engine
                 .user_interface
@@ -135,6 +166,8 @@ impl LogPanel {
                     MessageDirection::ToWidget,
                     item,
                 ));
+
+            count += 1;
         }
     }
 }
