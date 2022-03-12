@@ -353,7 +353,8 @@ impl CameraController {
                     // Do coarse, but fast, intersection test with bounding box first.
                     if let Some(points) = object_space_ray.aabb_intersection_points(&aabb) {
                         if has_hull(node) {
-                            if let Some((closest_distance, position)) = fine_ray_test(node, &ray) {
+                            if let Some((closest_distance, position)) = precise_ray_test(node, &ray)
+                            {
                                 context.pick_list.push(CameraPickResult {
                                     position,
                                     node: handle,
@@ -455,7 +456,7 @@ fn has_hull(node: &Node) -> bool {
     node.query_component_ref::<Mesh>().is_some()
 }
 
-fn fine_ray_test(node: &Node, ray: &Ray) -> Option<(f32, Vector3<f32>)> {
+fn precise_ray_test(node: &Node, ray: &Ray) -> Option<(f32, Vector3<f32>)> {
     let mut closest_distance = f32::MAX;
     let mut closest_point = None;
 
