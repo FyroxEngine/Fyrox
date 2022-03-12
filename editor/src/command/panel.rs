@@ -55,8 +55,8 @@ impl CommandStackViewer {
                                             ImageBuilder::new(
                                                 WidgetBuilder::new()
                                                     .with_margin(Thickness::uniform(1.0))
-                                                    .with_height(28.0)
-                                                    .with_width(28.0),
+                                                    .with_height(24.0)
+                                                    .with_width(24.0),
                                             )
                                             .with_opt_texture(load_image(include_bytes!(
                                                 "../../resources/embed/undo.png"
@@ -75,8 +75,8 @@ impl CommandStackViewer {
                                             ImageBuilder::new(
                                                 WidgetBuilder::new()
                                                     .with_margin(Thickness::uniform(1.0))
-                                                    .with_height(28.0)
-                                                    .with_width(28.0),
+                                                    .with_height(24.0)
+                                                    .with_width(24.0),
                                             )
                                             .with_opt_texture(load_image(include_bytes!(
                                                 "../../resources/embed/redo.png"
@@ -92,8 +92,8 @@ impl CommandStackViewer {
                                                 ImageBuilder::new(
                                                     WidgetBuilder::new()
                                                         .with_margin(Thickness::uniform(1.0))
-                                                        .with_height(28.0)
-                                                        .with_width(28.0),
+                                                        .with_height(24.0)
+                                                        .with_width(24.0),
                                                 )
                                                 .with_opt_texture(load_image(include_bytes!(
                                                     "../../resources/embed/clear.png"
@@ -121,7 +121,7 @@ impl CommandStackViewer {
                         ),
                 )
                 .add_column(Column::stretch())
-                .add_row(Row::strict(30.0))
+                .add_row(Row::strict(26.0))
                 .add_row(Row::stretch())
                 .build(ctx),
             )

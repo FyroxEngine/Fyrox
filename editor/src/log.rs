@@ -1,9 +1,10 @@
-use crate::{Brush, Color, GameEngine};
+use crate::{gui::make_dropdown_list_option, Brush, Color, DropdownListBuilder, GameEngine};
 use fyrox::{
-    core::{algebra::Vector2, pool::Handle, scope_profile},
+    core::{pool::Handle, scope_profile},
     gui::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
+        dropdown_list::DropdownListMessage,
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         list_view::{ListView, ListViewBuilder, ListViewMessage},
@@ -11,10 +12,9 @@ use fyrox::{
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
-        vector_image::{Primitive, VectorImageBuilder},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment, BRUSH_BRIGHT,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode,
     },
     utils::log::{LogMessage, MessageKind},
 };
@@ -25,12 +25,15 @@ pub struct LogPanel {
     messages: Handle<UiNode>,
     clear: Handle<UiNode>,
     receiver: Receiver<LogMessage>,
+    severity: MessageKind,
+    severity_list: Handle<UiNode>,
 }
 
 impl LogPanel {
     pub fn new(ctx: &mut BuildContext, message_receiver: Receiver<LogMessage>) -> Self {
         let messages;
         let clear;
+        let severity_list;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
             .with_title(WindowTitle::Text("Message Log".to_owned()))
@@ -38,42 +41,47 @@ impl LogPanel {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(
-                            StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                                clear = ButtonBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_content(
-                                    VectorImageBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_vertical_alignment(VerticalAlignment::Center)
-                                            .with_horizontal_alignment(HorizontalAlignment::Center)
-                                            .with_foreground(BRUSH_BRIGHT)
-                                            .with_margin(Thickness::uniform(3.0)),
-                                    )
-                                    .with_primitives(vec![
-                                        Primitive::Line {
-                                            begin: Vector2::new(0.0, 0.0),
-                                            end: Vector2::new(12.0, 12.0),
-                                            thickness: 3.0,
-                                        },
-                                        Primitive::Line {
-                                            begin: Vector2::new(12.0, 0.0),
-                                            end: Vector2::new(0.0, 12.0),
-                                            thickness: 3.0,
-                                        },
-                                    ])
-                                    .build(ctx),
-                                )
-                                .build(ctx);
-                                clear
-                            }))
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .on_row(0)
+                                    .on_column(0)
+                                    .with_child({
+                                        clear = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_width(120.0)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_text("Clear")
+                                        .build(ctx);
+                                        clear
+                                    })
+                                    .with_child({
+                                        severity_list = DropdownListBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_width(120.0)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_items(vec![
+                                            make_dropdown_list_option(ctx, "Info+"),
+                                            make_dropdown_list_option(ctx, "Warnings+"),
+                                            make_dropdown_list_option(ctx, "Errors"),
+                                        ])
+                                        // Warnings+
+                                        .with_selected(1)
+                                        .build(ctx);
+                                        severity_list
+                                    }),
+                            )
+                            .with_orientation(Orientation::Horizontal)
                             .build(ctx),
                         )
                         .with_child({
                             messages = ListViewBuilder::new(
                                 WidgetBuilder::new()
                                     .with_margin(Thickness::uniform(1.0))
-                                    .on_column(1),
+                                    .on_row(1)
+                                    .on_column(0),
                             )
                             .with_scroll_viewer(
                                 ScrollViewerBuilder::new(
@@ -87,8 +95,8 @@ impl LogPanel {
                             messages
                         }),
                 )
+                .add_row(Row::strict(26.0))
                 .add_row(Row::stretch())
-                .add_column(Column::strict(23.0))
                 .add_column(Column::stretch())
                 .build(ctx),
             )
@@ -99,6 +107,8 @@ impl LogPanel {
             messages,
             clear,
             receiver: message_receiver,
+            severity: MessageKind::Warning,
+            severity_list,
         }
     }
 
@@ -113,6 +123,19 @@ impl LogPanel {
                     vec![],
                 ));
             }
+        } else if let Some(DropdownListMessage::SelectionChanged(Some(idx))) =
+            message.data::<DropdownListMessage>()
+        {
+            if message.destination() == self.severity_list
+                && message.direction() == MessageDirection::FromWidget
+            {
+                match idx {
+                    0 => self.severity = MessageKind::Information,
+                    1 => self.severity = MessageKind::Warning,
+                    2 => self.severity = MessageKind::Error,
+                    _ => (),
+                };
+            }
         }
     }
 
@@ -124,7 +147,13 @@ impl LogPanel {
             .map(|v| v.items().len())
             .unwrap_or_default();
 
+        let mut item_to_bring_into_view = Handle::NONE;
+
         while let Ok(msg) = self.receiver.try_recv() {
+            if msg.kind < self.severity {
+                continue;
+            }
+
             let text = format!("[{:.2}s] {}", msg.time.as_secs_f32(), msg.content);
 
             let ctx = &mut engine.user_interface.build_ctx();
@@ -159,15 +188,20 @@ impl LogPanel {
                     MessageDirection::ToWidget,
                     item,
                 ));
+
+            item_to_bring_into_view = item;
+
+            count += 1;
+        }
+
+        if item_to_bring_into_view.is_some() {
             engine
                 .user_interface
                 .send_message(ListViewMessage::bring_item_into_view(
                     self.messages,
                     MessageDirection::ToWidget,
-                    item,
+                    item_to_bring_into_view,
                 ));
-
-            count += 1;
         }
     }
 }
