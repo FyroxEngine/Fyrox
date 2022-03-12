@@ -407,7 +407,7 @@ impl InteractionMode for EditNavmeshMode {
                 .pick(
                     mouse_pos,
                     &scene.graph,
-                    editor_scene.root,
+                    editor_scene.editor_objects_root,
                     frame_size,
                     true,
                     |handle, _| {

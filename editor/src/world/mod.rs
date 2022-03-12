@@ -385,7 +385,7 @@ impl WorldViewer {
         self.stack.push((self.graph_folder, graph.get_root()));
         while let Some((tree_handle, node_handle)) = self.stack.pop() {
             // Hide all editor nodes.
-            if node_handle == editor_scene.root {
+            if node_handle == editor_scene.editor_objects_root {
                 continue;
             }
             let node = &graph[node_handle];
@@ -396,7 +396,7 @@ impl WorldViewer {
                 // correctly count children, excluding editor nodes.
                 let mut child_count = 0;
                 for &child in node.children() {
-                    if child != editor_scene.root {
+                    if child != editor_scene.editor_objects_root {
                         child_count += 1;
                     }
                 }
@@ -439,7 +439,7 @@ impl WorldViewer {
                     Ordering::Greater => {
                         for &child_handle in node.children() {
                             // Hide all editor nodes.
-                            if child_handle == editor_scene.root {
+                            if child_handle == editor_scene.editor_objects_root {
                                 continue;
                             }
                             let mut found = false;

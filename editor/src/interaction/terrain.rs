@@ -108,7 +108,7 @@ impl BrushGizmo {
         .build()])
         .build(graph);
 
-        graph.link_nodes(brush, editor_scene.root);
+        graph.link_nodes(brush, editor_scene.editor_objects_root);
 
         Self { brush }
     }

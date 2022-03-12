@@ -130,7 +130,7 @@ impl MoveGizmo {
         )
         .build(graph);
 
-        graph.link_nodes(origin, editor_scene.root);
+        graph.link_nodes(origin, editor_scene.editor_objects_root);
 
         let (x_axis, x_arrow) = make_move_axis(
             graph,

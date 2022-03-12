@@ -1,19 +1,25 @@
 use crate::fyrox::core::math::Matrix4Ext;
-use fyrox::scene::camera::Camera;
-use fyrox::scene::pivot::PivotBuilder;
-use fyrox::scene::sound::listener::ListenerBuilder;
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
-        math::{aabb::AxisAlignedBoundingBox, plane::Plane},
+        math::{
+            aabb::AxisAlignedBoundingBox, plane::Plane, ray::Ray, TriangleDefinition, Vector3Ext,
+        },
         pool::Handle,
     },
     gui::message::{KeyCode, MouseButton},
     scene::{
         base::BaseBuilder,
-        camera::{CameraBuilder, Exposure, Projection},
+        camera::{Camera, CameraBuilder, Exposure, Projection},
         graph::Graph,
+        mesh::{
+            buffer::{VertexAttributeUsage, VertexReadTrait},
+            surface::SurfaceData,
+            Mesh,
+        },
         node::Node,
+        pivot::PivotBuilder,
+        sound::listener::ListenerBuilder,
         transform::TransformBuilder,
     },
 };
@@ -301,7 +307,7 @@ impl CameraController {
         &mut self,
         cursor_pos: Vector2<f32>,
         graph: &Graph,
-        root: Handle<Node>,
+        editor_objects_root: Handle<Node>,
         screen_size: Vector2<f32>,
         editor_only: bool,
         mut filter: F,
@@ -316,7 +322,7 @@ impl CameraController {
             let context = if editor_only {
                 // In case if we want to pick stuff from editor scene only, we have to
                 // start traversing graph from editor root.
-                self.stack.push(root);
+                self.stack.push(editor_objects_root);
                 &mut self.editor_context
             } else {
                 self.stack.push(graph.get_root());
@@ -327,7 +333,7 @@ impl CameraController {
 
             while let Some(handle) = self.stack.pop() {
                 // Ignore editor nodes if we picking scene stuff only.
-                if !editor_only && handle == root {
+                if !editor_only && handle == editor_objects_root {
                     continue;
                 }
 
@@ -343,32 +349,32 @@ impl CameraController {
                     let object_space_ray =
                         ray.transform(node.global_transform().try_inverse().unwrap_or_default());
 
-                    let aabb = if handle == graph.get_root() {
-                        // Prevent root selection.
-                        AxisAlignedBoundingBox::default()
-                    } else {
-                        node.local_bounding_box()
-                    };
-
-                    // Do coarse intersection test with bounding box.
+                    let aabb = node.local_bounding_box();
+                    // Do coarse, but fast, intersection test with bounding box first.
                     if let Some(points) = object_space_ray.aabb_intersection_points(&aabb) {
-                        // TODO: Do fine intersection test with surfaces if any
-
-                        let da = points[0].metric_distance(&object_space_ray.origin);
-                        let db = points[1].metric_distance(&object_space_ray.origin);
-                        let closest_distance = da.min(db);
-                        context.pick_list.push(CameraPickResult {
-                            position: node
-                                .global_transform()
-                                .transform_point(&Point3::from(if da < db {
-                                    points[0]
-                                } else {
-                                    points[1]
-                                }))
-                                .coords,
-                            node: handle,
-                            toi: closest_distance,
-                        });
+                        if has_hull(node) {
+                            if let Some((closest_distance, position)) = fine_ray_test(node, &ray) {
+                                context.pick_list.push(CameraPickResult {
+                                    position,
+                                    node: handle,
+                                    toi: closest_distance,
+                                });
+                            }
+                        } else {
+                            // Hull-less objects (light sources, cameras, etc.) can still be selected
+                            // by coarse intersection test results.
+                            let da = points[0].metric_distance(&object_space_ray.origin);
+                            let db = points[1].metric_distance(&object_space_ray.origin);
+                            let closest_distance = da.min(db);
+                            context.pick_list.push(CameraPickResult {
+                                position: transform_vertex(
+                                    if da < db { points[0] } else { points[1] },
+                                    &node.global_transform(),
+                                ),
+                                node: handle,
+                                toi: closest_distance,
+                            });
+                        }
                     }
                 }
             }
@@ -422,4 +428,60 @@ impl CameraController {
             .transform(transform)
             .plane_intersection_point(&plane)
     }
+}
+
+fn read_vertex_position(data: &SurfaceData, i: u32) -> Option<Vector3<f32>> {
+    data.vertex_buffer
+        .get(i as usize)
+        .and_then(|v| v.read_3_f32(VertexAttributeUsage::Position).ok())
+}
+
+fn transform_vertex(vertex: Vector3<f32>, transform: &Matrix4<f32>) -> Vector3<f32> {
+    transform.transform_point(&Point3::from(vertex)).coords
+}
+
+fn read_triangle(
+    data: &SurfaceData,
+    triangle: &TriangleDefinition,
+    transform: &Matrix4<f32>,
+) -> Option<[Vector3<f32>; 3]> {
+    let a = transform_vertex(read_vertex_position(&data, triangle[0])?, transform);
+    let b = transform_vertex(read_vertex_position(&data, triangle[1])?, transform);
+    let c = transform_vertex(read_vertex_position(&data, triangle[2])?, transform);
+    Some([a, b, c])
+}
+
+fn has_hull(node: &Node) -> bool {
+    node.query_component_ref::<Mesh>().is_some()
+}
+
+fn fine_ray_test(node: &Node, ray: &Ray) -> Option<(f32, Vector3<f32>)> {
+    let mut closest_distance = f32::MAX;
+    let mut closest_point = None;
+
+    if let Some(mesh) = node.query_component_ref::<Mesh>() {
+        let transform = mesh.global_transform();
+
+        for surface in mesh.surfaces().iter() {
+            let data = surface.data();
+            let data = data.lock();
+
+            for triangle in data
+                .geometry_buffer
+                .iter()
+                .filter_map(|t| read_triangle(&data, t, &transform))
+            {
+                if let Some(pt) = ray.triangle_intersection_point(&triangle) {
+                    let distance = ray.origin.sqr_distance(&pt);
+
+                    if distance < closest_distance {
+                        closest_distance = distance;
+                        closest_point = Some(pt);
+                    }
+                }
+            }
+        }
+    }
+
+    closest_point.map(|pt| (closest_distance, pt))
 }

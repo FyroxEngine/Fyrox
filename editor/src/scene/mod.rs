@@ -44,7 +44,7 @@ pub struct EditorScene {
     pub path: Option<PathBuf>,
     pub scene: Handle<Scene>,
     // Handle to a root for all editor nodes.
-    pub root: Handle<Node>,
+    pub editor_objects_root: Handle<Node>,
     pub selection: Selection,
     pub clipboard: Clipboard,
     pub camera_controller: CameraController,
@@ -85,7 +85,7 @@ impl EditorScene {
 
         EditorScene {
             path,
-            root,
+            editor_objects_root: root,
             camera_controller,
             navmeshes,
             scene: engine.scenes.add(scene),
@@ -97,7 +97,7 @@ impl EditorScene {
     pub fn make_purified_scene(&self, engine: &mut GameEngine) -> Scene {
         let scene = &mut engine.scenes[self.scene];
 
-        let editor_root = self.root;
+        let editor_root = self.editor_objects_root;
         let (mut pure_scene, _) = scene.clone(&mut |node, _| node != editor_root);
 
         // Reset state of nodes. For some nodes (such as particles systems) we use scene as preview
@@ -198,7 +198,7 @@ impl EditorScene {
             settings: &DebuggingSettings,
         ) {
             // Ignore editor nodes.
-            if node == editor_scene.root {
+            if node == editor_scene.editor_objects_root {
                 return;
             }
 

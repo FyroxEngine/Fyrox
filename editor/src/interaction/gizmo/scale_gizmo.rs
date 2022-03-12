@@ -113,7 +113,7 @@ impl ScaleGizmo {
         .build()])
         .build(graph);
 
-        graph.link_nodes(origin, editor_scene.root);
+        graph.link_nodes(origin, editor_scene.editor_objects_root);
 
         let (x_axis, x_arrow) = make_scale_axis(
             graph,

@@ -219,7 +219,7 @@ impl InteractionMode for MoveInteractionMode {
         if let Some(result) = editor_scene.camera_controller.pick(
             mouse_pos,
             graph,
-            editor_scene.root,
+            editor_scene.editor_objects_root,
             frame_size,
             true,
             |handle, _| {
@@ -289,7 +289,7 @@ impl InteractionMode for MoveInteractionMode {
                 .pick(
                     mouse_pos,
                     &scene.graph,
-                    editor_scene.root,
+                    editor_scene.editor_objects_root,
                     frame_size,
                     false,
                     |_, _| true,

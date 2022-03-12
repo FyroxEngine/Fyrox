@@ -87,7 +87,7 @@ impl RotationGizmo {
         .build()])
         .build(graph);
 
-        graph.link_nodes(origin, editor_scene.root);
+        graph.link_nodes(origin, editor_scene.editor_objects_root);
 
         let x_axis = make_rotation_ribbon(
             graph,

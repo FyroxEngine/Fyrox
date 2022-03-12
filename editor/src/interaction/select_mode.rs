@@ -88,7 +88,7 @@ impl InteractionMode for SelectInteractionMode {
         let mut graph_selection = GraphSelection::default();
         while let Some(handle) = self.stack.pop() {
             let node = &scene.graph[handle];
-            if handle == editor_scene.root {
+            if handle == editor_scene.editor_objects_root {
                 continue;
             }
             if handle == scene.graph.get_root() {

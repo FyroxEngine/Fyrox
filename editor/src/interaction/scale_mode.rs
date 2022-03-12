@@ -59,7 +59,7 @@ impl InteractionMode for ScaleInteractionMode {
             if let Some(result) = editor_scene.camera_controller.pick(
                 mouse_pos,
                 graph,
-                editor_scene.root,
+                editor_scene.editor_objects_root,
                 frame_size,
                 true,
                 |handle, _| handle != camera && handle != camera_pivot,
@@ -116,7 +116,7 @@ impl InteractionMode for ScaleInteractionMode {
                 .pick(
                     mouse_pos,
                     graph,
-                    editor_scene.root,
+                    editor_scene.editor_objects_root,
                     frame_size,
                     false,
                     |_, _| true,
