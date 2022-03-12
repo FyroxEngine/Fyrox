@@ -3,27 +3,27 @@
 //!
 //! See [`Listener`] docs for more info.
 
-use crate::engine::resource_manager::ResourceManager;
-use crate::scene::node::{NodeTrait, SyncContext, TypeUuidProvider};
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
+        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::Handle,
+        uuid::Uuid,
         visitor::prelude::*,
     },
+    engine::resource_manager::ResourceManager,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::Node,
+        node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
         variable::InheritError,
     },
 };
 use fxhash::FxHashMap;
-use fyrox_core::math::aabb::AxisAlignedBoundingBox;
-use fyrox_core::math::Matrix4Ext;
-use fyrox_core::uuid::Uuid;
-use std::ops::{Deref, DerefMut};
-use std::str::FromStr;
+use std::{
+    ops::{Deref, DerefMut},
+    str::FromStr,
+};
 
 /// Listener represents directional microphone-like device. It receives sound from surroundings
 /// and plays it through output device (headphones, speakers, etc.). Orientation of the listener

@@ -325,11 +325,12 @@ impl NodeTrait for Sound {
     crate::impl_query_component!();
 
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
-        self.base.local_bounding_box()
+        AxisAlignedBoundingBox::unit()
     }
 
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
-        self.base.world_bounding_box()
+        self.local_bounding_box()
+            .transform(&self.global_transform())
     }
 
     // Prefab inheritance resolving.

@@ -518,7 +518,7 @@ impl Base {
     /// a placeholder, because there is not information to calculate actual bounding box.
     #[inline]
     pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
-        AxisAlignedBoundingBox::unit()
+        AxisAlignedBoundingBox::default()
     }
 
     /// Returns current **world-space** bounding box.
