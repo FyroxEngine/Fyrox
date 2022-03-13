@@ -10,21 +10,22 @@
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    button::{Button, ButtonBuilder, ButtonMessage},
-    core::algebra::Vector2,
-    core::{color::Color, pool::Handle},
+    check_box::{CheckBoxBuilder, CheckBoxMessage},
+    core::{algebra::Vector2, color::Color, pool::Handle},
     decorator::{DecoratorBuilder, DecoratorMessage},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
-    text::TextMessage,
+    utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARK,
-    BRUSH_DARKEST, BRUSH_LIGHT,
+    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, VerticalAlignment,
+    BRUSH_DARK, BRUSH_DARKEST, BRUSH_LIGHT,
 };
-use std::any::{Any, TypeId};
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct SelectionState(pub(in crate) bool);
@@ -128,12 +129,14 @@ impl Control for Tree {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.expander {
+        if let Some(CheckBoxMessage::Check(Some(expanded))) = message.data() {
+            if message.destination() == self.expander
+                && message.direction == MessageDirection::FromWidget
+            {
                 ui.send_message(TreeMessage::expand(
                     self.handle(),
                     MessageDirection::ToWidget,
-                    !self.is_expanded,
+                    *expanded,
                     TreeExpansionStrategy::Direct,
                 ));
             }
@@ -178,20 +181,18 @@ impl Control for Tree {
                         expansion_strategy,
                     } => {
                         self.is_expanded = expand;
+
                         ui.send_message(WidgetMessage::visibility(
                             self.panel,
                             MessageDirection::ToWidget,
                             self.is_expanded,
                         ));
-                        if let Some(expander) = ui.node(self.expander).cast::<Button>() {
-                            let content = expander.content();
-                            let text = if expand { "-" } else { "+" };
-                            ui.send_message(TextMessage::text(
-                                content,
-                                MessageDirection::ToWidget,
-                                text.to_owned(),
-                            ));
-                        }
+
+                        ui.send_message(CheckBoxMessage::checked(
+                            self.expander,
+                            MessageDirection::ToWidget,
+                            Some(expand),
+                        ));
 
                         match expansion_strategy {
                             TreeExpansionStrategy::RecursiveDescendants => {
@@ -359,7 +360,7 @@ impl TreeBuilder {
     }
 
     pub fn build_tree(self, ctx: &mut BuildContext) -> Tree {
-        let expander = build_expander_button(
+        let expander = build_expander(
             self.always_show_expander,
             !self.items.is_empty(),
             self.is_expanded,
@@ -391,7 +392,7 @@ impl TreeBuilder {
         let item_background = self.back.unwrap_or_else(|| {
             DecoratorBuilder::new(BorderBuilder::new(
                 WidgetBuilder::new()
-                    .with_foreground(BRUSH_LIGHT)
+                    .with_foreground(Brush::Solid(Color::TRANSPARENT))
                     .with_background(Brush::Solid(Color::TRANSPARENT)),
             ))
             .with_selected_brush(BRUSH_DARKEST)
@@ -450,20 +451,36 @@ impl TreeBuilder {
     }
 }
 
-fn build_expander_button(
+fn build_expander(
     always_show_expander: bool,
     items_populated: bool,
     is_expanded: bool,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
-    ButtonBuilder::new(
+    let down_arrow = make_arrow(ctx, ArrowDirection::Bottom, 8.0);
+    ctx[down_arrow].set_vertical_alignment(VerticalAlignment::Center);
+
+    let right_arrow = make_arrow(ctx, ArrowDirection::Right, 8.0);
+    ctx[right_arrow].set_vertical_alignment(VerticalAlignment::Center);
+
+    CheckBoxBuilder::new(
         WidgetBuilder::new()
-            .with_width(20.0)
-            .with_visibility(always_show_expander || items_populated)
             .on_row(0)
-            .on_column(0),
+            .on_column(0)
+            .with_visibility(always_show_expander || items_populated),
     )
-    .with_text(if is_expanded { "-" } else { "+" })
+    .with_background(
+        BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_background(Brush::Solid(Color::TRANSPARENT))
+                .with_min_size(Vector2::new(10.0, 4.0)),
+        )
+        .with_stroke_thickness(Thickness::zero())
+        .build(ctx),
+    )
+    .checked(Some(is_expanded))
+    .with_check_mark(down_arrow)
+    .with_uncheck_mark(right_arrow)
     .build(ctx)
 }
 

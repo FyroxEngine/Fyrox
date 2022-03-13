@@ -125,7 +125,7 @@ fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
     let node = ui.node(handle);
 
     if let Some(decorator) = node.cast::<Decorator>() {
-        if node.parent().is_some() && ui.node(node.parent()).cast::<Button>().is_none() {
+        if node.parent().is_some() {
             let new_brush = Brush::Solid(if *index % 2 == 0 {
                 Color::opaque(50, 50, 50)
             } else {
