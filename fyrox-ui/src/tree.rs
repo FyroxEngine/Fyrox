@@ -20,7 +20,7 @@ use crate::{
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, VerticalAlignment,
-    BRUSH_DARK, BRUSH_DARKEST, BRUSH_LIGHT,
+    BRUSH_DARK, BRUSH_DARKEST,
 };
 use std::{
     any::{Any, TypeId},

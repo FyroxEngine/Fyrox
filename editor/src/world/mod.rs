@@ -25,7 +25,7 @@ use fyrox::{
     engine::Engine,
     gui::{
         brush::Brush,
-        button::{Button, ButtonBuilder, ButtonMessage},
+        button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         decorator::{Decorator, DecoratorMessage},
         grid::{Column, GridBuilder, Row},
