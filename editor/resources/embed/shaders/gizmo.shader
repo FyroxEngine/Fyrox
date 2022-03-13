@@ -19,9 +19,9 @@
                     blue: true,
                     alpha: true,
                 ),
-                depth_write: false,
+                depth_write: true,
                 stencil_test: None,
-                depth_test: false,
+                depth_test: true,
                 blend: Some(BlendFunc(
                     sfactor: SrcAlpha,
                     dfactor: OneMinusSrcAlpha,
@@ -54,6 +54,10 @@
                 void main()
                 {
                     FragColor = diffuseColor;
+
+                    // Pull depth towards near clipping plane so the gizmo will be drawn on top
+                    // of everything, but its parts will be correctly handled by depth test.
+                    gl_FragDepth = gl_FragCoord.z * 0.001;
                 }
                "#,
         ),
