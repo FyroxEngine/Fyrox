@@ -55,11 +55,11 @@ fn make_rotation_ribbon(
     )
     .with_render_path(RenderPath::Forward)
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
-        SurfaceData::make_cylinder(
-            30,
+        SurfaceData::make_torus(
             0.5,
-            0.05,
-            false,
+            0.025,
+            16,
+            32,
             &Matrix4::new_translation(&Vector3::new(0.0, -0.05, 0.0)),
         ),
     )))

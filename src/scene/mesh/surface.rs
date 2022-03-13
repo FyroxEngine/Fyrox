@@ -483,6 +483,61 @@ impl SurfaceData {
         data
     }
 
+    /// Creates torus.
+    pub fn make_torus(
+        r1: f32,
+        r2: f32,
+        num_rings: usize,
+        num_segments: usize,
+        transform: &Matrix4<f32>,
+    ) -> Self {
+        let mut vertices = Vec::new();
+        for j in 0..=num_rings {
+            for i in 0..=num_segments {
+                let u = i as f32 / num_segments as f32 * std::f32::consts::TAU;
+                let v = j as f32 / num_rings as f32 * std::f32::consts::TAU;
+
+                let center = Vector3::new(r1 * u.cos(), r1 * u.sin(), 0.0);
+
+                let position = Vector3::new(
+                    (r1 + r2 * v.cos()) * u.cos(),
+                    r2 * v.sin(),
+                    (r1 + r2 * v.cos()) * u.sin(),
+                );
+
+                let uv = Vector2::new(i as f32 / num_segments as f32, j as f32 / num_rings as f32);
+
+                let normal = (position - center)
+                    .try_normalize(f32::EPSILON)
+                    .unwrap_or_default();
+
+                vertices.push(StaticVertex::from_pos_uv_normal(position, uv, normal));
+            }
+        }
+
+        let mut triangles = Vec::new();
+        for j in 1..=num_rings {
+            for i in 1..=num_segments {
+                let a = ((num_segments + 1) * j + i - 1) as u32;
+                let b = ((num_segments + 1) * (j - 1) + i - 1) as u32;
+                let c = ((num_segments + 1) * (j - 1) + i) as u32;
+                let d = ((num_segments + 1) * j + i) as u32;
+
+                triangles.push(TriangleDefinition([a, b, d]));
+                triangles.push(TriangleDefinition([b, c, d]));
+            }
+        }
+
+        let mut data = Self::new(
+            VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
+            TriangleBuffer::new(triangles),
+            true,
+        );
+        data.calculate_tangents().unwrap();
+        data.transform_geometry(transform).unwrap();
+        data
+    }
+
     /// Creates vertical cylinder.
     pub fn make_cylinder(
         sides: usize,
