@@ -83,7 +83,7 @@ fn make_graph_node_item(
         load_image(include_bytes!("../../resources/embed/light.png"))
     } else if node.is_joint() || node.is_joint2d() {
         load_image(include_bytes!("../../resources/embed/joint.png"))
-    } else if node.is_joint() || node.is_joint2d() {
+    } else if node.is_rigid_body() || node.is_rigid_body2d() {
         load_image(include_bytes!("../../resources/embed/rigid_body.png"))
     } else if node.is_collider() || node.is_collider2d() {
         load_image(include_bytes!("../../resources/embed/collider.png"))

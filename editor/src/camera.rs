@@ -2,9 +2,7 @@ use crate::fyrox::core::math::Matrix4Ext;
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
-        math::{
-            aabb::AxisAlignedBoundingBox, plane::Plane, ray::Ray, TriangleDefinition, Vector3Ext,
-        },
+        math::{plane::Plane, ray::Ray, TriangleDefinition, Vector3Ext},
         pool::Handle,
     },
     gui::message::{KeyCode, MouseButton},
@@ -446,9 +444,9 @@ fn read_triangle(
     triangle: &TriangleDefinition,
     transform: &Matrix4<f32>,
 ) -> Option<[Vector3<f32>; 3]> {
-    let a = transform_vertex(read_vertex_position(&data, triangle[0])?, transform);
-    let b = transform_vertex(read_vertex_position(&data, triangle[1])?, transform);
-    let c = transform_vertex(read_vertex_position(&data, triangle[2])?, transform);
+    let a = transform_vertex(read_vertex_position(data, triangle[0])?, transform);
+    let b = transform_vertex(read_vertex_position(data, triangle[1])?, transform);
+    let c = transform_vertex(read_vertex_position(data, triangle[2])?, transform);
     Some([a, b, c])
 }
 
