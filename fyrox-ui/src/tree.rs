@@ -384,7 +384,7 @@ impl TreeBuilder {
                 .with_child(expander)
                 .with_child(self.content),
         )
-        .add_column(Column::auto())
+        .add_column(Column::strict(11.0))
         .add_column(Column::stretch())
         .add_row(Row::strict(20.0))
         .build(ctx);
