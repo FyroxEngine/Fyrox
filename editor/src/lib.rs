@@ -1265,7 +1265,7 @@ impl Editor {
     fn update(&mut self, dt: f32) {
         scope_profile!();
 
-        self.engine.update(dt);
+        self.engine.pre_update(dt);
 
         self.log.update(&mut self.engine);
 
@@ -1502,6 +1502,8 @@ fn update(editor: &mut Editor) {
         editor.update(FIXED_TIMESTEP);
 
         poll_ui_messages(editor);
+
+        editor.engine.post_update(dt);
 
         editor.post_update();
 

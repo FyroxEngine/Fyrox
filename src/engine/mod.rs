@@ -346,6 +346,15 @@ impl Engine {
     /// of all scenes, sub-systems, user interface, etc. Must be called in order to get engine
     /// functioning.
     pub fn update(&mut self, dt: f32) {
+        self.pre_update(dt);
+        self.post_update(dt);
+    }
+
+    /// Performs pre update for the engine.
+    ///
+    /// Normally, this is called from `Engine::update()`.
+    /// You should only call this manually if you don't use that method.
+    pub fn pre_update(&mut self, dt: f32) {
         let inner_size = self.get_window().inner_size();
         let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
@@ -364,6 +373,15 @@ impl Engine {
 
             scene.update(frame_size, dt);
         }
+    }
+
+    /// Performs post update for the engine.
+    ///
+    /// Normally, this is called from `Engine::update()`.
+    /// You should only call this manually if you don't use that method.
+    pub fn post_update(&mut self, dt: f32) {
+        let inner_size = self.get_window().inner_size();
+        let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
         let time = instant::Instant::now();
         self.user_interface.update(window_size, dt);
