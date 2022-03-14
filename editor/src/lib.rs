@@ -65,7 +65,7 @@ use crate::{
         EditorScene, Selection,
     },
     scene_viewer::SceneViewer,
-    settings::{Settings, SettingsSectionKind},
+    settings::Settings,
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
@@ -246,7 +246,7 @@ pub enum Message {
     Exit {
         force: bool,
     },
-    OpenSettings(SettingsSectionKind),
+    OpenSettings,
     OpenMaterialEditor(Arc<Mutex<Material>>),
     ShowInAssetBrowser(PathBuf),
     SetWorldViewerFilter(String),
@@ -438,7 +438,7 @@ impl Editor {
 
         let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone());
         let asset_browser = AssetBrowser::new(&mut engine);
-        let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
+        let menu = Menu::new(&mut engine, message_sender.clone());
         let light_panel = LightPanel::new(&mut engine);
         let audio_panel = AudioPanel::new(&mut engine);
 
@@ -1319,11 +1319,11 @@ impl Editor {
                     self.configure(working_directory);
                     needs_sync = true;
                 }
-                Message::OpenSettings(section) => {
+                Message::OpenSettings => {
                     self.menu.file_menu.settings.open(
-                        &self.engine.user_interface,
+                        &mut self.engine.user_interface,
                         &self.settings,
-                        Some(section),
+                        &self.message_sender,
                     );
                 }
                 Message::OpenMaterialEditor(material) => self.open_material_editor(material),

@@ -5,7 +5,6 @@ use crate::{
     DropdownListBuilder, EditorScene, GameEngine, GraphSelection, InteractionMode,
     InteractionModeKind, Message, Mode, PasteCommand, SceneCommand, Selection,
     SetMeshTextureCommand, SetParticleSystemTextureCommand, SetSpriteTextureCommand, Settings,
-    SettingsSectionKind,
 };
 use fyrox::{
     core::{algebra::Vector2, color::Color, make_relative_path, math::Rect, pool::Handle},
@@ -368,9 +367,7 @@ impl SceneViewer {
             if ui.is_node_child_of(message.destination(), self.move_mode)
                 && *button == MouseButton::Right
             {
-                self.sender
-                    .send(Message::OpenSettings(SettingsSectionKind::MoveModeSettings))
-                    .unwrap();
+                self.sender.send(Message::OpenSettings).unwrap();
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.destination() == self.camera_projection {

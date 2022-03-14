@@ -53,7 +53,7 @@ use fyrox::{
         transform::Transform,
     },
 };
-use std::{rc::Rc, sync::mpsc::Sender};
+use std::sync::mpsc::Sender;
 
 pub mod handle;
 pub mod material;
@@ -82,7 +82,7 @@ pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Stat
 
 pub fn make_property_editors_container(
     sender: Sender<Message>,
-) -> Rc<PropertyEditorDefinitionContainer> {
+) -> PropertyEditorDefinitionContainer {
     let mut container = PropertyEditorDefinitionContainer::new();
 
     container.insert(TexturePropertyEditorDefinition);
@@ -141,5 +141,5 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<sound::Renderer>::new());
     container.insert(ScriptPropertyEditorDefinition {});
 
-    Rc::new(container)
+    container
 }

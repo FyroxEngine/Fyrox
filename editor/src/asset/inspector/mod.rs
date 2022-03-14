@@ -16,6 +16,7 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
+use std::rc::Rc;
 use std::sync::mpsc::Sender;
 
 pub mod handlers;
@@ -101,7 +102,7 @@ impl AssetInspector {
         let context = InspectorContext::from_object(
             handler.value(),
             &mut ui.build_ctx(),
-            make_property_editors_container(sender),
+            Rc::new(make_property_editors_container(sender)),
             None,
             MSG_SYNC_FLAG,
             0,

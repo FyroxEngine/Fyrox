@@ -37,6 +37,7 @@ use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
+        inspect::{Inspect, PropertyInfo},
         instant,
         math::Rect,
         pool::Handle,
@@ -88,6 +89,7 @@ use std::{
     rc::Rc,
     sync::mpsc::Receiver,
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Renderer statistics for one frame, also includes current frames per second
 /// amount.
@@ -173,7 +175,22 @@ impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
 }
 
 /// Shadow map precision allows you to select compromise between quality and performance.
-#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Debug, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Hash,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Debug,
+    Serialize,
+    Deserialize,
+    Inspect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 pub enum ShadowMapPrecision {
     /// Shadow map will use 2 times less memory by switching to 16bit pixel format,
     /// but "shadow acne" may occur.
@@ -184,7 +201,7 @@ pub enum ShadowMapPrecision {
 }
 
 /// Cascaded-shadow maps settings.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Inspect)]
 pub struct CsmSettings {
     /// Whether cascaded shadow maps enabled or not.
     pub enabled: bool,
@@ -213,7 +230,7 @@ impl Default for CsmSettings {
 
 /// Quality settings allows you to find optimal balance between performance and
 /// graphics quality.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Inspect)]
 pub struct QualitySettings {
     /// Point shadows
     /// Size of cube map face of shadow map texture in pixels.

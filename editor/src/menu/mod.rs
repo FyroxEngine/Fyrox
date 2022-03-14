@@ -91,12 +91,8 @@ pub fn create_menu_item_shortcut(
 }
 
 impl Menu {
-    pub fn new(
-        engine: &mut GameEngine,
-        message_sender: Sender<Message>,
-        settings: &Settings,
-    ) -> Self {
-        let file_menu = FileMenu::new(engine, settings);
+    pub fn new(engine: &mut GameEngine, message_sender: Sender<Message>) -> Self {
+        let file_menu = FileMenu::new(engine);
         let ctx = &mut engine.user_interface.build_ctx();
         let create_entity_menu = CreateEntityRootMenu::new(ctx);
         let edit_menu = EditMenu::new(ctx);

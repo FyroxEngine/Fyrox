@@ -104,7 +104,7 @@ macro_rules! handle_property_changed {
 
 impl Inspector {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
-        let property_editors = make_property_editors_container(sender);
+        let property_editors = Rc::new(make_property_editors_container(sender));
 
         let warning_text_str =
             "Multiple objects are selected, showing properties of the first object only!\

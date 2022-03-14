@@ -1,69 +1,55 @@
 use crate::{
-    scene::EditorScene,
+    inspector::editors::make_property_editors_container,
     settings::{
-        debugging::{DebuggingSection, DebuggingSettings},
-        graphics::{GraphicsSection, GraphicsSettings},
-        move_mode::{MoveInteractionModeSettings, MoveModeSection},
-        rotate_mode::{RotateInteractionModeSettings, RotateModeSection},
+        debugging::DebuggingSettings, graphics::GraphicsSettings,
+        move_mode::MoveInteractionModeSettings, rotate_mode::RotateInteractionModeSettings,
     },
-    GameEngine, CONFIG_DIR,
+    GameEngine, Message, CONFIG_DIR, MSG_SYNC_FLAG,
 };
+use fyrox::gui::inspector::editors::enumeration::EnumPropertyEditorDefinition;
+use fyrox::renderer::{CsmSettings, ShadowMapPrecision};
 use fyrox::{
-    core::{pool::Handle, scope_profile},
-    gui::{
-        border::BorderBuilder,
-        button::{ButtonBuilder, ButtonMessage},
-        check_box::CheckBoxBuilder,
-        formatted_text::WrapMode,
-        grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
-        numeric::NumericUpDownBuilder,
-        stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
+    core::{
+        inspect::{Inspect, PropertyInfo},
+        pool::Handle,
+        scope_profile,
     },
+    gui::{
+        button::{ButtonBuilder, ButtonMessage},
+        grid::{Column, GridBuilder, Row},
+        inspector::{
+            editors::{
+                inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
+            },
+            FieldKind, InspectorBuilder, InspectorContext, InspectorMessage, PropertyChanged,
+        },
+        message::{MessageDirection, UiMessage},
+        scroll_viewer::ScrollViewerBuilder,
+        stack_panel::StackPanelBuilder,
+        widget::WidgetBuilder,
+        window::{WindowBuilder, WindowMessage, WindowTitle},
+        HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+    },
+    renderer::QualitySettings,
     utils::log::Log,
 };
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
-use std::{fs::File, path::PathBuf};
+use std::{fs::File, path::PathBuf, rc::Rc, sync::mpsc::Sender};
 
 pub mod debugging;
 pub mod graphics;
 pub mod move_mode;
 pub mod rotate_mode;
 
-struct SwitchEntry {
-    tree_item: Handle<UiNode>,
-    section: Handle<UiNode>,
-    kind: SettingsSectionKind,
-}
-
 pub struct SettingsWindow {
     window: Handle<UiNode>,
     ok: Handle<UiNode>,
     default: Handle<UiNode>,
-    graphics_section: GraphicsSection,
-    move_mode_section: MoveModeSection,
-    rotate_mode_section: RotateModeSection,
-    debugging_section: DebuggingSection,
-    section_switches: Vec<SwitchEntry>,
-    sections_root: Handle<UiNode>,
+    inspector: Handle<UiNode>,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum SettingsSectionKind {
-    Graphics,
-    Debugging,
-    MoveModeSettings,
-    RotateModeSettings,
-}
-
-#[derive(Deserialize, Serialize, PartialEq, Clone, Default)]
+#[derive(Deserialize, Serialize, PartialEq, Clone, Default, Debug, Inspect)]
 pub struct Settings {
     pub graphics: GraphicsSettings,
     pub debugging: DebuggingSettings,
@@ -106,148 +92,56 @@ impl Settings {
         ron::ser::to_writer_pretty(file, self, PrettyConfig::default())?;
         Ok(())
     }
-}
 
-fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize) -> Handle<UiNode> {
-    TextBuilder::new(
-        WidgetBuilder::new()
-            .with_vertical_alignment(VerticalAlignment::Center)
-            .with_margin(Thickness::left(4.0))
-            .on_row(row)
-            .on_column(0),
-    )
-    .with_text(text)
-    .build(ctx)
-}
+    fn make_property_editors_container(
+        sender: Sender<Message>,
+    ) -> Rc<PropertyEditorDefinitionContainer> {
+        let mut container = make_property_editors_container(sender);
 
-fn make_bool_input_field(ctx: &mut BuildContext, row: usize, value: bool) -> Handle<UiNode> {
-    CheckBoxBuilder::new(
-        WidgetBuilder::new()
-            .on_row(row)
-            .with_margin(Thickness::uniform(1.0))
-            .on_column(1),
-    )
-    .checked(Some(value))
-    .build(ctx)
-}
+        container.insert(InspectablePropertyEditorDefinition::<GraphicsSettings>::new());
+        container.insert(EnumPropertyEditorDefinition::<ShadowMapPrecision>::new());
+        container.insert(InspectablePropertyEditorDefinition::<DebuggingSettings>::new());
+        container.insert(InspectablePropertyEditorDefinition::<CsmSettings>::new());
+        container.insert(InspectablePropertyEditorDefinition::<QualitySettings>::new());
+        container.insert(InspectablePropertyEditorDefinition::<
+            MoveInteractionModeSettings,
+        >::new());
+        container.insert(InspectablePropertyEditorDefinition::<
+            RotateInteractionModeSettings,
+        >::new());
 
-fn make_f32_input_field(
-    ctx: &mut BuildContext,
-    row: usize,
-    value: f32,
-    min: f32,
-) -> Handle<UiNode> {
-    NumericUpDownBuilder::new(
-        WidgetBuilder::new()
-            .on_column(1)
-            .on_row(row)
-            .with_margin(Thickness::uniform(1.0)),
-    )
-    .with_value(value)
-    .with_min_value(min)
-    .with_min_value(min)
-    .build(ctx)
-}
+        Rc::new(container)
+    }
 
-fn make_section(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
-    TreeBuilder::new(WidgetBuilder::new())
-        .with_content(
-            TextBuilder::new(WidgetBuilder::new())
-                .with_text(name)
-                .build(ctx),
-        )
-        .build(ctx)
+    fn handle_property_changed(&mut self, property_changed: &PropertyChanged) -> bool {
+        match property_changed.value {
+            FieldKind::Inspectable(ref inner) => {
+                return match property_changed.name.as_ref() {
+                    Self::GRAPHICS => self.graphics.handle_property_changed(&**inner),
+                    Self::DEBUGGING => self.debugging.handle_property_changed(&**inner),
+                    Self::MOVE_MODE_SETTINGS => {
+                        self.move_mode_settings.handle_property_changed(&**inner)
+                    }
+                    Self::ROTATE_MODE_SETTINGS => {
+                        self.rotate_mode_settings.handle_property_changed(&**inner)
+                    }
+                    _ => false,
+                }
+            }
+            _ => (),
+        }
+        false
+    }
 }
 
 impl SettingsWindow {
-    pub fn new(engine: &mut GameEngine, settings: &Settings) -> Self {
+    pub fn new(engine: &mut GameEngine) -> Self {
         let ok;
         let default;
 
         let ctx = &mut engine.user_interface.build_ctx();
-        let text =
-            "Here you can select graphics settings to improve performance and/or to understand how \
-            you scene will look like with different graphics settings. Please note that these settings won't be saved \
-            with scene!";
 
-        let graphics_section = GraphicsSection::new(ctx, &settings.graphics);
-        let debugging_section = DebuggingSection::new(ctx, &settings.debugging);
-        let move_mode_section = MoveModeSection::new(ctx, &settings.move_mode_settings);
-        let rotate_mode_section = RotateModeSection::new(ctx, &settings.rotate_mode_settings);
-
-        let sections_root;
-        let graphics_section_item;
-        let debugging_section_item;
-        let move_mode_section_item;
-        let rotate_mode_section_item;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .on_row(1)
-                .with_child({
-                    sections_root =
-                        TreeRootBuilder::new(WidgetBuilder::new().on_column(0).on_row(0))
-                            .with_items(vec![
-                                {
-                                    graphics_section_item = make_section(ctx, "Graphics");
-                                    graphics_section_item
-                                },
-                                {
-                                    debugging_section_item = make_section(ctx, "Debugging");
-                                    debugging_section_item
-                                },
-                                {
-                                    move_mode_section_item =
-                                        make_section(ctx, "Move Interaction Mode");
-                                    move_mode_section_item
-                                },
-                                {
-                                    rotate_mode_section_item =
-                                        make_section(ctx, "Rotate Interaction Mode");
-                                    rotate_mode_section_item
-                                },
-                            ])
-                            .build(ctx);
-                    sections_root
-                })
-                .with_child(
-                    BorderBuilder::new(WidgetBuilder::new().on_row(0).on_column(1).with_children(
-                        [
-                            graphics_section.section,
-                            debugging_section.section,
-                            move_mode_section.section,
-                            rotate_mode_section.section,
-                        ],
-                    ))
-                    .build(ctx),
-                ),
-        )
-        .add_row(Row::stretch())
-        .add_column(Column::strict(200.0))
-        .add_column(Column::stretch())
-        .build(ctx);
-
-        let section_switches = vec![
-            SwitchEntry {
-                tree_item: graphics_section_item,
-                section: graphics_section.section,
-                kind: SettingsSectionKind::Graphics,
-            },
-            SwitchEntry {
-                tree_item: debugging_section_item,
-                section: debugging_section.section,
-                kind: SettingsSectionKind::Debugging,
-            },
-            SwitchEntry {
-                tree_item: move_mode_section_item,
-                section: move_mode_section.section,
-                kind: SettingsSectionKind::MoveModeSettings,
-            },
-            SwitchEntry {
-                tree_item: rotate_mode_section_item,
-                section: rotate_mode_section.section,
-                kind: SettingsSectionKind::RotateModeSettings,
-            },
-        ];
+        let inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(600.0))
             .open(false)
@@ -256,20 +150,18 @@ impl SettingsWindow {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(
-                            TextBuilder::new(
+                            ScrollViewerBuilder::new(
                                 WidgetBuilder::new()
-                                    .on_row(0)
-                                    .with_margin(Thickness::uniform(1.0)),
+                                    .with_margin(Thickness::uniform(2.0))
+                                    .on_row(0),
                             )
-                            .with_text(text)
-                            .with_wrap(WrapMode::Word)
+                            .with_content(inspector)
                             .build(ctx),
                         )
-                        .with_child(section)
                         .with_child(
                             StackPanelBuilder::new(
                                 WidgetBuilder::new()
-                                    .on_row(2)
+                                    .on_row(1)
                                     .with_horizontal_alignment(HorizontalAlignment::Right)
                                     .with_child({
                                         default = ButtonBuilder::new(
@@ -296,7 +188,6 @@ impl SettingsWindow {
                             .build(ctx),
                         ),
                 )
-                .add_row(Row::auto())
                 .add_row(Row::stretch())
                 .add_row(Row::strict(25.0))
                 .add_column(Column::stretch())
@@ -305,74 +196,49 @@ impl SettingsWindow {
             .build(ctx);
 
         Self {
-            sections_root,
-            section_switches,
             window,
             ok,
             default,
-            graphics_section,
-            move_mode_section,
-            rotate_mode_section,
-            debugging_section,
+            inspector,
         }
     }
 
-    pub fn open(
-        &self,
-        ui: &UserInterface,
-        settings: &Settings,
-        section: Option<SettingsSectionKind>,
-    ) {
+    pub fn open(&self, ui: &mut UserInterface, settings: &Settings, sender: &Sender<Message>) {
         ui.send_message(WindowMessage::open(
             self.window,
             MessageDirection::ToWidget,
             true,
         ));
 
-        if let Some(section) = section {
-            for entry in self.section_switches.iter() {
-                if entry.kind == section {
-                    ui.send_message(TreeRootMessage::select(
-                        self.sections_root,
-                        MessageDirection::ToWidget,
-                        vec![entry.tree_item],
-                    ));
-                }
-            }
-        }
-
-        self.sync_to_model(ui, settings);
+        self.sync_to_model(ui, settings, sender);
     }
 
-    fn sync_to_model(&self, ui: &UserInterface, settings: &Settings) {
-        self.graphics_section.sync_to_model(ui, &settings.graphics);
-        self.move_mode_section
-            .sync_to_model(ui, &settings.move_mode_settings);
-        self.rotate_mode_section
-            .sync_to_model(ui, &settings.rotate_mode_settings);
-        self.debugging_section
-            .sync_to_model(ui, &settings.debugging);
+    fn sync_to_model(&self, ui: &mut UserInterface, settings: &Settings, sender: &Sender<Message>) {
+        let context = InspectorContext::from_object(
+            settings,
+            &mut ui.build_ctx(),
+            Settings::make_property_editors_container(sender.clone()),
+            None,
+            MSG_SYNC_FLAG,
+            0,
+        );
+        ui.send_message(InspectorMessage::context(
+            self.inspector,
+            MessageDirection::ToWidget,
+            context,
+        ));
     }
 
     pub fn handle_message(
         &mut self,
         message: &UiMessage,
-        editor_scene: &EditorScene,
         engine: &mut GameEngine,
         settings: &mut Settings,
+        sender: &Sender<Message>,
     ) {
         scope_profile!();
 
         let old_settings = settings.clone();
-
-        self.graphics_section
-            .handle_message(message, editor_scene, engine, &mut settings.graphics);
-        self.debugging_section
-            .handle_message(message, &mut settings.debugging);
-        self.move_mode_section
-            .handle_message(message, &mut settings.move_mode_settings);
-        self.rotate_mode_section
-            .handle_message(message, &mut settings.rotate_mode_settings);
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.ok {
@@ -382,18 +248,15 @@ impl SettingsWindow {
                 ));
             } else if message.destination() == self.default {
                 *settings = Default::default();
-                self.sync_to_model(&engine.user_interface, settings);
+                self.sync_to_model(&mut engine.user_interface, settings, sender);
             }
-        } else if let Some(TreeRootMessage::Selected(items)) = message.data::<TreeRootMessage>() {
-            if let Some(selected) = items.first().cloned() {
-                for entry in self.section_switches.iter() {
-                    engine
-                        .user_interface
-                        .send_message(WidgetMessage::visibility(
-                            entry.section,
-                            MessageDirection::ToWidget,
-                            entry.tree_item == selected,
-                        ))
+        } else if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data() {
+            if message.destination() == self.inspector {
+                if !settings.handle_property_changed(property_changed) {
+                    Log::err(format!(
+                        "Unhandled property change: {}",
+                        property_changed.path()
+                    ))
                 }
             }
         }

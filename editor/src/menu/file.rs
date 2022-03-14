@@ -37,7 +37,7 @@ pub struct FileMenu {
 }
 
 impl FileMenu {
-    pub fn new(engine: &mut GameEngine, settings: &Settings) -> Self {
+    pub fn new(engine: &mut GameEngine) -> Self {
         let new_scene;
         let save;
         let save_as;
@@ -121,7 +121,7 @@ impl FileMenu {
             open_settings,
             configure,
             configure_message,
-            settings: SettingsWindow::new(engine, settings),
+            settings: SettingsWindow::new(engine),
         }
     }
 
@@ -147,10 +147,8 @@ impl FileMenu {
         settings: &mut Settings,
         configurator_window: Handle<UiNode>,
     ) {
-        if let Some(scene) = editor_scene.as_ref() {
-            self.settings
-                .handle_message(message, scene, engine, settings);
-        }
+        self.settings
+            .handle_message(message, engine, settings, sender);
 
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.save_file_selector {
@@ -220,7 +218,8 @@ impl FileMenu {
                     ));
                 }
             } else if message.destination() == self.open_settings {
-                self.settings.open(&engine.user_interface, settings, None);
+                self.settings
+                    .open(&mut engine.user_interface, settings, sender);
             }
         }
     }
