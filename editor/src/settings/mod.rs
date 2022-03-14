@@ -114,21 +114,18 @@ impl Settings {
     }
 
     fn handle_property_changed(&mut self, property_changed: &PropertyChanged) -> bool {
-        match property_changed.value {
-            FieldKind::Inspectable(ref inner) => {
-                return match property_changed.name.as_ref() {
-                    Self::GRAPHICS => self.graphics.handle_property_changed(&**inner),
-                    Self::DEBUGGING => self.debugging.handle_property_changed(&**inner),
-                    Self::MOVE_MODE_SETTINGS => {
-                        self.move_mode_settings.handle_property_changed(&**inner)
-                    }
-                    Self::ROTATE_MODE_SETTINGS => {
-                        self.rotate_mode_settings.handle_property_changed(&**inner)
-                    }
-                    _ => false,
+        if let FieldKind::Inspectable(ref inner) = property_changed.value {
+            return match property_changed.name.as_ref() {
+                Self::GRAPHICS => self.graphics.handle_property_changed(&**inner),
+                Self::DEBUGGING => self.debugging.handle_property_changed(&**inner),
+                Self::MOVE_MODE_SETTINGS => {
+                    self.move_mode_settings.handle_property_changed(&**inner)
                 }
-            }
-            _ => (),
+                Self::ROTATE_MODE_SETTINGS => {
+                    self.rotate_mode_settings.handle_property_changed(&**inner)
+                }
+                _ => false,
+            };
         }
         false
     }
@@ -251,13 +248,13 @@ impl SettingsWindow {
                 self.sync_to_model(&mut engine.user_interface, settings, sender);
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data() {
-            if message.destination() == self.inspector {
-                if !settings.handle_property_changed(property_changed) {
-                    Log::err(format!(
-                        "Unhandled property change: {}",
-                        property_changed.path()
-                    ))
-                }
+            if message.destination() == self.inspector
+                && !settings.handle_property_changed(property_changed)
+            {
+                Log::err(format!(
+                    "Unhandled property change: {}",
+                    property_changed.path()
+                ))
             }
         }
 
