@@ -336,7 +336,7 @@ impl TextBox {
     pub fn screen_pos_to_text_pos(&self, screen_pos: Vector2<f32>) -> Option<Position> {
         let caret_pos = self.widget.screen_position;
         let font = self.formatted_text.borrow().get_font();
-        let font = font.0.lock().unwrap();
+        let font = font.0.lock();
         for (line_index, line) in self.formatted_text.borrow().get_lines().iter().enumerate() {
             let line_bounds = Rect::new(
                 caret_pos.x + line.x_offset,
@@ -529,7 +529,7 @@ impl Control for TextBox {
             let font = text.get_font();
             let mut caret_pos = screen_position;
 
-            let font = font.0.lock().unwrap();
+            let font = font.0.lock();
             if let Some(line) = text.get_lines().get(self.caret_position.line) {
                 let text = text.get_raw_text();
                 caret_pos += Vector2::new(line.x_offset, line.y_offset);
@@ -935,9 +935,8 @@ impl TextBoxBuilder {
             blink_timer: 0.0,
             blink_interval: 0.5,
             formatted_text: RefCell::new(
-                FormattedTextBuilder::new()
+                FormattedTextBuilder::new(self.font.unwrap_or_else(|| ctx.default_font()))
                     .with_text(self.text)
-                    .with_font(self.font.unwrap_or_else(|| crate::DEFAULT_FONT.clone()))
                     .with_horizontal_alignment(self.horizontal_alignment)
                     .with_vertical_alignment(self.vertical_alignment)
                     .with_wrap(self.wrap)

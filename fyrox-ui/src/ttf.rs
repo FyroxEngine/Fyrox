@@ -1,5 +1,5 @@
 use crate::{
-    core::{algebra::Vector2, io, rectpack::RectPacker},
+    core::{algebra::Vector2, io, parking_lot::Mutex, rectpack::RectPacker},
     draw::SharedTexture,
 };
 use fxhash::FxHashMap;
@@ -8,7 +8,7 @@ use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, Range},
     path::Path,
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
 #[derive(Debug)]
@@ -39,6 +39,10 @@ pub struct SharedFont(pub Arc<Mutex<Font>>);
 impl SharedFont {
     pub fn new(font: Font) -> Self {
         Self(Arc::new(Mutex::new(font)))
+    }
+
+    pub fn set(&mut self, font: Font) {
+        *self.0.lock() = font;
     }
 }
 

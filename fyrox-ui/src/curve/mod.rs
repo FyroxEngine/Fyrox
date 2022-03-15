@@ -1145,9 +1145,8 @@ impl CurveEditorBuilder {
             grid_brush: Brush::Solid(Color::from_rgba(110, 110, 110, 50)),
             selection: None,
             text: RefCell::new(
-                FormattedTextBuilder::new()
+                FormattedTextBuilder::new(ctx.default_font())
                     .with_brush(Brush::Solid(Color::opaque(100, 100, 100)))
-                    .with_font(crate::DEFAULT_FONT.clone())
                     .build(),
             ),
             context_menu: ContextMenu {

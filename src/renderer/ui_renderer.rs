@@ -261,7 +261,7 @@ impl UiRenderer {
 
             match &cmd.texture {
                 CommandTexture::Font(font_arc) => {
-                    let mut font = font_arc.0.lock().unwrap();
+                    let mut font = font_arc.0.lock();
                     if font.texture.is_none() {
                         let size = font.atlas_size() as u32;
                         if let Some(details) = TextureData::from_bytes(

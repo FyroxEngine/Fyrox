@@ -2,7 +2,7 @@ use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect},
     ttf::SharedFont,
-    Font, HorizontalAlignment, VerticalAlignment, DEFAULT_FONT,
+    Font, HorizontalAlignment, VerticalAlignment,
 };
 use std::ops::Range;
 
@@ -177,7 +177,7 @@ impl FormattedText {
 
     pub fn get_range_width<T: IntoIterator<Item = usize>>(&self, range: T) -> f32 {
         let mut width = 0.0;
-        let font = self.font.0.lock().unwrap();
+        let font = self.font.0.lock();
         for index in range {
             width += font.glyph_advance(self.text[index].glyph_index);
         }
@@ -188,7 +188,7 @@ impl FormattedText {
         // Convert text to UTF32.
         self.text.clear();
 
-        let font = self.font.0.lock().unwrap();
+        let font = self.font.0.lock();
 
         for code in text.as_ref().chars().map(|c| c as u32) {
             self.text.push(Character::from_char_with_font(code, &font));
@@ -209,7 +209,7 @@ impl FormattedText {
     }
 
     pub fn insert_char(&mut self, code: char, index: usize) -> &mut Self {
-        let font = self.font.0.lock().unwrap();
+        let font = self.font.0.lock();
 
         self.text
             .insert(index, Character::from_char_with_font(code as u32, &font));
@@ -220,7 +220,7 @@ impl FormattedText {
     }
 
     pub fn insert_str(&mut self, str: &str, position: usize) -> &mut Self {
-        let font = self.font.0.lock().unwrap();
+        let font = self.font.0.lock();
 
         for (i, code) in str.chars().enumerate() {
             self.text.insert(
@@ -245,7 +245,7 @@ impl FormattedText {
     }
 
     pub fn build(&mut self) -> Vector2<f32> {
-        let font = self.font.0.lock().unwrap();
+        let font = self.font.0.lock();
 
         let masked_text;
         let text = if let Some(mask_char) = self.mask_char {
@@ -481,17 +481,11 @@ pub struct FormattedTextBuilder {
     mask_char: Option<char>,
 }
 
-impl Default for FormattedTextBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl FormattedTextBuilder {
     /// Creates new formatted text builder with default parameters.
-    pub fn new() -> FormattedTextBuilder {
+    pub fn new(font: SharedFont) -> FormattedTextBuilder {
         FormattedTextBuilder {
-            font: DEFAULT_FONT.clone(),
+            font,
             text: "".to_owned(),
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
@@ -500,11 +494,6 @@ impl FormattedTextBuilder {
             wrap: WrapMode::NoWrap,
             mask_char: None,
         }
-    }
-
-    pub fn with_font(mut self, font: SharedFont) -> Self {
-        self.font = font;
-        self
     }
 
     pub fn with_vertical_alignment(mut self, vertical_alignment: VerticalAlignment) -> Self {
@@ -543,7 +532,7 @@ impl FormattedTextBuilder {
     }
 
     pub fn build(self) -> FormattedText {
-        let font = self.font.0.lock().unwrap();
+        let font = self.font.0.lock();
         FormattedText {
             text: self
                 .text

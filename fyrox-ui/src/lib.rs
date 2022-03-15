@@ -9,9 +9,6 @@
 #![allow(clippy::from_over_into)]
 #![allow(clippy::new_without_default)]
 
-#[macro_use]
-extern crate lazy_static;
-
 pub use fyrox_core as core;
 
 pub mod border;
@@ -422,6 +419,10 @@ pub struct BuildContext<'a> {
 }
 
 impl<'a> BuildContext<'a> {
+    pub fn default_font(&self) -> SharedFont {
+        self.ui.default_font.clone()
+    }
+
     pub fn add_node(&mut self, node: UiNode) -> Handle<UiNode> {
         self.ui.add_node(node)
     }
@@ -525,11 +526,7 @@ pub struct UserInterface {
     layout_events_receiver: Receiver<LayoutEvent>,
     layout_events_sender: Sender<LayoutEvent>,
     need_update_global_transform: bool,
-}
-
-lazy_static! {
-    pub static ref DEFAULT_FONT: SharedFont =
-        SharedFont::new(FontBuilder::new().build_builtin().unwrap());
+    pub default_font: SharedFont,
 }
 
 fn draw_node(
@@ -609,6 +606,7 @@ impl UserInterface {
     pub fn new(screen_size: Vector2<f32>) -> UserInterface {
         let (sender, receiver) = mpsc::channel();
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
+        let default_font = SharedFont::new(FontBuilder::new().build_builtin().unwrap());
         let mut ui = UserInterface {
             screen_size,
             sender,
@@ -635,6 +633,7 @@ impl UserInterface {
             layout_events_receiver,
             layout_events_sender,
             need_update_global_transform: Default::default(),
+            default_font,
         };
         ui.root_canvas = ui.add_node(UiNode::new(Canvas::new(WidgetBuilder::new().build())));
         ui

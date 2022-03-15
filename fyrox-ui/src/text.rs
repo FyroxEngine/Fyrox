@@ -105,17 +105,6 @@ impl Control for Text {
 }
 
 impl Text {
-    pub fn new(widget: Widget) -> Self {
-        Self {
-            widget,
-            formatted_text: RefCell::new(
-                FormattedTextBuilder::new()
-                    .with_font(crate::DEFAULT_FONT.clone())
-                    .build(),
-            ),
-        }
-    }
-
     pub fn wrap_mode(&self) -> WrapMode {
         self.formatted_text.borrow().wrap_mode()
     }
@@ -192,7 +181,7 @@ impl TextBuilder {
         let font = if let Some(font) = self.font {
             font
         } else {
-            crate::DEFAULT_FONT.clone()
+            ui.default_font()
         };
 
         if self.widget_builder.foreground.is_none() {
@@ -202,11 +191,10 @@ impl TextBuilder {
         let text = Text {
             widget: self.widget_builder.build(),
             formatted_text: RefCell::new(
-                FormattedTextBuilder::new()
+                FormattedTextBuilder::new(font)
                     .with_text(self.text.unwrap_or_default())
                     .with_vertical_alignment(self.vertical_text_alignment)
                     .with_horizontal_alignment(self.horizontal_text_alignment)
-                    .with_font(font)
                     .with_wrap(self.wrap)
                     .build(),
             ),

@@ -396,12 +396,14 @@ impl Editor {
 
         let (message_sender, message_receiver) = mpsc::channel();
 
-        *fyrox::gui::DEFAULT_FONT.0.lock().unwrap() = Font::from_memory(
-            include_bytes!("../resources/embed/arial.ttf").to_vec(),
-            14.0,
-            Font::default_char_set(),
-        )
-        .unwrap();
+        engine.user_interface.default_font.set(
+            Font::from_memory(
+                include_bytes!("../resources/embed/arial.ttf").to_vec(),
+                14.0,
+                Font::default_char_set(),
+            )
+            .unwrap(),
+        );
 
         let configurator = Configurator::new(
             message_sender.clone(),
