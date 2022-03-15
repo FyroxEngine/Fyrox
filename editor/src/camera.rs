@@ -64,6 +64,19 @@ struct PickContext {
     old_cursor_pos: Vector2<f32>,
 }
 
+pub struct PickingOptions<'a, F>
+where
+    F: FnMut(Handle<Node>, &Node) -> bool,
+{
+    pub cursor_pos: Vector2<f32>,
+    pub graph: &'a Graph,
+    pub editor_objects_root: Handle<Node>,
+    pub screen_size: Vector2<f32>,
+    pub editor_only: bool,
+    pub filter: F,
+    pub ignore_back_faces: bool,
+}
+
 impl CameraController {
     pub fn new(graph: &mut Graph, root: Handle<Node>) -> Self {
         let camera;
@@ -301,18 +314,20 @@ impl CameraController {
         self.drag_up = 0.0;
     }
 
-    pub fn pick<F>(
-        &mut self,
-        cursor_pos: Vector2<f32>,
-        graph: &Graph,
-        editor_objects_root: Handle<Node>,
-        screen_size: Vector2<f32>,
-        editor_only: bool,
-        mut filter: F,
-    ) -> Option<CameraPickResult>
+    pub fn pick<F>(&mut self, options: PickingOptions<'_, F>) -> Option<CameraPickResult>
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
+        let PickingOptions {
+            cursor_pos,
+            graph,
+            editor_objects_root,
+            screen_size,
+            editor_only,
+            mut filter,
+            ignore_back_faces,
+        } = options;
+
         if let Some(camera) = graph[self.camera].cast::<Camera>() {
             let ray = camera.make_ray(cursor_pos, screen_size);
 
@@ -351,7 +366,8 @@ impl CameraController {
                     // Do coarse, but fast, intersection test with bounding box first.
                     if let Some(points) = object_space_ray.aabb_intersection_points(&aabb) {
                         if has_hull(node) {
-                            if let Some((closest_distance, position)) = precise_ray_test(node, &ray)
+                            if let Some((closest_distance, position)) =
+                                precise_ray_test(node, &ray, ignore_back_faces)
                             {
                                 context.pick_list.push(CameraPickResult {
                                     position,
@@ -454,7 +470,11 @@ fn has_hull(node: &Node) -> bool {
     node.query_component_ref::<Mesh>().is_some()
 }
 
-fn precise_ray_test(node: &Node, ray: &Ray) -> Option<(f32, Vector3<f32>)> {
+fn precise_ray_test(
+    node: &Node,
+    ray: &Ray,
+    ignore_back_faces: bool,
+) -> Option<(f32, Vector3<f32>)> {
     let mut closest_distance = f32::MAX;
     let mut closest_point = None;
 
@@ -470,6 +490,15 @@ fn precise_ray_test(node: &Node, ray: &Ray) -> Option<(f32, Vector3<f32>)> {
                 .iter()
                 .filter_map(|t| read_triangle(&data, t, &transform))
             {
+                if ignore_back_faces {
+                    // If normal of the triangle is facing in the same direction as ray's direction,
+                    // then we skip such triangle.
+                    let normal = (triangle[1] - triangle[0]).cross(&(triangle[2] - triangle[0]));
+                    if normal.dot(&ray.dir) >= 0.0 {
+                        continue;
+                    }
+                }
+
                 if let Some(pt) = ray.triangle_intersection_point(&triangle) {
                     let distance = ray.origin.sqr_distance(&pt);
 

@@ -133,6 +133,7 @@ impl InteractionMode for TerrainInteractionMode {
         engine: &mut GameEngine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
+        _settings: &Settings,
     ) {
         if let Selection::Graph(selection) = &editor_scene.selection {
             if selection.is_single_selection() {
@@ -165,6 +166,7 @@ impl InteractionMode for TerrainInteractionMode {
         engine: &mut GameEngine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
+        _settings: &Settings,
     ) {
         if let Selection::Graph(selection) = &editor_scene.selection {
             if selection.is_single_selection() {

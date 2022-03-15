@@ -1,3 +1,4 @@
+use crate::camera::PickingOptions;
 use crate::utils::window_content;
 use crate::{
     interaction::{
@@ -392,6 +393,7 @@ impl InteractionMode for EditNavmeshMode {
         engine: &mut GameEngine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
+        settings: &Settings,
     ) {
         if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
             let navmesh = &editor_scene.navmeshes[self.navmesh];
@@ -404,16 +406,17 @@ impl InteractionMode for EditNavmeshMode {
             let gizmo_origin = self.move_gizmo.origin;
             let editor_node = editor_scene
                 .camera_controller
-                .pick(
-                    mouse_pos,
-                    &scene.graph,
-                    editor_scene.editor_objects_root,
-                    frame_size,
-                    true,
-                    |handle, _| {
+                .pick(PickingOptions {
+                    cursor_pos: mouse_pos,
+                    graph: &scene.graph,
+                    editor_objects_root: editor_scene.editor_objects_root,
+                    screen_size: frame_size,
+                    editor_only: true,
+                    filter: |handle, _| {
                         handle != camera && handle != camera_pivot && handle != gizmo_origin
                     },
-                )
+                    ignore_back_faces: settings.selection.ignore_back_faces,
+                })
                 .map(|r| r.node)
                 .unwrap_or_default();
 
@@ -489,6 +492,7 @@ impl InteractionMode for EditNavmeshMode {
         _engine: &mut GameEngine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
+        _settings: &Settings,
     ) {
         if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
             let navmesh = &mut editor_scene.navmeshes[self.navmesh];

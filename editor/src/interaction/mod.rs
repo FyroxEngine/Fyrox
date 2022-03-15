@@ -42,6 +42,7 @@ pub trait InteractionMode: BaseInteractionMode {
         engine: &mut GameEngine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
+        settings: &Settings,
     );
 
     fn on_left_mouse_button_up(
@@ -50,6 +51,7 @@ pub trait InteractionMode: BaseInteractionMode {
         engine: &mut GameEngine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
+        settings: &Settings,
     );
 
     fn on_mouse_move(

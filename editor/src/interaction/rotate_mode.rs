@@ -1,3 +1,4 @@
+use crate::camera::PickingOptions;
 use crate::{
     interaction::{
         calculate_gizmo_distance_scaling, gizmo::rotate_gizmo::RotationGizmo, InteractionMode,
@@ -49,22 +50,24 @@ impl InteractionMode for RotateInteractionMode {
         engine: &mut GameEngine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
+        settings: &Settings,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
         // Pick gizmo nodes.
         let camera = editor_scene.camera_controller.camera;
         let camera_pivot = editor_scene.camera_controller.pivot;
-        if let Some(result) = editor_scene.camera_controller.pick(
-            mouse_pos,
+        if let Some(result) = editor_scene.camera_controller.pick(PickingOptions {
+            cursor_pos: mouse_pos,
             graph,
-            editor_scene.editor_objects_root,
-            frame_size,
-            true,
-            |handle, _| {
+            editor_objects_root: editor_scene.editor_objects_root,
+            screen_size: frame_size,
+            editor_only: true,
+            filter: |handle, _| {
                 handle != camera && handle != camera_pivot && handle != self.rotation_gizmo.origin
             },
-        ) {
+            ignore_back_faces: settings.selection.ignore_back_faces,
+        }) {
             if self
                 .rotation_gizmo
                 .handle_pick(result.node, editor_scene, engine)
@@ -84,6 +87,7 @@ impl InteractionMode for RotateInteractionMode {
         engine: &mut GameEngine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
+        settings: &Settings,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -117,14 +121,15 @@ impl InteractionMode for RotateInteractionMode {
         } else {
             let new_selection = editor_scene
                 .camera_controller
-                .pick(
-                    mouse_pos,
+                .pick(PickingOptions {
+                    cursor_pos: mouse_pos,
                     graph,
-                    editor_scene.editor_objects_root,
-                    frame_size,
-                    false,
-                    |_, _| true,
-                )
+                    editor_objects_root: editor_scene.editor_objects_root,
+                    screen_size: frame_size,
+                    editor_only: false,
+                    filter: |_, _| true,
+                    ignore_back_faces: settings.selection.ignore_back_faces,
+                })
                 .map(|result| {
                     if let (Selection::Graph(selection), true) = (
                         &editor_scene.selection,

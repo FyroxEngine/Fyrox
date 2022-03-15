@@ -3,11 +3,10 @@ use crate::{
     settings::{
         debugging::DebuggingSettings, graphics::GraphicsSettings,
         move_mode::MoveInteractionModeSettings, rotate_mode::RotateInteractionModeSettings,
+        selection::SelectionSettings,
     },
     GameEngine, Message, CONFIG_DIR, MSG_SYNC_FLAG,
 };
-use fyrox::gui::inspector::editors::enumeration::EnumPropertyEditorDefinition;
-use fyrox::renderer::{CsmSettings, ShadowMapPrecision};
 use fyrox::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -19,7 +18,9 @@ use fyrox::{
         grid::{Column, GridBuilder, Row},
         inspector::{
             editors::{
-                inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
+                enumeration::EnumPropertyEditorDefinition,
+                inspectable::InspectablePropertyEditorDefinition,
+                PropertyEditorDefinitionContainer,
             },
             FieldKind, InspectorBuilder, InspectorContext, InspectorMessage, PropertyChanged,
         },
@@ -30,7 +31,7 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
-    renderer::QualitySettings,
+    renderer::{CsmSettings, QualitySettings, ShadowMapPrecision},
     utils::log::Log,
 };
 use ron::ser::PrettyConfig;
@@ -41,6 +42,7 @@ pub mod debugging;
 pub mod graphics;
 pub mod move_mode;
 pub mod rotate_mode;
+pub mod selection;
 
 pub struct SettingsWindow {
     window: Handle<UiNode>,
@@ -51,6 +53,7 @@ pub struct SettingsWindow {
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Default, Debug, Inspect)]
 pub struct Settings {
+    pub selection: SelectionSettings,
     pub graphics: GraphicsSettings,
     pub debugging: DebuggingSettings,
     pub move_mode_settings: MoveInteractionModeSettings,
@@ -99,6 +102,7 @@ impl Settings {
         let mut container = make_property_editors_container(sender);
 
         container.insert(InspectablePropertyEditorDefinition::<GraphicsSettings>::new());
+        container.insert(InspectablePropertyEditorDefinition::<SelectionSettings>::new());
         container.insert(EnumPropertyEditorDefinition::<ShadowMapPrecision>::new());
         container.insert(InspectablePropertyEditorDefinition::<DebuggingSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<CsmSettings>::new());
@@ -116,6 +120,7 @@ impl Settings {
     fn handle_property_changed(&mut self, property_changed: &PropertyChanged) -> bool {
         if let FieldKind::Inspectable(ref inner) = property_changed.value {
             return match property_changed.name.as_ref() {
+                Self::SELECTION => self.selection.handle_property_changed(&**inner),
                 Self::GRAPHICS => self.graphics.handle_property_changed(&**inner),
                 Self::DEBUGGING => self.debugging.handle_property_changed(&**inner),
                 Self::MOVE_MODE_SETTINGS => {

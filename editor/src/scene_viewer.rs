@@ -1,3 +1,4 @@
+use crate::camera::PickingOptions;
 use crate::utils::enable_widget;
 use crate::{
     gui::make_dropdown_list_option_with_height, load_image, make_delete_selection_command,
@@ -392,12 +393,22 @@ impl SceneViewer {
         {
             if message.destination() == self.frame() {
                 match *msg {
-                    WidgetMessage::MouseDown { button, pos, .. } => {
-                        self.on_mouse_down(button, pos, editor_scene, interaction_mode, engine)
-                    }
-                    WidgetMessage::MouseUp { button, pos, .. } => {
-                        self.on_mouse_up(button, pos, editor_scene, interaction_mode, engine)
-                    }
+                    WidgetMessage::MouseDown { button, pos, .. } => self.on_mouse_down(
+                        button,
+                        pos,
+                        editor_scene,
+                        interaction_mode,
+                        engine,
+                        settings,
+                    ),
+                    WidgetMessage::MouseUp { button, pos, .. } => self.on_mouse_up(
+                        button,
+                        pos,
+                        editor_scene,
+                        interaction_mode,
+                        engine,
+                        settings,
+                    ),
                     WidgetMessage::MouseWheel { amount, .. } => {
                         editor_scene
                             .camera_controller
@@ -412,7 +423,9 @@ impl SceneViewer {
                     WidgetMessage::KeyDown(key) => {
                         self.on_key_down(key, editor_scene, interaction_mode, engine)
                     }
-                    WidgetMessage::Drop(handle) => self.on_drop(handle, engine, editor_scene),
+                    WidgetMessage::Drop(handle) => {
+                        self.on_drop(handle, engine, editor_scene, settings)
+                    }
                     _ => {}
                 }
             }
@@ -572,6 +585,7 @@ impl SceneViewer {
         editor_scene: &mut EditorScene,
         active_interaction_mode: Option<&mut Box<dyn InteractionMode>>,
         engine: &mut Engine,
+        settings: &Settings,
     ) {
         engine.user_interface.release_mouse_capture();
 
@@ -586,6 +600,7 @@ impl SceneViewer {
                     engine,
                     rel_pos,
                     screen_bounds.size,
+                    settings,
                 );
             }
         }
@@ -600,6 +615,7 @@ impl SceneViewer {
         editor_scene: &mut EditorScene,
         active_interaction_mode: Option<&mut Box<dyn InteractionMode>>,
         engine: &mut Engine,
+        settings: &Settings,
     ) {
         engine.user_interface.capture_mouse(self.frame());
 
@@ -616,6 +632,7 @@ impl SceneViewer {
                     engine,
                     rel_pos,
                     screen_bounds.size,
+                    settings,
                 );
             }
         }
@@ -623,7 +640,13 @@ impl SceneViewer {
         editor_scene.camera_controller.on_mouse_button_down(button);
     }
 
-    fn on_drop(&self, handle: Handle<UiNode>, engine: &mut Engine, editor_scene: &mut EditorScene) {
+    fn on_drop(
+        &self,
+        handle: Handle<UiNode>,
+        engine: &mut Engine,
+        editor_scene: &mut EditorScene,
+        settings: &Settings,
+    ) {
         if handle.is_none() {
             return;
         }
@@ -681,14 +704,15 @@ impl SceneViewer {
                     let cursor_pos = engine.user_interface.cursor_position();
                     let rel_pos = cursor_pos - screen_bounds.position;
                     let graph = &engine.scenes[editor_scene.scene].graph;
-                    if let Some(result) = editor_scene.camera_controller.pick(
-                        rel_pos,
+                    if let Some(result) = editor_scene.camera_controller.pick(PickingOptions {
+                        cursor_pos: rel_pos,
                         graph,
-                        editor_scene.editor_objects_root,
-                        frame_size,
-                        false,
-                        |_, _| true,
-                    ) {
+                        editor_objects_root: editor_scene.editor_objects_root,
+                        screen_size: frame_size,
+                        editor_only: false,
+                        filter: |_, _| true,
+                        ignore_back_faces: settings.selection.ignore_back_faces,
+                    }) {
                         let tex = engine.resource_manager.request_texture(&relative_path);
                         let texture = tex.clone();
                         let texture = texture.state();

@@ -43,6 +43,7 @@ impl InteractionMode for SelectInteractionMode {
         engine: &mut GameEngine,
         mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
+        _settings: &Settings,
     ) {
         self.click_pos = mouse_pos;
         let ui = &mut engine.user_interface;
@@ -74,6 +75,7 @@ impl InteractionMode for SelectInteractionMode {
         engine: &mut GameEngine,
         _mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
+        _settings: &Settings,
     ) {
         let scene = &engine.scenes[editor_scene.scene];
         let camera = scene.graph[editor_scene.camera_controller.camera].as_camera();
