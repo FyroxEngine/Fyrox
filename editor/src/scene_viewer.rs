@@ -1,11 +1,9 @@
-use crate::camera::PickingOptions;
-use crate::utils::enable_widget;
 use crate::{
-    gui::make_dropdown_list_option_with_height, load_image, make_delete_selection_command,
-    AddModelCommand, AssetItem, AssetKind, ChangeSelectionCommand, CommandGroup,
-    DropdownListBuilder, EditorScene, GameEngine, GraphSelection, InteractionMode,
-    InteractionModeKind, Message, Mode, PasteCommand, SceneCommand, Selection,
-    SetMeshTextureCommand, SetParticleSystemTextureCommand, SetSpriteTextureCommand, Settings,
+    camera::PickingOptions, gui::make_dropdown_list_option_with_height, load_image,
+    utils::enable_widget, AddModelCommand, AssetItem, AssetKind, ChangeSelectionCommand,
+    CommandGroup, DropdownListBuilder, EditorScene, GameEngine, GraphSelection, InteractionMode,
+    InteractionModeKind, Message, Mode, SceneCommand, Selection, SetMeshTextureCommand,
+    SetParticleSystemTextureCommand, SetSpriteTextureCommand, Settings,
 };
 use fyrox::{
     core::{algebra::Vector2, color::Color, make_relative_path, math::Rect, pool::Handle},
@@ -325,7 +323,7 @@ impl SceneViewer {
 
     pub fn handle_ui_message(
         &mut self,
-        message: &UiMessage,
+        message: &mut UiMessage,
         engine: &mut Engine,
         editor_scene: Option<&mut EditorScene>,
         interaction_mode: Option<&mut Box<dyn InteractionMode>>,
@@ -418,10 +416,14 @@ impl SceneViewer {
                         self.on_mouse_move(pos, editor_scene, interaction_mode, engine, settings)
                     }
                     WidgetMessage::KeyUp(key) => {
-                        self.on_key_up(key, editor_scene, interaction_mode, engine)
+                        if self.on_key_up(key, editor_scene, interaction_mode, engine) {
+                            message.set_handled(true);
+                        }
                     }
                     WidgetMessage::KeyDown(key) => {
-                        self.on_key_down(key, editor_scene, interaction_mode, engine)
+                        if self.on_key_down(key, editor_scene, interaction_mode, engine) {
+                            message.set_handled(true);
+                        }
                     }
                     WidgetMessage::Drop(handle) => {
                         self.on_drop(handle, engine, editor_scene, settings)
@@ -459,93 +461,46 @@ impl SceneViewer {
         ui.node(self.frame).screen_bounds()
     }
 
+    #[must_use]
     fn on_key_up(
         &mut self,
         key: KeyCode,
         editor_scene: &mut EditorScene,
         active_interaction_mode: Option<&mut Box<dyn InteractionMode>>,
         engine: &mut Engine,
-    ) {
-        editor_scene.camera_controller.on_key_up(key);
+    ) -> bool {
+        if editor_scene.camera_controller.on_key_up(key) {
+            return true;
+        }
 
         if let Some(interaction_mode) = active_interaction_mode {
-            interaction_mode.on_key_up(key, editor_scene, engine);
+            if interaction_mode.on_key_up(key, editor_scene, engine) {
+                return true;
+            }
         }
+
+        false
     }
 
+    #[must_use]
     fn on_key_down(
         &mut self,
         key: KeyCode,
         editor_scene: &mut EditorScene,
         active_interaction_mode: Option<&mut Box<dyn InteractionMode>>,
         engine: &mut Engine,
-    ) {
-        editor_scene.camera_controller.on_key_down(key);
+    ) -> bool {
+        if editor_scene.camera_controller.on_key_down(key) {
+            return true;
+        }
 
         if let Some(interaction_mode) = active_interaction_mode {
-            interaction_mode.on_key_down(key, editor_scene, engine);
+            if interaction_mode.on_key_down(key, editor_scene, engine) {
+                return true;
+            }
         }
 
-        match key {
-            KeyCode::Y if engine.user_interface.keyboard_modifiers().control => {
-                self.sender.send(Message::RedoSceneCommand).unwrap();
-            }
-            KeyCode::Z if engine.user_interface.keyboard_modifiers().control => {
-                self.sender.send(Message::UndoSceneCommand).unwrap();
-            }
-            KeyCode::Key1 => {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Select))
-                    .unwrap();
-            }
-            KeyCode::Key2 => {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Move))
-                    .unwrap();
-            }
-            KeyCode::Key3 => {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
-                    .unwrap();
-            }
-            KeyCode::Key4 => {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Scale))
-                    .unwrap();
-            }
-            KeyCode::L if engine.user_interface.keyboard_modifiers().control => {
-                self.sender.send(Message::OpenLoadSceneDialog).unwrap();
-            }
-            KeyCode::C if engine.user_interface.keyboard_modifiers().control => {
-                if let Selection::Graph(graph_selection) = &editor_scene.selection {
-                    editor_scene.clipboard.fill_from_selection(
-                        graph_selection,
-                        editor_scene.scene,
-                        engine,
-                    );
-                }
-            }
-            KeyCode::V if engine.user_interface.keyboard_modifiers().control => {
-                if !editor_scene.clipboard.is_empty() {
-                    self.sender
-                        .send(Message::do_scene_command(PasteCommand::new()))
-                        .unwrap();
-                }
-            }
-            KeyCode::Delete => {
-                if !editor_scene.selection.is_empty() {
-                    if let Selection::Graph(_) = editor_scene.selection {
-                        self.sender
-                            .send(Message::DoSceneCommand(make_delete_selection_command(
-                                editor_scene,
-                                engine,
-                            )))
-                            .unwrap();
-                    }
-                }
-            }
-            _ => (),
-        }
+        false
     }
 
     fn on_mouse_move(

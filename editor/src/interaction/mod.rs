@@ -77,20 +77,26 @@ pub trait InteractionMode: BaseInteractionMode {
 
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
 
+    /// Should return `true` if the `key` was handled in any way, otherwise you may mess up
+    /// keyboard message routing. Return `false` if the `key` is unhandled.
     fn on_key_down(
         &mut self,
         _key: KeyCode,
         _editor_scene: &mut EditorScene,
         _engine: &mut GameEngine,
-    ) {
+    ) -> bool {
+        false
     }
 
+    /// Should return `true` if the `key` was handled in any way, otherwise you may mess up
+    /// keyboard message routing. Return `false` if the `key` is unhandled.
     fn on_key_up(
         &mut self,
         _key: KeyCode,
         _editor_scene: &mut EditorScene,
         _engine: &mut GameEngine,
-    ) {
+    ) -> bool {
+        false
     }
 
     fn handle_ui_message(

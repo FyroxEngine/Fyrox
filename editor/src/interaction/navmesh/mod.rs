@@ -723,7 +723,7 @@ impl InteractionMode for EditNavmeshMode {
         key: KeyCode,
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
-    ) {
+    ) -> bool {
         match key {
             KeyCode::Delete => {
                 if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
@@ -749,6 +749,8 @@ impl InteractionMode for EditNavmeshMode {
                         }
                     }
                 }
+
+                true
             }
             KeyCode::A if engine.user_interface.keyboard_modifiers().control => {
                 if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
@@ -770,8 +772,10 @@ impl InteractionMode for EditNavmeshMode {
                         )))
                         .unwrap();
                 }
+
+                true
             }
-            _ => {}
+            _ => false,
         }
     }
 }

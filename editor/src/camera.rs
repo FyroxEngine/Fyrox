@@ -190,30 +190,81 @@ impl CameraController {
         }
     }
 
-    pub fn on_key_up(&mut self, key: KeyCode) {
+    #[must_use]
+    pub fn on_key_up(&mut self, key: KeyCode) -> bool {
         match key {
-            KeyCode::W => self.move_forward = false,
-            KeyCode::S => self.move_backward = false,
-            KeyCode::A => self.move_left = false,
-            KeyCode::D => self.move_right = false,
-            KeyCode::Space | KeyCode::Q => self.move_up = false,
-            KeyCode::E => self.move_down = false,
-            KeyCode::LControl | KeyCode::LShift => self.speed_factor = 1.0,
-            _ => (),
+            KeyCode::W => {
+                self.move_forward = false;
+                true
+            }
+            KeyCode::S => {
+                self.move_backward = false;
+                true
+            }
+            KeyCode::A => {
+                self.move_left = false;
+                true
+            }
+            KeyCode::D => {
+                self.move_right = false;
+                true
+            }
+            KeyCode::Space | KeyCode::Q => {
+                self.move_up = false;
+                true
+            }
+            KeyCode::E => {
+                self.move_down = false;
+                true
+            }
+            KeyCode::LControl | KeyCode::LShift => {
+                self.speed_factor = 1.0;
+                true
+            }
+            _ => false,
         }
     }
 
-    pub fn on_key_down(&mut self, key: KeyCode) {
+    #[must_use]
+    pub fn on_key_down(&mut self, key: KeyCode) -> bool {
+        if !self.rotate || self.drag {
+            return false;
+        }
+
         match key {
-            KeyCode::W => self.move_forward = true,
-            KeyCode::S => self.move_backward = true,
-            KeyCode::A => self.move_left = true,
-            KeyCode::D => self.move_right = true,
-            KeyCode::Space | KeyCode::Q => self.move_up = true,
-            KeyCode::E => self.move_down = true,
-            KeyCode::LControl => self.speed_factor = 2.0,
-            KeyCode::LShift => self.speed_factor = 0.25,
-            _ => (),
+            KeyCode::W => {
+                self.move_forward = true;
+                true
+            }
+            KeyCode::S => {
+                self.move_backward = true;
+                true
+            }
+            KeyCode::A => {
+                self.move_left = true;
+                true
+            }
+            KeyCode::D => {
+                self.move_right = true;
+                true
+            }
+            KeyCode::Space | KeyCode::Q => {
+                self.move_up = true;
+                true
+            }
+            KeyCode::E => {
+                self.move_down = true;
+                true
+            }
+            KeyCode::LControl => {
+                self.speed_factor = 2.0;
+                true
+            }
+            KeyCode::LShift => {
+                self.speed_factor = 0.25;
+                true
+            }
+            _ => false,
         }
     }
 
@@ -229,23 +280,25 @@ impl CameraController {
 
                 let mut move_vec = Vector3::default();
 
-                if self.move_forward {
-                    move_vec += look;
-                }
-                if self.move_backward {
-                    move_vec -= look;
-                }
-                if self.move_left {
-                    move_vec += side;
-                }
-                if self.move_right {
-                    move_vec -= side;
-                }
-                if self.move_up {
-                    move_vec += up;
-                }
-                if self.move_down {
-                    move_vec -= up;
+                if self.rotate {
+                    if self.move_forward {
+                        move_vec += look;
+                    }
+                    if self.move_backward {
+                        move_vec -= look;
+                    }
+                    if self.move_left {
+                        move_vec += side;
+                    }
+                    if self.move_right {
+                        move_vec -= side;
+                    }
+                    if self.move_up {
+                        move_vec += up;
+                    }
+                    if self.move_down {
+                        move_vec -= up;
+                    }
                 }
 
                 move_vec += side * self.drag_side;
@@ -273,17 +326,19 @@ impl CameraController {
             Projection::Orthographic(_) => {
                 let mut move_vec = Vector2::<f32>::default();
 
-                if self.move_left {
-                    move_vec.x += 1.0;
-                }
-                if self.move_right {
-                    move_vec.x -= 1.0;
-                }
-                if self.move_forward {
-                    move_vec.y += 1.0;
-                }
-                if self.move_backward {
-                    move_vec.y -= 1.0;
+                if self.rotate {
+                    if self.move_left {
+                        move_vec.x += 1.0;
+                    }
+                    if self.move_right {
+                        move_vec.x -= 1.0;
+                    }
+                    if self.move_forward {
+                        move_vec.y += 1.0;
+                    }
+                    if self.move_backward {
+                        move_vec.y -= 1.0;
+                    }
                 }
 
                 move_vec.x += self.drag_side;

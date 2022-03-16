@@ -69,6 +69,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use fyrox::gui::message::KeyCode;
 use fyrox::plugin::Plugin;
 use fyrox::utils::log::Log;
 use fyrox::{
@@ -747,7 +748,112 @@ impl Editor {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage) {
+    pub fn handle_hotkeys(&mut self, message: &UiMessage) {
+        // A message could be handled already somewhere else (for example in a TextBox or any other
+        // widget, that handles keyboard input), we must not respond to such messages.
+        if message.handled() {
+            return;
+        }
+
+        let modifiers = self.engine.user_interface.keyboard_modifiers();
+        let sender = self.message_sender.clone();
+        let engine = &mut self.engine;
+
+        if let Some(WidgetMessage::KeyDown(key)) = message.data() {
+            match key {
+                KeyCode::Y if modifiers.control => {
+                    sender.send(Message::RedoSceneCommand).unwrap();
+                }
+                KeyCode::Z if modifiers.control => {
+                    sender.send(Message::UndoSceneCommand).unwrap();
+                }
+                KeyCode::Key1 => {
+                    sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Select))
+                        .unwrap();
+                }
+                KeyCode::Key2 => {
+                    sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Move))
+                        .unwrap();
+                }
+                KeyCode::Key3 => {
+                    sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
+                        .unwrap();
+                }
+                KeyCode::Key4 => {
+                    sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Scale))
+                        .unwrap();
+                }
+                KeyCode::L if modifiers.control => {
+                    sender.send(Message::OpenLoadSceneDialog).unwrap();
+                }
+                KeyCode::S if modifiers.control => {
+                    if let Some(scene) = self.scene.as_ref() {
+                        if let Some(path) = scene.path.as_ref() {
+                            self.message_sender
+                                .send(Message::SaveScene(path.clone()))
+                                .unwrap();
+                        } else {
+                            // Scene wasn't saved yet, open Save As dialog.
+                            engine
+                                .user_interface
+                                .send_message(WindowMessage::open_modal(
+                                    self.save_file_selector,
+                                    MessageDirection::ToWidget,
+                                    true,
+                                ));
+                        }
+                    }
+                }
+                KeyCode::C if modifiers.control => {
+                    if let Some(editor_scene) = self.scene.as_mut() {
+                        if let Selection::Graph(graph_selection) = &editor_scene.selection {
+                            editor_scene.clipboard.fill_from_selection(
+                                graph_selection,
+                                editor_scene.scene,
+                                engine,
+                            );
+                        }
+                    }
+                }
+                KeyCode::V if modifiers.control => {
+                    if let Some(editor_scene) = self.scene.as_mut() {
+                        if !editor_scene.clipboard.is_empty() {
+                            sender
+                                .send(Message::do_scene_command(PasteCommand::new()))
+                                .unwrap();
+                        }
+                    }
+                }
+                KeyCode::N if modifiers.control => {
+                    sender.send(Message::NewScene).unwrap();
+                }
+                KeyCode::Q if modifiers.control => {
+                    sender.send(Message::CloseScene).unwrap();
+                }
+                KeyCode::Delete => {
+                    if let Some(editor_scene) = self.scene.as_mut() {
+                        if !editor_scene.selection.is_empty() {
+                            if let Selection::Graph(_) = editor_scene.selection {
+                                sender
+                                    .send(Message::DoSceneCommand(make_delete_selection_command(
+                                        editor_scene,
+                                        engine,
+                                    )))
+                                    .unwrap();
+                            }
+                        }
+                    }
+                }
+                _ => (),
+            }
+        }
+    }
+
+    pub fn handle_ui_message(&mut self, message: &mut UiMessage) {
         scope_profile!();
 
         // Prevent infinite message loops.
@@ -882,6 +988,8 @@ impl Editor {
                 }
             }
         }
+
+        self.handle_hotkeys(message);
     }
 
     fn set_play_mode(&mut self) {
@@ -1487,8 +1595,8 @@ impl Editor {
 fn poll_ui_messages(editor: &mut Editor) {
     scope_profile!();
 
-    while let Some(ui_message) = editor.engine.user_interface.poll_message() {
-        editor.handle_ui_message(&ui_message);
+    while let Some(mut ui_message) = editor.engine.user_interface.poll_message() {
+        editor.handle_ui_message(&mut ui_message);
     }
 }
 
