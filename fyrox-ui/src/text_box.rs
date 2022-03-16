@@ -600,6 +600,7 @@ impl Control for TextBox {
                                 VerticalDirection::Up,
                                 ui.keyboard_modifiers().shift,
                             );
+                            message.set_handled(true);
                         }
                         KeyCode::Down => {
                             self.move_caret_y(
@@ -607,6 +608,7 @@ impl Control for TextBox {
                                 VerticalDirection::Down,
                                 ui.keyboard_modifiers().shift,
                             );
+                            message.set_handled(true);
                         }
                         KeyCode::Right => {
                             self.move_caret_x(
@@ -614,6 +616,7 @@ impl Control for TextBox {
                                 HorizontalDirection::Right,
                                 ui.keyboard_modifiers().shift,
                             );
+                            message.set_handled(true);
                         }
                         KeyCode::Left => {
                             self.move_caret_x(
@@ -621,6 +624,7 @@ impl Control for TextBox {
                                 HorizontalDirection::Left,
                                 ui.keyboard_modifiers().shift,
                             );
+                            message.set_handled(true);
                         }
                         KeyCode::Delete if !message.handled() && self.editable => {
                             if let Some(range) = self.selection_range {
@@ -642,6 +646,7 @@ impl Control for TextBox {
                                 ));
                                 self.has_focus = false;
                             }
+                            message.set_handled(true);
                         }
                         KeyCode::Backspace if self.editable => {
                             if let Some(range) = self.selection_range {
@@ -650,6 +655,7 @@ impl Control for TextBox {
                             } else {
                                 self.remove_char(HorizontalDirection::Left, ui);
                             }
+                            message.set_handled(true);
                         }
                         KeyCode::End => {
                             let text = self.formatted_text.borrow();
@@ -672,6 +678,7 @@ impl Control for TextBox {
                                 self.caret_position.offset = line.end - line.begin;
                                 self.selection_range = None;
                             }
+                            message.set_handled(true);
                         }
                         KeyCode::Home => {
                             if ui.keyboard_modifiers().control {
@@ -693,6 +700,7 @@ impl Control for TextBox {
                                 self.caret_position.offset = 0;
                                 self.selection_range = None;
                             }
+                            message.set_handled(true);
                         }
                         KeyCode::A if ui.keyboard_modifiers().control => {
                             let text = self.formatted_text.borrow();
@@ -705,6 +713,7 @@ impl Control for TextBox {
                                     },
                                 });
                             }
+                            message.set_handled(true);
                         }
                         KeyCode::C if ui.keyboard_modifiers().control => {
                             if let Some(clipboard) = ui.clipboard_mut() {
@@ -718,6 +727,7 @@ impl Control for TextBox {
                                     }
                                 }
                             }
+                            message.set_handled(true);
                         }
                         KeyCode::V if ui.keyboard_modifiers().control => {
                             if let Some(clipboard) = ui.clipboard_mut() {
@@ -730,6 +740,7 @@ impl Control for TextBox {
                                     self.insert_str(&content, ui);
                                 }
                             }
+                            message.set_handled(true);
                         }
                         _ => (),
                     },

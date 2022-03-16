@@ -161,6 +161,8 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                     }
                     WidgetMessage::KeyDown(KeyCode::Return) => {
                         self.try_parse_value(ui);
+
+                        message.set_handled(true);
                     }
                     _ => {}
                 }
