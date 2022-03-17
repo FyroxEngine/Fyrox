@@ -34,6 +34,7 @@ mod settings;
 mod utils;
 mod world;
 
+use crate::scene::is_scene_needs_to_be_saved;
 use crate::utils::normalize_os_event;
 use crate::{
     asset::{item::AssetItem, item::AssetKind, AssetBrowser},
@@ -264,6 +265,8 @@ pub enum Message {
     SwitchToEditMode,
     SwitchMode,
     OpenLoadSceneDialog,
+    OpenSaveSceneDialog,
+    OpenSaveSceneConfirmationDialog(SaveSceneConfirmationDialogAction),
 }
 
 impl Message {
@@ -330,6 +333,133 @@ pub struct StartupData {
     pub scene: PathBuf,
 }
 
+#[derive(Debug)]
+pub enum SaveSceneConfirmationDialogAction {
+    /// Do nothing.
+    None,
+    /// Opens `Load Scene` dialog.
+    LoadScene,
+    /// Immediately creates new scene.
+    MakeNewScene,
+    /// Closes current scene.
+    CloseScene,
+}
+
+struct SaveSceneConfirmationDialog {
+    save_message_box: Handle<UiNode>,
+    action: SaveSceneConfirmationDialogAction,
+}
+
+impl SaveSceneConfirmationDialog {
+    pub fn new(ctx: &mut BuildContext) -> Self {
+        let save_message_box = MessageBoxBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(100.0))
+                .can_close(false)
+                .can_minimize(false)
+                .open(false)
+                .with_title(WindowTitle::Text("Unsaved changes".to_owned())),
+        )
+        .with_text("There are unsaved changes. Do you wish to save them before continue?")
+        .with_buttons(MessageBoxButtons::YesNoCancel)
+        .build(ctx);
+
+        Self {
+            save_message_box,
+            action: SaveSceneConfirmationDialogAction::None,
+        }
+    }
+
+    pub fn open(&mut self, ui: &UserInterface, action: SaveSceneConfirmationDialogAction) {
+        ui.send_message(MessageBoxMessage::open(
+            self.save_message_box,
+            MessageDirection::ToWidget,
+            None,
+            None,
+        ));
+
+        self.action = action;
+    }
+
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        sender: &Sender<Message>,
+        editor_scene: Option<&EditorScene>,
+    ) {
+        if let Some(MessageBoxMessage::Close(result)) = message.data() {
+            if message.destination() == self.save_message_box {
+                match result {
+                    MessageBoxResult::No => match self.action {
+                        SaveSceneConfirmationDialogAction::None => {}
+                        SaveSceneConfirmationDialogAction::LoadScene => {
+                            sender.send(Message::OpenLoadSceneDialog).unwrap()
+                        }
+                        SaveSceneConfirmationDialogAction::MakeNewScene => {
+                            sender.send(Message::NewScene).unwrap()
+                        }
+                        SaveSceneConfirmationDialogAction::CloseScene => {
+                            sender.send(Message::CloseScene).unwrap()
+                        }
+                    },
+                    MessageBoxResult::Yes => {
+                        if let Some(editor_scene) = editor_scene {
+                            if let Some(path) = editor_scene.path.clone() {
+                                // If the scene was already saved into some file - save it
+                                // immediately and perform the requested action.
+                                sender.send(Message::SaveScene(path)).unwrap();
+
+                                match self.action {
+                                    SaveSceneConfirmationDialogAction::None => {}
+                                    SaveSceneConfirmationDialogAction::LoadScene => {
+                                        sender.send(Message::OpenLoadSceneDialog).unwrap()
+                                    }
+                                    SaveSceneConfirmationDialogAction::MakeNewScene => {
+                                        sender.send(Message::NewScene).unwrap()
+                                    }
+                                    SaveSceneConfirmationDialogAction::CloseScene => {
+                                        sender.send(Message::CloseScene).unwrap()
+                                    }
+                                }
+
+                                self.action = SaveSceneConfirmationDialogAction::None;
+                            } else {
+                                // Otherwise, open save scene dialog and do the action after the
+                                // scene was saved.
+                                match self.action {
+                                    SaveSceneConfirmationDialogAction::None => {}
+                                    SaveSceneConfirmationDialogAction::LoadScene
+                                    | SaveSceneConfirmationDialogAction::MakeNewScene
+                                    | SaveSceneConfirmationDialogAction::CloseScene => {
+                                        sender.send(Message::OpenSaveSceneDialog).unwrap()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
+    }
+
+    fn handle_message(&mut self, message: &Message, sender: &Sender<Message>) {
+        if let Message::SaveScene(_) = message {
+            match std::mem::replace(&mut self.action, SaveSceneConfirmationDialogAction::None) {
+                SaveSceneConfirmationDialogAction::None => {}
+                SaveSceneConfirmationDialogAction::LoadScene => {
+                    sender.send(Message::OpenLoadSceneDialog).unwrap();
+                }
+                SaveSceneConfirmationDialogAction::MakeNewScene => {
+                    sender.send(Message::NewScene).unwrap()
+                }
+                SaveSceneConfirmationDialogAction::CloseScene => {
+                    sender.send(Message::CloseScene).unwrap();
+                }
+            }
+        }
+    }
+}
+
 pub struct Editor {
     game_loop_data: GameLoopData,
     engine: Engine,
@@ -345,6 +475,7 @@ pub struct Editor {
     asset_browser: AssetBrowser,
     exit_message_box: Handle<UiNode>,
     save_file_selector: Handle<UiNode>,
+    save_scene_dialog: SaveSceneConfirmationDialog,
     light_panel: LightPanel,
     menu: Menu,
     exit: bool,
@@ -588,6 +719,8 @@ impl Editor {
 
         let curve_editor = CurveEditorWindow::new(ctx);
 
+        let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
+
         let material_editor = MaterialEditor::new(&mut engine);
 
         let mut editor = Self {
@@ -618,6 +751,7 @@ impl Editor {
             inspector,
             curve_editor,
             audio_panel,
+            save_scene_dialog,
             mode: Mode::Edit,
             game_loop_data: GameLoopData {
                 clock: Instant::now(),
@@ -863,6 +997,11 @@ impl Editor {
 
         let engine = &mut self.engine;
 
+        self.save_scene_dialog.handle_ui_message(
+            message,
+            &self.message_sender,
+            self.scene.as_ref(),
+        );
         self.configurator.handle_ui_message(message, engine);
         self.menu.handle_ui_message(
             message,
@@ -1164,6 +1303,9 @@ impl Editor {
                     serialization_context: engine.serialization_context.clone(),
                 },
             );
+
+            editor_scene.has_unsaved_changes = true;
+
             true
         } else {
             false
@@ -1180,6 +1322,9 @@ impl Editor {
                 resource_manager: engine.resource_manager.clone(),
                 serialization_context: engine.serialization_context.clone(),
             });
+
+            editor_scene.has_unsaved_changes = true;
+
             true
         } else {
             false
@@ -1196,6 +1341,9 @@ impl Editor {
                 resource_manager: engine.resource_manager.clone(),
                 serialization_context: engine.serialization_context.clone(),
             });
+
+            editor_scene.has_unsaved_changes = true;
+
             true
         } else {
             false
@@ -1228,6 +1376,8 @@ impl Editor {
                         format!("Scene Preview - {}", path.display()),
                     );
                     Log::info(message);
+
+                    editor_scene.has_unsaved_changes = false;
                 }
                 Err(message) => {
                     Log::err(message.clone());
@@ -1266,7 +1416,7 @@ impl Editor {
         let engine = &mut self.engine;
         if force {
             self.exit = true;
-        } else if self.scene.is_some() {
+        } else if is_scene_needs_to_be_saved(self.scene.as_ref()) {
             engine.user_interface.send_message(MessageBoxMessage::open(
                 self.exit_message_box,
                 MessageDirection::ToWidget,
@@ -1391,6 +1541,9 @@ impl Editor {
             self.path_fixer
                 .handle_message(&message, &self.engine.user_interface);
 
+            self.save_scene_dialog
+                .handle_message(&message, &self.message_sender);
+
             if let Some(editor_scene) = self.scene.as_ref() {
                 self.inspector
                     .handle_message(&message, editor_scene, &mut self.engine);
@@ -1469,6 +1622,14 @@ impl Editor {
                 Message::OpenLoadSceneDialog => {
                     self.menu
                         .open_load_file_selector(&mut self.engine.user_interface);
+                }
+                Message::OpenSaveSceneDialog => {
+                    self.menu
+                        .open_save_file_selector(&mut self.engine.user_interface);
+                }
+                Message::OpenSaveSceneConfirmationDialog(action) => {
+                    self.save_scene_dialog
+                        .open(&self.engine.user_interface, action);
                 }
             }
         }

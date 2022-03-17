@@ -124,6 +124,10 @@ impl Menu {
         self.file_menu.open_load_file_selector(ui)
     }
 
+    pub fn open_save_file_selector(&self, ui: &mut UserInterface) {
+        self.file_menu.open_save_file_selector(ui)
+    }
+
     pub fn sync_to_model(&mut self, editor_scene: Option<&EditorScene>, ui: &mut UserInterface) {
         scope_profile!();
 

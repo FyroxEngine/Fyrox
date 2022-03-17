@@ -41,6 +41,7 @@ pub mod clipboard;
 pub mod commands;
 
 pub struct EditorScene {
+    pub has_unsaved_changes: bool,
     pub path: Option<PathBuf>,
     pub scene: Handle<Scene>,
     // Handle to a root for all editor nodes.
@@ -49,6 +50,12 @@ pub struct EditorScene {
     pub clipboard: Clipboard,
     pub camera_controller: CameraController,
     pub navmeshes: Pool<Navmesh>,
+}
+
+pub fn is_scene_needs_to_be_saved(editor_scene: Option<&EditorScene>) -> bool {
+    editor_scene
+        .as_ref()
+        .map_or(false, |s| s.has_unsaved_changes || s.path.is_none())
 }
 
 impl EditorScene {
@@ -91,6 +98,7 @@ impl EditorScene {
             scene: engine.scenes.add(scene),
             selection: Default::default(),
             clipboard: Default::default(),
+            has_unsaved_changes: false,
         }
     }
 

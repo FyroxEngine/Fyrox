@@ -1,9 +1,10 @@
+use crate::scene::is_scene_needs_to_be_saved;
 use crate::{
     make_save_file_selector, make_scene_file_filter,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     scene::EditorScene,
     settings::{Settings, SettingsWindow},
-    GameEngine, Message, Mode,
+    GameEngine, Message, Mode, SaveSceneConfirmationDialogAction,
 };
 use fyrox::gui::widget::WidgetMessage;
 use fyrox::{
@@ -138,6 +139,19 @@ impl FileMenu {
         ));
     }
 
+    pub fn open_save_file_selector(&self, ui: &mut UserInterface) {
+        ui.send_message(WindowMessage::open_modal(
+            self.save_file_selector,
+            MessageDirection::ToWidget,
+            true,
+        ));
+        ui.send_message(FileSelectorMessage::root(
+            self.save_file_selector,
+            MessageDirection::ToWidget,
+            Some(std::env::current_dir().unwrap()),
+        ));
+    }
+
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
@@ -193,13 +207,37 @@ impl FileMenu {
                         std::env::current_dir().unwrap(),
                     ));
             } else if message.destination() == self.load {
-                self.open_load_file_selector(&mut engine.user_interface);
+                if is_scene_needs_to_be_saved(editor_scene.as_deref()) {
+                    sender
+                        .send(Message::OpenSaveSceneConfirmationDialog(
+                            SaveSceneConfirmationDialogAction::LoadScene,
+                        ))
+                        .unwrap();
+                } else {
+                    self.open_load_file_selector(&mut engine.user_interface);
+                }
             } else if message.destination() == self.close_scene {
-                sender.send(Message::CloseScene).unwrap();
+                if is_scene_needs_to_be_saved(editor_scene.as_deref()) {
+                    sender
+                        .send(Message::OpenSaveSceneConfirmationDialog(
+                            SaveSceneConfirmationDialogAction::CloseScene,
+                        ))
+                        .unwrap();
+                } else {
+                    sender.send(Message::CloseScene).unwrap();
+                }
             } else if message.destination() == self.exit {
                 sender.send(Message::Exit { force: false }).unwrap();
             } else if message.destination() == self.new_scene {
-                sender.send(Message::NewScene).unwrap();
+                if is_scene_needs_to_be_saved(editor_scene.as_deref()) {
+                    sender
+                        .send(Message::OpenSaveSceneConfirmationDialog(
+                            SaveSceneConfirmationDialogAction::MakeNewScene,
+                        ))
+                        .unwrap();
+                } else {
+                    sender.send(Message::NewScene).unwrap();
+                }
             } else if message.destination() == self.configure {
                 if editor_scene.is_none() {
                     engine
