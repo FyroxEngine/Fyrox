@@ -529,6 +529,23 @@ pub struct UserInterface {
     pub default_font: SharedFont,
 }
 
+fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode>) -> bool {
+    // Crawl up on tree and check if current bounds are intersects with every screen bound
+    // of parents chain. This is needed because some control can move their children outside of
+    // their bounds (like scroll viewer, etc.) and single intersection test of parent bounds with
+    // current bounds is not enough.
+    let bounds = node.screen_bounds();
+    let mut parent = node.parent();
+    while parent.is_some() {
+        let parent_node = nodes.borrow(parent);
+        if !parent_node.screen_bounds().intersects(bounds) {
+            return false;
+        }
+        parent = parent_node.parent();
+    }
+    true
+}
+
 fn draw_node(
     nodes: &Pool<UiNode>,
     node_handle: Handle<UiNode>,
@@ -541,18 +558,8 @@ fn draw_node(
         return;
     }
 
-    // Crawl up on tree and check if current bounds are intersects with every screen bound
-    // of parents chain. This is needed because some control can move their children outside of
-    // their bounds (like scroll viewer, etc.) and single intersection test of parent bounds with
-    // current bounds is not enough.
-    let bounds = node.screen_bounds();
-    let mut parent = node.parent();
-    while parent.is_some() {
-        let parent_node = nodes.borrow(parent);
-        if !parent_node.screen_bounds().intersects(bounds) {
-            return;
-        }
-        parent = parent_node.parent();
+    if !is_on_screen(node, nodes) {
+        return;
     }
 
     let start_index = drawing_context.get_commands().len();
@@ -843,6 +850,11 @@ impl UserInterface {
         self.stack.push(self.root());
         while let Some(node_handle) = self.stack.pop() {
             let node = &self.nodes[node_handle];
+
+            if !is_on_screen(node, &self.nodes) {
+                continue;
+            }
+
             if node.is_draw_on_top() {
                 draw_node(&self.nodes, node_handle, &mut self.drawing_context);
             }
