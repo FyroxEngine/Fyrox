@@ -781,7 +781,7 @@ impl UserInterface {
         self.handle_layout_events();
 
         self.measure_node(self.root_canvas, screen_size);
-        self.arrange_node(
+        let arrangement_changed = self.arrange_node(
             self.root_canvas,
             &Rect::new(0.0, 0.0, screen_size.x, screen_size.y),
         );
@@ -789,6 +789,13 @@ impl UserInterface {
         if self.need_update_global_transform {
             self.update_transform();
             self.need_update_global_transform = false;
+        }
+
+        if arrangement_changed {
+            self.calculate_clip_bounds(
+                self.root_canvas,
+                Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y),
+            );
         }
 
         let sender = self.sender.clone();
@@ -821,10 +828,6 @@ impl UserInterface {
     pub fn draw(&mut self) -> &DrawingContext {
         scope_profile!();
 
-        self.calculate_clip_bounds(
-            self.root_canvas,
-            Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y),
-        );
         self.drawing_context.clear();
 
         for node in self.nodes.iter_mut() {
