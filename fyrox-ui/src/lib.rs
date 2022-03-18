@@ -838,7 +838,7 @@ impl UserInterface {
         self.drawing_context.clear();
 
         for node in self.nodes.iter_mut() {
-            node.command_indices.borrow_mut().clear();
+            node.command_indices.get_mut().clear();
         }
 
         // Draw everything except top-most nodes.
