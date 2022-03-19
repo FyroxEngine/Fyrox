@@ -5,7 +5,7 @@ use crate::{
 
 /// Transition is a connection between two states with a rule that defines possibility
 /// of actual transition with blending.
-#[derive(Default, Debug, Visit)]
+#[derive(Default, Debug, Visit, Clone)]
 pub struct Transition {
     name: String,
     /// Total amount of time to transition from `src` to `dst` state.

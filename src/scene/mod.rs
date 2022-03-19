@@ -26,6 +26,7 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
+use crate::animation::machine::container::AnimationMachineContainer;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -251,6 +252,9 @@ pub struct Scene {
     /// to false for menu's scene and when you need to open a menu - set it to true and
     /// set `enabled` flag to false for level's scene.
     pub enabled: bool,
+
+    /// A container for animation blending state machines.
+    pub animation_machines: AnimationMachineContainer,
 }
 
 impl Default for Scene {
@@ -265,6 +269,7 @@ impl Default for Scene {
             performance_statistics: Default::default(),
             ambient_lighting_color: Color::opaque(100, 100, 100),
             enabled: true,
+            animation_machines: Default::default(),
         }
     }
 }
@@ -432,6 +437,7 @@ impl Scene {
             performance_statistics: Default::default(),
             ambient_lighting_color: Color::opaque(100, 100, 100),
             enabled: true,
+            animation_machines: Default::default(),
         }
     }
 
@@ -603,6 +609,12 @@ impl Scene {
 
         self.graph.update(frame_size, dt);
         self.performance_statistics.graph = self.graph.performance_statistics.clone();
+
+        for machine in self.animation_machines.iter_mut() {
+            machine
+                .evaluate_pose(&self.animations, dt)
+                .apply(&mut self.graph);
+        }
     }
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
@@ -621,10 +633,14 @@ impl Scene {
                 track.set_node(old_new_map[&track.get_node()]);
             }
         }
+
+        let animation_machines = self.animation_machines.clone();
+
         (
             Self {
                 graph,
                 animations,
+                animation_machines,
                 // Render target is intentionally not copied, because it does not makes sense - a copy
                 // will redraw frame completely.
                 render_target: Default::default(),
@@ -649,6 +665,7 @@ impl Scene {
         self.ambient_lighting_color
             .visit("AmbientLightingColor", visitor)?;
         self.enabled.visit("Enabled", visitor)?;
+        let _ = self.animation_machines.visit("AnimationMachines", visitor);
 
         visitor.leave_region()
     }

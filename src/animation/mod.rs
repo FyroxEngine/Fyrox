@@ -380,7 +380,7 @@ impl LocalPose {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AnimationPose {
     local_poses: FxHashMap<Handle<Node>, LocalPose>,
 }

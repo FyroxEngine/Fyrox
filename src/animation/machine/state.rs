@@ -11,7 +11,7 @@ use crate::{
 use std::cell::Ref;
 
 /// State is a
-#[derive(Default, Debug, Visit)]
+#[derive(Default, Debug, Visit, Clone)]
 pub struct State {
     name: String,
     root: Handle<PoseNode>,

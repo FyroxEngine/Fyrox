@@ -17,7 +17,7 @@ pub mod blend;
 pub mod play;
 
 /// Specialized node that provides animation pose. See documentation for each variant.
-#[derive(Debug, Visit)]
+#[derive(Debug, Visit, Clone)]
 pub enum PoseNode {
     /// See docs for `PlayAnimation`.
     PlayAnimation(PlayAnimation),

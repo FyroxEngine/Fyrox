@@ -23,7 +23,7 @@ impl Default for Parameter {
 }
 
 /// Specific animation pose weight.
-#[derive(Debug, Visit)]
+#[derive(Debug, Visit, Clone)]
 pub enum PoseWeight {
     /// Fixed scalar value. Should not be negative (can't even realize what will happen
     /// with negative weight here)

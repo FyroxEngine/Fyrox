@@ -2,7 +2,7 @@ use crate::{animation::machine::State, core::pool::Handle};
 use std::collections::VecDeque;
 
 /// Specific machine event.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Event {
     /// Occurs when enter some state. See module docs for example.
     StateEnter(Handle<State>),
@@ -14,7 +14,7 @@ pub enum Event {
     ActiveStateChanged(Handle<State>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LimitedEventQueue {
     queue: VecDeque<Event>,
     limit: u32,

@@ -11,7 +11,7 @@ use crate::{
 use std::cell::{Cell, Ref, RefCell};
 
 /// Weighted proxy for animation pose.
-#[derive(Default, Debug, Visit)]
+#[derive(Default, Debug, Visit, Clone)]
 pub struct BlendPose {
     weight: PoseWeight,
     pose_source: Handle<PoseNode>,
@@ -54,7 +54,7 @@ impl BlendPose {
 /// you can dynamically change them in runtime. In our example we can decrease weight
 /// of hit animation over time and increase weight of run animation, so character will
 /// recover from his wounds.
-#[derive(Default, Debug, Visit)]
+#[derive(Default, Debug, Visit, Clone)]
 pub struct BlendAnimations {
     pose_sources: Vec<BlendPose>,
     #[visit(skip)]
@@ -106,13 +106,13 @@ impl EvaluatePose for BlendAnimations {
     }
 }
 
-#[derive(Default, Debug, Visit)]
+#[derive(Default, Debug, Visit, Clone)]
 pub struct IndexedBlendInput {
     pub blend_time: f32,
     pub pose_source: Handle<PoseNode>,
 }
 
-#[derive(Default, Debug, Visit)]
+#[derive(Default, Debug, Visit, Clone)]
 pub struct BlendAnimationsByIndex {
     index_parameter: String,
     inputs: Vec<IndexedBlendInput>,

@@ -11,7 +11,7 @@ use crate::{
 use std::cell::{Ref, RefCell};
 
 /// Machine node that plays specified animation.
-#[derive(Default, Debug, Visit)]
+#[derive(Default, Debug, Visit, Clone)]
 pub struct PlayAnimation {
     pub animation: Handle<Animation>,
     #[visit(skip)]

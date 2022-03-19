@@ -104,13 +104,14 @@ pub use parameter::{Parameter, ParameterContainer, PoseWeight};
 pub use state::State;
 pub use transition::Transition;
 
+pub mod container;
 pub mod event;
 pub mod node;
 pub mod parameter;
 pub mod state;
 pub mod transition;
 
-#[derive(Default, Debug, Visit)]
+#[derive(Default, Debug, Visit, Clone)]
 pub struct Machine {
     parameters: ParameterContainer,
     nodes: Pool<PoseNode>,
