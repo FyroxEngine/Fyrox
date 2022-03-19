@@ -120,9 +120,10 @@ pub enum Event {
 }
 
 /// Machine node that plays specified animation.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Visit)]
 pub struct PlayAnimation {
     pub animation: Handle<Animation>,
+    #[visit(skip)]
     output_pose: RefCell<AnimationPose>,
 }
 
@@ -136,20 +137,10 @@ impl PlayAnimation {
     }
 }
 
-impl Visit for PlayAnimation {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.animation.visit("Animation", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// Machine parameter.  Machine uses various parameters for specific actions. For example
 /// Rule parameter is used to check where transition from a state to state is possible.
 /// See module docs for example.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Visit)]
 pub enum Parameter {
     /// Weight parameter is used to control blend weight in BlendAnimation node.
     Weight(f32),
@@ -167,47 +158,8 @@ impl Default for Parameter {
     }
 }
 
-impl Parameter {
-    fn from_id(id: i32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::Weight(0.0)),
-            1 => Ok(Self::Rule(false)),
-            2 => Ok(Self::Index(0)),
-            _ => Err(format!("Invalid parameter id {}", id)),
-        }
-    }
-
-    fn id(self) -> i32 {
-        match self {
-            Self::Weight(_) => 0,
-            Self::Rule(_) => 1,
-            Self::Index(_) => 2,
-        }
-    }
-}
-
-impl Visit for Parameter {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let mut id = self.id();
-        id.visit("Id", visitor)?;
-        if visitor.is_reading() {
-            *self = Self::from_id(id)?;
-        }
-
-        match self {
-            Self::Weight(weight) => weight.visit("Value", visitor)?,
-            Self::Rule(rule) => rule.visit("Value", visitor)?,
-            Self::Index(index) => index.visit("Value", visitor)?,
-        }
-
-        visitor.leave_region()
-    }
-}
-
 /// Specific animation pose weight.
-#[derive(Debug)]
+#[derive(Debug, Visit)]
 pub enum PoseWeight {
     /// Fixed scalar value. Should not be negative (can't even realize what will happen
     /// with negative weight here)
@@ -223,44 +175,8 @@ impl Default for PoseWeight {
     }
 }
 
-impl PoseWeight {
-    fn from_id(id: i32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::Parameter(Default::default())),
-            1 => Ok(Self::Constant(0.0)),
-            _ => Err(format!("Invalid pose weight id {}", id)),
-        }
-    }
-
-    fn id(&self) -> i32 {
-        match self {
-            Self::Parameter(_) => 0,
-            Self::Constant(_) => 1,
-        }
-    }
-}
-
-impl Visit for PoseWeight {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let mut id = self.id();
-        id.visit("Id", visitor)?;
-        if visitor.is_reading() {
-            *self = Self::from_id(id)?;
-        }
-
-        match self {
-            PoseWeight::Constant(constant) => constant.visit("Value", visitor)?,
-            PoseWeight::Parameter(param_id) => param_id.visit("ParamId", visitor)?,
-        }
-
-        visitor.leave_region()
-    }
-}
-
 /// Specialized node that provides animation pose. See documentation for each variant.
-#[derive(Debug)]
+#[derive(Debug, Visit)]
 pub enum PoseNode {
     /// See docs for `PlayAnimation`.
     PlayAnimation(PlayAnimation),
@@ -296,23 +212,6 @@ impl PoseNode {
     ) -> Self {
         Self::BlendAnimationsByIndex(BlendAnimationsByIndex::new(index_parameter, inputs))
     }
-
-    fn from_id(id: i32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::PlayAnimation(Default::default())),
-            1 => Ok(Self::BlendAnimations(Default::default())),
-            2 => Ok(Self::BlendAnimationsByIndex(Default::default())),
-            _ => Err(format!("Invalid pose node id {}", id)),
-        }
-    }
-
-    fn id(&self) -> i32 {
-        match self {
-            Self::PlayAnimation(_) => 0,
-            Self::BlendAnimations(_) => 1,
-            Self::BlendAnimationsByIndex(_) => 2,
-        }
-    }
 }
 
 macro_rules! static_dispatch {
@@ -325,20 +224,8 @@ macro_rules! static_dispatch {
     };
 }
 
-impl Visit for PoseNode {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut kind_id = self.id();
-        kind_id.visit("KindId", visitor)?;
-        if visitor.is_reading() {
-            *self = PoseNode::from_id(kind_id)?;
-        }
-
-        static_dispatch!(self, visit, name, visitor)
-    }
-}
-
 /// State is a
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Visit)]
 pub struct State {
     name: String,
     root: Handle<PoseNode>,
@@ -424,20 +311,9 @@ impl State {
     }
 }
 
-impl Visit for State {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.name.visit("Name", visitor)?;
-        self.root.visit("Root", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// Transition is a connection between two states with a rule that defines possibility
 /// of actual transition with blending.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Visit)]
 pub struct Transition {
     name: String,
     /// Total amount of time to transition from `src` to `dst` state.
@@ -449,22 +325,6 @@ pub struct Transition {
     rule: String,
     /// 0 - evaluates `src` pose, 1 - `dest`, 0..1 - blends `src` and `dest`
     blend_factor: f32,
-}
-
-impl Visit for Transition {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.name.visit("Name", visitor)?;
-        self.transition_time.visit("TransitionTime", visitor)?;
-        self.elapsed_time.visit("ElapsedTime", visitor)?;
-        self.source.visit("Source", visitor)?;
-        self.dest.visit("Dest", visitor)?;
-        self.rule.visit("Rule", visitor)?;
-        self.blend_factor.visit("BlendFactor", visitor)?;
-
-        visitor.leave_region()
-    }
 }
 
 impl Transition {
@@ -524,17 +384,21 @@ impl Transition {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Visit)]
 pub struct Machine {
+    parameters: ParameterContainer,
     nodes: Pool<PoseNode>,
-    states: Pool<State>,
     transitions: Pool<Transition>,
-    final_pose: AnimationPose,
+    states: Pool<State>,
     active_state: Handle<State>,
     entry_state: Handle<State>,
     active_transition: Handle<Transition>,
-    parameters: ParameterContainer,
+
+    #[visit(skip)]
+    final_pose: AnimationPose,
+    #[visit(skip)]
     events: LimitedEventQueue,
+    #[visit(skip)]
     debug: bool,
 }
 
@@ -755,21 +619,5 @@ impl Machine {
         }
 
         &self.final_pose
-    }
-}
-
-impl Visit for Machine {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.parameters.visit("Parameters", visitor)?;
-        self.nodes.visit("Nodes", visitor)?;
-        self.transitions.visit("Transitions", visitor)?;
-        self.states.visit("States", visitor)?;
-        self.active_state.visit("ActiveState", visitor)?;
-        self.entry_state.visit("EntryState", visitor)?;
-        self.active_transition.visit("ActiveTransition", visitor)?;
-
-        visitor.leave_region()
     }
 }

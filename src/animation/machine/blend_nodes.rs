@@ -11,7 +11,7 @@ use crate::{
 use std::cell::{Cell, Ref, RefCell};
 
 /// Weighted proxy for animation pose.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Visit)]
 pub struct BlendPose {
     weight: PoseWeight,
     pose_source: Handle<PoseNode>,
@@ -45,17 +45,6 @@ impl BlendPose {
     }
 }
 
-impl Visit for BlendPose {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.weight.visit("Weight", visitor)?;
-        self.pose_source.visit("PoseSource", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// Animation blend node. It takes multiple input poses and mixes them together into
 /// single pose with specified weights. Could be used to mix hit and run animations
 /// for example - once your character got hit, you set some significant weight for
@@ -65,9 +54,10 @@ impl Visit for BlendPose {
 /// you can dynamically change them in runtime. In our example we can decrease weight
 /// of hit animation over time and increase weight of run animation, so character will
 /// recover from his wounds.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Visit)]
 pub struct BlendAnimations {
     pose_sources: Vec<BlendPose>,
+    #[visit(skip)]
     output_pose: RefCell<AnimationPose>,
 }
 
@@ -78,16 +68,6 @@ impl BlendAnimations {
             pose_sources: poses,
             output_pose: Default::default(),
         }
-    }
-}
-
-impl Visit for BlendAnimations {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.pose_sources.visit("PoseSources", visitor)?;
-
-        visitor.leave_region()
     }
 }
 
@@ -126,30 +106,20 @@ impl EvaluatePose for BlendAnimations {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Visit)]
 pub struct IndexedBlendInput {
     pub blend_time: f32,
     pub pose_source: Handle<PoseNode>,
 }
 
-impl Visit for IndexedBlendInput {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.blend_time.visit("BlendTime", visitor)?;
-        self.pose_source.visit("PoseSource", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Visit)]
 pub struct BlendAnimationsByIndex {
     index_parameter: String,
     inputs: Vec<IndexedBlendInput>,
-    output_pose: RefCell<AnimationPose>,
     prev_index: Cell<Option<u32>>,
     blend_time: Cell<f32>,
+    #[visit(skip)]
+    output_pose: RefCell<AnimationPose>,
 }
 
 impl BlendAnimationsByIndex {
@@ -161,19 +131,6 @@ impl BlendAnimationsByIndex {
             prev_index: Cell::new(None),
             blend_time: Cell::new(0.0),
         }
-    }
-}
-
-impl Visit for BlendAnimationsByIndex {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.index_parameter.visit("IndexParameter", visitor)?;
-        self.inputs.visit("Inputs", visitor)?;
-        self.prev_index.visit("PrevIndex", visitor)?;
-        self.blend_time.visit("BlendTime", visitor)?;
-
-        visitor.leave_region()
     }
 }
 
