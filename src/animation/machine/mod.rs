@@ -342,7 +342,6 @@ impl Visit for PoseNode {
 pub struct State {
     name: String,
     root: Handle<PoseNode>,
-    pose: AnimationPose,
 }
 
 type ParameterContainer = FxHashMap<String, Parameter>;
@@ -355,6 +354,8 @@ trait EvaluatePose {
         animations: &AnimationContainer,
         dt: f32,
     ) -> Ref<AnimationPose>;
+
+    fn pose(&self) -> Ref<AnimationPose>;
 }
 
 impl EvaluatePose for PlayAnimation {
@@ -371,6 +372,10 @@ impl EvaluatePose for PlayAnimation {
             .clone_into(&mut self.output_pose.borrow_mut());
         self.output_pose.borrow()
     }
+
+    fn pose(&self) -> Ref<AnimationPose> {
+        self.output_pose.borrow()
+    }
 }
 
 impl EvaluatePose for PoseNode {
@@ -383,6 +388,10 @@ impl EvaluatePose for PoseNode {
     ) -> Ref<AnimationPose> {
         static_dispatch!(self, eval_pose, nodes, params, animations, dt)
     }
+
+    fn pose(&self) -> Ref<AnimationPose> {
+        static_dispatch!(self, pose,)
+    }
 }
 
 impl State {
@@ -391,7 +400,6 @@ impl State {
         Self {
             name: name.to_owned(),
             root,
-            pose: Default::default(),
         }
     }
 
@@ -402,15 +410,17 @@ impl State {
         animations: &AnimationContainer,
         dt: f32,
     ) {
-        self.pose.reset();
         nodes
             .borrow(self.root)
-            .eval_pose(nodes, params, animations, dt)
-            .clone_into(&mut self.pose);
+            .eval_pose(nodes, params, animations, dt);
     }
 
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn pose<'a>(&self, nodes: &'a Pool<PoseNode>) -> Ref<'a, AnimationPose> {
+        nodes[self.root].pose()
     }
 }
 
@@ -708,11 +718,13 @@ impl Machine {
 
                 // Blend between source and dest states.
                 self.final_pose.blend_with(
-                    &self.states[transition.source].pose,
+                    &self.states[transition.source].pose(&self.nodes),
                     1.0 - transition.blend_factor,
                 );
-                self.final_pose
-                    .blend_with(&self.states[transition.dest].pose, transition.blend_factor);
+                self.final_pose.blend_with(
+                    &self.states[transition.dest].pose(&self.nodes),
+                    transition.blend_factor,
+                );
 
                 transition.update(dt);
 
@@ -737,7 +749,7 @@ impl Machine {
                 // We must have active state all the time when we do not have any active transition.
                 // Just get pose from active state.
                 self.states[self.active_state]
-                    .pose
+                    .pose(&self.nodes)
                     .clone_into(&mut self.final_pose);
             }
         }

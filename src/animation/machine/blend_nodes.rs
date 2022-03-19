@@ -120,6 +120,10 @@ impl EvaluatePose for BlendAnimations {
         }
         self.output_pose.borrow()
     }
+
+    fn pose(&self) -> Ref<AnimationPose> {
+        self.output_pose.borrow()
+    }
 }
 
 #[derive(Default, Debug)]
@@ -226,6 +230,10 @@ impl EvaluatePose for BlendAnimationsByIndex {
             }
         }
 
+        self.output_pose.borrow()
+    }
+
+    fn pose(&self) -> Ref<AnimationPose> {
         self.output_pose.borrow()
     }
 }
