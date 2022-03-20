@@ -1,7 +1,12 @@
 use crate::{
     animation::{
         machine::{
-            node::{blend::BlendAnimations, play::PlayAnimation},
+            node::{
+                blend::{
+                    BlendAnimations, BlendAnimationsByIndexDefinition, BlendAnimationsDefinition,
+                },
+                play::{PlayAnimation, PlayAnimationDefinition},
+            },
             BlendAnimationsByIndex, BlendPose, IndexedBlendInput, ParameterContainer,
         },
         Animation, AnimationContainer, AnimationPose,
@@ -90,5 +95,18 @@ impl EvaluatePose for PoseNode {
 
     fn pose(&self) -> Ref<AnimationPose> {
         static_dispatch!(self, pose,)
+    }
+}
+
+#[derive(Debug, Visit, Clone)]
+pub enum PoseNodeDefinition {
+    PlayAnimation(PlayAnimationDefinition),
+    BlendAnimations(BlendAnimationsDefinition),
+    BlendAnimationsByIndex(BlendAnimationsByIndexDefinition),
+}
+
+impl Default for PoseNodeDefinition {
+    fn default() -> Self {
+        Self::PlayAnimation(Default::default())
     }
 }

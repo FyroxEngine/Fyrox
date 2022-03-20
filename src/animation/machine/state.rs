@@ -1,6 +1,6 @@
 use crate::{
     animation::{
-        machine::{EvaluatePose, ParameterContainer, PoseNode},
+        machine::{node::PoseNodeDefinition, EvaluatePose, ParameterContainer, PoseNode},
         AnimationContainer, AnimationPose,
     },
     core::{
@@ -15,6 +15,12 @@ use std::cell::Ref;
 pub struct State {
     name: String,
     root: Handle<PoseNode>,
+}
+
+#[derive(Default, Debug, Visit, Clone)]
+pub struct StateDefinition {
+    pub name: String,
+    pub root: Handle<PoseNodeDefinition>,
 }
 
 impl State {

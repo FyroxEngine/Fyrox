@@ -1,32 +1,35 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::engine::SerializationContext;
-use crate::utils::log::Log;
-use crate::utils::watcher::FileSystemWatcher;
 use crate::{
     core::{
         futures::future::join_all,
         make_relative_path,
         parking_lot::{Mutex, MutexGuard},
     },
-    engine::resource_manager::{
-        container::{Container, ResourceContainer},
-        loader::{
-            curve::CurveLoader,
-            model::ModelLoader,
-            shader::ShaderLoader,
-            sound::{SoundBufferImportOptions, SoundBufferLoader},
-            texture::TextureLoader,
-            ResourceLoader,
+    engine::{
+        resource_manager::{
+            container::{Container, ResourceContainer},
+            loader::{
+                absm::AbsmLoader,
+                curve::CurveLoader,
+                model::ModelLoader,
+                shader::ShaderLoader,
+                sound::{SoundBufferImportOptions, SoundBufferLoader},
+                texture::TextureLoader,
+                ResourceLoader,
+            },
+            task::TaskPool,
         },
-        task::TaskPool,
+        SerializationContext,
     },
     material::shader::{Shader, ShaderImportOptions},
     resource::{
+        absm::{AbsmImportOptions, AbsmResource},
         curve::{CurveImportOptions, CurveResource},
         model::{Model, ModelImportOptions},
         texture::{Texture, TextureError, TextureImportOptions, TextureState},
     },
+    utils::{log::Log, watcher::FileSystemWatcher},
 };
 use fyrox_sound::buffer::SoundBufferResource;
 use notify::DebouncedEvent;
@@ -53,6 +56,9 @@ pub struct ContainersStorage {
 
     /// Container for curve resources.
     pub curves: ResourceContainer<CurveResource, CurveImportOptions>,
+
+    /// Container for ABSM resources.
+    pub absm: ResourceContainer<AbsmResource, AbsmImportOptions>,
 }
 
 impl ContainersStorage {
@@ -81,7 +87,7 @@ impl ContainersStorage {
     }
 
     /// Sets a custom shader loader.
-    pub fn with_shader_loader<L>(&mut self, loader: L)
+    pub fn set_shader_loader<L>(&mut self, loader: L)
     where
         L: 'static + ResourceLoader<Shader, ShaderImportOptions>,
     {
@@ -94,6 +100,14 @@ impl ContainersStorage {
         L: 'static + ResourceLoader<CurveResource, CurveImportOptions>,
     {
         self.curves.set_loader(loader);
+    }
+
+    /// Sets a custom ABSM loader.
+    pub fn set_absm_loader<L>(&mut self, loader: L)
+    where
+        L: 'static + ResourceLoader<AbsmResource, AbsmImportOptions>,
+    {
+        self.absm.set_loader(loader);
     }
 }
 
@@ -149,7 +163,8 @@ impl ResourceManager {
             ),
             sound_buffers: ResourceContainer::new(task_pool.clone(), Box::new(SoundBufferLoader)),
             shaders: ResourceContainer::new(task_pool.clone(), Box::new(ShaderLoader)),
-            curves: ResourceContainer::new(task_pool, Box::new(CurveLoader)),
+            curves: ResourceContainer::new(task_pool.clone(), Box::new(CurveLoader)),
+            absm: ResourceContainer::new(task_pool, Box::new(AbsmLoader)),
         });
 
         resource_manager
@@ -275,8 +290,19 @@ impl ResourceManager {
     /// # Async/.await
     ///
     /// Each shader implements Future trait and can be used in async contexts.
-    pub fn request_curve_resource<P: AsRef<Path>>(&self, path: P) -> CurveResource {
+    pub fn request_curve<P: AsRef<Path>>(&self, path: P) -> CurveResource {
         self.state().containers_mut().curves.request(path)
+    }
+
+    /// Tries to load a new ABSM resource from given path or get instance of existing, if any.
+    /// This method is asynchronous, it immediately returns a ABSM which can be shared across
+    /// multiple places, the loading may fail, but it is internal state of the ABSM resource.
+    ///
+    /// # Async/.await
+    ///
+    /// Each shader implements Future trait and can be used in async contexts.
+    pub fn request_absm<P: AsRef<Path>>(&self, path: P) -> AbsmResource {
+        self.state().containers_mut().absm.request(path)
     }
 
     /// Reloads every loaded texture. This method is asynchronous, internally it uses thread pool
@@ -307,6 +333,13 @@ impl ResourceManager {
         join_all(resources).await;
     }
 
+    /// Reloads every loaded ABSM resource. This method is asynchronous, internally it uses thread pool
+    /// to run reload on separate thread per resource.
+    pub async fn reload_absm_resources(&self) {
+        let resources = self.state().containers_mut().absm.reload_resources();
+        join_all(resources).await;
+    }
+
     /// Reloads every loaded sound buffer. This method is asynchronous, internally it uses thread pool
     /// to run reload on separate thread per sound buffer.
     pub async fn reload_sound_buffers(&self) {
@@ -328,6 +361,7 @@ impl ResourceManager {
             self.reload_sound_buffers(),
             self.reload_shaders(),
             self.reload_curve_resources(),
+            self.reload_absm_resources(),
         );
     }
 }
@@ -370,6 +404,7 @@ impl ResourceManagerState {
             + containers.models.count_pending_resources()
             + containers.shaders.count_pending_resources()
             + containers.curves.count_pending_resources()
+            + containers.absm.count_pending_resources()
     }
 
     /// Returns total amount of loaded resources.
@@ -380,6 +415,7 @@ impl ResourceManagerState {
             + containers.models.count_loaded_resources()
             + containers.shaders.count_loaded_resources()
             + containers.curves.count_loaded_resources()
+            + containers.absm.count_loaded_resources()
     }
 
     /// Returns total amount of registered resources.
@@ -390,6 +426,7 @@ impl ResourceManagerState {
             + containers.models.len()
             + containers.shaders.len()
             + containers.curves.len()
+            + containers.absm.len()
     }
 
     /// Returns percentage of loading progress. This method is useful to show progress on
@@ -413,6 +450,7 @@ impl ResourceManagerState {
         containers.textures.destroy_unused();
         containers.shaders.destroy_unused();
         containers.curves.destroy_unused();
+        containers.absm.destroy_unused();
     }
 
     /// Update resource containers and do hot-reloading.
@@ -429,6 +467,7 @@ impl ResourceManagerState {
         containers.sound_buffers.update(dt);
         containers.shaders.update(dt);
         containers.curves.update(dt);
+        containers.absm.update(dt);
 
         if let Some(watcher) = self.watcher.as_ref() {
             if let Some(DebouncedEvent::Write(path)) = watcher.try_get_event() {
@@ -446,6 +485,7 @@ impl ResourceManagerState {
                     &mut containers.sound_buffers as &mut dyn Container,
                     &mut containers.shaders as &mut dyn Container,
                     &mut containers.curves as &mut dyn Container,
+                    &mut containers.absm as &mut dyn Container,
                 ] {
                     if container.try_reload_resource_from_path(&relative_path) {
                         break;

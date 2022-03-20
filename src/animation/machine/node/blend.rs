@@ -1,6 +1,9 @@
 use crate::{
     animation::{
-        machine::{EvaluatePose, Parameter, ParameterContainer, PoseNode, PoseWeight},
+        machine::{
+            node::PoseNodeDefinition, EvaluatePose, Parameter, ParameterContainer, PoseNode,
+            PoseWeight,
+        },
         AnimationContainer, AnimationPose,
     },
     core::{
@@ -13,8 +16,14 @@ use std::cell::{Cell, Ref, RefCell};
 /// Weighted proxy for animation pose.
 #[derive(Default, Debug, Visit, Clone)]
 pub struct BlendPose {
-    weight: PoseWeight,
-    pose_source: Handle<PoseNode>,
+    pub weight: PoseWeight,
+    pub pose_source: Handle<PoseNode>,
+}
+
+#[derive(Default, Debug, Visit, Clone)]
+pub struct BlendPoseDefinition {
+    pub weight: PoseWeight,
+    pub pose_source: Handle<PoseNodeDefinition>,
 }
 
 impl BlendPose {
@@ -56,9 +65,14 @@ impl BlendPose {
 /// recover from his wounds.
 #[derive(Default, Debug, Visit, Clone)]
 pub struct BlendAnimations {
-    pose_sources: Vec<BlendPose>,
+    pub pose_sources: Vec<BlendPose>,
     #[visit(skip)]
     output_pose: RefCell<AnimationPose>,
+}
+
+#[derive(Default, Debug, Visit, Clone)]
+pub struct BlendAnimationsDefinition {
+    pub pose_sources: Vec<BlendPoseDefinition>,
 }
 
 impl BlendAnimations {
@@ -113,13 +127,25 @@ pub struct IndexedBlendInput {
 }
 
 #[derive(Default, Debug, Visit, Clone)]
+pub struct IndexedBlendInputDefinition {
+    pub blend_time: f32,
+    pub pose_source: Handle<PoseNodeDefinition>,
+}
+
+#[derive(Default, Debug, Visit, Clone)]
 pub struct BlendAnimationsByIndex {
     index_parameter: String,
-    inputs: Vec<IndexedBlendInput>,
+    pub inputs: Vec<IndexedBlendInput>,
     prev_index: Cell<Option<u32>>,
     blend_time: Cell<f32>,
     #[visit(skip)]
     output_pose: RefCell<AnimationPose>,
+}
+
+#[derive(Default, Debug, Visit, Clone)]
+pub struct BlendAnimationsByIndexDefinition {
+    pub index_parameter: String,
+    pub inputs: Vec<IndexedBlendInputDefinition>,
 }
 
 impl BlendAnimationsByIndex {

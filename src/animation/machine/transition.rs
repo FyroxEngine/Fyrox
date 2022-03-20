@@ -1,3 +1,4 @@
+use crate::animation::machine::state::StateDefinition;
 use crate::{
     animation::machine::State,
     core::{pool::Handle, visitor::prelude::*},
@@ -17,6 +18,17 @@ pub struct Transition {
     rule: String,
     /// 0 - evaluates `src` pose, 1 - `dest`, 0..1 - blends `src` and `dest`
     blend_factor: f32,
+}
+
+#[derive(Default, Debug, Visit, Clone)]
+pub struct TransitionDefinition {
+    pub name: String,
+    /// Total amount of time to transition from `src` to `dst` state.
+    pub transition_time: f32,
+    pub source: Handle<StateDefinition>,
+    pub dest: Handle<StateDefinition>,
+    /// Identifier of Rule parameter which defines is transition should be activated or not.
+    pub rule: String,
 }
 
 impl Transition {

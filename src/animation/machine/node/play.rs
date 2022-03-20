@@ -8,7 +8,10 @@ use crate::{
         visitor::prelude::*,
     },
 };
-use std::cell::{Ref, RefCell};
+use std::{
+    cell::{Ref, RefCell},
+    path::PathBuf,
+};
 
 /// Machine node that plays specified animation.
 #[derive(Default, Debug, Visit, Clone)]
@@ -16,6 +19,11 @@ pub struct PlayAnimation {
     pub animation: Handle<Animation>,
     #[visit(skip)]
     output_pose: RefCell<AnimationPose>,
+}
+
+#[derive(Default, Debug, Visit, Clone)]
+pub struct PlayAnimationDefinition {
+    pub animation: PathBuf,
 }
 
 impl PlayAnimation {

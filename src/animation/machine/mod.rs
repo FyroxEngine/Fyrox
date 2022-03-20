@@ -86,7 +86,13 @@
 //! lower body and combat machine will control upper body.
 
 use crate::{
-    animation::{machine::event::LimitedEventQueue, AnimationContainer, AnimationPose},
+    animation::{
+        machine::{
+            event::LimitedEventQueue, node::PoseNodeDefinition, state::StateDefinition,
+            transition::TransitionDefinition,
+        },
+        AnimationContainer, AnimationPose,
+    },
     core::{
         pool::{Handle, Pool},
         visitor::{Visit, VisitResult, Visitor},
@@ -127,6 +133,15 @@ pub struct Machine {
     events: LimitedEventQueue,
     #[visit(skip)]
     debug: bool,
+}
+
+#[derive(Default, Debug, Visit, Clone)]
+pub struct MachineDefinition {
+    pub parameters: ParameterContainer,
+    pub nodes: Pool<PoseNodeDefinition>,
+    pub transitions: Pool<TransitionDefinition>,
+    pub states: Pool<StateDefinition>,
+    pub entry_state: Handle<StateDefinition>,
 }
 
 impl Machine {
@@ -205,6 +220,10 @@ impl Machine {
 
     pub fn nodes(&self) -> impl Iterator<Item = &PoseNode> {
         self.nodes.iter()
+    }
+
+    pub fn node_mut(&mut self, handle: Handle<PoseNode>) -> &mut PoseNode {
+        &mut self.nodes[handle]
     }
 
     pub fn active_state(&self) -> Handle<State> {
