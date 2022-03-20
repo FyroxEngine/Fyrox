@@ -12,6 +12,7 @@ extern crate fyrox;
 extern crate lazy_static;
 extern crate directories;
 
+mod absm;
 mod asset;
 mod audio;
 mod camera;
@@ -34,6 +35,7 @@ mod settings;
 mod utils;
 mod world;
 
+use crate::absm::AbsmEditor;
 use crate::scene::is_scene_needs_to_be_saved;
 use crate::utils::normalize_os_event;
 use crate::{
@@ -490,6 +492,8 @@ pub struct Editor {
     inspector: Inspector,
     curve_editor: CurveEditorWindow,
     audio_panel: AudioPanel,
+    #[allow(dead_code)] // TODO
+    absm_editor: AbsmEditor,
     mode: Mode,
 }
 
@@ -721,6 +725,8 @@ impl Editor {
 
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
 
+        let absm_editor = AbsmEditor::new(ctx);
+
         let material_editor = MaterialEditor::new(&mut engine);
 
         let mut editor = Self {
@@ -757,6 +763,7 @@ impl Editor {
                 clock: Instant::now(),
                 elapsed_time: 0.0,
             },
+            absm_editor,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move));

@@ -129,7 +129,7 @@ impl AbsmResource {
 
         // Initialize parameters.
         for (name, parameter) in definition.parameters.iter() {
-            machine.set_parameter(name, parameter.clone());
+            machine.set_parameter(name, *parameter);
         }
 
         // Instantiate nodes.
