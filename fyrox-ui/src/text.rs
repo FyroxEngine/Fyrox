@@ -58,7 +58,7 @@ impl Control for Text {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.widget.screen_bounds();
+        let bounds = self.widget.bounding_rect();
         drawing_context.draw_text(
             self.clip_bounds(),
             bounds.position,

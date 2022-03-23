@@ -214,7 +214,7 @@ impl Control for Window {
 
                         // Check grips.
                         for grip in self.grips.borrow_mut().iter_mut() {
-                            let offset = self.screen_position;
+                            let offset = self.screen_position();
                             let screen_bounds = grip.bounds.translate(offset);
                             if screen_bounds.contains(pos) {
                                 grip.is_dragging = true;
@@ -239,7 +239,7 @@ impl Control for Window {
                         let mut new_cursor = None;
 
                         for grip in self.grips.borrow().iter() {
-                            let offset = self.screen_position;
+                            let offset = self.screen_position();
                             let screen_bounds = grip.bounds.translate(offset);
                             if screen_bounds.contains(pos) {
                                 new_cursor = Some(grip.cursor);
@@ -335,7 +335,7 @@ impl Control for Window {
             }
             if let WidgetMessage::Unlink = msg {
                 if message.destination() == self.handle() {
-                    self.initial_position = self.screen_position;
+                    self.initial_position = self.screen_position();
                 }
             }
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {

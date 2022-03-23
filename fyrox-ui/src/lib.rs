@@ -74,6 +74,7 @@ use crate::{
 };
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_core::algebra::Matrix3;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
@@ -574,6 +575,8 @@ fn draw_node(
         false
     };
 
+    drawing_context.transform_stack.push(node.visual_transform);
+
     node.draw(drawing_context);
 
     let end_index = drawing_context.get_commands().len();
@@ -588,6 +591,8 @@ fn draw_node(
             draw_node(nodes, child_node, drawing_context);
         }
     }
+
+    drawing_context.transform_stack.pop();
 
     if pushed {
         drawing_context.pop_opacity();
@@ -716,7 +721,7 @@ impl UserInterface {
         }
     }
 
-    fn update_transform(&mut self) {
+    fn update_visual_transform(&mut self) {
         scope_profile!();
 
         self.stack.clear();
@@ -731,13 +736,18 @@ impl UserInterface {
             if widget.is_globally_visible() {
                 self.stack.extend_from_slice(widget.children());
 
-                let screen_position = if let Some(parent) = parent {
-                    widget.actual_local_position() + parent.screen_position()
+                let mut layout_transform = widget.layout_transform;
+
+                layout_transform[6] += widget.actual_local_position().x;
+                layout_transform[7] += widget.actual_local_position().y;
+
+                let visual_transform = if let Some(parent) = parent {
+                    parent.visual_transform * widget.render_transform * layout_transform
                 } else {
-                    widget.actual_local_position()
+                    widget.render_transform * layout_transform
                 };
 
-                widget.screen_position = screen_position;
+                widget.visual_transform = visual_transform;
             }
         }
     }
@@ -794,7 +804,7 @@ impl UserInterface {
         );
 
         if self.need_update_global_transform {
-            self.update_transform();
+            self.update_visual_transform();
             self.need_update_global_transform = false;
         }
 
@@ -934,7 +944,11 @@ impl UserInterface {
                 size.y = node.height();
             }
 
+            // size = transform_size(size, &node.layout_transform);
+
             size = node.arrange_override(self, size);
+
+            // size = transform_size(size, &node.layout_transform);
 
             size.x = size.x.min(final_rect.w());
             size.y = size.y.min(final_rect.h());
@@ -996,7 +1010,14 @@ impl UserInterface {
             size.x = clampf(size.x, node.min_size().x, node.max_size().x);
             size.y = clampf(size.y, node.min_size().y, node.max_size().y);
 
+            //let old_size = size;
+            //size = transform_size(size, &node.layout_transform);
+
+            //assert_eq!(size, old_size);
+
             let mut desired_size = node.measure_override(self, size);
+
+            // desired_size = transform_size(desired_size, &node.layout_transform);
 
             if !node.width().is_nan() {
                 desired_size.x = node.width();
@@ -1213,8 +1234,11 @@ impl UserInterface {
     /// Recursively calculates clipping bounds for every node.
     fn calculate_clip_bounds(&self, node: Handle<UiNode>, parent_bounds: Rect<f32>) {
         let node = &self.nodes[node];
-        node.clip_bounds
-            .set(node.screen_bounds().clip_by(parent_bounds));
+
+        let screen_bounds = node.bounding_rect().transform(&node.visual_transform);
+
+        node.clip_bounds.set(screen_bounds.clip_by(parent_bounds));
+
         for &child in node.children() {
             self.calculate_clip_bounds(child, node.clip_bounds.get());
         }
@@ -1415,7 +1439,7 @@ impl UserInterface {
                                 self.unlink_node(message.destination());
 
                                 let node = &self.nodes[message.destination()];
-                                let new_position = node.screen_position;
+                                let new_position = node.screen_position();
                                 self.send_message(WidgetMessage::desired_position(
                                     message.destination(),
                                     MessageDirection::ToWidget,
@@ -2075,15 +2099,49 @@ impl UserInterface {
     }
 }
 
+fn transform_size(size: Vector2<f32>, basis: &Matrix3<f32>) -> Vector2<f32> {
+    let in_min = Vector2::<f32>::default();
+    let in_max = size;
+
+    let mut out_min = Vector2::default();
+    let mut out_max = Vector2::default();
+
+    for i in 0..2 {
+        for j in 0..2 {
+            let a = basis[(i, j)] * in_min[j];
+            let b = basis[(i, j)] * in_max[j];
+            if a < b {
+                out_min[i] += a;
+                out_max[i] += b;
+            } else {
+                out_min[i] += b;
+                out_max[i] += a;
+            }
+        }
+    }
+
+    out_max - out_min
+}
+
 #[cfg(test)]
 mod test {
     use crate::{
         border::BorderBuilder,
         core::algebra::Vector2,
         message::MessageDirection,
+        transform_size,
         widget::{WidgetBuilder, WidgetMessage},
         UserInterface,
     };
+    use fyrox_core::algebra::Matrix3;
+
+    #[test]
+    fn test_transform_size() {
+        let input = Vector2::new(100.0, f32::INFINITY);
+        let transform = Matrix3::identity();
+        let transformed = transform_size(input, &transform);
+        assert_eq!(input, transformed);
+    }
 
     #[test]
     fn center() {

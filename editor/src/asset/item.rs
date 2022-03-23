@@ -59,7 +59,7 @@ impl Control for AssetItem {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.screen_bounds();
+        let bounds = self.bounding_rect();
         drawing_context.push_rect_filled(&bounds, None);
         drawing_context.commit(bounds, self.background(), CommandTexture::None, None);
         drawing_context.push_rect(&bounds, 1.0);

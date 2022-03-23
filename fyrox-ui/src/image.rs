@@ -60,7 +60,7 @@ impl Control for Image {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.widget.screen_bounds();
+        let bounds = self.widget.bounding_rect();
         let tex_coords = if self.flip {
             Some([
                 Vector2::new(0.0, 0.0),

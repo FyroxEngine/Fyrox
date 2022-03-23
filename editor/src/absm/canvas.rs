@@ -1,4 +1,5 @@
 use crate::absm::node::{AbsmStateNode, AbsmStateNodeMessage};
+use fyrox::core::algebra::Matrix3;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -59,6 +60,17 @@ impl AbsmCanvas {
     pub fn view_point_to_local_space(&self, point: Vector2<f32>) -> Vector2<f32> {
         (point - self.view_position).scale(1.0 / self.zoom)
     }
+
+    pub fn update_transform(&self, ui: &UserInterface) {
+        let transform =
+            Matrix3::new_translation(&self.view_position) * Matrix3::new_scaling(self.zoom);
+
+        ui.send_message(WidgetMessage::layout_transform(
+            self.handle(),
+            MessageDirection::ToWidget,
+            transform,
+        ));
+    }
 }
 
 impl Control for AbsmCanvas {
@@ -71,8 +83,14 @@ impl Control for AbsmCanvas {
     }
 
     fn draw(&self, ctx: &mut DrawingContext) {
-        let bounds = self.widget.screen_bounds();
-        DrawingContext::push_rect_filled(ctx, &bounds, None);
+        let visual_transform = self
+            .widget
+            .visual_transform()
+            .try_inverse()
+            .unwrap_or_default();
+
+        let local_bounds = self.widget.bounding_rect().transform(&visual_transform);
+        DrawingContext::push_rect_filled(ctx, &local_bounds, None);
         ctx.commit(
             self.clip_bounds(),
             self.widget.background(),
@@ -80,15 +98,13 @@ impl Control for AbsmCanvas {
             None,
         );
 
-        let screen_bounds = self.screen_bounds();
-
         let step_size = 50.0 * self.zoom.clamp(0.001, 1000.0);
 
-        let mut local_left_bottom = self.point_to_local_space(screen_bounds.left_top_corner());
+        let mut local_left_bottom = local_bounds.left_top_corner();
         local_left_bottom.x = round_to_step(local_left_bottom.x, step_size);
         local_left_bottom.y = round_to_step(local_left_bottom.y, step_size);
 
-        let mut local_right_top = self.point_to_local_space(screen_bounds.right_bottom_corner());
+        let mut local_right_top = local_bounds.right_bottom_corner();
         local_right_top.x = round_to_step(local_right_top.x, step_size);
         local_right_top.y = round_to_step(local_right_top.y, step_size);
 
@@ -102,8 +118,8 @@ impl Control for AbsmCanvas {
             let k = ny as f32 / (nh) as f32;
             let y = local_left_bottom.y + k * h;
             ctx.push_line(
-                self.point_to_screen_space(Vector2::new(local_left_bottom.x - step_size, y)),
-                self.point_to_screen_space(Vector2::new(local_right_top.x + step_size, y)),
+                Vector2::new(local_left_bottom.x - step_size, y),
+                Vector2::new(local_right_top.x + step_size, y),
                 1.0,
             );
         }
@@ -112,14 +128,14 @@ impl Control for AbsmCanvas {
             let k = nx as f32 / (nw) as f32;
             let x = local_left_bottom.x + k * w;
             ctx.push_line(
-                self.point_to_screen_space(Vector2::new(x, local_left_bottom.y + step_size)),
-                self.point_to_screen_space(Vector2::new(x, local_right_top.y - step_size)),
+                Vector2::new(x, local_left_bottom.y + step_size),
+                Vector2::new(x, local_right_top.y - step_size),
                 1.0,
             );
         }
 
         ctx.commit(
-            screen_bounds,
+            local_bounds,
             Brush::Solid(Color::opaque(60, 60, 60)),
             CommandTexture::None,
             None,
@@ -142,10 +158,10 @@ impl Control for AbsmCanvas {
             ui.arrange_node(
                 child_handle,
                 &Rect::new(
-                    self.view_position.x + child.desired_local_position().x * self.zoom,
-                    self.view_position.y + child.desired_local_position().y * self.zoom,
-                    child.desired_size().x * self.zoom,
-                    child.desired_size().y * self.zoom,
+                    child.desired_local_position().x,
+                    child.desired_local_position().y,
+                    child.desired_size().x,
+                    child.desired_size().y,
                 ),
             );
         }
@@ -177,8 +193,7 @@ impl Control for AbsmCanvas {
                 initial_cursor_position: self.point_to_local_space(ui.cursor_position()),
                 entries: vec![Entry {
                     node: message.destination(),
-                    initial_position: self
-                        .view_point_to_local_space(selected_node.actual_local_position()),
+                    initial_position: selected_node.actual_local_position(),
                 }],
             });
         } else if let Some(WidgetMessage::MouseDown { pos, button }) = message.data() {
@@ -200,7 +215,7 @@ impl Control for AbsmCanvas {
         } else if let Some(WidgetMessage::MouseMove { pos, .. }) = message.data() {
             if self.is_dragging_view {
                 self.view_position = self.initial_view_position + (*pos - self.click_position);
-                self.invalidate_arrange();
+                self.update_transform(ui);
             }
 
             if let Some(drag_context) = self.drag_context.as_ref() {
@@ -226,7 +241,7 @@ impl Control for AbsmCanvas {
 
             self.view_position -= (new_cursor_pos - cursor_pos).scale(self.zoom);
 
-            self.invalidate_arrange();
+            self.update_transform(ui);
         }
     }
 }

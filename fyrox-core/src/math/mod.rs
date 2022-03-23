@@ -239,6 +239,35 @@ where
     pub fn y(&self) -> T {
         self.position.y
     }
+
+    #[inline]
+    #[must_use]
+    pub fn transform(&self, basis: &Matrix3<T>) -> Self {
+        let min = self.position;
+        let max = self.right_bottom_corner();
+
+        let mut transformed_min = Vector2::new(basis[6], basis[7]);
+        let mut transformed_max = Vector2::new(basis[6], basis[7]);
+
+        for i in 0..2 {
+            for j in 0..2 {
+                let a = basis[(i, j)] * min[j];
+                let b = basis[(i, j)] * max[j];
+                if a < b {
+                    transformed_min[i] += a;
+                    transformed_max[i] += b;
+                } else {
+                    transformed_min[i] += b;
+                    transformed_max[i] += a;
+                }
+            }
+        }
+
+        Self {
+            position: transformed_min,
+            size: transformed_max - transformed_min,
+        }
+    }
 }
 
 impl<T> Visit for Rect<T>

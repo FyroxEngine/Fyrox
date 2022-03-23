@@ -104,7 +104,7 @@ impl Control for VectorImage {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.widget.screen_bounds();
+        let bounds = self.widget.bounding_rect();
 
         for primitive in self.primitives.iter() {
             match primitive {
