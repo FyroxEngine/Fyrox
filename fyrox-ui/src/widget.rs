@@ -358,6 +358,7 @@ pub struct Widget {
     tooltip: Handle<UiNode>,
     tooltip_time: f32,
     context_menu: Handle<UiNode>,
+    pub(in crate) clip_to_bounds: bool,
     pub(in crate) layout_transform: Matrix3<f32>,
     pub(in crate) render_transform: Matrix3<f32>,
     pub(in crate) visual_transform: Matrix3<f32>,
@@ -1052,6 +1053,7 @@ pub struct WidgetBuilder {
     pub handle_os_events: bool,
     pub layout_transform: Matrix3<f32>,
     pub render_transform: Matrix3<f32>,
+    pub clip_to_bounds: bool,
 }
 
 impl Default for WidgetBuilder {
@@ -1094,6 +1096,7 @@ impl WidgetBuilder {
             handle_os_events: false,
             layout_transform: Matrix3::identity(),
             render_transform: Matrix3::identity(),
+            clip_to_bounds: true,
         }
     }
 
@@ -1114,6 +1117,11 @@ impl WidgetBuilder {
 
     pub fn with_height(mut self, height: f32) -> Self {
         self.height = height;
+        self
+    }
+
+    pub fn with_clip_to_bounds(mut self, clip_to_bounds: bool) -> Self {
+        self.clip_to_bounds = clip_to_bounds;
         self
     }
 
@@ -1325,6 +1333,7 @@ impl WidgetBuilder {
             layout_transform: self.layout_transform,
             render_transform: self.render_transform,
             visual_transform: Matrix3::identity(),
+            clip_to_bounds: self.clip_to_bounds,
         }
     }
 }

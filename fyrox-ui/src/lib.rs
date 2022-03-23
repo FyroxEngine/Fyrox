@@ -535,11 +535,11 @@ fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode>) -> bool {
     // of parents chain. This is needed because some control can move their children outside of
     // their bounds (like scroll viewer, etc.) and single intersection test of parent bounds with
     // current bounds is not enough.
-    let bounds = node.screen_bounds();
+    let bounds = node.clip_bounds();
     let mut parent = node.parent();
     while parent.is_some() {
         let parent_node = nodes.borrow(parent);
-        if !parent_node.screen_bounds().intersects(bounds) {
+        if !parent_node.clip_bounds().intersects(bounds) {
             return false;
         }
         parent = parent_node.parent();
@@ -1010,10 +1010,7 @@ impl UserInterface {
             size.x = clampf(size.x, node.min_size().x, node.max_size().x);
             size.y = clampf(size.y, node.min_size().y, node.max_size().y);
 
-            //let old_size = size;
             //size = transform_size(size, &node.layout_transform);
-
-            //assert_eq!(size, old_size);
 
             let mut desired_size = node.measure_override(self, size);
 
@@ -1050,7 +1047,7 @@ impl UserInterface {
         let widget = self.nodes.borrow(node_handle);
 
         if widget.is_globally_visible() {
-            clipped = !widget.screen_bounds().contains(pt);
+            clipped = !widget.clip_bounds().contains(pt);
 
             if !clipped {
                 for command_index in widget.command_indices.borrow().iter() {
@@ -1108,7 +1105,7 @@ impl UserInterface {
 
         if !widget.is_hit_test_visible()
             || !widget.enabled()
-            || !widget.screen_bounds().intersects(Rect {
+            || !widget.clip_bounds().intersects(Rect {
                 position: Default::default(),
                 size: self.screen_size,
             })
@@ -1235,7 +1232,11 @@ impl UserInterface {
     fn calculate_clip_bounds(&self, node: Handle<UiNode>, parent_bounds: Rect<f32>) {
         let node = &self.nodes[node];
 
-        let screen_bounds = node.bounding_rect().transform(&node.visual_transform);
+        let screen_bounds = if node.clip_to_bounds {
+            node.screen_bounds()
+        } else {
+            Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y)
+        };
 
         node.clip_bounds.set(screen_bounds.clip_by(parent_bounds));
 
@@ -2099,6 +2100,7 @@ impl UserInterface {
     }
 }
 
+#[allow(dead_code)] // TODO
 fn transform_size(size: Vector2<f32>, basis: &Matrix3<f32>) -> Vector2<f32> {
     let in_min = Vector2::<f32>::default();
     let in_max = size;
@@ -2108,8 +2110,15 @@ fn transform_size(size: Vector2<f32>, basis: &Matrix3<f32>) -> Vector2<f32> {
 
     for i in 0..2 {
         for j in 0..2 {
-            let a = basis[(i, j)] * in_min[j];
-            let b = basis[(i, j)] * in_max[j];
+            let k = basis[(i, j)];
+
+            let a = k * in_min[j];
+            let b = if in_max[j].is_infinite() {
+                f32::INFINITY
+            } else {
+                k * in_max[j]
+            };
+
             if a < b {
                 out_min[i] += a;
                 out_max[i] += b;
