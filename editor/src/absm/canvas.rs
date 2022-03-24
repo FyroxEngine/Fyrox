@@ -49,21 +49,13 @@ pub struct AbsmCanvas {
 define_widget_deref!(AbsmCanvas);
 
 impl AbsmCanvas {
-    pub fn point_to_screen_space(&self, point: Vector2<f32>) -> Vector2<f32> {
-        point.scale(self.zoom) + self.screen_position() + self.view_position
-    }
-
     pub fn point_to_local_space(&self, point: Vector2<f32>) -> Vector2<f32> {
         (point - self.screen_position() - self.view_position).scale(1.0 / self.zoom)
     }
 
-    pub fn view_point_to_local_space(&self, point: Vector2<f32>) -> Vector2<f32> {
-        (point - self.view_position).scale(1.0 / self.zoom)
-    }
-
     pub fn update_transform(&self, ui: &UserInterface) {
         let transform =
-            Matrix3::new_translation(&self.view_position) * Matrix3::new_scaling(self.zoom);
+            Matrix3::new_translation(&-self.view_position) * Matrix3::new_scaling(self.zoom);
 
         ui.send_message(WidgetMessage::layout_transform(
             self.handle(),
@@ -98,7 +90,9 @@ impl Control for AbsmCanvas {
             None,
         );
 
-        let step_size = 50.0 * self.zoom.clamp(0.001, 1000.0);
+        let local_bounds = self.widget.bounding_rect();
+
+        let step_size = 50.0;
 
         let mut local_left_bottom = local_bounds.left_top_corner();
         local_left_bottom.x = round_to_step(local_left_bottom.x, step_size);
@@ -135,7 +129,7 @@ impl Control for AbsmCanvas {
         }
 
         ctx.commit(
-            local_bounds,
+            self.clip_bounds(),
             Brush::Solid(Color::opaque(60, 60, 60)),
             CommandTexture::None,
             None,
@@ -257,7 +251,7 @@ impl AbsmCanvasBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let canvas = AbsmCanvas {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.with_clip_to_bounds(false).build(),
             selection_manager: Default::default(),
             view_position: Default::default(),
             initial_view_position: Default::default(),

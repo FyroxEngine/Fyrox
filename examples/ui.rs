@@ -43,6 +43,8 @@ use fyrox::{
     },
     window::Fullscreen,
 };
+use fyrox_core::algebra::{Matrix3, Rotation2, Rotation3, UnitComplex};
+use fyrox_ui::widget::WidgetMessage;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -56,6 +58,8 @@ struct Interface {
     reset: Handle<UiNode>,
     video_modes: Vec<VideoMode>,
     resolutions: Handle<UiNode>,
+    window: Handle<UiNode>,
+    angle: f32,
 }
 
 // User interface in the engine build up on graph data structure, on tree to be
@@ -92,7 +96,7 @@ fn create_ui(engine: &mut Engine) -> Interface {
     let yaw;
     let scale;
     let reset;
-    WindowBuilder::new(
+    let window = WindowBuilder::new(
         WidgetBuilder::new()
             // We want the window to be anchored at right top corner at the beginning
             .with_desired_position(Vector2::new(window_width - 300.0, 0.0))
@@ -192,6 +196,7 @@ fn create_ui(engine: &mut Engine) -> Interface {
         .add_column(Column::strict(100.0))
         .add_column(Column::stretch())
         .add_row(Row::strict(30.0))
+        .add_row(Row::strict(30.0))
         .add_row(Row::stretch())
         .add_row(Row::strict(30.0))
         .build(ctx),
@@ -266,6 +271,8 @@ fn create_ui(engine: &mut Engine) -> Interface {
         reset,
         resolutions,
         video_modes,
+        angle: 0.0,
+        window,
     }
 }
 
@@ -346,7 +353,7 @@ fn main() {
     .unwrap();
 
     // Create simple user interface that will show some useful info.
-    let interface = create_ui(&mut engine);
+    let mut interface = create_ui(&mut engine);
 
     // Create test scene.
     let GameScene {
@@ -412,6 +419,17 @@ fn main() {
                         MessageDirection::ToWidget,
                         format!("Example 04 - User Interface\nFPS: {}", fps),
                     ));
+
+                    engine
+                        .user_interface
+                        .send_message(WidgetMessage::layout_transform(
+                            interface.yaw,
+                            MessageDirection::ToWidget,
+                            Rotation2::from(UnitComplex::from_angle(interface.angle))
+                                .to_homogeneous(),
+                        ));
+                    interface.angle += 10.0 * dt;
+
                     engine.update(fixed_timestep);
                 }
 
