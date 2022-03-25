@@ -2302,7 +2302,7 @@ mod test {
         widget::{WidgetBuilder, WidgetMessage},
         UserInterface,
     };
-    use fyrox_core::algebra::{Matrix3, Rotation2, UnitComplex};
+    use fyrox_core::algebra::{Rotation2, UnitComplex};
 
     #[test]
     fn test_transform_size() {
