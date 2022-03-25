@@ -75,13 +75,13 @@ impl Control for AbsmCanvas {
     }
 
     fn draw(&self, ctx: &mut DrawingContext) {
-        let visual_transform = self
-            .widget
-            .visual_transform()
-            .try_inverse()
-            .unwrap_or_default();
+        let size = 9999.0;
 
-        let local_bounds = self.widget.bounding_rect().transform(&visual_transform);
+        let local_bounds = self
+            .widget
+            .bounding_rect()
+            .inflate(size, size)
+            .translate(Vector2::new(size * 0.5, size * 0.5));
         DrawingContext::push_rect_filled(ctx, &local_bounds, None);
         ctx.commit(
             self.clip_bounds(),
@@ -89,9 +89,6 @@ impl Control for AbsmCanvas {
             CommandTexture::None,
             None,
         );
-
-        let local_bounds = self.widget.bounding_rect();
-
         let step_size = 50.0;
 
         let mut local_left_bottom = local_bounds.left_top_corner();
@@ -114,7 +111,7 @@ impl Control for AbsmCanvas {
             ctx.push_line(
                 Vector2::new(local_left_bottom.x - step_size, y),
                 Vector2::new(local_right_top.x + step_size, y),
-                1.0,
+                1.0 / self.zoom,
             );
         }
 
@@ -124,7 +121,7 @@ impl Control for AbsmCanvas {
             ctx.push_line(
                 Vector2::new(x, local_left_bottom.y + step_size),
                 Vector2::new(x, local_right_top.y - step_size),
-                1.0,
+                1.0 / self.zoom,
             );
         }
 
@@ -229,7 +226,7 @@ impl Control for AbsmCanvas {
         } else if let Some(WidgetMessage::MouseWheel { amount, pos }) = message.data() {
             let cursor_pos = (*pos - self.screen_position()).scale(self.zoom);
 
-            self.zoom += 0.1 * amount;
+            self.zoom = (self.zoom + 0.1 * amount).clamp(0.2, 2.0);
 
             let new_cursor_pos = (*pos - self.screen_position()).scale(self.zoom);
 
