@@ -361,7 +361,7 @@ impl Control for Grid {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         if self.draw_border {
-            let bounds = self.widget.screen_bounds();
+            let bounds = self.widget.bounding_rect();
 
             let left_top = Vector2::new(bounds.x(), bounds.y());
             let right_top = Vector2::new(bounds.x() + bounds.w(), bounds.y());

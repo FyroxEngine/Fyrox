@@ -249,7 +249,7 @@ impl Control for ScrollBar {
                 match msg {
                     WidgetMessage::MouseDown { pos, .. } => {
                         if self.indicator.is_some() {
-                            let indicator_pos = ui.nodes.borrow(self.indicator).screen_position;
+                            let indicator_pos = ui.nodes.borrow(self.indicator).screen_position();
                             self.is_dragging = true;
                             self.offset = indicator_pos - *pos;
                             ui.capture_mouse(self.indicator);
@@ -270,8 +270,8 @@ impl Control for ScrollBar {
                                 let percent = match self.orientation {
                                     Orientation::Horizontal => {
                                         let span = canvas.actual_size().x - indicator_size.x;
-                                        let offset =
-                                            mouse_pos.x - canvas.screen_position.x + self.offset.x;
+                                        let offset = mouse_pos.x - canvas.screen_position().x
+                                            + self.offset.x;
                                         if span > 0.0 {
                                             math::clampf(offset / span, 0.0, 1.0)
                                         } else {
@@ -280,8 +280,8 @@ impl Control for ScrollBar {
                                     }
                                     Orientation::Vertical => {
                                         let span = canvas.actual_size().y - indicator_size.y;
-                                        let offset =
-                                            mouse_pos.y - canvas.screen_position.y + self.offset.y;
+                                        let offset = mouse_pos.y - canvas.screen_position().y
+                                            + self.offset.y;
                                         if span > 0.0 {
                                             math::clampf(offset / span, 0.0, 1.0)
                                         } else {

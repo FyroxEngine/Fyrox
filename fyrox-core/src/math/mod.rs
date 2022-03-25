@@ -114,12 +114,13 @@ where
         let mut clipped = *self;
 
         if clipped.position.x < other.position.x {
-            clipped.position.x = other.position.x;
             clipped.size.x -= other.position.x - clipped.position.x;
+            clipped.position.x = other.position.x;
         }
+
         if clipped.position.y < other.position.y {
-            clipped.position.y = other.position.y;
             clipped.size.y -= other.position.y - clipped.position.y;
+            clipped.position.y = other.position.y;
         }
 
         let clipped_right_bottom = clipped.right_bottom_corner();
@@ -238,6 +239,37 @@ where
     #[inline(always)]
     pub fn y(&self) -> T {
         self.position.y
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn transform(&self, matrix: &Matrix3<T>) -> Self {
+        let min = self.position;
+        let max = self.right_bottom_corner();
+
+        let translation = Vector2::new(matrix[6], matrix[7]);
+
+        let mut transformed_min = translation;
+        let mut transformed_max = translation;
+
+        for i in 0..2 {
+            for j in 0..2 {
+                let a = matrix[(i, j)] * min[j];
+                let b = matrix[(i, j)] * max[j];
+                if a < b {
+                    transformed_min[i] += a;
+                    transformed_max[i] += b;
+                } else {
+                    transformed_min[i] += b;
+                    transformed_max[i] += a;
+                }
+            }
+        }
+
+        Self {
+            position: transformed_min,
+            size: transformed_max - transformed_min,
+        }
     }
 }
 

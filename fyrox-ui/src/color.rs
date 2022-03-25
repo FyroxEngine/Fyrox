@@ -109,7 +109,7 @@ crate::define_widget_deref!(AlphaBar);
 
 impl AlphaBar {
     fn alpha_at(&self, mouse_pos: Vector2<f32>) -> f32 {
-        let relative_pos = mouse_pos - self.screen_position;
+        let relative_pos = mouse_pos - self.screen_position();
         let k = match self.orientation {
             Orientation::Vertical => relative_pos.y / self.actual_size().y,
             Orientation::Horizontal => relative_pos.x / self.actual_size().x,
@@ -203,7 +203,7 @@ impl Control for AlphaBar {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.screen_bounds();
+        let bounds = self.bounding_rect();
 
         // Draw checker board first.
         let h_amount = (bounds.w() / CHECKERBOARD_SIZE).ceil() as usize;
@@ -364,7 +364,7 @@ crate::define_widget_deref!(HueBar);
 
 impl HueBar {
     fn hue_at(&self, mouse_pos: Vector2<f32>) -> f32 {
-        let relative_pos = mouse_pos - self.screen_position;
+        let relative_pos = mouse_pos - self.screen_position();
         let k = match self.orientation {
             Orientation::Vertical => relative_pos.y / self.actual_size().y,
             Orientation::Horizontal => relative_pos.x / self.actual_size().x,
@@ -383,7 +383,7 @@ impl Control for HueBar {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.screen_bounds();
+        let bounds = self.bounding_rect();
         for hue in 1..360 {
             let prev_color = Color::from(Hsv::new((hue - 1) as f32, 100.0, 100.0));
             let curr_color = Color::from(Hsv::new(hue as f32, 100.0, 100.0));
@@ -522,7 +522,7 @@ crate::define_widget_deref!(SaturationBrightnessField);
 
 impl SaturationBrightnessField {
     fn saturation_at(&self, mouse_pos: Vector2<f32>) -> f32 {
-        ((mouse_pos.x - self.screen_position.x) / self.screen_bounds().w())
+        ((mouse_pos.x - self.screen_position().x) / self.screen_bounds().w())
             .min(1.0)
             .max(0.0)
             * 100.0
@@ -530,7 +530,7 @@ impl SaturationBrightnessField {
 
     fn brightness_at(&self, mouse_pos: Vector2<f32>) -> f32 {
         100.0
-            - ((mouse_pos.y - self.screen_position.y) / self.screen_bounds().h())
+            - ((mouse_pos.y - self.screen_position().y) / self.screen_bounds().h())
                 .min(1.0)
                 .max(0.0)
                 * 100.0
@@ -558,7 +558,7 @@ impl Control for SaturationBrightnessField {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.screen_bounds();
+        let bounds = self.bounding_rect();
 
         drawing_context.push_rect_multicolor(
             &bounds,
@@ -1185,7 +1185,7 @@ impl Control for ColorField {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.screen_bounds();
+        let bounds = self.bounding_rect();
 
         drawing_context.push_rect_filled(&bounds, None);
         drawing_context.commit(

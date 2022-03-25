@@ -115,7 +115,7 @@ impl Control for ScrollPanel {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Emit transparent geometry so panel will receive mouse events.
-        drawing_context.push_rect_filled(&self.widget.screen_bounds(), None);
+        drawing_context.push_rect_filled(&self.widget.bounding_rect(), None);
         drawing_context.commit(
             self.clip_bounds(),
             Brush::Solid(Color::TRANSPARENT),

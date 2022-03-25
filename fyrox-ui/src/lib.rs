@@ -74,6 +74,7 @@ use crate::{
 };
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_core::algebra::Matrix3;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
@@ -534,11 +535,11 @@ fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode>) -> bool {
     // of parents chain. This is needed because some control can move their children outside of
     // their bounds (like scroll viewer, etc.) and single intersection test of parent bounds with
     // current bounds is not enough.
-    let bounds = node.screen_bounds();
+    let bounds = node.clip_bounds();
     let mut parent = node.parent();
     while parent.is_some() {
         let parent_node = nodes.borrow(parent);
-        if !parent_node.screen_bounds().intersects(bounds) {
+        if !parent_node.clip_bounds().intersects(bounds) {
             return false;
         }
         parent = parent_node.parent();
@@ -574,6 +575,8 @@ fn draw_node(
         false
     };
 
+    drawing_context.transform_stack.push(node.visual_transform);
+
     node.draw(drawing_context);
 
     let end_index = drawing_context.get_commands().len();
@@ -588,6 +591,8 @@ fn draw_node(
             draw_node(nodes, child_node, drawing_context);
         }
     }
+
+    drawing_context.transform_stack.pop();
 
     if pushed {
         drawing_context.pop_opacity();
@@ -716,7 +721,7 @@ impl UserInterface {
         }
     }
 
-    fn update_transform(&mut self) {
+    fn update_visual_transform(&mut self) {
         scope_profile!();
 
         self.stack.clear();
@@ -731,13 +736,18 @@ impl UserInterface {
             if widget.is_globally_visible() {
                 self.stack.extend_from_slice(widget.children());
 
-                let screen_position = if let Some(parent) = parent {
-                    widget.actual_local_position() + parent.screen_position()
+                let mut layout_transform = widget.layout_transform;
+
+                layout_transform[6] = widget.actual_local_position().x;
+                layout_transform[7] = widget.actual_local_position().y;
+
+                let visual_transform = if let Some(parent) = parent {
+                    parent.visual_transform * widget.render_transform * layout_transform
                 } else {
-                    widget.actual_local_position()
+                    widget.render_transform * layout_transform
                 };
 
-                widget.screen_position = screen_position;
+                widget.visual_transform = visual_transform;
             }
         }
     }
@@ -794,7 +804,7 @@ impl UserInterface {
         );
 
         if self.need_update_global_transform {
-            self.update_transform();
+            self.update_visual_transform();
             self.need_update_global_transform = false;
         }
 
@@ -934,12 +944,20 @@ impl UserInterface {
                 size.y = node.height();
             }
 
+            size = transform_size(size, &node.layout_transform);
+
             size = node.arrange_override(self, size);
 
             size.x = size.x.min(final_rect.w());
             size.y = size.y.min(final_rect.h());
 
-            let mut origin = final_rect.position + node.margin().offset();
+            let transformed_rect =
+                Rect::new(0.0, 0.0, size.x, size.y).transform(&node.layout_transform);
+
+            size = transformed_rect.size;
+
+            let mut origin =
+                final_rect.position - transformed_rect.position + node.margin().offset();
 
             match node.horizontal_alignment() {
                 HorizontalAlignment::Center | HorizontalAlignment::Stretch => {
@@ -993,10 +1011,16 @@ impl UserInterface {
                 },
             );
 
+            size = transform_size(size, &node.layout_transform);
+
             size.x = clampf(size.x, node.min_size().x, node.max_size().x);
             size.y = clampf(size.y, node.min_size().y, node.max_size().y);
 
             let mut desired_size = node.measure_override(self, size);
+
+            desired_size = Rect::new(0.0, 0.0, desired_size.x, desired_size.y)
+                .transform(&node.layout_transform)
+                .size;
 
             if !node.width().is_nan() {
                 desired_size.x = node.width();
@@ -1029,7 +1053,7 @@ impl UserInterface {
         let widget = self.nodes.borrow(node_handle);
 
         if widget.is_globally_visible() {
-            clipped = !widget.screen_bounds().contains(pt);
+            clipped = !widget.clip_bounds().contains(pt);
 
             if !clipped {
                 for command_index in widget.command_indices.borrow().iter() {
@@ -1087,7 +1111,7 @@ impl UserInterface {
 
         if !widget.is_hit_test_visible()
             || !widget.enabled()
-            || !widget.screen_bounds().intersects(Rect {
+            || !widget.clip_bounds().intersects(Rect {
                 position: Default::default(),
                 size: self.screen_size,
             })
@@ -1213,8 +1237,15 @@ impl UserInterface {
     /// Recursively calculates clipping bounds for every node.
     fn calculate_clip_bounds(&self, node: Handle<UiNode>, parent_bounds: Rect<f32>) {
         let node = &self.nodes[node];
-        node.clip_bounds
-            .set(node.screen_bounds().clip_by(parent_bounds));
+
+        let screen_bounds = if node.clip_to_bounds {
+            node.screen_bounds()
+        } else {
+            Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y)
+        };
+
+        node.clip_bounds.set(screen_bounds.clip_by(parent_bounds));
+
         for &child in node.children() {
             self.calculate_clip_bounds(child, node.clip_bounds.get());
         }
@@ -1415,7 +1446,7 @@ impl UserInterface {
                                 self.unlink_node(message.destination());
 
                                 let node = &self.nodes[message.destination()];
-                                let new_position = node.screen_position;
+                                let new_position = node.screen_position();
                                 self.send_message(WidgetMessage::desired_position(
                                     message.destination(),
                                     MessageDirection::ToWidget,
@@ -2075,15 +2106,212 @@ impl UserInterface {
     }
 }
 
+fn is_approx_zero(v: f32) -> bool {
+    v.abs() <= 10.0 * f32::EPSILON
+}
+
+fn are_close(value1: f32, value2: f32) -> bool {
+    //in case they are Infinities (then epsilon check does not work)
+    if value1 == value2 {
+        return true;
+    }
+    // This computes (|value1-value2| / (|value1| + |value2| + 10.0)) < DBL_EPSILON
+    let eps = (value1.abs() + value2.abs() + 10.0) * f32::EPSILON;
+    let delta = value1 - value2;
+    (-eps < delta) && (eps > delta)
+}
+
+fn greater_than_or_close(value1: f32, value2: f32) -> bool {
+    (value1 > value2) || are_close(value1, value2)
+}
+
+fn less_than_or_close(value1: f32, value2: f32) -> bool {
+    (value1 < value2) || are_close(value1, value2)
+}
+
+/// Calculates a new size for the rect after transforming it with the given matrix. Basically it
+/// finds a new rectangle that can contain the rotated rectangle.
+///
+/// # Origin
+///
+/// Original code was taken from WPF source code (FindMaximalAreaLocalSpaceRect) and ported to Rust.
+/// It handles a lot of edge cases that could occur due to the fact that the UI uses a lot of
+/// special floating-point constants like Infinity or NaN. If there would be no such values, simple
+/// `rect.transform(&matrix).size` could be used.
+fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -> Vector2<f32> {
+    // X (width) and Y (height) constraints for axis-aligned bounding box in dest. space
+    let mut x_constr: f32 = transform_space_bounds.x;
+    let mut y_constr: f32 = transform_space_bounds.y;
+
+    //if either of the sizes is 0, return 0,0 to avoid doing math on an empty rect (bug 963569)
+    if is_approx_zero(x_constr) || is_approx_zero(y_constr) {
+        return Vector2::new(0.0, 0.0);
+    }
+
+    let x_constr_infinite = x_constr.is_infinite();
+    let y_constr_infinite = y_constr.is_infinite();
+
+    if x_constr_infinite && y_constr_infinite {
+        return Vector2::new(f32::INFINITY, f32::INFINITY);
+    } else if x_constr_infinite
+    //assume square for one-dimensional constraint
+    {
+        x_constr = y_constr;
+    } else if y_constr_infinite {
+        y_constr = x_constr;
+    }
+
+    // We only deal with nonsingular matrices here. The nonsingular matrix is the one
+    // that has inverse (determinant != 0).
+    if !matrix.is_invertible() {
+        return Vector2::new(0.0, 0.0);
+    }
+
+    let a = matrix[(0, 0)];
+    let b = matrix[(0, 1)];
+    let c = matrix[(1, 0)];
+    let d = matrix[(1, 1)];
+
+    // Result width and height (in child/local space)
+    let mut w;
+    let mut h;
+
+    // because we are dealing with nonsingular transform matrices,
+    // we have (b==0 || c==0) XOR (a==0 || d==0)
+
+    if is_approx_zero(b) || is_approx_zero(c) {
+        // (b==0 || c==0) ==> a!=0 && d!=0
+
+        let y_cover_d = if y_constr_infinite {
+            f32::INFINITY
+        } else {
+            (y_constr / d).abs()
+        };
+        let x_cover_a = if x_constr_infinite {
+            f32::INFINITY
+        } else {
+            (x_constr / a).abs()
+        };
+
+        if is_approx_zero(b) {
+            if is_approx_zero(c) {
+                // Case: b=0, c=0, a!=0, d!=0
+
+                // No constraint relation; use maximal width and height
+
+                h = y_cover_d;
+                w = x_cover_a;
+            } else {
+                // Case: b==0, a!=0, c!=0, d!=0
+
+                // Maximizing under line (hIntercept=xConstr/c, wIntercept=xConstr/a)
+                // BUT we still have constraint: h <= yConstr/d
+
+                h = (0.5 * (x_constr / c).abs()).min(y_cover_d);
+                w = x_cover_a - ((c * h) / a);
+            }
+        } else {
+            // Case: c==0, a!=0, b!=0, d!=0
+
+            // Maximizing under line (hIntercept=yConstr/d, wIntercept=yConstr/b)
+            // BUT we still have constraint: w <= xConstr/a
+
+            w = (0.5 * (y_constr / b).abs()).min(x_cover_a);
+            h = y_cover_d - ((b * w) / d);
+        }
+    } else if is_approx_zero(a) || is_approx_zero(d) {
+        // (a==0 || d==0) ==> b!=0 && c!=0
+
+        let y_cover_b = (y_constr / b).abs();
+        let x_cover_c = (x_constr / c).abs();
+
+        if is_approx_zero(a) {
+            if is_approx_zero(d) {
+                // Case: a=0, d=0, b!=0, c!=0
+
+                // No constraint relation; use maximal width and height
+
+                h = x_cover_c;
+                w = y_cover_b;
+            } else {
+                // Case: a==0, b!=0, c!=0, d!=0
+
+                // Maximizing under line (hIntercept=yConstr/d, wIntercept=yConstr/b)
+                // BUT we still have constraint: h <= xConstr/c
+
+                h = (0.5 * (y_constr / d).abs()).min(x_cover_c);
+                w = y_cover_b - ((d * h) / b);
+            }
+        } else {
+            // Case: d==0, a!=0, b!=0, c!=0
+
+            // Maximizing under line (hIntercept=xConstr/c, wIntercept=xConstr/a)
+            // BUT we still have constraint: w <= yConstr/b
+
+            w = (0.5 * (x_constr / a).abs()).min(y_cover_b);
+            h = x_cover_c - ((a * w) / c);
+        }
+    } else {
+        let x_cover_a = (x_constr / a).abs(); // w-intercept of x-constraint line.
+        let x_cover_c = (x_constr / c).abs(); // h-intercept of x-constraint line.
+
+        let y_cover_b = (y_constr / b).abs(); // w-intercept of y-constraint line.
+        let y_cover_d = (y_constr / d).abs(); // h-intercept of y-constraint line.
+
+        // The tighest constraint governs, so we pick the lowest constraint line.
+        //
+        //   The optimal point (w,h) for which Area = w*h is maximized occurs halfway
+        //   to each intercept.
+
+        w = y_cover_b.min(x_cover_a) * 0.5;
+        h = x_cover_c.min(y_cover_d) * 0.5;
+
+        if (greater_than_or_close(x_cover_a, y_cover_b) && less_than_or_close(x_cover_c, y_cover_d))
+            || (less_than_or_close(x_cover_a, y_cover_b)
+                && greater_than_or_close(x_cover_c, y_cover_d))
+        {
+            // Constraint lines cross; since the most restrictive constraint wins,
+            // we have to maximize under two line segments, which together are discontinuous.
+            // Instead, we maximize w*h under the line segment from the two smallest endpoints.
+
+            // Since we are not (except for in corner cases) on the original constraint lines,
+            // we are not using up all the available area in transform space.  So scale our shape up
+            // until it does in at least one dimension.
+
+            let child_bounds_tr = Rect::new(0.0, 0.0, w, h).transform(matrix);
+            let expand_factor =
+                (x_constr / child_bounds_tr.size.x).min(y_constr / child_bounds_tr.size.y);
+
+            if !expand_factor.is_nan() && !expand_factor.is_infinite() {
+                w *= expand_factor;
+                h *= expand_factor;
+            }
+        }
+    }
+
+    Vector2::new(w, h)
+}
+
 #[cfg(test)]
 mod test {
     use crate::{
         border::BorderBuilder,
         core::algebra::Vector2,
         message::MessageDirection,
+        transform_size,
         widget::{WidgetBuilder, WidgetMessage},
         UserInterface,
     };
+    use fyrox_core::algebra::{Rotation2, UnitComplex};
+
+    #[test]
+    fn test_transform_size() {
+        let input = Vector2::new(100.0, 100.0);
+        let transform =
+            Rotation2::from(UnitComplex::from_angle(45.0f32.to_radians())).to_homogeneous();
+        let transformed = transform_size(input, &transform);
+        dbg!(input, transformed);
+    }
 
     #[test]
     fn center() {

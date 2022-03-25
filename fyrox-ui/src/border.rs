@@ -70,7 +70,7 @@ impl Control for Border {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.widget.screen_bounds();
+        let bounds = self.widget.bounding_rect();
         DrawingContext::push_rect_filled(drawing_context, &bounds, None);
         drawing_context.commit(
             self.clip_bounds(),

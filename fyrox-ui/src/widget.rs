@@ -6,6 +6,7 @@ use crate::{
     HorizontalAlignment, LayoutEvent, MouseButton, MouseState, Thickness, UiNode, UserInterface,
     VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
+use fyrox_core::algebra::Matrix3;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -260,6 +261,9 @@ pub enum WidgetMessage {
     ///
     /// Direction: **From/To UI**
     Opacity(Option<f32>),
+
+    LayoutTransform(Matrix3<f32>),
+    RenderTransform(Matrix3<f32>),
 }
 
 impl WidgetMessage {
@@ -288,6 +292,8 @@ impl WidgetMessage {
     define_constructor!(WidgetMessage:HorizontalAlignment => fn horizontal_alignment(HorizontalAlignment), layout: false);
     define_constructor!(WidgetMessage:VerticalAlignment => fn vertical_alignment(VerticalAlignment), layout: false);
     define_constructor!(WidgetMessage:Opacity => fn opacity(Option<f32>), layout: false);
+    define_constructor!(WidgetMessage:LayoutTransform => fn layout_transform(Matrix3<f32>), layout: false);
+    define_constructor!(WidgetMessage:RenderTransform => fn render_transform(Matrix3<f32>), layout: false);
 
     // Internal messages. Do not use.
     define_constructor!(WidgetMessage:GotFocus => fn got_focus(), layout: false);
@@ -316,8 +322,6 @@ pub struct Widget {
     width: f32,
     /// Explicit height for node or automatic if NaN (means value is undefined). Default is NaN
     height: f32,
-    /// Screen position of the node
-    pub(in crate) screen_position: Vector2<f32>,
     /// Minimum width and height
     min_size: Vector2<f32>,
     /// Maximum width and height
@@ -354,6 +358,10 @@ pub struct Widget {
     tooltip: Handle<UiNode>,
     tooltip_time: f32,
     context_menu: Handle<UiNode>,
+    pub(in crate) clip_to_bounds: bool,
+    pub(in crate) layout_transform: Matrix3<f32>,
+    pub(in crate) render_transform: Matrix3<f32>,
+    pub(in crate) visual_transform: Matrix3<f32>,
     pub(in crate) preview_messages: bool,
     pub(in crate) handle_os_events: bool,
     pub(in crate) layout_events_sender: Option<Sender<LayoutEvent>>,
@@ -366,10 +374,10 @@ pub struct Widget {
     pub(in crate) prev_arrange: Cell<Rect<f32>>,
     /// Desired size of the node after Measure pass.
     pub(in crate) desired_size: Cell<Vector2<f32>>,
-    /// Actual node local position after Arrange pass.
+    /// Actual local position of the widget after Arrange pass.
     pub(in crate) actual_local_position: Cell<Vector2<f32>>,
-    /// Actual size of the node after Arrange pass.
-    pub(in crate) actual_size: Cell<Vector2<f32>>,
+    /// Actual local size of the widget after Arrange pass.
+    pub(in crate) actual_local_size: Cell<Vector2<f32>>,
     pub(in crate) prev_global_visibility: bool,
     pub(in crate) clip_bounds: Cell<Rect<f32>>,
 }
@@ -393,7 +401,7 @@ impl Widget {
 
     #[inline]
     pub fn actual_size(&self) -> Vector2<f32> {
-        self.actual_size.get()
+        self.actual_local_size.get()
     }
 
     #[inline]
@@ -556,7 +564,7 @@ impl Widget {
 
     #[inline]
     pub fn screen_position(&self) -> Vector2<f32> {
-        self.screen_position
+        Vector2::new(self.visual_transform[6], self.visual_transform[7])
     }
 
     #[inline]
@@ -626,12 +634,32 @@ impl Widget {
 
     #[inline]
     pub fn screen_bounds(&self) -> Rect<f32> {
+        self.bounding_rect().transform(&self.visual_transform)
+    }
+
+    #[inline]
+    pub fn bounding_rect(&self) -> Rect<f32> {
         Rect::new(
-            self.screen_position.x,
-            self.screen_position.y,
-            self.actual_size.get().x,
-            self.actual_size.get().y,
+            0.0,
+            0.0,
+            self.actual_local_size.get().x,
+            self.actual_local_size.get().y,
         )
+    }
+
+    #[inline]
+    pub fn visual_transform(&self) -> &Matrix3<f32> {
+        &self.visual_transform
+    }
+
+    #[inline]
+    pub fn render_transform(&self) -> &Matrix3<f32> {
+        &self.render_transform
+    }
+
+    #[inline]
+    pub fn layout_transform(&self) -> &Matrix3<f32> {
+        &self.layout_transform
     }
 
     pub fn has_descendant(&self, node_handle: Handle<UiNode>, ui: &UserInterface) -> bool {
@@ -749,6 +777,15 @@ impl Widget {
                     &WidgetMessage::Cursor(icon) => {
                         self.cursor = icon;
                     }
+                    WidgetMessage::LayoutTransform(transform) => {
+                        if &self.layout_transform != transform {
+                            self.layout_transform = *transform;
+                            self.invalidate_layout();
+                        }
+                    }
+                    WidgetMessage::RenderTransform(transform) => {
+                        self.render_transform = *transform;
+                    }
                     _ => (),
                 }
             }
@@ -828,7 +865,7 @@ impl Widget {
 
     #[inline]
     pub(in crate) fn commit_arrange(&self, position: Vector2<f32>, size: Vector2<f32>) {
-        self.actual_size.set(size);
+        self.actual_local_size.set(size);
         self.actual_local_position.set(position);
         self.arrange_valid.set(true);
     }
@@ -1014,6 +1051,9 @@ pub struct WidgetBuilder {
     pub context_menu: Handle<UiNode>,
     pub preview_messages: bool,
     pub handle_os_events: bool,
+    pub layout_transform: Matrix3<f32>,
+    pub render_transform: Matrix3<f32>,
+    pub clip_to_bounds: bool,
 }
 
 impl Default for WidgetBuilder {
@@ -1054,6 +1094,9 @@ impl WidgetBuilder {
             context_menu: Handle::default(),
             preview_messages: false,
             handle_os_events: false,
+            layout_transform: Matrix3::identity(),
+            render_transform: Matrix3::identity(),
+            clip_to_bounds: true,
         }
     }
 
@@ -1074,6 +1117,11 @@ impl WidgetBuilder {
 
     pub fn with_height(mut self, height: f32) -> Self {
         self.height = height;
+        self
+    }
+
+    pub fn with_clip_to_bounds(mut self, clip_to_bounds: bool) -> Self {
+        self.clip_to_bounds = clip_to_bounds;
         self
     }
 
@@ -1129,6 +1177,16 @@ impl WidgetBuilder {
 
     pub fn with_desired_position(mut self, desired_position: Vector2<f32>) -> Self {
         self.desired_position = desired_position;
+        self
+    }
+
+    pub fn with_layout_transform(mut self, layout_transform: Matrix3<f32>) -> Self {
+        self.layout_transform = layout_transform;
+        self
+    }
+
+    pub fn with_render_transform(mut self, render_transform: Matrix3<f32>) -> Self {
+        self.render_transform = render_transform;
         self
     }
 
@@ -1231,10 +1289,9 @@ impl WidgetBuilder {
             desired_local_position: self.desired_position,
             width: self.width,
             height: self.height,
-            screen_position: Vector2::default(),
             desired_size: Cell::new(Vector2::default()),
             actual_local_position: Cell::new(Vector2::default()),
-            actual_size: Cell::new(Vector2::default()),
+            actual_local_size: Cell::new(Vector2::default()),
             min_size: self.min_size.unwrap_or_default(),
             max_size: self
                 .max_size
@@ -1273,6 +1330,10 @@ impl WidgetBuilder {
             preview_messages: self.preview_messages,
             handle_os_events: self.handle_os_events,
             layout_events_sender: None,
+            layout_transform: self.layout_transform,
+            render_transform: self.render_transform,
+            visual_transform: Matrix3::identity(),
+            clip_to_bounds: self.clip_to_bounds,
         }
     }
 }

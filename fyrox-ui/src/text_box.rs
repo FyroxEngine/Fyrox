@@ -334,7 +334,7 @@ impl TextBox {
     }
 
     pub fn screen_pos_to_text_pos(&self, screen_pos: Vector2<f32>) -> Option<Position> {
-        let caret_pos = self.widget.screen_position;
+        let caret_pos = self.widget.screen_position();
         let font = self.formatted_text.borrow().get_font();
         let font = font.0.lock();
         for (line_index, line) in self.formatted_text.borrow().get_lines().iter().enumerate() {
@@ -437,7 +437,7 @@ impl Control for TextBox {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.widget.screen_bounds();
+        let bounds = self.widget.bounding_rect();
         drawing_context.push_rect_filled(&bounds, None);
         drawing_context.commit(
             self.clip_bounds(),
@@ -520,14 +520,18 @@ impl Control for TextBox {
             None,
         );
 
-        let screen_position = bounds.position;
-        drawing_context.draw_text(bounds, screen_position, &self.formatted_text.borrow());
+        let local_position = bounds.position;
+        drawing_context.draw_text(
+            self.clip_bounds(),
+            local_position,
+            &self.formatted_text.borrow(),
+        );
 
         if self.caret_visible {
             let text = self.formatted_text.borrow();
 
             let font = text.get_font();
-            let mut caret_pos = screen_position;
+            let mut caret_pos = local_position;
 
             let font = font.0.lock();
             if let Some(line) = text.get_lines().get(self.caret_position.line) {

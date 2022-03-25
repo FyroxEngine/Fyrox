@@ -9,6 +9,7 @@ use crate::{
     ttf::SharedFont,
     Thickness,
 };
+use fyrox_core::algebra::{Matrix3, Point2};
 use std::{any::Any, ops::Range, sync::Arc};
 
 #[derive(Clone)]
@@ -62,16 +63,18 @@ pub enum CommandTexture {
 pub struct ClippingGeometry {
     pub vertex_buffer: Vec<Vertex>,
     pub triangle_buffer: Vec<TriangleDefinition>,
+    pub transform_stack: TransformStack,
 }
 
 impl Draw for ClippingGeometry {
     #[inline(always)]
-    fn push_vertex(&mut self, pos: Vector2<f32>, tex_coord: Vector2<f32>) {
-        self.vertex_buffer.push(Vertex::new(pos, tex_coord));
-    }
+    fn push_vertex_raw(&mut self, mut vertex: Vertex) {
+        vertex.pos = self
+            .transform_stack
+            .transform
+            .transform_point(&Point2::from(vertex.pos))
+            .coords;
 
-    #[inline(always)]
-    fn push_vertex_raw(&mut self, vertex: Vertex) {
         self.vertex_buffer.push(vertex);
     }
 
@@ -126,7 +129,9 @@ pub struct Command {
 }
 
 pub trait Draw {
-    fn push_vertex(&mut self, pos: Vector2<f32>, tex_coord: Vector2<f32>);
+    fn push_vertex(&mut self, pos: Vector2<f32>, tex_coord: Vector2<f32>) {
+        self.push_vertex_raw(Vertex::new(pos, tex_coord))
+    }
 
     fn push_vertex_raw(&mut self, vertex: Vertex);
 
@@ -310,10 +315,39 @@ pub trait Draw {
     }
 }
 
+#[derive(Clone)]
+pub struct TransformStack {
+    transform: Matrix3<f32>,
+    stack: Vec<Matrix3<f32>>,
+}
+
+impl Default for TransformStack {
+    fn default() -> Self {
+        Self {
+            transform: Matrix3::identity(),
+            stack: vec![],
+        }
+    }
+}
+
+impl TransformStack {
+    pub fn push(&mut self, matrix: Matrix3<f32>) {
+        self.transform = matrix;
+        self.stack.push(matrix);
+    }
+
+    pub fn pop(&mut self) {
+        if let Some(top) = self.stack.pop() {
+            self.transform = top;
+        }
+    }
+}
+
 pub struct DrawingContext {
     vertex_buffer: Vec<Vertex>,
     triangle_buffer: Vec<TriangleDefinition>,
     command_buffer: Vec<Command>,
+    pub transform_stack: TransformStack,
     opacity_stack: Vec<f32>,
     triangles_to_commit: usize,
 }
@@ -334,12 +368,13 @@ impl Default for DrawingContext {
 
 impl Draw for DrawingContext {
     #[inline(always)]
-    fn push_vertex(&mut self, pos: Vector2<f32>, tex_coord: Vector2<f32>) {
-        self.vertex_buffer.push(Vertex::new(pos, tex_coord));
-    }
+    fn push_vertex_raw(&mut self, mut vertex: Vertex) {
+        vertex.pos = self
+            .transform_stack
+            .transform
+            .transform_point(&Point2::from(vertex.pos))
+            .coords;
 
-    #[inline(always)]
-    fn push_vertex_raw(&mut self, vertex: Vertex) {
         self.vertex_buffer.push(vertex);
     }
 
@@ -363,6 +398,7 @@ impl DrawingContext {
             command_buffer: Vec::new(),
             triangles_to_commit: 0,
             opacity_stack: vec![1.0],
+            transform_stack: Default::default(),
         }
     }
 
