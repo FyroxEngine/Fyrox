@@ -1,8 +1,10 @@
-use crate::absm::node::{AbsmStateNode, AbsmStateNodeMessage};
-use fyrox::core::algebra::Matrix3;
+use crate::absm::{
+    node::{AbsmStateNode, AbsmStateNodeMessage},
+    transition::{Transition, TransitionMessage},
+};
 use fyrox::{
     core::{
-        algebra::Vector2,
+        algebra::{Matrix3, Point2, Vector2},
         color::Color,
         math::{round_to_step, Rect},
         pool::Handle,
@@ -50,7 +52,11 @@ define_widget_deref!(AbsmCanvas);
 
 impl AbsmCanvas {
     pub fn point_to_local_space(&self, point: Vector2<f32>) -> Vector2<f32> {
-        (point - self.screen_position() - self.view_position).scale(1.0 / self.zoom)
+        self.visual_transform()
+            .try_inverse()
+            .unwrap_or_default()
+            .transform_point(&Point2::from(point))
+            .coords
     }
 
     pub fn update_transform(&self, ui: &UserInterface) {
@@ -221,6 +227,28 @@ impl Control for AbsmCanvas {
                         MessageDirection::ToWidget,
                         new_position,
                     ));
+
+                    let center = new_position + ui.node(entry.node).actual_size().scale(0.5);
+
+                    for child in self.children() {
+                        if let Some(transition) = ui.node(*child).cast::<Transition>() {
+                            if transition.source == entry.node {
+                                ui.send_message(TransitionMessage::source_position(
+                                    *child,
+                                    MessageDirection::ToWidget,
+                                    center,
+                                ));
+                            }
+
+                            if transition.dest == entry.node {
+                                ui.send_message(TransitionMessage::dest_position(
+                                    *child,
+                                    MessageDirection::ToWidget,
+                                    center,
+                                ));
+                            }
+                        }
+                    }
                 }
             }
         } else if let Some(WidgetMessage::MouseWheel { amount, pos }) = message.data() {

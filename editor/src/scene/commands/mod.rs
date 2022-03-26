@@ -391,16 +391,16 @@ macro_rules! define_swap_command {
         $(#[$meta])*
         #[derive(Debug)]
         pub struct $type {
-            handle: $crate::fyrox::core::pool::Handle<Node>,
+            handle: fyrox::core::pool::Handle<Node>,
             value: $value_type,
         }
 
         impl $type {
-            pub fn new(handle: $crate::fyrox::core::pool::Handle<Node>, value: $value_type) -> Self {
+            pub fn new(handle: fyrox::core::pool::Handle<Node>, value: $value_type) -> Self {
                 Self { handle, value }
             }
 
-            fn swap(&mut self, graph: &mut $crate::fyrox::scene::graph::Graph) {
+            fn swap(&mut self, graph: &mut fyrox::scene::graph::Graph) {
                 #[allow(clippy::redundant_closure_call)]
                 ($swap)(self, graph)
             }
@@ -429,7 +429,7 @@ macro_rules! define_swap_command {
             $crate::define_swap_command! {
                 $(#[$meta:meta])*
                 $type($value_type):
-                $name, |me: &mut $type, graph: &mut $crate::fyrox::scene::graph::Graph| {
+                $name, |me: &mut $type, graph: &mut fyrox::scene::graph::Graph| {
                     let mut node = &mut graph[me.handle];
                     let host = ($cast_node)(&mut node);
                     let old = host.$get();

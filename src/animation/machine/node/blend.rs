@@ -1,8 +1,8 @@
 use crate::{
     animation::{
         machine::{
-            node::PoseNodeDefinition, EvaluatePose, Parameter, ParameterContainer, PoseNode,
-            PoseWeight,
+            node::{BasePoseNodeDefinition, PoseNodeDefinition},
+            EvaluatePose, Parameter, ParameterContainer, PoseNode, PoseWeight,
         },
         AnimationContainer, AnimationPose,
     },
@@ -11,7 +11,10 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
 };
-use std::cell::{Cell, Ref, RefCell};
+use std::{
+    cell::{Cell, Ref, RefCell},
+    ops::{Deref, DerefMut},
+};
 
 /// Weighted proxy for animation pose.
 #[derive(Default, Debug, Visit, Clone)]
@@ -72,7 +75,22 @@ pub struct BlendAnimations {
 
 #[derive(Default, Debug, Visit, Clone)]
 pub struct BlendAnimationsDefinition {
+    pub base: BasePoseNodeDefinition,
     pub pose_sources: Vec<BlendPoseDefinition>,
+}
+
+impl Deref for BlendAnimationsDefinition {
+    type Target = BasePoseNodeDefinition;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl DerefMut for BlendAnimationsDefinition {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
+    }
 }
 
 impl BlendAnimations {
@@ -144,8 +162,23 @@ pub struct BlendAnimationsByIndex {
 
 #[derive(Default, Debug, Visit, Clone)]
 pub struct BlendAnimationsByIndexDefinition {
+    pub base: BasePoseNodeDefinition,
     pub index_parameter: String,
     pub inputs: Vec<IndexedBlendInputDefinition>,
+}
+
+impl Deref for BlendAnimationsByIndexDefinition {
+    type Target = BasePoseNodeDefinition;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl DerefMut for BlendAnimationsByIndexDefinition {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
+    }
 }
 
 impl BlendAnimationsByIndex {

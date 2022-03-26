@@ -5,7 +5,7 @@ use crate::{
         move_mode::MoveInteractionModeSettings, rotate_mode::RotateInteractionModeSettings,
         selection::SelectionSettings,
     },
-    GameEngine, Message, CONFIG_DIR, MSG_SYNC_FLAG,
+    GameEngine, Message, MSG_SYNC_FLAG,
 };
 use fyrox::{
     core::{
@@ -82,7 +82,7 @@ impl Settings {
     const FILE_NAME: &'static str = "settings.ron";
 
     fn full_path() -> PathBuf {
-        CONFIG_DIR.lock().join(Self::FILE_NAME)
+        Self::FILE_NAME.into()
     }
 
     pub fn load() -> Result<Self, SettingsError> {

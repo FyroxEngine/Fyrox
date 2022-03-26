@@ -1,4 +1,4 @@
-use crate::{GameEngine, Message, CONFIG_DIR};
+use crate::{GameEngine, Message};
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -98,9 +98,9 @@ impl Configurator {
 
         // Load history.
         let mut history: Vec<HistoryEntry> = Vec::new();
-        if let Ok(mut visitor) = fyrox::core::futures::executor::block_on(Visitor::load_binary(
-            CONFIG_DIR.lock().join(HISTORY_PATH),
-        )) {
+        if let Ok(mut visitor) =
+            fyrox::core::futures::executor::block_on(Visitor::load_binary(HISTORY_PATH))
+        {
             history.visit("History", &mut visitor).unwrap();
         }
 
@@ -269,9 +269,7 @@ impl Configurator {
                 // Save history for next editor runs.
                 let mut visitor = Visitor::new();
                 self.history.visit("History", &mut visitor).unwrap();
-                visitor
-                    .save_binary(CONFIG_DIR.lock().join(HISTORY_PATH))
-                    .unwrap();
+                visitor.save_binary(HISTORY_PATH).unwrap();
             }
         } else if let Some(&ListViewMessage::SelectionChanged(Some(index))) =
             message.data::<ListViewMessage>()

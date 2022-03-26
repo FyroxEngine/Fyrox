@@ -1,6 +1,9 @@
 use crate::{
     animation::{
-        machine::{node::EvaluatePose, ParameterContainer, PoseNode},
+        machine::{
+            node::{BasePoseNodeDefinition, EvaluatePose},
+            ParameterContainer, PoseNode,
+        },
         Animation, AnimationContainer, AnimationPose,
     },
     core::{
@@ -10,6 +13,7 @@ use crate::{
 };
 use std::{
     cell::{Ref, RefCell},
+    ops::{Deref, DerefMut},
     path::PathBuf,
 };
 
@@ -23,7 +27,22 @@ pub struct PlayAnimation {
 
 #[derive(Default, Debug, Visit, Clone)]
 pub struct PlayAnimationDefinition {
+    pub base: BasePoseNodeDefinition,
     pub animation: PathBuf,
+}
+
+impl Deref for PlayAnimationDefinition {
+    type Target = BasePoseNodeDefinition;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl DerefMut for PlayAnimationDefinition {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
+    }
 }
 
 impl PlayAnimation {

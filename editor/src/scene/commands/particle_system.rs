@@ -104,17 +104,17 @@ macro_rules! define_emitter_command {
         $(#[$meta])*
         #[derive(Debug)]
         pub struct $type {
-            handle: $crate::fyrox::core::pool::Handle<Node>,
+            handle: fyrox::core::pool::Handle<Node>,
             index: usize,
             value: $value_type,
         }
 
         impl $type {
-            pub fn new(handle: $crate::fyrox::core::pool::Handle<Node>, index: usize, value: $value_type) -> Self {
+            pub fn new(handle: fyrox::core::pool::Handle<Node>, index: usize, value: $value_type) -> Self {
                 Self { handle, index, value }
             }
 
-            fn swap(&mut self, graph: &mut $crate::fyrox::scene::graph::Graph) {
+            fn swap(&mut self, graph: &mut fyrox::scene::graph::Graph) {
                 let emitter = &mut graph[self.handle].as_particle_system_mut().emitters.get_mut()[self.index];
                 #[allow(clippy::redundant_closure_call)]
                 ($swap)(self, emitter)

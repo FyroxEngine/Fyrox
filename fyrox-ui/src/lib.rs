@@ -413,6 +413,22 @@ impl UiNode {
     pub fn cast_mut<T: Control>(&mut self) -> Option<&mut T> {
         self.0.as_any_mut().downcast_mut::<T>()
     }
+
+    pub fn query_component<T>(&self) -> Option<&T>
+    where
+        T: 'static,
+    {
+        self.0
+            .query_component(TypeId::of::<T>())
+            .and_then(|c| c.downcast_ref::<T>())
+    }
+
+    pub fn has_component<T>(&self) -> bool
+    where
+        T: 'static,
+    {
+        self.query_component::<T>().is_some()
+    }
 }
 
 pub struct BuildContext<'a> {

@@ -4,6 +4,7 @@ use crate::{
         AnimationContainer, AnimationPose,
     },
     core::{
+        algebra::Vector2,
         pool::{Handle, Pool},
         visitor::prelude::*,
     },
@@ -19,6 +20,7 @@ pub struct State {
 
 #[derive(Default, Debug, Visit, Clone)]
 pub struct StateDefinition {
+    pub position: Vector2<f32>,
     pub name: String,
     pub root: Handle<PoseNodeDefinition>,
 }

@@ -18,38 +18,8 @@ lazy_static = "1.4.0"
 ron = "0.7.0"
 serde = "^1.0.0"
 toml = "0.5"
-directories = "4.0.1"
 strum = "0.24.0"
 strum_macros = "0.24.0"
-
-[package.metadata.deb]
-maintainer = "Voodlaz <visotnik666@gmail.com>"
-copyright = "2021, FyroxEngine developers."
-license-file = ["LICENSE", "2"]
-
-# description probably would be bigger in future, so we use a file
-extended-description-file = "os-installation/general-description.txt"
-
-depends = "$auto"
-section = "editors"
-priority = "optional"
-
-assets = [
-    ["target/release/Fyroxed", "/usr/bin/", "755"],
-    ["resources/lib/*", "usr/lib/Fyroxed", "644"],
-    ["resources/etc/Fyroxed-icon.png", "/usr/share/pixmaps/", "644"],
-    ["resources/etc/Fyroxed-icon.png", "/usr/share/icons/hicolor/256x256/apps/", "644"],
-    ["os-installation/linux/Fyroxed.desktop", "usr/share/applications/", "644"],
-]
-
-[package.metadata.generate-rpm]
-assets = [
-    { source = "target/release/Fyroxed", dest = "/usr/bin/Fyroxed", mode = "0755" },
-    { source = "resources/lib/release.toml", dest = "/usr/lib/Fyroxed/release.toml", mode = "0644" },
-    { source = "resources/etc/Fyroxed-icon.png", dest = "/usr/share/pixmaps/Fyroxed-icon.png", mode = "0644" },
-    { source = "resources/etc/Fyroxed-icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/Fyroxed-icon.png", mode = "0644" },
-    { source = "os-installation/linux/Fyroxed.desktop", dest = "/usr/share/applications/Fyroxed.desktop", mode = "0644" }
-]
 
 [features]
 enable_profiler = ["fyrox/enable_profiler"]

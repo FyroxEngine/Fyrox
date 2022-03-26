@@ -12,11 +12,15 @@ use crate::{
         Animation, AnimationContainer, AnimationPose,
     },
     core::{
+        algebra::Vector2,
         pool::{Handle, Pool},
         visitor::prelude::*,
     },
 };
-use std::cell::Ref;
+use std::{
+    cell::Ref,
+    ops::{Deref, DerefMut},
+};
 
 pub mod blend;
 pub mod play;
@@ -98,6 +102,11 @@ impl EvaluatePose for PoseNode {
     }
 }
 
+#[derive(Default, Debug, Visit, Clone)]
+pub struct BasePoseNodeDefinition {
+    pub position: Vector2<f32>,
+}
+
 #[derive(Debug, Visit, Clone)]
 pub enum PoseNodeDefinition {
     PlayAnimation(PlayAnimationDefinition),
@@ -108,5 +117,27 @@ pub enum PoseNodeDefinition {
 impl Default for PoseNodeDefinition {
     fn default() -> Self {
         Self::PlayAnimation(Default::default())
+    }
+}
+
+impl Deref for PoseNodeDefinition {
+    type Target = BasePoseNodeDefinition;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            PoseNodeDefinition::PlayAnimation(v) => v,
+            PoseNodeDefinition::BlendAnimations(v) => v,
+            PoseNodeDefinition::BlendAnimationsByIndex(v) => v,
+        }
+    }
+}
+
+impl DerefMut for PoseNodeDefinition {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            PoseNodeDefinition::PlayAnimation(v) => v,
+            PoseNodeDefinition::BlendAnimations(v) => v,
+            PoseNodeDefinition::BlendAnimationsByIndex(v) => v,
+        }
     }
 }

@@ -7,10 +7,8 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::inconsistent_struct_constructor)]
 
-extern crate fyrox;
 #[macro_use]
 extern crate lazy_static;
-extern crate directories;
 
 mod absm;
 mod asset;
@@ -28,17 +26,14 @@ mod material;
 mod menu;
 mod overlay;
 mod preview;
-mod project_dirs;
 mod scene;
 mod scene_viewer;
 mod settings;
 mod utils;
 mod world;
 
-use crate::absm::AbsmEditor;
-use crate::scene::is_scene_needs_to_be_saved;
-use crate::utils::normalize_os_event;
 use crate::{
+    absm::AbsmEditor,
     asset::{item::AssetItem, item::AssetKind, AssetBrowser},
     audio::AudioPanel,
     command::{panel::CommandStackViewer, Command, CommandStack},
@@ -65,16 +60,13 @@ use crate::{
             particle_system::SetParticleSystemTextureCommand, sprite::SetSpriteTextureCommand,
             ChangeSelectionCommand, CommandGroup, PasteCommand, SceneCommand, SceneContext,
         },
-        EditorScene, Selection,
+        is_scene_needs_to_be_saved, EditorScene, Selection,
     },
     scene_viewer::SceneViewer,
     settings::Settings,
-    utils::path_fixer::PathFixer,
+    utils::{normalize_os_event, path_fixer::PathFixer},
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::gui::message::KeyCode;
-use fyrox::plugin::Plugin;
-use fyrox::utils::log::Log;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -97,7 +89,7 @@ use fyrox::{
         file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
+        message::{KeyCode, MessageDirection, UiMessage},
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
         ttf::Font,
         widget::{WidgetBuilder, WidgetMessage},
@@ -105,6 +97,7 @@ use fyrox::{
         BuildContext, UiNode, UserInterface, VerticalAlignment,
     },
     material::{shader::Shader, Material, PropertyValue},
+    plugin::Plugin,
     resource::texture::{CompressionOptions, Texture, TextureKind},
     scene::{
         camera::{Camera, Projection},
@@ -113,19 +106,17 @@ use fyrox::{
         Scene, SceneLoader,
     },
     utils::{
-        into_gui_texture, log::MessageKind, translate_cursor_icon, translate_event,
+        into_gui_texture,
+        log::{Log, MessageKind},
+        translate_cursor_icon, translate_event,
         watcher::FileSystemWatcher,
     },
 };
-use std::sync::mpsc::channel;
 use std::{
     any::TypeId,
-    fs,
-    io::Write,
     path::{Path, PathBuf},
-    str::from_utf8,
     sync::{
-        mpsc::{self, Receiver, Sender},
+        mpsc::{self, channel, Receiver, Sender},
         Arc,
     },
     time::{Duration, Instant},
@@ -140,45 +131,6 @@ pub fn send_sync_message(ui: &UserInterface, mut msg: UiMessage) {
 }
 
 type GameEngine = fyrox::engine::Engine;
-
-lazy_static! {
-    // This checks release.toml debug handle and at
-    // the same time checks if program is installed
-    static ref DEBUG_HANDLE: bool = {
-        let release_toml = project_dirs::resources_dir("release.toml");
-        if release_toml.exists() {
-            let file = fs::read(release_toml).unwrap();
-            from_utf8(&file)
-                .unwrap()
-                .parse::<toml::Value>()
-                .unwrap()["debug-mode"]
-                .as_bool()
-                .unwrap()
-        } else {
-            true
-        }
-    };
-
-    // This constant gives DEBUG_HANDLE value to config_dir and data_dir
-    // functions and checks if config and data dir are created.
-    static ref TEST_EXISTENCE: bool = {
-        if !(*DEBUG_HANDLE) {
-            // We check if config and data dir exists
-            if !project_dirs::data_dir("").exists() {
-                // If there's aren't any, we create them.
-                fs::create_dir(project_dirs::config_dir("")).unwrap();
-                fs::create_dir(project_dirs::data_dir("")).unwrap();
-            }
-
-            true
-        } else {
-            false
-        }
-    };
-
-    static ref CONFIG_DIR: Mutex<PathBuf> = Mutex::new(project_dirs::working_config_dir(""));
-    static ref DATA_DIR: Mutex<PathBuf> = Mutex::new(project_dirs::working_data_dir(""));
-}
 
 pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
     Some(into_gui_texture(
@@ -1004,6 +956,8 @@ impl Editor {
 
         let engine = &mut self.engine;
 
+        self.absm_editor
+            .handle_ui_message(message, &mut engine.user_interface);
         self.save_scene_dialog.handle_ui_message(
             message,
             &self.message_sender,
@@ -1731,15 +1685,6 @@ impl Editor {
 
                     if let Some(os_event) = translate_event(event) {
                         self.engine.user_interface.process_os_event(&os_event);
-                    }
-                }
-                Event::LoopDestroyed => {
-                    if let Ok(profiling_results) = fyrox::core::profiler::print() {
-                        if let Ok(mut file) =
-                            fs::File::create(project_dirs::working_data_dir("profiling.log"))
-                        {
-                            let _ = writeln!(file, "{}", profiling_results);
-                        }
                     }
                 }
                 _ => *control_flow = ControlFlow::Poll,

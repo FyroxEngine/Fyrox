@@ -563,10 +563,7 @@ impl Control for TreeRoot {
                                     SelectionState(false)
                                 };
 
-                                if let Some(tree_ref) = node
-                                    .query_component(TypeId::of::<Tree>())
-                                    .and_then(|tree_ref| tree_ref.downcast_ref::<Tree>())
-                                {
+                                if let Some(tree_ref) = node.query_component::<Tree>() {
                                     if tree_ref.is_selected != new_selection_state.0 {
                                         ui.send_message(TreeMessage::select(
                                             handle,

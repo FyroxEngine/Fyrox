@@ -1,4 +1,5 @@
 use crate::absm::{BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND};
+use fyrox::animation::machine::state::StateDefinition;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     gui::{
@@ -22,6 +23,7 @@ pub struct AbsmStateNode {
     widget: Widget,
     background: Handle<UiNode>,
     selected: bool,
+    pub model_handle: Handle<StateDefinition>,
 }
 
 define_widget_deref!(AbsmStateNode);
@@ -98,7 +100,11 @@ impl AbsmStateNodeBuilder {
         Self { widget_builder }
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(
+        self,
+        model_handle: Handle<StateDefinition>,
+        ctx: &mut BuildContext,
+    ) -> Handle<UiNode> {
         let background = BorderBuilder::new(
             WidgetBuilder::new()
                 .with_foreground(Brush::Solid(BORDER_COLOR))
@@ -124,6 +130,7 @@ impl AbsmStateNodeBuilder {
                 .build(),
             background,
             selected: false,
+            model_handle,
         };
 
         ctx.add_node(UiNode::new(node))
