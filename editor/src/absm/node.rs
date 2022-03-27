@@ -1,6 +1,6 @@
 use crate::absm::{BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND};
-use fyrox::animation::machine::state::StateDefinition;
 use fyrox::{
+    animation::machine::state::StateDefinition,
     core::{algebra::Vector2, pool::Handle},
     gui::{
         border::BorderBuilder,
@@ -23,6 +23,7 @@ pub struct AbsmStateNode {
     widget: Widget,
     background: Handle<UiNode>,
     selected: bool,
+    pub name: String,
     pub model_handle: Handle<StateDefinition>,
 }
 
@@ -31,10 +32,12 @@ define_widget_deref!(AbsmStateNode);
 #[derive(Debug, Clone, PartialEq)]
 pub enum AbsmStateNodeMessage {
     Select(bool),
+    Name(String),
 }
 
 impl AbsmStateNodeMessage {
     define_constructor!(AbsmStateNodeMessage:Select => fn select(bool), layout: false);
+    define_constructor!(AbsmStateNodeMessage:Name => fn name(String), layout: false);
 }
 
 impl Control for AbsmStateNode {
@@ -93,11 +96,20 @@ impl Control for AbsmStateNode {
 
 pub struct AbsmStateNodeBuilder {
     widget_builder: WidgetBuilder,
+    name: String,
 }
 
 impl AbsmStateNodeBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
-        Self { widget_builder }
+        Self {
+            widget_builder,
+            name: "New State".to_string(),
+        }
+    }
+
+    pub fn with_name(mut self, name: String) -> Self {
+        self.name = name;
+        self
     }
 
     pub fn build(
@@ -115,7 +127,7 @@ impl AbsmStateNodeBuilder {
                             .with_vertical_alignment(VerticalAlignment::Center)
                             .with_horizontal_alignment(HorizontalAlignment::Center),
                     )
-                    .with_text("State")
+                    .with_text(&self.name)
                     .build(ctx),
                 ),
         )
@@ -131,6 +143,7 @@ impl AbsmStateNodeBuilder {
             background,
             selected: false,
             model_handle,
+            name: self.name,
         };
 
         ctx.add_node(UiNode::new(node))

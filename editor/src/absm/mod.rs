@@ -1,3 +1,5 @@
+use crate::absm::node::AbsmStateNodeMessage;
+use crate::absm::transition::{Transition, TransitionBuilder};
 use crate::{
     absm::{
         canvas::{AbsmCanvas, AbsmCanvasBuilder},
@@ -7,6 +9,7 @@ use crate::{
     },
     BuildContext, Color, MessageDirection, Row, UiMessage, WidgetBuilder,
 };
+use fyrox::animation::machine::transition::TransitionDefinition;
 use fyrox::{
     animation::machine::{state::StateDefinition, MachineDefinition},
     core::{algebra::Point2, algebra::Vector2, pool::Handle},
@@ -140,7 +143,8 @@ impl NodeContextMenu {
 }
 
 impl AbsmEditor {
-    pub fn new(ctx: &mut BuildContext) -> Self {
+    pub fn new(ui: &mut UserInterface) -> Self {
+        let ctx = &mut ui.build_ctx();
         let node_context_menu = NodeContextMenu::new(ctx);
         let mut canvas_context_menu = CanvasContextMenu::new(ctx);
         let menu = Menu::new(ctx);
@@ -171,15 +175,39 @@ impl AbsmEditor {
         canvas_context_menu.canvas = canvas;
         canvas_context_menu.node_context_menu = node_context_menu.menu;
 
-        Self {
+        let mut absm_definition = MachineDefinition::default();
+
+        let state1 = absm_definition.states.spawn(StateDefinition {
+            position: Default::default(),
+            name: "State".to_string(),
+            root: Default::default(),
+        });
+        let state2 = absm_definition.states.spawn(StateDefinition {
+            position: Vector2::new(300.0, 200.0),
+            name: "Other State".to_string(),
+            root: Default::default(),
+        });
+        absm_definition.transitions.spawn(TransitionDefinition {
+            name: "Transition".to_string(),
+            transition_time: 0.2,
+            source: state1,
+            dest: state2,
+            rule: "Rule1".to_string(),
+        });
+
+        let mut editor = Self {
             window,
             canvas_context_menu,
             node_context_menu,
             command_stack: AbsmCommandStack::new(false),
             canvas,
-            absm_definition: Some(Default::default()),
+            absm_definition: Some(absm_definition),
             menu,
-        }
+        };
+
+        editor.sync_to_model(ui);
+
+        editor
     }
 
     fn sync_to_model(&mut self, ui: &mut UserInterface) {
@@ -189,11 +217,18 @@ impl AbsmEditor {
                 .cast::<AbsmCanvas>()
                 .expect("Must be AbsmCanvas!");
 
-            let states = canvas
+            let mut states = canvas
                 .children()
                 .iter()
                 .cloned()
                 .filter(|c| ui.node(*c).has_component::<AbsmStateNode>())
+                .collect::<Vec<_>>();
+
+            let transitions = canvas
+                .children()
+                .iter()
+                .cloned()
+                .filter(|c| ui.node(*c).has_component::<Transition>())
                 .collect::<Vec<_>>();
 
             if states.len() < definition.states.alive_count() as usize {
@@ -206,15 +241,17 @@ impl AbsmEditor {
                             .model_handle
                             != state_handle
                     }) {
-                        let node_handle = AbsmStateNodeBuilder::new(
+                        let state_view_handle = AbsmStateNodeBuilder::new(
                             WidgetBuilder::new()
                                 .with_context_menu(self.node_context_menu.menu)
                                 .with_desired_position(state.position),
                         )
                         .build(state_handle, &mut ui.build_ctx());
 
+                        states.push(state_view_handle);
+
                         ui.send_message(WidgetMessage::link(
-                            node_handle,
+                            state_view_handle,
                             MessageDirection::ToWidget,
                             self.canvas,
                         ));
@@ -246,7 +283,88 @@ impl AbsmEditor {
                 }
             }
 
-            // Sync states.
+            // Sync state nodes.
+            for state in states.iter() {
+                let state_node = ui.node(*state).query_component::<AbsmStateNode>().unwrap();
+
+                if definition.states[state_node.model_handle].name != state_node.name {
+                    ui.send_message(AbsmStateNodeMessage::name(
+                        *state,
+                        MessageDirection::ToWidget,
+                        state_node.name.clone(),
+                    ));
+                }
+            }
+
+            // Force update layout to be able to fetch positions of nodes for transitions.
+            ui.update(ui.screen_size(), 0.0);
+
+            // Sync transitions.
+            if transitions.len() < definition.transitions.alive_count() as usize {
+                // A transition was added.
+                for (transition_handle, transition) in definition.transitions.pair_iter() {
+                    if transitions.iter().all(|transition_view| {
+                        ui.node(*transition_view)
+                            .query_component::<Transition>()
+                            .unwrap()
+                            .model_handle
+                            != transition_handle
+                    }) {
+                        fn find_state_view(
+                            state_handle: Handle<StateDefinition>,
+                            states: &[Handle<UiNode>],
+                            ui: &UserInterface,
+                        ) -> Handle<UiNode> {
+                            states
+                                .iter()
+                                .find(|s| {
+                                    ui.node(**s)
+                                        .query_component::<AbsmStateNode>()
+                                        .unwrap()
+                                        .model_handle
+                                        == state_handle
+                                })
+                                .cloned()
+                                .unwrap_or_default()
+                        }
+
+                        let transition_view = TransitionBuilder::new(WidgetBuilder::new())
+                            .with_source(find_state_view(transition.source, &states, ui))
+                            .with_dest(find_state_view(transition.dest, &states, ui))
+                            .build(transition_handle, &mut ui.build_ctx());
+
+                        ui.send_message(WidgetMessage::link(
+                            transition_view,
+                            MessageDirection::ToWidget,
+                            self.canvas,
+                        ));
+                    }
+                }
+            } else if transitions.len() > definition.transitions.alive_count() as usize {
+                // A transition was removed.
+                for (transition_view_handle, transition_model_handle) in
+                    transitions.iter().cloned().map(|transition_view| {
+                        (
+                            transition_view,
+                            ui.node(transition_view)
+                                .query_component::<Transition>()
+                                .unwrap()
+                                .model_handle,
+                        )
+                    })
+                {
+                    if definition
+                        .transitions
+                        .pair_iter()
+                        .all(|(h, _)| h != transition_model_handle)
+                    {
+                        ui.send_message(WidgetMessage::remove(
+                            transition_view_handle,
+                            MessageDirection::ToWidget,
+                        ));
+                    }
+                }
+            }
         }
     }
 

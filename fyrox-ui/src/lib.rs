@@ -451,6 +451,10 @@ impl<'a> BuildContext<'a> {
     pub fn copy(&mut self, node: Handle<UiNode>) -> Handle<UiNode> {
         self.ui.copy_node(node)
     }
+
+    pub fn try_get_node(&self, node: Handle<UiNode>) -> Option<&UiNode> {
+        self.ui.try_get_node(node)
+    }
 }
 
 impl<'a> Index<Handle<UiNode>> for BuildContext<'a> {

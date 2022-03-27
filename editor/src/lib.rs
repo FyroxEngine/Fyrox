@@ -677,7 +677,7 @@ impl Editor {
 
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
 
-        let absm_editor = AbsmEditor::new(ctx);
+        let absm_editor = AbsmEditor::new(&mut engine.user_interface);
 
         let material_editor = MaterialEditor::new(&mut engine);
 

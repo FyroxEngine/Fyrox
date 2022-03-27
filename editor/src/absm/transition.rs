@@ -1,4 +1,5 @@
 use fyrox::{
+    animation::machine::transition::TransitionDefinition,
     core::{algebra::Vector2, math::Rect, pool::Handle},
     gui::{
         define_constructor, define_widget_deref,
@@ -23,6 +24,7 @@ pub struct Transition {
     pub dest: Handle<UiNode>,
     dest_pos: Vector2<f32>,
     arrow: Handle<UiNode>,
+    pub model_handle: Handle<TransitionDefinition>,
 }
 
 define_widget_deref!(Transition);
@@ -102,18 +104,29 @@ impl TransitionBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(
+        self,
+        model_handle: Handle<TransitionDefinition>,
+        ctx: &mut BuildContext,
+    ) -> Handle<UiNode> {
         let arrow = VectorImageBuilder::new(WidgetBuilder::new())
             .with_primitives(make_arrow_primitives(ArrowDirection::Right, 10.0))
             .build(ctx);
 
+        fn fetch_node_position(handle: Handle<UiNode>, ctx: &BuildContext) -> Vector2<f32> {
+            ctx.try_get_node(handle)
+                .map(|node| node.actual_local_position() + node.actual_size().scale(0.5))
+                .unwrap_or_default()
+        }
+
         let transition = Transition {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.with_clip_to_bounds(false).build(),
             source: self.source,
-            source_pos: Default::default(),
+            source_pos: fetch_node_position(self.source, ctx),
             dest: self.dest,
-            dest_pos: Default::default(),
+            dest_pos: fetch_node_position(self.dest, ctx),
             arrow,
+            model_handle,
         };
 
         ctx.add_node(UiNode::new(transition))
