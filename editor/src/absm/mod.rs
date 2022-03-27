@@ -338,6 +338,11 @@ impl AbsmEditor {
                             MessageDirection::ToWidget,
                             self.canvas,
                         ));
+
+                        ui.send_message(WidgetMessage::lowermost(
+                            transition_view,
+                            MessageDirection::ToWidget,
+                        ));
                     }
                 }
             } else if transitions.len() > definition.transitions.alive_count() as usize {

@@ -1,12 +1,14 @@
 use fyrox::{
     animation::machine::transition::TransitionDefinition,
-    core::{algebra::Vector2, math::Rect, pool::Handle},
+    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     gui::{
+        brush::Brush,
         define_constructor, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         message::{MessageDirection, UiMessage},
         utils::{make_arrow_primitives, ArrowDirection},
         vector_image::VectorImageBuilder,
+        widget::WidgetMessage,
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, UiNode, UserInterface,
     },
@@ -15,6 +17,9 @@ use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
 };
+
+const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(120, 120, 120));
+const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(80, 80, 80));
 
 #[derive(Clone, Debug)]
 pub struct Transition {
@@ -50,9 +55,9 @@ impl Control for Transition {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        drawing_context.push_line(self.source_pos, self.dest_pos, 2.0);
+        drawing_context.push_line(self.source_pos, self.dest_pos, 5.0);
         drawing_context.commit(
-            Rect::new(0.0, 0.0, 9999.0, 9999.0),
+            self.clip_bounds(),
             self.foreground(),
             CommandTexture::None,
             None,
@@ -74,6 +79,24 @@ impl Control for Transition {
                         self.dest_pos = *pos;
                     }
                 }
+            }
+        } else if let Some(msg) = message.data::<WidgetMessage>() {
+            match msg {
+                WidgetMessage::MouseEnter => {
+                    ui.send_message(WidgetMessage::foreground(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        PICKED_BRUSH.clone(),
+                    ));
+                }
+                WidgetMessage::MouseLeave => {
+                    ui.send_message(WidgetMessage::foreground(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        NORMAL_BRUSH.clone(),
+                    ));
+                }
+                _ => (),
             }
         }
     }
@@ -120,7 +143,11 @@ impl TransitionBuilder {
         }
 
         let transition = Transition {
-            widget: self.widget_builder.with_clip_to_bounds(false).build(),
+            widget: self
+                .widget_builder
+                .with_foreground(NORMAL_BRUSH.clone())
+                .with_clip_to_bounds(false)
+                .build(),
             source: self.source,
             source_pos: fetch_node_position(self.source, ctx),
             dest: self.dest,
