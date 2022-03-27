@@ -1384,6 +1384,15 @@ impl UserInterface {
         }
     }
 
+    fn make_lowermost(&mut self, node: Handle<UiNode>) {
+        let parent = self.node(node).parent();
+        if parent.is_some() {
+            let parent = &mut self.nodes[parent];
+            parent.remove_child(node);
+            parent.add_child(node, true);
+        }
+    }
+
     fn bubble_message(&mut self, message: &mut UiMessage) {
         scope_profile!();
 
@@ -1456,9 +1465,14 @@ impl UserInterface {
                                 }
                             }
                         }
-                        WidgetMessage::TopMost => {
+                        WidgetMessage::Topmost => {
                             if message.destination().is_some() {
                                 self.make_topmost(message.destination());
+                            }
+                        }
+                        WidgetMessage::Lowermost => {
+                            if message.destination().is_some() {
+                                self.make_lowermost(message.destination());
                             }
                         }
                         WidgetMessage::Unlink => {

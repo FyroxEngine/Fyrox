@@ -113,7 +113,13 @@ pub enum WidgetMessage {
     /// level only!
     ///
     /// Direction: **From/To UI**.
-    TopMost,
+    Topmost,
+
+    /// A request to make widget lowermost. Widget can be made lowermost only in the same hierarchy
+    /// level only!
+    ///
+    /// Direction: **From/To UI**.
+    Lowermost,
 
     /// A request to detach widget from its current parent and attach to root canvas.
     ///
@@ -278,7 +284,8 @@ impl WidgetMessage {
     define_constructor!(WidgetMessage:Height => fn height(f32), layout: false);
     define_constructor!(WidgetMessage:DesiredPosition => fn desired_position(Vector2<f32>), layout: false);
     define_constructor!(WidgetMessage:Center => fn center(), layout: true);
-    define_constructor!(WidgetMessage:TopMost => fn topmost(), layout: false);
+    define_constructor!(WidgetMessage:Topmost => fn topmost(), layout: false);
+    define_constructor!(WidgetMessage:Lowermost => fn lowermost(), layout: false);
     define_constructor!(WidgetMessage:Enabled => fn enabled(bool), layout: false);
     define_constructor!(WidgetMessage:Name => fn name(String), layout: false);
     define_constructor!(WidgetMessage:Row => fn row(usize), layout: false);
