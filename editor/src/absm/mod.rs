@@ -1,33 +1,35 @@
-use crate::absm::node::AbsmStateNodeMessage;
-use crate::absm::transition::{Transition, TransitionBuilder};
-use crate::{
-    absm::{
-        canvas::{AbsmCanvas, AbsmCanvasBuilder},
-        command::{AbsmCommand, AbsmCommandStack, AbsmEditorContext, AddStateCommand},
-        menu::Menu,
-        node::{AbsmStateNode, AbsmStateNodeBuilder},
-    },
-    BuildContext, Color, MessageDirection, Row, UiMessage, WidgetBuilder,
+use crate::absm::{
+    canvas::{AbsmCanvas, AbsmCanvasBuilder},
+    command::{AbsmCommand, AbsmCommandStack, AbsmEditorContext, AddStateCommand},
+    menu::Menu,
+    message::AbsmMessage,
+    node::{AbsmStateNode, AbsmStateNodeBuilder, AbsmStateNodeMessage},
+    transition::{Transition, TransitionBuilder},
 };
-use fyrox::animation::machine::transition::TransitionDefinition;
 use fyrox::{
-    animation::machine::{state::StateDefinition, MachineDefinition},
-    core::{algebra::Point2, algebra::Vector2, pool::Handle},
+    animation::machine::{
+        state::StateDefinition, transition::TransitionDefinition, MachineDefinition,
+    },
+    core::{algebra::Point2, algebra::Vector2, color::Color, pool::Handle},
+    engine::Engine,
     gui::{
         border::BorderBuilder,
-        grid::{Column, GridBuilder},
+        grid::{Column, GridBuilder, Row},
         menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
+        message::{MessageDirection, UiMessage},
         popup::PopupBuilder,
         stack_panel::StackPanelBuilder,
-        widget::WidgetMessage,
+        widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
-        UiNode, UserInterface,
+        BuildContext, UiNode, UserInterface,
     },
 };
+use std::sync::mpsc::{channel, Receiver, Sender};
 
 mod canvas;
 mod command;
 mod menu;
+mod message;
 mod node;
 mod transition;
 
@@ -44,6 +46,8 @@ pub struct AbsmEditor {
     canvas: Handle<UiNode>,
     absm_definition: Option<MachineDefinition>,
     menu: Menu,
+    message_sender: Sender<AbsmMessage>,
+    message_receiver: Receiver<AbsmMessage>,
 }
 
 pub struct CanvasContextMenu {
@@ -80,9 +84,10 @@ impl CanvasContextMenu {
 
     pub fn handle_ui_message(
         &mut self,
+        sender: &Sender<AbsmMessage>,
         message: &UiMessage,
         ui: &mut UserInterface,
-    ) -> Option<AbsmCommand> {
+    ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.create_state {
                 let screen_position = ui.node(self.menu).screen_position();
@@ -95,15 +100,17 @@ impl CanvasContextMenu {
                     .transform_point(&Point2::from(screen_position))
                     .coords;
 
-                return Some(AbsmCommand::new(AddStateCommand::new(StateDefinition {
-                    position: local_position,
-                    name: "New State".to_string(),
-                    root: Default::default(),
-                })));
+                sender
+                    .send(AbsmMessage::DoCommand(AbsmCommand::new(
+                        AddStateCommand::new(StateDefinition {
+                            position: local_position,
+                            name: "New State".to_string(),
+                            root: Default::default(),
+                        }),
+                    )))
+                    .unwrap();
             }
         }
-
-        None
     }
 }
 
@@ -144,6 +151,8 @@ impl NodeContextMenu {
 
 impl AbsmEditor {
     pub fn new(ui: &mut UserInterface) -> Self {
+        let (tx, rx) = channel();
+
         let ctx = &mut ui.build_ctx();
         let node_context_menu = NodeContextMenu::new(ctx);
         let mut canvas_context_menu = CanvasContextMenu::new(ctx);
@@ -187,7 +196,7 @@ impl AbsmEditor {
             name: "Other State".to_string(),
             root: Default::default(),
         });
-        absm_definition.transitions.spawn(TransitionDefinition {
+        let _ = absm_definition.transitions.spawn(TransitionDefinition {
             name: "Transition".to_string(),
             transition_time: 0.2,
             source: state1,
@@ -199,6 +208,8 @@ impl AbsmEditor {
             window,
             canvas_context_menu,
             node_context_menu,
+            message_sender: tx,
+            message_receiver: rx,
             command_stack: AbsmCommandStack::new(false),
             canvas,
             absm_definition: Some(absm_definition),
@@ -246,6 +257,7 @@ impl AbsmEditor {
                                 .with_context_menu(self.node_context_menu.menu)
                                 .with_desired_position(state.position),
                         )
+                        .with_name(state.name.clone())
                         .build(state_handle, &mut ui.build_ctx());
 
                         states.push(state_view_handle);
@@ -260,7 +272,7 @@ impl AbsmEditor {
             } else if states.len() > definition.states.alive_count() as usize {
                 // A state was removed.
                 for (state_view_handle, state_model_handle) in
-                    states.iter().cloned().map(|state_view| {
+                    states.clone().iter().cloned().map(|state_view| {
                         (
                             state_view,
                             ui.node(state_view)
@@ -279,6 +291,11 @@ impl AbsmEditor {
                             state_view_handle,
                             MessageDirection::ToWidget,
                         ));
+
+                        if let Some(position) = states.iter().position(|s| *s == state_view_handle)
+                        {
+                            states.remove(position);
+                        }
                     }
                 }
             }
@@ -373,18 +390,71 @@ impl AbsmEditor {
         }
     }
 
-    fn do_command(&mut self, command: AbsmCommand, ui: &mut UserInterface) {
+    fn do_command(&mut self, command: AbsmCommand) -> bool {
         if let Some(definition) = self.absm_definition.as_mut() {
             self.command_stack
                 .do_command(command.into_inner(), AbsmEditorContext { definition });
+            true
+        } else {
+            false
+        }
+    }
 
-            self.sync_to_model(ui);
+    fn undo_command(&mut self) -> bool {
+        if let Some(definition) = self.absm_definition.as_mut() {
+            self.command_stack.undo(AbsmEditorContext { definition });
+            true
+        } else {
+            false
+        }
+    }
+
+    fn redo_command(&mut self) -> bool {
+        if let Some(definition) = self.absm_definition.as_mut() {
+            self.command_stack.redo(AbsmEditorContext { definition });
+            true
+        } else {
+            false
+        }
+    }
+
+    fn clear_command_stack(&mut self) -> bool {
+        if let Some(definition) = self.absm_definition.as_mut() {
+            self.command_stack.clear(AbsmEditorContext { definition });
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn update(&mut self, engine: &mut Engine) {
+        let mut need_sync = false;
+
+        while let Ok(message) = self.message_receiver.try_recv() {
+            match message {
+                AbsmMessage::DoCommand(command) => {
+                    need_sync |= self.do_command(command);
+                }
+                AbsmMessage::Undo => {
+                    need_sync |= self.undo_command();
+                }
+                AbsmMessage::Redo => {
+                    need_sync |= self.redo_command();
+                }
+                AbsmMessage::ClearCommandStack => {
+                    need_sync |= self.clear_command_stack();
+                }
+            }
+        }
+
+        if need_sync {
+            self.sync_to_model(&mut engine.user_interface);
         }
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
-        if let Some(command) = self.canvas_context_menu.handle_ui_message(message, ui) {
-            self.do_command(command, ui);
-        }
+        self.menu.handle_ui_message(&self.message_sender, message);
+        self.canvas_context_menu
+            .handle_ui_message(&self.message_sender, message, ui);
     }
 }

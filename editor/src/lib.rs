@@ -1488,6 +1488,7 @@ impl Editor {
 
         self.engine.pre_update(dt);
 
+        self.absm_editor.update(&mut self.engine);
         self.log.update(&mut self.engine);
 
         if let Mode::Play { scene, .. } = self.mode {

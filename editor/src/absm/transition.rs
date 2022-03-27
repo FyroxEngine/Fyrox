@@ -1,6 +1,6 @@
 use fyrox::{
     animation::machine::transition::TransitionDefinition,
-    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
+    core::{algebra::Vector2, color::Color, pool::Handle},
     gui::{
         brush::Brush,
         define_constructor, define_widget_deref,
