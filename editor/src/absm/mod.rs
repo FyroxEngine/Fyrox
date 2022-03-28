@@ -1,5 +1,6 @@
+use crate::absm::command::AddTransitionCommand;
 use crate::absm::{
-    canvas::{AbsmCanvas, AbsmCanvasBuilder},
+    canvas::{AbsmCanvas, AbsmCanvasBuilder, AbsmCanvasMessage, Mode},
     command::{AbsmCommand, AbsmCommandStack, AbsmEditorContext, AddStateCommand},
     menu::Menu,
     message::AbsmMessage,
@@ -10,14 +11,14 @@ use fyrox::{
     animation::machine::{
         state::StateDefinition, transition::TransitionDefinition, MachineDefinition,
     },
-    core::{algebra::Point2, algebra::Vector2, color::Color, pool::Handle},
+    core::{algebra::Vector2, color::Color, pool::Handle},
     engine::Engine,
     gui::{
         border::BorderBuilder,
         grid::{Column, GridBuilder, Row},
         menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
         message::{MessageDirection, UiMessage},
-        popup::PopupBuilder,
+        popup::{Placement, PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
@@ -92,18 +93,10 @@ impl CanvasContextMenu {
             if message.destination() == self.create_state {
                 let screen_position = ui.node(self.menu).screen_position();
 
-                let local_position = ui
-                    .node(self.canvas)
-                    .visual_transform()
-                    .try_inverse()
-                    .unwrap_or_default()
-                    .transform_point(&Point2::from(screen_position))
-                    .coords;
-
                 sender
                     .send(AbsmMessage::DoCommand(AbsmCommand::new(
                         AddStateCommand::new(StateDefinition {
-                            position: local_position,
+                            position: ui.node(self.canvas).screen_to_local(screen_position),
                             name: "New State".to_string(),
                             root: Default::default(),
                         }),
@@ -117,6 +110,8 @@ impl CanvasContextMenu {
 pub struct NodeContextMenu {
     create_transition: Handle<UiNode>,
     menu: Handle<UiNode>,
+    canvas: Handle<UiNode>,
+    placement_target: Handle<UiNode>,
 }
 
 impl NodeContextMenu {
@@ -139,12 +134,33 @@ impl NodeContextMenu {
         Self {
             create_transition,
             menu,
+            canvas: Default::default(),
+            placement_target: Default::default(),
         }
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
         if let Some(MenuItemMessage::Click) = message.data() {
-            if message.destination() == self.create_transition {}
+            if message.destination() == self.create_transition {
+                assert!(ui
+                    .node(self.placement_target)
+                    .query_component::<AbsmStateNode>()
+                    .is_some());
+
+                ui.send_message(AbsmCanvasMessage::switch_mode(
+                    self.canvas,
+                    MessageDirection::ToWidget,
+                    Mode::CreateTransition {
+                        source: self.placement_target,
+                        source_pos: ui.node(self.placement_target).center(),
+                        dest_pos: ui.node(self.canvas).screen_to_local(ui.cursor_position()),
+                    },
+                ))
+            }
+        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
+            if message.destination() == self.menu {
+                self.placement_target = *target;
+            }
         }
     }
 }
@@ -154,7 +170,7 @@ impl AbsmEditor {
         let (tx, rx) = channel();
 
         let ctx = &mut ui.build_ctx();
-        let node_context_menu = NodeContextMenu::new(ctx);
+        let mut node_context_menu = NodeContextMenu::new(ctx);
         let mut canvas_context_menu = CanvasContextMenu::new(ctx);
         let menu = Menu::new(ctx);
 
@@ -183,6 +199,7 @@ impl AbsmEditor {
 
         canvas_context_menu.canvas = canvas;
         canvas_context_menu.node_context_menu = node_context_menu.menu;
+        node_context_menu.canvas = canvas;
 
         let mut absm_definition = MachineDefinition::default();
 
@@ -454,7 +471,38 @@ impl AbsmEditor {
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
         self.menu.handle_ui_message(&self.message_sender, message);
+        self.node_context_menu.handle_ui_message(message, ui);
         self.canvas_context_menu
             .handle_ui_message(&self.message_sender, message, ui);
+
+        if let Some(AbsmCanvasMessage::CommitTransition { source, dest }) = message.data() {
+            if message.destination() == self.canvas
+                && message.direction() == MessageDirection::FromWidget
+            {
+                let source = ui
+                    .node(*source)
+                    .query_component::<AbsmStateNode>()
+                    .unwrap()
+                    .model_handle;
+
+                let dest = ui
+                    .node(*dest)
+                    .query_component::<AbsmStateNode>()
+                    .unwrap()
+                    .model_handle;
+
+                self.message_sender
+                    .send(AbsmMessage::DoCommand(AbsmCommand::new(
+                        AddTransitionCommand::new(TransitionDefinition {
+                            name: "Transition".to_string(),
+                            transition_time: 1.0,
+                            source,
+                            dest,
+                            rule: "".to_string(),
+                        }),
+                    )))
+                    .unwrap();
+            }
+        }
     }
 }

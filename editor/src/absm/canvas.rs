@@ -1,7 +1,9 @@
 use crate::absm::{
     node::{AbsmStateNode, AbsmStateNodeMessage},
+    transition,
     transition::{Transition, TransitionMessage},
 };
+use fyrox::gui::define_constructor;
 use fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
@@ -23,16 +25,43 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct Entry {
     node: Handle<UiNode>,
     initial_position: Vector2<f32>,
 }
 
-#[derive(Clone)]
-struct DragContext {
+#[derive(Debug, Clone, PartialEq)]
+pub(super) struct DragContext {
     initial_cursor_position: Vector2<f32>,
     entries: Vec<Entry>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(super) enum Mode {
+    Normal,
+    Drag {
+        drag_context: DragContext,
+    },
+    CreateTransition {
+        source: Handle<UiNode>,
+        source_pos: Vector2<f32>,
+        dest_pos: Vector2<f32>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(super) enum AbsmCanvasMessage {
+    SwitchMode(Mode),
+    CommitTransition {
+        source: Handle<UiNode>,
+        dest: Handle<UiNode>,
+    },
+}
+
+impl AbsmCanvasMessage {
+    define_constructor!(AbsmCanvasMessage:SwitchMode => fn switch_mode(Mode), layout: false);
+    define_constructor!(AbsmCanvasMessage:CommitTransition => fn commit_transition(source: Handle<UiNode>, dest: Handle<UiNode>), layout: false);
 }
 
 #[derive(Clone)]
@@ -45,7 +74,7 @@ pub struct AbsmCanvas {
     initial_view_position: Vector2<f32>,
     click_position: Vector2<f32>,
     is_dragging_view: bool,
-    drag_context: Option<DragContext>,
+    mode: Mode,
 }
 
 define_widget_deref!(AbsmCanvas);
@@ -137,6 +166,21 @@ impl Control for AbsmCanvas {
             CommandTexture::None,
             None,
         );
+
+        if let Mode::CreateTransition {
+            source_pos,
+            dest_pos,
+            ..
+        } = self.mode
+        {
+            transition::draw_transition(
+                ctx,
+                self.clip_bounds(),
+                Brush::Solid(Color::WHITE),
+                source_pos,
+                dest_pos,
+            );
+        }
     }
 
     fn measure_override(&self, ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
@@ -186,13 +230,21 @@ impl Control for AbsmCanvas {
 
             let selected_node = ui.node(message.destination());
 
-            self.drag_context = Some(DragContext {
-                initial_cursor_position: self.point_to_local_space(ui.cursor_position()),
-                entries: vec![Entry {
-                    node: message.destination(),
-                    initial_position: selected_node.actual_local_position(),
-                }],
-            });
+            match self.mode {
+                Mode::Normal => {
+                    self.mode = Mode::Drag {
+                        drag_context: DragContext {
+                            initial_cursor_position: self
+                                .point_to_local_space(ui.cursor_position()),
+                            entries: vec![Entry {
+                                node: message.destination(),
+                                initial_position: selected_node.actual_local_position(),
+                            }],
+                        },
+                    }
+                }
+                _ => (),
+            }
         } else if let Some(WidgetMessage::MouseDown { pos, button }) = message.data() {
             if *button == MouseButton::Middle {
                 self.is_dragging_view = true;
@@ -200,6 +252,33 @@ impl Control for AbsmCanvas {
                 self.initial_view_position = self.view_position;
 
                 ui.capture_mouse(self.handle());
+            } else if *button == MouseButton::Left {
+                match self.mode {
+                    Mode::CreateTransition { source, .. } => {
+                        let dest_node_handle = if message.destination() == self.handle() {
+                            self.find_by_criteria_up(ui, |n| {
+                                n.query_component::<AbsmStateNode>().is_some()
+                            })
+                        } else {
+                            ui.node(message.destination()).find_by_criteria_up(ui, |n| {
+                                n.query_component::<AbsmStateNode>().is_some()
+                            })
+                        };
+
+                        if dest_node_handle.is_some() {
+                            // Commit creation.
+                            ui.send_message(AbsmCanvasMessage::commit_transition(
+                                self.handle(),
+                                MessageDirection::FromWidget,
+                                source,
+                                dest_node_handle,
+                            ));
+                        }
+
+                        self.mode = Mode::Normal;
+                    }
+                    _ => (),
+                }
             }
         } else if let Some(WidgetMessage::MouseUp { button, .. }) = message.data() {
             if *button == MouseButton::Middle {
@@ -207,7 +286,12 @@ impl Control for AbsmCanvas {
 
                 ui.release_mouse_capture();
             } else if *button == MouseButton::Left {
-                self.drag_context = None;
+                match self.mode {
+                    Mode::Drag { .. } => {
+                        self.mode = Mode::Normal;
+                    }
+                    _ => (),
+                }
             }
         } else if let Some(WidgetMessage::MouseMove { pos, .. }) = message.data() {
             if self.is_dragging_view {
@@ -215,41 +299,51 @@ impl Control for AbsmCanvas {
                 self.update_transform(ui);
             }
 
-            if let Some(drag_context) = self.drag_context.as_ref() {
-                for entry in drag_context.entries.iter() {
-                    let local_cursor_pos = self.point_to_local_space(*pos);
+            let local_cursor_position = self.screen_to_local(ui.cursor_position());
 
-                    let new_position = entry.initial_position
-                        + (local_cursor_pos - drag_context.initial_cursor_position);
+            match self.mode {
+                Mode::Drag { ref drag_context } => {
+                    for entry in drag_context.entries.iter() {
+                        let local_cursor_pos = self.point_to_local_space(*pos);
 
-                    ui.send_message(WidgetMessage::desired_position(
-                        entry.node,
-                        MessageDirection::ToWidget,
-                        new_position,
-                    ));
+                        let new_position = entry.initial_position
+                            + (local_cursor_pos - drag_context.initial_cursor_position);
 
-                    let center = new_position + ui.node(entry.node).actual_size().scale(0.5);
+                        ui.send_message(WidgetMessage::desired_position(
+                            entry.node,
+                            MessageDirection::ToWidget,
+                            new_position,
+                        ));
 
-                    for child in self.children() {
-                        if let Some(transition) = ui.node(*child).cast::<Transition>() {
-                            if transition.source == entry.node {
-                                ui.send_message(TransitionMessage::source_position(
-                                    *child,
-                                    MessageDirection::ToWidget,
-                                    center,
-                                ));
-                            }
+                        let center = new_position + ui.node(entry.node).actual_size().scale(0.5);
 
-                            if transition.dest == entry.node {
-                                ui.send_message(TransitionMessage::dest_position(
-                                    *child,
-                                    MessageDirection::ToWidget,
-                                    center,
-                                ));
+                        for child in self.children() {
+                            if let Some(transition) = ui.node(*child).cast::<Transition>() {
+                                if transition.source == entry.node {
+                                    ui.send_message(TransitionMessage::source_position(
+                                        *child,
+                                        MessageDirection::ToWidget,
+                                        center,
+                                    ));
+                                }
+
+                                if transition.dest == entry.node {
+                                    ui.send_message(TransitionMessage::dest_position(
+                                        *child,
+                                        MessageDirection::ToWidget,
+                                        center,
+                                    ));
+                                }
                             }
                         }
                     }
                 }
+                Mode::CreateTransition {
+                    ref mut dest_pos, ..
+                } => {
+                    *dest_pos = local_cursor_position;
+                }
+                _ => {}
             }
         } else if let Some(WidgetMessage::MouseWheel { amount, pos }) = message.data() {
             let cursor_pos = (*pos - self.screen_position()).scale(self.zoom);
@@ -261,6 +355,9 @@ impl Control for AbsmCanvas {
             self.view_position -= (new_cursor_pos - cursor_pos).scale(self.zoom);
 
             self.update_transform(ui);
+        } else if let Some(AbsmCanvasMessage::SwitchMode(mode)) = message.data() {
+            // TODO: Check if other mode is active.
+            self.mode = mode.clone();
         }
     }
 }
@@ -283,7 +380,7 @@ impl AbsmCanvasBuilder {
             click_position: Default::default(),
             is_dragging_view: false,
             zoom: 1.0,
-            drag_context: None,
+            mode: Mode::Normal,
         };
 
         ctx.add_node(UiNode::new(canvas))

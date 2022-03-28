@@ -6,7 +6,7 @@ use crate::{
     HorizontalAlignment, LayoutEvent, MouseButton, MouseState, Thickness, UiNode, UserInterface,
     VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
-use fyrox_core::algebra::Matrix3;
+use fyrox_core::algebra::{Matrix3, Point2};
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -452,6 +452,15 @@ impl Widget {
     #[inline]
     pub fn is_drop_allowed(&self) -> bool {
         self.allow_drop
+    }
+
+    #[inline]
+    pub fn screen_to_local(&self, point: Vector2<f32>) -> Vector2<f32> {
+        self.visual_transform
+            .try_inverse()
+            .unwrap_or_default()
+            .transform_point(&Point2::from(point))
+            .coords
     }
 
     #[inline]
@@ -902,6 +911,11 @@ impl Widget {
     #[inline]
     pub fn actual_local_position(&self) -> Vector2<f32> {
         self.actual_local_position.get()
+    }
+
+    #[inline]
+    pub fn center(&self) -> Vector2<f32> {
+        self.actual_local_position() + self.actual_size().scale(0.5)
     }
 
     #[inline]

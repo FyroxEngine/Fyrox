@@ -1,15 +1,12 @@
 use fyrox::{
     animation::machine::transition::TransitionDefinition,
-    core::{algebra::Vector2, color::Color, pool::Handle},
+    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     gui::{
         brush::Brush,
         define_constructor, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         message::{MessageDirection, UiMessage},
-        utils::{make_arrow_primitives, ArrowDirection},
-        vector_image::VectorImageBuilder,
-        widget::WidgetMessage,
-        widget::{Widget, WidgetBuilder},
+        widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
     },
 };
@@ -28,7 +25,6 @@ pub struct Transition {
     source_pos: Vector2<f32>,
     pub dest: Handle<UiNode>,
     dest_pos: Vector2<f32>,
-    arrow: Handle<UiNode>,
     pub model_handle: Handle<TransitionDefinition>,
 }
 
@@ -45,6 +41,30 @@ impl TransitionMessage {
     define_constructor!(TransitionMessage:DestPosition => fn dest_position(Vector2<f32>), layout: false);
 }
 
+pub fn draw_transition(
+    drawing_context: &mut DrawingContext,
+    clip_bounds: Rect<f32>,
+    brush: Brush,
+    source_pos: Vector2<f32>,
+    dest_pos: Vector2<f32>,
+) {
+    drawing_context.push_line(source_pos, dest_pos, 5.0);
+
+    let axis = (dest_pos - source_pos).normalize();
+    let center = (dest_pos + source_pos).scale(0.5);
+    let perp = Vector2::new(axis.y, -axis.x).normalize();
+
+    let size = 20.0;
+
+    drawing_context.push_triangle_filled([
+        center + axis.scale(size),
+        center + perp.scale(size * 0.5),
+        center - perp.scale(size * 0.5),
+    ]);
+
+    drawing_context.commit(clip_bounds, brush, CommandTexture::None, None);
+}
+
 impl Control for Transition {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
@@ -55,12 +75,12 @@ impl Control for Transition {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        drawing_context.push_line(self.source_pos, self.dest_pos, 5.0);
-        drawing_context.commit(
+        draw_transition(
+            drawing_context,
             self.clip_bounds(),
             self.foreground(),
-            CommandTexture::None,
-            None,
+            self.source_pos,
+            self.dest_pos,
         );
     }
 
@@ -132,10 +152,6 @@ impl TransitionBuilder {
         model_handle: Handle<TransitionDefinition>,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
-        let arrow = VectorImageBuilder::new(WidgetBuilder::new())
-            .with_primitives(make_arrow_primitives(ArrowDirection::Right, 10.0))
-            .build(ctx);
-
         fn fetch_node_position(handle: Handle<UiNode>, ctx: &BuildContext) -> Vector2<f32> {
             ctx.try_get_node(handle)
                 .map(|node| node.actual_local_position() + node.actual_size().scale(0.5))
@@ -152,7 +168,6 @@ impl TransitionBuilder {
             source_pos: fetch_node_position(self.source, ctx),
             dest: self.dest,
             dest_pos: fetch_node_position(self.dest, ctx),
-            arrow,
             model_handle,
         };
 

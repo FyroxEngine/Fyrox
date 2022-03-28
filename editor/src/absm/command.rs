@@ -1,4 +1,5 @@
 use crate::define_command_stack;
+use fyrox::animation::machine::transition::TransitionDefinition;
 use fyrox::{
     animation::machine::{state::StateDefinition, MachineDefinition},
     core::pool::{Handle, Ticket},
@@ -98,6 +99,68 @@ impl AbsmCommandTrait for AddStateCommand {
         match std::mem::replace(self, AddStateCommand::Unknown) {
             AddStateCommand::Reverted { ticket, .. } => {
                 context.definition.states.forget_ticket(ticket)
+            }
+            _ => (),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum AddTransitionCommand {
+    Unknown,
+    NonExecuted {
+        state: TransitionDefinition,
+    },
+    Executed {
+        handle: Handle<TransitionDefinition>,
+    },
+    Reverted {
+        ticket: Ticket<TransitionDefinition>,
+        state: TransitionDefinition,
+    },
+}
+
+impl AddTransitionCommand {
+    pub fn new(state: TransitionDefinition) -> Self {
+        Self::NonExecuted { state }
+    }
+}
+
+impl AbsmCommandTrait for AddTransitionCommand {
+    fn name(&mut self, _context: &AbsmEditorContext) -> String {
+        "Add State".to_string()
+    }
+
+    fn execute(&mut self, context: &mut AbsmEditorContext) {
+        match std::mem::replace(self, AddTransitionCommand::Unknown) {
+            AddTransitionCommand::NonExecuted { state } => {
+                *self = AddTransitionCommand::Executed {
+                    handle: context.definition.transitions.spawn(state),
+                };
+            }
+            AddTransitionCommand::Reverted { ticket, state } => {
+                *self = AddTransitionCommand::Executed {
+                    handle: context.definition.transitions.put_back(ticket, state),
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut AbsmEditorContext) {
+        match std::mem::replace(self, AddTransitionCommand::Unknown) {
+            AddTransitionCommand::Executed { handle } => {
+                let (ticket, state) = context.definition.transitions.take_reserve(handle);
+                *self = AddTransitionCommand::Reverted { ticket, state }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn finalize(&mut self, context: &mut AbsmEditorContext) {
+        match std::mem::replace(self, AddTransitionCommand::Unknown) {
+            AddTransitionCommand::Reverted { ticket, .. } => {
+                context.definition.transitions.forget_ticket(ticket)
             }
             _ => (),
         }
