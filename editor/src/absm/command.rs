@@ -96,11 +96,10 @@ impl AbsmCommandTrait for AddStateCommand {
     }
 
     fn finalize(&mut self, context: &mut AbsmEditorContext) {
-        match std::mem::replace(self, AddStateCommand::Unknown) {
-            AddStateCommand::Reverted { ticket, .. } => {
-                context.definition.states.forget_ticket(ticket)
-            }
-            _ => (),
+        if let AddStateCommand::Reverted { ticket, .. } =
+            std::mem::replace(self, AddStateCommand::Unknown)
+        {
+            context.definition.states.forget_ticket(ticket)
         }
     }
 }
@@ -158,11 +157,10 @@ impl AbsmCommandTrait for AddTransitionCommand {
     }
 
     fn finalize(&mut self, context: &mut AbsmEditorContext) {
-        match std::mem::replace(self, AddTransitionCommand::Unknown) {
-            AddTransitionCommand::Reverted { ticket, .. } => {
-                context.definition.transitions.forget_ticket(ticket)
-            }
-            _ => (),
+        if let AddTransitionCommand::Reverted { ticket, .. } =
+            std::mem::replace(self, AddTransitionCommand::Unknown)
+        {
+            context.definition.transitions.forget_ticket(ticket)
         }
     }
 }

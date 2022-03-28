@@ -25,6 +25,7 @@ use fyrox::{
         BuildContext, UiNode, UserInterface,
     },
 };
+use std::cmp::Ordering;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 mod canvas;
@@ -259,62 +260,70 @@ impl AbsmEditor {
                 .filter(|c| ui.node(*c).has_component::<Transition>())
                 .collect::<Vec<_>>();
 
-            if states.len() < definition.states.alive_count() as usize {
-                // A state was added.
-                for (state_handle, state) in definition.states.pair_iter() {
-                    if states.iter().all(|state_view| {
-                        ui.node(*state_view)
-                            .query_component::<AbsmStateNode>()
-                            .unwrap()
-                            .model_handle
-                            != state_handle
-                    }) {
-                        let state_view_handle = AbsmStateNodeBuilder::new(
-                            WidgetBuilder::new()
-                                .with_context_menu(self.node_context_menu.menu)
-                                .with_desired_position(state.position),
-                        )
-                        .with_name(state.name.clone())
-                        .build(state_handle, &mut ui.build_ctx());
-
-                        states.push(state_view_handle);
-
-                        ui.send_message(WidgetMessage::link(
-                            state_view_handle,
-                            MessageDirection::ToWidget,
-                            self.canvas,
-                        ));
-                    }
-                }
-            } else if states.len() > definition.states.alive_count() as usize {
-                // A state was removed.
-                for (state_view_handle, state_model_handle) in
-                    states.clone().iter().cloned().map(|state_view| {
-                        (
-                            state_view,
-                            ui.node(state_view)
+            match states
+                .len()
+                .cmp(&(definition.states.alive_count() as usize))
+            {
+                Ordering::Less => {
+                    // A state was added.
+                    for (state_handle, state) in definition.states.pair_iter() {
+                        if states.iter().all(|state_view| {
+                            ui.node(*state_view)
                                 .query_component::<AbsmStateNode>()
                                 .unwrap()
-                                .model_handle,
-                        )
-                    })
-                {
-                    if definition
-                        .states
-                        .pair_iter()
-                        .all(|(h, _)| h != state_model_handle)
-                    {
-                        ui.send_message(WidgetMessage::remove(
-                            state_view_handle,
-                            MessageDirection::ToWidget,
-                        ));
+                                .model_handle
+                                != state_handle
+                        }) {
+                            let state_view_handle = AbsmStateNodeBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_context_menu(self.node_context_menu.menu)
+                                    .with_desired_position(state.position),
+                            )
+                            .with_name(state.name.clone())
+                            .build(state_handle, &mut ui.build_ctx());
 
-                        if let Some(position) = states.iter().position(|s| *s == state_view_handle)
-                        {
-                            states.remove(position);
+                            states.push(state_view_handle);
+
+                            ui.send_message(WidgetMessage::link(
+                                state_view_handle,
+                                MessageDirection::ToWidget,
+                                self.canvas,
+                            ));
                         }
                     }
                 }
+                Ordering::Greater => {
+                    // A state was removed.
+                    for (state_view_handle, state_model_handle) in
+                        states.clone().iter().cloned().map(|state_view| {
+                            (
+                                state_view,
+                                ui.node(state_view)
+                                    .query_component::<AbsmStateNode>()
+                                    .unwrap()
+                                    .model_handle,
+                            )
+                        })
+                    {
+                        if definition
+                            .states
+                            .pair_iter()
+                            .all(|(h, _)| h != state_model_handle)
+                        {
+                            ui.send_message(WidgetMessage::remove(
+                                state_view_handle,
+                                MessageDirection::ToWidget,
+                            ));
+
+                            if let Some(position) =
+                                states.iter().position(|s| *s == state_view_handle)
+                            {
+                                states.remove(position);
+                            }
+                        }
+                    }
+                }
+                _ => (),
             }
 
             // Sync state nodes.
@@ -334,75 +343,83 @@ impl AbsmEditor {
             ui.update(ui.screen_size(), 0.0);
 
             // Sync transitions.
-            if transitions.len() < definition.transitions.alive_count() as usize {
-                // A transition was added.
-                for (transition_handle, transition) in definition.transitions.pair_iter() {
-                    if transitions.iter().all(|transition_view| {
-                        ui.node(*transition_view)
-                            .query_component::<Transition>()
-                            .unwrap()
-                            .model_handle
-                            != transition_handle
-                    }) {
-                        fn find_state_view(
-                            state_handle: Handle<StateDefinition>,
-                            states: &[Handle<UiNode>],
-                            ui: &UserInterface,
-                        ) -> Handle<UiNode> {
-                            states
-                                .iter()
-                                .find(|s| {
-                                    ui.node(**s)
-                                        .query_component::<AbsmStateNode>()
-                                        .unwrap()
-                                        .model_handle
-                                        == state_handle
-                                })
-                                .cloned()
-                                .unwrap_or_default()
-                        }
-
-                        let transition_view = TransitionBuilder::new(WidgetBuilder::new())
-                            .with_source(find_state_view(transition.source, &states, ui))
-                            .with_dest(find_state_view(transition.dest, &states, ui))
-                            .build(transition_handle, &mut ui.build_ctx());
-
-                        ui.send_message(WidgetMessage::link(
-                            transition_view,
-                            MessageDirection::ToWidget,
-                            self.canvas,
-                        ));
-
-                        ui.send_message(WidgetMessage::lowermost(
-                            transition_view,
-                            MessageDirection::ToWidget,
-                        ));
-                    }
-                }
-            } else if transitions.len() > definition.transitions.alive_count() as usize {
-                // A transition was removed.
-                for (transition_view_handle, transition_model_handle) in
-                    transitions.iter().cloned().map(|transition_view| {
-                        (
-                            transition_view,
-                            ui.node(transition_view)
+            match transitions
+                .len()
+                .cmp(&(definition.transitions.alive_count() as usize))
+            {
+                Ordering::Less => {
+                    // A transition was added.
+                    for (transition_handle, transition) in definition.transitions.pair_iter() {
+                        if transitions.iter().all(|transition_view| {
+                            ui.node(*transition_view)
                                 .query_component::<Transition>()
                                 .unwrap()
-                                .model_handle,
-                        )
-                    })
-                {
-                    if definition
-                        .transitions
-                        .pair_iter()
-                        .all(|(h, _)| h != transition_model_handle)
-                    {
-                        ui.send_message(WidgetMessage::remove(
-                            transition_view_handle,
-                            MessageDirection::ToWidget,
-                        ));
+                                .model_handle
+                                != transition_handle
+                        }) {
+                            fn find_state_view(
+                                state_handle: Handle<StateDefinition>,
+                                states: &[Handle<UiNode>],
+                                ui: &UserInterface,
+                            ) -> Handle<UiNode> {
+                                states
+                                    .iter()
+                                    .find(|s| {
+                                        ui.node(**s)
+                                            .query_component::<AbsmStateNode>()
+                                            .unwrap()
+                                            .model_handle
+                                            == state_handle
+                                    })
+                                    .cloned()
+                                    .unwrap_or_default()
+                            }
+
+                            let transition_view = TransitionBuilder::new(WidgetBuilder::new())
+                                .with_source(find_state_view(transition.source, &states, ui))
+                                .with_dest(find_state_view(transition.dest, &states, ui))
+                                .build(transition_handle, &mut ui.build_ctx());
+
+                            ui.send_message(WidgetMessage::link(
+                                transition_view,
+                                MessageDirection::ToWidget,
+                                self.canvas,
+                            ));
+
+                            ui.send_message(WidgetMessage::lowermost(
+                                transition_view,
+                                MessageDirection::ToWidget,
+                            ));
+                        }
                     }
                 }
+
+                Ordering::Greater => {
+                    // A transition was removed.
+                    for (transition_view_handle, transition_model_handle) in
+                        transitions.iter().cloned().map(|transition_view| {
+                            (
+                                transition_view,
+                                ui.node(transition_view)
+                                    .query_component::<Transition>()
+                                    .unwrap()
+                                    .model_handle,
+                            )
+                        })
+                    {
+                        if definition
+                            .transitions
+                            .pair_iter()
+                            .all(|(h, _)| h != transition_model_handle)
+                        {
+                            ui.send_message(WidgetMessage::remove(
+                                transition_view_handle,
+                                MessageDirection::ToWidget,
+                            ));
+                        }
+                    }
+                }
+                Ordering::Equal => {}
             }
         }
     }
