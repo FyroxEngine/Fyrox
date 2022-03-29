@@ -1,8 +1,12 @@
 use crate::define_command_stack;
-use fyrox::animation::machine::transition::TransitionDefinition;
 use fyrox::{
-    animation::machine::{state::StateDefinition, MachineDefinition},
-    core::pool::{Handle, Ticket},
+    animation::machine::{
+        state::StateDefinition, transition::TransitionDefinition, MachineDefinition,
+    },
+    core::{
+        algebra::Vector2,
+        pool::{Handle, Ticket},
+    },
 };
 use std::{
     fmt::Debug,
@@ -40,6 +44,53 @@ impl AbsmCommand {
 
     pub fn into_inner(self) -> Box<dyn AbsmCommandTrait> {
         self.0
+    }
+}
+
+#[derive(Debug)]
+pub struct CommandGroup {
+    commands: Vec<AbsmCommand>,
+}
+
+impl From<Vec<AbsmCommand>> for CommandGroup {
+    fn from(commands: Vec<AbsmCommand>) -> Self {
+        Self { commands }
+    }
+}
+
+impl CommandGroup {
+    pub fn push(&mut self, command: AbsmCommand) {
+        self.commands.push(command)
+    }
+}
+
+impl AbsmCommandTrait for CommandGroup {
+    fn name(&mut self, context: &AbsmEditorContext) -> String {
+        let mut name = String::from("Command group: ");
+        for cmd in self.commands.iter_mut() {
+            name.push_str(&cmd.name(context));
+            name.push_str(", ");
+        }
+        name
+    }
+
+    fn execute(&mut self, context: &mut AbsmEditorContext) {
+        for cmd in self.commands.iter_mut() {
+            cmd.execute(context);
+        }
+    }
+
+    fn revert(&mut self, context: &mut AbsmEditorContext) {
+        // revert must be done in reverse order.
+        for cmd in self.commands.iter_mut().rev() {
+            cmd.revert(context);
+        }
+    }
+
+    fn finalize(&mut self, context: &mut AbsmEditorContext) {
+        for mut cmd in self.commands.drain(..) {
+            cmd.finalize(context);
+        }
     }
 }
 
@@ -162,5 +213,52 @@ impl AbsmCommandTrait for AddTransitionCommand {
         {
             context.definition.transitions.forget_ticket(ticket)
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct MoveStateNodeCommand {
+    node: Handle<StateDefinition>,
+    old_position: Vector2<f32>,
+    new_position: Vector2<f32>,
+}
+
+impl MoveStateNodeCommand {
+    pub fn new(
+        node: Handle<StateDefinition>,
+        old_position: Vector2<f32>,
+        new_position: Vector2<f32>,
+    ) -> Self {
+        Self {
+            node,
+            old_position,
+            new_position,
+        }
+    }
+
+    fn swap(&mut self) -> Vector2<f32> {
+        let position = self.new_position;
+        std::mem::swap(&mut self.new_position, &mut self.old_position);
+        position
+    }
+
+    fn set_position(&self, definition: &mut MachineDefinition, position: Vector2<f32>) {
+        definition.states[self.node].position = position;
+    }
+}
+
+impl AbsmCommandTrait for MoveStateNodeCommand {
+    fn name(&mut self, _context: &AbsmEditorContext) -> String {
+        "Move State Node".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut AbsmEditorContext) {
+        let position = self.swap();
+        self.set_position(context.definition, position);
+    }
+
+    fn revert(&mut self, context: &mut AbsmEditorContext) {
+        let position = self.swap();
+        self.set_position(context.definition, position);
     }
 }

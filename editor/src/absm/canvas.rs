@@ -26,9 +26,9 @@ use std::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
-struct Entry {
-    node: Handle<UiNode>,
-    initial_position: Vector2<f32>,
+pub(super) struct Entry {
+    pub node: Handle<UiNode>,
+    pub initial_position: Vector2<f32>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -57,11 +57,15 @@ pub(super) enum AbsmCanvasMessage {
         source: Handle<UiNode>,
         dest: Handle<UiNode>,
     },
+    CommitDrag {
+        entries: Vec<Entry>,
+    },
 }
 
 impl AbsmCanvasMessage {
     define_constructor!(AbsmCanvasMessage:SwitchMode => fn switch_mode(Mode), layout: false);
     define_constructor!(AbsmCanvasMessage:CommitTransition => fn commit_transition(source: Handle<UiNode>, dest: Handle<UiNode>), layout: false);
+    define_constructor!(AbsmCanvasMessage:CommitDrag => fn commit_drag(entries: Vec<Entry>), layout: false);
 }
 
 #[derive(Clone)]
@@ -279,7 +283,13 @@ impl Control for AbsmCanvas {
 
                 ui.release_mouse_capture();
             } else if *button == MouseButton::Left {
-                if let Mode::Drag { .. } = self.mode {
+                if let Mode::Drag { ref drag_context } = self.mode {
+                    ui.send_message(AbsmCanvasMessage::commit_drag(
+                        self.handle(),
+                        MessageDirection::FromWidget,
+                        drag_context.entries.clone(),
+                    ));
+
                     self.mode = Mode::Normal;
                 }
             }

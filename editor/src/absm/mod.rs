@@ -1,11 +1,13 @@
-use crate::absm::command::AddTransitionCommand;
 use crate::absm::{
     canvas::{AbsmCanvas, AbsmCanvasBuilder, AbsmCanvasMessage, Mode},
-    command::{AbsmCommand, AbsmCommandStack, AbsmEditorContext, AddStateCommand},
+    command::{
+        AbsmCommand, AbsmCommandStack, AbsmEditorContext, AddStateCommand, AddTransitionCommand,
+        CommandGroup, MoveStateNodeCommand,
+    },
     menu::Menu,
     message::AbsmMessage,
     node::{AbsmStateNode, AbsmStateNodeBuilder, AbsmStateNodeMessage},
-    transition::{Transition, TransitionBuilder},
+    transition::{Transition, TransitionBuilder, TransitionMessage},
 };
 use fyrox::{
     animation::machine::{
@@ -25,8 +27,10 @@ use fyrox::{
         BuildContext, UiNode, UserInterface,
     },
 };
-use std::cmp::Ordering;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::{
+    cmp::Ordering,
+    sync::mpsc::{channel, Receiver, Sender},
+};
 
 mod canvas;
 mod command;
@@ -166,6 +170,16 @@ impl NodeContextMenu {
     }
 }
 
+fn fetch_state_node_model_handle(
+    handle: Handle<UiNode>,
+    ui: &UserInterface,
+) -> Handle<StateDefinition> {
+    ui.node(handle)
+        .query_component::<AbsmStateNode>()
+        .unwrap()
+        .model_handle
+}
+
 impl AbsmEditor {
     pub fn new(ui: &mut UserInterface) -> Self {
         let (tx, rx) = channel();
@@ -253,7 +267,7 @@ impl AbsmEditor {
                 .filter(|c| ui.node(*c).has_component::<AbsmStateNode>())
                 .collect::<Vec<_>>();
 
-            let transitions = canvas
+            let mut transitions = canvas
                 .children()
                 .iter()
                 .cloned()
@@ -329,14 +343,21 @@ impl AbsmEditor {
             // Sync state nodes.
             for state in states.iter() {
                 let state_node = ui.node(*state).query_component::<AbsmStateNode>().unwrap();
+                let state_model_ref = &definition.states[state_node.model_handle];
 
-                if definition.states[state_node.model_handle].name != state_node.name {
+                if state_model_ref.name != state_node.name {
                     ui.send_message(AbsmStateNodeMessage::name(
                         *state,
                         MessageDirection::ToWidget,
                         state_node.name.clone(),
                     ));
                 }
+
+                ui.send_message(WidgetMessage::desired_position(
+                    *state,
+                    MessageDirection::ToWidget,
+                    state_model_ref.position,
+                ));
             }
 
             // Force update layout to be able to fetch positions of nodes for transitions.
@@ -390,6 +411,8 @@ impl AbsmEditor {
                                 transition_view,
                                 MessageDirection::ToWidget,
                             ));
+
+                            transitions.push(transition_view);
                         }
                     }
                 }
@@ -397,7 +420,7 @@ impl AbsmEditor {
                 Ordering::Greater => {
                     // A transition was removed.
                     for (transition_view_handle, transition_model_handle) in
-                        transitions.iter().cloned().map(|transition_view| {
+                        transitions.clone().iter().cloned().map(|transition_view| {
                             (
                                 transition_view,
                                 ui.node(transition_view)
@@ -416,10 +439,34 @@ impl AbsmEditor {
                                 transition_view_handle,
                                 MessageDirection::ToWidget,
                             ));
+
+                            if let Some(position) = transitions
+                                .iter()
+                                .position(|s| *s == transition_view_handle)
+                            {
+                                transitions.remove(position);
+                            }
                         }
                     }
                 }
                 Ordering::Equal => {}
+            }
+
+            // Sync transitions.
+            for transition in transitions {
+                let transition_ref = ui.node(transition).query_component::<Transition>().unwrap();
+
+                ui.send_message(TransitionMessage::source_position(
+                    transition,
+                    MessageDirection::ToWidget,
+                    ui.node(transition_ref.source).center(),
+                ));
+
+                ui.send_message(TransitionMessage::dest_position(
+                    transition,
+                    MessageDirection::ToWidget,
+                    ui.node(transition_ref.dest).center(),
+                ));
             }
         }
     }
@@ -492,33 +539,50 @@ impl AbsmEditor {
         self.canvas_context_menu
             .handle_ui_message(&self.message_sender, message, ui);
 
-        if let Some(AbsmCanvasMessage::CommitTransition { source, dest }) = message.data() {
-            if message.destination() == self.canvas
-                && message.direction() == MessageDirection::FromWidget
-            {
-                let source = ui
-                    .node(*source)
-                    .query_component::<AbsmStateNode>()
-                    .unwrap()
-                    .model_handle;
+        if let Some(msg) = message.data::<AbsmCanvasMessage>() {
+            match msg {
+                AbsmCanvasMessage::CommitTransition { source, dest } => {
+                    if message.destination() == self.canvas
+                        && message.direction() == MessageDirection::FromWidget
+                    {
+                        let source = fetch_state_node_model_handle(*source, ui);
+                        let dest = fetch_state_node_model_handle(*dest, ui);
 
-                let dest = ui
-                    .node(*dest)
-                    .query_component::<AbsmStateNode>()
-                    .unwrap()
-                    .model_handle;
+                        self.message_sender
+                            .send(AbsmMessage::DoCommand(AbsmCommand::new(
+                                AddTransitionCommand::new(TransitionDefinition {
+                                    name: "Transition".to_string(),
+                                    transition_time: 1.0,
+                                    source,
+                                    dest,
+                                    rule: "".to_string(),
+                                }),
+                            )))
+                            .unwrap();
+                    }
+                }
+                AbsmCanvasMessage::CommitDrag { entries } => {
+                    let commands = entries
+                        .iter()
+                        .map(|e| {
+                            let state_handle = fetch_state_node_model_handle(e.node, ui);
+                            let new_position = ui.node(e.node).actual_local_position();
 
-                self.message_sender
-                    .send(AbsmMessage::DoCommand(AbsmCommand::new(
-                        AddTransitionCommand::new(TransitionDefinition {
-                            name: "Transition".to_string(),
-                            transition_time: 1.0,
-                            source,
-                            dest,
-                            rule: "".to_string(),
-                        }),
-                    )))
-                    .unwrap();
+                            AbsmCommand::new(MoveStateNodeCommand::new(
+                                state_handle,
+                                e.initial_position,
+                                new_position,
+                            ))
+                        })
+                        .collect::<Vec<_>>();
+
+                    self.message_sender
+                        .send(AbsmMessage::DoCommand(AbsmCommand::new(
+                            CommandGroup::from(commands),
+                        )))
+                        .unwrap();
+                }
+                _ => (),
             }
         }
     }
