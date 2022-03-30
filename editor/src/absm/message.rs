@@ -5,4 +5,7 @@ pub enum AbsmMessage {
     Undo,
     Redo,
     ClearCommandStack,
+    CreateNewAbsm,
+    LoadAbsm,
+    SaveCurrentAbsm,
 }
