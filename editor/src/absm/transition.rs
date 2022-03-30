@@ -48,13 +48,13 @@ pub fn draw_transition(
     source_pos: Vector2<f32>,
     dest_pos: Vector2<f32>,
 ) {
-    drawing_context.push_line(source_pos, dest_pos, 5.0);
+    drawing_context.push_line(source_pos, dest_pos, 4.0);
 
     let axis = (dest_pos - source_pos).normalize();
     let center = (dest_pos + source_pos).scale(0.5);
     let perp = Vector2::new(axis.y, -axis.x).normalize();
 
-    let size = 20.0;
+    let size = 18.0;
 
     drawing_context.push_triangle_filled([
         center + axis.scale(size),
@@ -120,6 +120,54 @@ impl Control for Transition {
             }
         }
     }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        // Check if any node has moved and sync ends accordingly.
+        if message.destination() == self.source || message.destination() == self.dest {
+            if let Some(WidgetMessage::DesiredPosition(_)) = message.data() {
+                // Find other transitions sharing the same source and dest nodes (in both directions).
+                for (i, transition_handle) in ui
+                    .node(self.parent())
+                    .children()
+                    .iter()
+                    .filter_map(|c| {
+                        ui.node(*c).query_component::<Transition>().and_then(|t| {
+                            if t.source == self.source && t.dest == self.dest
+                                || t.source == self.dest && t.dest == self.source
+                            {
+                                Some(*c)
+                            } else {
+                                None
+                            }
+                        })
+                    })
+                    .enumerate()
+                {
+                    if transition_handle == self.handle() {
+                        let source_pos = ui.node(self.source).center();
+                        let dest_pos = ui.node(self.dest).center();
+
+                        let delta = dest_pos - source_pos;
+                        let offset = Vector2::new(delta.y, -delta.x)
+                            .normalize()
+                            .scale(15.0 * i as f32);
+
+                        ui.send_message(TransitionMessage::source_position(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            source_pos + offset,
+                        ));
+
+                        ui.send_message(TransitionMessage::dest_position(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            dest_pos + offset,
+                        ));
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub struct TransitionBuilder {
@@ -161,6 +209,7 @@ impl TransitionBuilder {
         let transition = Transition {
             widget: self
                 .widget_builder
+                .with_preview_messages(true)
                 .with_foreground(NORMAL_BRUSH.clone())
                 .with_clip_to_bounds(false)
                 .build(),

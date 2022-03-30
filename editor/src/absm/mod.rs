@@ -7,7 +7,7 @@ use crate::absm::{
     menu::Menu,
     message::AbsmMessage,
     node::{AbsmStateNode, AbsmStateNodeBuilder, AbsmStateNodeMessage},
-    transition::{Transition, TransitionBuilder, TransitionMessage},
+    transition::{Transition, TransitionBuilder},
 };
 use fyrox::{
     animation::machine::{
@@ -450,23 +450,6 @@ impl AbsmEditor {
                     }
                 }
                 Ordering::Equal => {}
-            }
-
-            // Sync transitions.
-            for transition in transitions {
-                let transition_ref = ui.node(transition).query_component::<Transition>().unwrap();
-
-                ui.send_message(TransitionMessage::source_position(
-                    transition,
-                    MessageDirection::ToWidget,
-                    ui.node(transition_ref.source).center(),
-                ));
-
-                ui.send_message(TransitionMessage::dest_position(
-                    transition,
-                    MessageDirection::ToWidget,
-                    ui.node(transition_ref.dest).center(),
-                ));
             }
         }
     }

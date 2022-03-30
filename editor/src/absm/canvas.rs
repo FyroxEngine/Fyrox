@@ -1,7 +1,6 @@
 use crate::absm::{
     node::{AbsmStateNode, AbsmStateNodeMessage},
     transition,
-    transition::{Transition, TransitionMessage},
 };
 use fyrox::gui::define_constructor;
 use fyrox::{
@@ -314,28 +313,6 @@ impl Control for AbsmCanvas {
                             MessageDirection::ToWidget,
                             new_position,
                         ));
-
-                        let center = new_position + ui.node(entry.node).actual_size().scale(0.5);
-
-                        for child in self.children() {
-                            if let Some(transition) = ui.node(*child).cast::<Transition>() {
-                                if transition.source == entry.node {
-                                    ui.send_message(TransitionMessage::source_position(
-                                        *child,
-                                        MessageDirection::ToWidget,
-                                        center,
-                                    ));
-                                }
-
-                                if transition.dest == entry.node {
-                                    ui.send_message(TransitionMessage::dest_position(
-                                        *child,
-                                        MessageDirection::ToWidget,
-                                        center,
-                                    ));
-                                }
-                            }
-                        }
                     }
                 }
                 Mode::CreateTransition {

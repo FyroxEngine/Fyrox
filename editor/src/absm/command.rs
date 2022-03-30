@@ -59,6 +59,7 @@ impl From<Vec<AbsmCommand>> for CommandGroup {
 }
 
 impl CommandGroup {
+    #[allow(dead_code)]
     pub fn push(&mut self, command: AbsmCommand) {
         self.commands.push(command)
     }
