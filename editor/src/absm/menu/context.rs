@@ -1,7 +1,7 @@
 use crate::absm::{
     canvas::{AbsmCanvasMessage, Mode},
-    command::{AbsmCommand, AddStateCommand},
-    message::AbsmMessage,
+    command::AddStateCommand,
+    message::MessageSender,
     node::AbsmStateNode,
 };
 use fyrox::{
@@ -16,7 +16,6 @@ use fyrox::{
         BuildContext, UiNode, UserInterface,
     },
 };
-use std::sync::mpsc::Sender;
 
 pub struct CanvasContextMenu {
     create_state: Handle<UiNode>,
@@ -52,7 +51,7 @@ impl CanvasContextMenu {
 
     pub fn handle_ui_message(
         &mut self,
-        sender: &Sender<AbsmMessage>,
+        sender: &MessageSender,
         message: &UiMessage,
         ui: &mut UserInterface,
     ) {
@@ -60,15 +59,11 @@ impl CanvasContextMenu {
             if message.destination() == self.create_state {
                 let screen_position = ui.node(self.menu).screen_position();
 
-                sender
-                    .send(AbsmMessage::DoCommand(AbsmCommand::new(
-                        AddStateCommand::new(StateDefinition {
-                            position: ui.node(self.canvas).screen_to_local(screen_position),
-                            name: "New State".to_string(),
-                            root: Default::default(),
-                        }),
-                    )))
-                    .unwrap();
+                sender.do_command(AddStateCommand::new(StateDefinition {
+                    position: ui.node(self.canvas).screen_to_local(screen_position),
+                    name: "New State".to_string(),
+                    root: Default::default(),
+                }));
             }
         }
     }

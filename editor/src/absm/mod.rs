@@ -1,3 +1,4 @@
+use crate::absm::message::MessageSender;
 use crate::absm::{
     canvas::{AbsmCanvas, AbsmCanvasBuilder, AbsmCanvasMessage},
     command::{
@@ -29,7 +30,7 @@ use fyrox::{
 };
 use std::{
     cmp::Ordering,
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::mpsc::{channel, Receiver},
 };
 
 mod canvas;
@@ -52,7 +53,7 @@ pub struct AbsmEditor {
     canvas: Handle<UiNode>,
     absm_definition: Option<MachineDefinition>,
     menu: Menu,
-    message_sender: Sender<AbsmMessage>,
+    message_sender: MessageSender,
     message_receiver: Receiver<AbsmMessage>,
 }
 
@@ -126,7 +127,7 @@ impl AbsmEditor {
             window,
             canvas_context_menu,
             node_context_menu,
-            message_sender: tx,
+            message_sender: MessageSender::new(tx),
             message_receiver: rx,
             command_stack: AbsmCommandStack::new(false),
             canvas,
@@ -377,6 +378,14 @@ impl AbsmEditor {
         }
     }
 
+    fn create_new_absm(&mut self, engine: &mut Engine) {
+        self.clear_command_stack();
+
+        self.absm_definition = Some(MachineDefinition::default());
+
+        self.sync_to_model(&mut engine.user_interface);
+    }
+
     pub fn update(&mut self, engine: &mut Engine) {
         let mut need_sync = false;
 
@@ -395,13 +404,13 @@ impl AbsmEditor {
                     need_sync |= self.clear_command_stack();
                 }
                 AbsmMessage::CreateNewAbsm => {
-                    // TODO
+                    self.create_new_absm(engine);
                 }
                 AbsmMessage::LoadAbsm => {
                     // TODO
                 }
                 AbsmMessage::SaveCurrentAbsm => {
-                    // TOOD
+                    // TODO
                 }
             }
         }
@@ -426,17 +435,15 @@ impl AbsmEditor {
                         let source = fetch_state_node_model_handle(*source, ui);
                         let dest = fetch_state_node_model_handle(*dest, ui);
 
-                        self.message_sender
-                            .send(AbsmMessage::DoCommand(AbsmCommand::new(
-                                AddTransitionCommand::new(TransitionDefinition {
-                                    name: "Transition".to_string(),
-                                    transition_time: 1.0,
-                                    source,
-                                    dest,
-                                    rule: "".to_string(),
-                                }),
-                            )))
-                            .unwrap();
+                        self.message_sender.do_command(AddTransitionCommand::new(
+                            TransitionDefinition {
+                                name: "Transition".to_string(),
+                                transition_time: 1.0,
+                                source,
+                                dest,
+                                rule: "".to_string(),
+                            },
+                        ));
                     }
                 }
                 AbsmCanvasMessage::CommitDrag { entries } => {
@@ -454,11 +461,7 @@ impl AbsmEditor {
                         })
                         .collect::<Vec<_>>();
 
-                    self.message_sender
-                        .send(AbsmMessage::DoCommand(AbsmCommand::new(
-                            CommandGroup::from(commands),
-                        )))
-                        .unwrap();
+                    self.message_sender.do_command(CommandGroup::from(commands));
                 }
                 _ => (),
             }

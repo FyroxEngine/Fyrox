@@ -1,4 +1,4 @@
-use crate::absm::message::AbsmMessage;
+use crate::absm::message::MessageSender;
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -8,7 +8,6 @@ use fyrox::{
         BuildContext, UiNode,
     },
 };
-use std::sync::mpsc::Sender;
 
 pub mod context;
 
@@ -34,7 +33,7 @@ impl Menu {
         }
     }
 
-    pub fn handle_ui_message(&self, sender: &Sender<AbsmMessage>, message: &UiMessage) {
+    pub fn handle_ui_message(&self, sender: &MessageSender, message: &UiMessage) {
         self.file_menu.handle_ui_message(sender, message);
         self.edit_menu.handle_ui_message(sender, message);
     }
@@ -84,14 +83,14 @@ impl EditMenu {
         }
     }
 
-    pub fn handle_ui_message(&self, sender: &Sender<AbsmMessage>, message: &UiMessage) {
+    pub fn handle_ui_message(&self, sender: &MessageSender, message: &UiMessage) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.undo {
-                sender.send(AbsmMessage::Undo).unwrap();
+                sender.undo();
             } else if message.destination() == self.redo {
-                sender.send(AbsmMessage::Redo).unwrap();
+                sender.redo();
             } else if message.destination() == self.clear_command_stack {
-                sender.send(AbsmMessage::ClearCommandStack).unwrap();
+                sender.clear_command_stack();
             }
         }
     }
@@ -141,14 +140,14 @@ impl FileMenu {
         }
     }
 
-    pub fn handle_ui_message(&self, sender: &Sender<AbsmMessage>, message: &UiMessage) {
+    pub fn handle_ui_message(&self, sender: &MessageSender, message: &UiMessage) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.new {
-                sender.send(AbsmMessage::CreateNewAbsm).unwrap();
+                sender.create_new_absm();
             } else if message.destination() == self.save {
-                sender.send(AbsmMessage::SaveCurrentAbsm).unwrap();
+                sender.save_current_absm();
             } else if message.destination() == self.load {
-                sender.send(AbsmMessage::LoadAbsm).unwrap();
+                sender.load_absm();
             }
         }
     }
