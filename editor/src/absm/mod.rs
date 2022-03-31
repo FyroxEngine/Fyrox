@@ -1,15 +1,16 @@
-use crate::absm::message::MessageSender;
 use crate::absm::{
-    canvas::{AbsmCanvas, AbsmCanvasBuilder, AbsmCanvasMessage},
+    canvas::{AbsmCanvas, AbsmCanvasMessage},
     command::{
         AbsmCommand, AbsmCommandStack, AbsmEditorContext, AddTransitionCommand, CommandGroup,
         MoveStateNodeCommand,
     },
+    document::Document,
+    inspector::Inspector,
     menu::{
         context::{CanvasContextMenu, NodeContextMenu},
         Menu,
     },
-    message::AbsmMessage,
+    message::{AbsmMessage, MessageSender},
     node::{AbsmStateNode, AbsmStateNodeBuilder, AbsmStateNodeMessage},
     transition::{Transition, TransitionBuilder},
 };
@@ -20,7 +21,7 @@ use fyrox::{
     core::{algebra::Vector2, color::Color, pool::Handle},
     engine::Engine,
     gui::{
-        border::BorderBuilder,
+        dock::{DockingManagerBuilder, TileBuilder, TileContent},
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
         widget::{WidgetBuilder, WidgetMessage},
@@ -35,6 +36,8 @@ use std::{
 
 mod canvas;
 mod command;
+mod document;
+mod inspector;
 mod menu;
 mod message;
 mod node;
@@ -50,11 +53,13 @@ pub struct AbsmEditor {
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,
     command_stack: AbsmCommandStack,
-    canvas: Handle<UiNode>,
     absm_definition: Option<MachineDefinition>,
     menu: Menu,
     message_sender: MessageSender,
     message_receiver: Receiver<AbsmMessage>,
+    inspector: Inspector,
+    document: Document,
+    docking_manager: Handle<UiNode>,
 }
 
 fn fetch_state_node_model_handle(
@@ -76,20 +81,34 @@ impl AbsmEditor {
         let mut canvas_context_menu = CanvasContextMenu::new(ctx);
         let menu = Menu::new(ctx);
 
-        let canvas;
+        let inspector = Inspector::new(ctx);
+        let document = Document::new(canvas_context_menu.menu, ctx);
+
+        let docking_manager = DockingManagerBuilder::new(
+            WidgetBuilder::new().on_row(1).with_child(
+                TileBuilder::new(WidgetBuilder::new())
+                    .with_content(TileContent::HorizontalTiles {
+                        splitter: 0.7,
+                        tiles: [
+                            TileBuilder::new(WidgetBuilder::new())
+                                .with_content(TileContent::Window(document.window))
+                                .build(ctx),
+                            TileBuilder::new(WidgetBuilder::new())
+                                .with_content(TileContent::Window(inspector.window))
+                                .build(ctx),
+                        ],
+                    })
+                    .build(ctx),
+            ),
+        )
+        .build(ctx);
+
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(700.0).with_height(400.0))
             .with_content(
                 GridBuilder::new(
-                    WidgetBuilder::new().with_child(menu.menu).with_child(
-                        BorderBuilder::new(WidgetBuilder::new().on_row(1).with_child({
-                            canvas = AbsmCanvasBuilder::new(
-                                WidgetBuilder::new().with_context_menu(canvas_context_menu.menu),
-                            )
-                            .build(ctx);
-                            canvas
-                        }))
-                        .build(ctx),
-                    ),
+                    WidgetBuilder::new()
+                        .with_child(menu.menu)
+                        .with_child(docking_manager),
                 )
                 .add_row(Row::strict(24.0))
                 .add_row(Row::stretch())
@@ -99,9 +118,9 @@ impl AbsmEditor {
             .with_title(WindowTitle::text("ABSM Editor"))
             .build(ctx);
 
-        canvas_context_menu.canvas = canvas;
+        canvas_context_menu.canvas = document.canvas;
         canvas_context_menu.node_context_menu = node_context_menu.menu;
-        node_context_menu.canvas = canvas;
+        node_context_menu.canvas = document.canvas;
 
         let mut absm_definition = MachineDefinition::default();
 
@@ -130,9 +149,11 @@ impl AbsmEditor {
             message_sender: MessageSender::new(tx),
             message_receiver: rx,
             command_stack: AbsmCommandStack::new(false),
-            canvas,
             absm_definition: Some(absm_definition),
             menu,
+            document,
+            docking_manager,
+            inspector,
         };
 
         editor.sync_to_model(ui);
@@ -143,7 +164,7 @@ impl AbsmEditor {
     fn sync_to_model(&mut self, ui: &mut UserInterface) {
         if let Some(definition) = self.absm_definition.as_ref() {
             let canvas = ui
-                .node(self.canvas)
+                .node(self.document.canvas)
                 .cast::<AbsmCanvas>()
                 .expect("Must be AbsmCanvas!");
 
@@ -188,7 +209,7 @@ impl AbsmEditor {
                             ui.send_message(WidgetMessage::link(
                                 state_view_handle,
                                 MessageDirection::ToWidget,
-                                self.canvas,
+                                self.document.canvas,
                             ));
                         }
                     }
@@ -291,7 +312,7 @@ impl AbsmEditor {
                             ui.send_message(WidgetMessage::link(
                                 transition_view,
                                 MessageDirection::ToWidget,
-                                self.canvas,
+                                self.document.canvas,
                             ));
 
                             ui.send_message(WidgetMessage::lowermost(
@@ -429,7 +450,7 @@ impl AbsmEditor {
         if let Some(msg) = message.data::<AbsmCanvasMessage>() {
             match msg {
                 AbsmCanvasMessage::CommitTransition { source, dest } => {
-                    if message.destination() == self.canvas
+                    if message.destination() == self.document.canvas
                         && message.direction() == MessageDirection::FromWidget
                     {
                         let source = fetch_state_node_model_handle(*source, ui);
