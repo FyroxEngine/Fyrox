@@ -7,6 +7,7 @@ use crate::{
         Animation, AnimationContainer, AnimationPose,
     },
     core::{
+        inspect::{Inspect, PropertyInfo},
         pool::{Handle, Pool},
         visitor::prelude::*,
     },
@@ -25,7 +26,7 @@ pub struct PlayAnimation {
     output_pose: RefCell<AnimationPose>,
 }
 
-#[derive(Default, Debug, Visit, Clone)]
+#[derive(Default, Debug, Visit, Clone, Inspect)]
 pub struct PlayAnimationDefinition {
     pub base: BasePoseNodeDefinition,
     pub animation: PathBuf,

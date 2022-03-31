@@ -1,4 +1,7 @@
-use crate::core::visitor::prelude::*;
+use crate::core::{
+    inspect::{Inspect, PropertyInfo},
+    visitor::prelude::*,
+};
 use fxhash::FxHashMap;
 
 /// Machine parameter.  Machine uses various parameters for specific actions. For example
@@ -23,7 +26,7 @@ impl Default for Parameter {
 }
 
 /// Specific animation pose weight.
-#[derive(Debug, Visit, Clone)]
+#[derive(Debug, Visit, Clone, Inspect)]
 pub enum PoseWeight {
     /// Fixed scalar value. Should not be negative (can't even realize what will happen
     /// with negative weight here)

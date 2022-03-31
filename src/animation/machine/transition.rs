@@ -1,7 +1,10 @@
-use crate::animation::machine::state::StateDefinition;
 use crate::{
-    animation::machine::State,
-    core::{pool::Handle, visitor::prelude::*},
+    animation::machine::{state::StateDefinition, State},
+    core::{
+        inspect::{Inspect, PropertyInfo},
+        pool::Handle,
+        visitor::prelude::*,
+    },
 };
 
 /// Transition is a connection between two states with a rule that defines possibility
@@ -20,12 +23,14 @@ pub struct Transition {
     blend_factor: f32,
 }
 
-#[derive(Default, Debug, Visit, Clone)]
+#[derive(Default, Debug, Visit, Clone, Inspect)]
 pub struct TransitionDefinition {
     pub name: String,
     /// Total amount of time to transition from `src` to `dst` state.
     pub transition_time: f32,
+    #[inspect(read_only)]
     pub source: Handle<StateDefinition>,
+    #[inspect(read_only)]
     pub dest: Handle<StateDefinition>,
     /// Identifier of Rule parameter which defines is transition should be activated or not.
     pub rule: String,

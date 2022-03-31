@@ -13,6 +13,7 @@ use crate::{
     },
     core::{
         algebra::Vector2,
+        inspect::{Inspect, PropertyInfo},
         pool::{Handle, Pool},
         visitor::prelude::*,
     },
@@ -102,7 +103,7 @@ impl EvaluatePose for PoseNode {
     }
 }
 
-#[derive(Default, Debug, Visit, Clone)]
+#[derive(Default, Debug, Visit, Clone, Inspect)]
 pub struct BasePoseNodeDefinition {
     pub position: Vector2<f32>,
 }
@@ -138,6 +139,16 @@ impl DerefMut for PoseNodeDefinition {
             PoseNodeDefinition::PlayAnimation(v) => v,
             PoseNodeDefinition::BlendAnimations(v) => v,
             PoseNodeDefinition::BlendAnimationsByIndex(v) => v,
+        }
+    }
+}
+
+impl Inspect for PoseNodeDefinition {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        match self {
+            PoseNodeDefinition::PlayAnimation(v) => v.properties(),
+            PoseNodeDefinition::BlendAnimations(v) => v.properties(),
+            PoseNodeDefinition::BlendAnimationsByIndex(v) => v.properties(),
         }
     }
 }
