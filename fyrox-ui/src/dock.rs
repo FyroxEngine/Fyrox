@@ -514,29 +514,30 @@ impl Control for Tile {
     // We have to use preview_message for docking purposes because dragged window detached
     // from docking manager and handle_routed_message won't receive any messages from window.
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if let Some(WidgetMessage::Unlink) = message.data::<WidgetMessage>() {
-            if let TileContent::Empty | TileContent::Window(_) = self.content {
-                // Show anchors.
-                for &anchor in &self.anchors() {
-                    ui.send_message(WidgetMessage::visibility(
-                        anchor,
-                        MessageDirection::ToWidget,
-                        true,
-                    ));
-                }
-            }
-        } else if let Some(msg) = message.data::<WindowMessage>() {
+        if let Some(msg) = message.data::<WindowMessage>() {
             if let Some((_, docking_manager)) =
                 ui.try_borrow_by_type_up::<DockingManager>(self.parent())
             {
                 // Make sure we are dragging one of floating windows of parent docking manager.
-                if docking_manager
-                    .floating_windows
-                    .borrow_mut()
-                    .contains(&message.destination())
+                if message.direction() == MessageDirection::FromWidget
+                    && docking_manager
+                        .floating_windows
+                        .borrow_mut()
+                        .contains(&message.destination())
                 {
                     match msg {
                         &WindowMessage::Move(_) => {
+                            if let TileContent::Empty | TileContent::Window(_) = self.content {
+                                // Show anchors.
+                                for &anchor in &self.anchors() {
+                                    ui.send_message(WidgetMessage::visibility(
+                                        anchor,
+                                        MessageDirection::ToWidget,
+                                        true,
+                                    ));
+                                }
+                            }
+
                             // Window can be docked only if current tile is not split already.
                             if let TileContent::Empty | TileContent::Window(_) = self.content {
                                 // When window is being dragged, we should check which tile can accept it.
@@ -587,18 +588,6 @@ impl Control for Tile {
                                     self.drop_anchor.set(self.center_anchor);
                                 } else {
                                     self.drop_anchor.set(Handle::NONE);
-                                }
-                            }
-                        }
-                        WindowMessage::MoveStart => {
-                            if let TileContent::Empty | TileContent::Window(_) = self.content {
-                                // Show anchors.
-                                for &anchor in &self.anchors() {
-                                    ui.send_message(WidgetMessage::visibility(
-                                        anchor,
-                                        MessageDirection::ToWidget,
-                                        true,
-                                    ));
                                 }
                             }
                         }
