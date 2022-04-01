@@ -1,5 +1,6 @@
 use crate::{
-    define_command_stack, send_sync_message, MessageBoxButtons, MessageBoxMessage, MSG_SYNC_FLAG,
+    define_command_stack, send_sync_message, utils::create_file_selector, MessageBoxButtons,
+    MessageBoxMessage, MSG_SYNC_FLAG,
 };
 use fyrox::{
     asset::{Resource, ResourceData, ResourceState},
@@ -13,7 +14,7 @@ use fyrox::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         curve::{CurveEditorBuilder, CurveEditorMessage},
-        file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
+        file_browser::{FileBrowserMode, FileSelectorMessage},
         grid::{Column, GridBuilder, Row},
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
         message::{MessageDirection, UiMessage},
@@ -91,26 +92,12 @@ pub struct CurveEditorWindow {
     backup: Curve,
 }
 
-fn create_file_selector(ctx: &mut BuildContext, mode: FileBrowserMode) -> Handle<UiNode> {
-    FileSelectorBuilder::new(
-        WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0)).open(false),
-    )
-    .with_filter(Filter::new(|path| {
-        if let Some(ext) = path.extension() {
-            ext.to_string_lossy().as_ref() == "crv"
-        } else {
-            path.is_dir()
-        }
-    }))
-    .with_mode(mode)
-    .build(ctx)
-}
-
 impl CurveEditorWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let load_file_selector = create_file_selector(ctx, FileBrowserMode::Open);
+        let load_file_selector = create_file_selector(ctx, "crv", FileBrowserMode::Open);
         let save_file_selector = create_file_selector(
             ctx,
+            "crv",
             FileBrowserMode::Save {
                 default_file_name: PathBuf::from("unnamed.crv"),
             },

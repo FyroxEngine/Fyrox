@@ -1,11 +1,14 @@
 use crate::WindowEvent;
-use fyrox::core::algebra::Vector2;
-use fyrox::event::Event;
-use fyrox::gui::message::MessageDirection;
-use fyrox::gui::widget::WidgetMessage;
 use fyrox::{
-    core::pool::Handle,
-    gui::{window::Window, UiNode, UserInterface},
+    core::{algebra::Vector2, pool::Handle},
+    event::Event,
+    gui::{
+        file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
+        message::MessageDirection,
+        widget::{WidgetBuilder, WidgetMessage},
+        window::{Window, WindowBuilder},
+        BuildContext, UiNode, UserInterface,
+    },
 };
 
 pub mod path_fixer;
@@ -76,4 +79,23 @@ pub fn normalize_os_event(
             _ => (),
         }
     }
+}
+
+pub fn create_file_selector(
+    ctx: &mut BuildContext,
+    extension: &'static str,
+    mode: FileBrowserMode,
+) -> Handle<UiNode> {
+    FileSelectorBuilder::new(
+        WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0)).open(false),
+    )
+    .with_filter(Filter::new(move |path| {
+        if let Some(ext) = path.extension() {
+            ext.to_string_lossy().as_ref() == extension
+        } else {
+            path.is_dir()
+        }
+    }))
+    .with_mode(mode)
+    .build(ctx)
 }

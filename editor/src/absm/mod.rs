@@ -1,36 +1,46 @@
-use crate::absm::{
-    canvas::{AbsmCanvas, AbsmCanvasMessage},
-    command::{
-        AbsmCommand, AbsmCommandStack, AbsmEditorContext, AddTransitionCommand, CommandGroup,
-        MoveStateNodeCommand,
+use crate::{
+    absm::{
+        canvas::{AbsmCanvas, AbsmCanvasMessage},
+        command::{
+            AbsmCommand, AbsmCommandStack, AbsmEditorContext, AddTransitionCommand, CommandGroup,
+            MoveStateNodeCommand,
+        },
+        document::Document,
+        inspector::Inspector,
+        menu::{
+            context::{CanvasContextMenu, NodeContextMenu},
+            Menu,
+        },
+        message::{AbsmMessage, MessageSender},
+        node::{AbsmStateNode, AbsmStateNodeBuilder, AbsmStateNodeMessage},
+        transition::{Transition, TransitionBuilder},
     },
-    document::Document,
-    inspector::Inspector,
-    menu::{
-        context::{CanvasContextMenu, NodeContextMenu},
-        Menu,
-    },
-    message::{AbsmMessage, MessageSender},
-    node::{AbsmStateNode, AbsmStateNodeBuilder, AbsmStateNodeMessage},
-    transition::{Transition, TransitionBuilder},
+    utils::create_file_selector,
 };
 use fyrox::{
     animation::machine::{
         state::StateDefinition, transition::TransitionDefinition, MachineDefinition,
     },
-    core::{algebra::Vector2, color::Color, pool::Handle},
+    core::{
+        color::Color,
+        pool::Handle,
+        visitor::{Visit, Visitor},
+    },
     engine::Engine,
     gui::{
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
+        file_browser::{FileBrowserMode, FileSelectorMessage},
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
         widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowTitle},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
         UiNode, UserInterface,
     },
+    utils::log::Log,
 };
 use std::{
     cmp::Ordering,
+    path::PathBuf,
     sync::mpsc::{channel, Receiver},
 };
 
@@ -60,6 +70,7 @@ pub struct AbsmEditor {
     inspector: Inspector,
     document: Document,
     docking_manager: Handle<UiNode>,
+    save_dialog: Handle<UiNode>,
 }
 
 fn fetch_state_node_model_handle(
@@ -122,43 +133,28 @@ impl AbsmEditor {
         canvas_context_menu.node_context_menu = node_context_menu.menu;
         node_context_menu.canvas = document.canvas;
 
-        let mut absm_definition = MachineDefinition::default();
+        let save_dialog = create_file_selector(
+            ctx,
+            "absm",
+            FileBrowserMode::Save {
+                default_file_name: PathBuf::from("unnamed.absm"),
+            },
+        );
 
-        let state1 = absm_definition.states.spawn(StateDefinition {
-            position: Default::default(),
-            name: "State".to_string(),
-            root: Default::default(),
-        });
-        let state2 = absm_definition.states.spawn(StateDefinition {
-            position: Vector2::new(300.0, 200.0),
-            name: "Other State".to_string(),
-            root: Default::default(),
-        });
-        let _ = absm_definition.transitions.spawn(TransitionDefinition {
-            name: "Transition".to_string(),
-            transition_time: 0.2,
-            source: state1,
-            dest: state2,
-            rule: "Rule1".to_string(),
-        });
-
-        let mut editor = Self {
+        Self {
             window,
             canvas_context_menu,
             node_context_menu,
             message_sender: MessageSender::new(tx),
             message_receiver: rx,
             command_stack: AbsmCommandStack::new(false),
-            absm_definition: Some(absm_definition),
+            absm_definition: None,
             menu,
             document,
             docking_manager,
             inspector,
-        };
-
-        editor.sync_to_model(ui);
-
-        editor
+            save_dialog,
+        }
     }
 
     fn sync_to_model(&mut self, ui: &mut UserInterface) {
@@ -399,12 +395,32 @@ impl AbsmEditor {
         }
     }
 
-    fn create_new_absm(&mut self, engine: &mut Engine) {
+    fn create_new_absm(&mut self) {
         self.clear_command_stack();
 
         self.absm_definition = Some(MachineDefinition::default());
+    }
 
-        self.sync_to_model(&mut engine.user_interface);
+    fn open_save_dialog(&self, ui: &UserInterface) {
+        ui.send_message(FileSelectorMessage::root(
+            self.save_dialog,
+            MessageDirection::ToWidget,
+            Some(std::env::current_dir().unwrap()),
+        ));
+
+        ui.send_message(WindowMessage::open_modal(
+            self.save_dialog,
+            MessageDirection::ToWidget,
+            true,
+        ));
+    }
+
+    fn save_current_absm(&mut self, path: &PathBuf) {
+        if let Some(absm) = self.absm_definition.as_mut() {
+            let mut visitor = Visitor::new();
+            Log::verify(absm.visit("Machine", &mut visitor));
+            Log::verify(visitor.save_binary(path));
+        }
     }
 
     pub fn update(&mut self, engine: &mut Engine) {
@@ -425,13 +441,14 @@ impl AbsmEditor {
                     need_sync |= self.clear_command_stack();
                 }
                 AbsmMessage::CreateNewAbsm => {
-                    self.create_new_absm(engine);
+                    self.create_new_absm();
+                    need_sync = true;
                 }
                 AbsmMessage::LoadAbsm => {
                     // TODO
                 }
                 AbsmMessage::SaveCurrentAbsm => {
-                    // TODO
+                    self.open_save_dialog(&engine.user_interface);
                 }
             }
         }
@@ -485,6 +502,10 @@ impl AbsmEditor {
                     self.message_sender.do_command(CommandGroup::from(commands));
                 }
                 _ => (),
+            }
+        } else if let Some(FileSelectorMessage::Commit(save_path)) = message.data() {
+            if message.destination() == self.save_dialog {
+                self.save_current_absm(save_path)
             }
         }
     }
