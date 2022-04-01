@@ -451,7 +451,7 @@ impl Control for Window {
                         }
                     }
                     &WindowMessage::Move(new_pos) => {
-                        if self.desired_local_position() != new_pos {
+                        if self.is_dragging && self.desired_local_position() != new_pos {
                             ui.send_message(WidgetMessage::desired_position(
                                 self.handle(),
                                 MessageDirection::ToWidget,
