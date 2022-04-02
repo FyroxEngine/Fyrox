@@ -59,13 +59,27 @@ const NORMAL_BACKGROUND: Color = Color::opaque(60, 60, 60);
 const SELECTED_BACKGROUND: Color = Color::opaque(80, 80, 80);
 const BORDER_COLOR: Color = Color::opaque(70, 70, 70);
 
+#[derive(Default)]
+struct AbsmDataModel {
+    path: PathBuf,
+    absm_definition: MachineDefinition,
+}
+
+impl AbsmDataModel {
+    pub fn ctx(&mut self) -> AbsmEditorContext {
+        AbsmEditorContext {
+            definition: &mut self.absm_definition,
+        }
+    }
+}
+
 pub struct AbsmEditor {
     #[allow(dead_code)] // TODO
     window: Handle<UiNode>,
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,
     command_stack: AbsmCommandStack,
-    absm_definition: Option<MachineDefinition>,
+    data_model: Option<AbsmDataModel>,
     menu: Menu,
     message_sender: MessageSender,
     message_receiver: Receiver<AbsmMessage>,
@@ -152,7 +166,7 @@ impl AbsmEditor {
             message_sender: MessageSender::new(tx),
             message_receiver: rx,
             command_stack: AbsmCommandStack::new(false),
-            absm_definition: None,
+            data_model: None,
             menu,
             document,
             docking_manager,
@@ -163,7 +177,9 @@ impl AbsmEditor {
     }
 
     fn sync_to_model(&mut self, ui: &mut UserInterface) {
-        if let Some(definition) = self.absm_definition.as_ref() {
+        if let Some(data_model) = self.data_model.as_ref() {
+            let definition = &data_model.absm_definition;
+
             let canvas = ui
                 .node(self.document.canvas)
                 .cast::<AbsmCanvas>()
@@ -364,9 +380,9 @@ impl AbsmEditor {
     }
 
     fn do_command(&mut self, command: AbsmCommand) -> bool {
-        if let Some(definition) = self.absm_definition.as_mut() {
+        if let Some(data_model) = self.data_model.as_mut() {
             self.command_stack
-                .do_command(command.into_inner(), AbsmEditorContext { definition });
+                .do_command(command.into_inner(), data_model.ctx());
             true
         } else {
             false
@@ -374,8 +390,8 @@ impl AbsmEditor {
     }
 
     fn undo_command(&mut self) -> bool {
-        if let Some(definition) = self.absm_definition.as_mut() {
-            self.command_stack.undo(AbsmEditorContext { definition });
+        if let Some(data_model) = self.data_model.as_mut() {
+            self.command_stack.undo(data_model.ctx());
             true
         } else {
             false
@@ -383,8 +399,8 @@ impl AbsmEditor {
     }
 
     fn redo_command(&mut self) -> bool {
-        if let Some(definition) = self.absm_definition.as_mut() {
-            self.command_stack.redo(AbsmEditorContext { definition });
+        if let Some(data_model) = self.data_model.as_mut() {
+            self.command_stack.redo(data_model.ctx());
             true
         } else {
             false
@@ -392,8 +408,8 @@ impl AbsmEditor {
     }
 
     fn clear_command_stack(&mut self) -> bool {
-        if let Some(definition) = self.absm_definition.as_mut() {
-            self.command_stack.clear(AbsmEditorContext { definition });
+        if let Some(data_model) = self.data_model.as_mut() {
+            self.command_stack.clear(data_model.ctx());
             true
         } else {
             false
@@ -403,7 +419,7 @@ impl AbsmEditor {
     fn create_new_absm(&mut self) {
         self.clear_command_stack();
 
-        self.absm_definition = Some(MachineDefinition::default());
+        self.data_model = Some(AbsmDataModel::default());
     }
 
     fn open_save_dialog(&self, ui: &UserInterface) {
@@ -434,10 +450,12 @@ impl AbsmEditor {
         ));
     }
 
-    fn save_current_absm(&mut self, path: &PathBuf) {
-        if let Some(absm) = self.absm_definition.as_mut() {
+    fn save_current_absm(&mut self, path: PathBuf) {
+        if let Some(data_model) = self.data_model.as_mut() {
+            data_model.path = path.clone();
+
             let mut visitor = Visitor::new();
-            Log::verify(absm.visit("Machine", &mut visitor));
+            Log::verify(data_model.absm_definition.visit("Machine", &mut visitor));
             Log::verify(visitor.save_binary(path));
         }
     }
@@ -453,7 +471,10 @@ impl AbsmEditor {
                         e
                     ));
                 } else {
-                    self.absm_definition = Some(absm);
+                    self.data_model = Some(AbsmDataModel {
+                        path: path.to_path_buf(),
+                        absm_definition: absm,
+                    });
 
                     self.message_sender.sync();
                 }
@@ -491,7 +512,14 @@ impl AbsmEditor {
                     self.open_load_dialog(&engine.user_interface);
                 }
                 AbsmMessage::SaveCurrentAbsm => {
-                    self.open_save_dialog(&engine.user_interface);
+                    if let Some(data_model) = self.data_model.as_ref() {
+                        if data_model.path.exists() {
+                            let path = data_model.path.clone();
+                            self.save_current_absm(path)
+                        } else {
+                            self.open_save_dialog(&engine.user_interface);
+                        }
+                    }
                 }
                 AbsmMessage::Sync => {
                     need_sync = true;
@@ -551,7 +579,7 @@ impl AbsmEditor {
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.save_dialog {
-                self.save_current_absm(path)
+                self.save_current_absm(path.clone())
             } else if message.destination() == self.load_dialog {
                 self.load_absm(path);
             }
