@@ -1,10 +1,7 @@
 use crate::{
     absm::{
-        canvas::{AbsmCanvas, AbsmCanvasMessage},
-        command::{
-            AbsmCommand, AbsmCommandStack, AbsmEditorContext, AddTransitionCommand, CommandGroup,
-            MoveStateNodeCommand,
-        },
+        canvas::AbsmCanvas,
+        command::{AbsmCommand, AbsmCommandStack, AbsmEditorContext},
         document::Document,
         inspector::Inspector,
         menu::{
@@ -18,9 +15,7 @@ use crate::{
     utils::create_file_selector,
 };
 use fyrox::{
-    animation::machine::{
-        state::StateDefinition, transition::TransitionDefinition, MachineDefinition,
-    },
+    animation::machine::{state::StateDefinition, MachineDefinition},
     core::{
         color::Color,
         futures::executor::block_on,
@@ -85,19 +80,8 @@ pub struct AbsmEditor {
     message_receiver: Receiver<AbsmMessage>,
     inspector: Inspector,
     document: Document,
-    docking_manager: Handle<UiNode>,
     save_dialog: Handle<UiNode>,
     load_dialog: Handle<UiNode>,
-}
-
-fn fetch_state_node_model_handle(
-    handle: Handle<UiNode>,
-    ui: &UserInterface,
-) -> Handle<StateDefinition> {
-    ui.node(handle)
-        .query_component::<AbsmStateNode>()
-        .unwrap()
-        .model_handle
 }
 
 impl AbsmEditor {
@@ -169,7 +153,6 @@ impl AbsmEditor {
             data_model: None,
             menu,
             document,
-            docking_manager,
             inspector,
             save_dialog,
             load_dialog,
@@ -537,47 +520,10 @@ impl AbsmEditor {
         self.node_context_menu.handle_ui_message(message, ui);
         self.canvas_context_menu
             .handle_ui_message(&self.message_sender, message, ui);
+        self.document
+            .handle_ui_message(message, ui, &self.message_sender);
 
-        if let Some(msg) = message.data::<AbsmCanvasMessage>() {
-            match msg {
-                AbsmCanvasMessage::CommitTransition { source, dest } => {
-                    if message.destination() == self.document.canvas
-                        && message.direction() == MessageDirection::FromWidget
-                    {
-                        let source = fetch_state_node_model_handle(*source, ui);
-                        let dest = fetch_state_node_model_handle(*dest, ui);
-
-                        self.message_sender.do_command(AddTransitionCommand::new(
-                            TransitionDefinition {
-                                name: "Transition".to_string(),
-                                transition_time: 1.0,
-                                source,
-                                dest,
-                                rule: "".to_string(),
-                            },
-                        ));
-                    }
-                }
-                AbsmCanvasMessage::CommitDrag { entries } => {
-                    let commands = entries
-                        .iter()
-                        .map(|e| {
-                            let state_handle = fetch_state_node_model_handle(e.node, ui);
-                            let new_position = ui.node(e.node).actual_local_position();
-
-                            AbsmCommand::new(MoveStateNodeCommand::new(
-                                state_handle,
-                                e.initial_position,
-                                new_position,
-                            ))
-                        })
-                        .collect::<Vec<_>>();
-
-                    self.message_sender.do_command(CommandGroup::from(commands));
-                }
-                _ => (),
-            }
-        } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
+        if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.save_dialog {
                 self.save_current_absm(path.clone())
             } else if message.destination() == self.load_dialog {
