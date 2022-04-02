@@ -23,6 +23,7 @@ use fyrox::{
     },
     core::{
         color::Color,
+        futures::executor::block_on,
         pool::Handle,
         visitor::{Visit, Visitor},
     },
@@ -40,6 +41,7 @@ use fyrox::{
 };
 use std::{
     cmp::Ordering,
+    path::Path,
     path::PathBuf,
     sync::mpsc::{channel, Receiver},
 };
@@ -71,6 +73,7 @@ pub struct AbsmEditor {
     document: Document,
     docking_manager: Handle<UiNode>,
     save_dialog: Handle<UiNode>,
+    load_dialog: Handle<UiNode>,
 }
 
 fn fetch_state_node_model_handle(
@@ -133,6 +136,7 @@ impl AbsmEditor {
         canvas_context_menu.node_context_menu = node_context_menu.menu;
         node_context_menu.canvas = document.canvas;
 
+        let load_dialog = create_file_selector(ctx, "absm", FileBrowserMode::Open);
         let save_dialog = create_file_selector(
             ctx,
             "absm",
@@ -154,6 +158,7 @@ impl AbsmEditor {
             docking_manager,
             inspector,
             save_dialog,
+            load_dialog,
         }
     }
 
@@ -415,12 +420,50 @@ impl AbsmEditor {
         ));
     }
 
+    fn open_load_dialog(&self, ui: &UserInterface) {
+        ui.send_message(FileSelectorMessage::root(
+            self.load_dialog,
+            MessageDirection::ToWidget,
+            Some(std::env::current_dir().unwrap()),
+        ));
+
+        ui.send_message(WindowMessage::open_modal(
+            self.load_dialog,
+            MessageDirection::ToWidget,
+            true,
+        ));
+    }
+
     fn save_current_absm(&mut self, path: &PathBuf) {
         if let Some(absm) = self.absm_definition.as_mut() {
             let mut visitor = Visitor::new();
             Log::verify(absm.visit("Machine", &mut visitor));
             Log::verify(visitor.save_binary(path));
         }
+    }
+
+    fn load_absm(&mut self, path: &Path) {
+        match block_on(Visitor::load_binary(path)) {
+            Ok(mut visitor) => {
+                let mut absm = MachineDefinition::default();
+                if let Err(e) = absm.visit("Machine", &mut visitor) {
+                    Log::err(format!(
+                        "Unable to read ABSM from {}. Reason: {}",
+                        path.display(),
+                        e
+                    ));
+                } else {
+                    self.absm_definition = Some(absm);
+
+                    self.message_sender.sync();
+                }
+            }
+            Err(e) => Log::err(format!(
+                "Unable to load ABSM from {}. Reason: {}",
+                path.display(),
+                e
+            )),
+        };
     }
 
     pub fn update(&mut self, engine: &mut Engine) {
@@ -445,10 +488,13 @@ impl AbsmEditor {
                     need_sync = true;
                 }
                 AbsmMessage::LoadAbsm => {
-                    // TODO
+                    self.open_load_dialog(&engine.user_interface);
                 }
                 AbsmMessage::SaveCurrentAbsm => {
                     self.open_save_dialog(&engine.user_interface);
+                }
+                AbsmMessage::Sync => {
+                    need_sync = true;
                 }
             }
         }
@@ -503,9 +549,11 @@ impl AbsmEditor {
                 }
                 _ => (),
             }
-        } else if let Some(FileSelectorMessage::Commit(save_path)) = message.data() {
+        } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.save_dialog {
-                self.save_current_absm(save_path)
+                self.save_current_absm(path)
+            } else if message.destination() == self.load_dialog {
+                self.load_absm(path);
             }
         }
     }

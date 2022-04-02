@@ -9,6 +9,7 @@ pub enum AbsmMessage {
     CreateNewAbsm,
     LoadAbsm,
     SaveCurrentAbsm,
+    Sync,
 }
 
 pub struct MessageSender {
@@ -50,5 +51,9 @@ impl MessageSender {
 
     pub fn save_current_absm(&self) {
         self.send(AbsmMessage::SaveCurrentAbsm)
+    }
+
+    pub fn sync(&self) {
+        self.send(AbsmMessage::Sync)
     }
 }
