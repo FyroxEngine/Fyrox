@@ -369,9 +369,9 @@ impl Default for DragContext {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct MouseState {
-    left: ButtonState,
-    right: ButtonState,
-    middle: ButtonState,
+    pub left: ButtonState,
+    pub right: ButtonState,
+    pub middle: ButtonState,
     // TODO Add rest of buttons
 }
 
