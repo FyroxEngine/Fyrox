@@ -15,7 +15,10 @@ use crate::{
     utils::create_file_selector,
 };
 use fyrox::{
-    animation::machine::{state::StateDefinition, MachineDefinition},
+    animation::machine::{
+        node::PoseNodeDefinition, state::StateDefinition, transition::TransitionDefinition,
+        MachineDefinition,
+    },
     core::{
         color::Color,
         futures::executor::block_on,
@@ -36,8 +39,7 @@ use fyrox::{
 };
 use std::{
     cmp::Ordering,
-    path::Path,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::mpsc::{channel, Receiver},
 };
 
@@ -54,9 +56,17 @@ const NORMAL_BACKGROUND: Color = Color::opaque(60, 60, 60);
 const SELECTED_BACKGROUND: Color = Color::opaque(80, 80, 80);
 const BORDER_COLOR: Color = Color::opaque(70, 70, 70);
 
+#[derive(PartialEq, Eq)]
+enum SelectedEntity {
+    Node(Handle<PoseNodeDefinition>),
+    Transition(Handle<TransitionDefinition>),
+    State(Handle<StateDefinition>),
+}
+
 #[derive(Default)]
 struct AbsmDataModel {
     path: PathBuf,
+    selection: Vec<SelectedEntity>,
     absm_definition: MachineDefinition,
 }
 
@@ -457,6 +467,7 @@ impl AbsmEditor {
                     self.data_model = Some(AbsmDataModel {
                         path: path.to_path_buf(),
                         absm_definition: absm,
+                        selection: Default::default(),
                     });
 
                     self.message_sender.sync();
@@ -529,6 +540,6 @@ impl AbsmEditor {
             } else if message.destination() == self.load_dialog {
                 self.load_absm(path);
             }
-        }
+        } // else if let Some(AbsmStateNodeMessage::Select(state)) =
     }
 }

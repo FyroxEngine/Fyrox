@@ -59,19 +59,20 @@ pub(super) enum AbsmCanvasMessage {
     CommitDrag {
         entries: Vec<Entry>,
     },
+    SelectionChanged(Vec<Handle<UiNode>>),
 }
 
 impl AbsmCanvasMessage {
     define_constructor!(AbsmCanvasMessage:SwitchMode => fn switch_mode(Mode), layout: false);
     define_constructor!(AbsmCanvasMessage:CommitTransition => fn commit_transition(source: Handle<UiNode>, dest: Handle<UiNode>), layout: false);
     define_constructor!(AbsmCanvasMessage:CommitDrag => fn commit_drag(entries: Vec<Entry>), layout: false);
+    define_constructor!(AbsmCanvasMessage:SelectionChanged => fn selection_changed(Vec<Handle<UiNode>>), layout: false);
 }
 
 #[derive(Clone)]
 pub struct AbsmCanvas {
     widget: Widget,
-    #[allow(dead_code)] // TODO
-    selection_manager: Vec<Handle<UiNode>>,
+    selection: Vec<Handle<UiNode>>,
     view_position: Vector2<f32>,
     zoom: f32,
     initial_view_position: Vector2<f32>,
@@ -100,6 +101,64 @@ impl AbsmCanvas {
             MessageDirection::ToWidget,
             transform,
         ));
+    }
+
+    fn make_drag_context(&self, ui: &UserInterface) -> DragContext {
+        DragContext {
+            initial_cursor_position: self.point_to_local_space(ui.cursor_position()),
+            entries: self
+                .selection
+                .iter()
+                .map(|n| Entry {
+                    node: *n,
+                    initial_position: ui.node(*n).actual_local_position(),
+                })
+                .collect(),
+        }
+    }
+
+    fn set_selection(&mut self, new_selection: &[Handle<UiNode>], ui: &UserInterface) {
+        if &self.selection != new_selection {
+            for &child in self
+                .children()
+                .iter()
+                .filter(|n| ui.node(**n).cast::<AbsmStateNode>().is_some())
+            {
+                if new_selection.contains(&child) {
+                    continue;
+                }
+
+                ui.send_message(AbsmStateNodeMessage::select(
+                    child,
+                    MessageDirection::ToWidget,
+                    false,
+                ));
+            }
+
+            self.selection = new_selection.to_vec();
+
+            ui.send_message(AbsmCanvasMessage::selection_changed(
+                self.handle(),
+                MessageDirection::FromWidget,
+                self.selection.clone(),
+            ));
+
+            // Make sure to update draggin context if we're in Drag mode.
+            if let Mode::Drag { .. } = self.mode {
+                self.mode = Mode::Drag {
+                    drag_context: self.make_drag_context(ui),
+                };
+            }
+        }
+    }
+
+    fn fetch_dest_node(&self, node: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
+        if node == self.handle() {
+            self.find_by_criteria_up(ui, |n| n.query_component::<AbsmStateNode>().is_some())
+        } else {
+            ui.node(node)
+                .find_by_criteria_up(ui, |n| n.query_component::<AbsmStateNode>().is_some())
+        }
     }
 }
 
@@ -217,32 +276,18 @@ impl Control for AbsmCanvas {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(AbsmStateNodeMessage::Select(true)) = message.data() {
-            for &child in self.children() {
-                if message.destination() == child {
-                    continue;
-                }
+            if message.direction() == MessageDirection::FromWidget {
+                let selected_node = message.destination();
 
-                if ui.node(child).cast::<AbsmStateNode>().is_some() {
-                    ui.send_message(AbsmStateNodeMessage::select(
-                        child,
-                        MessageDirection::ToWidget,
-                        false,
-                    ));
-                }
-            }
+                let new_selection = if ui.keyboard_modifiers().control {
+                    let mut selection = self.selection.clone();
+                    selection.push(selected_node);
+                    selection
+                } else {
+                    vec![selected_node]
+                };
 
-            let selected_node = ui.node(message.destination());
-
-            if let Mode::Normal = self.mode {
-                self.mode = Mode::Drag {
-                    drag_context: DragContext {
-                        initial_cursor_position: self.point_to_local_space(ui.cursor_position()),
-                        entries: vec![Entry {
-                            node: message.destination(),
-                            initial_position: selected_node.actual_local_position(),
-                        }],
-                    },
-                }
+                self.set_selection(&new_selection, ui);
             }
         } else if let Some(WidgetMessage::MouseDown { pos, button }) = message.data() {
             if *button == MouseButton::Middle {
@@ -252,42 +297,48 @@ impl Control for AbsmCanvas {
 
                 ui.capture_mouse(self.handle());
             } else if *button == MouseButton::Left {
-                if let Mode::CreateTransition { source, .. } = self.mode {
-                    let dest_node_handle = if message.destination() == self.handle() {
-                        self.find_by_criteria_up(ui, |n| {
-                            n.query_component::<AbsmStateNode>().is_some()
-                        })
-                    } else {
-                        ui.node(message.destination()).find_by_criteria_up(ui, |n| {
-                            n.query_component::<AbsmStateNode>().is_some()
-                        })
-                    };
+                let dest_node_handle = self.fetch_dest_node(message.destination(), ui);
 
-                    if dest_node_handle.is_some() {
-                        // Commit creation.
-                        ui.send_message(AbsmCanvasMessage::commit_transition(
-                            self.handle(),
-                            MessageDirection::FromWidget,
-                            source,
-                            dest_node_handle,
-                        ));
+                match self.mode {
+                    Mode::CreateTransition { source, .. } => {
+                        if dest_node_handle.is_some() {
+                            // Commit creation.
+                            ui.send_message(AbsmCanvasMessage::commit_transition(
+                                self.handle(),
+                                MessageDirection::FromWidget,
+                                source,
+                                dest_node_handle,
+                            ));
+                        }
+
+                        self.mode = Mode::Normal;
                     }
-
-                    self.mode = Mode::Normal;
+                    Mode::Normal => {
+                        if dest_node_handle.is_some() {
+                            self.mode = Mode::Drag {
+                                drag_context: self.make_drag_context(ui),
+                            }
+                        } else {
+                            self.set_selection(&[], ui);
+                        }
+                    }
+                    _ => {}
                 }
             }
-        } else if let Some(WidgetMessage::MouseUp { button, .. }) = message.data() {
+        } else if let Some(WidgetMessage::MouseUp { button, pos }) = message.data() {
             if *button == MouseButton::Middle {
                 self.is_dragging_view = false;
 
                 ui.release_mouse_capture();
             } else if *button == MouseButton::Left {
                 if let Mode::Drag { ref drag_context } = self.mode {
-                    ui.send_message(AbsmCanvasMessage::commit_drag(
-                        self.handle(),
-                        MessageDirection::FromWidget,
-                        drag_context.entries.clone(),
-                    ));
+                    if pos != &drag_context.initial_cursor_position {
+                        ui.send_message(AbsmCanvasMessage::commit_drag(
+                            self.handle(),
+                            MessageDirection::FromWidget,
+                            drag_context.entries.clone(),
+                        ));
+                    }
 
                     self.mode = Mode::Normal;
                 }
@@ -320,7 +371,7 @@ impl Control for AbsmCanvas {
                 } => {
                     *dest_pos = local_cursor_position;
                 }
-                _ => {}
+                _ => (),
             }
         } else if let Some(WidgetMessage::MouseWheel { amount, pos }) = message.data() {
             let cursor_pos = (*pos - self.screen_position()).scale(self.zoom);
@@ -332,9 +383,19 @@ impl Control for AbsmCanvas {
             self.view_position -= (new_cursor_pos - cursor_pos).scale(self.zoom);
 
             self.update_transform(ui);
-        } else if let Some(AbsmCanvasMessage::SwitchMode(mode)) = message.data() {
-            // TODO: Check if other mode is active.
-            self.mode = mode.clone();
+        } else if let Some(msg) = message.data::<AbsmCanvasMessage>() {
+            if message.direction() == MessageDirection::ToWidget {
+                match msg {
+                    AbsmCanvasMessage::SwitchMode(mode) => {
+                        // TODO: Check if other mode is active.
+                        self.mode = mode.clone();
+                    }
+                    AbsmCanvasMessage::SelectionChanged(new_selection) => {
+                        self.set_selection(new_selection, ui);
+                    }
+                    _ => (),
+                }
+            }
         }
     }
 }
@@ -351,7 +412,7 @@ impl AbsmCanvasBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let canvas = AbsmCanvas {
             widget: self.widget_builder.with_clip_to_bounds(false).build(),
-            selection_manager: Default::default(),
+            selection: Default::default(),
             view_position: Default::default(),
             initial_view_position: Default::default(),
             click_position: Default::default(),

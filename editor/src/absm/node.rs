@@ -89,6 +89,8 @@ impl Control for AbsmStateNode {
                         NORMAL_BACKGROUND
                     }),
                 ));
+
+                ui.send_message(message.reverse());
             }
         }
     }
