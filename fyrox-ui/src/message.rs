@@ -217,6 +217,11 @@ impl UiMessage {
         self
     }
 
+    pub fn with_handled(self, handled: bool) -> Self {
+        self.handled.set(handled);
+        self
+    }
+
     pub fn with_perform_layout(self, perform_layout: bool) -> Self {
         self.perform_layout.set(perform_layout);
         self
