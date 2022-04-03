@@ -2,7 +2,6 @@ use crate::absm::{
     node::{AbsmStateNode, AbsmStateNodeMessage},
     transition,
 };
-use fyrox::gui::define_constructor;
 use fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
@@ -12,7 +11,7 @@ use fyrox::{
     },
     gui::{
         brush::Brush,
-        define_widget_deref,
+        define_constructor, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         message::{MessageDirection, MouseButton, UiMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -124,15 +123,14 @@ impl AbsmCanvas {
                 .iter()
                 .filter(|n| ui.node(**n).cast::<AbsmStateNode>().is_some())
             {
-                if new_selection.contains(&child) {
-                    continue;
-                }
-
-                ui.send_message(AbsmStateNodeMessage::select(
-                    child,
-                    MessageDirection::ToWidget,
-                    false,
-                ));
+                ui.send_message(
+                    AbsmStateNodeMessage::select(
+                        child,
+                        MessageDirection::ToWidget,
+                        new_selection.contains(&child),
+                    )
+                    .with_handled(true),
+                );
             }
 
             self.selection = new_selection.to_vec();
@@ -143,7 +141,7 @@ impl AbsmCanvas {
                 self.selection.clone(),
             ));
 
-            // Make sure to update draggin context if we're in Drag mode.
+            // Make sure to update dragging context if we're in Drag mode.
             if let Mode::Drag { .. } = self.mode {
                 self.mode = Mode::Drag {
                     drag_context: self.make_drag_context(ui),
@@ -276,7 +274,7 @@ impl Control for AbsmCanvas {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(AbsmStateNodeMessage::Select(true)) = message.data() {
-            if message.direction() == MessageDirection::FromWidget {
+            if message.direction() == MessageDirection::FromWidget && !message.handled() {
                 let selected_node = message.destination();
 
                 let new_selection = if ui.keyboard_modifiers().control {
@@ -332,7 +330,7 @@ impl Control for AbsmCanvas {
                 ui.release_mouse_capture();
             } else if *button == MouseButton::Left {
                 if let Mode::Drag { ref drag_context } = self.mode {
-                    if pos != &drag_context.initial_cursor_position {
+                    if self.screen_to_local(*pos) != drag_context.initial_cursor_position {
                         ui.send_message(AbsmCanvasMessage::commit_drag(
                             self.handle(),
                             MessageDirection::FromWidget,

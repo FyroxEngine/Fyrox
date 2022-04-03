@@ -1,4 +1,4 @@
-use crate::define_command_stack;
+use crate::{absm::SelectedEntity, define_command_stack};
 use fyrox::{
     animation::machine::{
         state::StateDefinition, transition::TransitionDefinition, MachineDefinition,
@@ -15,6 +15,7 @@ use std::{
 
 #[derive(Debug)]
 pub struct AbsmEditorContext<'a> {
+    pub selection: &'a mut Vec<SelectedEntity>,
     pub definition: &'a mut MachineDefinition,
 }
 
@@ -261,5 +262,30 @@ impl AbsmCommandTrait for MoveStateNodeCommand {
     fn revert(&mut self, context: &mut AbsmEditorContext) {
         let position = self.swap();
         self.set_position(context.definition, position);
+    }
+}
+
+#[derive(Debug)]
+pub struct ChangeSelectionCommand {
+    pub selection: Vec<SelectedEntity>,
+}
+
+impl ChangeSelectionCommand {
+    fn swap(&mut self, context: &mut AbsmEditorContext) {
+        std::mem::swap(&mut self.selection, context.selection);
+    }
+}
+
+impl AbsmCommandTrait for ChangeSelectionCommand {
+    fn name(&mut self, _: &AbsmEditorContext) -> String {
+        "Change Selection".to_string()
+    }
+
+    fn execute(&mut self, context: &mut AbsmEditorContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut AbsmEditorContext) {
+        self.swap(context)
     }
 }

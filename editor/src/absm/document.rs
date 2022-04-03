@@ -1,8 +1,13 @@
 use crate::absm::{
     canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
-    command::{AbsmCommand, AddTransitionCommand, CommandGroup, MoveStateNodeCommand},
+    command::{
+        AbsmCommand, AddTransitionCommand, ChangeSelectionCommand, CommandGroup,
+        MoveStateNodeCommand,
+    },
     message::MessageSender,
     node::AbsmStateNode,
+    transition::Transition,
+    AbsmDataModel, SelectedEntity,
 };
 use fyrox::{
     animation::machine::{state::StateDefinition, transition::TransitionDefinition},
@@ -49,43 +54,69 @@ impl Document {
         message: &UiMessage,
         ui: &mut UserInterface,
         sender: &MessageSender,
+        data_model: &AbsmDataModel,
     ) {
-        if let Some(msg) = message.data::<AbsmCanvasMessage>() {
-            match msg {
-                AbsmCanvasMessage::CommitTransition { source, dest } => {
-                    if message.destination() == self.canvas
-                        && message.direction() == MessageDirection::FromWidget
-                    {
-                        let source = fetch_state_node_model_handle(*source, ui);
-                        let dest = fetch_state_node_model_handle(*dest, ui);
+        if message.destination() == self.canvas {
+            if let Some(msg) = message.data::<AbsmCanvasMessage>() {
+                match msg {
+                    AbsmCanvasMessage::CommitTransition { source, dest } => {
+                        if message.direction() == MessageDirection::FromWidget {
+                            let source = fetch_state_node_model_handle(*source, ui);
+                            let dest = fetch_state_node_model_handle(*dest, ui);
 
-                        sender.do_command(AddTransitionCommand::new(TransitionDefinition {
-                            name: "Transition".to_string(),
-                            transition_time: 1.0,
-                            source,
-                            dest,
-                            rule: "".to_string(),
-                        }));
+                            sender.do_command(AddTransitionCommand::new(TransitionDefinition {
+                                name: "Transition".to_string(),
+                                transition_time: 1.0,
+                                source,
+                                dest,
+                                rule: "".to_string(),
+                            }));
+                        }
                     }
-                }
-                AbsmCanvasMessage::CommitDrag { entries } => {
-                    let commands = entries
-                        .iter()
-                        .map(|e| {
-                            let state_handle = fetch_state_node_model_handle(e.node, ui);
-                            let new_position = ui.node(e.node).actual_local_position();
+                    AbsmCanvasMessage::CommitDrag { entries } => {
+                        let commands = entries
+                            .iter()
+                            .map(|e| {
+                                let state_handle = fetch_state_node_model_handle(e.node, ui);
+                                let new_position = ui.node(e.node).actual_local_position();
 
-                            AbsmCommand::new(MoveStateNodeCommand::new(
-                                state_handle,
-                                e.initial_position,
-                                new_position,
-                            ))
-                        })
-                        .collect::<Vec<_>>();
+                                AbsmCommand::new(MoveStateNodeCommand::new(
+                                    state_handle,
+                                    e.initial_position,
+                                    new_position,
+                                ))
+                            })
+                            .collect::<Vec<_>>();
 
-                    sender.do_command(CommandGroup::from(commands));
+                        sender.do_command(CommandGroup::from(commands));
+                    }
+                    AbsmCanvasMessage::SelectionChanged(selection) => {
+                        if message.direction() == MessageDirection::FromWidget {
+                            let selection = selection
+                                .iter()
+                                .filter_map(|n| {
+                                    let node_ref = ui.node(*n);
+                                    if let Some(state_node) =
+                                        node_ref.query_component::<AbsmStateNode>()
+                                    {
+                                        Some(SelectedEntity::State(state_node.model_handle))
+                                    } else if let Some(state_node) =
+                                        node_ref.query_component::<Transition>()
+                                    {
+                                        Some(SelectedEntity::Transition(state_node.model_handle))
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect();
+
+                            if selection != data_model.selection {
+                                sender.do_command(ChangeSelectionCommand { selection });
+                            }
+                        }
+                    }
+                    _ => (),
                 }
-                _ => (),
             }
         }
     }
