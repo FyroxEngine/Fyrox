@@ -1488,7 +1488,8 @@ impl Editor {
 
         self.engine.pre_update(dt);
 
-        self.absm_editor.update(&mut self.engine);
+        self.absm_editor
+            .update(&mut self.engine, self.message_sender.clone());
         self.log.update(&mut self.engine);
 
         if let Mode::Play { scene, .. } = self.mode {

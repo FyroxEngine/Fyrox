@@ -14,6 +14,7 @@ use crate::{
     },
     send_sync_message,
     utils::create_file_selector,
+    Message,
 };
 use fyrox::{
     animation::machine::{
@@ -37,6 +38,7 @@ use fyrox::{
     },
     utils::log::Log,
 };
+use std::sync::mpsc::Sender;
 use std::{
     cmp::Ordering,
     path::{Path, PathBuf},
@@ -56,7 +58,7 @@ const NORMAL_BACKGROUND: Color = Color::opaque(60, 60, 60);
 const SELECTED_BACKGROUND: Color = Color::opaque(80, 80, 80);
 const BORDER_COLOR: Color = Color::opaque(70, 70, 70);
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SelectedEntity {
     Transition(Handle<TransitionDefinition>),
     State(Handle<StateDefinition>),
@@ -169,7 +171,7 @@ impl AbsmEditor {
         }
     }
 
-    fn sync_to_model(&mut self, ui: &mut UserInterface) {
+    fn sync_to_model(&mut self, ui: &mut UserInterface, sender: Sender<Message>) {
         if let Some(data_model) = self.data_model.as_ref() {
             let definition = &data_model.absm_definition;
 
@@ -428,6 +430,8 @@ impl AbsmEditor {
                     new_selection,
                 ),
             );
+
+            self.inspector.sync_to_model(ui, data_model, sender);
         }
     }
 
@@ -542,7 +546,7 @@ impl AbsmEditor {
         };
     }
 
-    pub fn update(&mut self, engine: &mut Engine) {
+    pub fn update(&mut self, engine: &mut Engine, sender: Sender<Message>) {
         let mut need_sync = false;
 
         while let Ok(message) = self.message_receiver.try_recv() {
@@ -583,7 +587,7 @@ impl AbsmEditor {
         }
 
         if need_sync {
-            self.sync_to_model(&mut engine.user_interface);
+            self.sync_to_model(&mut engine.user_interface, sender);
         }
     }
 
