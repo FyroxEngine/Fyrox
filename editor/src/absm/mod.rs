@@ -52,6 +52,7 @@ mod inspector;
 mod menu;
 mod message;
 mod node;
+mod selectable;
 mod transition;
 
 const NORMAL_BACKGROUND: Color = Color::opaque(60, 60, 60);
@@ -127,7 +128,7 @@ impl AbsmEditor {
         )
         .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(700.0).with_height(400.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(1000.0).with_height(800.0))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()

@@ -1,3 +1,4 @@
+use crate::absm::selectable::Selectable;
 use fyrox::{
     animation::machine::transition::TransitionDefinition,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
@@ -26,6 +27,7 @@ pub struct Transition {
     pub dest: Handle<UiNode>,
     dest_pos: Vector2<f32>,
     pub model_handle: Handle<TransitionDefinition>,
+    selectable: Selectable,
 }
 
 define_widget_deref!(Transition);
@@ -69,6 +71,8 @@ impl Control for Transition {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
             Some(self)
+        } else if type_id == TypeId::of::<Selectable>() {
+            Some(&self.selectable)
         } else {
             None
         }
@@ -86,6 +90,8 @@ impl Control for Transition {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
+        self.selectable
+            .handle_routed_message(self.handle(), ui, message);
 
         if let Some(msg) = message.data::<TransitionMessage>() {
             if message.destination() == self.handle()
@@ -218,6 +224,7 @@ impl TransitionBuilder {
             dest: self.dest,
             dest_pos: fetch_node_position(self.dest, ctx),
             model_handle,
+            selectable: Selectable::default(),
         };
 
         ctx.add_node(UiNode::new(transition))

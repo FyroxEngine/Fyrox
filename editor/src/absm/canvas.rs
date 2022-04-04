@@ -1,7 +1,5 @@
-use crate::absm::{
-    node::{AbsmStateNode, AbsmStateNodeMessage},
-    transition,
-};
+use crate::absm::selectable::Selectable;
+use crate::absm::{node::AbsmStateNode, selectable::SelectableMessage, transition};
 use fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
@@ -121,10 +119,10 @@ impl AbsmCanvas {
             for &child in self
                 .children()
                 .iter()
-                .filter(|n| ui.node(**n).cast::<AbsmStateNode>().is_some())
+                .filter(|n| ui.node(**n).query_component::<Selectable>().is_some())
             {
                 ui.send_message(
-                    AbsmStateNodeMessage::select(
+                    SelectableMessage::select(
                         child,
                         MessageDirection::ToWidget,
                         new_selection.contains(&child),
@@ -273,7 +271,7 @@ impl Control for AbsmCanvas {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(AbsmStateNodeMessage::Select(true)) = message.data() {
+        if let Some(SelectableMessage::Select(true)) = message.data() {
             if message.direction() == MessageDirection::FromWidget && !message.handled() {
                 let selected_node = message.destination();
 

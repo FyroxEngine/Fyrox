@@ -1,4 +1,7 @@
-use crate::absm::{BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND};
+use crate::absm::{
+    selectable::{Selectable, SelectableMessage},
+    BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
+};
 use fyrox::{
     animation::machine::state::StateDefinition,
     core::{algebra::Vector2, pool::Handle},
@@ -6,7 +9,7 @@ use fyrox::{
         border::BorderBuilder,
         brush::Brush,
         define_constructor, define_widget_deref,
-        message::{MessageDirection, MouseButton, UiMessage},
+        message::{MessageDirection, UiMessage},
         text::TextBuilder,
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
@@ -22,7 +25,7 @@ use std::{
 pub struct AbsmStateNode {
     widget: Widget,
     background: Handle<UiNode>,
-    selected: bool,
+    selectable: Selectable,
     pub name: String,
     pub model_handle: Handle<StateDefinition>,
 }
@@ -31,12 +34,10 @@ define_widget_deref!(AbsmStateNode);
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AbsmStateNodeMessage {
-    Select(bool),
     Name(String),
 }
 
 impl AbsmStateNodeMessage {
-    define_constructor!(AbsmStateNodeMessage:Select => fn select(bool), layout: false);
     define_constructor!(AbsmStateNodeMessage:Name => fn name(String), layout: false);
 }
 
@@ -44,6 +45,8 @@ impl Control for AbsmStateNode {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
             Some(self)
+        } else if type_id == TypeId::of::<Selectable>() {
+            Some(&self.selectable)
         } else {
             None
         }
@@ -51,46 +54,29 @@ impl Control for AbsmStateNode {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
+        self.selectable
+            .handle_routed_message(self.handle(), ui, message);
 
-        if let Some(WidgetMessage::MouseDown { button, .. }) = message.data() {
-            if *button == MouseButton::Left || *button == MouseButton::Right {
-                message.set_handled(true);
-
-                ui.send_message(AbsmStateNodeMessage::select(
-                    self.handle(),
-                    MessageDirection::ToWidget,
-                    true,
-                ));
-
-                ui.send_message(WidgetMessage::topmost(
-                    self.handle(),
-                    MessageDirection::ToWidget,
-                ));
-
-                ui.capture_mouse(self.handle());
-            }
-        } else if let Some(WidgetMessage::MouseUp { button, .. }) = message.data() {
-            if *button == MouseButton::Left || *button == MouseButton::Right {
-                ui.release_mouse_capture();
-            }
-        } else if let Some(AbsmStateNodeMessage::Select(state)) = message.data() {
+        if let Some(SelectableMessage::Select(selected)) = message.data() {
             if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-                && self.selected != *state
+                && message.direction() == MessageDirection::FromWidget
             {
-                self.selected = *state;
-
                 ui.send_message(WidgetMessage::background(
                     self.background,
                     MessageDirection::ToWidget,
-                    Brush::Solid(if self.selected {
+                    Brush::Solid(if *selected {
                         SELECTED_BACKGROUND
                     } else {
                         NORMAL_BACKGROUND
                     }),
                 ));
 
-                ui.send_message(message.reverse());
+                if *selected {
+                    ui.send_message(WidgetMessage::topmost(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                    ));
+                }
             }
         }
     }
@@ -143,7 +129,7 @@ impl AbsmStateNodeBuilder {
                 .with_child(background)
                 .build(),
             background,
-            selected: false,
+            selectable: Default::default(),
             model_handle,
             name: self.name,
         };
