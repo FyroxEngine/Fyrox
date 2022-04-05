@@ -1,4 +1,4 @@
-use crate::absm::selectable::Selectable;
+use crate::absm::selectable::{Selectable, SelectableMessage};
 use fyrox::{
     animation::machine::transition::TransitionDefinition,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
@@ -16,8 +16,9 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(120, 120, 120));
+const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(100, 100, 100));
 const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(80, 80, 80));
+const SELECTED_BRUSH: Brush = Brush::Solid(Color::opaque(120, 120, 120));
 
 #[derive(Clone, Debug)]
 pub struct Transition {
@@ -28,6 +29,20 @@ pub struct Transition {
     dest_pos: Vector2<f32>,
     pub model_handle: Handle<TransitionDefinition>,
     selectable: Selectable,
+}
+
+impl Transition {
+    fn handle_selection_change(&self, ui: &UserInterface) {
+        ui.send_message(WidgetMessage::foreground(
+            self.handle(),
+            MessageDirection::ToWidget,
+            if self.selectable.selected {
+                SELECTED_BRUSH.clone()
+            } else {
+                NORMAL_BRUSH.clone()
+            },
+        ));
+    }
 }
 
 define_widget_deref!(Transition);
@@ -116,13 +131,15 @@ impl Control for Transition {
                     ));
                 }
                 WidgetMessage::MouseLeave => {
-                    ui.send_message(WidgetMessage::foreground(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        NORMAL_BRUSH.clone(),
-                    ));
+                    self.handle_selection_change(ui);
                 }
                 _ => (),
+            }
+        } else if let Some(SelectableMessage::Select(_)) = message.data() {
+            if message.destination() == self.handle()
+                && message.direction() == MessageDirection::FromWidget
+            {
+                self.handle_selection_change(ui);
             }
         }
     }

@@ -18,7 +18,7 @@ impl SelectableMessage {
 
 #[derive(Default, Clone, Debug, PartialEq)]
 pub struct Selectable {
-    selected: bool,
+    pub selected: bool,
 }
 
 impl Selectable {
