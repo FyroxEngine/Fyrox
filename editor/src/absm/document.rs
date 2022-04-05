@@ -96,16 +96,15 @@ impl Document {
                                 .iter()
                                 .filter_map(|n| {
                                     let node_ref = ui.node(*n);
+
                                     if let Some(state_node) =
                                         node_ref.query_component::<AbsmStateNode>()
                                     {
                                         Some(SelectedEntity::State(state_node.model_handle))
-                                    } else if let Some(state_node) =
-                                        node_ref.query_component::<Transition>()
-                                    {
-                                        Some(SelectedEntity::Transition(state_node.model_handle))
                                     } else {
-                                        None
+                                        node_ref.query_component::<Transition>().map(|state_node| {
+                                            SelectedEntity::Transition(state_node.model_handle)
+                                        })
                                     }
                                 })
                                 .collect();

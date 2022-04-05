@@ -31,18 +31,18 @@ impl Selectable {
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::MouseDown { button, .. } => {
-                    if *button == MouseButton::Left || *button == MouseButton::Right {
-                        if !self.selected {
-                            message.set_handled(true);
+                    if (*button == MouseButton::Left || *button == MouseButton::Right)
+                        && !self.selected
+                    {
+                        message.set_handled(true);
 
-                            ui.send_message(SelectableMessage::select(
-                                self_handle,
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
+                        ui.send_message(SelectableMessage::select(
+                            self_handle,
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
 
-                            ui.capture_mouse(self_handle);
-                        }
+                        ui.capture_mouse(self_handle);
                     }
                 }
                 WidgetMessage::MouseUp { button, .. } => {
@@ -53,13 +53,12 @@ impl Selectable {
                 _ => {}
             }
         } else if let Some(SelectableMessage::Select(selected)) = message.data() {
-            if message.destination() == self_handle {
-                if message.direction() == MessageDirection::ToWidget {
-                    if self.selected != *selected {
-                        self.selected = *selected;
-                        ui.send_message(message.reverse());
-                    }
-                }
+            if message.destination() == self_handle
+                && message.direction() == MessageDirection::ToWidget
+                && self.selected != *selected
+            {
+                self.selected = *selected;
+                ui.send_message(message.reverse());
             }
         }
     }

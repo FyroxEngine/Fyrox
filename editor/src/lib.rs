@@ -677,7 +677,7 @@ impl Editor {
 
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
 
-        let absm_editor = AbsmEditor::new(&mut engine.user_interface);
+        let absm_editor = AbsmEditor::new(&mut engine);
 
         let material_editor = MaterialEditor::new(&mut engine);
 
@@ -956,8 +956,7 @@ impl Editor {
 
         let engine = &mut self.engine;
 
-        self.absm_editor
-            .handle_ui_message(message, &mut engine.user_interface);
+        self.absm_editor.handle_ui_message(message, engine);
         self.save_scene_dialog.handle_ui_message(
             message,
             &self.message_sender,

@@ -115,7 +115,7 @@ impl AbsmCanvas {
     }
 
     fn set_selection(&mut self, new_selection: &[Handle<UiNode>], ui: &UserInterface) {
-        if &self.selection != new_selection {
+        if self.selection != new_selection {
             for &child in self
                 .children()
                 .iter()

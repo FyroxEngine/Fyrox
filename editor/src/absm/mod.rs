@@ -1,3 +1,4 @@
+use crate::absm::preview::Previewer;
 use crate::{
     absm::{
         canvas::{AbsmCanvas, AbsmCanvasMessage},
@@ -52,6 +53,7 @@ mod inspector;
 mod menu;
 mod message;
 mod node;
+mod preview;
 mod selectable;
 mod transition;
 
@@ -95,13 +97,18 @@ pub struct AbsmEditor {
     document: Document,
     save_dialog: Handle<UiNode>,
     load_dialog: Handle<UiNode>,
+    previewer: Previewer,
 }
 
 impl AbsmEditor {
-    pub fn new(ui: &mut UserInterface) -> Self {
+    pub fn new(engine: &mut Engine) -> Self {
         let (tx, rx) = channel();
 
+        let previewer = Previewer::new(engine);
+
+        let ui = &mut engine.user_interface;
         let ctx = &mut ui.build_ctx();
+
         let mut node_context_menu = NodeContextMenu::new(ctx);
         let mut canvas_context_menu = CanvasContextMenu::new(ctx);
         let menu = Menu::new(ctx);
@@ -116,7 +123,17 @@ impl AbsmEditor {
                         splitter: 0.7,
                         tiles: [
                             TileBuilder::new(WidgetBuilder::new())
-                                .with_content(TileContent::Window(document.window))
+                                .with_content(TileContent::HorizontalTiles {
+                                    splitter: 0.3,
+                                    tiles: [
+                                        TileBuilder::new(WidgetBuilder::new())
+                                            .with_content(TileContent::Window(previewer.window))
+                                            .build(ctx),
+                                        TileBuilder::new(WidgetBuilder::new())
+                                            .with_content(TileContent::Window(document.window))
+                                            .build(ctx),
+                                    ],
+                                })
                                 .build(ctx),
                             TileBuilder::new(WidgetBuilder::new())
                                 .with_content(TileContent::Window(inspector.window))
@@ -169,6 +186,7 @@ impl AbsmEditor {
             inspector,
             save_dialog,
             load_dialog,
+            previewer,
         }
     }
 
@@ -590,9 +608,14 @@ impl AbsmEditor {
         if need_sync {
             self.sync_to_model(&mut engine.user_interface, sender);
         }
+
+        self.previewer.update(engine);
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
+        self.previewer.handle_message(message, engine);
+
+        let ui = &mut engine.user_interface;
         self.menu.handle_ui_message(&self.message_sender, message);
         self.node_context_menu.handle_ui_message(message, ui);
         self.canvas_context_menu
