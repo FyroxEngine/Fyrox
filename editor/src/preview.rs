@@ -1,6 +1,4 @@
 use crate::GameEngine;
-use fyrox::scene::mesh::Mesh;
-use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -14,13 +12,14 @@ use fyrox::{
         grid::{Column, GridBuilder, Row},
         image::{Image, ImageBuilder, ImageMessage},
         message::{CursorIcon, MessageDirection, MouseButton, UiMessage},
+        stack_panel::StackPanelBuilder,
         widget::{WidgetBuilder, WidgetMessage},
-        Thickness, UiNode,
+        Orientation, Thickness, UiNode,
     },
     resource::texture::{Texture, TextureKind},
     scene::{
-        base::BaseBuilder, camera::CameraBuilder, camera::Projection, debug::Line, node::Node,
-        transform::TransformBuilder, Scene,
+        base::BaseBuilder, camera::CameraBuilder, camera::Projection, debug::Line, mesh::Mesh,
+        node::Node, pivot::PivotBuilder, transform::TransformBuilder, Scene,
     },
     utils::into_gui_texture,
 };
@@ -48,6 +47,7 @@ pub struct PreviewPanel {
     mode: Mode,
     xz_position: Vector2<f32>,
     model: Handle<Node>,
+    pub tools_panel: Handle<UiNode>,
 }
 
 impl PreviewPanel {
@@ -137,8 +137,10 @@ impl PreviewPanel {
 
         let scene = engine.scenes.add(scene);
 
+        let ctx = &mut engine.user_interface.build_ctx();
         let frame;
         let fit;
+        let tools_panel;
         let root = GridBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(2.0))
@@ -150,20 +152,32 @@ impl PreviewPanel {
                     )
                     .with_flip(true)
                     .with_texture(into_gui_texture(render_target))
-                    .build(&mut engine.user_interface.build_ctx());
+                    .build(ctx);
                     frame
                 })
                 .with_child({
-                    fit = ButtonBuilder::new(WidgetBuilder::new().with_height(22.0).on_row(0))
-                        .with_text("Fit")
-                        .build(&mut engine.user_interface.build_ctx());
-                    fit
+                    tools_panel = StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_height(22.0)
+                            .on_row(0)
+                            .with_child({
+                                fit = ButtonBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("Fit")
+                                .build(ctx);
+                                fit
+                            }),
+                    )
+                    .with_orientation(Orientation::Horizontal)
+                    .build(ctx);
+                    tools_panel
                 }),
         )
         .add_row(Row::auto())
         .add_row(Row::stretch())
         .add_column(Column::stretch())
-        .build(&mut engine.user_interface.build_ctx());
+        .build(ctx);
 
         Self {
             fit,
@@ -180,6 +194,7 @@ impl PreviewPanel {
             hinge,
             xz_position: Default::default(),
             model: Default::default(),
+            tools_panel,
         }
     }
 

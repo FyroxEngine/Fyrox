@@ -1,4 +1,3 @@
-use crate::absm::preview::Previewer;
 use crate::{
     absm::{
         canvas::{AbsmCanvas, AbsmCanvasMessage},
@@ -11,10 +10,11 @@ use crate::{
         },
         message::{AbsmMessage, MessageSender},
         node::{AbsmStateNode, AbsmStateNodeBuilder, AbsmStateNodeMessage},
+        preview::Previewer,
         transition::{Transition, TransitionBuilder},
     },
     send_sync_message,
-    utils::create_file_selector,
+    utils::{create_file_selector, open_file_selector},
     Message,
 };
 use fyrox::{
@@ -25,7 +25,7 @@ use fyrox::{
         color::Color,
         futures::executor::block_on,
         pool::Handle,
-        visitor::{Visit, Visitor},
+        visitor::{Visit, VisitResult, Visitor},
     },
     engine::Engine,
     gui::{
@@ -34,16 +34,15 @@ use fyrox::{
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
         widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
+        window::{WindowBuilder, WindowTitle},
         UiNode, UserInterface,
     },
     utils::log::Log,
 };
-use std::sync::mpsc::Sender;
 use std::{
     cmp::Ordering,
     path::{Path, PathBuf},
-    sync::mpsc::{channel, Receiver},
+    sync::mpsc::{channel, Receiver, Sender},
 };
 
 mod canvas;
@@ -70,6 +69,7 @@ pub enum SelectedEntity {
 #[derive(Default)]
 pub struct AbsmDataModel {
     path: PathBuf,
+    preview_model_path: PathBuf,
     selection: Vec<SelectedEntity>,
     absm_definition: MachineDefinition,
 }
@@ -80,6 +80,17 @@ impl AbsmDataModel {
             selection: &mut self.selection,
             definition: &mut self.absm_definition,
         }
+    }
+
+    // Manual implementation is needed to store editor data alongside the engine data.
+    fn visit(&mut self, visitor: &mut Visitor) -> VisitResult {
+        // Visit engine data first.
+        self.absm_definition.visit("Machine", visitor)?;
+
+        // Visit editor-specific data. These fields are optional so we ignore any errors here.
+        let _ = self.preview_model_path.visit("PreviewModelPath", visitor);
+
+        Ok(())
     }
 }
 
@@ -500,31 +511,11 @@ impl AbsmEditor {
     }
 
     fn open_save_dialog(&self, ui: &UserInterface) {
-        ui.send_message(FileSelectorMessage::root(
-            self.save_dialog,
-            MessageDirection::ToWidget,
-            Some(std::env::current_dir().unwrap()),
-        ));
-
-        ui.send_message(WindowMessage::open_modal(
-            self.save_dialog,
-            MessageDirection::ToWidget,
-            true,
-        ));
+        open_file_selector(self.save_dialog, ui);
     }
 
     fn open_load_dialog(&self, ui: &UserInterface) {
-        ui.send_message(FileSelectorMessage::root(
-            self.load_dialog,
-            MessageDirection::ToWidget,
-            Some(std::env::current_dir().unwrap()),
-        ));
-
-        ui.send_message(WindowMessage::open_modal(
-            self.load_dialog,
-            MessageDirection::ToWidget,
-            true,
-        ));
+        open_file_selector(self.load_dialog, ui);
     }
 
     fn save_current_absm(&mut self, path: PathBuf) {
@@ -532,28 +523,33 @@ impl AbsmEditor {
             data_model.path = path.clone();
 
             let mut visitor = Visitor::new();
-            Log::verify(data_model.absm_definition.visit("Machine", &mut visitor));
+            Log::verify(data_model.visit(&mut visitor));
             Log::verify(visitor.save_binary(path));
+        }
+    }
+
+    fn set_preview_model(&mut self, engine: &mut Engine, path: &Path) {
+        if let Some(data_model) = self.data_model.as_mut() {
+            self.previewer
+                .set_preview_model(engine, path, &data_model.absm_definition);
+
+            data_model.preview_model_path = path.to_path_buf();
         }
     }
 
     fn load_absm(&mut self, path: &Path) {
         match block_on(Visitor::load_binary(path)) {
             Ok(mut visitor) => {
-                let mut absm = MachineDefinition::default();
-                if let Err(e) = absm.visit("Machine", &mut visitor) {
+                let mut data_model = AbsmDataModel::default();
+                if let Err(e) = data_model.visit(&mut visitor) {
                     Log::err(format!(
                         "Unable to read ABSM from {}. Reason: {}",
                         path.display(),
                         e
                     ));
                 } else {
-                    self.data_model = Some(AbsmDataModel {
-                        path: path.to_path_buf(),
-                        absm_definition: absm,
-                        selection: Default::default(),
-                    });
-
+                    data_model.path = path.to_path_buf();
+                    self.data_model = Some(data_model);
                     self.message_sender.sync();
                 }
             }
@@ -602,6 +598,7 @@ impl AbsmEditor {
                 AbsmMessage::Sync => {
                     need_sync = true;
                 }
+                AbsmMessage::SetPreviewModel(path) => self.set_preview_model(engine, &path),
             }
         }
 
@@ -613,7 +610,8 @@ impl AbsmEditor {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
-        self.previewer.handle_message(message, engine);
+        self.previewer
+            .handle_message(message, &self.message_sender, engine);
 
         let ui = &mut engine.user_interface;
         self.menu.handle_ui_message(&self.message_sender, message);

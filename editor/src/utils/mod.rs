@@ -1,4 +1,6 @@
 use crate::WindowEvent;
+use fyrox::gui::file_browser::FileSelectorMessage;
+use fyrox::gui::window::WindowMessage;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     event::Event,
@@ -98,4 +100,18 @@ pub fn create_file_selector(
     }))
     .with_mode(mode)
     .build(ctx)
+}
+
+pub fn open_file_selector(file_selector: Handle<UiNode>, ui: &UserInterface) {
+    ui.send_message(FileSelectorMessage::root(
+        file_selector,
+        MessageDirection::ToWidget,
+        Some(std::env::current_dir().unwrap()),
+    ));
+
+    ui.send_message(WindowMessage::open_modal(
+        file_selector,
+        MessageDirection::ToWidget,
+        true,
+    ));
 }
