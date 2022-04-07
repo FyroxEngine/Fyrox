@@ -270,6 +270,10 @@ pub enum WidgetMessage {
 
     LayoutTransform(Matrix3<f32>),
     RenderTransform(Matrix3<f32>),
+
+    DoubleClick {
+        button: MouseButton,
+    },
 }
 
 impl WidgetMessage {
@@ -317,6 +321,7 @@ impl WidgetMessage {
     define_constructor!(WidgetMessage:DragStarted => fn drag_started(Handle<UiNode>), layout: false);
     define_constructor!(WidgetMessage:DragOver => fn drag_over(Handle<UiNode>), layout: false);
     define_constructor!(WidgetMessage:Drop => fn drop(Handle<UiNode>), layout: false);
+    define_constructor!(WidgetMessage:DoubleClick => fn double_click(button: MouseButton), layout: false);
 }
 
 #[derive(Debug, Clone)]

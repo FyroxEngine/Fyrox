@@ -75,6 +75,7 @@ use crate::{
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_core::algebra::Matrix3;
+use std::collections::hash_map::Entry;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
@@ -521,6 +522,12 @@ enum LayoutEvent {
     VisibilityChanged(Handle<UiNode>),
 }
 
+#[derive(Clone, Debug)]
+struct DoubleClickEntry {
+    timer: f32,
+    click_count: u32,
+}
+
 pub struct UserInterface {
     screen_size: Vector2<f32>,
     nodes: Pool<UiNode>,
@@ -548,6 +555,8 @@ pub struct UserInterface {
     layout_events_sender: Sender<LayoutEvent>,
     need_update_global_transform: bool,
     pub default_font: SharedFont,
+    double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
+    pub double_click_time_slice: f32,
 }
 
 fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode>) -> bool {
@@ -666,6 +675,8 @@ impl UserInterface {
             layout_events_sender,
             need_update_global_transform: Default::default(),
             default_font,
+            double_click_entries: Default::default(),
+            double_click_time_slice: 0.75,
         };
         ui.root_canvas = ui.add_node(UiNode::new(Canvas::new(WidgetBuilder::new().build())));
         ui
@@ -814,6 +825,10 @@ impl UserInterface {
         scope_profile!();
 
         self.screen_size = screen_size;
+
+        for entry in self.double_click_entries.values_mut() {
+            entry.timer -= dt;
+        }
 
         self.handle_layout_events();
 
@@ -1661,6 +1676,25 @@ impl UserInterface {
         self.captured_node
     }
 
+    // Tries to set new picked node (a node under the cursor) and returns `true` if the node was
+    // changed.
+    fn try_set_picked_node(&mut self, node: Handle<UiNode>) -> bool {
+        if self.picked_node != node {
+            self.picked_node = node;
+            self.reset_double_click_entries();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn reset_double_click_entries(&mut self) {
+        for entry in self.double_click_entries.values_mut() {
+            entry.timer = self.double_click_time_slice;
+            entry.click_count = 0;
+        }
+    }
+
     /// Translates raw window event into some specific UI message. This is one of the
     /// most important methods of UI. You must call it each time you received a message
     /// from a window.
@@ -1678,7 +1712,40 @@ impl UserInterface {
 
                 match state {
                     ButtonState::Pressed => {
-                        self.picked_node = self.hit_test(self.cursor_position);
+                        let picked_changed =
+                            self.try_set_picked_node(self.hit_test(self.cursor_position));
+
+                        if !picked_changed {
+                            match self.double_click_entries.entry(button) {
+                                Entry::Occupied(e) => {
+                                    let entry = e.into_mut();
+                                    if entry.timer > 0.0 {
+                                        entry.click_count += 1;
+                                        if entry.click_count >= 2 {
+                                            entry.click_count = 0;
+                                            entry.timer = self.double_click_time_slice;
+
+                                            self.send_message(WidgetMessage::double_click(
+                                                self.picked_node,
+                                                MessageDirection::FromWidget,
+                                                button,
+                                            ));
+                                        }
+                                    } else {
+                                        entry.timer = self.double_click_time_slice;
+                                        entry.click_count = 1;
+                                    }
+                                }
+                                Entry::Vacant(entry) => {
+                                    // A button was clicked for the first time, no double click
+                                    // in this case.
+                                    entry.insert(DoubleClickEntry {
+                                        timer: self.double_click_time_slice,
+                                        click_count: 1,
+                                    });
+                                }
+                            }
+                        }
 
                         // Try to find draggable node in hierarchy starting from picked node.
                         if self.picked_node.is_some() {
@@ -1768,7 +1835,7 @@ impl UserInterface {
             }
             OsEvent::CursorMoved { position } => {
                 self.cursor_position = *position;
-                self.picked_node = self.hit_test(self.cursor_position);
+                self.try_set_picked_node(self.hit_test(self.cursor_position));
 
                 if !self.drag_context.is_dragging
                     && self.mouse_state.left == ButtonState::Pressed
@@ -1973,7 +2040,7 @@ impl UserInterface {
                 self.prev_picked_node = Handle::NONE;
             }
             if self.picked_node == handle {
-                self.picked_node = Handle::NONE;
+                self.try_set_picked_node(Handle::NONE);
             }
             if self.captured_node == handle {
                 self.captured_node = Handle::NONE;
