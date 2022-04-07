@@ -83,13 +83,14 @@ impl Previewer {
         definition: &MachineDefinition,
     ) {
         // TODO: Implement async loading for this.
-        block_on(self.panel.load_model(path, engine));
-        let scene = &mut engine.scenes[self.panel.scene()];
-        block_on(definition.instantiate(
-            self.panel.model(),
-            scene,
-            engine.resource_manager.clone(),
-        ))
-        .unwrap();
+        if block_on(self.panel.load_model(path, engine)) {
+            let scene = &mut engine.scenes[self.panel.scene()];
+            block_on(definition.instantiate(
+                self.panel.model(),
+                scene,
+                engine.resource_manager.clone(),
+            ))
+            .unwrap();
+        }
     }
 }

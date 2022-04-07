@@ -294,12 +294,15 @@ impl PreviewPanel {
         }
     }
 
-    pub async fn load_model(&mut self, model: &Path, engine: &mut GameEngine) {
+    pub async fn load_model(&mut self, model: &Path, engine: &mut GameEngine) -> bool {
         self.clear(engine);
         if let Ok(model) = engine.resource_manager.request_model(model).await {
             let scene = &mut engine.scenes[self.scene];
             self.model = model.instantiate_geometry(scene);
             self.fit_to_model(scene);
+            true
+        } else {
+            false
         }
     }
 

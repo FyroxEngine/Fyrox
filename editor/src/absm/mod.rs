@@ -537,7 +537,7 @@ impl AbsmEditor {
         }
     }
 
-    fn load_absm(&mut self, path: &Path) {
+    fn load_absm(&mut self, path: &Path, engine: &mut Engine) {
         match block_on(Visitor::load_binary(path)) {
             Ok(mut visitor) => {
                 let mut data_model = AbsmDataModel::default();
@@ -549,8 +549,10 @@ impl AbsmEditor {
                     ));
                 } else {
                     data_model.path = path.to_path_buf();
+                    let preview_model_path = data_model.preview_model_path.clone();
                     self.data_model = Some(data_model);
                     self.message_sender.sync();
+                    self.set_preview_model(engine, &preview_model_path);
                 }
             }
             Err(e) => Log::err(format!(
@@ -628,7 +630,7 @@ impl AbsmEditor {
             if message.destination() == self.save_dialog {
                 self.save_current_absm(path.clone())
             } else if message.destination() == self.load_dialog {
-                self.load_absm(path);
+                self.load_absm(path, engine);
             }
         }
     }
