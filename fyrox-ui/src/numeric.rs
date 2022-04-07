@@ -119,16 +119,26 @@ impl<T: NumericType> NumericUpDown<T> {
     }
 }
 
-fn saturating_sub<T: NumericType>(a: T, b: T) -> T {
-    if b <= a - T::min_value() {
+fn saturating_sub<T>(a: T, b: T) -> T
+where
+    T: NumericType,
+{
+    assert!(b >= T::zero());
+
+    if a >= b + T::min_value() {
         a - b
     } else {
         T::min_value()
     }
 }
 
-fn saturating_add<T: NumericType>(a: T, b: T) -> T {
-    if b <= T::max_value() - a {
+fn saturating_add<T>(a: T, b: T) -> T
+where
+    T: NumericType,
+{
+    assert!(b >= T::zero());
+
+    if a < T::max_value() - b {
         a + b
     } else {
         T::max_value()
@@ -279,6 +289,8 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
     }
 
     pub fn with_step(mut self, step: T) -> Self {
+        assert!(step >= T::zero());
+
         self.step = step;
         self
     }
@@ -350,5 +362,55 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
         };
 
         ctx.add_node(UiNode::new(node))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::numeric::{saturating_add, saturating_sub};
+
+    #[test]
+    fn test_saturating_add() {
+        // i32
+        assert_eq!(saturating_add(0, 1), 1);
+        assert_eq!(saturating_add(1, 0), 1);
+        assert_eq!(saturating_add(0, 0), 0);
+        assert_eq!(saturating_add(1, 1), 2);
+        assert_eq!(saturating_add(i32::MAX, 1), i32::MAX);
+        assert_eq!(saturating_add(i32::MIN, 1), i32::MIN + 1);
+
+        // f32
+        assert_eq!(saturating_add(0.0, 1.0), 1.0);
+        assert_eq!(saturating_add(1.0, 0.0), 1.0);
+        assert_eq!(saturating_add(f32::MAX, 1.0), f32::MAX);
+        assert_eq!(saturating_add(f32::MIN, 1.0), f32::MIN + 1.0);
+    }
+
+    #[test]
+    fn test_saturating_sub() {
+        // i32
+        assert_eq!(saturating_sub(0, 0), 0);
+        assert_eq!(saturating_sub(0, 1), -1);
+        assert_eq!(saturating_sub(1, 1), 0);
+        assert_eq!(saturating_sub(1, 0), 1);
+        assert_eq!(saturating_sub(10, 10), 0);
+        assert_eq!(saturating_sub(i32::MIN, 1), i32::MIN);
+        assert_eq!(saturating_sub(i32::MAX, 1), i32::MAX - 1);
+
+        // u32
+        assert_eq!(saturating_sub(0u32, 0u32), 0u32);
+        assert_eq!(saturating_sub(0u32, 1u32), 0u32);
+        assert_eq!(saturating_sub(1u32, 1u32), 0u32);
+        assert_eq!(saturating_sub(1u32, 0u32), 1u32);
+        assert_eq!(saturating_sub(10u32, 10u32), 0u32);
+        assert_eq!(saturating_sub(u32::MIN, 1u32), u32::MIN);
+        assert_eq!(saturating_sub(u32::MAX, 1u32), u32::MAX - 1);
+
+        // f32
+        assert_eq!(saturating_sub(0.0, 1.0), -1.0);
+        assert_eq!(saturating_sub(1.0, 0.0), 1.0);
+        assert_eq!(saturating_sub(1.0, 1.0), 0.0);
+        assert_eq!(saturating_sub(f32::MIN, 1.0), f32::MIN);
+        assert_eq!(saturating_sub(f32::MAX, 1.0), f32::MAX - 1.0);
     }
 }
