@@ -843,6 +843,16 @@ impl AnimationContainer {
     }
 
     #[inline]
+    pub fn try_get(&self, handle: Handle<Animation>) -> Option<&Animation> {
+        self.pool.try_borrow(handle)
+    }
+
+    #[inline]
+    pub fn try_get_mut(&mut self, handle: Handle<Animation>) -> Option<&mut Animation> {
+        self.pool.try_borrow_mut(handle)
+    }
+
+    #[inline]
     pub fn retain<P>(&mut self, pred: P)
     where
         P: FnMut(&Animation) -> bool,

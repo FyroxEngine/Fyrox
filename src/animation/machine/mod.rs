@@ -330,7 +330,7 @@ impl MachineDefinition {
                 node_map
                     .get(&state_definition.root)
                     .cloned()
-                    .expect("There must be a respective pose node for root of state!"),
+                    .unwrap_or_default(),
             ));
 
             state_map.insert(definition_handle, instance_handle);
@@ -506,14 +506,14 @@ impl Machine {
                 let transition = &mut self.transitions[self.active_transition];
 
                 // Blend between source and dest states.
-                self.final_pose.blend_with(
-                    &self.states[transition.source()].pose(&self.nodes),
-                    1.0 - transition.blend_factor(),
-                );
-                self.final_pose.blend_with(
-                    &self.states[transition.dest()].pose(&self.nodes),
-                    transition.blend_factor(),
-                );
+                if let Some(source_pose) = self.states[transition.source()].pose(&self.nodes) {
+                    self.final_pose
+                        .blend_with(&source_pose, 1.0 - transition.blend_factor());
+                }
+                if let Some(dest_pose) = self.states[transition.dest()].pose(&self.nodes) {
+                    self.final_pose
+                        .blend_with(&dest_pose, transition.blend_factor());
+                }
 
                 transition.update(dt);
 
@@ -537,9 +537,9 @@ impl Machine {
             } else {
                 // We must have active state all the time when we do not have any active transition.
                 // Just get pose from active state.
-                self.states[self.active_state]
-                    .pose(&self.nodes)
-                    .clone_into(&mut self.final_pose);
+                if let Some(active_state_pose) = self.states[self.active_state].pose(&self.nodes) {
+                    active_state_pose.clone_into(&mut self.final_pose);
+                }
             }
         }
 

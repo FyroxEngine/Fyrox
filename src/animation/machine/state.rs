@@ -39,8 +39,8 @@ impl State {
         &self.name
     }
 
-    pub fn pose<'a>(&self, nodes: &'a Pool<PoseNode>) -> Ref<'a, AnimationPose> {
-        nodes[self.root].pose()
+    pub fn pose<'a>(&self, nodes: &'a Pool<PoseNode>) -> Option<Ref<'a, AnimationPose>> {
+        nodes.try_borrow(self.root).map(|root| root.pose())
     }
 
     pub(super) fn update(
@@ -50,8 +50,8 @@ impl State {
         animations: &AnimationContainer,
         dt: f32,
     ) {
-        nodes
-            .borrow(self.root)
-            .eval_pose(nodes, params, animations, dt);
+        if let Some(root) = nodes.try_borrow(self.root) {
+            root.eval_pose(nodes, params, animations, dt);
+        }
     }
 }

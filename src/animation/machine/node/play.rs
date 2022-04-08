@@ -64,10 +64,11 @@ impl EvaluatePose for PlayAnimation {
         animations: &AnimationContainer,
         _dt: f32,
     ) -> Ref<AnimationPose> {
-        animations
-            .get(self.animation)
-            .get_pose()
-            .clone_into(&mut self.output_pose.borrow_mut());
+        if let Some(animation) = animations.try_get(self.animation) {
+            animation
+                .get_pose()
+                .clone_into(&mut self.output_pose.borrow_mut());
+        }
         self.output_pose.borrow()
     }
 
