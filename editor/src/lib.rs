@@ -1727,7 +1727,7 @@ fn update(editor: &mut Editor) {
 
         poll_ui_messages(editor);
 
-        editor.engine.post_update(dt);
+        editor.engine.post_update(FIXED_TIMESTEP);
 
         editor.post_update();
 
