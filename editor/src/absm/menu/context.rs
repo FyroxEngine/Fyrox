@@ -2,7 +2,7 @@ use crate::absm::{
     canvas::{AbsmCanvasMessage, Mode},
     command::AddStateCommand,
     message::MessageSender,
-    node::AbsmStateNode,
+    node::AbsmNode,
 };
 use fyrox::{
     animation::machine::state::StateDefinition,
@@ -106,7 +106,7 @@ impl NodeContextMenu {
             if message.destination() == self.create_transition {
                 assert!(ui
                     .node(self.placement_target)
-                    .query_component::<AbsmStateNode>()
+                    .query_component::<AbsmNode<StateDefinition>>()
                     .is_some());
 
                 ui.send_message(AbsmCanvasMessage::switch_mode(

@@ -9,7 +9,7 @@ use crate::{
             Menu,
         },
         message::{AbsmMessage, MessageSender},
-        node::{AbsmStateNode, AbsmStateNodeBuilder, AbsmStateNodeMessage},
+        node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
         preview::Previewer,
         transition::{Transition, TransitionBuilder},
     },
@@ -54,6 +54,7 @@ mod message;
 mod node;
 mod preview;
 mod selectable;
+mod socket;
 mod transition;
 
 const NORMAL_BACKGROUND: Color = Color::opaque(60, 60, 60);
@@ -214,7 +215,7 @@ impl AbsmEditor {
                 .children()
                 .iter()
                 .cloned()
-                .filter(|c| ui.node(*c).has_component::<AbsmStateNode>())
+                .filter(|c| ui.node(*c).has_component::<AbsmNode<StateDefinition>>())
                 .collect::<Vec<_>>();
 
             let mut transitions = canvas
@@ -233,18 +234,19 @@ impl AbsmEditor {
                     for (state_handle, state) in definition.states.pair_iter() {
                         if states.iter().all(|state_view| {
                             ui.node(*state_view)
-                                .query_component::<AbsmStateNode>()
+                                .query_component::<AbsmNode<StateDefinition>>()
                                 .unwrap()
                                 .model_handle
                                 != state_handle
                         }) {
-                            let state_view_handle = AbsmStateNodeBuilder::new(
+                            let state_view_handle = AbsmNodeBuilder::new(
                                 WidgetBuilder::new()
                                     .with_context_menu(self.node_context_menu.menu)
                                     .with_desired_position(state.position),
                             )
+                            .with_model_handle(state_handle)
                             .with_name(state.name.clone())
-                            .build(state_handle, &mut ui.build_ctx());
+                            .build(&mut ui.build_ctx());
 
                             states.push(state_view_handle);
 
@@ -266,7 +268,7 @@ impl AbsmEditor {
                             (
                                 state_view,
                                 ui.node(state_view)
-                                    .query_component::<AbsmStateNode>()
+                                    .query_component::<AbsmNode<StateDefinition>>()
                                     .unwrap()
                                     .model_handle,
                             )
@@ -298,13 +300,16 @@ impl AbsmEditor {
 
             // Sync state nodes.
             for state in states.iter() {
-                let state_node = ui.node(*state).query_component::<AbsmStateNode>().unwrap();
+                let state_node = ui
+                    .node(*state)
+                    .query_component::<AbsmNode<StateDefinition>>()
+                    .unwrap();
                 let state_model_ref = &definition.states[state_node.model_handle];
 
                 if state_model_ref.name != state_node.name {
                     send_sync_message(
                         ui,
-                        AbsmStateNodeMessage::name(
+                        AbsmNodeMessage::name(
                             *state,
                             MessageDirection::ToWidget,
                             state_node.name.clone(),
@@ -349,7 +354,7 @@ impl AbsmEditor {
                                     .iter()
                                     .find(|s| {
                                         ui.node(**s)
-                                            .query_component::<AbsmStateNode>()
+                                            .query_component::<AbsmNode<StateDefinition>>()
                                             .unwrap()
                                             .model_handle
                                             == state_handle
@@ -444,7 +449,7 @@ impl AbsmEditor {
                         .cloned()
                         .find(|s| {
                             ui.node(*s)
-                                .query_component::<AbsmStateNode>()
+                                .query_component::<AbsmNode<StateDefinition>>()
                                 .unwrap()
                                 .model_handle
                                 == *state

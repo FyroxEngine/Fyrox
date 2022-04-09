@@ -1,6 +1,8 @@
-use crate::absm::selectable::Selectable;
-use crate::absm::{node::AbsmStateNode, selectable::SelectableMessage, transition};
+use crate::absm::{
+    node::AbsmNode, selectable::Selectable, selectable::SelectableMessage, transition,
+};
 use fyrox::{
+    animation::machine::state::StateDefinition,
     core::{
         algebra::{Matrix3, Point2, Vector2},
         color::Color,
@@ -148,12 +150,15 @@ impl AbsmCanvas {
         }
     }
 
-    fn fetch_dest_node(&self, node: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
+    fn fetch_state_dest_node(&self, node: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
         if node == self.handle() {
-            self.find_by_criteria_up(ui, |n| n.query_component::<AbsmStateNode>().is_some())
+            self.find_by_criteria_up(ui, |n| {
+                n.query_component::<AbsmNode<StateDefinition>>().is_some()
+            })
         } else {
-            ui.node(node)
-                .find_by_criteria_up(ui, |n| n.query_component::<AbsmStateNode>().is_some())
+            ui.node(node).find_by_criteria_up(ui, |n| {
+                n.query_component::<AbsmNode<StateDefinition>>().is_some()
+            })
         }
     }
 }
@@ -293,7 +298,7 @@ impl Control for AbsmCanvas {
 
                 ui.capture_mouse(self.handle());
             } else if *button == MouseButton::Left {
-                let dest_node_handle = self.fetch_dest_node(message.destination(), ui);
+                let dest_node_handle = self.fetch_state_dest_node(message.destination(), ui);
 
                 match self.mode {
                     Mode::CreateTransition { source, .. } => {

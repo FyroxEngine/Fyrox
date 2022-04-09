@@ -3,17 +3,17 @@ use crate::absm::{
     BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
 };
 use fyrox::{
-    animation::machine::state::StateDefinition,
-    core::{algebra::Vector2, pool::Handle},
+    core::pool::Handle,
     gui::{
         border::BorderBuilder,
         brush::Brush,
-        define_constructor, define_widget_deref,
+        define_constructor,
+        grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
+        stack_panel::StackPanelBuilder,
         text::TextBuilder,
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
+        BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
     },
 };
 use std::{
@@ -21,27 +21,69 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone)]
-pub struct AbsmStateNode {
+pub struct AbsmNode<T>
+where
+    T: 'static,
+{
     widget: Widget,
     background: Handle<UiNode>,
     selectable: Selectable,
+    input_sockets: Vec<Handle<UiNode>>,
+    output_sockets: Vec<Handle<UiNode>>,
     pub name: String,
-    pub model_handle: Handle<StateDefinition>,
+    pub model_handle: Handle<T>,
 }
 
-define_widget_deref!(AbsmStateNode);
+impl<T> Clone for AbsmNode<T>
+where
+    T: 'static,
+{
+    fn clone(&self) -> Self {
+        Self {
+            widget: self.widget.clone(),
+            background: self.background,
+            selectable: self.selectable.clone(),
+            input_sockets: self.input_sockets.clone(),
+            output_sockets: self.output_sockets.clone(),
+            name: self.name.clone(),
+            model_handle: self.model_handle,
+        }
+    }
+}
+
+impl<T> Deref for AbsmNode<T>
+where
+    T: 'static,
+{
+    type Target = Widget;
+
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl<T> DerefMut for AbsmNode<T>
+where
+    T: 'static,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum AbsmStateNodeMessage {
+pub enum AbsmNodeMessage {
     Name(String),
 }
 
-impl AbsmStateNodeMessage {
-    define_constructor!(AbsmStateNodeMessage:Name => fn name(String), layout: false);
+impl AbsmNodeMessage {
+    define_constructor!(AbsmNodeMessage:Name => fn name(String), layout: false);
 }
 
-impl Control for AbsmStateNode {
+impl<T> Control for AbsmNode<T>
+where
+    T: 'static,
+{
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
             Some(self)
@@ -82,16 +124,28 @@ impl Control for AbsmStateNode {
     }
 }
 
-pub struct AbsmStateNodeBuilder {
+pub struct AbsmNodeBuilder<T>
+where
+    T: 'static,
+{
     widget_builder: WidgetBuilder,
     name: String,
+    model_handle: Handle<T>,
+    input_sockets: Vec<Handle<UiNode>>,
+    output_sockets: Vec<Handle<UiNode>>,
 }
 
-impl AbsmStateNodeBuilder {
+impl<T> AbsmNodeBuilder<T>
+where
+    T: 'static,
+{
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             name: "New State".to_string(),
+            model_handle: Default::default(),
+            input_sockets: Default::default(),
+            output_sockets: Default::default(),
         }
     }
 
@@ -100,38 +154,75 @@ impl AbsmStateNodeBuilder {
         self
     }
 
-    pub fn build(
-        self,
-        model_handle: Handle<StateDefinition>,
-        ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
+    pub fn with_model_handle(mut self, model: Handle<T>) -> Self {
+        self.model_handle = model;
+        self
+    }
+
+    pub fn with_input_sockets(mut self, sockets: Vec<Handle<UiNode>>) -> Self {
+        self.input_sockets = sockets;
+        self
+    }
+
+    pub fn with_output_sockets(mut self, sockets: Vec<Handle<UiNode>>) -> Self {
+        self.output_sockets = sockets;
+        self
+    }
+
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let background = BorderBuilder::new(
             WidgetBuilder::new()
                 .with_foreground(Brush::Solid(BORDER_COLOR))
                 .with_background(Brush::Solid(NORMAL_BACKGROUND))
                 .with_child(
-                    TextBuilder::new(
+                    GridBuilder::new(
                         WidgetBuilder::new()
-                            .with_vertical_alignment(VerticalAlignment::Center)
-                            .with_horizontal_alignment(HorizontalAlignment::Center),
+                            .with_child(
+                                StackPanelBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_children(self.input_sockets.iter().cloned())
+                                        .on_column(0),
+                                )
+                                .build(ctx),
+                            )
+                            .with_child(
+                                TextBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_width(200.0)
+                                        .with_height(100.0)
+                                        .on_column(1),
+                                )
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                                .with_text(&self.name)
+                                .build(ctx),
+                            )
+                            .with_child(
+                                StackPanelBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_children(self.output_sockets.iter().cloned())
+                                        .on_column(2),
+                                )
+                                .build(ctx),
+                            ),
                     )
-                    .with_text(&self.name)
+                    .add_row(Row::stretch())
+                    .add_column(Column::auto())
+                    .add_column(Column::stretch())
+                    .add_column(Column::auto())
                     .build(ctx),
                 ),
         )
-        .with_stroke_thickness(Thickness::uniform(4.0))
         .build(ctx);
 
-        let node = AbsmStateNode {
-            widget: self
-                .widget_builder
-                .with_min_size(Vector2::new(200.0, 100.0))
-                .with_child(background)
-                .build(),
+        let node = AbsmNode {
+            widget: self.widget_builder.with_child(background).build(),
             background,
             selectable: Default::default(),
-            model_handle,
+            model_handle: self.model_handle,
             name: self.name,
+            input_sockets: self.input_sockets,
+            output_sockets: self.output_sockets,
         };
 
         ctx.add_node(UiNode::new(node))

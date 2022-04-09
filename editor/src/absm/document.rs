@@ -5,7 +5,7 @@ use crate::absm::{
         MoveStateNodeCommand,
     },
     message::MessageSender,
-    node::AbsmStateNode,
+    node::AbsmNode,
     transition::Transition,
     AbsmDataModel, SelectedEntity,
 };
@@ -31,7 +31,7 @@ fn fetch_state_node_model_handle(
     ui: &UserInterface,
 ) -> Handle<StateDefinition> {
     ui.node(handle)
-        .query_component::<AbsmStateNode>()
+        .query_component::<AbsmNode<StateDefinition>>()
         .unwrap()
         .model_handle
 }
@@ -98,7 +98,7 @@ impl Document {
                                     let node_ref = ui.node(*n);
 
                                     if let Some(state_node) =
-                                        node_ref.query_component::<AbsmStateNode>()
+                                        node_ref.query_component::<AbsmNode<StateDefinition>>()
                                     {
                                         Some(SelectedEntity::State(state_node.model_handle))
                                     } else {
