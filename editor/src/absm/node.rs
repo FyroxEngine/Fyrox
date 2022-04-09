@@ -2,6 +2,7 @@ use crate::absm::{
     selectable::{Selectable, SelectableMessage},
     BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
 };
+use fyrox::gui::message::MouseButton;
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -74,10 +75,12 @@ where
 #[derive(Debug, Clone, PartialEq)]
 pub enum AbsmNodeMessage {
     Name(String),
+    Enter,
 }
 
 impl AbsmNodeMessage {
     define_constructor!(AbsmNodeMessage:Name => fn name(String), layout: false);
+    define_constructor!(AbsmNodeMessage:Enter => fn enter(), layout: false);
 }
 
 impl<T> Control for AbsmNode<T>
@@ -119,6 +122,13 @@ where
                         MessageDirection::ToWidget,
                     ));
                 }
+            }
+        } else if let Some(WidgetMessage::DoubleClick { button }) = message.data() {
+            if !message.handled() && *button == MouseButton::Left {
+                ui.send_message(AbsmNodeMessage::enter(
+                    self.handle(),
+                    MessageDirection::FromWidget,
+                ));
             }
         }
     }

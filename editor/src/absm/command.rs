@@ -1,7 +1,8 @@
 use crate::{absm::SelectedEntity, define_command_stack};
 use fyrox::{
     animation::machine::{
-        state::StateDefinition, transition::TransitionDefinition, MachineDefinition,
+        node::PoseNodeDefinition, state::StateDefinition, transition::TransitionDefinition,
+        MachineDefinition,
     },
     core::{
         algebra::Vector2,
@@ -153,6 +154,67 @@ impl AbsmCommandTrait for AddStateCommand {
             std::mem::replace(self, AddStateCommand::Unknown)
         {
             context.definition.states.forget_ticket(ticket)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum AddPoseNodeCommand {
+    Unknown,
+    NonExecuted {
+        state: PoseNodeDefinition,
+    },
+    Executed {
+        handle: Handle<PoseNodeDefinition>,
+    },
+    Reverted {
+        ticket: Ticket<PoseNodeDefinition>,
+        state: PoseNodeDefinition,
+    },
+}
+
+impl AddPoseNodeCommand {
+    pub fn new(state: PoseNodeDefinition) -> Self {
+        Self::NonExecuted { state }
+    }
+}
+
+impl AbsmCommandTrait for AddPoseNodeCommand {
+    fn name(&mut self, _context: &AbsmEditorContext) -> String {
+        "Add State".to_string()
+    }
+
+    fn execute(&mut self, context: &mut AbsmEditorContext) {
+        match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
+            AddPoseNodeCommand::NonExecuted { state } => {
+                *self = AddPoseNodeCommand::Executed {
+                    handle: context.definition.nodes.spawn(state),
+                };
+            }
+            AddPoseNodeCommand::Reverted { ticket, state } => {
+                *self = AddPoseNodeCommand::Executed {
+                    handle: context.definition.nodes.put_back(ticket, state),
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut AbsmEditorContext) {
+        match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
+            AddPoseNodeCommand::Executed { handle } => {
+                let (ticket, state) = context.definition.nodes.take_reserve(handle);
+                *self = AddPoseNodeCommand::Reverted { ticket, state }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn finalize(&mut self, context: &mut AbsmEditorContext) {
+        if let AddPoseNodeCommand::Reverted { ticket, .. } =
+            std::mem::replace(self, AddPoseNodeCommand::Unknown)
+        {
+            context.definition.nodes.forget_ticket(ticket)
         }
     }
 }

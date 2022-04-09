@@ -1,19 +1,14 @@
+use crate::absm::menu::Menu;
 use crate::{
     absm::{
-        canvas::{AbsmCanvas, AbsmCanvasMessage},
         command::{AbsmCommand, AbsmCommandStack, AbsmEditorContext},
-        document::Document,
         inspector::Inspector,
-        menu::{
-            context::{CanvasContextMenu, NodeContextMenu},
-            Menu,
-        },
         message::{AbsmMessage, MessageSender},
-        node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
+        node::{AbsmNode, AbsmNodeMessage},
         preview::Previewer,
-        transition::{Transition, TransitionBuilder},
+        state_graph::Document,
+        state_viewer::StateViewer,
     },
-    send_sync_message,
     utils::{create_file_selector, open_file_selector},
     Message,
 };
@@ -32,22 +27,20 @@ use fyrox::{
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
         file_browser::{FileBrowserMode, FileSelectorMessage},
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
-        widget::{WidgetBuilder, WidgetMessage},
+        message::UiMessage,
+        widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         UiNode, UserInterface,
     },
     utils::log::Log,
 };
 use std::{
-    cmp::Ordering,
     path::{Path, PathBuf},
     sync::mpsc::{channel, Receiver, Sender},
 };
 
 mod canvas;
 mod command;
-mod document;
 mod inspector;
 mod menu;
 mod message;
@@ -55,6 +48,8 @@ mod node;
 mod preview;
 mod selectable;
 mod socket;
+mod state_graph;
+mod state_viewer;
 mod transition;
 
 const NORMAL_BACKGROUND: Color = Color::opaque(60, 60, 60);
@@ -98,11 +93,8 @@ impl AbsmDataModel {
 pub struct AbsmEditor {
     #[allow(dead_code)] // TODO
     window: Handle<UiNode>,
-    canvas_context_menu: CanvasContextMenu,
-    node_context_menu: NodeContextMenu,
     command_stack: AbsmCommandStack,
     data_model: Option<AbsmDataModel>,
-    menu: Menu,
     message_sender: MessageSender,
     message_receiver: Receiver<AbsmMessage>,
     inspector: Inspector,
@@ -110,6 +102,8 @@ pub struct AbsmEditor {
     save_dialog: Handle<UiNode>,
     load_dialog: Handle<UiNode>,
     previewer: Previewer,
+    state_viewer: StateViewer,
+    menu: Menu,
 }
 
 impl AbsmEditor {
@@ -121,18 +115,17 @@ impl AbsmEditor {
         let ui = &mut engine.user_interface;
         let ctx = &mut ui.build_ctx();
 
-        let mut node_context_menu = NodeContextMenu::new(ctx);
-        let mut canvas_context_menu = CanvasContextMenu::new(ctx);
         let menu = Menu::new(ctx);
 
         let inspector = Inspector::new(ctx);
-        let document = Document::new(canvas_context_menu.menu, ctx);
+        let document = Document::new(ctx);
+        let state_viewer = StateViewer::new(ctx);
 
         let docking_manager = DockingManagerBuilder::new(
             WidgetBuilder::new().on_row(1).with_child(
                 TileBuilder::new(WidgetBuilder::new())
                     .with_content(TileContent::HorizontalTiles {
-                        splitter: 0.7,
+                        splitter: 0.8,
                         tiles: [
                             TileBuilder::new(WidgetBuilder::new())
                                 .with_content(TileContent::HorizontalTiles {
@@ -142,7 +135,21 @@ impl AbsmEditor {
                                             .with_content(TileContent::Window(previewer.window))
                                             .build(ctx),
                                         TileBuilder::new(WidgetBuilder::new())
-                                            .with_content(TileContent::Window(document.window))
+                                            .with_content(TileContent::HorizontalTiles {
+                                                splitter: 0.5,
+                                                tiles: [
+                                                    TileBuilder::new(WidgetBuilder::new())
+                                                        .with_content(TileContent::Window(
+                                                            document.window,
+                                                        ))
+                                                        .build(ctx),
+                                                    TileBuilder::new(WidgetBuilder::new())
+                                                        .with_content(TileContent::Window(
+                                                            state_viewer.window,
+                                                        ))
+                                                        .build(ctx),
+                                                ],
+                                            })
                                             .build(ctx),
                                     ],
                                 })
@@ -157,7 +164,7 @@ impl AbsmEditor {
         )
         .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(1000.0).with_height(800.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(1600.0).with_height(800.0))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
@@ -172,10 +179,6 @@ impl AbsmEditor {
             .with_title(WindowTitle::text("ABSM Editor"))
             .build(ctx);
 
-        canvas_context_menu.canvas = document.canvas;
-        canvas_context_menu.node_context_menu = node_context_menu.menu;
-        node_context_menu.canvas = document.canvas;
-
         let load_dialog = create_file_selector(ctx, "absm", FileBrowserMode::Open);
         let save_dialog = create_file_selector(
             ctx,
@@ -187,8 +190,6 @@ impl AbsmEditor {
 
         Self {
             window,
-            canvas_context_menu,
-            node_context_menu,
             message_sender: MessageSender::new(tx),
             message_receiver: rx,
             command_stack: AbsmCommandStack::new(false),
@@ -199,281 +200,21 @@ impl AbsmEditor {
             save_dialog,
             load_dialog,
             previewer,
+            state_viewer,
         }
     }
 
     fn sync_to_model(&mut self, ui: &mut UserInterface, sender: Sender<Message>) {
         if let Some(data_model) = self.data_model.as_ref() {
-            let definition = &data_model.absm_definition;
-
-            let canvas = ui
-                .node(self.document.canvas)
-                .cast::<AbsmCanvas>()
-                .expect("Must be AbsmCanvas!");
-
-            let mut states = canvas
-                .children()
-                .iter()
-                .cloned()
-                .filter(|c| ui.node(*c).has_component::<AbsmNode<StateDefinition>>())
-                .collect::<Vec<_>>();
-
-            let mut transitions = canvas
-                .children()
-                .iter()
-                .cloned()
-                .filter(|c| ui.node(*c).has_component::<Transition>())
-                .collect::<Vec<_>>();
-
-            match states
-                .len()
-                .cmp(&(definition.states.alive_count() as usize))
-            {
-                Ordering::Less => {
-                    // A state was added.
-                    for (state_handle, state) in definition.states.pair_iter() {
-                        if states.iter().all(|state_view| {
-                            ui.node(*state_view)
-                                .query_component::<AbsmNode<StateDefinition>>()
-                                .unwrap()
-                                .model_handle
-                                != state_handle
-                        }) {
-                            let state_view_handle = AbsmNodeBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_context_menu(self.node_context_menu.menu)
-                                    .with_desired_position(state.position),
-                            )
-                            .with_model_handle(state_handle)
-                            .with_name(state.name.clone())
-                            .build(&mut ui.build_ctx());
-
-                            states.push(state_view_handle);
-
-                            send_sync_message(
-                                ui,
-                                WidgetMessage::link(
-                                    state_view_handle,
-                                    MessageDirection::ToWidget,
-                                    self.document.canvas,
-                                ),
-                            );
-                        }
-                    }
-                }
-                Ordering::Greater => {
-                    // A state was removed.
-                    for (state_view_handle, state_model_handle) in
-                        states.clone().iter().cloned().map(|state_view| {
-                            (
-                                state_view,
-                                ui.node(state_view)
-                                    .query_component::<AbsmNode<StateDefinition>>()
-                                    .unwrap()
-                                    .model_handle,
-                            )
-                        })
-                    {
-                        if definition
-                            .states
-                            .pair_iter()
-                            .all(|(h, _)| h != state_model_handle)
-                        {
-                            send_sync_message(
-                                ui,
-                                WidgetMessage::remove(
-                                    state_view_handle,
-                                    MessageDirection::ToWidget,
-                                ),
-                            );
-
-                            if let Some(position) =
-                                states.iter().position(|s| *s == state_view_handle)
-                            {
-                                states.remove(position);
-                            }
-                        }
-                    }
-                }
-                _ => (),
-            }
-
-            // Sync state nodes.
-            for state in states.iter() {
-                let state_node = ui
-                    .node(*state)
-                    .query_component::<AbsmNode<StateDefinition>>()
-                    .unwrap();
-                let state_model_ref = &definition.states[state_node.model_handle];
-
-                if state_model_ref.name != state_node.name {
-                    send_sync_message(
-                        ui,
-                        AbsmNodeMessage::name(
-                            *state,
-                            MessageDirection::ToWidget,
-                            state_node.name.clone(),
-                        ),
-                    );
-                }
-
-                send_sync_message(
-                    ui,
-                    WidgetMessage::desired_position(
-                        *state,
-                        MessageDirection::ToWidget,
-                        state_model_ref.position,
-                    ),
-                );
-            }
-
-            // Force update layout to be able to fetch positions of nodes for transitions.
-            ui.update(ui.screen_size(), 0.0);
-
-            // Sync transitions.
-            match transitions
-                .len()
-                .cmp(&(definition.transitions.alive_count() as usize))
-            {
-                Ordering::Less => {
-                    // A transition was added.
-                    for (transition_handle, transition) in definition.transitions.pair_iter() {
-                        if transitions.iter().all(|transition_view| {
-                            ui.node(*transition_view)
-                                .query_component::<Transition>()
-                                .unwrap()
-                                .model_handle
-                                != transition_handle
-                        }) {
-                            fn find_state_view(
-                                state_handle: Handle<StateDefinition>,
-                                states: &[Handle<UiNode>],
-                                ui: &UserInterface,
-                            ) -> Handle<UiNode> {
-                                states
-                                    .iter()
-                                    .find(|s| {
-                                        ui.node(**s)
-                                            .query_component::<AbsmNode<StateDefinition>>()
-                                            .unwrap()
-                                            .model_handle
-                                            == state_handle
-                                    })
-                                    .cloned()
-                                    .unwrap_or_default()
-                            }
-
-                            let transition_view = TransitionBuilder::new(WidgetBuilder::new())
-                                .with_source(find_state_view(transition.source, &states, ui))
-                                .with_dest(find_state_view(transition.dest, &states, ui))
-                                .build(transition_handle, &mut ui.build_ctx());
-
-                            send_sync_message(
-                                ui,
-                                WidgetMessage::link(
-                                    transition_view,
-                                    MessageDirection::ToWidget,
-                                    self.document.canvas,
-                                ),
-                            );
-
-                            send_sync_message(
-                                ui,
-                                WidgetMessage::lowermost(
-                                    transition_view,
-                                    MessageDirection::ToWidget,
-                                ),
-                            );
-
-                            transitions.push(transition_view);
-                        }
-                    }
-                }
-
-                Ordering::Greater => {
-                    // A transition was removed.
-                    for (transition_view_handle, transition_model_handle) in
-                        transitions.clone().iter().cloned().map(|transition_view| {
-                            (
-                                transition_view,
-                                ui.node(transition_view)
-                                    .query_component::<Transition>()
-                                    .unwrap()
-                                    .model_handle,
-                            )
-                        })
-                    {
-                        if definition
-                            .transitions
-                            .pair_iter()
-                            .all(|(h, _)| h != transition_model_handle)
-                        {
-                            send_sync_message(
-                                ui,
-                                WidgetMessage::remove(
-                                    transition_view_handle,
-                                    MessageDirection::ToWidget,
-                                ),
-                            );
-
-                            if let Some(position) = transitions
-                                .iter()
-                                .position(|s| *s == transition_view_handle)
-                            {
-                                transitions.remove(position);
-                            }
-                        }
-                    }
-                }
-                Ordering::Equal => {}
-            }
-
-            // Sync selection.
-            let new_selection = data_model
-                .selection
-                .iter()
-                .map(|entry| match entry {
-                    SelectedEntity::Transition(transition) => transitions
-                        .iter()
-                        .cloned()
-                        .find(|t| {
-                            ui.node(*t)
-                                .query_component::<Transition>()
-                                .unwrap()
-                                .model_handle
-                                == *transition
-                        })
-                        .unwrap(),
-                    SelectedEntity::State(state) => states
-                        .iter()
-                        .cloned()
-                        .find(|s| {
-                            ui.node(*s)
-                                .query_component::<AbsmNode<StateDefinition>>()
-                                .unwrap()
-                                .model_handle
-                                == *state
-                        })
-                        .unwrap(),
-                })
-                .collect::<Vec<_>>();
-            send_sync_message(
-                ui,
-                AbsmCanvasMessage::selection_changed(
-                    self.document.canvas,
-                    MessageDirection::ToWidget,
-                    new_selection,
-                ),
-            );
-
+            self.document.sync_to_model(data_model, ui);
+            self.state_viewer
+                .sync_to_model(&data_model.absm_definition, ui);
             self.inspector.sync_to_model(ui, data_model, sender);
         }
     }
 
-    fn do_command(&mut self, mut command: AbsmCommand) -> bool {
+    fn do_command(&mut self, command: AbsmCommand) -> bool {
         if let Some(data_model) = self.data_model.as_mut() {
-            dbg!(command.name(&data_model.ctx()));
-
             self.command_stack
                 .do_command(command.into_inner(), data_model.ctx());
             true
@@ -622,9 +363,6 @@ impl AbsmEditor {
 
         let ui = &mut engine.user_interface;
         self.menu.handle_ui_message(&self.message_sender, message);
-        self.node_context_menu.handle_ui_message(message, ui);
-        self.canvas_context_menu
-            .handle_ui_message(&self.message_sender, message, ui);
 
         if let Some(data_model) = self.data_model.as_ref() {
             self.document
@@ -636,6 +374,14 @@ impl AbsmEditor {
                 self.save_current_absm(path.clone())
             } else if message.destination() == self.load_dialog {
                 self.load_absm(path, engine);
+            }
+        } else if let Some(AbsmNodeMessage::Enter) = message.data() {
+            if let Some(node) = ui
+                .node(message.destination())
+                .query_component::<AbsmNode<StateDefinition>>()
+            {
+                self.state_viewer.set_state(node.model_handle);
+                self.message_sender.sync();
             }
         }
     }

@@ -1,3 +1,4 @@
+use crate::animation::machine::state::StateDefinition;
 use crate::{
     animation::{
         machine::{
@@ -106,6 +107,7 @@ impl EvaluatePose for PoseNode {
 #[derive(Default, Debug, Visit, Clone, Inspect)]
 pub struct BasePoseNodeDefinition {
     pub position: Vector2<f32>,
+    pub parent_state: Handle<StateDefinition>,
 }
 
 #[derive(Debug, Visit, Clone)]

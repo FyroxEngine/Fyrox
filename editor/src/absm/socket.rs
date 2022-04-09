@@ -1,3 +1,4 @@
+use fyrox::animation::machine::node::PoseNodeDefinition;
 use fyrox::{
     core::{algebra::Vector2, color::Color, pool::Handle},
     gui::{
@@ -16,6 +17,8 @@ use std::{
 #[derive(Clone, Debug)]
 pub struct Socket {
     widget: Widget,
+    #[allow(dead_code)] // TODO
+    parent_node: Handle<PoseNodeDefinition>,
 }
 
 define_widget_deref!(Socket);
@@ -52,16 +55,26 @@ impl Control for Socket {
 
 pub struct SocketBuilder {
     widget_builder: WidgetBuilder,
+    parent_node: Handle<PoseNodeDefinition>,
 }
 
 impl SocketBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
-        Self { widget_builder }
+        Self {
+            widget_builder,
+            parent_node: Default::default(),
+        }
+    }
+
+    pub fn with_parent_node(mut self, parent_node: Handle<PoseNodeDefinition>) -> Self {
+        self.parent_node = parent_node;
+        self
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let socket = Socket {
             widget: self.widget_builder.build(),
+            parent_node: self.parent_node,
         };
 
         ctx.add_node(UiNode::new(socket))

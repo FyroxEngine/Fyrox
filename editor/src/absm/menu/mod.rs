@@ -9,8 +9,6 @@ use fyrox::{
     },
 };
 
-pub mod context;
-
 pub struct Menu {
     pub menu: Handle<UiNode>,
     pub file_menu: FileMenu,
