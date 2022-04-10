@@ -4,9 +4,13 @@ use crate::{
     Message, MessageDirection, MSG_SYNC_FLAG,
 };
 use fyrox::{
+    animation::machine::node::BasePoseNodeDefinition,
     core::{inspect::Inspect, pool::Handle},
     gui::{
-        inspector::{InspectorBuilder, InspectorContext, InspectorMessage},
+        inspector::{
+            editors::inspectable::InspectablePropertyEditorDefinition, InspectorBuilder,
+            InspectorContext, InspectorMessage,
+        },
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         BuildContext, UiNode, UserInterface,
@@ -59,10 +63,14 @@ impl Inspector {
                     }
                 };
 
+                let mut property_editors = make_property_editors_container(sender);
+                property_editors
+                    .insert(InspectablePropertyEditorDefinition::<BasePoseNodeDefinition>::new());
+
                 let ctx = InspectorContext::from_object(
                     obj_ref,
                     &mut ui.build_ctx(),
-                    Rc::new(make_property_editors_container(sender)),
+                    Rc::new(property_editors),
                     None,
                     MSG_SYNC_FLAG,
                     0,

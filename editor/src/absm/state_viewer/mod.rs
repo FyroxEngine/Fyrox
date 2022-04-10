@@ -207,16 +207,16 @@ impl StateViewer {
                     }) {
                         let node_ref = &definition.nodes[pose_definition];
 
-                        let input_socket_count = match node_ref {
+                        let (input_socket_count, name) = match node_ref {
                             PoseNodeDefinition::PlayAnimation(_) => {
                                 // No input sockets
-                                0
+                                (0, "Play Animation")
                             }
                             PoseNodeDefinition::BlendAnimations(blend_animations) => {
-                                blend_animations.pose_sources.len()
+                                (blend_animations.pose_sources.len(), "Blend Animations")
                             }
                             PoseNodeDefinition::BlendAnimationsByIndex(blend_animations) => {
-                                blend_animations.inputs.len()
+                                (blend_animations.inputs.len(), "Blend Animations By Index")
                             }
                         };
 
@@ -228,6 +228,7 @@ impl StateViewer {
                                 .with_desired_position(node_ref.position)
                                 .with_context_menu(self.node_context_menu.menu),
                         )
+                        .with_name(name.to_owned())
                         .with_input_sockets(create_sockets(input_socket_count, pose_definition, ui))
                         .with_output_sockets(create_sockets(
                             output_socket_count,
