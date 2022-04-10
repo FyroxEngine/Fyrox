@@ -71,6 +71,11 @@ where
             && pt.y <= self.position.y + self.size.y
     }
 
+    pub fn center(&self) -> Vector2<T> {
+        let two = T::one() + T::one();
+        self.position + Vector2::new(self.size.x / two, self.size.y / two)
+    }
+
     /// Extends rect to contain given point.
     ///
     /// # Notes
