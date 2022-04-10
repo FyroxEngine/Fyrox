@@ -162,20 +162,20 @@ impl AbsmCommandTrait for AddStateCommand {
 pub enum AddPoseNodeCommand {
     Unknown,
     NonExecuted {
-        state: PoseNodeDefinition,
+        pose_node: PoseNodeDefinition,
     },
     Executed {
         handle: Handle<PoseNodeDefinition>,
     },
     Reverted {
         ticket: Ticket<PoseNodeDefinition>,
-        state: PoseNodeDefinition,
+        pose_node: PoseNodeDefinition,
     },
 }
 
 impl AddPoseNodeCommand {
-    pub fn new(state: PoseNodeDefinition) -> Self {
-        Self::NonExecuted { state }
+    pub fn new(pose_node: PoseNodeDefinition) -> Self {
+        Self::NonExecuted { pose_node }
     }
 }
 
@@ -186,12 +186,15 @@ impl AbsmCommandTrait for AddPoseNodeCommand {
 
     fn execute(&mut self, context: &mut AbsmEditorContext) {
         match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
-            AddPoseNodeCommand::NonExecuted { state } => {
+            AddPoseNodeCommand::NonExecuted { pose_node: state } => {
                 *self = AddPoseNodeCommand::Executed {
                     handle: context.definition.nodes.spawn(state),
                 };
             }
-            AddPoseNodeCommand::Reverted { ticket, state } => {
+            AddPoseNodeCommand::Reverted {
+                ticket,
+                pose_node: state,
+            } => {
                 *self = AddPoseNodeCommand::Executed {
                     handle: context.definition.nodes.put_back(ticket, state),
                 }
@@ -204,7 +207,10 @@ impl AbsmCommandTrait for AddPoseNodeCommand {
         match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
             AddPoseNodeCommand::Executed { handle } => {
                 let (ticket, state) = context.definition.nodes.take_reserve(handle);
-                *self = AddPoseNodeCommand::Reverted { ticket, state }
+                *self = AddPoseNodeCommand::Reverted {
+                    ticket,
+                    pose_node: state,
+                }
             }
             _ => unreachable!(),
         }
@@ -314,6 +320,53 @@ impl MoveStateNodeCommand {
 impl AbsmCommandTrait for MoveStateNodeCommand {
     fn name(&mut self, _context: &AbsmEditorContext) -> String {
         "Move State Node".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut AbsmEditorContext) {
+        let position = self.swap();
+        self.set_position(context.definition, position);
+    }
+
+    fn revert(&mut self, context: &mut AbsmEditorContext) {
+        let position = self.swap();
+        self.set_position(context.definition, position);
+    }
+}
+
+#[derive(Debug)]
+pub struct MovePoseNodeCommand {
+    node: Handle<PoseNodeDefinition>,
+    old_position: Vector2<f32>,
+    new_position: Vector2<f32>,
+}
+
+impl MovePoseNodeCommand {
+    pub fn new(
+        node: Handle<PoseNodeDefinition>,
+        old_position: Vector2<f32>,
+        new_position: Vector2<f32>,
+    ) -> Self {
+        Self {
+            node,
+            old_position,
+            new_position,
+        }
+    }
+
+    fn swap(&mut self) -> Vector2<f32> {
+        let position = self.new_position;
+        std::mem::swap(&mut self.new_position, &mut self.old_position);
+        position
+    }
+
+    fn set_position(&self, definition: &mut MachineDefinition, position: Vector2<f32>) {
+        definition.nodes[self.node].position = position;
+    }
+}
+
+impl AbsmCommandTrait for MovePoseNodeCommand {
+    fn name(&mut self, _context: &AbsmEditorContext) -> String {
+        "Move Pose Node".to_owned()
     }
 
     fn execute(&mut self, context: &mut AbsmEditorContext) {

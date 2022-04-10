@@ -1,8 +1,12 @@
 use crate::{
     absm::{
-        canvas::AbsmCanvasBuilder,
+        canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
+        command::{AbsmCommand, CommandGroup, MovePoseNodeCommand},
+        message::MessageSender,
         node::{AbsmNode, AbsmNodeBuilder},
         socket::SocketBuilder,
+        state_viewer::context::{CanvasContextMenu, NodeContextMenu},
+        AbsmDataModel,
     },
     send_sync_message,
 };
@@ -11,7 +15,7 @@ use fyrox::{
     core::pool::Handle,
     gui::{
         border::BorderBuilder,
-        message::MessageDirection,
+        message::{MessageDirection, UiMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
@@ -19,10 +23,14 @@ use fyrox::{
 };
 use std::cmp::Ordering;
 
+mod context;
+
 pub struct StateViewer {
     pub window: Handle<UiNode>,
     canvas: Handle<UiNode>,
     state: Handle<StateDefinition>,
+    canvas_context_menu: CanvasContextMenu,
+    node_context_menu: NodeContextMenu,
 }
 
 fn create_sockets(
@@ -39,9 +47,25 @@ fn create_sockets(
         .collect::<Vec<_>>()
 }
 
+fn fetch_pose_node_model_handle(
+    handle: Handle<UiNode>,
+    ui: &UserInterface,
+) -> Handle<PoseNodeDefinition> {
+    ui.node(handle)
+        .query_component::<AbsmNode<PoseNodeDefinition>>()
+        .unwrap()
+        .model_handle
+}
+
 impl StateViewer {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let canvas = AbsmCanvasBuilder::new(WidgetBuilder::new()).build(ctx);
+        let mut node_context_menu = NodeContextMenu::new(ctx);
+        let mut canvas_context_menu = CanvasContextMenu::new(ctx);
+
+        let canvas = AbsmCanvasBuilder::new(
+            WidgetBuilder::new().with_context_menu(canvas_context_menu.menu),
+        )
+        .build(ctx);
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::text("State Viewer"))
             .with_content(
@@ -54,15 +78,63 @@ impl StateViewer {
             )
             .build(ctx);
 
+        canvas_context_menu.canvas = canvas;
+        canvas_context_menu.node_context_menu = node_context_menu.menu;
+        node_context_menu.canvas = canvas;
+
         Self {
             window,
             canvas,
             state: Default::default(),
+            canvas_context_menu,
+            node_context_menu,
         }
     }
 
     pub fn set_state(&mut self, state: Handle<StateDefinition>) {
         self.state = state;
+    }
+
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        ui: &mut UserInterface,
+        sender: &MessageSender,
+        data_model: &AbsmDataModel,
+    ) {
+        if message.destination() == self.canvas {
+            if let Some(msg) = message.data::<AbsmCanvasMessage>() {
+                match msg {
+                    AbsmCanvasMessage::CommitDrag { entries } => {
+                        let commands = entries
+                            .iter()
+                            .map(|e| {
+                                let pose_handle = fetch_pose_node_model_handle(e.node, ui);
+                                let new_position = ui.node(e.node).actual_local_position();
+
+                                AbsmCommand::new(MovePoseNodeCommand::new(
+                                    pose_handle,
+                                    e.initial_position,
+                                    new_position,
+                                ))
+                            })
+                            .collect::<Vec<_>>();
+
+                        sender.do_command(CommandGroup::from(commands));
+                    }
+                    AbsmCanvasMessage::SelectionChanged(selection) => {
+                        if message.direction() == MessageDirection::FromWidget {
+                            // TODO
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
+
+        self.node_context_menu.handle_ui_message(message, ui);
+        self.canvas_context_menu
+            .handle_ui_message(sender, message, self.state, ui);
     }
 
     pub fn sync_to_model(&mut self, definition: &MachineDefinition, ui: &mut UserInterface) {
@@ -107,7 +179,9 @@ impl StateViewer {
                             .model_handle
                             != pose_definition
                     }) {
-                        let input_socket_count = match &definition.nodes[pose_definition] {
+                        let node_ref = &definition.nodes[pose_definition];
+
+                        let input_socket_count = match node_ref {
                             PoseNodeDefinition::PlayAnimation(_) => {
                                 // No input sockets
                                 0
@@ -123,19 +197,24 @@ impl StateViewer {
                         // Every node has only one output socket.
                         let output_socket_count = 1;
 
-                        AbsmNodeBuilder::new(WidgetBuilder::new())
-                            .with_input_sockets(create_sockets(
-                                input_socket_count,
-                                pose_definition,
-                                ui,
-                            ))
-                            .with_output_sockets(create_sockets(
-                                output_socket_count,
-                                pose_definition,
-                                ui,
-                            ))
-                            .with_model_handle(pose_definition)
-                            .build(&mut ui.build_ctx());
+                        let node_view = AbsmNodeBuilder::new(
+                            WidgetBuilder::new()
+                                .with_desired_position(node_ref.position)
+                                .with_context_menu(self.node_context_menu.menu),
+                        )
+                        .with_input_sockets(create_sockets(input_socket_count, pose_definition, ui))
+                        .with_output_sockets(create_sockets(
+                            output_socket_count,
+                            pose_definition,
+                            ui,
+                        ))
+                        .with_model_handle(pose_definition)
+                        .build(&mut ui.build_ctx());
+
+                        send_sync_message(
+                            ui,
+                            WidgetMessage::link(node_view, MessageDirection::ToWidget, self.canvas),
+                        );
                     }
                 }
             }

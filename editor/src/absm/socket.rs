@@ -23,7 +23,7 @@ pub struct Socket {
 
 define_widget_deref!(Socket);
 
-const RADIUS: f32 = 20.0;
+const RADIUS: f32 = 7.0;
 
 impl Control for Socket {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -43,7 +43,8 @@ impl Control for Socket {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        drawing_context.push_circle(Vector2::new(0.0, 0.0), RADIUS, 16, Color::WHITE);
+        let bounds = self.bounding_rect();
+        drawing_context.push_circle(bounds.center(), bounds.size.x / 2.0, 16, Color::WHITE);
         drawing_context.commit(
             self.clip_bounds(),
             self.foreground(),

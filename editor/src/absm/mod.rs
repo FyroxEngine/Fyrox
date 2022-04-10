@@ -365,6 +365,8 @@ impl AbsmEditor {
         self.menu.handle_ui_message(&self.message_sender, message);
 
         if let Some(data_model) = self.data_model.as_ref() {
+            self.state_viewer
+                .handle_ui_message(message, ui, &self.message_sender, data_model);
             self.document
                 .handle_ui_message(message, ui, &self.message_sender, data_model);
         }

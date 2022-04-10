@@ -3,6 +3,7 @@ use crate::absm::{
     BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
 };
 use fyrox::gui::message::MouseButton;
+use fyrox::gui::Thickness;
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -190,6 +191,8 @@ where
                             .with_child(
                                 StackPanelBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(2.0))
+                                        .with_vertical_alignment(VerticalAlignment::Center)
                                         .with_children(self.input_sockets.iter().cloned())
                                         .on_column(0),
                                 )
@@ -210,6 +213,8 @@ where
                             .with_child(
                                 StackPanelBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(2.0))
+                                        .with_vertical_alignment(VerticalAlignment::Center)
                                         .with_children(self.output_sockets.iter().cloned())
                                         .on_column(2),
                                 )
