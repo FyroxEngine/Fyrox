@@ -377,29 +377,25 @@ impl Document {
         let new_selection = data_model
             .selection
             .iter()
-            .map(|entry| match entry {
-                SelectedEntity::Transition(transition) => transitions
-                    .iter()
-                    .cloned()
-                    .find(|t| {
-                        ui.node(*t)
-                            .query_component::<Transition>()
-                            .unwrap()
-                            .model_handle
-                            == *transition
-                    })
-                    .unwrap(),
-                SelectedEntity::State(state) => states
-                    .iter()
-                    .cloned()
-                    .find(|s| {
-                        ui.node(*s)
-                            .query_component::<AbsmNode<StateDefinition>>()
-                            .unwrap()
-                            .model_handle
-                            == *state
-                    })
-                    .unwrap(),
+            .filter_map(|entry| match entry {
+                SelectedEntity::Transition(transition) => transitions.iter().cloned().find(|t| {
+                    ui.node(*t)
+                        .query_component::<Transition>()
+                        .unwrap()
+                        .model_handle
+                        == *transition
+                }),
+                SelectedEntity::State(state) => states.iter().cloned().find(|s| {
+                    ui.node(*s)
+                        .query_component::<AbsmNode<StateDefinition>>()
+                        .unwrap()
+                        .model_handle
+                        == *state
+                }),
+                SelectedEntity::PoseNode(_) => {
+                    // No such nodes possible to have on this canvas.
+                    None
+                }
             })
             .collect::<Vec<_>>();
         send_sync_message(

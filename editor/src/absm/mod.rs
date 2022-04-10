@@ -12,6 +12,7 @@ use crate::{
     utils::{create_file_selector, open_file_selector},
     Message,
 };
+use fyrox::animation::machine::node::PoseNodeDefinition;
 use fyrox::{
     animation::machine::{
         state::StateDefinition, transition::TransitionDefinition, MachineDefinition,
@@ -60,6 +61,7 @@ const BORDER_COLOR: Color = Color::opaque(70, 70, 70);
 pub enum SelectedEntity {
     Transition(Handle<TransitionDefinition>),
     State(Handle<StateDefinition>),
+    PoseNode(Handle<PoseNodeDefinition>),
 }
 
 #[derive(Default)]
@@ -208,7 +210,7 @@ impl AbsmEditor {
         if let Some(data_model) = self.data_model.as_ref() {
             self.document.sync_to_model(data_model, ui);
             self.state_viewer
-                .sync_to_model(&data_model.absm_definition, ui);
+                .sync_to_model(&data_model.absm_definition, ui, data_model);
             self.inspector.sync_to_model(ui, data_model, sender);
         }
     }

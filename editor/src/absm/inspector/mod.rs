@@ -52,6 +52,9 @@ impl Inspector {
                     SelectedEntity::State(state) => {
                         &data_model.absm_definition.states[*state] as &dyn Inspect
                     }
+                    SelectedEntity::PoseNode(pose) => {
+                        &data_model.absm_definition.nodes[*pose] as &dyn Inspect
+                    }
                 };
 
                 let ctx = InspectorContext::from_object(

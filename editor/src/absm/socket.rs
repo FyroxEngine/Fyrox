@@ -44,7 +44,7 @@ impl Control for Socket {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.bounding_rect();
-        drawing_context.push_circle(bounds.center(), bounds.size.x / 2.0, 16, Color::WHITE);
+        drawing_context.push_circle(bounds.center(), bounds.size.x / 2.0 - 1.0, 16, Color::WHITE);
         drawing_context.commit(
             self.clip_bounds(),
             self.foreground(),

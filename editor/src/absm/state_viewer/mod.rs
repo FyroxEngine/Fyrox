@@ -1,3 +1,5 @@
+use crate::absm::command::ChangeSelectionCommand;
+use crate::absm::SelectedEntity;
 use crate::{
     absm::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
@@ -124,7 +126,24 @@ impl StateViewer {
                     }
                     AbsmCanvasMessage::SelectionChanged(selection) => {
                         if message.direction() == MessageDirection::FromWidget {
-                            // TODO
+                            let selection = selection
+                                .iter()
+                                .filter_map(|n| {
+                                    let node_ref = ui.node(*n);
+
+                                    if let Some(state_node) =
+                                        node_ref.query_component::<AbsmNode<PoseNodeDefinition>>()
+                                    {
+                                        Some(SelectedEntity::PoseNode(state_node.model_handle))
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect();
+
+                            if selection != data_model.selection {
+                                sender.do_command(ChangeSelectionCommand { selection });
+                            }
                         }
                     }
                     _ => (),
@@ -137,10 +156,15 @@ impl StateViewer {
             .handle_ui_message(sender, message, self.state, ui);
     }
 
-    pub fn sync_to_model(&mut self, definition: &MachineDefinition, ui: &mut UserInterface) {
+    pub fn sync_to_model(
+        &mut self,
+        definition: &MachineDefinition,
+        ui: &mut UserInterface,
+        data_model: &AbsmDataModel,
+    ) {
         let canvas = ui.node(self.canvas);
 
-        let views = canvas
+        let mut views = canvas
             .children()
             .iter()
             .cloned()
@@ -215,12 +239,14 @@ impl StateViewer {
                             ui,
                             WidgetMessage::link(node_view, MessageDirection::ToWidget, self.canvas),
                         );
+
+                        views.push(node_view);
                     }
                 }
             }
             Ordering::Greater => {
                 // A node was removed.
-                for &view in views.iter() {
+                for &view in views.clone().iter() {
                     let view_ref = ui
                         .node(view)
                         .query_component::<AbsmNode<PoseNodeDefinition>>()
@@ -235,10 +261,41 @@ impl StateViewer {
                             ui,
                             WidgetMessage::remove(view, MessageDirection::ToWidget),
                         );
+
+                        if let Some(position) = views.iter().position(|s| *s == view) {
+                            views.remove(position);
+                        }
                     }
                 }
             }
             Ordering::Equal => {}
         }
+
+        // Sync selection.
+        let new_selection = data_model
+            .selection
+            .iter()
+            .filter_map(|entry| match entry {
+                SelectedEntity::Transition(_) | SelectedEntity::State(_) => {
+                    // No such nodes possible to have on this canvas.
+                    None
+                }
+                SelectedEntity::PoseNode(pose_node) => views.iter().cloned().find(|s| {
+                    ui.node(*s)
+                        .query_component::<AbsmNode<PoseNodeDefinition>>()
+                        .unwrap()
+                        .model_handle
+                        == *pose_node
+                }),
+            })
+            .collect::<Vec<_>>();
+        send_sync_message(
+            ui,
+            AbsmCanvasMessage::selection_changed(
+                self.canvas,
+                MessageDirection::ToWidget,
+                new_selection,
+            ),
+        );
     }
 }
