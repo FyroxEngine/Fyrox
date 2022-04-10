@@ -31,6 +31,8 @@ impl Previewer {
 
         let ctx = &mut engine.user_interface.build_ctx();
         let window = WindowBuilder::new(WidgetBuilder::new())
+            .can_close(false)
+            .can_minimize(false)
             .with_title(WindowTitle::text("Previewer"))
             .with_content(panel.root)
             .build(ctx);

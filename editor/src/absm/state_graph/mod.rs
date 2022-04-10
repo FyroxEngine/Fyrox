@@ -58,6 +58,8 @@ impl Document {
 
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::text("Document"))
+            .can_close(false)
+            .can_minimize(false)
             .with_content(
                 BorderBuilder::new(
                     WidgetBuilder::new()

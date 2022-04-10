@@ -24,6 +24,8 @@ impl Inspector {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
         let window = WindowBuilder::new(WidgetBuilder::new())
+            .can_close(false)
+            .can_minimize(false)
             .with_title(WindowTitle::text("Inspector"))
             .with_content(inspector)
             .build(ctx);

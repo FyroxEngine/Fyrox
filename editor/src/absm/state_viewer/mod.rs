@@ -69,6 +69,8 @@ impl StateViewer {
         )
         .build(ctx);
         let window = WindowBuilder::new(WidgetBuilder::new())
+            .can_close(false)
+            .can_minimize(false)
             .with_title(WindowTitle::text("State Viewer"))
             .with_content(
                 BorderBuilder::new(
