@@ -3,9 +3,9 @@ use fyrox::{
     core::{algebra::Vector2, color::Color, pool::Handle},
     gui::{
         brush::Brush,
-        define_widget_deref,
+        define_constructor, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
-        message::{MessageDirection, UiMessage},
+        message::{MessageDirection, MouseButton, UiMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
     },
@@ -18,16 +18,27 @@ use std::{
 const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(170, 170, 170));
 const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(120, 120, 120));
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum SocketMessage {
+    // Occurs when user clicks on socket and starts dragging it.
+    StartDragging,
+}
+
+impl SocketMessage {
+    define_constructor!(SocketMessage:StartDragging => fn start_dragging(), layout: false);
+}
+
 #[derive(Clone, Debug)]
 pub struct Socket {
     widget: Widget,
+    click_position: Option<Vector2<f32>>,
     #[allow(dead_code)] // TODO
     parent_node: Handle<PoseNodeDefinition>,
 }
 
 define_widget_deref!(Socket);
 
-const RADIUS: f32 = 7.0;
+const RADIUS: f32 = 8.0;
 
 impl Control for Socket {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -58,6 +69,36 @@ impl Control for Socket {
 
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
+                WidgetMessage::MouseDown { button, pos } => {
+                    if *button == MouseButton::Left {
+                        self.click_position = Some(*pos);
+
+                        ui.capture_mouse(self.handle());
+
+                        message.set_handled(true);
+                    }
+                }
+                WidgetMessage::MouseUp { button, .. } => {
+                    if *button == MouseButton::Left {
+                        self.click_position = None;
+
+                        ui.release_mouse_capture();
+
+                        message.set_handled(true);
+                    }
+                }
+                WidgetMessage::MouseMove { pos, .. } => {
+                    if let Some(click_position) = self.click_position {
+                        if click_position.metric_distance(pos) >= 5.0 {
+                            ui.send_message(SocketMessage::start_dragging(
+                                self.handle(),
+                                MessageDirection::FromWidget,
+                            ));
+
+                            self.click_position = None;
+                        }
+                    }
+                }
                 WidgetMessage::MouseLeave => {
                     ui.send_message(WidgetMessage::foreground(
                         self.handle(),
@@ -99,6 +140,7 @@ impl SocketBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let socket = Socket {
             widget: self.widget_builder.with_foreground(NORMAL_BRUSH).build(),
+            click_position: Default::default(),
             parent_node: self.parent_node,
         };
 

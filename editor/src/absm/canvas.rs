@@ -303,33 +303,35 @@ impl Control for AbsmCanvas {
 
                 ui.capture_mouse(self.handle());
             } else if *button == MouseButton::Left {
-                let dest_node_handle =
-                    self.fetch_dest_node_component::<AbsmNodeMarker>(message.destination(), ui);
+                if !message.handled() {
+                    let dest_node_handle =
+                        self.fetch_dest_node_component::<AbsmNodeMarker>(message.destination(), ui);
 
-                match self.mode {
-                    Mode::CreateTransition { source, .. } => {
-                        if dest_node_handle.is_some() {
-                            // Commit creation.
-                            ui.send_message(AbsmCanvasMessage::commit_transition(
-                                self.handle(),
-                                MessageDirection::FromWidget,
-                                source,
-                                dest_node_handle,
-                            ));
-                        }
-
-                        self.mode = Mode::Normal;
-                    }
-                    Mode::Normal => {
-                        if dest_node_handle.is_some() {
-                            self.mode = Mode::Drag {
-                                drag_context: self.make_drag_context(ui),
+                    match self.mode {
+                        Mode::CreateTransition { source, .. } => {
+                            if dest_node_handle.is_some() {
+                                // Commit creation.
+                                ui.send_message(AbsmCanvasMessage::commit_transition(
+                                    self.handle(),
+                                    MessageDirection::FromWidget,
+                                    source,
+                                    dest_node_handle,
+                                ));
                             }
-                        } else {
-                            self.set_selection(&[], ui);
+
+                            self.mode = Mode::Normal;
                         }
+                        Mode::Normal => {
+                            if dest_node_handle.is_some() {
+                                self.mode = Mode::Drag {
+                                    drag_context: self.make_drag_context(ui),
+                                }
+                            } else {
+                                self.set_selection(&[], ui);
+                            }
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
         } else if let Some(WidgetMessage::MouseUp { button, pos }) = message.data() {
