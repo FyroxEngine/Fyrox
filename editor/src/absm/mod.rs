@@ -1,8 +1,8 @@
-use crate::absm::menu::Menu;
 use crate::{
     absm::{
         command::{AbsmCommand, AbsmCommandStack, AbsmEditorContext},
         inspector::Inspector,
+        menu::Menu,
         message::{AbsmMessage, MessageSender},
         node::{AbsmNode, AbsmNodeMessage},
         preview::Previewer,
@@ -12,10 +12,10 @@ use crate::{
     utils::{create_file_selector, open_file_selector},
     Message,
 };
-use fyrox::animation::machine::node::PoseNodeDefinition;
 use fyrox::{
     animation::machine::{
-        state::StateDefinition, transition::TransitionDefinition, MachineDefinition,
+        node::PoseNodeDefinition, state::StateDefinition, transition::TransitionDefinition,
+        MachineDefinition,
     },
     core::{
         color::Color,
@@ -384,8 +384,11 @@ impl AbsmEditor {
                 .node(message.destination())
                 .query_component::<AbsmNode<StateDefinition>>()
             {
-                self.state_viewer.set_state(node.model_handle);
-                self.message_sender.sync();
+                if let Some(data_model) = self.data_model.as_ref() {
+                    self.state_viewer
+                        .set_state(node.model_handle, data_model, ui);
+                    self.message_sender.sync();
+                }
             }
         }
     }

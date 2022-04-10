@@ -13,7 +13,6 @@ use crate::{
     },
     send_sync_message,
 };
-use fyrox::gui::Thickness;
 use fyrox::{
     animation::machine::{state::StateDefinition, transition::TransitionDefinition},
     core::pool::Handle,
@@ -22,7 +21,7 @@ use fyrox::{
         message::{MessageDirection, UiMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
-        BuildContext, UiNode, UserInterface,
+        BuildContext, Thickness, UiNode, UserInterface,
     },
 };
 use std::cmp::Ordering;
@@ -57,7 +56,7 @@ impl Document {
         .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new())
-            .with_title(WindowTitle::text("Document"))
+            .with_title(WindowTitle::text("State Graph"))
             .can_close(false)
             .can_minimize(false)
             .with_content(

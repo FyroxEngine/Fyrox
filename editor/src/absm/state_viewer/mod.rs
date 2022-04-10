@@ -1,14 +1,12 @@
-use crate::absm::command::ChangeSelectionCommand;
-use crate::absm::SelectedEntity;
 use crate::{
     absm::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
-        command::{AbsmCommand, CommandGroup, MovePoseNodeCommand},
+        command::{AbsmCommand, ChangeSelectionCommand, CommandGroup, MovePoseNodeCommand},
         message::MessageSender,
         node::{AbsmNode, AbsmNodeBuilder},
         socket::SocketBuilder,
         state_viewer::context::{CanvasContextMenu, NodeContextMenu},
-        AbsmDataModel,
+        AbsmDataModel, SelectedEntity,
     },
     send_sync_message,
 };
@@ -19,7 +17,7 @@ use fyrox::{
         border::BorderBuilder,
         message::{MessageDirection, UiMessage},
         widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowTitle},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
 };
@@ -95,8 +93,33 @@ impl StateViewer {
         }
     }
 
-    pub fn set_state(&mut self, state: Handle<StateDefinition>) {
+    pub fn set_state(
+        &mut self,
+        state: Handle<StateDefinition>,
+        data_model: &AbsmDataModel,
+        ui: &UserInterface,
+    ) {
         self.state = state;
+
+        let state_name = data_model
+            .absm_definition
+            .states
+            .try_borrow(self.state)
+            .map(|state| {
+                format!(
+                    "{} ({}:{})",
+                    state.name,
+                    self.state.index(),
+                    self.state.generation()
+                )
+            })
+            .unwrap_or_else(|| String::from("<No State>"));
+
+        ui.send_message(WindowMessage::title(
+            self.window,
+            MessageDirection::ToWidget,
+            WindowTitle::text(format!("State Viewer - {}", state_name)),
+        ))
     }
 
     pub fn handle_ui_message(
@@ -175,7 +198,14 @@ impl StateViewer {
                     .node(*h)
                     .query_component::<AbsmNode<PoseNodeDefinition>>()
                 {
-                    definition.nodes[pose_node.model_handle].parent_state == self.state
+                    if definition.nodes[pose_node.model_handle].parent_state == self.state {
+                        true
+                    } else {
+                        // Remove every node that does not belong to a state.
+                        ui.send_message(WidgetMessage::remove(*h, MessageDirection::ToWidget));
+
+                        false
+                    }
                 } else {
                     false
                 }
