@@ -242,3 +242,63 @@ impl AbsmCommandTrait for ChangeSelectionCommand {
         self.swap(context)
     }
 }
+
+macro_rules! define_free_command {
+    ($name:ident, $ent_type:ty, $container:ident) => {
+        #[derive(Debug)]
+        pub enum $name {
+            Unknown,
+            NonExecuted(Handle<$ent_type>),
+            Executed {
+                state: $ent_type,
+                ticket: Ticket<$ent_type>,
+            },
+            Reverted(Handle<$ent_type>),
+        }
+
+        impl $name {
+            pub fn new(state: Handle<$ent_type>) -> Self {
+                Self::NonExecuted(state)
+            }
+        }
+
+        impl AbsmCommandTrait for $name {
+            fn name(&mut self, _context: &AbsmEditorContext) -> String {
+                "Delete State".to_owned()
+            }
+
+            fn execute(&mut self, context: &mut AbsmEditorContext) {
+                match std::mem::replace(self, Self::Unknown) {
+                    Self::NonExecuted(state) | Self::Reverted(state) => {
+                        let (ticket, state) = context.definition.$container.take_reserve(state);
+                        *self = Self::Executed { state, ticket }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+
+            fn revert(&mut self, context: &mut AbsmEditorContext) {
+                match std::mem::replace(self, Self::Unknown) {
+                    Self::Executed { state, ticket } => {
+                        *self =
+                            Self::Reverted(context.definition.$container.put_back(ticket, state));
+                    }
+                    _ => unreachable!(),
+                }
+            }
+
+            fn finalize(&mut self, context: &mut AbsmEditorContext) {
+                match std::mem::replace(self, Self::Unknown) {
+                    Self::Executed { ticket, .. } => {
+                        context.definition.$container.forget_ticket(ticket);
+                    }
+                    _ => (),
+                }
+            }
+        }
+    };
+}
+
+define_free_command!(DeleteStateCommand, StateDefinition, states);
+define_free_command!(DeletePoseNodeCommand, PoseNodeDefinition, nodes);
+define_free_command!(DeleteTransitionCommand, TransitionDefinition, transitions);

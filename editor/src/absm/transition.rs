@@ -167,25 +167,29 @@ impl Control for Transition {
                     .enumerate()
                 {
                     if transition_handle == self.handle() {
-                        let source_pos = ui.node(self.source).center();
-                        let dest_pos = ui.node(self.dest).center();
+                        if let (Some(source_state), Some(dest_state)) =
+                            (ui.try_get_node(self.source), ui.try_get_node(self.dest))
+                        {
+                            let source_pos = source_state.center();
+                            let dest_pos = dest_state.center();
 
-                        let delta = dest_pos - source_pos;
-                        let offset = Vector2::new(delta.y, -delta.x)
-                            .normalize()
-                            .scale(15.0 * i as f32);
+                            let delta = dest_pos - source_pos;
+                            let offset = Vector2::new(delta.y, -delta.x)
+                                .normalize()
+                                .scale(15.0 * i as f32);
 
-                        ui.send_message(TransitionMessage::source_position(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            source_pos + offset,
-                        ));
+                            ui.send_message(TransitionMessage::source_position(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                source_pos + offset,
+                            ));
 
-                        ui.send_message(TransitionMessage::dest_position(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            dest_pos + offset,
-                        ));
+                            ui.send_message(TransitionMessage::dest_position(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                dest_pos + offset,
+                            ));
+                        }
                     }
                 }
             }

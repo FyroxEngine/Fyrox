@@ -151,7 +151,8 @@ impl Document {
             }
         }
 
-        self.node_context_menu.handle_ui_message(message, ui);
+        self.node_context_menu
+            .handle_ui_message(message, ui, data_model, sender);
         self.canvas_context_menu
             .handle_ui_message(sender, message, ui);
     }

@@ -1,8 +1,11 @@
+use crate::absm::command::{
+    AbsmCommand, ChangeSelectionCommand, CommandGroup, DeleteStateCommand, DeleteTransitionCommand,
+};
 use crate::absm::{
     canvas::{AbsmCanvasMessage, Mode},
     command::AddStateCommand,
     message::MessageSender,
-    node::AbsmNode,
+    AbsmDataModel, SelectedEntity,
 };
 use fyrox::{
     animation::machine::state::StateDefinition,
@@ -71,6 +74,7 @@ impl CanvasContextMenu {
 
 pub struct NodeContextMenu {
     create_transition: Handle<UiNode>,
+    remove: Handle<UiNode>,
     pub menu: Handle<UiNode>,
     pub canvas: Handle<UiNode>,
     placement_target: Handle<UiNode>,
@@ -79,16 +83,28 @@ pub struct NodeContextMenu {
 impl NodeContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let create_transition;
+        let remove;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
-                StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                    create_transition = MenuItemBuilder::new(
-                        WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
-                    )
-                    .with_content(MenuItemContent::text("Create Transition"))
-                    .build(ctx);
-                    create_transition
-                }))
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            create_transition = MenuItemBuilder::new(
+                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
+                            )
+                            .with_content(MenuItemContent::text("Create Transition"))
+                            .build(ctx);
+                            create_transition
+                        })
+                        .with_child({
+                            remove = MenuItemBuilder::new(
+                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
+                            )
+                            .with_content(MenuItemContent::text("Remove"))
+                            .build(ctx);
+                            remove
+                        }),
+                )
                 .build(ctx),
             )
             .build(ctx);
@@ -96,19 +112,21 @@ impl NodeContextMenu {
         Self {
             create_transition,
             menu,
+            remove,
             canvas: Default::default(),
             placement_target: Default::default(),
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        ui: &mut UserInterface,
+        data_model: &AbsmDataModel,
+        sender: &MessageSender,
+    ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.create_transition {
-                assert!(ui
-                    .node(self.placement_target)
-                    .query_component::<AbsmNode<StateDefinition>>()
-                    .is_some());
-
                 ui.send_message(AbsmCanvasMessage::switch_mode(
                     self.canvas,
                     MessageDirection::ToWidget,
@@ -118,6 +136,54 @@ impl NodeContextMenu {
                         dest_pos: ui.node(self.canvas).screen_to_local(ui.cursor_position()),
                     },
                 ))
+            } else if message.destination == self.remove {
+                let states_to_remove = data_model
+                    .selection
+                    .iter()
+                    .cloned()
+                    .filter_map(|e| {
+                        if let SelectedEntity::State(handle) = e {
+                            Some(handle)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                // Gather every transition that leads from/to any of states to remove.
+                let transitions_to_remove = data_model
+                    .absm_definition
+                    .transitions
+                    .pair_iter()
+                    .filter_map(|(handle, transition)| {
+                        if states_to_remove.iter().cloned().any(|state_to_remove| {
+                            state_to_remove == transition.source
+                                || state_to_remove == transition.dest
+                        }) {
+                            Some(handle)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                let mut group = vec![AbsmCommand::new(ChangeSelectionCommand {
+                    selection: vec![],
+                })];
+
+                group.extend(
+                    transitions_to_remove.into_iter().map(|transition| {
+                        AbsmCommand::new(DeleteTransitionCommand::new(transition))
+                    }),
+                );
+
+                group.extend(
+                    states_to_remove
+                        .into_iter()
+                        .map(|state| AbsmCommand::new(DeleteStateCommand::new(state))),
+                );
+
+                sender.do_command(CommandGroup::from(group));
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu {
