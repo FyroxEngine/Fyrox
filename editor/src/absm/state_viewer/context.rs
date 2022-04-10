@@ -32,38 +32,42 @@ impl CanvasContextMenu {
         let create_play_animation;
         let create_blend_animations;
         let create_blend_by_index;
-        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-            .with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            create_play_animation = MenuItemBuilder::new(
-                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
-                            )
-                            .with_content(MenuItemContent::text("Play Animation"))
-                            .build(ctx);
-                            create_play_animation
-                        })
-                        .with_child({
-                            create_blend_animations = MenuItemBuilder::new(
-                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
-                            )
-                            .with_content(MenuItemContent::text("Blend Animations"))
-                            .build(ctx);
-                            create_blend_animations
-                        })
-                        .with_child({
-                            create_blend_by_index = MenuItemBuilder::new(
-                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
-                            )
-                            .with_content(MenuItemContent::text("Blend By Index"))
-                            .build(ctx);
-                            create_blend_by_index
-                        }),
-                )
-                .build(ctx),
+        let menu = PopupBuilder::new(
+            WidgetBuilder::new()
+                .with_enabled(false) // Disabled by default.
+                .with_visibility(false),
+        )
+        .with_content(
+            StackPanelBuilder::new(
+                WidgetBuilder::new()
+                    .with_child({
+                        create_play_animation = MenuItemBuilder::new(
+                            WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
+                        )
+                        .with_content(MenuItemContent::text("Play Animation"))
+                        .build(ctx);
+                        create_play_animation
+                    })
+                    .with_child({
+                        create_blend_animations = MenuItemBuilder::new(
+                            WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
+                        )
+                        .with_content(MenuItemContent::text("Blend Animations"))
+                        .build(ctx);
+                        create_blend_animations
+                    })
+                    .with_child({
+                        create_blend_by_index = MenuItemBuilder::new(
+                            WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
+                        )
+                        .with_content(MenuItemContent::text("Blend By Index"))
+                        .build(ctx);
+                        create_blend_by_index
+                    }),
             )
-            .build(ctx);
+            .build(ctx),
+        )
+        .build(ctx);
 
         Self {
             create_play_animation,

@@ -101,25 +101,34 @@ impl StateViewer {
     ) {
         self.state = state;
 
-        let state_name = data_model
+        let (state_name, exists) = data_model
             .absm_definition
             .states
             .try_borrow(self.state)
             .map(|state| {
-                format!(
-                    "{} ({}:{})",
-                    state.name,
-                    self.state.index(),
-                    self.state.generation()
+                (
+                    format!(
+                        "{} ({}:{})",
+                        state.name,
+                        self.state.index(),
+                        self.state.generation()
+                    ),
+                    true,
                 )
             })
-            .unwrap_or_else(|| String::from("<No State>"));
+            .unwrap_or_else(|| (String::from("<No State>"), false));
 
         ui.send_message(WindowMessage::title(
             self.window,
             MessageDirection::ToWidget,
             WindowTitle::text(format!("State Viewer - {}", state_name)),
-        ))
+        ));
+
+        ui.send_message(WidgetMessage::enabled(
+            self.canvas_context_menu.menu,
+            MessageDirection::ToWidget,
+            exists,
+        ));
     }
 
     pub fn handle_ui_message(
