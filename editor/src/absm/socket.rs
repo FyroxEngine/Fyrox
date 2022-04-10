@@ -1,11 +1,12 @@
-use fyrox::animation::machine::node::PoseNodeDefinition;
 use fyrox::{
+    animation::machine::node::PoseNodeDefinition,
     core::{algebra::Vector2, color::Color, pool::Handle},
     gui::{
+        brush::Brush,
         define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
-        message::UiMessage,
-        widget::{Widget, WidgetBuilder},
+        message::{MessageDirection, UiMessage},
+        widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
     },
 };
@@ -13,6 +14,9 @@ use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
 };
+
+const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(170, 170, 170));
+const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(120, 120, 120));
 
 #[derive(Clone, Debug)]
 pub struct Socket {
@@ -34,10 +38,6 @@ impl Control for Socket {
         }
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        self.widget.handle_routed_message(ui, message)
-    }
-
     fn measure_override(&self, _ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
         Vector2::new(RADIUS * 2.0, RADIUS * 2.0)
     }
@@ -51,6 +51,30 @@ impl Control for Socket {
             CommandTexture::None,
             None,
         );
+    }
+
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.widget.handle_routed_message(ui, message);
+
+        if let Some(msg) = message.data::<WidgetMessage>() {
+            match msg {
+                WidgetMessage::MouseLeave => {
+                    ui.send_message(WidgetMessage::foreground(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        NORMAL_BRUSH,
+                    ));
+                }
+                WidgetMessage::MouseEnter => {
+                    ui.send_message(WidgetMessage::foreground(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        PICKED_BRUSH,
+                    ));
+                }
+                _ => (),
+            }
+        }
     }
 }
 
@@ -74,7 +98,7 @@ impl SocketBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let socket = Socket {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.with_foreground(NORMAL_BRUSH).build(),
             parent_node: self.parent_node,
         };
 
