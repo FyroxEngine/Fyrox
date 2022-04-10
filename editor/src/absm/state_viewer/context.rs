@@ -1,10 +1,18 @@
-use crate::absm::{command::AddPoseNodeCommand, message::MessageSender, node::AbsmNode};
-use fyrox::animation::machine::node::blend::{
-    BlendAnimationsByIndexDefinition, BlendAnimationsDefinition,
+use crate::absm::{
+    command::{
+        AbsmCommand, AddPoseNodeCommand, ChangeSelectionCommand, CommandGroup,
+        DeletePoseNodeCommand,
+    },
+    message::MessageSender,
+    AbsmDataModel, SelectedEntity,
 };
 use fyrox::{
     animation::machine::{
-        node::{play::PlayAnimationDefinition, BasePoseNodeDefinition, PoseNodeDefinition},
+        node::{
+            blend::{BlendAnimationsByIndexDefinition, BlendAnimationsDefinition},
+            play::PlayAnimationDefinition,
+            BasePoseNodeDefinition, PoseNodeDefinition,
+        },
         state::StateDefinition,
     },
     core::{algebra::Vector2, pool::Handle},
@@ -163,15 +171,27 @@ impl NodeContextMenu {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        data_model: &AbsmDataModel,
+        sender: &MessageSender,
+    ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.remove {
-                assert!(ui
-                    .node(self.placement_target)
-                    .query_component::<AbsmNode<PoseNodeDefinition>>()
-                    .is_some());
+                let mut group = vec![AbsmCommand::new(ChangeSelectionCommand {
+                    selection: vec![],
+                })];
 
-                // TODO
+                group.extend(data_model.selection.iter().filter_map(|entry| {
+                    if let SelectedEntity::PoseNode(pose_node) = entry {
+                        Some(AbsmCommand::new(DeletePoseNodeCommand::new(*pose_node)))
+                    } else {
+                        None
+                    }
+                }));
+
+                sender.do_command(CommandGroup::from(group));
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu {

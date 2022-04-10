@@ -185,7 +185,8 @@ impl StateViewer {
             }
         }
 
-        self.node_context_menu.handle_ui_message(message, ui);
+        self.node_context_menu
+            .handle_ui_message(message, data_model, sender);
         self.canvas_context_menu
             .handle_ui_message(sender, message, self.state, ui);
     }
@@ -207,10 +208,15 @@ impl StateViewer {
                     .node(*h)
                     .query_component::<AbsmNode<PoseNodeDefinition>>()
                 {
-                    if definition.nodes[pose_node.model_handle].parent_state == self.state {
+                    if definition
+                        .nodes
+                        .try_borrow(pose_node.model_handle)
+                        .map_or(false, |node| node.parent_state == self.state)
+                    {
                         true
                     } else {
-                        // Remove every node that does not belong to a state.
+                        // Remove every node that does not belong to a state or its data model was
+                        // removed.
                         ui.send_message(WidgetMessage::remove(*h, MessageDirection::ToWidget));
 
                         false

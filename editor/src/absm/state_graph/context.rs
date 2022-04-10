@@ -1,9 +1,9 @@
-use crate::absm::command::{
-    AbsmCommand, ChangeSelectionCommand, CommandGroup, DeleteStateCommand, DeleteTransitionCommand,
-};
 use crate::absm::{
     canvas::{AbsmCanvasMessage, Mode},
-    command::AddStateCommand,
+    command::{
+        AbsmCommand, AddStateCommand, ChangeSelectionCommand, CommandGroup, DeleteStateCommand,
+        DeleteTransitionCommand,
+    },
     message::MessageSender,
     AbsmDataModel, SelectedEntity,
 };
