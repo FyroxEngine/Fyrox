@@ -2,8 +2,6 @@ use crate::absm::{
     selectable::{Selectable, SelectableMessage},
     BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
 };
-use fyrox::gui::message::MouseButton;
-use fyrox::gui::Thickness;
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -11,17 +9,22 @@ use fyrox::{
         brush::Brush,
         define_constructor,
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
+        message::{MessageDirection, MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
+        BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
 };
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
 };
+
+// An "interface" marker that allows to check if the node is "some" ABSM node, without knowing
+// actual data model hanlde type.
+pub struct AbsmNodeMarker;
 
 pub struct AbsmNode<T>
 where
@@ -34,6 +37,7 @@ where
     output_sockets: Vec<Handle<UiNode>>,
     pub name: String,
     pub model_handle: Handle<T>,
+    marker: AbsmNodeMarker,
 }
 
 impl<T> Clone for AbsmNode<T>
@@ -49,6 +53,7 @@ where
             output_sockets: self.output_sockets.clone(),
             name: self.name.clone(),
             model_handle: self.model_handle,
+            marker: AbsmNodeMarker,
         }
     }
 }
@@ -93,6 +98,8 @@ where
             Some(self)
         } else if type_id == TypeId::of::<Selectable>() {
             Some(&self.selectable)
+        } else if type_id == TypeId::of::<AbsmNodeMarker>() {
+            Some(&self.marker)
         } else {
             None
         }
@@ -238,6 +245,7 @@ where
             name: self.name,
             input_sockets: self.input_sockets,
             output_sockets: self.output_sockets,
+            marker: AbsmNodeMarker,
         };
 
         ctx.add_node(UiNode::new(node))
