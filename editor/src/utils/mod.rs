@@ -115,3 +115,9 @@ pub fn open_file_selector(file_selector: Handle<UiNode>, ui: &UserInterface) {
         true,
     ));
 }
+
+pub fn fetch_node_center(handle: Handle<UiNode>, ctx: &BuildContext) -> Vector2<f32> {
+    ctx.try_get_node(handle)
+        .map(|node| node.center())
+        .unwrap_or_default()
+}

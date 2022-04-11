@@ -1,10 +1,14 @@
-use crate::absm::selectable::{Selectable, SelectableMessage};
+use crate::absm::{
+    segment::{Segment, SegmentMessage},
+    selectable::{Selectable, SelectableMessage},
+};
+use crate::utils::fetch_node_center;
 use fyrox::{
     animation::machine::transition::TransitionDefinition,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     gui::{
         brush::Brush,
-        define_constructor, define_widget_deref,
+        define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         message::{MessageDirection, UiMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -23,10 +27,7 @@ const SELECTED_BRUSH: Brush = Brush::Solid(Color::opaque(120, 120, 120));
 #[derive(Clone, Debug)]
 pub struct Transition {
     widget: Widget,
-    pub source: Handle<UiNode>,
-    source_pos: Vector2<f32>,
-    pub dest: Handle<UiNode>,
-    dest_pos: Vector2<f32>,
+    pub segment: Segment,
     pub model_handle: Handle<TransitionDefinition>,
     selectable: Selectable,
 }
@@ -46,17 +47,6 @@ impl Transition {
 }
 
 define_widget_deref!(Transition);
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum TransitionMessage {
-    SourcePosition(Vector2<f32>),
-    DestPosition(Vector2<f32>),
-}
-
-impl TransitionMessage {
-    define_constructor!(TransitionMessage:SourcePosition => fn source_position(Vector2<f32>), layout: false);
-    define_constructor!(TransitionMessage:DestPosition => fn dest_position(Vector2<f32>), layout: false);
-}
 
 pub fn draw_transition(
     drawing_context: &mut DrawingContext,
@@ -98,8 +88,8 @@ impl Control for Transition {
             drawing_context,
             self.clip_bounds(),
             self.foreground(),
-            self.source_pos,
-            self.dest_pos,
+            self.segment.source_pos,
+            self.segment.dest_pos,
         );
     }
 
@@ -107,21 +97,10 @@ impl Control for Transition {
         self.widget.handle_routed_message(ui, message);
         self.selectable
             .handle_routed_message(self.handle(), ui, message);
+        self.segment
+            .handle_routed_message(self.handle(), ui, message);
 
-        if let Some(msg) = message.data::<TransitionMessage>() {
-            if message.destination() == self.handle()
-                && message.direction() == MessageDirection::ToWidget
-            {
-                match msg {
-                    TransitionMessage::SourcePosition(pos) => {
-                        self.source_pos = *pos;
-                    }
-                    TransitionMessage::DestPosition(pos) => {
-                        self.dest_pos = *pos;
-                    }
-                }
-            }
-        } else if let Some(msg) = message.data::<WidgetMessage>() {
+        if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::MouseEnter => {
                     ui.send_message(WidgetMessage::foreground(
@@ -146,7 +125,9 @@ impl Control for Transition {
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         // Check if any node has moved and sync ends accordingly.
-        if message.destination() == self.source || message.destination() == self.dest {
+        if message.destination() == self.segment.source
+            || message.destination() == self.segment.dest
+        {
             if let Some(WidgetMessage::DesiredPosition(_)) = message.data() {
                 // Find other transitions sharing the same source and dest nodes (in both directions).
                 for (i, transition_handle) in ui
@@ -155,8 +136,10 @@ impl Control for Transition {
                     .iter()
                     .filter_map(|c| {
                         ui.node(*c).query_component::<Transition>().and_then(|t| {
-                            if t.source == self.source && t.dest == self.dest
-                                || t.source == self.dest && t.dest == self.source
+                            if t.segment.source == self.segment.source
+                                && t.segment.dest == self.segment.dest
+                                || t.segment.source == self.segment.dest
+                                    && t.segment.dest == self.segment.source
                             {
                                 Some(*c)
                             } else {
@@ -167,9 +150,10 @@ impl Control for Transition {
                     .enumerate()
                 {
                     if transition_handle == self.handle() {
-                        if let (Some(source_state), Some(dest_state)) =
-                            (ui.try_get_node(self.source), ui.try_get_node(self.dest))
-                        {
+                        if let (Some(source_state), Some(dest_state)) = (
+                            ui.try_get_node(self.segment.source),
+                            ui.try_get_node(self.segment.dest),
+                        ) {
                             let source_pos = source_state.center();
                             let dest_pos = dest_state.center();
 
@@ -178,13 +162,13 @@ impl Control for Transition {
                                 .normalize()
                                 .scale(15.0 * i as f32);
 
-                            ui.send_message(TransitionMessage::source_position(
+                            ui.send_message(SegmentMessage::source_position(
                                 self.handle(),
                                 MessageDirection::ToWidget,
                                 source_pos + offset,
                             ));
 
-                            ui.send_message(TransitionMessage::dest_position(
+                            ui.send_message(SegmentMessage::dest_position(
                                 self.handle(),
                                 MessageDirection::ToWidget,
                                 dest_pos + offset,
@@ -227,12 +211,6 @@ impl TransitionBuilder {
         model_handle: Handle<TransitionDefinition>,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
-        fn fetch_node_position(handle: Handle<UiNode>, ctx: &BuildContext) -> Vector2<f32> {
-            ctx.try_get_node(handle)
-                .map(|node| node.actual_local_position() + node.actual_size().scale(0.5))
-                .unwrap_or_default()
-        }
-
         let transition = Transition {
             widget: self
                 .widget_builder
@@ -240,10 +218,12 @@ impl TransitionBuilder {
                 .with_foreground(NORMAL_BRUSH.clone())
                 .with_clip_to_bounds(false)
                 .build(),
-            source: self.source,
-            source_pos: fetch_node_position(self.source, ctx),
-            dest: self.dest,
-            dest_pos: fetch_node_position(self.dest, ctx),
+            segment: Segment {
+                source: self.source,
+                source_pos: fetch_node_center(self.source, ctx),
+                dest: self.dest,
+                dest_pos: fetch_node_center(self.dest, ctx),
+            },
             model_handle,
             selectable: Selectable::default(),
         };

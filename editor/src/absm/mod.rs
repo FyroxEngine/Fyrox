@@ -42,11 +42,13 @@ use std::{
 
 mod canvas;
 mod command;
+mod connection;
 mod inspector;
 mod menu;
 mod message;
 mod node;
 mod preview;
+mod segment;
 mod selectable;
 mod socket;
 mod state_graph;

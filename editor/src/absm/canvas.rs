@@ -1,4 +1,6 @@
+use crate::absm::socket::{Socket, SocketMessage};
 use crate::absm::{
+    connection,
     node::AbsmNodeMarker,
     selectable::{Selectable, SelectableMessage},
     transition,
@@ -47,12 +49,21 @@ pub(super) enum Mode {
         source_pos: Vector2<f32>,
         dest_pos: Vector2<f32>,
     },
+    CreateConnection {
+        source: Handle<UiNode>,
+        source_pos: Vector2<f32>,
+        dest_pos: Vector2<f32>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub(super) enum AbsmCanvasMessage {
     SwitchMode(Mode),
     CommitTransition {
+        source: Handle<UiNode>,
+        dest: Handle<UiNode>,
+    },
+    CommitConnection {
         source: Handle<UiNode>,
         dest: Handle<UiNode>,
     },
@@ -65,6 +76,7 @@ pub(super) enum AbsmCanvasMessage {
 impl AbsmCanvasMessage {
     define_constructor!(AbsmCanvasMessage:SwitchMode => fn switch_mode(Mode), layout: false);
     define_constructor!(AbsmCanvasMessage:CommitTransition => fn commit_transition(source: Handle<UiNode>, dest: Handle<UiNode>), layout: false);
+    define_constructor!(AbsmCanvasMessage:CommitConnection => fn commit_connection(source: Handle<UiNode>, dest: Handle<UiNode>), layout: false);
     define_constructor!(AbsmCanvasMessage:CommitDrag => fn commit_drag(entries: Vec<Entry>), layout: false);
     define_constructor!(AbsmCanvasMessage:SelectionChanged => fn selection_changed(Vec<Handle<UiNode>>), layout: false);
 }
@@ -235,19 +247,34 @@ impl Control for AbsmCanvas {
             None,
         );
 
-        if let Mode::CreateTransition {
-            source_pos,
-            dest_pos,
-            ..
-        } = self.mode
-        {
-            transition::draw_transition(
-                ctx,
-                self.clip_bounds(),
-                Brush::Solid(Color::WHITE),
+        match self.mode {
+            Mode::CreateTransition {
                 source_pos,
                 dest_pos,
-            );
+                ..
+            } => {
+                transition::draw_transition(
+                    ctx,
+                    self.clip_bounds(),
+                    Brush::Solid(Color::WHITE),
+                    source_pos,
+                    dest_pos,
+                );
+            }
+            Mode::CreateConnection {
+                source_pos,
+                dest_pos,
+                ..
+            } => {
+                connection::draw_connection(
+                    ctx,
+                    source_pos,
+                    dest_pos,
+                    self.clip_bounds(),
+                    Brush::Solid(Color::WHITE),
+                );
+            }
+            _ => {}
         }
     }
 
@@ -380,6 +407,11 @@ impl Control for AbsmCanvas {
                 } => {
                     *dest_pos = local_cursor_position;
                 }
+                Mode::CreateConnection {
+                    ref mut dest_pos, ..
+                } => {
+                    *dest_pos = local_cursor_position;
+                }
                 _ => (),
             }
         } else if let Some(WidgetMessage::MouseWheel { amount, pos }) = message.data() {
@@ -406,6 +438,23 @@ impl Control for AbsmCanvas {
                     }
                     _ => (),
                 }
+            }
+        } else if let Some(SocketMessage::StartDragging) = message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                let socket_ref = ui
+                    .node(message.destination())
+                    .query_component::<Socket>()
+                    .unwrap();
+
+                ui.send_message(AbsmCanvasMessage::switch_mode(
+                    self.handle(),
+                    MessageDirection::ToWidget,
+                    Mode::CreateConnection {
+                        source: message.destination(),
+                        source_pos: self.screen_to_local(socket_ref.screen_position()),
+                        dest_pos: self.screen_to_local(ui.cursor_position()),
+                    },
+                ))
             }
         }
     }
