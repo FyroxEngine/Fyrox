@@ -1,8 +1,8 @@
-use crate::absm::socket::{Socket, SocketMessage};
 use crate::absm::{
     connection,
     node::AbsmNodeMarker,
     selectable::{Selectable, SelectableMessage},
+    socket::{Socket, SocketDirection, SocketMessage},
     transition,
 };
 use fyrox::{
@@ -60,12 +60,12 @@ pub(super) enum Mode {
 pub(super) enum AbsmCanvasMessage {
     SwitchMode(Mode),
     CommitTransition {
-        source: Handle<UiNode>,
-        dest: Handle<UiNode>,
+        source_node: Handle<UiNode>,
+        dest_node: Handle<UiNode>,
     },
     CommitConnection {
-        source: Handle<UiNode>,
-        dest: Handle<UiNode>,
+        source_socket: Handle<UiNode>,
+        dest_socket: Handle<UiNode>,
     },
     CommitDrag {
         entries: Vec<Entry>,
@@ -75,8 +75,8 @@ pub(super) enum AbsmCanvasMessage {
 
 impl AbsmCanvasMessage {
     define_constructor!(AbsmCanvasMessage:SwitchMode => fn switch_mode(Mode), layout: false);
-    define_constructor!(AbsmCanvasMessage:CommitTransition => fn commit_transition(source: Handle<UiNode>, dest: Handle<UiNode>), layout: false);
-    define_constructor!(AbsmCanvasMessage:CommitConnection => fn commit_connection(source: Handle<UiNode>, dest: Handle<UiNode>), layout: false);
+    define_constructor!(AbsmCanvasMessage:CommitTransition => fn commit_transition(source_node: Handle<UiNode>, dest_node: Handle<UiNode>), layout: false);
+    define_constructor!(AbsmCanvasMessage:CommitConnection => fn commit_connection(source_socket: Handle<UiNode>, dest_socket: Handle<UiNode>), layout: false);
     define_constructor!(AbsmCanvasMessage:CommitDrag => fn commit_drag(entries: Vec<Entry>), layout: false);
     define_constructor!(AbsmCanvasMessage:SelectionChanged => fn selection_changed(Vec<Handle<UiNode>>), layout: false);
 }
@@ -367,16 +367,56 @@ impl Control for AbsmCanvas {
 
                 ui.release_mouse_capture();
             } else if *button == MouseButton::Left {
-                if let Mode::Drag { ref drag_context } = self.mode {
-                    if self.screen_to_local(*pos) != drag_context.initial_cursor_position {
-                        ui.send_message(AbsmCanvasMessage::commit_drag(
-                            self.handle(),
-                            MessageDirection::FromWidget,
-                            drag_context.entries.clone(),
-                        ));
-                    }
+                match self.mode {
+                    Mode::Drag { ref drag_context } => {
+                        if self.screen_to_local(*pos) != drag_context.initial_cursor_position {
+                            ui.send_message(AbsmCanvasMessage::commit_drag(
+                                self.handle(),
+                                MessageDirection::FromWidget,
+                                drag_context.entries.clone(),
+                            ));
+                        }
 
-                    self.mode = Mode::Normal;
+                        self.mode = Mode::Normal;
+                    }
+                    Mode::CreateConnection { source, .. } => {
+                        let dest_socket_handle =
+                            self.fetch_dest_node_component::<Socket>(message.destination(), ui);
+
+                        if dest_socket_handle.is_some() {
+                            let source_socket_ref =
+                                ui.node(source).query_component::<Socket>().unwrap();
+
+                            let dest_socket_ref = ui
+                                .node(dest_socket_handle)
+                                .query_component::<Socket>()
+                                .unwrap();
+
+                            // Do not allow to create connections between sockets of the same node.
+                            if dest_socket_ref.parent_node != source_socket_ref.parent_node
+                                // Only allow to create connections either from Input -> Output, or
+                                // Output -> Input. Input -> Input or Output -> Output is now 
+                                // allowed.
+                                && dest_socket_ref.direction != source_socket_ref.direction
+                            {
+                                // Flip source and dest to always create "child -> parent" connections.
+                                let (child, parent) = match dest_socket_ref.direction {
+                                    SocketDirection::Input => (source, dest_socket_handle),
+                                    SocketDirection::Output => (dest_socket_handle, source),
+                                };
+
+                                ui.send_message(AbsmCanvasMessage::commit_connection(
+                                    self.handle(),
+                                    MessageDirection::FromWidget,
+                                    child,
+                                    parent,
+                                ));
+                            }
+                        }
+
+                        self.mode = Mode::Normal;
+                    }
+                    _ => {}
                 }
             }
         } else if let Some(WidgetMessage::MouseMove { pos, .. }) = message.data() {

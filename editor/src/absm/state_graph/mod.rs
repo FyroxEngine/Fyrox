@@ -91,7 +91,10 @@ impl Document {
         if message.destination() == self.canvas {
             if let Some(msg) = message.data::<AbsmCanvasMessage>() {
                 match msg {
-                    AbsmCanvasMessage::CommitTransition { source, dest } => {
+                    AbsmCanvasMessage::CommitTransition {
+                        source_node: source,
+                        dest_node: dest,
+                    } => {
                         if message.direction() == MessageDirection::FromWidget {
                             let source = fetch_state_node_model_handle(*source, ui);
                             let dest = fetch_state_node_model_handle(*dest, ui);

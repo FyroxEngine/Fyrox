@@ -1,9 +1,7 @@
 use crate::{absm::segment::Segment, utils::fetch_node_center};
-use fyrox::core::algebra::Vector2;
-use fyrox::core::math::Rect;
-use fyrox::gui::brush::Brush;
 use fyrox::{
-    core::pool::Handle,
+    core::{algebra::Vector2, math::Rect, pool::Handle},
+    gui::brush::Brush,
     gui::{
         define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
@@ -15,7 +13,6 @@ use fyrox::{
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
 };
 
 #[derive(Debug, Clone)]

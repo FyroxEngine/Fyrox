@@ -28,12 +28,18 @@ impl SocketMessage {
     define_constructor!(SocketMessage:StartDragging => fn start_dragging(), layout: false);
 }
 
+#[derive(Copy, Clone, PartialEq, Hash, Debug)]
+pub enum SocketDirection {
+    Input,
+    Output,
+}
+
 #[derive(Clone, Debug)]
 pub struct Socket {
     widget: Widget,
     click_position: Option<Vector2<f32>>,
-    #[allow(dead_code)] // TODO
-    parent_node: Handle<PoseNodeDefinition>,
+    pub parent_node: Handle<PoseNodeDefinition>,
+    pub direction: SocketDirection,
 }
 
 define_widget_deref!(Socket);
@@ -122,6 +128,7 @@ impl Control for Socket {
 pub struct SocketBuilder {
     widget_builder: WidgetBuilder,
     parent_node: Handle<PoseNodeDefinition>,
+    direction: SocketDirection,
 }
 
 impl SocketBuilder {
@@ -129,6 +136,7 @@ impl SocketBuilder {
         Self {
             widget_builder,
             parent_node: Default::default(),
+            direction: SocketDirection::Input,
         }
     }
 
@@ -137,11 +145,17 @@ impl SocketBuilder {
         self
     }
 
+    pub fn with_direction(mut self, direction: SocketDirection) -> Self {
+        self.direction = direction;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let socket = Socket {
             widget: self.widget_builder.with_foreground(NORMAL_BRUSH).build(),
             click_position: Default::default(),
             parent_node: self.parent_node,
+            direction: self.direction,
         };
 
         ctx.add_node(UiNode::new(socket))
