@@ -34,8 +34,6 @@ impl Selectable {
                     if (*button == MouseButton::Left || *button == MouseButton::Right)
                         && !self.selected
                     {
-                        message.set_handled(true);
-
                         ui.send_message(SelectableMessage::select(
                             self_handle,
                             MessageDirection::ToWidget,
