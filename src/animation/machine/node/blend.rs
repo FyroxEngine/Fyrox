@@ -80,6 +80,12 @@ pub struct BlendAnimationsDefinition {
     pub pose_sources: Vec<BlendPoseDefinition>,
 }
 
+impl BlendAnimationsDefinition {
+    pub fn children(&self) -> Vec<Handle<PoseNodeDefinition>> {
+        self.pose_sources.iter().map(|s| s.pose_source).collect()
+    }
+}
+
 impl Deref for BlendAnimationsDefinition {
     type Target = BasePoseNodeDefinition;
 
@@ -166,6 +172,12 @@ pub struct BlendAnimationsByIndexDefinition {
     pub base: BasePoseNodeDefinition,
     pub index_parameter: String,
     pub inputs: Vec<IndexedBlendInputDefinition>,
+}
+
+impl BlendAnimationsByIndexDefinition {
+    pub fn children(&self) -> Vec<Handle<PoseNodeDefinition>> {
+        self.inputs.iter().map(|s| s.pose_source).collect()
+    }
 }
 
 impl Deref for BlendAnimationsByIndexDefinition {

@@ -1,3 +1,5 @@
+use crate::absm::connection::{Connection, ConnectionBuilder};
+use crate::absm::socket::SocketDirection;
 use crate::{
     absm::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
@@ -33,17 +35,25 @@ pub struct StateViewer {
     node_context_menu: NodeContextMenu,
 }
 
+fn create_socket(
+    direction: SocketDirection,
+    parent_node: Handle<PoseNodeDefinition>,
+    ui: &mut UserInterface,
+) -> Handle<UiNode> {
+    SocketBuilder::new(WidgetBuilder::new())
+        .with_direction(direction)
+        .with_parent_node(parent_node)
+        .build(&mut ui.build_ctx())
+}
+
 fn create_sockets(
     count: usize,
+    direction: SocketDirection,
     parent_node: Handle<PoseNodeDefinition>,
     ui: &mut UserInterface,
 ) -> Vec<Handle<UiNode>> {
     (0..count)
-        .map(|_| {
-            SocketBuilder::new(WidgetBuilder::new())
-                .with_parent_node(parent_node)
-                .build(&mut ui.build_ctx())
-        })
+        .map(|_| create_socket(direction, parent_node, ui))
         .collect::<Vec<_>>()
 }
 
@@ -197,9 +207,8 @@ impl StateViewer {
         ui: &mut UserInterface,
         data_model: &AbsmDataModel,
     ) {
-        let canvas = ui.node(self.canvas);
-
-        let mut views = canvas
+        let mut views = ui
+            .node(self.canvas)
             .children()
             .iter()
             .cloned()
@@ -265,18 +274,20 @@ impl StateViewer {
                             }
                         };
 
-                        // Every node has only one output socket.
-                        let output_socket_count = 1;
-
                         let node_view = AbsmNodeBuilder::new(
                             WidgetBuilder::new()
                                 .with_desired_position(node_ref.position)
                                 .with_context_menu(self.node_context_menu.menu),
                         )
                         .with_name(name.to_owned())
-                        .with_input_sockets(create_sockets(input_socket_count, pose_definition, ui))
-                        .with_output_sockets(create_sockets(
-                            output_socket_count,
+                        .with_input_sockets(create_sockets(
+                            input_socket_count,
+                            SocketDirection::Input,
+                            pose_definition,
+                            ui,
+                        ))
+                        .with_output_socket(create_socket(
+                            SocketDirection::Output,
                             pose_definition,
                             ui,
                         ))
@@ -317,6 +328,47 @@ impl StateViewer {
                 }
             }
             Ordering::Equal => {}
+        }
+
+        // Sync connections - remove old ones and create new. Since there is no separate data model
+        // for connection we can't find which connection has changed and sync only it, instead we
+        // removing every connection and create new.
+        for child in ui.node(self.canvas).children().iter().cloned() {
+            if ui.node(child).has_component::<Connection>() {
+                ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+            }
+        }
+
+        for model in models.iter().cloned() {
+            let input_sockets = views
+                .iter()
+                .filter_map(|v| {
+                    ui.node(*v)
+                        .query_component::<AbsmNode<PoseNodeDefinition>>()
+                })
+                .find(|v| v.model_handle == model)
+                .unwrap()
+                .input_sockets
+                .clone();
+
+            let model_ref = &data_model.absm_definition.nodes[model];
+            for (i, child) in model_ref.children().into_iter().enumerate() {
+                if data_model.absm_definition.nodes.is_valid_handle(child) {
+                    let source = views
+                        .iter()
+                        .filter_map(|v| {
+                            ui.node(*v)
+                                .query_component::<AbsmNode<PoseNodeDefinition>>()
+                        })
+                        .find(|v| v.model_handle == child)
+                        .unwrap();
+
+                    ConnectionBuilder::new(WidgetBuilder::new())
+                        .with_source(source.output_socket)
+                        .with_dest(input_sockets[i])
+                        .build(&mut ui.build_ctx());
+                }
+            }
         }
 
         // Sync selection.

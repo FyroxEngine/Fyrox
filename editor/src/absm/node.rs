@@ -33,8 +33,8 @@ where
     widget: Widget,
     background: Handle<UiNode>,
     selectable: Selectable,
-    input_sockets: Vec<Handle<UiNode>>,
-    output_sockets: Vec<Handle<UiNode>>,
+    pub input_sockets: Vec<Handle<UiNode>>,
+    pub output_socket: Handle<UiNode>,
     pub name: String,
     pub model_handle: Handle<T>,
     marker: AbsmNodeMarker,
@@ -50,7 +50,7 @@ where
             background: self.background,
             selectable: self.selectable.clone(),
             input_sockets: self.input_sockets.clone(),
-            output_sockets: self.output_sockets.clone(),
+            output_socket: self.output_socket,
             name: self.name.clone(),
             model_handle: self.model_handle,
             marker: AbsmNodeMarker,
@@ -150,7 +150,7 @@ where
     name: String,
     model_handle: Handle<T>,
     input_sockets: Vec<Handle<UiNode>>,
-    output_sockets: Vec<Handle<UiNode>>,
+    output_socket: Handle<UiNode>,
 }
 
 impl<T> AbsmNodeBuilder<T>
@@ -163,7 +163,7 @@ where
             name: "New State".to_string(),
             model_handle: Default::default(),
             input_sockets: Default::default(),
-            output_sockets: Default::default(),
+            output_socket: Default::default(),
         }
     }
 
@@ -182,8 +182,8 @@ where
         self
     }
 
-    pub fn with_output_sockets(mut self, sockets: Vec<Handle<UiNode>>) -> Self {
-        self.output_sockets = sockets;
+    pub fn with_output_socket(mut self, socket: Handle<UiNode>) -> Self {
+        self.output_socket = socket;
         self
     }
 
@@ -222,7 +222,7 @@ where
                                     WidgetBuilder::new()
                                         .with_margin(Thickness::uniform(2.0))
                                         .with_vertical_alignment(VerticalAlignment::Center)
-                                        .with_children(self.output_sockets.iter().cloned())
+                                        .with_child(self.output_socket)
                                         .on_column(2),
                                 )
                                 .build(ctx),
@@ -244,7 +244,7 @@ where
             model_handle: self.model_handle,
             name: self.name,
             input_sockets: self.input_sockets,
-            output_sockets: self.output_sockets,
+            output_socket: self.output_socket,
             marker: AbsmNodeMarker,
         };
 

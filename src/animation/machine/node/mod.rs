@@ -117,6 +117,19 @@ pub enum PoseNodeDefinition {
     BlendAnimationsByIndex(BlendAnimationsByIndexDefinition),
 }
 
+impl PoseNodeDefinition {
+    pub fn children(&self) -> Vec<Handle<PoseNodeDefinition>> {
+        match self {
+            PoseNodeDefinition::PlayAnimation(_) => {
+                // No children nodes.
+                vec![]
+            }
+            PoseNodeDefinition::BlendAnimations(definition) => definition.children(),
+            PoseNodeDefinition::BlendAnimationsByIndex(definition) => definition.children(),
+        }
+    }
+}
+
 impl Default for PoseNodeDefinition {
     fn default() -> Self {
         Self::PlayAnimation(Default::default())

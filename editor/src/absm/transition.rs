@@ -97,8 +97,7 @@ impl Control for Transition {
         self.widget.handle_routed_message(ui, message);
         self.selectable
             .handle_routed_message(self.handle(), ui, message);
-        self.segment
-            .handle_routed_message(self.handle(), ui, message);
+        self.segment.handle_routed_message(self.handle(), message);
 
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {

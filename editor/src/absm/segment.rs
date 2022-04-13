@@ -1,7 +1,11 @@
-use fyrox::core::algebra::Vector2;
-use fyrox::core::pool::Handle;
-use fyrox::gui::message::{MessageDirection, UiMessage};
-use fyrox::gui::{define_constructor, UiNode, UserInterface};
+use fyrox::{
+    core::{algebra::Vector2, pool::Handle},
+    gui::{
+        define_constructor,
+        message::{MessageDirection, UiMessage},
+        UiNode,
+    },
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SegmentMessage {
@@ -23,12 +27,7 @@ pub struct Segment {
 }
 
 impl Segment {
-    pub fn handle_routed_message(
-        &mut self,
-        self_handle: Handle<UiNode>,
-        ui: &mut UserInterface,
-        message: &mut UiMessage,
-    ) {
+    pub fn handle_routed_message(&mut self, self_handle: Handle<UiNode>, message: &mut UiMessage) {
         if let Some(msg) = message.data::<SegmentMessage>() {
             if message.destination() == self_handle
                 && message.direction() == MessageDirection::ToWidget
