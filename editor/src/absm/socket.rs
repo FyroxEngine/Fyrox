@@ -4,8 +4,9 @@ use fyrox::{
     gui::{
         brush::Brush,
         define_constructor, define_widget_deref,
-        draw::{CommandTexture, Draw, DrawingContext},
+        grid::{Column, GridBuilder, Row},
         message::{MessageDirection, MouseButton, UiMessage},
+        vector_image::{Primitive, VectorImageBuilder},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
     },
@@ -40,6 +41,8 @@ pub struct Socket {
     click_position: Option<Vector2<f32>>,
     pub parent_node: Handle<PoseNodeDefinition>,
     pub direction: SocketDirection,
+    editor: Handle<UiNode>,
+    pin: Handle<UiNode>,
 }
 
 define_widget_deref!(Socket);
@@ -55,28 +58,13 @@ impl Control for Socket {
         }
     }
 
-    fn measure_override(&self, _ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
-        Vector2::new(RADIUS * 2.0, RADIUS * 2.0)
-    }
-
-    fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.bounding_rect();
-        drawing_context.push_circle(bounds.center(), bounds.size.x / 2.0 - 1.0, 16, Color::WHITE);
-        drawing_context.commit(
-            self.clip_bounds(),
-            self.foreground(),
-            CommandTexture::None,
-            None,
-        );
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::MouseDown { button, pos } => {
-                    if *button == MouseButton::Left {
+                    if *button == MouseButton::Left && message.destination() == self.pin {
                         self.click_position = Some(*pos);
 
                         ui.capture_mouse(self.handle());
@@ -107,14 +95,14 @@ impl Control for Socket {
                 }
                 WidgetMessage::MouseLeave => {
                     ui.send_message(WidgetMessage::foreground(
-                        self.handle(),
+                        self.pin,
                         MessageDirection::ToWidget,
                         NORMAL_BRUSH,
                     ));
                 }
                 WidgetMessage::MouseEnter => {
                     ui.send_message(WidgetMessage::foreground(
-                        self.handle(),
+                        self.pin,
                         MessageDirection::ToWidget,
                         PICKED_BRUSH,
                     ));
@@ -129,6 +117,7 @@ pub struct SocketBuilder {
     widget_builder: WidgetBuilder,
     parent_node: Handle<PoseNodeDefinition>,
     direction: SocketDirection,
+    editor: Handle<UiNode>,
 }
 
 impl SocketBuilder {
@@ -137,6 +126,7 @@ impl SocketBuilder {
             widget_builder,
             parent_node: Default::default(),
             direction: SocketDirection::Input,
+            editor: Default::default(),
         }
     }
 
@@ -150,12 +140,48 @@ impl SocketBuilder {
         self
     }
 
+    pub fn with_editor(mut self, editor: Handle<UiNode>) -> Self {
+        self.editor = editor;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        if let Some(editor) = ctx.try_get_node_mut(self.editor) {
+            editor.set_row(0).set_column(1);
+        }
+
+        let pin;
+        let grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child({
+                    pin = VectorImageBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .on_column(0)
+                            .with_foreground(NORMAL_BRUSH),
+                    )
+                    .with_primitives(vec![Primitive::Circle {
+                        center: Vector2::new(RADIUS, RADIUS),
+                        radius: RADIUS,
+                        segments: 16,
+                    }])
+                    .build(ctx);
+                    pin
+                })
+                .with_child(self.editor),
+        )
+        .add_row(Row::auto())
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
+        .build(ctx);
+
         let socket = Socket {
-            widget: self.widget_builder.with_foreground(NORMAL_BRUSH).build(),
+            widget: self.widget_builder.with_child(grid).build(),
             click_position: Default::default(),
             parent_node: self.parent_node,
             direction: self.direction,
+            editor: self.editor,
+            pin,
         };
 
         ctx.add_node(UiNode::new(socket))

@@ -456,6 +456,10 @@ impl<'a> BuildContext<'a> {
     pub fn try_get_node(&self, node: Handle<UiNode>) -> Option<&UiNode> {
         self.ui.try_get_node(node)
     }
+
+    pub fn try_get_node_mut(&mut self, node: Handle<UiNode>) -> Option<&mut UiNode> {
+        self.ui.nodes.try_borrow_mut(node)
+    }
 }
 
 impl<'a> Index<Handle<UiNode>> for BuildContext<'a> {
