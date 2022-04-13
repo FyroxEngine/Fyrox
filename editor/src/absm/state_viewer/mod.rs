@@ -1,12 +1,11 @@
-use crate::absm::connection::{Connection, ConnectionBuilder};
-use crate::absm::socket::SocketDirection;
 use crate::{
     absm::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
         command::{AbsmCommand, ChangeSelectionCommand, CommandGroup, MovePoseNodeCommand},
+        connection::{Connection, ConnectionBuilder},
         message::MessageSender,
         node::{AbsmNode, AbsmNodeBuilder},
-        socket::SocketBuilder,
+        socket::{SocketBuilder, SocketDirection},
         state_viewer::context::{CanvasContextMenu, NodeContextMenu},
         AbsmDataModel, SelectedEntity,
     },
@@ -261,17 +260,21 @@ impl StateViewer {
                     }) {
                         let node_ref = &definition.nodes[pose_definition];
 
-                        let (input_socket_count, name) = match node_ref {
+                        let (input_socket_count, name, can_add_sockets) = match node_ref {
                             PoseNodeDefinition::PlayAnimation(_) => {
                                 // No input sockets
-                                (0, "Play Animation")
+                                (0, "Play Animation", false)
                             }
-                            PoseNodeDefinition::BlendAnimations(blend_animations) => {
-                                (blend_animations.pose_sources.len(), "Blend Animations")
-                            }
-                            PoseNodeDefinition::BlendAnimationsByIndex(blend_animations) => {
-                                (blend_animations.inputs.len(), "Blend Animations By Index")
-                            }
+                            PoseNodeDefinition::BlendAnimations(blend_animations) => (
+                                blend_animations.pose_sources.len(),
+                                "Blend Animations",
+                                true,
+                            ),
+                            PoseNodeDefinition::BlendAnimationsByIndex(blend_animations) => (
+                                blend_animations.inputs.len(),
+                                "Blend Animations By Index",
+                                true,
+                            ),
                         };
 
                         let node_view = AbsmNodeBuilder::new(
@@ -279,7 +282,9 @@ impl StateViewer {
                                 .with_desired_position(node_ref.position)
                                 .with_context_menu(self.node_context_menu.menu),
                         )
-                        .with_name(name.to_owned())
+                        .with_name("".to_owned())
+                        .with_title(name.to_owned())
+                        .with_can_add_sockets(can_add_sockets)
                         .with_input_sockets(create_sockets(
                             input_socket_count,
                             SocketDirection::Input,

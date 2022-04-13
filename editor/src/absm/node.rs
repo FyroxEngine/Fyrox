@@ -3,10 +3,11 @@ use crate::absm::{
     BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
 };
 use fyrox::{
-    core::pool::Handle,
+    core::{color::Color, pool::Handle},
     gui::{
         border::BorderBuilder,
         brush::Brush,
+        button::ButtonBuilder,
         define_constructor,
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, MouseButton, UiMessage},
@@ -151,6 +152,8 @@ where
     model_handle: Handle<T>,
     input_sockets: Vec<Handle<UiNode>>,
     output_socket: Handle<UiNode>,
+    can_add_sockets: bool,
+    title: Option<String>,
 }
 
 impl<T> AbsmNodeBuilder<T>
@@ -164,6 +167,8 @@ where
             model_handle: Default::default(),
             input_sockets: Default::default(),
             output_socket: Default::default(),
+            can_add_sockets: false,
+            title: None,
         }
     }
 
@@ -187,17 +192,29 @@ where
         self
     }
 
+    pub fn with_can_add_sockets(mut self, state: bool) -> Self {
+        self.can_add_sockets = state;
+        self
+    }
+
+    pub fn with_title(mut self, title: String) -> Self {
+        self.title = Some(title);
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let background = BorderBuilder::new(
+        let grid = GridBuilder::new(
             WidgetBuilder::new()
-                .with_foreground(Brush::Solid(BORDER_COLOR))
-                .with_background(Brush::Solid(NORMAL_BACKGROUND))
+                .on_row(1)
+                .on_column(0)
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
                             .with_child(
                                 StackPanelBuilder::new(
                                     WidgetBuilder::new()
+                                        .on_row(0)
+                                        .on_column(0)
                                         .with_margin(Thickness::uniform(2.0))
                                         .with_vertical_alignment(VerticalAlignment::Center)
                                         .with_children(self.input_sockets.iter().cloned())
@@ -206,34 +223,88 @@ where
                                 .build(ctx),
                             )
                             .with_child(
-                                TextBuilder::new(
+                                ButtonBuilder::new(
                                     WidgetBuilder::new()
-                                        .with_width(200.0)
-                                        .with_height(100.0)
-                                        .on_column(1),
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_height(20.0)
+                                        .with_visibility(self.can_add_sockets)
+                                        .on_row(1)
+                                        .on_column(0),
                                 )
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                                .with_text(&self.name)
-                                .build(ctx),
-                            )
-                            .with_child(
-                                StackPanelBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(2.0))
-                                        .with_vertical_alignment(VerticalAlignment::Center)
-                                        .with_child(self.output_socket)
-                                        .on_column(2),
-                                )
+                                .with_text("+Input")
                                 .build(ctx),
                             ),
                     )
                     .add_row(Row::stretch())
-                    .add_column(Column::auto())
-                    .add_column(Column::stretch())
+                    .add_row(Row::auto())
                     .add_column(Column::auto())
                     .build(ctx),
+                )
+                .with_child(
+                    TextBuilder::new(
+                        WidgetBuilder::new()
+                            .with_width(150.0)
+                            .with_height(75.0)
+                            .on_column(1),
+                    )
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                    .with_text(&self.name)
+                    .build(ctx),
+                )
+                .with_child(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(2.0))
+                            .with_vertical_alignment(VerticalAlignment::Center)
+                            .with_child(self.output_socket)
+                            .on_column(2),
+                    )
+                    .build(ctx),
                 ),
+        )
+        .add_row(Row::stretch())
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .build(ctx);
+
+        let grid2 = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(
+                    self.title
+                        .map(|title| {
+                            BorderBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_height(24.0)
+                                    .with_background(Brush::Solid(Color::opaque(30, 30, 30)))
+                                    .with_child(
+                                        TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_vertical_alignment(VerticalAlignment::Center)
+                                                .with_margin(Thickness::uniform(2.0)),
+                                        )
+                                        .with_text(title)
+                                        .build(ctx),
+                                    ),
+                            )
+                            .with_stroke_thickness(Thickness::zero())
+                            .build(ctx)
+                        })
+                        .unwrap_or_default(),
+                )
+                .with_child(grid),
+        )
+        .add_row(Row::auto())
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
+        .build(ctx);
+
+        let background = BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_foreground(Brush::Solid(BORDER_COLOR))
+                .with_background(Brush::Solid(NORMAL_BACKGROUND))
+                .with_child(grid2),
         )
         .build(ctx);
 
