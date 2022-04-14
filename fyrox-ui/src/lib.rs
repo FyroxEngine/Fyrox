@@ -1181,15 +1181,19 @@ impl UserInterface {
         self.cursor_position
     }
 
+    pub fn hit_test_unrestricted(&self, pt: Vector2<f32>) -> Handle<UiNode> {
+        // We're not restricted to any node, just start from root.
+        let mut level = 0;
+        self.pick_node(self.root_canvas, pt, &mut level)
+    }
+
     pub fn hit_test(&self, pt: Vector2<f32>) -> Handle<UiNode> {
         scope_profile!();
 
         if self.nodes.is_valid_handle(self.captured_node) {
             self.captured_node
         } else if self.picking_stack.is_empty() {
-            // We're not restricted to any node, just start from root.
-            let mut level = 0;
-            self.pick_node(self.root_canvas, pt, &mut level)
+            self.hit_test_unrestricted(pt)
         } else {
             // We have some picking restriction chain.
             // Go over picking stack and try each entry. This will help with picking
