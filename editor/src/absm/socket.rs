@@ -43,6 +43,7 @@ pub struct Socket {
     pub direction: SocketDirection,
     editor: Handle<UiNode>,
     pin: Handle<UiNode>,
+    pub index: usize,
 }
 
 define_widget_deref!(Socket);
@@ -118,6 +119,7 @@ pub struct SocketBuilder {
     parent_node: Handle<PoseNodeDefinition>,
     direction: SocketDirection,
     editor: Handle<UiNode>,
+    index: usize,
 }
 
 impl SocketBuilder {
@@ -127,6 +129,7 @@ impl SocketBuilder {
             parent_node: Default::default(),
             direction: SocketDirection::Input,
             editor: Default::default(),
+            index: 0,
         }
     }
 
@@ -142,6 +145,11 @@ impl SocketBuilder {
 
     pub fn with_editor(mut self, editor: Handle<UiNode>) -> Self {
         self.editor = editor;
+        self
+    }
+
+    pub fn with_index(mut self, index: usize) -> Self {
+        self.index = index;
         self
     }
 
@@ -182,6 +190,7 @@ impl SocketBuilder {
             direction: self.direction,
             editor: self.editor,
             pin,
+            index: self.index,
         };
 
         ctx.add_node(UiNode::new(socket))

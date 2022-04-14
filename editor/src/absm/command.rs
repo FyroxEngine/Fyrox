@@ -334,3 +334,38 @@ impl AbsmCommandTrait for AddInputCommand {
         }
     }
 }
+
+#[derive(Debug)]
+pub struct SetBlendAnimationByIndexInputPoseSourceCommand {
+    pub handle: Handle<PoseNodeDefinition>,
+    pub index: usize,
+    pub pose_source: Handle<PoseNodeDefinition>,
+}
+
+impl SetBlendAnimationByIndexInputPoseSourceCommand {
+    pub fn swap(&mut self, context: &mut AbsmEditorContext) {
+        match context.definition.nodes[self.handle] {
+            PoseNodeDefinition::BlendAnimationsByIndex(ref mut definition) => {
+                std::mem::swap(
+                    &mut definition.inputs[self.index].pose_source,
+                    &mut self.pose_source,
+                );
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl AbsmCommandTrait for SetBlendAnimationByIndexInputPoseSourceCommand {
+    fn name(&mut self, _context: &AbsmEditorContext) -> String {
+        "Link Nodes".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut AbsmEditorContext) {
+        self.swap(context);
+    }
+
+    fn revert(&mut self, context: &mut AbsmEditorContext) {
+        self.swap(context);
+    }
+}

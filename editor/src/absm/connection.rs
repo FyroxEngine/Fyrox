@@ -1,4 +1,5 @@
-use crate::{absm::segment::Segment, utils::fetch_node_center};
+use crate::absm::segment::Segment;
+use crate::utils::fetch_node_screen_center;
 use fyrox::{
     core::{algebra::Vector2, math::Rect, pool::Handle},
     gui::brush::Brush,
@@ -83,14 +84,16 @@ impl ConnectionBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, canvas: Handle<UiNode>, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let canvas_ref = &ctx[canvas];
+
         let connection = Connection {
             widget: self.widget_builder.build(),
             segment: Segment {
                 source: self.source,
-                source_pos: fetch_node_center(self.source, ctx),
+                source_pos: canvas_ref.screen_to_local(fetch_node_screen_center(self.source, ctx)),
                 dest: self.dest,
-                dest_pos: fetch_node_center(self.dest, ctx),
+                dest_pos: canvas_ref.screen_to_local(fetch_node_screen_center(self.dest, ctx)),
             },
         };
 

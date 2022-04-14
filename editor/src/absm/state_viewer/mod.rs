@@ -1,3 +1,5 @@
+use crate::absm::command::SetBlendAnimationByIndexInputPoseSourceCommand;
+use crate::absm::socket::Socket;
 use crate::{
     absm::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
@@ -36,12 +38,14 @@ pub struct StateViewer {
 
 fn create_socket(
     direction: SocketDirection,
+    index: usize,
     parent_node: Handle<PoseNodeDefinition>,
     ui: &mut UserInterface,
 ) -> Handle<UiNode> {
     SocketBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
         .with_direction(direction)
         .with_parent_node(parent_node)
+        .with_index(index)
         .build(&mut ui.build_ctx())
 }
 
@@ -52,7 +56,7 @@ fn create_sockets(
     ui: &mut UserInterface,
 ) -> Vec<Handle<UiNode>> {
     (0..count)
-        .map(|_| create_socket(direction, parent_node, ui))
+        .map(|index| create_socket(direction, index, parent_node, ui))
         .collect::<Vec<_>>()
 }
 
@@ -64,6 +68,16 @@ fn fetch_pose_node_model_handle(
         .query_component::<AbsmNode<PoseNodeDefinition>>()
         .unwrap()
         .model_handle
+}
+
+fn fetch_socket_pose_node_model_handle(
+    handle: Handle<UiNode>,
+    ui: &UserInterface,
+) -> Handle<PoseNodeDefinition> {
+    ui.node(handle)
+        .query_component::<Socket>()
+        .unwrap()
+        .parent_node
 }
 
 impl StateViewer {
@@ -189,6 +203,29 @@ impl StateViewer {
                             }
                         }
                     }
+                    AbsmCanvasMessage::CommitConnection {
+                        source_socket,
+                        dest_socket,
+                    } => {
+                        let source_node = fetch_socket_pose_node_model_handle(*source_socket, ui);
+
+                        let dest_socket_ref =
+                            ui.node(*dest_socket).query_component::<Socket>().unwrap();
+                        let dest_node = fetch_socket_pose_node_model_handle(*dest_socket, ui);
+
+                        let dest_node_ref = &data_model.absm_definition.nodes[dest_node];
+                        match dest_node_ref {
+                            PoseNodeDefinition::PlayAnimation(_) => {}
+                            PoseNodeDefinition::BlendAnimations(_) => {}
+                            PoseNodeDefinition::BlendAnimationsByIndex(_) => {
+                                sender.do_command(SetBlendAnimationByIndexInputPoseSourceCommand {
+                                    handle: dest_node,
+                                    index: dest_socket_ref.index,
+                                    pose_source: source_node,
+                                });
+                            }
+                        }
+                    }
                     _ => (),
                 }
             }
@@ -293,6 +330,7 @@ impl StateViewer {
                         ))
                         .with_output_socket(create_socket(
                             SocketDirection::Output,
+                            0,
                             pose_definition,
                             ui,
                         ))
@@ -393,10 +431,16 @@ impl StateViewer {
                         .find(|v| v.model_handle == child)
                         .unwrap();
 
-                    ConnectionBuilder::new(WidgetBuilder::new())
+                    let connection = ConnectionBuilder::new(WidgetBuilder::new())
                         .with_source(source.output_socket)
                         .with_dest(input_sockets[i])
-                        .build(&mut ui.build_ctx());
+                        .build(self.canvas, &mut ui.build_ctx());
+
+                    ui.send_message(WidgetMessage::link(
+                        connection,
+                        MessageDirection::ToWidget,
+                        self.canvas,
+                    ));
                 }
             }
         }

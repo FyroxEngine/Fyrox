@@ -21,6 +21,7 @@ use fyrox::{
         BuildContext, Control, UiNode, UserInterface,
     },
 };
+use std::cell::Cell;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -91,6 +92,8 @@ pub struct AbsmCanvas {
     click_position: Vector2<f32>,
     is_dragging_view: bool,
     mode: Mode,
+    // A handle to a node that was under the cursor at the moment of release of left mouse button.
+    lmb_released_node: Cell<Handle<UiNode>>,
 }
 
 define_widget_deref!(AbsmCanvas);
@@ -165,16 +168,23 @@ impl AbsmCanvas {
 
     fn fetch_dest_node_component<T>(
         &self,
-        node: Handle<UiNode>,
+        node_handle: Handle<UiNode>,
         ui: &UserInterface,
     ) -> Handle<UiNode>
     where
         T: 'static,
     {
-        if node == self.handle() {
+        if ui
+            .try_get_node(node_handle)
+            .map_or(false, |n| n.has_component::<T>())
+        {
+            return node_handle;
+        }
+
+        if node_handle == self.handle() {
             self.find_by_criteria_up(ui, |n| n.has_component::<T>())
         } else {
-            ui.node(node)
+            ui.node(node_handle)
                 .find_by_criteria_up(ui, |n| n.has_component::<T>())
         }
     }
@@ -380,8 +390,8 @@ impl Control for AbsmCanvas {
                         self.mode = Mode::Normal;
                     }
                     Mode::CreateConnection { source, .. } => {
-                        let dest_socket_handle =
-                            self.fetch_dest_node_component::<Socket>(message.destination(), ui);
+                        let dest_socket_handle = self
+                            .fetch_dest_node_component::<Socket>(self.lmb_released_node.get(), ui);
 
                         if dest_socket_handle.is_some() {
                             let source_socket_ref =
@@ -393,7 +403,7 @@ impl Control for AbsmCanvas {
                                 .unwrap();
 
                             // Do not allow to create connections between sockets of the same node.
-                            if dest_socket_ref.parent_node != source_socket_ref.parent_node
+                            if dest_socket_ref.parent_node!= source_socket_ref.parent_node
                                 // Only allow to create connections either from Input -> Output, or
                                 // Output -> Input. Input -> Input or Output -> Output is now 
                                 // allowed.
@@ -498,6 +508,14 @@ impl Control for AbsmCanvas {
             }
         }
     }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        if let Some(WidgetMessage::MouseUp { button, pos }) = message.data() {
+            if *button == MouseButton::Left {
+                self.lmb_released_node.set(ui.hit_test_unrestricted(*pos));
+            }
+        }
+    }
 }
 
 pub struct AbsmCanvasBuilder {
@@ -511,7 +529,11 @@ impl AbsmCanvasBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let canvas = AbsmCanvas {
-            widget: self.widget_builder.with_clip_to_bounds(false).build(),
+            widget: self
+                .widget_builder
+                .with_preview_messages(true)
+                .with_clip_to_bounds(false)
+                .build(),
             selection: Default::default(),
             view_position: Default::default(),
             initial_view_position: Default::default(),
@@ -519,6 +541,7 @@ impl AbsmCanvasBuilder {
             is_dragging_view: false,
             zoom: 1.0,
             mode: Mode::Normal,
+            lmb_released_node: Default::default(),
         };
 
         ctx.add_node(UiNode::new(canvas))
