@@ -1,6 +1,6 @@
 use crate::{
     absm::{
-        command::{AbsmCommand, AbsmCommandStack, AbsmEditorContext},
+        command::{AbsmCommand, AbsmCommandStack, AbsmEditorContext, AddInputCommand},
         inspector::Inspector,
         menu::Menu,
         message::{AbsmMessage, MessageSender},
@@ -14,7 +14,9 @@ use crate::{
 };
 use fyrox::{
     animation::machine::{
-        node::PoseNodeDefinition, state::StateDefinition, transition::TransitionDefinition,
+        node::{blend::IndexedBlendInputDefinition, PoseNodeDefinition},
+        state::StateDefinition,
+        transition::TransitionDefinition,
         MachineDefinition,
     },
     core::{
@@ -381,15 +383,43 @@ impl AbsmEditor {
             } else if message.destination() == self.load_dialog {
                 self.load_absm(path, engine);
             }
-        } else if let Some(AbsmNodeMessage::Enter) = message.data() {
-            if let Some(node) = ui
-                .node(message.destination())
-                .query_component::<AbsmNode<StateDefinition>>()
-            {
-                if let Some(data_model) = self.data_model.as_ref() {
-                    self.state_viewer
-                        .set_state(node.model_handle, data_model, ui);
-                    self.message_sender.sync();
+        } else if let Some(msg) = message.data::<AbsmNodeMessage>() {
+            if let Some(data_model) = self.data_model.as_ref() {
+                match msg {
+                    AbsmNodeMessage::Enter => {
+                        if let Some(node) = ui
+                            .node(message.destination())
+                            .query_component::<AbsmNode<StateDefinition>>()
+                        {
+                            self.state_viewer
+                                .set_state(node.model_handle, data_model, ui);
+                            self.message_sender.sync();
+                        }
+                    }
+                    AbsmNodeMessage::AddInput => {
+                        if let Some(node) = ui
+                            .node(message.destination())
+                            .query_component::<AbsmNode<PoseNodeDefinition>>()
+                        {
+                            let model_ref = &data_model.absm_definition.nodes[node.model_handle];
+
+                            match model_ref {
+                                PoseNodeDefinition::PlayAnimation(_) => {
+                                    // No input sockets
+                                }
+                                PoseNodeDefinition::BlendAnimations(_) => {
+                                    // TODO
+                                }
+                                PoseNodeDefinition::BlendAnimationsByIndex(_) => {
+                                    self.message_sender.do_command(AddInputCommand {
+                                        handle: node.model_handle,
+                                        input: IndexedBlendInputDefinition::default(),
+                                    })
+                                }
+                            }
+                        }
+                    }
+                    _ => (),
                 }
             }
         }

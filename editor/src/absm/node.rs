@@ -7,7 +7,7 @@ use fyrox::{
     gui::{
         border::BorderBuilder,
         brush::Brush,
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         define_constructor,
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, MouseButton, UiMessage},
@@ -24,7 +24,7 @@ use std::{
 };
 
 // An "interface" marker that allows to check if the node is "some" ABSM node, without knowing
-// actual data model hanlde type.
+// actual data model handle type.
 pub struct AbsmNodeMarker;
 
 pub struct AbsmNode<T>
@@ -39,6 +39,8 @@ where
     pub name: String,
     pub model_handle: Handle<T>,
     marker: AbsmNodeMarker,
+    pub add_input: Handle<UiNode>,
+    input_sockets_panel: Handle<UiNode>,
 }
 
 impl<T> Clone for AbsmNode<T>
@@ -55,6 +57,8 @@ where
             name: self.name.clone(),
             model_handle: self.model_handle,
             marker: AbsmNodeMarker,
+            add_input: self.add_input,
+            input_sockets_panel: self.input_sockets_panel,
         }
     }
 }
@@ -83,11 +87,15 @@ where
 pub enum AbsmNodeMessage {
     Name(String),
     Enter,
+    AddInput,
+    InputSockets(Vec<Handle<UiNode>>),
 }
 
 impl AbsmNodeMessage {
     define_constructor!(AbsmNodeMessage:Name => fn name(String), layout: false);
     define_constructor!(AbsmNodeMessage:Enter => fn enter(), layout: false);
+    define_constructor!(AbsmNodeMessage:AddInput => fn add_input(), layout: false);
+    define_constructor!(AbsmNodeMessage:InputSockets => fn input_sockets(Vec<Handle<UiNode>>), layout: false);
 }
 
 impl<T> Control for AbsmNode<T>
@@ -138,6 +146,30 @@ where
                     self.handle(),
                     MessageDirection::FromWidget,
                 ));
+            }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.add_input {
+                ui.send_message(AbsmNodeMessage::add_input(
+                    self.handle(),
+                    MessageDirection::FromWidget,
+                ));
+            }
+        } else if let Some(AbsmNodeMessage::InputSockets(input_sockets)) = message.data() {
+            if message.destination == self.handle()
+                && message.direction() == MessageDirection::ToWidget
+                && input_sockets != &self.input_sockets
+            {
+                for &child in ui.node(self.input_sockets_panel).children() {
+                    ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+                }
+
+                for &socket in input_sockets {
+                    ui.send_message(WidgetMessage::link(
+                        socket,
+                        MessageDirection::ToWidget,
+                        self.input_sockets_panel,
+                    ));
+                }
             }
         }
     }
@@ -203,6 +235,8 @@ where
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let input_sockets_panel;
+        let add_input;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .on_row(1)
@@ -210,8 +244,8 @@ where
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
-                            .with_child(
-                                StackPanelBuilder::new(
+                            .with_child({
+                                input_sockets_panel = StackPanelBuilder::new(
                                     WidgetBuilder::new()
                                         .on_row(0)
                                         .on_column(0)
@@ -220,10 +254,11 @@ where
                                         .with_children(self.input_sockets.iter().cloned())
                                         .on_column(0),
                                 )
-                                .build(ctx),
-                            )
-                            .with_child(
-                                ButtonBuilder::new(
+                                .build(ctx);
+                                input_sockets_panel
+                            })
+                            .with_child({
+                                add_input = ButtonBuilder::new(
                                     WidgetBuilder::new()
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_height(20.0)
@@ -232,8 +267,9 @@ where
                                         .on_column(0),
                                 )
                                 .with_text("+Input")
-                                .build(ctx),
-                            ),
+                                .build(ctx);
+                                add_input
+                            }),
                     )
                     .add_row(Row::stretch())
                     .add_row(Row::auto())
@@ -317,6 +353,8 @@ where
             input_sockets: self.input_sockets,
             output_socket: self.output_socket,
             marker: AbsmNodeMarker,
+            add_input,
+            input_sockets_panel,
         };
 
         ctx.add_node(UiNode::new(node))

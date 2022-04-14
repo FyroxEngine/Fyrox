@@ -4,7 +4,7 @@ use crate::{
         command::{AbsmCommand, ChangeSelectionCommand, CommandGroup, MovePoseNodeCommand},
         connection::{Connection, ConnectionBuilder},
         message::MessageSender,
-        node::{AbsmNode, AbsmNodeBuilder},
+        node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
         socket::{SocketBuilder, SocketDirection},
         state_viewer::context::{CanvasContextMenu, NodeContextMenu},
         AbsmDataModel, SelectedEntity,
@@ -39,7 +39,7 @@ fn create_socket(
     parent_node: Handle<PoseNodeDefinition>,
     ui: &mut UserInterface,
 ) -> Handle<UiNode> {
-    SocketBuilder::new(WidgetBuilder::new())
+    SocketBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
         .with_direction(direction)
         .with_parent_node(parent_node)
         .build(&mut ui.build_ctx())
@@ -333,6 +333,31 @@ impl StateViewer {
                 }
             }
             Ordering::Equal => {}
+        }
+
+        // Sync nodes.
+        for &view in &views {
+            let view_ref = ui
+                .node(view)
+                .query_component::<AbsmNode<PoseNodeDefinition>>()
+                .unwrap();
+            let model_ref = &data_model.absm_definition.nodes[view_ref.model_handle];
+            let children = model_ref.children();
+
+            if view_ref.input_sockets.len() != children.len() {
+                let input_sockets = create_sockets(
+                    children.len(),
+                    SocketDirection::Input,
+                    view_ref.model_handle,
+                    ui,
+                );
+
+                ui.send_message(AbsmNodeMessage::input_sockets(
+                    view,
+                    MessageDirection::ToWidget,
+                    input_sockets,
+                ));
+            }
         }
 
         // Sync connections - remove old ones and create new. Since there is no separate data model

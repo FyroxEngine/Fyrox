@@ -1,7 +1,9 @@
 use crate::{absm::SelectedEntity, define_command_stack};
 use fyrox::{
     animation::machine::{
-        node::PoseNodeDefinition, state::StateDefinition, transition::TransitionDefinition,
+        node::{blend::IndexedBlendInputDefinition, PoseNodeDefinition},
+        state::StateDefinition,
+        transition::TransitionDefinition,
         MachineDefinition,
     },
     core::{
@@ -302,3 +304,33 @@ macro_rules! define_free_command {
 define_free_command!(DeleteStateCommand, StateDefinition, states);
 define_free_command!(DeletePoseNodeCommand, PoseNodeDefinition, nodes);
 define_free_command!(DeleteTransitionCommand, TransitionDefinition, transitions);
+
+#[derive(Debug)]
+pub struct AddInputCommand {
+    pub handle: Handle<PoseNodeDefinition>,
+    pub input: IndexedBlendInputDefinition,
+}
+
+impl AbsmCommandTrait for AddInputCommand {
+    fn name(&mut self, _context: &AbsmEditorContext) -> String {
+        "Add Input".to_string()
+    }
+
+    fn execute(&mut self, context: &mut AbsmEditorContext) {
+        match context.definition.nodes[self.handle] {
+            PoseNodeDefinition::BlendAnimationsByIndex(ref mut definition) => {
+                definition.inputs.push(self.input.clone());
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut AbsmEditorContext) {
+        match context.definition.nodes[self.handle] {
+            PoseNodeDefinition::BlendAnimationsByIndex(ref mut definition) => {
+                definition.inputs.pop();
+            }
+            _ => unreachable!(),
+        }
+    }
+}
