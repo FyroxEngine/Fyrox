@@ -1,13 +1,14 @@
-use crate::absm::command::SetBlendAnimationByIndexInputPoseSourceCommand;
-use crate::absm::socket::Socket;
 use crate::{
     absm::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
-        command::{AbsmCommand, ChangeSelectionCommand, CommandGroup, MovePoseNodeCommand},
+        command::{
+            AbsmCommand, ChangeSelectionCommand, CommandGroup, MovePoseNodeCommand,
+            SetBlendAnimationByIndexInputPoseSourceCommand,
+        },
         connection::{Connection, ConnectionBuilder},
         message::MessageSender,
         node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
-        socket::{SocketBuilder, SocketDirection},
+        socket::{Socket, SocketBuilder, SocketDirection},
         state_viewer::context::{CanvasContextMenu, NodeContextMenu},
         AbsmDataModel, SelectedEntity,
     },
@@ -408,19 +409,22 @@ impl StateViewer {
         }
 
         for model in models.iter().cloned() {
-            let input_sockets = views
+            let dest_ref = views
                 .iter()
                 .filter_map(|v| {
                     ui.node(*v)
                         .query_component::<AbsmNode<PoseNodeDefinition>>()
                 })
                 .find(|v| v.model_handle == model)
-                .unwrap()
-                .input_sockets
-                .clone();
+                .unwrap();
+            let dest_handle = dest_ref.handle();
+            let input_sockets = dest_ref.input_sockets.clone();
 
             let model_ref = &data_model.absm_definition.nodes[model];
             for (i, child) in model_ref.children().into_iter().enumerate() {
+                // Sanity check.
+                assert_ne!(child, model);
+
                 if data_model.absm_definition.nodes.is_valid_handle(child) {
                     let source = views
                         .iter()
@@ -432,15 +436,16 @@ impl StateViewer {
                         .unwrap();
 
                     let connection = ConnectionBuilder::new(WidgetBuilder::new())
-                        .with_source(source.output_socket)
-                        .with_dest(input_sockets[i])
+                        .with_source_socket(source.output_socket)
+                        .with_source_node(source.handle())
+                        .with_dest_socket(input_sockets[i])
+                        .with_dest_node(dest_handle)
                         .build(self.canvas, &mut ui.build_ctx());
 
-                    ui.send_message(WidgetMessage::link(
-                        connection,
-                        MessageDirection::ToWidget,
-                        self.canvas,
-                    ));
+                    send_sync_message(
+                        ui,
+                        WidgetMessage::link(connection, MessageDirection::ToWidget, self.canvas),
+                    );
                 }
             }
         }

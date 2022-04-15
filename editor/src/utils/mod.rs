@@ -127,3 +127,9 @@ pub fn fetch_node_screen_center(handle: Handle<UiNode>, ctx: &BuildContext) -> V
         .map(|node| node.screen_bounds().center())
         .unwrap_or_default()
 }
+
+pub fn fetch_node_screen_center_ui(handle: Handle<UiNode>, ui: &UserInterface) -> Vector2<f32> {
+    ui.try_get_node(handle)
+        .map(|node| node.screen_bounds().center())
+        .unwrap_or_default()
+}
