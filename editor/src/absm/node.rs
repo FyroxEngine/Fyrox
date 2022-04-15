@@ -170,6 +170,8 @@ where
                         self.input_sockets_panel,
                     ));
                 }
+
+                self.input_sockets = input_sockets.clone();
             }
         }
     }
