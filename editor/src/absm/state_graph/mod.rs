@@ -7,7 +7,7 @@ use crate::{
         },
         message::MessageSender,
         node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
-        state_graph::context::{CanvasContextMenu, NodeContextMenu},
+        state_graph::context::{CanvasContextMenu, NodeContextMenu, TransitionContextMenu},
         transition::{Transition, TransitionBuilder},
         AbsmDataModel, SelectedEntity,
     },
@@ -33,6 +33,7 @@ pub struct Document {
     pub canvas: Handle<UiNode>,
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,
+    transition_context_menu: TransitionContextMenu,
 }
 
 fn fetch_state_node_model_handle(
@@ -49,6 +50,7 @@ impl Document {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let mut node_context_menu = NodeContextMenu::new(ctx);
         let mut canvas_context_menu = CanvasContextMenu::new(ctx);
+        let transition_context_menu = TransitionContextMenu::new(ctx);
 
         let canvas = AbsmCanvasBuilder::new(
             WidgetBuilder::new().with_context_menu(canvas_context_menu.menu),
@@ -78,6 +80,7 @@ impl Document {
             canvas,
             node_context_menu,
             canvas_context_menu,
+            transition_context_menu,
         }
     }
 
@@ -158,6 +161,8 @@ impl Document {
             .handle_ui_message(message, ui, data_model, sender);
         self.canvas_context_menu
             .handle_ui_message(sender, message, ui);
+        self.transition_context_menu
+            .handle_ui_message(message, ui, sender);
     }
 
     pub fn sync_to_model(&mut self, data_model: &AbsmDataModel, ui: &mut UserInterface) {
@@ -316,10 +321,13 @@ impl Document {
                                 .unwrap_or_default()
                         }
 
-                        let transition_view = TransitionBuilder::new(WidgetBuilder::new())
-                            .with_source(find_state_view(transition.source, &states, ui))
-                            .with_dest(find_state_view(transition.dest, &states, ui))
-                            .build(transition_handle, &mut ui.build_ctx());
+                        let transition_view = TransitionBuilder::new(
+                            WidgetBuilder::new()
+                                .with_context_menu(self.transition_context_menu.menu),
+                        )
+                        .with_source(find_state_view(transition.source, &states, ui))
+                        .with_dest(find_state_view(transition.dest, &states, ui))
+                        .build(transition_handle, &mut ui.build_ctx());
 
                         send_sync_message(
                             ui,

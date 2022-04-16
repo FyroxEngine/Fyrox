@@ -1,10 +1,13 @@
-use crate::absm::{
-    command::{
-        AbsmCommand, AddPoseNodeCommand, ChangeSelectionCommand, CommandGroup,
-        DeletePoseNodeCommand,
+use crate::{
+    absm::{
+        command::{
+            AbsmCommand, AddPoseNodeCommand, ChangeSelectionCommand, CommandGroup,
+            DeletePoseNodeCommand,
+        },
+        message::MessageSender,
+        AbsmDataModel, SelectedEntity,
     },
-    message::MessageSender,
-    AbsmDataModel, SelectedEntity,
+    menu::create_menu_item,
 };
 use fyrox::{
     animation::machine::{
@@ -15,9 +18,9 @@ use fyrox::{
         },
         state::StateDefinition,
     },
-    core::{algebra::Vector2, pool::Handle},
+    core::pool::Handle,
     gui::{
-        menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
+        menu::MenuItemMessage,
         message::UiMessage,
         popup::{Placement, PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
@@ -49,27 +52,15 @@ impl CanvasContextMenu {
             StackPanelBuilder::new(
                 WidgetBuilder::new()
                     .with_child({
-                        create_play_animation = MenuItemBuilder::new(
-                            WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
-                        )
-                        .with_content(MenuItemContent::text("Play Animation"))
-                        .build(ctx);
+                        create_play_animation = create_menu_item("Play Animation", vec![], ctx);
                         create_play_animation
                     })
                     .with_child({
-                        create_blend_animations = MenuItemBuilder::new(
-                            WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
-                        )
-                        .with_content(MenuItemContent::text("Blend Animations"))
-                        .build(ctx);
+                        create_blend_animations = create_menu_item("Blend Animations", vec![], ctx);
                         create_blend_animations
                     })
                     .with_child({
-                        create_blend_by_index = MenuItemBuilder::new(
-                            WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
-                        )
-                        .with_content(MenuItemContent::text("Blend By Index"))
-                        .build(ctx);
+                        create_blend_by_index = create_menu_item("Blend By Index", vec![], ctx);
                         create_blend_by_index
                     }),
             )
@@ -152,11 +143,7 @@ impl NodeContextMenu {
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
                 StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                    remove = MenuItemBuilder::new(
-                        WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
-                    )
-                    .with_content(MenuItemContent::text("Remove"))
-                    .build(ctx);
+                    remove = create_menu_item("Remove", vec![], ctx);
                     remove
                 }))
                 .build(ctx),
