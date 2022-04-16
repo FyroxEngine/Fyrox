@@ -208,7 +208,9 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     #[inline(always)]
     pub fn set_i32_slice(&mut self, location: &UniformLocation, value: &[i32]) -> &mut Self {
         unsafe {
-            self.state.gl.uniform_1_i32_slice(Some(&location.id), value);
+            if !value.is_empty() {
+                self.state.gl.uniform_1_i32_slice(Some(&location.id), value);
+            }
         }
         self
     }
@@ -216,7 +218,9 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     #[inline(always)]
     pub fn set_u32_slice(&mut self, location: &UniformLocation, value: &[u32]) -> &mut Self {
         unsafe {
-            self.state.gl.uniform_1_u32_slice(Some(&location.id), value);
+            if !value.is_empty() {
+                self.state.gl.uniform_1_u32_slice(Some(&location.id), value);
+            }
         }
         self
     }
@@ -224,7 +228,9 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     #[inline(always)]
     pub fn set_f32_slice(&mut self, location: &UniformLocation, value: &[f32]) -> &mut Self {
         unsafe {
-            self.state.gl.uniform_1_f32_slice(Some(&location.id), value);
+            if !value.is_empty() {
+                self.state.gl.uniform_1_f32_slice(Some(&location.id), value);
+            }
         }
         self
     }
@@ -236,10 +242,12 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
         value: &[Vector2<f32>],
     ) -> &mut Self {
         unsafe {
-            self.state.gl.uniform_2_f32_slice(
-                Some(&location.id),
-                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 2),
-            );
+            if !value.is_empty() {
+                self.state.gl.uniform_2_f32_slice(
+                    Some(&location.id),
+                    std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 2),
+                );
+            }
         }
         self
     }
@@ -251,10 +259,12 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
         value: &[Vector3<f32>],
     ) -> &mut Self {
         unsafe {
-            self.state.gl.uniform_3_f32_slice(
-                Some(&location.id),
-                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 3),
-            );
+            if !value.is_empty() {
+                self.state.gl.uniform_3_f32_slice(
+                    Some(&location.id),
+                    std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 3),
+                );
+            }
         }
         self
     }
@@ -266,10 +276,12 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
         value: &[Vector4<f32>],
     ) -> &mut Self {
         unsafe {
-            self.state.gl.uniform_4_f32_slice(
-                Some(&location.id),
-                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
-            );
+            if !value.is_empty() {
+                self.state.gl.uniform_4_f32_slice(
+                    Some(&location.id),
+                    std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
+                );
+            }
         }
         self
     }
@@ -291,11 +303,13 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
         value: &[Matrix2<f32>],
     ) -> &mut Self {
         unsafe {
-            self.state.gl.uniform_matrix_2_f32_slice(
-                Some(&location.id),
-                false,
-                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
-            );
+            if !value.is_empty() {
+                self.state.gl.uniform_matrix_2_f32_slice(
+                    Some(&location.id),
+                    false,
+                    std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
+                );
+            }
         }
         self
     }
@@ -317,11 +331,13 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
         value: &[Matrix3<f32>],
     ) -> &mut Self {
         unsafe {
-            self.state.gl.uniform_matrix_3_f32_slice(
-                Some(&location.id),
-                false,
-                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 9),
-            );
+            if !value.is_empty() {
+                self.state.gl.uniform_matrix_3_f32_slice(
+                    Some(&location.id),
+                    false,
+                    std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 9),
+                );
+            }
         }
         self
     }
@@ -343,11 +359,13 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
         value: &[Matrix4<f32>],
     ) -> &mut Self {
         unsafe {
-            self.state.gl.uniform_matrix_4_f32_slice(
-                Some(&location.id),
-                false,
-                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 16),
-            );
+            if !value.is_empty() {
+                self.state.gl.uniform_matrix_4_f32_slice(
+                    Some(&location.id),
+                    false,
+                    std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 16),
+                );
+            }
         }
         self
     }
