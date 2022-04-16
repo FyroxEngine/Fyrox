@@ -380,6 +380,7 @@ impl StateViewer {
                 .unwrap();
             let model_ref = &data_model.absm_definition.nodes[view_ref.model_handle];
             let children = model_ref.children();
+            let position = view_ref.actual_local_position();
 
             if view_ref.base.input_sockets.len() != children.len() {
                 let input_sockets = create_sockets(
@@ -395,14 +396,16 @@ impl StateViewer {
                 );
             }
 
-            send_sync_message(
-                ui,
-                WidgetMessage::desired_position(
-                    view,
-                    MessageDirection::ToWidget,
-                    model_ref.position,
-                ),
-            );
+            if position != model_ref.position {
+                send_sync_message(
+                    ui,
+                    WidgetMessage::desired_position(
+                        view,
+                        MessageDirection::ToWidget,
+                        model_ref.position,
+                    ),
+                );
+            }
         }
 
         // Force update layout to be able to fetch positions of nodes for transitions.
