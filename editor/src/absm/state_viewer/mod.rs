@@ -458,6 +458,10 @@ impl StateViewer {
                         ui,
                         WidgetMessage::link(connection, MessageDirection::ToWidget, self.canvas),
                     );
+                    send_sync_message(
+                        ui,
+                        WidgetMessage::lowermost(connection, MessageDirection::ToWidget),
+                    );
                 }
             }
         }

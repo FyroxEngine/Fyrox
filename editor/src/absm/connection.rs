@@ -1,12 +1,12 @@
 use crate::{absm::segment::Segment, utils::fetch_node_screen_center};
 use fyrox::{
-    core::{algebra::Vector2, math::Rect, pool::Handle},
+    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     gui::{
         brush::Brush,
         define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
-        message::UiMessage,
-        widget::{Widget, WidgetBuilder},
+        message::{MessageDirection, UiMessage},
+        widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
     },
 };
@@ -14,6 +14,9 @@ use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
 };
+
+const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(100, 100, 100));
+const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(80, 80, 80));
 
 #[derive(Debug, Clone)]
 pub struct Connection {
@@ -32,7 +35,7 @@ pub fn draw_connection(
     clip_bounds: Rect<f32>,
     brush: Brush,
 ) {
-    drawing_context.push_line(source, dest, 2.0);
+    drawing_context.push_line(source, dest, 4.0);
     drawing_context.commit(clip_bounds, brush, CommandTexture::None, None);
 }
 
@@ -58,6 +61,26 @@ impl Control for Connection {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
         self.segment.handle_routed_message(self.handle(), message);
+
+        if let Some(msg) = message.data::<WidgetMessage>() {
+            match msg {
+                WidgetMessage::MouseEnter => {
+                    ui.send_message(WidgetMessage::foreground(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        PICKED_BRUSH.clone(),
+                    ));
+                }
+                WidgetMessage::MouseLeave => {
+                    ui.send_message(WidgetMessage::foreground(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        NORMAL_BRUSH.clone(),
+                    ));
+                }
+                _ => (),
+            }
+        }
     }
 }
 
@@ -104,7 +127,11 @@ impl ConnectionBuilder {
         let canvas_ref = &ctx[canvas];
 
         let connection = Connection {
-            widget: self.widget_builder.with_clip_to_bounds(false).build(),
+            widget: self
+                .widget_builder
+                .with_foreground(NORMAL_BRUSH)
+                .with_clip_to_bounds(false)
+                .build(),
             segment: Segment {
                 source: self.source_socket,
                 source_pos: canvas_ref
