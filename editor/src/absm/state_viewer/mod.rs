@@ -189,13 +189,11 @@ impl StateViewer {
                                 .filter_map(|n| {
                                     let node_ref = ui.node(*n);
 
-                                    if let Some(state_node) =
-                                        node_ref.query_component::<AbsmNode<PoseNodeDefinition>>()
-                                    {
-                                        Some(SelectedEntity::PoseNode(state_node.model_handle))
-                                    } else {
-                                        None
-                                    }
+                                    node_ref
+                                        .query_component::<AbsmNode<PoseNodeDefinition>>()
+                                        .map(|state_node| {
+                                            SelectedEntity::PoseNode(state_node.model_handle)
+                                        })
                                 })
                                 .collect();
 
@@ -383,7 +381,7 @@ impl StateViewer {
             let model_ref = &data_model.absm_definition.nodes[view_ref.model_handle];
             let children = model_ref.children();
 
-            if view_ref.input_sockets.len() != children.len() {
+            if view_ref.base.input_sockets.len() != children.len() {
                 let input_sockets = create_sockets(
                     children.len(),
                     SocketDirection::Input,
@@ -391,13 +389,24 @@ impl StateViewer {
                     ui,
                 );
 
-                ui.send_message(AbsmNodeMessage::input_sockets(
+                send_sync_message(
+                    ui,
+                    AbsmNodeMessage::input_sockets(view, MessageDirection::ToWidget, input_sockets),
+                );
+            }
+
+            send_sync_message(
+                ui,
+                WidgetMessage::desired_position(
                     view,
                     MessageDirection::ToWidget,
-                    input_sockets,
-                ));
-            }
+                    model_ref.position,
+                ),
+            );
         }
+
+        // Force update layout to be able to fetch positions of nodes for transitions.
+        ui.update(ui.screen_size(), 0.0);
 
         // Sync connections - remove old ones and create new. Since there is no separate data model
         // for connection we can't find which connection has changed and sync only it, instead we
@@ -418,7 +427,7 @@ impl StateViewer {
                 .find(|v| v.model_handle == model)
                 .unwrap();
             let dest_handle = dest_ref.handle();
-            let input_sockets = dest_ref.input_sockets.clone();
+            let input_sockets = dest_ref.base.input_sockets.clone();
 
             let model_ref = &data_model.absm_definition.nodes[model];
             for (i, child) in model_ref.children().into_iter().enumerate() {
@@ -436,7 +445,7 @@ impl StateViewer {
                         .unwrap();
 
                     let connection = ConnectionBuilder::new(WidgetBuilder::new())
-                        .with_source_socket(source.output_socket)
+                        .with_source_socket(source.base.output_socket)
                         .with_source_node(source.handle())
                         .with_dest_socket(input_sockets[i])
                         .with_dest_node(dest_handle)

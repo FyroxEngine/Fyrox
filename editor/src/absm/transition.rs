@@ -1,8 +1,10 @@
-use crate::absm::{
-    segment::{Segment, SegmentMessage},
-    selectable::{Selectable, SelectableMessage},
+use crate::{
+    absm::{
+        segment::Segment,
+        selectable::{Selectable, SelectableMessage},
+    },
+    utils::fetch_node_center,
 };
-use crate::utils::fetch_node_center;
 use fyrox::{
     animation::machine::transition::TransitionDefinition,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
@@ -121,63 +123,6 @@ impl Control for Transition {
             }
         }
     }
-
-    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        // Check if any node has moved and sync ends accordingly.
-        if message.destination() == self.segment.source
-            || message.destination() == self.segment.dest
-        {
-            if let Some(WidgetMessage::DesiredPosition(_)) = message.data() {
-                // Find other transitions sharing the same source and dest nodes (in both directions).
-                for (i, transition_handle) in ui
-                    .node(self.parent())
-                    .children()
-                    .iter()
-                    .filter_map(|c| {
-                        ui.node(*c).query_component::<Transition>().and_then(|t| {
-                            if t.segment.source == self.segment.source
-                                && t.segment.dest == self.segment.dest
-                                || t.segment.source == self.segment.dest
-                                    && t.segment.dest == self.segment.source
-                            {
-                                Some(*c)
-                            } else {
-                                None
-                            }
-                        })
-                    })
-                    .enumerate()
-                {
-                    if transition_handle == self.handle() {
-                        if let (Some(source_state), Some(dest_state)) = (
-                            ui.try_get_node(self.segment.source),
-                            ui.try_get_node(self.segment.dest),
-                        ) {
-                            let source_pos = source_state.center();
-                            let dest_pos = dest_state.center();
-
-                            let delta = dest_pos - source_pos;
-                            let offset = Vector2::new(delta.y, -delta.x)
-                                .normalize()
-                                .scale(15.0 * i as f32);
-
-                            ui.send_message(SegmentMessage::source_position(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                source_pos + offset,
-                            ));
-
-                            ui.send_message(SegmentMessage::dest_position(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                dest_pos + offset,
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 pub struct TransitionBuilder {
@@ -213,7 +158,6 @@ impl TransitionBuilder {
         let transition = Transition {
             widget: self
                 .widget_builder
-                .with_preview_messages(true)
                 .with_foreground(NORMAL_BRUSH.clone())
                 .with_clip_to_bounds(false)
                 .build(),

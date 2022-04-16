@@ -23,9 +23,11 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-// An "interface" marker that allows to check if the node is "some" ABSM node, without knowing
-// actual data model handle type.
-pub struct AbsmNodeMarker;
+#[derive(Clone)]
+pub struct AbsmBaseNode {
+    pub input_sockets: Vec<Handle<UiNode>>,
+    pub output_socket: Handle<UiNode>,
+}
 
 pub struct AbsmNode<T>
 where
@@ -34,11 +36,9 @@ where
     widget: Widget,
     background: Handle<UiNode>,
     selectable: Selectable,
-    pub input_sockets: Vec<Handle<UiNode>>,
-    pub output_socket: Handle<UiNode>,
     pub name: String,
     pub model_handle: Handle<T>,
-    marker: AbsmNodeMarker,
+    pub base: AbsmBaseNode,
     pub add_input: Handle<UiNode>,
     input_sockets_panel: Handle<UiNode>,
 }
@@ -52,11 +52,9 @@ where
             widget: self.widget.clone(),
             background: self.background,
             selectable: self.selectable.clone(),
-            input_sockets: self.input_sockets.clone(),
-            output_socket: self.output_socket,
             name: self.name.clone(),
             model_handle: self.model_handle,
-            marker: AbsmNodeMarker,
+            base: self.base.clone(),
             add_input: self.add_input,
             input_sockets_panel: self.input_sockets_panel,
         }
@@ -107,8 +105,8 @@ where
             Some(self)
         } else if type_id == TypeId::of::<Selectable>() {
             Some(&self.selectable)
-        } else if type_id == TypeId::of::<AbsmNodeMarker>() {
-            Some(&self.marker)
+        } else if type_id == TypeId::of::<AbsmBaseNode>() {
+            Some(&self.base)
         } else {
             None
         }
@@ -157,7 +155,7 @@ where
         } else if let Some(AbsmNodeMessage::InputSockets(input_sockets)) = message.data() {
             if message.destination == self.handle()
                 && message.direction() == MessageDirection::ToWidget
-                && input_sockets != &self.input_sockets
+                && input_sockets != &self.base.input_sockets
             {
                 for &child in ui.node(self.input_sockets_panel).children() {
                     ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
@@ -171,7 +169,7 @@ where
                     ));
                 }
 
-                self.input_sockets = input_sockets.clone();
+                self.base.input_sockets = input_sockets.clone();
             }
         }
     }
@@ -352,9 +350,10 @@ where
             selectable: Default::default(),
             model_handle: self.model_handle,
             name: self.name,
-            input_sockets: self.input_sockets,
-            output_socket: self.output_socket,
-            marker: AbsmNodeMarker,
+            base: AbsmBaseNode {
+                input_sockets: self.input_sockets,
+                output_socket: self.output_socket,
+            },
             add_input,
             input_sockets_panel,
         };

@@ -1,9 +1,13 @@
-use crate::absm::{
-    connection,
-    node::AbsmNodeMarker,
-    selectable::{Selectable, SelectableMessage},
-    socket::{Socket, SocketDirection, SocketMessage},
-    transition,
+use crate::{
+    absm::{
+        connection::{self, Connection},
+        node::AbsmBaseNode,
+        segment::SegmentMessage,
+        selectable::{Selectable, SelectableMessage},
+        socket::{Socket, SocketDirection, SocketMessage},
+        transition::{self, Transition},
+    },
+    utils::fetch_node_screen_center_ui,
 };
 use fyrox::{
     core::{
@@ -21,9 +25,9 @@ use fyrox::{
         BuildContext, Control, UiNode, UserInterface,
     },
 };
-use std::cell::Cell;
 use std::{
     any::{Any, TypeId},
+    cell::Cell,
     ops::{Deref, DerefMut},
 };
 
@@ -188,6 +192,92 @@ impl AbsmCanvas {
                 .find_by_criteria_up(ui, |n| n.has_component::<T>())
         }
     }
+
+    fn sync_connections_ends(&self, moved_node: Handle<UiNode>, ui: &UserInterface) {
+        // Sync ends of each connection.
+        for connection in self
+            .children()
+            .iter()
+            .filter_map(|c| ui.node(*c).query_component::<Connection>())
+        {
+            if connection.source_node == moved_node {
+                let source_pos = self
+                    .screen_to_local(fetch_node_screen_center_ui(connection.segment.source, ui));
+                ui.send_message(SegmentMessage::source_position(
+                    connection.handle(),
+                    MessageDirection::ToWidget,
+                    source_pos,
+                ));
+            } else if connection.dest_node == moved_node {
+                let dest_pos =
+                    self.screen_to_local(fetch_node_screen_center_ui(connection.segment.dest, ui));
+                ui.send_message(SegmentMessage::dest_position(
+                    connection.handle(),
+                    MessageDirection::ToWidget,
+                    dest_pos,
+                ));
+            }
+        }
+    }
+
+    fn sync_transitions_ends(&self, moved_node: Handle<UiNode>, ui: &UserInterface) {
+        // Sync ends of each transition.
+        // Check if any node has moved and sync ends accordingly.
+        for transition in self
+            .children()
+            .iter()
+            .filter_map(|c| ui.node(*c).query_component::<Transition>())
+        {
+            if moved_node == transition.segment.source || moved_node == transition.segment.dest {
+                // Find other transitions sharing the same source and dest nodes (in both directions).
+                for (i, transition_handle) in self
+                    .children()
+                    .iter()
+                    .filter_map(|c| {
+                        ui.node(*c).query_component::<Transition>().and_then(|t| {
+                            if t.segment.source == transition.segment.source
+                                && t.segment.dest == transition.segment.dest
+                                || t.segment.source == transition.segment.dest
+                                    && t.segment.dest == transition.segment.source
+                            {
+                                Some(*c)
+                            } else {
+                                None
+                            }
+                        })
+                    })
+                    .enumerate()
+                {
+                    if transition_handle == transition.handle() {
+                        if let (Some(source_state), Some(dest_state)) = (
+                            ui.try_get_node(transition.segment.source),
+                            ui.try_get_node(transition.segment.dest),
+                        ) {
+                            let source_pos = source_state.center();
+                            let dest_pos = dest_state.center();
+
+                            let delta = dest_pos - source_pos;
+                            let offset = Vector2::new(delta.y, -delta.x)
+                                .normalize()
+                                .scale(15.0 * i as f32);
+
+                            ui.send_message(SegmentMessage::source_position(
+                                transition.handle(),
+                                MessageDirection::ToWidget,
+                                source_pos + offset,
+                            ));
+
+                            ui.send_message(SegmentMessage::dest_position(
+                                transition.handle(),
+                                MessageDirection::ToWidget,
+                                dest_pos + offset,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl Control for AbsmCanvas {
@@ -339,36 +429,34 @@ impl Control for AbsmCanvas {
                 self.initial_view_position = self.view_position;
 
                 ui.capture_mouse(self.handle());
-            } else if *button == MouseButton::Left {
-                if !message.handled() {
-                    let dest_node_handle =
-                        self.fetch_dest_node_component::<AbsmNodeMarker>(message.destination(), ui);
+            } else if *button == MouseButton::Left && !message.handled() {
+                let dest_node_handle =
+                    self.fetch_dest_node_component::<AbsmBaseNode>(message.destination(), ui);
 
-                    match self.mode {
-                        Mode::CreateTransition { source, .. } => {
-                            if dest_node_handle.is_some() {
-                                // Commit creation.
-                                ui.send_message(AbsmCanvasMessage::commit_transition(
-                                    self.handle(),
-                                    MessageDirection::FromWidget,
-                                    source,
-                                    dest_node_handle,
-                                ));
-                            }
+                match self.mode {
+                    Mode::CreateTransition { source, .. } => {
+                        if dest_node_handle.is_some() {
+                            // Commit creation.
+                            ui.send_message(AbsmCanvasMessage::commit_transition(
+                                self.handle(),
+                                MessageDirection::FromWidget,
+                                source,
+                                dest_node_handle,
+                            ));
+                        }
 
-                            self.mode = Mode::Normal;
-                        }
-                        Mode::Normal => {
-                            if dest_node_handle.is_some() {
-                                self.mode = Mode::Drag {
-                                    drag_context: self.make_drag_context(ui),
-                                }
-                            } else {
-                                self.set_selection(&[], ui);
-                            }
-                        }
-                        _ => {}
+                        self.mode = Mode::Normal;
                     }
+                    Mode::Normal => {
+                        if dest_node_handle.is_some() {
+                            self.mode = Mode::Drag {
+                                drag_context: self.make_drag_context(ui),
+                            }
+                        } else {
+                            self.set_selection(&[], ui);
+                        }
+                    }
+                    _ => {}
                 }
             }
         } else if let Some(WidgetMessage::MouseUp { button, pos }) = message.data() {
@@ -403,7 +491,7 @@ impl Control for AbsmCanvas {
                                 .unwrap();
 
                             // Do not allow to create connections between sockets of the same node.
-                            if dest_socket_ref.parent_node!= source_socket_ref.parent_node
+                            if dest_socket_ref.parent_node != source_socket_ref.parent_node
                                 // Only allow to create connections either from Input -> Output, or
                                 // Output -> Input. Input -> Input or Output -> Output is now 
                                 // allowed.
@@ -505,6 +593,15 @@ impl Control for AbsmCanvas {
                         dest_pos: self.screen_to_local(ui.cursor_position()),
                     },
                 ))
+            }
+        } else if let Some(WidgetMessage::DesiredPosition(_)) = message.data() {
+            if ui
+                .node(message.destination())
+                .has_component::<AbsmBaseNode>()
+            {
+                let moved_node = message.destination();
+                self.sync_connections_ends(moved_node, ui);
+                self.sync_transitions_ends(moved_node, ui);
             }
         }
     }

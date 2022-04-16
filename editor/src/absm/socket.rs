@@ -41,6 +41,7 @@ pub struct Socket {
     click_position: Option<Vector2<f32>>,
     pub parent_node: Handle<PoseNodeDefinition>,
     pub direction: SocketDirection,
+    #[allow(dead_code)] // TODO
     editor: Handle<UiNode>,
     pin: Handle<UiNode>,
     pub index: usize,
@@ -143,6 +144,7 @@ impl SocketBuilder {
         self
     }
 
+    #[allow(dead_code)] // TODO
     pub fn with_editor(mut self, editor: Handle<UiNode>) -> Self {
         self.editor = editor;
         self
