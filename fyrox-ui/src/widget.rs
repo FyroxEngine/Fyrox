@@ -268,12 +268,17 @@ pub enum WidgetMessage {
     /// Direction: **From/To UI**
     Opacity(Option<f32>),
 
+    /// A request to set new layout transform.
     LayoutTransform(Matrix3<f32>),
+
+    /// A request to set new render transform.
     RenderTransform(Matrix3<f32>),
 
-    DoubleClick {
-        button: MouseButton,
-    },
+    /// A double click of a mouse button has occurred on a widget.
+    DoubleClick { button: MouseButton },
+
+    /// A request to set new context menu for a widget. Old context menu will be removed.
+    ContextMenu(Handle<UiNode>),
 }
 
 impl WidgetMessage {
@@ -305,6 +310,7 @@ impl WidgetMessage {
     define_constructor!(WidgetMessage:Opacity => fn opacity(Option<f32>), layout: false);
     define_constructor!(WidgetMessage:LayoutTransform => fn layout_transform(Matrix3<f32>), layout: false);
     define_constructor!(WidgetMessage:RenderTransform => fn render_transform(Matrix3<f32>), layout: false);
+    define_constructor!(WidgetMessage:ContextMenu => fn context_menu(Handle<UiNode>), layout: false);
 
     // Internal messages. Do not use.
     define_constructor!(WidgetMessage:GotFocus => fn got_focus(), layout: false);
