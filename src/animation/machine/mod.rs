@@ -229,12 +229,25 @@ impl MachineDefinition {
         for (definition_handle, node_definition) in self.nodes.pair_iter() {
             let node = match node_definition {
                 PoseNodeDefinition::PlayAnimation(play_animation) => {
-                    let animation = *resource_manager
+                    let animation = match resource_manager
                         .request_model(&play_animation.animation)
-                        .await?
-                        .retarget_animations(root, scene)
-                        .first()
-                        .ok_or(MachineInstantiationError::InvalidAnimation)?;
+                        .await
+                    {
+                        Ok(animation) => *animation
+                            .retarget_animations(root, scene)
+                            .first()
+                            .ok_or(MachineInstantiationError::InvalidAnimation)?,
+                        Err(e) => {
+                            Log::err(format!(
+                                "Failed to load animation {} for PlayAnimation node {}. Reason: {:?}",
+                                play_animation.animation.display(),
+                                definition_handle,
+                                e
+                            ));
+
+                            Handle::NONE
+                        }
+                    };
 
                     PoseNode::make_play_animation(animation)
                 }
