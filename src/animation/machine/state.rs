@@ -23,6 +23,7 @@ pub struct State {
 pub struct StateDefinition {
     pub position: Vector2<f32>,
     pub name: String,
+    #[inspect(skip)]
     pub root: Handle<PoseNodeDefinition>,
 }
 

@@ -12,7 +12,9 @@ use fyrox::{
     gui::{
         inspector::{
             editors::{
-                inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
+                collection::VecCollectionPropertyEditorDefinition,
+                inspectable::InspectablePropertyEditorDefinition,
+                PropertyEditorDefinitionContainer,
             },
             InspectorBuilder, InspectorContext, InspectorMessage,
         },
@@ -47,7 +49,12 @@ impl Inspector {
         property_editors.insert(InspectablePropertyEditorDefinition::<
             IndexedBlendInputDefinition,
         >::new());
+        property_editors.insert(VecCollectionPropertyEditorDefinition::<
+            IndexedBlendInputDefinition,
+        >::new());
         property_editors.insert(InspectablePropertyEditorDefinition::<BlendPoseDefinition>::new());
+        property_editors
+            .insert(VecCollectionPropertyEditorDefinition::<BlendPoseDefinition>::new());
 
         Self {
             window,

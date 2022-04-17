@@ -107,6 +107,7 @@ impl EvaluatePose for PoseNode {
 #[derive(Default, Debug, Visit, Clone, Inspect)]
 pub struct BasePoseNodeDefinition {
     pub position: Vector2<f32>,
+    #[inspect(skip)]
     pub parent_state: Handle<StateDefinition>,
 }
 

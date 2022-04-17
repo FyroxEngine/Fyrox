@@ -27,6 +27,7 @@ pub struct BlendPose {
 #[derive(Default, Debug, Visit, Clone, Inspect)]
 pub struct BlendPoseDefinition {
     pub weight: PoseWeight,
+    #[inspect(skip)]
     pub pose_source: Handle<PoseNodeDefinition>,
 }
 
@@ -154,6 +155,7 @@ pub struct IndexedBlendInput {
 #[derive(Default, Debug, Visit, Clone, Inspect)]
 pub struct IndexedBlendInputDefinition {
     pub blend_time: f32,
+    #[inspect(skip)]
     pub pose_source: Handle<PoseNodeDefinition>,
 }
 
