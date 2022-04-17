@@ -1,10 +1,15 @@
+use crate::absm::command::blend::{
+    SetBlendAnimationByIndexInputPoseSourceCommand, SetBlendAnimationsPoseSourceCommand,
+};
 use crate::{
     absm::{
         command::{
             AbsmCommand, AddPoseNodeCommand, ChangeSelectionCommand, CommandGroup,
             DeletePoseNodeCommand,
         },
+        connection::Connection,
         message::MessageSender,
+        node::AbsmNode,
         AbsmDataModel, SelectedEntity,
     },
     menu::create_menu_item,
@@ -179,6 +184,87 @@ impl NodeContextMenu {
                 }));
 
                 sender.do_command(CommandGroup::from(group));
+            }
+        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
+            if message.destination() == self.menu {
+                self.placement_target = *target;
+            }
+        }
+    }
+}
+
+pub struct ConnectionContextMenu {
+    remove: Handle<UiNode>,
+    pub menu: Handle<UiNode>,
+    placement_target: Handle<UiNode>,
+}
+
+impl ConnectionContextMenu {
+    pub fn new(ctx: &mut BuildContext) -> Self {
+        let remove;
+        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+            .with_content(
+                StackPanelBuilder::new(WidgetBuilder::new().with_child({
+                    remove = create_menu_item("Remove Connection", vec![], ctx);
+                    remove
+                }))
+                .build(ctx),
+            )
+            .build(ctx);
+
+        Self {
+            menu,
+            remove,
+            placement_target: Default::default(),
+        }
+    }
+
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        ui: &mut UserInterface,
+        sender: &MessageSender,
+        data_model: &AbsmDataModel,
+    ) {
+        if let Some(MenuItemMessage::Click) = message.data() {
+            if message.destination == self.remove {
+                let connection_ref = ui
+                    .node(self.placement_target)
+                    .query_component::<Connection>()
+                    .unwrap();
+
+                let dest_node_ref = ui
+                    .node(connection_ref.dest_node)
+                    .query_component::<AbsmNode<PoseNodeDefinition>>()
+                    .unwrap();
+
+                let index = dest_node_ref
+                    .base
+                    .input_sockets
+                    .iter()
+                    .position(|s| *s == connection_ref.segment.dest)
+                    .unwrap();
+
+                let model_handle = dest_node_ref.model_handle;
+                match data_model.absm_definition.nodes[model_handle] {
+                    PoseNodeDefinition::PlayAnimation(_) => {
+                        // No connections
+                    }
+                    PoseNodeDefinition::BlendAnimations(_) => {
+                        sender.do_command(SetBlendAnimationsPoseSourceCommand {
+                            handle: model_handle,
+                            index,
+                            value: Default::default(),
+                        })
+                    }
+                    PoseNodeDefinition::BlendAnimationsByIndex(_) => {
+                        sender.do_command(SetBlendAnimationByIndexInputPoseSourceCommand {
+                            handle: model_handle,
+                            index,
+                            value: Default::default(),
+                        })
+                    }
+                }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu {

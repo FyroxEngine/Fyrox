@@ -188,7 +188,6 @@ impl NodeContextMenu {
 pub struct TransitionContextMenu {
     remove: Handle<UiNode>,
     pub menu: Handle<UiNode>,
-    pub canvas: Handle<UiNode>,
     placement_target: Handle<UiNode>,
 }
 
@@ -198,7 +197,7 @@ impl TransitionContextMenu {
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
                 StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                    remove = create_menu_item("Remove", vec![], ctx);
+                    remove = create_menu_item("Remove Transition", vec![], ctx);
                     remove
                 }))
                 .build(ctx),
@@ -208,7 +207,6 @@ impl TransitionContextMenu {
         Self {
             menu,
             remove,
-            canvas: Default::default(),
             placement_target: Default::default(),
         }
     }

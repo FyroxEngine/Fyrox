@@ -1,6 +1,7 @@
+use crate::absm::command::blend::AddPoseSourceCommand;
 use crate::{
     absm::{
-        command::{AbsmCommand, AbsmCommandStack, AbsmEditorContext, AddInputCommand},
+        command::{blend::AddInputCommand, AbsmCommand, AbsmCommandStack, AbsmEditorContext},
         inspector::Inspector,
         menu::Menu,
         message::{AbsmMessage, MessageSender},
@@ -12,6 +13,7 @@ use crate::{
     utils::{create_file_selector, open_file_selector},
     Message,
 };
+use fyrox::animation::machine::node::blend::BlendPoseDefinition;
 use fyrox::{
     animation::machine::{
         node::{blend::IndexedBlendInputDefinition, PoseNodeDefinition},
@@ -408,13 +410,16 @@ impl AbsmEditor {
                                     // No input sockets
                                 }
                                 PoseNodeDefinition::BlendAnimations(_) => {
-                                    // TODO
+                                    self.message_sender.do_command(AddPoseSourceCommand::new(
+                                        node.model_handle,
+                                        BlendPoseDefinition::default(),
+                                    ));
                                 }
                                 PoseNodeDefinition::BlendAnimationsByIndex(_) => {
-                                    self.message_sender.do_command(AddInputCommand {
-                                        handle: node.model_handle,
-                                        input: IndexedBlendInputDefinition::default(),
-                                    })
+                                    self.message_sender.do_command(AddInputCommand::new(
+                                        node.model_handle,
+                                        IndexedBlendInputDefinition::default(),
+                                    ));
                                 }
                             }
                         }

@@ -1,9 +1,10 @@
+use crate::absm::state_viewer::context::ConnectionContextMenu;
 use crate::{
     absm::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
         command::{
-            AbsmCommand, ChangeSelectionCommand, CommandGroup, MovePoseNodeCommand,
-            SetBlendAnimationByIndexInputPoseSourceCommand,
+            blend::SetBlendAnimationByIndexInputPoseSourceCommand, AbsmCommand,
+            ChangeSelectionCommand, CommandGroup, MovePoseNodeCommand,
         },
         connection::{Connection, ConnectionBuilder},
         message::MessageSender,
@@ -35,6 +36,7 @@ pub struct StateViewer {
     state: Handle<StateDefinition>,
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,
+    connection_context_menu: ConnectionContextMenu,
 }
 
 fn create_socket(
@@ -85,6 +87,7 @@ impl StateViewer {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let mut node_context_menu = NodeContextMenu::new(ctx);
         let mut canvas_context_menu = CanvasContextMenu::new(ctx);
+        let connection_context_menu = ConnectionContextMenu::new(ctx);
 
         let canvas = AbsmCanvasBuilder::new(
             WidgetBuilder::new().with_context_menu(canvas_context_menu.menu),
@@ -114,6 +117,7 @@ impl StateViewer {
             state: Default::default(),
             canvas_context_menu,
             node_context_menu,
+            connection_context_menu,
         }
     }
 
@@ -220,7 +224,7 @@ impl StateViewer {
                                 sender.do_command(SetBlendAnimationByIndexInputPoseSourceCommand {
                                     handle: dest_node,
                                     index: dest_socket_ref.index,
-                                    pose_source: source_node,
+                                    value: source_node,
                                 });
                             }
                         }
@@ -234,6 +238,8 @@ impl StateViewer {
             .handle_ui_message(message, data_model, sender);
         self.canvas_context_menu
             .handle_ui_message(sender, message, self.state, ui);
+        self.connection_context_menu
+            .handle_ui_message(message, ui, sender, data_model);
     }
 
     pub fn sync_to_model(
@@ -447,12 +453,14 @@ impl StateViewer {
                         .find(|v| v.model_handle == child)
                         .unwrap();
 
-                    let connection = ConnectionBuilder::new(WidgetBuilder::new())
-                        .with_source_socket(source.base.output_socket)
-                        .with_source_node(source.handle())
-                        .with_dest_socket(input_sockets[i])
-                        .with_dest_node(dest_handle)
-                        .build(self.canvas, &mut ui.build_ctx());
+                    let connection = ConnectionBuilder::new(
+                        WidgetBuilder::new().with_context_menu(self.connection_context_menu.menu),
+                    )
+                    .with_source_socket(source.base.output_socket)
+                    .with_source_node(source.handle())
+                    .with_dest_socket(input_sockets[i])
+                    .with_dest_node(dest_handle)
+                    .build(self.canvas, &mut ui.build_ctx());
 
                     send_sync_message(
                         ui,

@@ -1,9 +1,7 @@
 use crate::{absm::SelectedEntity, define_command_stack};
 use fyrox::{
     animation::machine::{
-        node::{blend::IndexedBlendInputDefinition, PoseNodeDefinition},
-        state::StateDefinition,
-        transition::TransitionDefinition,
+        node::PoseNodeDefinition, state::StateDefinition, transition::TransitionDefinition,
         MachineDefinition,
     },
     core::{
@@ -21,6 +19,8 @@ pub struct AbsmEditorContext<'a> {
     pub selection: &'a mut Vec<SelectedEntity>,
     pub definition: &'a mut MachineDefinition,
 }
+
+pub mod blend;
 
 define_command_stack!(AbsmCommandTrait, AbsmCommandStack, AbsmEditorContext);
 
@@ -305,67 +305,112 @@ define_free_command!(DeleteStateCommand, StateDefinition, states);
 define_free_command!(DeletePoseNodeCommand, PoseNodeDefinition, nodes);
 define_free_command!(DeleteTransitionCommand, TransitionDefinition, transitions);
 
-#[derive(Debug)]
-pub struct AddInputCommand {
-    pub handle: Handle<PoseNodeDefinition>,
-    pub input: IndexedBlendInputDefinition,
-}
-
-impl AbsmCommandTrait for AddInputCommand {
-    fn name(&mut self, _context: &AbsmEditorContext) -> String {
-        "Add Input".to_string()
-    }
-
-    fn execute(&mut self, context: &mut AbsmEditorContext) {
-        match context.definition.nodes[self.handle] {
-            PoseNodeDefinition::BlendAnimationsByIndex(ref mut definition) => {
-                definition.inputs.push(self.input.clone());
-            }
-            _ => unreachable!(),
+#[macro_export]
+macro_rules! define_push_element_to_collection_command {
+    ($name:ident<$model_handle:ty, $value_type:ty>($self:ident, $context:ident) $get_collection:block) => {
+        #[derive(Debug)]
+        pub struct $name {
+            pub handle: $model_handle,
+            pub value: Option<$value_type>,
         }
-    }
 
-    fn revert(&mut self, context: &mut AbsmEditorContext) {
-        match context.definition.nodes[self.handle] {
-            PoseNodeDefinition::BlendAnimationsByIndex(ref mut definition) => {
-                definition.inputs.pop();
+        impl $name {
+            pub fn new(handle: $model_handle, value: $value_type) -> Self {
+                Self {
+                    handle,
+                    value: Some(value)
+                }
             }
-            _ => unreachable!(),
         }
-    }
-}
 
-#[derive(Debug)]
-pub struct SetBlendAnimationByIndexInputPoseSourceCommand {
-    pub handle: Handle<PoseNodeDefinition>,
-    pub index: usize,
-    pub pose_source: Handle<PoseNodeDefinition>,
-}
-
-impl SetBlendAnimationByIndexInputPoseSourceCommand {
-    pub fn swap(&mut self, context: &mut AbsmEditorContext) {
-        match context.definition.nodes[self.handle] {
-            PoseNodeDefinition::BlendAnimationsByIndex(ref mut definition) => {
-                std::mem::swap(
-                    &mut definition.inputs[self.index].pose_source,
-                    &mut self.pose_source,
-                );
+        impl AbsmCommandTrait for $name {
+            fn name(&mut self, _context: &AbsmEditorContext) -> String {
+                "Push Element To Collection".to_string()
             }
-            _ => unreachable!(),
+
+            fn execute(&mut $self, $context: &mut AbsmEditorContext) {
+                let collection = $get_collection;
+                collection.push($self.value.take().unwrap());
+            }
+
+            fn revert(&mut $self, $context: &mut AbsmEditorContext) {
+                let collection = $get_collection;
+                $self.value = Some(collection.pop().unwrap());
+            }
         }
-    }
+    };
 }
 
-impl AbsmCommandTrait for SetBlendAnimationByIndexInputPoseSourceCommand {
-    fn name(&mut self, _context: &AbsmEditorContext) -> String {
-        "Link Nodes".to_owned()
-    }
+#[macro_export]
+macro_rules! define_remove_collection_element_command {
+    ($name:ident<$model_handle:ty, $value_type:ty>($self:ident, $context:ident) $get_collection:block) => {
+        #[derive(Debug)]
+        pub struct $name {
+            handle: $model_handle,
+            index: usize,
+            value: Option<$value_type>,
+        }
 
-    fn execute(&mut self, context: &mut AbsmEditorContext) {
-        self.swap(context);
-    }
+        impl $name {
+            pub fn new(handle: $model_handle, index: usize) -> Self {
+                Self {
+                    handle,
+                    value: None,
+                    index
+                }
+            }
+        }
 
-    fn revert(&mut self, context: &mut AbsmEditorContext) {
-        self.swap(context);
-    }
+        impl AbsmCommandTrait for $name {
+            fn name(&mut self, _context: &AbsmEditorContext) -> String {
+                "Remove Collection Element".to_string()
+            }
+
+            fn execute(&mut $self, $context: &mut AbsmEditorContext) {
+                let collection = $get_collection;
+                $self.value = Some(collection.remove($self.index));
+            }
+
+            fn revert(&mut $self, $context: &mut AbsmEditorContext) {
+                let collection = $get_collection;
+                collection.insert($self.index, $self.value.take().unwrap())
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! define_set_collection_element_command {
+    ($name:ident<$model_handle:ty, $value_type:ty>($self:ident, $context:ident) $get_value:block) => {
+        #[derive(Debug)]
+        pub struct $name {
+            pub handle: $model_handle,
+            pub index: usize,
+            pub value: $value_type,
+        }
+
+        impl $name {
+            pub fn swap(&mut $self, $context: &mut AbsmEditorContext) {
+                let value = $get_value;
+                std::mem::swap(value, &mut $self.value);
+            }
+        }
+
+        impl AbsmCommandTrait for $name {
+            fn name(&mut self,
+                #[allow(unused_variables)]
+                $context: &AbsmEditorContext
+            ) -> String {
+                "Set Collection Element".to_owned()
+            }
+
+            fn execute(&mut self, $context: &mut AbsmEditorContext) {
+                self.swap($context);
+            }
+
+            fn revert(&mut self, $context: &mut AbsmEditorContext) {
+                self.swap($context);
+            }
+        }
+    };
 }
