@@ -235,7 +235,7 @@ impl StateViewer {
         }
 
         self.node_context_menu
-            .handle_ui_message(message, data_model, sender);
+            .handle_ui_message(message, data_model, sender, ui);
         self.canvas_context_menu
             .handle_ui_message(sender, message, self.state, ui);
         self.connection_context_menu

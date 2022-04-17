@@ -414,3 +414,32 @@ macro_rules! define_set_collection_element_command {
         }
     };
 }
+
+#[derive(Debug)]
+pub struct SetStateRootPoseCommand {
+    pub handle: Handle<StateDefinition>,
+    pub root: Handle<PoseNodeDefinition>,
+}
+
+impl SetStateRootPoseCommand {
+    fn swap(&mut self, context: &mut AbsmEditorContext) {
+        std::mem::swap(
+            &mut context.definition.states[self.handle].root,
+            &mut self.root,
+        );
+    }
+}
+
+impl AbsmCommandTrait for SetStateRootPoseCommand {
+    fn name(&mut self, _context: &AbsmEditorContext) -> String {
+        "Set State Root Pose".to_string()
+    }
+
+    fn execute(&mut self, context: &mut AbsmEditorContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut AbsmEditorContext) {
+        self.swap(context)
+    }
+}

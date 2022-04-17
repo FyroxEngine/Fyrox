@@ -1,6 +1,7 @@
 use crate::absm::command::blend::{
     SetBlendAnimationByIndexInputPoseSourceCommand, SetBlendAnimationsPoseSourceCommand,
 };
+use crate::absm::command::SetStateRootPoseCommand;
 use crate::{
     absm::{
         command::{
@@ -137,6 +138,7 @@ impl CanvasContextMenu {
 
 pub struct NodeContextMenu {
     remove: Handle<UiNode>,
+    set_as_root: Handle<UiNode>,
     pub menu: Handle<UiNode>,
     pub canvas: Handle<UiNode>,
     placement_target: Handle<UiNode>,
@@ -145,18 +147,27 @@ pub struct NodeContextMenu {
 impl NodeContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let remove;
+        let set_as_root;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
-                StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                    remove = create_menu_item("Remove", vec![], ctx);
-                    remove
-                }))
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            set_as_root = create_menu_item("Set As Root", vec![], ctx);
+                            set_as_root
+                        })
+                        .with_child({
+                            remove = create_menu_item("Remove", vec![], ctx);
+                            remove
+                        }),
+                )
                 .build(ctx),
             )
             .build(ctx);
 
         Self {
             remove,
+            set_as_root,
             menu,
             canvas: Default::default(),
             placement_target: Default::default(),
@@ -168,6 +179,7 @@ impl NodeContextMenu {
         message: &UiMessage,
         data_model: &AbsmDataModel,
         sender: &MessageSender,
+        ui: &UserInterface,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.remove {
@@ -184,6 +196,17 @@ impl NodeContextMenu {
                 }));
 
                 sender.do_command(CommandGroup::from(group));
+            } else if message.destination() == self.set_as_root {
+                let root = ui
+                    .node(self.placement_target)
+                    .query_component::<AbsmNode<PoseNodeDefinition>>()
+                    .unwrap()
+                    .model_handle;
+
+                sender.do_command(SetStateRootPoseCommand {
+                    handle: data_model.absm_definition.nodes[root].parent_state,
+                    root,
+                })
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu {
