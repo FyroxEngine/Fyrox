@@ -115,7 +115,7 @@ pub struct AbsmEditor {
 }
 
 impl AbsmEditor {
-    pub fn new(engine: &mut Engine) -> Self {
+    pub fn new(engine: &mut Engine, sender: Sender<Message>) -> Self {
         let (tx, rx) = channel();
 
         let previewer = Previewer::new(engine);
@@ -125,7 +125,7 @@ impl AbsmEditor {
 
         let menu = Menu::new(ctx);
 
-        let inspector = Inspector::new(ctx);
+        let inspector = Inspector::new(ctx, sender);
         let document = Document::new(ctx);
         let state_viewer = StateViewer::new(ctx);
 
@@ -212,12 +212,12 @@ impl AbsmEditor {
         }
     }
 
-    fn sync_to_model(&mut self, ui: &mut UserInterface, sender: Sender<Message>) {
+    fn sync_to_model(&mut self, ui: &mut UserInterface) {
         if let Some(data_model) = self.data_model.as_ref() {
             self.document.sync_to_model(data_model, ui);
             self.state_viewer
                 .sync_to_model(&data_model.absm_definition, ui, data_model);
-            self.inspector.sync_to_model(ui, data_model, sender);
+            self.inspector.sync_to_model(ui, data_model);
         }
     }
 
@@ -317,7 +317,7 @@ impl AbsmEditor {
         };
     }
 
-    pub fn update(&mut self, engine: &mut Engine, sender: Sender<Message>) {
+    pub fn update(&mut self, engine: &mut Engine) {
         let mut need_sync = false;
 
         while let Ok(message) = self.message_receiver.try_recv() {
@@ -359,7 +359,7 @@ impl AbsmEditor {
         }
 
         if need_sync {
-            self.sync_to_model(&mut engine.user_interface, sender);
+            self.sync_to_model(&mut engine.user_interface);
         }
 
         self.previewer.update(engine);

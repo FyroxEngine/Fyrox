@@ -15,7 +15,6 @@ use crate::{
 use std::{
     cell::{Ref, RefCell},
     ops::{Deref, DerefMut},
-    path::PathBuf,
 };
 
 /// Machine node that plays specified animation.
@@ -29,7 +28,7 @@ pub struct PlayAnimation {
 #[derive(Default, Debug, Visit, Clone, Inspect)]
 pub struct PlayAnimationDefinition {
     pub base: BasePoseNodeDefinition,
-    pub animation: PathBuf,
+    pub animation: String,
 }
 
 impl Deref for PlayAnimationDefinition {

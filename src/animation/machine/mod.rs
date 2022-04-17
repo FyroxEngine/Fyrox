@@ -240,7 +240,7 @@ impl MachineDefinition {
                         Err(e) => {
                             Log::err(format!(
                                 "Failed to load animation {} for PlayAnimation node {}. Reason: {:?}",
-                                play_animation.animation.display(),
+                                play_animation.animation,
                                 definition_handle,
                                 e
                             ));
