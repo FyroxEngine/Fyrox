@@ -1,4 +1,3 @@
-use crate::absm::state_viewer::context::ConnectionContextMenu;
 use crate::{
     absm::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
@@ -10,14 +9,14 @@ use crate::{
         message::MessageSender,
         node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
         socket::{Socket, SocketBuilder, SocketDirection},
-        state_viewer::context::{CanvasContextMenu, NodeContextMenu},
-        AbsmDataModel, SelectedEntity,
+        state_viewer::context::{CanvasContextMenu, ConnectionContextMenu, NodeContextMenu},
+        AbsmDataModel, SelectedEntity, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
     },
     send_sync_message,
 };
 use fyrox::{
     animation::machine::{node::PoseNodeDefinition, state::StateDefinition, MachineDefinition},
-    core::pool::Handle,
+    core::{color::Color, pool::Handle},
     gui::{
         border::BorderBuilder,
         message::{MessageDirection, UiMessage},
@@ -29,6 +28,9 @@ use fyrox::{
 use std::cmp::Ordering;
 
 mod context;
+
+const NORMAL_ROOT_COLOR: Color = Color::opaque(60, 80, 60);
+const SELECTED_ROOT_COLOR: Color = Color::opaque(80, 100, 80);
 
 pub struct StateViewer {
     pub window: Handle<UiNode>,
@@ -248,6 +250,12 @@ impl StateViewer {
         ui: &mut UserInterface,
         data_model: &AbsmDataModel,
     ) {
+        if self.state.is_none() {
+            return;
+        }
+
+        let parent_state_ref = &data_model.absm_definition.states[self.state];
+
         let mut views = ui
             .node(self.canvas)
             .children()
@@ -339,6 +347,16 @@ impl StateViewer {
                             pose_definition,
                             ui,
                         ))
+                        .with_normal_color(if pose_definition == parent_state_ref.root {
+                            NORMAL_ROOT_COLOR
+                        } else {
+                            NORMAL_BACKGROUND
+                        })
+                        .with_selected_color(if pose_definition == parent_state_ref.root {
+                            SELECTED_ROOT_COLOR
+                        } else {
+                            SELECTED_BACKGROUND
+                        })
                         .with_model_handle(pose_definition)
                         .build(&mut ui.build_ctx());
 
@@ -384,7 +402,8 @@ impl StateViewer {
                 .node(view)
                 .query_component::<AbsmNode<PoseNodeDefinition>>()
                 .unwrap();
-            let model_ref = &data_model.absm_definition.nodes[view_ref.model_handle];
+            let model_handle = view_ref.model_handle;
+            let model_ref = &data_model.absm_definition.nodes[model_handle];
             let children = model_ref.children();
             let position = view_ref.actual_local_position();
 
@@ -409,6 +428,33 @@ impl StateViewer {
                         view,
                         MessageDirection::ToWidget,
                         model_ref.position,
+                    ),
+                );
+            }
+
+            if model_ref.parent_state == self.state {
+                send_sync_message(
+                    ui,
+                    AbsmNodeMessage::normal_color(
+                        view,
+                        MessageDirection::ToWidget,
+                        if model_handle == parent_state_ref.root {
+                            NORMAL_ROOT_COLOR
+                        } else {
+                            NORMAL_BACKGROUND
+                        },
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    AbsmNodeMessage::selected_color(
+                        view,
+                        MessageDirection::ToWidget,
+                        if model_handle == parent_state_ref.root {
+                            SELECTED_ROOT_COLOR
+                        } else {
+                            SELECTED_BACKGROUND
+                        },
                     ),
                 );
             }
