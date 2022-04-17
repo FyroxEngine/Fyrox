@@ -10,13 +10,14 @@ use crate::{
         node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
         socket::{Socket, SocketBuilder, SocketDirection},
         state_viewer::context::{CanvasContextMenu, ConnectionContextMenu, NodeContextMenu},
-        AbsmDataModel, SelectedEntity, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
+        AbsmDataModel, SelectedEntity, NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND,
+        SELECTED_ROOT_COLOR,
     },
     send_sync_message,
 };
 use fyrox::{
     animation::machine::{node::PoseNodeDefinition, state::StateDefinition, MachineDefinition},
-    core::{color::Color, pool::Handle},
+    core::pool::Handle,
     gui::{
         border::BorderBuilder,
         message::{MessageDirection, UiMessage},
@@ -28,9 +29,6 @@ use fyrox::{
 use std::cmp::Ordering;
 
 mod context;
-
-const NORMAL_ROOT_COLOR: Color = Color::opaque(60, 80, 60);
-const SELECTED_ROOT_COLOR: Color = Color::opaque(80, 100, 80);
 
 pub struct StateViewer {
     pub window: Handle<UiNode>,

@@ -1,7 +1,9 @@
-use crate::absm::command::blend::AddPoseSourceCommand;
 use crate::{
     absm::{
-        command::{blend::AddInputCommand, AbsmCommand, AbsmCommandStack, AbsmEditorContext},
+        command::{
+            blend::{AddInputCommand, AddPoseSourceCommand},
+            AbsmCommand, AbsmCommandStack, AbsmEditorContext,
+        },
         inspector::Inspector,
         menu::Menu,
         message::{AbsmMessage, MessageSender},
@@ -13,10 +15,12 @@ use crate::{
     utils::{create_file_selector, open_file_selector},
     Message,
 };
-use fyrox::animation::machine::node::blend::BlendPoseDefinition;
 use fyrox::{
     animation::machine::{
-        node::{blend::IndexedBlendInputDefinition, PoseNodeDefinition},
+        node::{
+            blend::{BlendPoseDefinition, IndexedBlendInputDefinition},
+            PoseNodeDefinition,
+        },
         state::StateDefinition,
         transition::TransitionDefinition,
         MachineDefinition,
@@ -62,6 +66,8 @@ mod transition;
 const NORMAL_BACKGROUND: Color = Color::opaque(60, 60, 60);
 const SELECTED_BACKGROUND: Color = Color::opaque(80, 80, 80);
 const BORDER_COLOR: Color = Color::opaque(70, 70, 70);
+const NORMAL_ROOT_COLOR: Color = Color::opaque(40, 80, 0);
+const SELECTED_ROOT_COLOR: Color = Color::opaque(60, 100, 0);
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SelectedEntity {

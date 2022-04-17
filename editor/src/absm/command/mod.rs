@@ -443,3 +443,28 @@ impl AbsmCommandTrait for SetStateRootPoseCommand {
         self.swap(context)
     }
 }
+
+#[derive(Debug)]
+pub struct SetMachineEntryStateCommand {
+    pub entry: Handle<StateDefinition>,
+}
+
+impl SetMachineEntryStateCommand {
+    fn swap(&mut self, context: &mut AbsmEditorContext) {
+        std::mem::swap(&mut context.definition.entry_state, &mut self.entry);
+    }
+}
+
+impl AbsmCommandTrait for SetMachineEntryStateCommand {
+    fn name(&mut self, _context: &AbsmEditorContext) -> String {
+        "Set Entry State".to_string()
+    }
+
+    fn execute(&mut self, context: &mut AbsmEditorContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut AbsmEditorContext) {
+        self.swap(context)
+    }
+}

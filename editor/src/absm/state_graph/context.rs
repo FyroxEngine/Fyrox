@@ -3,9 +3,10 @@ use crate::{
         canvas::{AbsmCanvasMessage, Mode},
         command::{
             AbsmCommand, AddStateCommand, ChangeSelectionCommand, CommandGroup, DeleteStateCommand,
-            DeleteTransitionCommand,
+            DeleteTransitionCommand, SetMachineEntryStateCommand,
         },
         message::MessageSender,
+        node::AbsmNode,
         transition::Transition,
         AbsmDataModel, SelectedEntity,
     },
@@ -75,6 +76,7 @@ impl CanvasContextMenu {
 pub struct NodeContextMenu {
     create_transition: Handle<UiNode>,
     remove: Handle<UiNode>,
+    set_as_entry_state: Handle<UiNode>,
     pub menu: Handle<UiNode>,
     pub canvas: Handle<UiNode>,
     placement_target: Handle<UiNode>,
@@ -84,6 +86,7 @@ impl NodeContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let create_transition;
         let remove;
+        let set_as_entry_state;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
                 StackPanelBuilder::new(
@@ -95,6 +98,11 @@ impl NodeContextMenu {
                         .with_child({
                             remove = create_menu_item("Remove", vec![], ctx);
                             remove
+                        })
+                        .with_child({
+                            set_as_entry_state =
+                                create_menu_item("Set As Entry State", vec![], ctx);
+                            set_as_entry_state
                         }),
                 )
                 .build(ctx),
@@ -107,6 +115,7 @@ impl NodeContextMenu {
             remove,
             canvas: Default::default(),
             placement_target: Default::default(),
+            set_as_entry_state,
         }
     }
 
@@ -176,6 +185,14 @@ impl NodeContextMenu {
                 );
 
                 sender.do_command(CommandGroup::from(group));
+            } else if message.destination() == self.set_as_entry_state {
+                sender.do_command(SetMachineEntryStateCommand {
+                    entry: ui
+                        .node(self.placement_target)
+                        .query_component::<AbsmNode<StateDefinition>>()
+                        .unwrap()
+                        .model_handle,
+                });
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu {

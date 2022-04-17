@@ -9,7 +9,8 @@ use crate::{
         node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
         state_graph::context::{CanvasContextMenu, NodeContextMenu, TransitionContextMenu},
         transition::{Transition, TransitionBuilder},
-        AbsmDataModel, SelectedEntity,
+        AbsmDataModel, SelectedEntity, NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND,
+        SELECTED_ROOT_COLOR,
     },
     send_sync_message,
 };
@@ -206,6 +207,16 @@ impl Document {
                                 .with_context_menu(self.node_context_menu.menu)
                                 .with_desired_position(state.position),
                         )
+                        .with_normal_color(if state_handle == definition.entry_state {
+                            NORMAL_ROOT_COLOR
+                        } else {
+                            NORMAL_BACKGROUND
+                        })
+                        .with_selected_color(if state_handle == definition.entry_state {
+                            SELECTED_ROOT_COLOR
+                        } else {
+                            SELECTED_BACKGROUND
+                        })
                         .with_model_handle(state_handle)
                         .with_name(state.name.clone())
                         .build(&mut ui.build_ctx());
@@ -262,6 +273,7 @@ impl Document {
                 .node(*state)
                 .query_component::<AbsmNode<StateDefinition>>()
                 .unwrap();
+            let state_model_handle = state_node.model_handle;
             let state_model_ref = &definition.states[state_node.model_handle];
 
             if state_model_ref.name != state_node.name {
@@ -281,6 +293,31 @@ impl Document {
                     *state,
                     MessageDirection::ToWidget,
                     state_model_ref.position,
+                ),
+            );
+
+            send_sync_message(
+                ui,
+                AbsmNodeMessage::normal_color(
+                    *state,
+                    MessageDirection::ToWidget,
+                    if state_model_handle == definition.entry_state {
+                        NORMAL_ROOT_COLOR
+                    } else {
+                        NORMAL_BACKGROUND
+                    },
+                ),
+            );
+            send_sync_message(
+                ui,
+                AbsmNodeMessage::selected_color(
+                    *state,
+                    MessageDirection::ToWidget,
+                    if state_model_handle == definition.entry_state {
+                        SELECTED_ROOT_COLOR
+                    } else {
+                        SELECTED_BACKGROUND
+                    },
                 ),
             );
         }
