@@ -162,7 +162,6 @@ macro_rules! define_spawn_command {
     };
 }
 
-define_spawn_command!(AddPoseNodeCommand, PoseNodeDefinition, nodes);
 define_spawn_command!(AddTransitionCommand, TransitionDefinition, transitions);
 
 #[derive(Debug)]
@@ -248,6 +247,96 @@ impl AbsmCommandTrait for AddStateCommand {
             std::mem::replace(self, AddStateCommand::Unknown)
         {
             context.definition.states.forget_ticket(ticket)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum AddPoseNodeCommand {
+    Unknown,
+    NonExecuted {
+        node: PoseNodeDefinition,
+    },
+    Executed {
+        handle: Handle<PoseNodeDefinition>,
+        prev_root_node: Handle<PoseNodeDefinition>,
+    },
+    Reverted {
+        ticket: Ticket<PoseNodeDefinition>,
+        node: PoseNodeDefinition,
+    },
+}
+
+impl AddPoseNodeCommand {
+    pub fn new(node: PoseNodeDefinition) -> Self {
+        Self::NonExecuted { node }
+    }
+}
+
+impl AbsmCommandTrait for AddPoseNodeCommand {
+    fn name(&mut self, _context: &AbsmEditorContext) -> String {
+        "Add Pose Node".to_string()
+    }
+
+    fn execute(&mut self, context: &mut AbsmEditorContext) {
+        match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
+            AddPoseNodeCommand::NonExecuted { node } => {
+                let parent_state = node.parent_state;
+
+                let handle = context.definition.nodes.spawn(node);
+
+                let parent_state_ref = &mut context.definition.states[parent_state];
+                let prev_root_node = parent_state_ref.root;
+                if parent_state_ref.root.is_none() {
+                    parent_state_ref.root = handle;
+                }
+
+                *self = AddPoseNodeCommand::Executed {
+                    handle,
+                    prev_root_node,
+                };
+            }
+            AddPoseNodeCommand::Reverted { ticket, node } => {
+                let parent_state = node.parent_state;
+
+                let handle = context.definition.nodes.put_back(ticket, node);
+
+                let parent_state_ref = &mut context.definition.states[parent_state];
+                let prev_root_node = parent_state_ref.root;
+                if parent_state_ref.root.is_none() {
+                    parent_state_ref.root = handle;
+                }
+
+                *self = AddPoseNodeCommand::Executed {
+                    handle,
+                    prev_root_node,
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut AbsmEditorContext) {
+        match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
+            AddPoseNodeCommand::Executed {
+                handle,
+                prev_root_node,
+            } => {
+                let (ticket, node) = context.definition.nodes.take_reserve(handle);
+
+                context.definition.states[node.parent_state].root = prev_root_node;
+
+                *self = AddPoseNodeCommand::Reverted { ticket, node }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn finalize(&mut self, context: &mut AbsmEditorContext) {
+        if let AddPoseNodeCommand::Reverted { ticket, .. } =
+            std::mem::replace(self, AddPoseNodeCommand::Unknown)
+        {
+            context.definition.nodes.forget_ticket(ticket)
         }
     }
 }
