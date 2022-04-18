@@ -1,3 +1,6 @@
+//! Shows how to create a grid widget with some content that is buttom-right anchored.
+//! It also shows how to automatically adjust UI to new window size.
+
 use fyrox::{
     core::pool::Handle,
     engine::{framework::prelude::*, Engine},
@@ -62,12 +65,12 @@ impl GameState for Game {
 
     fn on_window_event(&mut self, engine: &mut Engine, event: WindowEvent) {
         if let WindowEvent::Resized(size) = event {
+            // Adjust size of the root grid to make sure it equals to the size of screen.
             engine.user_interface.send_message(WidgetMessage::width(
                 self.grid,
                 MessageDirection::ToWidget,
                 size.width as f32,
             ));
-
             engine.user_interface.send_message(WidgetMessage::height(
                 self.grid,
                 MessageDirection::ToWidget,
@@ -80,6 +83,6 @@ impl GameState for Game {
 fn main() {
     Framework::<Game>::new()
         .unwrap()
-        .title("Example - Grid")
+        .title("Example - Right Anchored Button")
         .run();
 }
