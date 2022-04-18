@@ -162,9 +162,95 @@ macro_rules! define_spawn_command {
     };
 }
 
-define_spawn_command!(AddStateCommand, StateDefinition, states);
 define_spawn_command!(AddPoseNodeCommand, PoseNodeDefinition, nodes);
 define_spawn_command!(AddTransitionCommand, TransitionDefinition, transitions);
+
+#[derive(Debug)]
+pub enum AddStateCommand {
+    Unknown,
+    NonExecuted {
+        state: StateDefinition,
+    },
+    Executed {
+        handle: Handle<StateDefinition>,
+        prev_entry_state: Handle<StateDefinition>,
+    },
+    Reverted {
+        ticket: Ticket<StateDefinition>,
+        state: StateDefinition,
+    },
+}
+
+impl AddStateCommand {
+    pub fn new(state: StateDefinition) -> Self {
+        Self::NonExecuted { state }
+    }
+}
+
+impl AbsmCommandTrait for AddStateCommand {
+    fn name(&mut self, _context: &AbsmEditorContext) -> String {
+        "Add State".to_string()
+    }
+
+    fn execute(&mut self, context: &mut AbsmEditorContext) {
+        match std::mem::replace(self, AddStateCommand::Unknown) {
+            AddStateCommand::NonExecuted { state } => {
+                let handle = context.definition.states.spawn(state);
+
+                let prev_entry_state = context.definition.entry_state;
+
+                // Set entry state if it wasn't set yet.
+                if context.definition.entry_state.is_none() {
+                    context.definition.entry_state = handle;
+                }
+
+                *self = AddStateCommand::Executed {
+                    handle,
+                    prev_entry_state,
+                };
+            }
+            AddStateCommand::Reverted { ticket, state } => {
+                let handle = context.definition.states.put_back(ticket, state);
+
+                let prev_entry_state = context.definition.entry_state;
+
+                // Set entry state if it wasn't set yet.
+                if context.definition.entry_state.is_none() {
+                    context.definition.entry_state = handle;
+                }
+
+                *self = AddStateCommand::Executed {
+                    handle,
+                    prev_entry_state,
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut AbsmEditorContext) {
+        match std::mem::replace(self, AddStateCommand::Unknown) {
+            AddStateCommand::Executed {
+                handle,
+                prev_entry_state,
+            } => {
+                context.definition.entry_state = prev_entry_state;
+
+                let (ticket, state) = context.definition.states.take_reserve(handle);
+                *self = AddStateCommand::Reverted { ticket, state }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn finalize(&mut self, context: &mut AbsmEditorContext) {
+        if let AddStateCommand::Reverted { ticket, .. } =
+            std::mem::replace(self, AddStateCommand::Unknown)
+        {
+            context.definition.states.forget_ticket(ticket)
+        }
+    }
+}
 
 macro_rules! define_move_command {
     ($name:ident, $ent_type:ty, $container:ident) => {

@@ -390,7 +390,7 @@ where
         let background = BorderBuilder::new(
             WidgetBuilder::new()
                 .with_foreground(Brush::Solid(BORDER_COLOR))
-                .with_background(Brush::Solid(NORMAL_BACKGROUND))
+                .with_background(Brush::Solid(self.normal_color))
                 .with_child(grid2),
         )
         .build(ctx);

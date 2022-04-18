@@ -157,6 +157,13 @@ impl StateViewer {
             MessageDirection::ToWidget,
             exists,
         ));
+
+        if state.is_none() {
+            // Clear canvas if state wasn't specified.
+            for &child in ui.node(self.canvas).children() {
+                ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+            }
+        }
     }
 
     pub fn handle_ui_message(

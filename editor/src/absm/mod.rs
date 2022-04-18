@@ -264,10 +264,14 @@ impl AbsmEditor {
         }
     }
 
-    fn create_new_absm(&mut self) {
+    fn create_new_absm(&mut self, engine: &mut Engine) {
         self.clear_command_stack();
 
-        self.data_model = Some(AbsmDataModel::default());
+        let data_model = AbsmDataModel::default();
+        self.state_viewer
+            .set_state(Handle::NONE, &data_model, &engine.user_interface);
+        self.data_model = Some(data_model);
+        self.previewer.panel.clear(engine);
     }
 
     fn open_save_dialog(&self, ui: &UserInterface) {
@@ -341,7 +345,7 @@ impl AbsmEditor {
                     need_sync |= self.clear_command_stack();
                 }
                 AbsmMessage::CreateNewAbsm => {
-                    self.create_new_absm();
+                    self.create_new_absm(engine);
                     need_sync = true;
                 }
                 AbsmMessage::LoadAbsm => {
