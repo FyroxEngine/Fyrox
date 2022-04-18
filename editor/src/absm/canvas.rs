@@ -76,6 +76,7 @@ pub(super) enum AbsmCanvasMessage {
         entries: Vec<Entry>,
     },
     SelectionChanged(Vec<Handle<UiNode>>),
+    ForceSyncDependentObjects,
 }
 
 impl AbsmCanvasMessage {
@@ -84,6 +85,7 @@ impl AbsmCanvasMessage {
     define_constructor!(AbsmCanvasMessage:CommitConnection => fn commit_connection(source_socket: Handle<UiNode>, dest_socket: Handle<UiNode>), layout: false);
     define_constructor!(AbsmCanvasMessage:CommitDrag => fn commit_drag(entries: Vec<Entry>), layout: false);
     define_constructor!(AbsmCanvasMessage:SelectionChanged => fn selection_changed(Vec<Handle<UiNode>>), layout: false);
+    define_constructor!(AbsmCanvasMessage:ForceSyncDependentObjects => fn force_sync_dependent_objects(), layout: true);
 }
 
 #[derive(Clone)]
@@ -193,14 +195,14 @@ impl AbsmCanvas {
         }
     }
 
-    fn sync_connections_ends(&self, moved_node: Handle<UiNode>, ui: &UserInterface) {
+    fn sync_connections_ends(&self, moved_node: Handle<UiNode>, ui: &UserInterface, force: bool) {
         // Sync ends of each connection.
         for connection in self
             .children()
             .iter()
             .filter_map(|c| ui.node(*c).query_component::<Connection>())
         {
-            if connection.source_node == moved_node {
+            if connection.source_node == moved_node || force {
                 let source_pos = self
                     .screen_to_local(fetch_node_screen_center_ui(connection.segment.source, ui));
                 ui.send_message(SegmentMessage::source_position(
@@ -208,7 +210,7 @@ impl AbsmCanvas {
                     MessageDirection::ToWidget,
                     source_pos,
                 ));
-            } else if connection.dest_node == moved_node {
+            } else if connection.dest_node == moved_node || force {
                 let dest_pos =
                     self.screen_to_local(fetch_node_screen_center_ui(connection.segment.dest, ui));
                 ui.send_message(SegmentMessage::dest_position(
@@ -220,7 +222,7 @@ impl AbsmCanvas {
         }
     }
 
-    fn sync_transitions_ends(&self, moved_node: Handle<UiNode>, ui: &UserInterface) {
+    fn sync_transitions_ends(&self, moved_node: Handle<UiNode>, ui: &UserInterface, force: bool) {
         // Sync ends of each transition.
         // Check if any node has moved and sync ends accordingly.
         for transition in self
@@ -228,7 +230,10 @@ impl AbsmCanvas {
             .iter()
             .filter_map(|c| ui.node(*c).query_component::<Transition>())
         {
-            if moved_node == transition.segment.source || moved_node == transition.segment.dest {
+            if force
+                || moved_node == transition.segment.source
+                || moved_node == transition.segment.dest
+            {
                 // Find other transitions sharing the same source and dest nodes (in both directions).
                 for (i, transition_handle) in self
                     .children()
@@ -277,6 +282,11 @@ impl AbsmCanvas {
                 }
             }
         }
+    }
+
+    fn force_sync_dependent_objects(&self, ui: &UserInterface) {
+        self.sync_transitions_ends(Handle::NONE, ui, true);
+        self.sync_connections_ends(Handle::NONE, ui, true);
     }
 }
 
@@ -574,6 +584,9 @@ impl Control for AbsmCanvas {
                     AbsmCanvasMessage::SelectionChanged(new_selection) => {
                         self.set_selection(new_selection, ui);
                     }
+                    AbsmCanvasMessage::ForceSyncDependentObjects => {
+                        self.force_sync_dependent_objects(ui);
+                    }
                     _ => (),
                 }
             }
@@ -600,8 +613,8 @@ impl Control for AbsmCanvas {
                 .has_component::<AbsmBaseNode>()
             {
                 let moved_node = message.destination();
-                self.sync_connections_ends(moved_node, ui);
-                self.sync_transitions_ends(moved_node, ui);
+                self.sync_connections_ends(moved_node, ui, false);
+                self.sync_transitions_ends(moved_node, ui, false);
             }
         }
     }

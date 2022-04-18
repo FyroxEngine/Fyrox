@@ -551,5 +551,13 @@ impl StateViewer {
                 new_selection,
             ),
         );
+
+        send_sync_message(
+            ui,
+            AbsmCanvasMessage::force_sync_dependent_objects(
+                self.canvas,
+                MessageDirection::ToWidget,
+            ),
+        );
     }
 }
