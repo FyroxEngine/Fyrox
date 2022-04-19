@@ -803,8 +803,8 @@ impl AnimationContainer {
     }
 
     #[inline]
-    pub fn remove(&mut self, handle: Handle<Animation>) {
-        self.pool.free(handle);
+    pub fn remove(&mut self, handle: Handle<Animation>) -> Animation {
+        self.pool.free(handle)
     }
 
     /// Extracts animation from container and reserves its handle. It is used to temporarily take
