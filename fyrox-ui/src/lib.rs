@@ -200,6 +200,54 @@ impl Thickness {
             bottom: 0.0,
         }
     }
+    pub fn top_right(v: f32) -> Self {
+        Self {
+            left: 0.0,
+            top: v,
+            right: v,
+            bottom: 0.0,
+        }
+    }
+    pub fn top_left(v: f32) -> Self {
+        Self {
+            left: v,
+            top: v,
+            right: 0.0,
+            bottom: 0.0,
+        }
+    }
+    pub fn bottom_right(v: f32) -> Self {
+        Self {
+            left: 0.0,
+            top: 0.0,
+            right: v,
+            bottom: v,
+        }
+    }
+    pub fn bottom_left(v: f32) -> Self {
+        Self {
+            left: v,
+            top: 0.0,
+            right: 0.0,
+            bottom: v,
+        }
+    }
+    pub fn top_bottom(v: f32) -> Self {
+        Self {
+            left: 0.0,
+            top: v,
+            right: 0.0,
+            bottom: v,
+        }
+    }
+    pub fn left_right(v: f32) -> Self {
+        Self {
+            left: v,
+            top: 0.0,
+            right: v,
+            bottom: 0.0,
+        }
+    }
 
     pub fn offset(&self) -> Vector2<f32> {
         Vector2::new(self.left, self.top)
