@@ -1,6 +1,9 @@
 use crate::{
     absm::{
-        command::{AbsmCommand, AbsmCommandStack, AbsmEditorContext, AddInputCommand},
+        command::{
+            blend::{AddInputCommand, AddPoseSourceCommand},
+            AbsmCommand, AbsmCommandStack, AbsmEditorContext,
+        },
         inspector::Inspector,
         menu::Menu,
         message::{AbsmMessage, MessageSender},
@@ -14,7 +17,10 @@ use crate::{
 };
 use fyrox::{
     animation::machine::{
-        node::{blend::IndexedBlendInputDefinition, PoseNodeDefinition},
+        node::{
+            blend::{BlendPoseDefinition, IndexedBlendInputDefinition},
+            PoseNodeDefinition,
+        },
         state::StateDefinition,
         transition::TransitionDefinition,
         MachineDefinition,
@@ -60,6 +66,8 @@ mod transition;
 const NORMAL_BACKGROUND: Color = Color::opaque(60, 60, 60);
 const SELECTED_BACKGROUND: Color = Color::opaque(80, 80, 80);
 const BORDER_COLOR: Color = Color::opaque(70, 70, 70);
+const NORMAL_ROOT_COLOR: Color = Color::opaque(40, 80, 0);
+const SELECTED_ROOT_COLOR: Color = Color::opaque(60, 100, 0);
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SelectedEntity {
@@ -113,7 +121,7 @@ pub struct AbsmEditor {
 }
 
 impl AbsmEditor {
-    pub fn new(engine: &mut Engine) -> Self {
+    pub fn new(engine: &mut Engine, sender: Sender<Message>) -> Self {
         let (tx, rx) = channel();
 
         let previewer = Previewer::new(engine);
@@ -123,7 +131,7 @@ impl AbsmEditor {
 
         let menu = Menu::new(ctx);
 
-        let inspector = Inspector::new(ctx);
+        let inspector = Inspector::new(ctx, sender);
         let document = Document::new(ctx);
         let state_viewer = StateViewer::new(ctx);
 
@@ -210,12 +218,12 @@ impl AbsmEditor {
         }
     }
 
-    fn sync_to_model(&mut self, ui: &mut UserInterface, sender: Sender<Message>) {
+    fn sync_to_model(&mut self, ui: &mut UserInterface) {
         if let Some(data_model) = self.data_model.as_ref() {
             self.document.sync_to_model(data_model, ui);
             self.state_viewer
                 .sync_to_model(&data_model.absm_definition, ui, data_model);
-            self.inspector.sync_to_model(ui, data_model, sender);
+            self.inspector.sync_to_model(ui, data_model);
         }
     }
 
@@ -256,10 +264,14 @@ impl AbsmEditor {
         }
     }
 
-    fn create_new_absm(&mut self) {
+    fn create_new_absm(&mut self, engine: &mut Engine) {
         self.clear_command_stack();
 
-        self.data_model = Some(AbsmDataModel::default());
+        let data_model = AbsmDataModel::default();
+        self.state_viewer
+            .set_state(Handle::NONE, &data_model, &engine.user_interface);
+        self.data_model = Some(data_model);
+        self.previewer.panel.clear(engine);
     }
 
     fn open_save_dialog(&self, ui: &UserInterface) {
@@ -315,7 +327,7 @@ impl AbsmEditor {
         };
     }
 
-    pub fn update(&mut self, engine: &mut Engine, sender: Sender<Message>) {
+    pub fn update(&mut self, engine: &mut Engine) {
         let mut need_sync = false;
 
         while let Ok(message) = self.message_receiver.try_recv() {
@@ -333,7 +345,7 @@ impl AbsmEditor {
                     need_sync |= self.clear_command_stack();
                 }
                 AbsmMessage::CreateNewAbsm => {
-                    self.create_new_absm();
+                    self.create_new_absm(engine);
                     need_sync = true;
                 }
                 AbsmMessage::LoadAbsm => {
@@ -357,7 +369,7 @@ impl AbsmEditor {
         }
 
         if need_sync {
-            self.sync_to_model(&mut engine.user_interface, sender);
+            self.sync_to_model(&mut engine.user_interface);
         }
 
         self.previewer.update(engine);
@@ -408,13 +420,16 @@ impl AbsmEditor {
                                     // No input sockets
                                 }
                                 PoseNodeDefinition::BlendAnimations(_) => {
-                                    // TODO
+                                    self.message_sender.do_command(AddPoseSourceCommand::new(
+                                        node.model_handle,
+                                        BlendPoseDefinition::default(),
+                                    ));
                                 }
                                 PoseNodeDefinition::BlendAnimationsByIndex(_) => {
-                                    self.message_sender.do_command(AddInputCommand {
-                                        handle: node.model_handle,
-                                        input: IndexedBlendInputDefinition::default(),
-                                    })
+                                    self.message_sender.do_command(AddInputCommand::new(
+                                        node.model_handle,
+                                        IndexedBlendInputDefinition::default(),
+                                    ));
                                 }
                             }
                         }

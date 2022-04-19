@@ -124,7 +124,11 @@ impl Control for DropdownList {
                         self.items = items.clone();
                     }
                     &DropdownListMessage::AddItem(item) => {
-                        ListViewMessage::add_item(self.list_view, MessageDirection::ToWidget, item);
+                        ui.send_message(ListViewMessage::add_item(
+                            self.list_view,
+                            MessageDirection::ToWidget,
+                            item,
+                        ));
                         self.items.push(item);
                     }
                     &DropdownListMessage::SelectionChanged(selection) => {

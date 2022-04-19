@@ -1574,6 +1574,22 @@ impl UserInterface {
                                 self.remove_node(message.destination());
                             }
                         }
+                        WidgetMessage::ContextMenu(context_menu) => {
+                            if message.destination().is_some() {
+                                let node = self.nodes.borrow_mut(message.destination());
+
+                                let prev_context_menu = node.context_menu();
+
+                                node.set_context_menu(*context_menu);
+
+                                if prev_context_menu.is_some() {
+                                    self.send_message(WidgetMessage::remove(
+                                        prev_context_menu,
+                                        MessageDirection::ToWidget,
+                                    ));
+                                }
+                            }
+                        }
                         WidgetMessage::Center => {
                             if message.destination().is_some() {
                                 let node = self.node(message.destination());

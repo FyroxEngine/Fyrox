@@ -677,7 +677,7 @@ impl Editor {
 
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
 
-        let absm_editor = AbsmEditor::new(&mut engine);
+        let absm_editor = AbsmEditor::new(&mut engine, message_sender.clone());
 
         let material_editor = MaterialEditor::new(&mut engine);
 
@@ -1487,8 +1487,7 @@ impl Editor {
 
         self.engine.pre_update(dt);
 
-        self.absm_editor
-            .update(&mut self.engine, self.message_sender.clone());
+        self.absm_editor.update(&mut self.engine);
         self.log.update(&mut self.engine);
 
         if let Mode::Play { scene, .. } = self.mode {

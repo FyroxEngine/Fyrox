@@ -7,9 +7,10 @@ use crate::{
         },
         message::MessageSender,
         node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
-        state_graph::context::{CanvasContextMenu, NodeContextMenu},
+        state_graph::context::{CanvasContextMenu, NodeContextMenu, TransitionContextMenu},
         transition::{Transition, TransitionBuilder},
-        AbsmDataModel, SelectedEntity,
+        AbsmDataModel, SelectedEntity, NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND,
+        SELECTED_ROOT_COLOR,
     },
     send_sync_message,
 };
@@ -33,6 +34,7 @@ pub struct Document {
     pub canvas: Handle<UiNode>,
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,
+    transition_context_menu: TransitionContextMenu,
 }
 
 fn fetch_state_node_model_handle(
@@ -49,6 +51,7 @@ impl Document {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let mut node_context_menu = NodeContextMenu::new(ctx);
         let mut canvas_context_menu = CanvasContextMenu::new(ctx);
+        let transition_context_menu = TransitionContextMenu::new(ctx);
 
         let canvas = AbsmCanvasBuilder::new(
             WidgetBuilder::new().with_context_menu(canvas_context_menu.menu),
@@ -78,6 +81,7 @@ impl Document {
             canvas,
             node_context_menu,
             canvas_context_menu,
+            transition_context_menu,
         }
     }
 
@@ -158,6 +162,8 @@ impl Document {
             .handle_ui_message(message, ui, data_model, sender);
         self.canvas_context_menu
             .handle_ui_message(sender, message, ui);
+        self.transition_context_menu
+            .handle_ui_message(message, ui, sender);
     }
 
     pub fn sync_to_model(&mut self, data_model: &AbsmDataModel, ui: &mut UserInterface) {
@@ -201,6 +207,16 @@ impl Document {
                                 .with_context_menu(self.node_context_menu.menu)
                                 .with_desired_position(state.position),
                         )
+                        .with_normal_color(if state_handle == definition.entry_state {
+                            NORMAL_ROOT_COLOR
+                        } else {
+                            NORMAL_BACKGROUND
+                        })
+                        .with_selected_color(if state_handle == definition.entry_state {
+                            SELECTED_ROOT_COLOR
+                        } else {
+                            SELECTED_BACKGROUND
+                        })
                         .with_model_handle(state_handle)
                         .with_name(state.name.clone())
                         .build(&mut ui.build_ctx());
@@ -257,6 +273,7 @@ impl Document {
                 .node(*state)
                 .query_component::<AbsmNode<StateDefinition>>()
                 .unwrap();
+            let state_model_handle = state_node.model_handle;
             let state_model_ref = &definition.states[state_node.model_handle];
 
             if state_model_ref.name != state_node.name {
@@ -276,6 +293,31 @@ impl Document {
                     *state,
                     MessageDirection::ToWidget,
                     state_model_ref.position,
+                ),
+            );
+
+            send_sync_message(
+                ui,
+                AbsmNodeMessage::normal_color(
+                    *state,
+                    MessageDirection::ToWidget,
+                    if state_model_handle == definition.entry_state {
+                        NORMAL_ROOT_COLOR
+                    } else {
+                        NORMAL_BACKGROUND
+                    },
+                ),
+            );
+            send_sync_message(
+                ui,
+                AbsmNodeMessage::selected_color(
+                    *state,
+                    MessageDirection::ToWidget,
+                    if state_model_handle == definition.entry_state {
+                        SELECTED_ROOT_COLOR
+                    } else {
+                        SELECTED_BACKGROUND
+                    },
                 ),
             );
         }
@@ -316,10 +358,13 @@ impl Document {
                                 .unwrap_or_default()
                         }
 
-                        let transition_view = TransitionBuilder::new(WidgetBuilder::new())
-                            .with_source(find_state_view(transition.source, &states, ui))
-                            .with_dest(find_state_view(transition.dest, &states, ui))
-                            .build(transition_handle, &mut ui.build_ctx());
+                        let transition_view = TransitionBuilder::new(
+                            WidgetBuilder::new()
+                                .with_context_menu(self.transition_context_menu.menu),
+                        )
+                        .with_source(find_state_view(transition.source, &states, ui))
+                        .with_dest(find_state_view(transition.dest, &states, ui))
+                        .build(transition_handle, &mut ui.build_ctx());
 
                         send_sync_message(
                             ui,
@@ -409,6 +454,14 @@ impl Document {
                 self.canvas,
                 MessageDirection::ToWidget,
                 new_selection,
+            ),
+        );
+
+        send_sync_message(
+            ui,
+            AbsmCanvasMessage::force_sync_dependent_objects(
+                self.canvas,
+                MessageDirection::ToWidget,
             ),
         );
     }

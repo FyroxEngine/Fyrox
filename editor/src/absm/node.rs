@@ -41,6 +41,8 @@ where
     pub base: AbsmBaseNode,
     pub add_input: Handle<UiNode>,
     input_sockets_panel: Handle<UiNode>,
+    normal_color: Color,
+    selected_color: Color,
 }
 
 impl<T> Clone for AbsmNode<T>
@@ -57,6 +59,8 @@ where
             base: self.base.clone(),
             add_input: self.add_input,
             input_sockets_panel: self.input_sockets_panel,
+            normal_color: self.normal_color,
+            selected_color: self.selected_color,
         }
     }
 }
@@ -81,12 +85,31 @@ where
     }
 }
 
+impl<T> AbsmNode<T>
+where
+    T: 'static,
+{
+    fn update_colors(&self, ui: &UserInterface) {
+        ui.send_message(WidgetMessage::background(
+            self.background,
+            MessageDirection::ToWidget,
+            Brush::Solid(if self.selectable.selected {
+                self.selected_color
+            } else {
+                self.normal_color
+            }),
+        ));
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum AbsmNodeMessage {
     Name(String),
     Enter,
     AddInput,
     InputSockets(Vec<Handle<UiNode>>),
+    NormalColor(Color),
+    SelectedColor(Color),
 }
 
 impl AbsmNodeMessage {
@@ -94,6 +117,8 @@ impl AbsmNodeMessage {
     define_constructor!(AbsmNodeMessage:Enter => fn enter(), layout: false);
     define_constructor!(AbsmNodeMessage:AddInput => fn add_input(), layout: false);
     define_constructor!(AbsmNodeMessage:InputSockets => fn input_sockets(Vec<Handle<UiNode>>), layout: false);
+    define_constructor!(AbsmNodeMessage:NormalColor => fn normal_color(Color), layout: false);
+    define_constructor!(AbsmNodeMessage:SelectedColor => fn selected_color(Color), layout: false);
 }
 
 impl<T> Control for AbsmNode<T>
@@ -121,16 +146,7 @@ where
             if message.destination() == self.handle()
                 && message.direction() == MessageDirection::FromWidget
             {
-                ui.send_message(WidgetMessage::background(
-                    self.background,
-                    MessageDirection::ToWidget,
-                    Brush::Solid(if *selected {
-                        SELECTED_BACKGROUND
-                    } else {
-                        NORMAL_BACKGROUND
-                    }),
-                ));
-
+                self.update_colors(ui);
                 if *selected {
                     ui.send_message(WidgetMessage::topmost(
                         self.handle(),
@@ -152,24 +168,45 @@ where
                     MessageDirection::FromWidget,
                 ));
             }
-        } else if let Some(AbsmNodeMessage::InputSockets(input_sockets)) = message.data() {
+        } else if let Some(msg) = message.data::<AbsmNodeMessage>() {
             if message.destination == self.handle()
                 && message.direction() == MessageDirection::ToWidget
-                && input_sockets != &self.base.input_sockets
             {
-                for &child in ui.node(self.input_sockets_panel).children() {
-                    ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
-                }
+                match msg {
+                    AbsmNodeMessage::InputSockets(input_sockets) => {
+                        if input_sockets != &self.base.input_sockets {
+                            for &child in ui.node(self.input_sockets_panel).children() {
+                                ui.send_message(WidgetMessage::remove(
+                                    child,
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
 
-                for &socket in input_sockets {
-                    ui.send_message(WidgetMessage::link(
-                        socket,
-                        MessageDirection::ToWidget,
-                        self.input_sockets_panel,
-                    ));
-                }
+                            for &socket in input_sockets {
+                                ui.send_message(WidgetMessage::link(
+                                    socket,
+                                    MessageDirection::ToWidget,
+                                    self.input_sockets_panel,
+                                ));
+                            }
 
-                self.base.input_sockets = input_sockets.clone();
+                            self.base.input_sockets = input_sockets.clone();
+                        }
+                    }
+                    AbsmNodeMessage::NormalColor(color) => {
+                        if &self.normal_color != color {
+                            self.normal_color = *color;
+                            self.update_colors(ui);
+                        }
+                    }
+                    AbsmNodeMessage::SelectedColor(color) => {
+                        if &self.selected_color != color {
+                            self.selected_color = *color;
+                            self.update_colors(ui);
+                        }
+                    }
+                    _ => (),
+                }
             }
         }
     }
@@ -186,6 +223,8 @@ where
     output_socket: Handle<UiNode>,
     can_add_sockets: bool,
     title: Option<String>,
+    normal_color: Color,
+    selected_color: Color,
 }
 
 impl<T> AbsmNodeBuilder<T>
@@ -201,6 +240,8 @@ where
             output_socket: Default::default(),
             can_add_sockets: false,
             title: None,
+            normal_color: NORMAL_BACKGROUND,
+            selected_color: SELECTED_BACKGROUND,
         }
     }
 
@@ -231,6 +272,16 @@ where
 
     pub fn with_title(mut self, title: String) -> Self {
         self.title = Some(title);
+        self
+    }
+
+    pub fn with_normal_color(mut self, color: Color) -> Self {
+        self.normal_color = color;
+        self
+    }
+
+    pub fn with_selected_color(mut self, color: Color) -> Self {
+        self.selected_color = color;
         self
     }
 
@@ -339,7 +390,7 @@ where
         let background = BorderBuilder::new(
             WidgetBuilder::new()
                 .with_foreground(Brush::Solid(BORDER_COLOR))
-                .with_background(Brush::Solid(NORMAL_BACKGROUND))
+                .with_background(Brush::Solid(self.normal_color))
                 .with_child(grid2),
         )
         .build(ctx);
@@ -356,6 +407,8 @@ where
             },
             add_input,
             input_sockets_panel,
+            normal_color: self.normal_color,
+            selected_color: self.selected_color,
         };
 
         ctx.add_node(UiNode::new(node))

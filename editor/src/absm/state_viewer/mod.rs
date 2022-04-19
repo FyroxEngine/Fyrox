@@ -2,15 +2,16 @@ use crate::{
     absm::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
         command::{
-            AbsmCommand, ChangeSelectionCommand, CommandGroup, MovePoseNodeCommand,
-            SetBlendAnimationByIndexInputPoseSourceCommand,
+            blend::SetBlendAnimationByIndexInputPoseSourceCommand, AbsmCommand,
+            ChangeSelectionCommand, CommandGroup, MovePoseNodeCommand,
         },
         connection::{Connection, ConnectionBuilder},
         message::MessageSender,
         node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
         socket::{Socket, SocketBuilder, SocketDirection},
-        state_viewer::context::{CanvasContextMenu, NodeContextMenu},
-        AbsmDataModel, SelectedEntity,
+        state_viewer::context::{CanvasContextMenu, ConnectionContextMenu, NodeContextMenu},
+        AbsmDataModel, SelectedEntity, NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND,
+        SELECTED_ROOT_COLOR,
     },
     send_sync_message,
 };
@@ -35,6 +36,7 @@ pub struct StateViewer {
     state: Handle<StateDefinition>,
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,
+    connection_context_menu: ConnectionContextMenu,
 }
 
 fn create_socket(
@@ -85,6 +87,7 @@ impl StateViewer {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let mut node_context_menu = NodeContextMenu::new(ctx);
         let mut canvas_context_menu = CanvasContextMenu::new(ctx);
+        let connection_context_menu = ConnectionContextMenu::new(ctx);
 
         let canvas = AbsmCanvasBuilder::new(
             WidgetBuilder::new().with_context_menu(canvas_context_menu.menu),
@@ -114,6 +117,7 @@ impl StateViewer {
             state: Default::default(),
             canvas_context_menu,
             node_context_menu,
+            connection_context_menu,
         }
     }
 
@@ -153,6 +157,13 @@ impl StateViewer {
             MessageDirection::ToWidget,
             exists,
         ));
+
+        if state.is_none() {
+            // Clear canvas if state wasn't specified.
+            for &child in ui.node(self.canvas).children() {
+                ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+            }
+        }
     }
 
     pub fn handle_ui_message(
@@ -220,7 +231,7 @@ impl StateViewer {
                                 sender.do_command(SetBlendAnimationByIndexInputPoseSourceCommand {
                                     handle: dest_node,
                                     index: dest_socket_ref.index,
-                                    pose_source: source_node,
+                                    value: source_node,
                                 });
                             }
                         }
@@ -231,9 +242,11 @@ impl StateViewer {
         }
 
         self.node_context_menu
-            .handle_ui_message(message, data_model, sender);
+            .handle_ui_message(message, data_model, sender, ui);
         self.canvas_context_menu
             .handle_ui_message(sender, message, self.state, ui);
+        self.connection_context_menu
+            .handle_ui_message(message, ui, sender, data_model);
     }
 
     pub fn sync_to_model(
@@ -242,6 +255,12 @@ impl StateViewer {
         ui: &mut UserInterface,
         data_model: &AbsmDataModel,
     ) {
+        if self.state.is_none() {
+            return;
+        }
+
+        let parent_state_ref = &data_model.absm_definition.states[self.state];
+
         let mut views = ui
             .node(self.canvas)
             .children()
@@ -333,6 +352,16 @@ impl StateViewer {
                             pose_definition,
                             ui,
                         ))
+                        .with_normal_color(if pose_definition == parent_state_ref.root {
+                            NORMAL_ROOT_COLOR
+                        } else {
+                            NORMAL_BACKGROUND
+                        })
+                        .with_selected_color(if pose_definition == parent_state_ref.root {
+                            SELECTED_ROOT_COLOR
+                        } else {
+                            SELECTED_BACKGROUND
+                        })
                         .with_model_handle(pose_definition)
                         .build(&mut ui.build_ctx());
 
@@ -378,8 +407,10 @@ impl StateViewer {
                 .node(view)
                 .query_component::<AbsmNode<PoseNodeDefinition>>()
                 .unwrap();
-            let model_ref = &data_model.absm_definition.nodes[view_ref.model_handle];
+            let model_handle = view_ref.model_handle;
+            let model_ref = &data_model.absm_definition.nodes[model_handle];
             let children = model_ref.children();
+            let position = view_ref.actual_local_position();
 
             if view_ref.base.input_sockets.len() != children.len() {
                 let input_sockets = create_sockets(
@@ -395,14 +426,43 @@ impl StateViewer {
                 );
             }
 
-            send_sync_message(
-                ui,
-                WidgetMessage::desired_position(
-                    view,
-                    MessageDirection::ToWidget,
-                    model_ref.position,
-                ),
-            );
+            if position != model_ref.position {
+                send_sync_message(
+                    ui,
+                    WidgetMessage::desired_position(
+                        view,
+                        MessageDirection::ToWidget,
+                        model_ref.position,
+                    ),
+                );
+            }
+
+            if model_ref.parent_state == self.state {
+                send_sync_message(
+                    ui,
+                    AbsmNodeMessage::normal_color(
+                        view,
+                        MessageDirection::ToWidget,
+                        if model_handle == parent_state_ref.root {
+                            NORMAL_ROOT_COLOR
+                        } else {
+                            NORMAL_BACKGROUND
+                        },
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    AbsmNodeMessage::selected_color(
+                        view,
+                        MessageDirection::ToWidget,
+                        if model_handle == parent_state_ref.root {
+                            SELECTED_ROOT_COLOR
+                        } else {
+                            SELECTED_BACKGROUND
+                        },
+                    ),
+                );
+            }
         }
 
         // Force update layout to be able to fetch positions of nodes for transitions.
@@ -444,16 +504,22 @@ impl StateViewer {
                         .find(|v| v.model_handle == child)
                         .unwrap();
 
-                    let connection = ConnectionBuilder::new(WidgetBuilder::new())
-                        .with_source_socket(source.base.output_socket)
-                        .with_source_node(source.handle())
-                        .with_dest_socket(input_sockets[i])
-                        .with_dest_node(dest_handle)
-                        .build(self.canvas, &mut ui.build_ctx());
+                    let connection = ConnectionBuilder::new(
+                        WidgetBuilder::new().with_context_menu(self.connection_context_menu.menu),
+                    )
+                    .with_source_socket(source.base.output_socket)
+                    .with_source_node(source.handle())
+                    .with_dest_socket(input_sockets[i])
+                    .with_dest_node(dest_handle)
+                    .build(self.canvas, &mut ui.build_ctx());
 
                     send_sync_message(
                         ui,
                         WidgetMessage::link(connection, MessageDirection::ToWidget, self.canvas),
+                    );
+                    send_sync_message(
+                        ui,
+                        WidgetMessage::lowermost(connection, MessageDirection::ToWidget),
                     );
                 }
             }
@@ -483,6 +549,14 @@ impl StateViewer {
                 self.canvas,
                 MessageDirection::ToWidget,
                 new_selection,
+            ),
+        );
+
+        send_sync_message(
+            ui,
+            AbsmCanvasMessage::force_sync_dependent_objects(
+                self.canvas,
+                MessageDirection::ToWidget,
             ),
         );
     }
