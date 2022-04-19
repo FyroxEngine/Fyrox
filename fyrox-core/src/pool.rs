@@ -940,6 +940,26 @@ where
         }
     }
 
+    /// Tries to move object out of the pool using the given handle. Returns None if given handle
+    /// is invalid. After object is moved out if the pool, all handles to the object will become
+    /// invalid.
+    #[inline]
+    pub fn try_free(&mut self, handle: Handle<T>) -> Option<T> {
+        let index = usize::try_from(handle.index).expect("index overflowed usize");
+        self.records.get_mut(index).and_then(|record| {
+            if record.generation == handle.generation {
+                if let Some(payload) = record.payload.take() {
+                    self.free_stack.push(handle.index);
+                    Some(payload)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+    }
+
     /// Moves an object out of the pool using the given handle with a promise that the object will be returned back.
     /// Returns pair (ticket, value). The ticket must be used to put the value back!
     ///
@@ -1536,12 +1556,12 @@ mod test {
         assert_eq!(pool.handle_of(pool.borrow(baz)), baz);
     }
 
+    #[derive(Debug, Eq, PartialEq)]
+    struct Payload;
+
     #[test]
     fn pool_test_spawn_at() {
         let mut pool = Pool::<Payload>::new();
-
-        #[derive(Debug, Eq, PartialEq)]
-        struct Payload;
 
         assert_eq!(pool.spawn_at(2, Payload), Ok(Handle::new(2, 1)));
         assert_eq!(pool.spawn_at(2, Payload), Err(Payload));
@@ -1557,5 +1577,19 @@ mod test {
 
         assert_eq!(pool.spawn(Payload), Handle::new(1, 2));
         assert_eq!(pool.spawn(Payload), Handle::new(0, 2));
+    }
+
+    #[test]
+    fn pool_test_try_free() {
+        let mut pool = Pool::<Payload>::new();
+
+        assert_eq!(pool.try_free(Handle::NONE), None);
+        assert_eq!(pool.free_stack.len(), 0);
+
+        let handle = pool.spawn(Payload);
+        assert_eq!(pool.try_free(handle), Some(Payload));
+        assert_eq!(pool.free_stack.len(), 1);
+        assert_eq!(pool.try_free(handle), None);
+        assert_eq!(pool.free_stack.len(), 1);
     }
 }
