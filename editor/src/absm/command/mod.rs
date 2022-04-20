@@ -591,35 +591,6 @@ macro_rules! define_set_collection_element_command {
 }
 
 #[derive(Debug)]
-pub struct SetStateRootPoseCommand {
-    pub handle: Handle<StateDefinition>,
-    pub root: Handle<PoseNodeDefinition>,
-}
-
-impl SetStateRootPoseCommand {
-    fn swap(&mut self, context: &mut AbsmEditorContext) {
-        std::mem::swap(
-            &mut context.definition.states[self.handle].root,
-            &mut self.root,
-        );
-    }
-}
-
-impl AbsmCommandTrait for SetStateRootPoseCommand {
-    fn name(&mut self, _context: &AbsmEditorContext) -> String {
-        "Set State Root Pose".to_string()
-    }
-
-    fn execute(&mut self, context: &mut AbsmEditorContext) {
-        self.swap(context)
-    }
-
-    fn revert(&mut self, context: &mut AbsmEditorContext) {
-        self.swap(context)
-    }
-}
-
-#[derive(Debug)]
 pub struct SetMachineEntryStateCommand {
     pub entry: Handle<StateDefinition>,
 }
@@ -643,3 +614,51 @@ impl AbsmCommandTrait for SetMachineEntryStateCommand {
         self.swap(context)
     }
 }
+
+macro_rules! define_swap_command {
+    ($name:ident<$model_type:ty, $value_type:ty>($self:ident, $context:ident) $get_field:block) => {
+        #[derive(Debug)]
+        pub struct $name {
+            pub handle: Handle<$model_type>,
+            pub value: $value_type,
+        }
+
+        impl $name {
+            fn swap(&mut $self, $context: &mut AbsmEditorContext) {
+                let field = $get_field;
+
+                std::mem::swap(field, &mut $self.value);
+            }
+        }
+
+        impl AbsmCommandTrait for $name {
+            fn name(&mut self, _context: &AbsmEditorContext) -> String {
+                stringify!($name).to_string()
+            }
+
+            fn execute(&mut self, context: &mut AbsmEditorContext) {
+                self.swap(context)
+            }
+
+            fn revert(&mut self, context: &mut AbsmEditorContext) {
+                self.swap(context)
+            }
+        }
+    };
+}
+
+define_swap_command!(SetStateRootPoseCommand<StateDefinition, Handle<PoseNodeDefinition>>(self, context) {
+    &mut context.definition.states[self.handle].root
+});
+
+define_swap_command!(SetStateNameCommand<StateDefinition, String>(self, context) {
+    &mut context.definition.states[self.handle].name
+});
+
+define_swap_command!(SetPlayAnimationResourceCommand<PoseNodeDefinition, String>(self, context) {
+    if let PoseNodeDefinition::PlayAnimation(ref mut play_animation) = context.definition.nodes[self.handle] {
+        &mut play_animation.animation
+    } else {
+        unreachable!()
+    }
+});

@@ -1,12 +1,24 @@
+use crate::absm::command::SetStateNameCommand;
 use crate::{
-    absm::{AbsmDataModel, SelectedEntity},
+    absm::{
+        command::{
+            AbsmCommand, CommandGroup, MovePoseNodeCommand, MoveStateNodeCommand,
+            SetPlayAnimationResourceCommand,
+        },
+        message::MessageSender,
+        AbsmDataModel, SelectedEntity,
+    },
     inspector::editors::make_property_editors_container,
     Message, MessageDirection, MSG_SYNC_FLAG,
 };
 use fyrox::{
-    animation::machine::node::{
-        blend::{BlendPoseDefinition, IndexedBlendInputDefinition},
-        BasePoseNodeDefinition,
+    animation::machine::{
+        node::{
+            blend::{BlendPoseDefinition, IndexedBlendInputDefinition},
+            play::PlayAnimationDefinition,
+            BasePoseNodeDefinition, PoseNodeDefinition,
+        },
+        state::StateDefinition,
     },
     core::{inspect::Inspect, pool::Handle},
     gui::{
@@ -16,15 +28,16 @@ use fyrox::{
                 inspectable::InspectablePropertyEditorDefinition,
                 PropertyEditorDefinitionContainer,
             },
-            InspectorBuilder, InspectorContext, InspectorMessage,
+            FieldKind, InspectorBuilder, InspectorContext, InspectorMessage, PropertyChanged,
         },
+        message::UiMessage,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         BuildContext, UiNode, UserInterface,
     },
     utils::log::Log,
 };
-use std::{rc::Rc, sync::mpsc::Sender};
+use std::{any::TypeId, rc::Rc, sync::mpsc::Sender};
 
 pub struct Inspector {
     pub window: Handle<UiNode>,
@@ -112,5 +125,115 @@ impl Inspector {
                 }
             }
         }
+    }
+
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        data_model: &AbsmDataModel,
+        sender: &MessageSender,
+    ) {
+        if message.destination() == self.inspector
+            && message.direction() == MessageDirection::FromWidget
+        {
+            if let Some(InspectorMessage::PropertyChanged(args)) =
+                message.data::<InspectorMessage>()
+            {
+                let group = data_model
+                    .selection
+                    .iter()
+                    .filter_map(|entry| match entry {
+                        SelectedEntity::Transition(_transition) => None, // TODO
+                        SelectedEntity::State(state) => handle_state_property_changed(
+                            args,
+                            *state,
+                            &data_model.absm_definition.states[*state],
+                        ),
+                        SelectedEntity::PoseNode(pose_node) => {
+                            if args.owner_type_id == TypeId::of::<PlayAnimationDefinition>() {
+                                handle_pose_node_property_changed(
+                                    args,
+                                    *pose_node,
+                                    &data_model.absm_definition.nodes[*pose_node],
+                                )
+                            } else {
+                                None
+                            }
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                if group.is_empty() {
+                    Log::err(format!("Failed to handle a property {}", args.path()))
+                } else {
+                    sender.do_command(CommandGroup::from(group));
+                }
+            }
+        }
+    }
+}
+
+fn handle_state_property_changed(
+    args: &PropertyChanged,
+    handle: Handle<StateDefinition>,
+    state_definition: &StateDefinition,
+) -> Option<AbsmCommand> {
+    match args.value {
+        FieldKind::Object(ref value) => match args.name.as_ref() {
+            StateDefinition::POSITION => Some(AbsmCommand::new(MoveStateNodeCommand::new(
+                handle,
+                state_definition.position,
+                value.cast_clone()?,
+            ))),
+            StateDefinition::NAME => Some(AbsmCommand::new(SetStateNameCommand {
+                handle,
+                value: value.cast_clone()?,
+            })),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn handle_pose_node_property_changed(
+    args: &PropertyChanged,
+    handle: Handle<PoseNodeDefinition>,
+    node: &PoseNodeDefinition,
+) -> Option<AbsmCommand> {
+    match args.value {
+        FieldKind::Object(ref value) => match args.name.as_ref() {
+            PlayAnimationDefinition::ANIMATION => {
+                Some(AbsmCommand::new(SetPlayAnimationResourceCommand {
+                    handle,
+                    value: value.cast_clone()?,
+                }))
+            }
+            _ => None,
+        },
+        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+            PlayAnimationDefinition::BASE => {
+                handle_base_pose_node_property_changed(inner, handle, node)
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn handle_base_pose_node_property_changed(
+    args: &PropertyChanged,
+    handle: Handle<PoseNodeDefinition>,
+    base: &BasePoseNodeDefinition,
+) -> Option<AbsmCommand> {
+    match args.value {
+        FieldKind::Object(ref value) => {
+            match args.name.as_ref() {
+                BasePoseNodeDefinition::POSITION => Some(AbsmCommand::new(
+                    MovePoseNodeCommand::new(handle, base.position, value.cast_clone()?),
+                )),
+                _ => None,
+            }
+        }
+        _ => None,
     }
 }

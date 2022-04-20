@@ -276,13 +276,13 @@ impl Document {
             let state_model_handle = state_node.model_handle;
             let state_model_ref = &definition.states[state_node.model_handle];
 
-            if state_model_ref.name != state_node.name {
+            if &state_model_ref.name != &state_node.name_value {
                 send_sync_message(
                     ui,
                     AbsmNodeMessage::name(
                         *state,
                         MessageDirection::ToWidget,
-                        state_node.name.clone(),
+                        state_model_ref.name.clone(),
                     ),
                 );
             }

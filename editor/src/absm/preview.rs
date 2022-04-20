@@ -4,7 +4,7 @@ use crate::{
     utils::{create_file_selector, open_file_selector},
 };
 use fyrox::{
-    animation::machine::MachineDefinition,
+    animation::machine::{Machine, MachineDefinition},
     core::{futures::executor::block_on, pool::Handle},
     engine::Engine,
     gui::{
@@ -23,6 +23,7 @@ pub struct Previewer {
     pub panel: PreviewPanel,
     load_preview_model: Handle<UiNode>,
     load_dialog: Handle<UiNode>,
+    current_absm: Handle<Machine>,
 }
 
 impl Previewer {
@@ -52,6 +53,7 @@ impl Previewer {
             panel,
             load_preview_model,
             load_dialog,
+            current_absm: Default::default(),
         }
     }
 
@@ -78,6 +80,29 @@ impl Previewer {
         self.panel.update(engine)
     }
 
+    pub fn set_absm(&mut self, engine: &mut Engine, definition: &MachineDefinition) {
+        let scene = &mut engine.scenes[self.panel.scene()];
+
+        // Remove previous machine first (if any).
+        if scene
+            .animation_machines
+            .try_get(self.current_absm)
+            .is_some()
+        {
+            scene
+                .animation_machines
+                .remove_with_animations(self.current_absm, &mut scene.animations);
+        }
+
+        // Instantiate new immediately.
+        self.current_absm = block_on(definition.instantiate(
+            self.panel.model(),
+            scene,
+            engine.resource_manager.clone(),
+        ))
+        .unwrap();
+    }
+
     pub fn set_preview_model(
         &mut self,
         engine: &mut Engine,
@@ -86,13 +111,7 @@ impl Previewer {
     ) {
         // TODO: Implement async loading for this.
         if block_on(self.panel.load_model(path, engine)) {
-            let scene = &mut engine.scenes[self.panel.scene()];
-            block_on(definition.instantiate(
-                self.panel.model(),
-                scene,
-                engine.resource_manager.clone(),
-            ))
-            .unwrap();
+            self.set_absm(engine, definition)
         }
     }
 }

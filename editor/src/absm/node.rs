@@ -2,6 +2,7 @@ use crate::absm::{
     selectable::{Selectable, SelectableMessage},
     BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
 };
+use fyrox::gui::text::TextMessage;
 use fyrox::{
     core::{color::Color, pool::Handle},
     gui::{
@@ -36,13 +37,14 @@ where
     widget: Widget,
     background: Handle<UiNode>,
     selectable: Selectable,
-    pub name: String,
+    pub name_value: String,
     pub model_handle: Handle<T>,
     pub base: AbsmBaseNode,
     pub add_input: Handle<UiNode>,
     input_sockets_panel: Handle<UiNode>,
     normal_color: Color,
     selected_color: Color,
+    name: Handle<UiNode>,
 }
 
 impl<T> Clone for AbsmNode<T>
@@ -54,13 +56,14 @@ where
             widget: self.widget.clone(),
             background: self.background,
             selectable: self.selectable.clone(),
-            name: self.name.clone(),
+            name_value: self.name_value.clone(),
             model_handle: self.model_handle,
             base: self.base.clone(),
             add_input: self.add_input,
             input_sockets_panel: self.input_sockets_panel,
             normal_color: self.normal_color,
             selected_color: self.selected_color,
+            name: self.name,
         }
     }
 }
@@ -205,6 +208,17 @@ where
                             self.update_colors(ui);
                         }
                     }
+                    AbsmNodeMessage::Name(name) => {
+                        if &self.name_value != name {
+                            self.name_value = name.clone();
+
+                            ui.send_message(TextMessage::text(
+                                self.name,
+                                MessageDirection::ToWidget,
+                                name.clone(),
+                            ));
+                        }
+                    }
                     _ => (),
                 }
             }
@@ -288,6 +302,7 @@ where
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let input_sockets_panel;
         let add_input;
+        let name;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .on_row(1)
@@ -327,8 +342,8 @@ where
                     .add_column(Column::auto())
                     .build(ctx),
                 )
-                .with_child(
-                    TextBuilder::new(
+                .with_child({
+                    name = TextBuilder::new(
                         WidgetBuilder::new()
                             .with_width(150.0)
                             .with_height(75.0)
@@ -337,8 +352,9 @@ where
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_horizontal_text_alignment(HorizontalAlignment::Center)
                     .with_text(&self.name)
-                    .build(ctx),
-                )
+                    .build(ctx);
+                    name
+                })
                 .with_child(
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
@@ -400,7 +416,7 @@ where
             background,
             selectable: Default::default(),
             model_handle: self.model_handle,
-            name: self.name,
+            name_value: self.name,
             base: AbsmBaseNode {
                 input_sockets: self.input_sockets,
                 output_socket: self.output_socket,
@@ -409,6 +425,7 @@ where
             input_sockets_panel,
             normal_color: self.normal_color,
             selected_color: self.selected_color,
+            name,
         };
 
         ctx.add_node(UiNode::new(node))

@@ -387,6 +387,8 @@ impl AbsmEditor {
                 .handle_ui_message(message, ui, &self.message_sender, data_model);
             self.document
                 .handle_ui_message(message, ui, &self.message_sender, data_model);
+            self.inspector
+                .handle_ui_message(message, data_model, &self.message_sender);
         }
 
         if let Some(FileSelectorMessage::Commit(path)) = message.data() {

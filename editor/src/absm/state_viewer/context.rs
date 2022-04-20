@@ -1,12 +1,11 @@
-use crate::absm::command::blend::{
-    SetBlendAnimationByIndexInputPoseSourceCommand, SetBlendAnimationsPoseSourceCommand,
-};
-use crate::absm::command::SetStateRootPoseCommand;
 use crate::{
     absm::{
         command::{
+            blend::{
+                SetBlendAnimationByIndexInputPoseSourceCommand, SetBlendAnimationsPoseSourceCommand,
+            },
             AbsmCommand, AddPoseNodeCommand, ChangeSelectionCommand, CommandGroup,
-            DeletePoseNodeCommand,
+            DeletePoseNodeCommand, SetStateRootPoseCommand,
         },
         connection::Connection,
         message::MessageSender,
@@ -205,7 +204,7 @@ impl NodeContextMenu {
 
                 sender.do_command(SetStateRootPoseCommand {
                     handle: data_model.absm_definition.nodes[root].parent_state,
-                    root,
+                    value: root,
                 })
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
