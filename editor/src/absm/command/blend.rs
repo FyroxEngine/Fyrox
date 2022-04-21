@@ -2,13 +2,16 @@
 
 use crate::{
     absm::command::{AbsmCommandTrait, AbsmEditorContext},
-    define_push_element_to_collection_command, define_remove_collection_element_command,
-    define_set_collection_element_command,
+    define_absm_swap_command, define_push_element_to_collection_command,
+    define_remove_collection_element_command, define_set_collection_element_command,
 };
 use fyrox::{
-    animation::machine::node::{
-        blend::{BlendPoseDefinition, IndexedBlendInputDefinition},
-        PoseNodeDefinition,
+    animation::machine::{
+        node::{
+            blend::{BlendPoseDefinition, IndexedBlendInputDefinition},
+            PoseNodeDefinition,
+        },
+        PoseWeight,
     },
     core::pool::Handle,
 };
@@ -62,3 +65,51 @@ define_set_collection_element_command!(
         }
     }
 );
+
+define_absm_swap_command!(SetBlendAnimationsByIndexParameterCommand<PoseNodeDefinition, String>[](self, context) {
+    if let PoseNodeDefinition::BlendAnimationsByIndex(ref mut definition) = context.definition.nodes[self.handle] {
+        &mut definition.index_parameter
+    } else {
+        unreachable!()
+    }
+});
+
+define_absm_swap_command!(SetBlendAnimationsByIndexInputBlendTimeCommand<PoseNodeDefinition, f32>[index: usize](self, context) {
+    if let PoseNodeDefinition::BlendAnimationsByIndex(ref mut definition) = context.definition.nodes[self.handle] {
+        &mut definition.inputs[self.index].blend_time
+    } else {
+        unreachable!()
+    }
+});
+
+define_absm_swap_command!(SetBlendAnimationsPoseWeightCommand<PoseNodeDefinition, PoseWeight>[index: usize](self, context) {
+    if let PoseNodeDefinition::BlendAnimations(ref mut definition) = context.definition.nodes[self.handle] {
+        &mut definition.pose_sources[self.index].weight
+    } else {
+        unreachable!()
+    }
+});
+
+define_absm_swap_command!(SetPoseWeightConstantCommand<PoseNodeDefinition, f32>[index: usize](self, context) {
+    if let PoseNodeDefinition::BlendAnimations(ref mut definition) = context.definition.nodes[self.handle] {
+        if let PoseWeight::Constant(ref mut value) = definition.pose_sources[self.index].weight {
+            value
+        } else {
+            unreachable!()
+        }
+    } else {
+        unreachable!()
+    }
+});
+
+define_absm_swap_command!(SetPoseWeightParameterCommand<PoseNodeDefinition, String>[index: usize](self, context) {
+    if let PoseNodeDefinition::BlendAnimations(ref mut definition) = context.definition.nodes[self.handle] {
+        if let PoseWeight::Parameter(ref mut value) = definition.pose_sources[self.index].weight {
+            value
+        } else {
+            unreachable!()
+        }
+    } else {
+        unreachable!()
+    }
+});

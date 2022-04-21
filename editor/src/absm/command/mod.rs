@@ -615,12 +615,16 @@ impl AbsmCommandTrait for SetMachineEntryStateCommand {
     }
 }
 
-macro_rules! define_swap_command {
-    ($name:ident<$model_type:ty, $value_type:ty>($self:ident, $context:ident) $get_field:block) => {
+#[macro_export]
+macro_rules! define_absm_swap_command {
+    ($name:ident<$model_type:ty, $value_type:ty>[$($field_name:ident:$field_type:ty),*]($self:ident, $context:ident) $get_field:block) => {
         #[derive(Debug)]
         pub struct $name {
             pub handle: Handle<$model_type>,
             pub value: $value_type,
+            $(
+                pub $field_name: $field_type,
+            )*
         }
 
         impl $name {
@@ -647,25 +651,17 @@ macro_rules! define_swap_command {
     };
 }
 
-define_swap_command!(SetStateRootPoseCommand<StateDefinition, Handle<PoseNodeDefinition>>(self, context) {
+define_absm_swap_command!(SetStateRootPoseCommand<StateDefinition, Handle<PoseNodeDefinition>>[](self, context) {
     &mut context.definition.states[self.handle].root
 });
 
-define_swap_command!(SetStateNameCommand<StateDefinition, String>(self, context) {
+define_absm_swap_command!(SetStateNameCommand<StateDefinition, String>[](self, context) {
     &mut context.definition.states[self.handle].name
 });
 
-define_swap_command!(SetPlayAnimationResourceCommand<PoseNodeDefinition, String>(self, context) {
+define_absm_swap_command!(SetPlayAnimationResourceCommand<PoseNodeDefinition, String>[](self, context) {
     if let PoseNodeDefinition::PlayAnimation(ref mut play_animation) = context.definition.nodes[self.handle] {
         &mut play_animation.animation
-    } else {
-        unreachable!()
-    }
-});
-
-define_swap_command!(SetBlendAnimationsByIndexParameterCommand<PoseNodeDefinition, String>(self, context) {
-    if let PoseNodeDefinition::BlendAnimationsByIndex(ref mut blend) = context.definition.nodes[self.handle] {
-        &mut blend.index_parameter
     } else {
         unreachable!()
     }

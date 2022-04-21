@@ -1,9 +1,13 @@
 use crate::{
     absm::{
         command::{
+            blend::{
+                AddInputCommand, RemoveInputCommand,
+                SetBlendAnimationsByIndexInputBlendTimeCommand,
+                SetBlendAnimationsByIndexParameterCommand,
+            },
             AbsmCommand, CommandGroup, MovePoseNodeCommand, MoveStateNodeCommand,
-            SetBlendAnimationsByIndexParameterCommand, SetPlayAnimationResourceCommand,
-            SetStateNameCommand,
+            SetPlayAnimationResourceCommand, SetStateNameCommand,
         },
         message::MessageSender,
         AbsmDataModel, SelectedEntity,
@@ -30,7 +34,8 @@ use fyrox::{
                 inspectable::InspectablePropertyEditorDefinition,
                 PropertyEditorDefinitionContainer,
             },
-            FieldKind, InspectorBuilder, InspectorContext, InspectorMessage, PropertyChanged,
+            CollectionChanged, FieldKind, InspectorBuilder, InspectorContext, InspectorMessage,
+            PropertyChanged,
         },
         message::UiMessage,
         widget::WidgetBuilder,
@@ -241,12 +246,39 @@ fn handle_blend_animations_by_index_node_property_changed(
             _ => None,
         },
         FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
-            PlayAnimationDefinition::BASE => {
+            BlendAnimationsByIndexDefinition::BASE => {
                 handle_base_pose_node_property_changed(inner, handle, node)
             }
             _ => None,
         },
-        _ => None,
+        FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
+            BlendAnimationsByIndexDefinition::INPUTS => match **collection_changed {
+                CollectionChanged::Add => Some(AbsmCommand::new(AddInputCommand {
+                    handle,
+                    value: Default::default(),
+                })),
+                CollectionChanged::Remove(i) => {
+                    Some(AbsmCommand::new(RemoveInputCommand::new(handle, i)))
+                }
+                CollectionChanged::ItemChanged {
+                    index,
+                    ref property,
+                } => match property.value {
+                    FieldKind::Object(ref value) => match property.name.as_ref() {
+                        IndexedBlendInputDefinition::BLEND_TIME => Some(AbsmCommand::new(
+                            SetBlendAnimationsByIndexInputBlendTimeCommand {
+                                handle,
+                                index,
+                                value: value.cast_clone()?,
+                            },
+                        )),
+                        _ => None,
+                    },
+                    _ => None,
+                },
+            },
+            _ => None,
+        },
     }
 }
 
