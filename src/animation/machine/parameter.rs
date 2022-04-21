@@ -3,6 +3,7 @@ use crate::core::{
     visitor::prelude::*,
 };
 use fxhash::FxHashMap;
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Machine parameter.  Machine uses various parameters for specific actions. For example
 /// Rule parameter is used to check where transition from a state to state is possible.
@@ -26,7 +27,7 @@ impl Default for Parameter {
 }
 
 /// Specific animation pose weight.
-#[derive(Debug, Visit, Clone, Inspect)]
+#[derive(Debug, Visit, Clone, Inspect, EnumVariantNames, EnumString, AsRefStr)]
 pub enum PoseWeight {
     /// Fixed scalar value. Should not be negative (can't even realize what will happen
     /// with negative weight here)
