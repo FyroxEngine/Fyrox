@@ -662,3 +662,11 @@ define_swap_command!(SetPlayAnimationResourceCommand<PoseNodeDefinition, String>
         unreachable!()
     }
 });
+
+define_swap_command!(SetBlendAnimationsByIndexParameterCommand<PoseNodeDefinition, String>(self, context) {
+    if let PoseNodeDefinition::BlendAnimationsByIndex(ref mut blend) = context.definition.nodes[self.handle] {
+        &mut blend.index_parameter
+    } else {
+        unreachable!()
+    }
+});

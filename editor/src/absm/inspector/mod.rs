@@ -1,9 +1,9 @@
-use crate::absm::command::SetStateNameCommand;
 use crate::{
     absm::{
         command::{
             AbsmCommand, CommandGroup, MovePoseNodeCommand, MoveStateNodeCommand,
-            SetPlayAnimationResourceCommand,
+            SetBlendAnimationsByIndexParameterCommand, SetPlayAnimationResourceCommand,
+            SetStateNameCommand,
         },
         message::MessageSender,
         AbsmDataModel, SelectedEntity,
@@ -14,7 +14,9 @@ use crate::{
 use fyrox::{
     animation::machine::{
         node::{
-            blend::{BlendPoseDefinition, IndexedBlendInputDefinition},
+            blend::{
+                BlendAnimationsByIndexDefinition, BlendPoseDefinition, IndexedBlendInputDefinition,
+            },
             play::PlayAnimationDefinition,
             BasePoseNodeDefinition, PoseNodeDefinition,
         },
@@ -150,11 +152,14 @@ impl Inspector {
                             &data_model.absm_definition.states[*state],
                         ),
                         SelectedEntity::PoseNode(pose_node) => {
+                            let node = &data_model.absm_definition.nodes[*pose_node];
                             if args.owner_type_id == TypeId::of::<PlayAnimationDefinition>() {
-                                handle_pose_node_property_changed(
-                                    args,
-                                    *pose_node,
-                                    &data_model.absm_definition.nodes[*pose_node],
+                                handle_play_animation_node_property_changed(args, *pose_node, node)
+                            } else if args.owner_type_id
+                                == TypeId::of::<BlendAnimationsByIndexDefinition>()
+                            {
+                                handle_blend_animations_by_index_node_property_changed(
+                                    args, *pose_node, node,
                                 )
                             } else {
                                 None
@@ -195,7 +200,7 @@ fn handle_state_property_changed(
     }
 }
 
-fn handle_pose_node_property_changed(
+fn handle_play_animation_node_property_changed(
     args: &PropertyChanged,
     handle: Handle<PoseNodeDefinition>,
     node: &PoseNodeDefinition,
@@ -208,6 +213,31 @@ fn handle_pose_node_property_changed(
                     value: value.cast_clone()?,
                 }))
             }
+            _ => None,
+        },
+        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+            PlayAnimationDefinition::BASE => {
+                handle_base_pose_node_property_changed(inner, handle, node)
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn handle_blend_animations_by_index_node_property_changed(
+    args: &PropertyChanged,
+    handle: Handle<PoseNodeDefinition>,
+    node: &PoseNodeDefinition,
+) -> Option<AbsmCommand> {
+    match args.value {
+        FieldKind::Object(ref value) => match args.name.as_ref() {
+            BlendAnimationsByIndexDefinition::INDEX_PARAMETER => Some(AbsmCommand::new(
+                SetBlendAnimationsByIndexParameterCommand {
+                    handle,
+                    value: value.cast_clone()?,
+                },
+            )),
             _ => None,
         },
         FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
