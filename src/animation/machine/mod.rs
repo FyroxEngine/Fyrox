@@ -366,6 +366,13 @@ impl MachineDefinition {
             ));
         }
 
+        machine.set_entry_state(
+            state_map
+                .get(&self.entry_state)
+                .cloned()
+                .unwrap_or_default(),
+        );
+
         Ok(scene.animation_machines.add(machine))
     }
 }
