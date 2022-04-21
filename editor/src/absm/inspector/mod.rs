@@ -2,9 +2,9 @@ use crate::{
     absm::{
         command::{
             blend::{
-                AddInputCommand, RemoveInputCommand,
+                AddInputCommand, AddPoseSourceCommand, RemoveInputCommand, RemovePoseSourceCommand,
                 SetBlendAnimationsByIndexInputBlendTimeCommand,
-                SetBlendAnimationsByIndexParameterCommand,
+                SetBlendAnimationsByIndexParameterCommand, SetBlendAnimationsPoseWeightCommand,
             },
             AbsmCommand, CommandGroup, MovePoseNodeCommand, MoveStateNodeCommand,
             SetPlayAnimationResourceCommand, SetStateNameCommand,
@@ -19,18 +19,21 @@ use fyrox::{
     animation::machine::{
         node::{
             blend::{
-                BlendAnimationsByIndexDefinition, BlendPoseDefinition, IndexedBlendInputDefinition,
+                BlendAnimationsByIndexDefinition, BlendAnimationsDefinition, BlendPoseDefinition,
+                IndexedBlendInputDefinition,
             },
             play::PlayAnimationDefinition,
             BasePoseNodeDefinition, PoseNodeDefinition,
         },
         state::StateDefinition,
+        PoseWeight,
     },
     core::{inspect::Inspect, pool::Handle},
     gui::{
         inspector::{
             editors::{
                 collection::VecCollectionPropertyEditorDefinition,
+                enumeration::EnumPropertyEditorDefinition,
                 inspectable::InspectablePropertyEditorDefinition,
                 PropertyEditorDefinitionContainer,
             },
@@ -75,6 +78,7 @@ impl Inspector {
         property_editors.insert(InspectablePropertyEditorDefinition::<BlendPoseDefinition>::new());
         property_editors
             .insert(VecCollectionPropertyEditorDefinition::<BlendPoseDefinition>::new());
+        property_editors.insert(EnumPropertyEditorDefinition::<PoseWeight>::new());
 
         Self {
             window,
@@ -166,6 +170,12 @@ impl Inspector {
                                 handle_blend_animations_by_index_node_property_changed(
                                     args, *pose_node, node,
                                 )
+                            } else if args.owner_type_id
+                                == TypeId::of::<BlendAnimationsDefinition>()
+                            {
+                                handle_blend_animations_node_property_changed(
+                                    args, *pose_node, node,
+                                )
                             } else {
                                 None
                             }
@@ -255,7 +265,7 @@ fn handle_blend_animations_by_index_node_property_changed(
             BlendAnimationsByIndexDefinition::INPUTS => match **collection_changed {
                 CollectionChanged::Add => Some(AbsmCommand::new(AddInputCommand {
                     handle,
-                    value: Default::default(),
+                    value: Some(Default::default()),
                 })),
                 CollectionChanged::Remove(i) => {
                     Some(AbsmCommand::new(RemoveInputCommand::new(handle, i)))
@@ -279,6 +289,50 @@ fn handle_blend_animations_by_index_node_property_changed(
             },
             _ => None,
         },
+    }
+}
+
+fn handle_blend_animations_node_property_changed(
+    args: &PropertyChanged,
+    handle: Handle<PoseNodeDefinition>,
+    node: &PoseNodeDefinition,
+) -> Option<AbsmCommand> {
+    match args.value {
+        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+            BlendAnimationsDefinition::BASE => {
+                handle_base_pose_node_property_changed(inner, handle, node)
+            }
+            _ => None,
+        },
+        FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
+            BlendAnimationsDefinition::POSE_SOURCES => match **collection_changed {
+                CollectionChanged::Add => Some(AbsmCommand::new(AddPoseSourceCommand {
+                    handle,
+                    value: Some(Default::default()),
+                })),
+                CollectionChanged::Remove(i) => {
+                    Some(AbsmCommand::new(RemovePoseSourceCommand::new(handle, i)))
+                }
+                CollectionChanged::ItemChanged {
+                    index,
+                    ref property,
+                } => match property.value {
+                    FieldKind::Object(ref value) => match property.name.as_ref() {
+                        BlendPoseDefinition::WEIGHT => {
+                            Some(AbsmCommand::new(SetBlendAnimationsPoseWeightCommand {
+                                handle,
+                                index,
+                                value: value.cast_clone()?,
+                            }))
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                },
+            },
+            _ => None,
+        },
+        _ => None,
     }
 }
 
