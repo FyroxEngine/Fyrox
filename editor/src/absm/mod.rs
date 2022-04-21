@@ -218,12 +218,14 @@ impl AbsmEditor {
         }
     }
 
-    fn sync_to_model(&mut self, ui: &mut UserInterface) {
+    fn sync_to_model(&mut self, engine: &mut Engine) {
         if let Some(data_model) = self.data_model.as_ref() {
+            let ui = &mut engine.user_interface;
             self.document.sync_to_model(data_model, ui);
             self.state_viewer
                 .sync_to_model(&data_model.absm_definition, ui, data_model);
             self.inspector.sync_to_model(ui, data_model);
+            self.previewer.set_absm(engine, &data_model.absm_definition);
         }
     }
 
@@ -369,7 +371,7 @@ impl AbsmEditor {
         }
 
         if need_sync {
-            self.sync_to_model(&mut engine.user_interface);
+            self.sync_to_model(engine);
         }
 
         self.previewer.update(engine);
