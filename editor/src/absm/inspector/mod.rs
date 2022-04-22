@@ -1,3 +1,4 @@
+use crate::absm::command::blend::{SetPoseWeightConstantCommand, SetPoseWeightParameterCommand};
 use crate::{
     absm::{
         command::{
@@ -292,6 +293,7 @@ fn handle_blend_animations_by_index_node_property_changed(
     }
 }
 
+#[allow(clippy::manual_map)]
 fn handle_blend_animations_node_property_changed(
     args: &PropertyChanged,
     handle: Handle<PoseNodeDefinition>,
@@ -325,6 +327,29 @@ fn handle_blend_animations_node_property_changed(
                                 value: value.cast_clone()?,
                             }))
                         }
+                        _ => None,
+                    },
+                    FieldKind::Inspectable(ref inner) => match inner.name.as_ref() {
+                        "0" => match inner.value {
+                            FieldKind::Object(ref value) => {
+                                if let Some(constant) = value.cast_clone::<f32>() {
+                                    Some(AbsmCommand::new(SetPoseWeightConstantCommand {
+                                        handle,
+                                        value: constant,
+                                        index,
+                                    }))
+                                } else if let Some(parameter) = value.cast_clone::<String>() {
+                                    Some(AbsmCommand::new(SetPoseWeightParameterCommand {
+                                        handle,
+                                        value: parameter,
+                                        index,
+                                    }))
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => None,
+                        },
                         _ => None,
                     },
                     _ => None,
