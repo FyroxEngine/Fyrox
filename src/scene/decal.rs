@@ -2,14 +2,13 @@
 //!
 //! For more info see [`Decal`]
 
-use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -18,16 +17,13 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait},
+        node::{Node, NodeTrait, TypeUuidProvider},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
-use std::{
-    ops::{Deref, DerefMut},
-    str::FromStr,
-};
+use std::ops::{Deref, DerefMut};
 
 /// Decal is an image that gets projected to a geometry of a scene. Blood splatters, bullet holes, scratches
 /// etc. are done via decals.
@@ -131,7 +127,7 @@ impl DerefMut for Decal {
 
 impl TypeUuidProvider for Decal {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("c4d24e48-edd1-4fb2-ad82-4b3d3ea985d8").unwrap()
+        uuid!("c4d24e48-edd1-4fb2-ad82-4b3d3ea985d8")
     }
 }
 

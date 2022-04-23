@@ -22,13 +22,12 @@
 //! Light scattering feature may significantly impact performance on low-end
 //! hardware!
 
-use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -38,16 +37,13 @@ use crate::{
         base::Base,
         graph::Graph,
         light::{BaseLight, BaseLightBuilder},
-        node::{Node, NodeTrait},
+        node::{Node, NodeTrait, TypeUuidProvider},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
-use std::{
-    ops::{Deref, DerefMut},
-    str::FromStr,
-};
+use std::ops::{Deref, DerefMut};
 
 /// See module docs.
 #[derive(Debug, Inspect, Clone)]
@@ -112,7 +108,7 @@ impl Default for SpotLight {
 
 impl TypeUuidProvider for SpotLight {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("9856a3c1-ced7-47ec-b682-4dc4dea89d8f").unwrap()
+        uuid!("9856a3c1-ced7-47ec-b682-4dc4dea89d8f")
     }
 }
 

@@ -3,12 +3,13 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
-use crate::scene::node::{NodeTrait, TypeUuidProvider};
 use crate::{
     core::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -17,16 +18,13 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::Node,
+        node::{Node, NodeTrait, TypeUuidProvider},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
-use fyrox_core::math::aabb::AxisAlignedBoundingBox;
-use fyrox_core::uuid::Uuid;
 use std::ops::{Deref, DerefMut};
-use std::str::FromStr;
 
 /// Rectangle is the simplest "2D" node, it can be used to create "2D" graphics. 2D is in quotes
 /// here because the node is actually a 3D node, like everything else in the engine.
@@ -126,7 +124,7 @@ impl DerefMut for Rectangle {
 
 impl TypeUuidProvider for Rectangle {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("bb57b5e0-367a-4490-bf30-7f547407d5b5").unwrap()
+        uuid!("bb57b5e0-367a-4490-bf30-7f547407d5b5")
     }
 }
 

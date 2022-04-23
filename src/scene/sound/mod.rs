@@ -1,25 +1,12 @@
 //! Everything related to sound in the engine.
 
-use fxhash::FxHashMap;
-use fyrox_core::algebra::Matrix4;
-use fyrox_core::math::aabb::AxisAlignedBoundingBox;
-use fyrox_core::math::m4x4_approx_eq;
-use fyrox_core::uuid::Uuid;
-use fyrox_sound::source::SoundSource;
-use std::str::FromStr;
-use std::{
-    cell::Cell,
-    ops::{Deref, DerefMut},
-    time::Duration,
-};
-
-// Re-export some the fyrox_sound entities.
-use crate::scene::node::{NodeTrait, SyncContext, TypeUuidProvider, UpdateContext};
-use crate::utils::log::Log;
 use crate::{
     core::{
+        algebra::Matrix4,
         inspect::{Inspect, PropertyInfo},
+        math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     define_with,
@@ -28,11 +15,14 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::Node,
+        node::{Node, NodeTrait, SyncContext, TypeUuidProvider, UpdateContext},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
+    utils::log::Log,
 };
+
+// Re-export some the fyrox_sound entities.
 pub use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
     context::{DistanceModel, SAMPLE_RATE},
@@ -42,6 +32,14 @@ pub use fyrox_sound::{
     hrtf::HrirSphere,
     renderer::{hrtf::HrtfRenderer, Renderer},
     source::Status,
+};
+
+use fxhash::FxHashMap;
+use fyrox_sound::source::SoundSource;
+use std::{
+    cell::Cell,
+    ops::{Deref, DerefMut},
+    time::Duration,
 };
 
 pub mod context;
@@ -154,7 +152,7 @@ impl Clone for Sound {
 
 impl TypeUuidProvider for Sound {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("28621735-8cd1-4fad-8faf-ecd24bf8aa99").unwrap()
+        uuid!("28621735-8cd1-4fad-8faf-ecd24bf8aa99")
     }
 }
 

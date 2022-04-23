@@ -8,6 +8,7 @@ use fyrox::{
         algebra::{UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
+        uuid::uuid,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -44,7 +45,7 @@ impl Clone for Bot {
 
 impl TypeUuidProvider for Bot {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("7df7c6d7-425e-48c5-bc9a-7c351fd7d57e").unwrap()
+        uuid!("7df7c6d7-425e-48c5-bc9a-7c351fd7d57e")
     }
 }
 

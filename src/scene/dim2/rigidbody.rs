@@ -8,14 +8,14 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
-use crate::scene::node::{NodeTrait, SyncContext, TypeUuidProvider, UpdateContext};
-use crate::utils::log::Log;
 use crate::{
     core::{
-        algebra::Vector2,
+        algebra::{Matrix4, Vector2},
         inspect::{Inspect, PropertyInfo},
+        math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         parking_lot::Mutex,
         pool::Handle,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -23,19 +23,15 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::Node,
+        node::{Node, NodeTrait, SyncContext, TypeUuidProvider, UpdateContext},
         rigidbody::RigidBodyType,
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
+    utils::log::Log,
 };
 use fxhash::FxHashMap;
-use fyrox_core::algebra::Matrix4;
-use fyrox_core::math::aabb::AxisAlignedBoundingBox;
-use fyrox_core::math::m4x4_approx_eq;
-use fyrox_core::uuid::Uuid;
 use rapier2d::prelude::RigidBodyHandle;
-use std::str::FromStr;
 use std::{
     cell::Cell,
     collections::VecDeque,
@@ -206,7 +202,7 @@ impl Clone for RigidBody {
 
 impl TypeUuidProvider for RigidBody {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("0b242335-75a4-4c65-9685-3e82a8979047").unwrap()
+        uuid!("0b242335-75a4-4c65-9685-3e82a8979047")
     }
 }
 

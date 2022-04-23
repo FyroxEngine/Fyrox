@@ -172,11 +172,14 @@ pub trait ScriptTrait: BaseScript {
     ///
     /// ```rust
     /// use std::str::FromStr;
-    /// use fyrox::script::ScriptTrait;
-    /// use fyrox::core::uuid::Uuid;
-    /// use fyrox::core::inspect::{Inspect, PropertyInfo};
-    /// use fyrox::core::visitor::prelude::*;
-    /// use fyrox::scene::node::TypeUuidProvider;
+    /// use fyrox::{
+    ///     scene::node::TypeUuidProvider,
+    ///     core::visitor::prelude::*,
+    ///     core::inspect::{Inspect, PropertyInfo},
+    ///     core::uuid::Uuid,
+    ///     script::ScriptTrait,
+    ///     core::uuid::uuid
+    /// };
     ///
     /// #[derive(Inspect, Visit, Debug, Clone)]
     /// struct MyScript { }
@@ -187,7 +190,7 @@ pub trait ScriptTrait: BaseScript {
     /// impl TypeUuidProvider for MyScript {
     ///     fn type_uuid() -> Uuid {
     ///         // Use https://www.uuidgenerator.net/ to generate new UUID.
-    ///         Uuid::from_str("4cfbe65e-a2c1-474f-b123-57516d80b1f8").unwrap()
+    ///         uuid!("4cfbe65e-a2c1-474f-b123-57516d80b1f8")
     ///     }
     /// }
     ///

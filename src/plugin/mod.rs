@@ -105,7 +105,7 @@ pub struct PluginContext<'a> {
 ///
 /// ```rust
 /// use fyrox::{
-///     core::{pool::Handle, uuid::Uuid},
+///     core::{pool::Handle, uuid::{uuid,Uuid}},
 ///     plugin::{Plugin, PluginContext, PluginRegistrationContext},
 ///     scene::Scene,
 ///     event::Event
@@ -151,7 +151,7 @@ pub struct PluginContext<'a> {
 ///     fn id(&self) -> Uuid {
 ///         // The method must return persistent type id.
 ///         // Use https://www.uuidgenerator.net/ to generate one.
-///         Uuid::from_str("b9302812-81a7-48a5-89d2-921774d94943").unwrap()
+///         uuid!("b9302812-81a7-48a5-89d2-921774d94943")
 ///     }
 ///
 ///     fn on_os_event(&mut self, event: &Event<()>, context: PluginContext) {

@@ -14,14 +14,13 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
-use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, ray::Ray, Rect},
         pool::Handle,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -30,7 +29,7 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait, UpdateContext},
+        node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
         variable::{InheritError, TemplateVariable},
         visibility::VisibilityCache,
         DirectlyInheritableEntity,
@@ -39,7 +38,6 @@ use crate::{
 use fxhash::FxHashMap;
 use std::{
     ops::{Deref, DerefMut},
-    str::FromStr,
     sync::Arc,
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
@@ -331,7 +329,7 @@ impl Default for Camera {
 
 impl TypeUuidProvider for Camera {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("198d3aca-433c-4ce1-bb25-3190699b757f").unwrap()
+        uuid!("198d3aca-433c-4ce1-bb25-3190699b757f")
     }
 }
 

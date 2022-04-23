@@ -5,6 +5,7 @@ use fyrox::{
         futures::executor::block_on,
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
+        uuid::uuid,
         uuid::Uuid,
         visitor::prelude::*,
     },
@@ -105,7 +106,7 @@ impl GamePlugin {
 
 impl TypeUuidProvider for GamePlugin {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("a9507fb2-0945-4fc1-91ce-115ae7c8a615").unwrap()
+        uuid!("a9507fb2-0945-4fc1-91ce-115ae7c8a615")
     }
 }
 
@@ -222,7 +223,7 @@ impl Default for Player {
 
 impl TypeUuidProvider for Player {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("4aa165aa-011b-479f-bc10-b90b2c4b5060").unwrap()
+        uuid!("4aa165aa-011b-479f-bc10-b90b2c4b5060")
     }
 }
 
@@ -376,7 +377,7 @@ impl Default for Jumper {
 
 impl TypeUuidProvider for Jumper {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("942e9f5b-e036-4357-b514-91060d4059f5").unwrap()
+        uuid!("942e9f5b-e036-4357-b514-91060d4059f5")
     }
 }
 

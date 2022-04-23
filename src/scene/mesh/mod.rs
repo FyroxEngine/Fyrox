@@ -8,14 +8,13 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
-use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -27,7 +26,7 @@ use crate::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
             surface::Surface,
         },
-        node::{Node, NodeTrait, UpdateContext},
+        node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
         variable::{InheritError, TemplateVariable, VariableFlags},
         DirectlyInheritableEntity,
     },
@@ -36,7 +35,6 @@ use fxhash::FxHashMap;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
-    str::FromStr,
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -156,7 +154,7 @@ impl DerefMut for Mesh {
 
 impl TypeUuidProvider for Mesh {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("caaf9d7b-bd74-48ce-b7cc-57e9dc65c2e6").unwrap()
+        uuid!("caaf9d7b-bd74-48ce-b7cc-57e9dc65c2e6")
     }
 }
 

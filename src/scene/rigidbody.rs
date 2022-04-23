@@ -8,7 +8,6 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
-use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -16,7 +15,7 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         parking_lot::Mutex,
         pool::Handle,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -24,7 +23,7 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait, SyncContext, UpdateContext},
+        node::{Node, NodeTrait, SyncContext, TypeUuidProvider, UpdateContext},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
@@ -37,7 +36,6 @@ use std::{
     collections::VecDeque,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    str::FromStr,
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -279,7 +277,7 @@ impl Clone for RigidBody {
 
 impl TypeUuidProvider for RigidBody {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("4be15a7c-3566-49c4-bba8-2f4ccc57ffed").unwrap()
+        uuid!("4be15a7c-3566-49c4-bba8-2f4ccc57ffed")
     }
 }
 

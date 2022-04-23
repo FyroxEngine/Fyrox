@@ -26,7 +26,7 @@ lazy_static = "1.4.0"
 nalgebra = "0.29.0"
 arrayvec = "0.7.2"
 futures = {version = "0.3.17", features = ["thread-pool"] }
-uuid = { version = "0.8.2", features = ["v4","wasm-bindgen"] }
+uuid = { version = "1", features = ["v4", "js"] }
 instant = {version = "0.1.12", features = ["wasm-bindgen"] }
 num-traits = "0.2.14"
 parking_lot = "0.12.0"

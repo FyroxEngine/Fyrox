@@ -4,7 +4,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -16,10 +16,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use std::{
-    ops::{Deref, DerefMut},
-    str::FromStr,
-};
+use std::ops::{Deref, DerefMut};
 
 /// A simplest possible node which represents point in space.
 #[derive(Clone, Inspect, Default, Debug)]
@@ -43,7 +40,7 @@ impl Deref for Pivot {
 
 impl TypeUuidProvider for Pivot {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("dd2ecb96-b1f4-4ee0-943b-2a4d1844e3bb").unwrap()
+        uuid!("dd2ecb96-b1f4-4ee0-943b-2a4d1844e3bb")
     }
 }
 

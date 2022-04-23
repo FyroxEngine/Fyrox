@@ -2,14 +2,13 @@
 //!
 //! For more info see [`Sprite`].
 
-use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -18,16 +17,13 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait},
+        node::{Node, NodeTrait, TypeUuidProvider},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
-use std::{
-    ops::{Deref, DerefMut},
-    str::FromStr,
-};
+use std::ops::{Deref, DerefMut};
 
 /// Sprite is billboard which always faces towards camera. It can be used as a "model" for bullets, and so on.
 ///
@@ -110,7 +106,7 @@ impl Default for Sprite {
 
 impl TypeUuidProvider for Sprite {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("60fd7e34-46c1-4ae9-8803-1f5f4c341518").unwrap()
+        uuid!("60fd7e34-46c1-4ae9-8803-1f5f4c341518")
     }
 }
 

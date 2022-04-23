@@ -70,7 +70,6 @@
 //! }
 //! ```
 
-use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
@@ -79,7 +78,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -88,7 +87,7 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait, UpdateContext},
+        node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
         particle_system::{
             draw::{DrawData, Vertex},
             emitter::{Emit, Emitter},
@@ -103,7 +102,6 @@ use std::{
     cmp::Ordering,
     fmt::Debug,
     ops::{Deref, DerefMut},
-    str::FromStr,
 };
 
 pub(crate) mod draw;
@@ -200,7 +198,7 @@ impl DerefMut for ParticleSystem {
 
 impl TypeUuidProvider for ParticleSystem {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("8b210eff-97a4-494f-ba7a-a581d3f4a442").unwrap()
+        uuid!("8b210eff-97a4-494f-ba7a-a581d3f4a442")
     }
 }
 

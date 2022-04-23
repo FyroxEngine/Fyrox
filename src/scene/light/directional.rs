@@ -7,13 +7,12 @@
 //! Current directional light does *not* support shadows, it is still
 //! on list of features that should be implemented.
 
-use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -22,16 +21,13 @@ use crate::{
         base::Base,
         graph::Graph,
         light::{BaseLight, BaseLightBuilder},
-        node::{Node, NodeTrait},
+        node::{Node, NodeTrait, TypeUuidProvider},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
-use std::{
-    ops::{Deref, DerefMut},
-    str::FromStr,
-};
+use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Maximum amount of cascades.
@@ -144,7 +140,7 @@ impl DerefMut for DirectionalLight {
 
 impl TypeUuidProvider for DirectionalLight {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("8b8248e1-1cdf-42a3-9abe-0691de82c519").unwrap()
+        uuid!("8b8248e1-1cdf-42a3-9abe-0691de82c519")
     }
 }
 

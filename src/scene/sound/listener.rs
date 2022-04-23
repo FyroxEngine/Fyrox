@@ -8,7 +8,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::Handle,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -20,10 +20,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use std::{
-    ops::{Deref, DerefMut},
-    str::FromStr,
-};
+use std::ops::{Deref, DerefMut};
 
 /// Listener represents directional microphone-like device. It receives sound from surroundings
 /// and plays it through output device (headphones, speakers, etc.). Orientation of the listener
@@ -60,7 +57,7 @@ impl DerefMut for Listener {
 
 impl TypeUuidProvider for Listener {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("2c7dabc1-5666-4256-b020-01532701e4c6").unwrap()
+        uuid!("2c7dabc1-5666-4256-b020-01532701e4c6")
     }
 }
 

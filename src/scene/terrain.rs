@@ -1,6 +1,5 @@
 //! Everything related to terrains.
 
-use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -11,7 +10,7 @@ use crate::{
         },
         parking_lot::Mutex,
         pool::Handle,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::{prelude::*, PodVecView},
     },
     engine::resource_manager::ResourceManager,
@@ -26,7 +25,7 @@ use crate::{
             surface::SurfaceData,
             vertex::StaticVertex,
         },
-        node::{Node, NodeTrait, UpdateContext},
+        node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
@@ -36,7 +35,6 @@ use std::{
     cell::Cell,
     cmp::Ordering,
     ops::{Deref, DerefMut},
-    str::FromStr,
     sync::Arc,
 };
 
@@ -316,7 +314,7 @@ fn project(global_transform: Matrix4<f32>, p: Vector3<f32>) -> Option<Vector2<f3
 
 impl TypeUuidProvider for Terrain {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("4b0a7927-bcd8-41a3-949a-dd10fba8e16a").unwrap()
+        uuid!("4b0a7927-bcd8-41a3-949a-dd10fba8e16a")
     }
 }
 

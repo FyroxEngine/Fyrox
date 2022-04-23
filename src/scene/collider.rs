@@ -1,12 +1,13 @@
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
 
-use crate::scene::node::{NodeTrait, SyncContext, TypeUuidProvider};
 use crate::{
     core::{
         algebra::Vector3,
         inspect::{Inspect, PropertyInfo},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -17,17 +18,14 @@ use crate::{
             physics::{CoefficientCombineRule, ContactPair, PhysicsWorld},
             Graph,
         },
-        node::Node,
+        node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
     utils::log::Log,
 };
 use fxhash::FxHashMap;
-use fyrox_core::math::aabb::AxisAlignedBoundingBox;
-use fyrox_core::uuid::Uuid;
 use rapier3d::geometry::{self, ColliderHandle};
-use std::str::FromStr;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -475,7 +473,7 @@ impl Clone for Collider {
 
 impl TypeUuidProvider for Collider {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("bfaa2e82-9c19-4b99-983b-3bc115744a1d").unwrap()
+        uuid!("bfaa2e82-9c19-4b99-983b-3bc115744a1d")
     }
 }
 

@@ -1,13 +1,12 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
-use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -15,7 +14,7 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait, SyncContext},
+        node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
@@ -26,7 +25,6 @@ use rapier3d::dynamics::JointHandle;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
-    str::FromStr,
 };
 
 /// Ball joint locks any translational moves between two objects on the axis between objects, but
@@ -244,7 +242,7 @@ impl Clone for Joint {
 
 impl TypeUuidProvider for Joint {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("439d48f5-e3a3-4255-aa08-353c1ca42e3b").unwrap()
+        uuid!("439d48f5-e3a3-4255-aa08-353c1ca42e3b")
     }
 }
 

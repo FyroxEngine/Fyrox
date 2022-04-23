@@ -17,13 +17,12 @@
 //! can easily ruin performance of your game, especially on low-end hardware. Light
 //! scattering is relatively heavy too.
 
-use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -32,16 +31,13 @@ use crate::{
         base::Base,
         graph::Graph,
         light::{BaseLight, BaseLightBuilder},
-        node::{Node, NodeTrait},
+        node::{Node, NodeTrait, TypeUuidProvider},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };
 use fxhash::FxHashMap;
-use std::{
-    ops::{Deref, DerefMut},
-    str::FromStr,
-};
+use std::ops::{Deref, DerefMut};
 
 /// See module docs.
 #[derive(Debug, Inspect, Clone)]
@@ -76,7 +72,7 @@ impl DerefMut for PointLight {
 
 impl TypeUuidProvider for PointLight {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("c81dcc31-7cb9-465f-abd9-b385ac6f4d37").unwrap()
+        uuid!("c81dcc31-7cb9-465f-abd9-b385ac6f4d37")
     }
 }
 

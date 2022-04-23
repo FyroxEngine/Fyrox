@@ -1,12 +1,12 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
-use crate::scene::node::{NodeTrait, SyncContext, TypeUuidProvider};
-use crate::utils::log::Log;
 use crate::{
     core::{
         algebra::{UnitComplex, Vector2},
         inspect::{Inspect, PropertyInfo},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -14,16 +14,14 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::Node,
+        node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
         variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
+    utils::log::Log,
 };
 use fxhash::FxHashMap;
-use fyrox_core::math::aabb::AxisAlignedBoundingBox;
-use fyrox_core::uuid::Uuid;
 use rapier2d::dynamics::JointHandle;
-use std::str::FromStr;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -216,7 +214,7 @@ impl Clone for Joint {
 
 impl TypeUuidProvider for Joint {
     fn type_uuid() -> Uuid {
-        Uuid::from_str("b8d66eda-b69f-4c57-80ba-d76665573565").unwrap()
+        uuid!("b8d66eda-b69f-4c57-80ba-d76665573565")
     }
 }
 
