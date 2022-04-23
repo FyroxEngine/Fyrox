@@ -8,6 +8,7 @@ use crate::{
         menu::Menu,
         message::{AbsmMessage, MessageSender},
         node::{AbsmNode, AbsmNodeMessage},
+        parameter::ParameterPanel,
         preview::Previewer,
         state_graph::Document,
         state_viewer::StateViewer,
@@ -55,6 +56,7 @@ mod inspector;
 mod menu;
 mod message;
 mod node;
+mod parameter;
 mod preview;
 mod segment;
 mod selectable;
@@ -118,6 +120,7 @@ pub struct AbsmEditor {
     previewer: Previewer,
     state_viewer: StateViewer,
     menu: Menu,
+    parameter_panel: ParameterPanel,
 }
 
 impl AbsmEditor {
@@ -131,9 +134,10 @@ impl AbsmEditor {
 
         let menu = Menu::new(ctx);
 
-        let inspector = Inspector::new(ctx, sender);
+        let inspector = Inspector::new(ctx, sender.clone());
         let document = Document::new(ctx);
         let state_viewer = StateViewer::new(ctx);
+        let parameter_panel = ParameterPanel::new(ctx, sender);
 
         let docking_manager = DockingManagerBuilder::new(
             WidgetBuilder::new().on_row(1).with_child(
@@ -146,7 +150,21 @@ impl AbsmEditor {
                                     splitter: 0.3,
                                     tiles: [
                                         TileBuilder::new(WidgetBuilder::new())
-                                            .with_content(TileContent::Window(previewer.window))
+                                            .with_content(TileContent::VerticalTiles {
+                                                splitter: 0.5,
+                                                tiles: [
+                                                    TileBuilder::new(WidgetBuilder::new())
+                                                        .with_content(TileContent::Window(
+                                                            previewer.window,
+                                                        ))
+                                                        .build(ctx),
+                                                    TileBuilder::new(WidgetBuilder::new())
+                                                        .with_content(TileContent::Window(
+                                                            parameter_panel.window,
+                                                        ))
+                                                        .build(ctx),
+                                                ],
+                                            })
                                             .build(ctx),
                                         TileBuilder::new(WidgetBuilder::new())
                                             .with_content(TileContent::HorizontalTiles {
@@ -215,12 +233,14 @@ impl AbsmEditor {
             load_dialog,
             previewer,
             state_viewer,
+            parameter_panel,
         }
     }
 
     fn sync_to_model(&mut self, engine: &mut Engine) {
         if let Some(data_model) = self.data_model.as_ref() {
             let ui = &mut engine.user_interface;
+            self.parameter_panel.sync_to_model(ui, data_model);
             self.document.sync_to_model(data_model, ui);
             self.state_viewer
                 .sync_to_model(&data_model.absm_definition, ui, data_model);
@@ -274,6 +294,8 @@ impl AbsmEditor {
             .set_state(Handle::NONE, &data_model, &engine.user_interface);
         self.data_model = Some(data_model);
         self.previewer.panel.clear(engine);
+        self.parameter_panel
+            .reset(&mut engine.user_interface, self.data_model.as_ref());
     }
 
     fn open_save_dialog(&self, ui: &UserInterface) {
@@ -318,6 +340,8 @@ impl AbsmEditor {
                     let preview_model_path = data_model.preview_model_path.clone();
                     self.data_model = Some(data_model);
                     self.message_sender.sync();
+                    self.parameter_panel
+                        .reset(&mut engine.user_interface, self.data_model.as_ref());
                     self.set_preview_model(engine, &preview_model_path);
                 }
             }

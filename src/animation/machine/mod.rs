@@ -222,7 +222,7 @@ impl MachineDefinition {
 
         // Initialize parameters.
         for definition in self.parameters.container.iter() {
-            machine.set_parameter(&definition.name, definition.value.clone());
+            machine.set_parameter(&definition.name, definition.value);
         }
 
         // Instantiate nodes.
