@@ -1,6 +1,10 @@
 use crate::{
     absm::{
-        command::{AbsmCommand, AddParameterCommand, RemoveParameterCommand},
+        command::{
+            AbsmCommand, AddParameterCommand, RemoveParameterCommand,
+            SetParameterIndexValueCommand, SetParameterNameCommand, SetParameterRuleValueCommand,
+            SetParameterValueCommand, SetParameterWeightValueCommand,
+        },
         message::MessageSender,
         AbsmDataModel,
     },
@@ -19,6 +23,7 @@ use fyrox::{
                 PropertyEditorDefinitionContainer,
             },
             CollectionChanged, FieldKind, InspectorBuilder, InspectorContext, InspectorMessage,
+            PropertyChanged,
         },
         message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
@@ -122,7 +127,10 @@ impl ParameterPanel {
                                 CollectionChanged::Remove(i) => {
                                     Some(AbsmCommand::new(RemoveParameterCommand::new((), i)))
                                 }
-                                CollectionChanged::ItemChanged { .. } => None,
+                                CollectionChanged::ItemChanged {
+                                    index,
+                                    ref property,
+                                } => handle_parameter_property_change(index, property),
                             }
                         } else {
                             None
@@ -138,5 +146,57 @@ impl ParameterPanel {
                 }
             }
         }
+    }
+}
+
+fn handle_parameter_property_change(
+    index: usize,
+    property_changed: &PropertyChanged,
+) -> Option<AbsmCommand> {
+    match property_changed.value {
+        FieldKind::Inspectable(ref inner) => {
+            if property_changed.name == ParameterDefinition::VALUE {
+                if inner.name == "0" {
+                    if let FieldKind::Object(ref value) = inner.value {
+                        if let Some(weight) = value.cast_clone::<f32>() {
+                            Some(AbsmCommand::new(SetParameterWeightValueCommand {
+                                handle: index,
+                                value: weight,
+                            }))
+                        } else if let Some(rule) = value.cast_clone::<bool>() {
+                            Some(AbsmCommand::new(SetParameterRuleValueCommand {
+                                handle: index,
+                                value: rule,
+                            }))
+                        } else if let Some(idx) = value.cast_clone::<u32>() {
+                            Some(AbsmCommand::new(SetParameterIndexValueCommand {
+                                handle: index,
+                                value: idx,
+                            }))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+        FieldKind::Object(ref value) => match property_changed.name.as_ref() {
+            ParameterDefinition::NAME => Some(AbsmCommand::new(SetParameterNameCommand {
+                handle: index,
+                value: value.cast_clone()?,
+            })),
+            ParameterDefinition::VALUE => Some(AbsmCommand::new(SetParameterValueCommand {
+                handle: index,
+                value: value.cast_clone()?,
+            })),
+            _ => None,
+        },
+        _ => None,
     }
 }

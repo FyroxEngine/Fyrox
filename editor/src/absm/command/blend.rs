@@ -66,7 +66,7 @@ define_set_collection_element_command!(
     }
 );
 
-define_absm_swap_command!(SetBlendAnimationsByIndexParameterCommand<PoseNodeDefinition, String>[](self, context) {
+define_absm_swap_command!(SetBlendAnimationsByIndexParameterCommand<Handle<PoseNodeDefinition>, String>[](self, context) {
     if let PoseNodeDefinition::BlendAnimationsByIndex(ref mut definition) = context.definition.nodes[self.handle] {
         &mut definition.index_parameter
     } else {
@@ -74,7 +74,7 @@ define_absm_swap_command!(SetBlendAnimationsByIndexParameterCommand<PoseNodeDefi
     }
 });
 
-define_absm_swap_command!(SetBlendAnimationsByIndexInputBlendTimeCommand<PoseNodeDefinition, f32>[index: usize](self, context) {
+define_absm_swap_command!(SetBlendAnimationsByIndexInputBlendTimeCommand<Handle<PoseNodeDefinition>, f32>[index: usize](self, context) {
     if let PoseNodeDefinition::BlendAnimationsByIndex(ref mut definition) = context.definition.nodes[self.handle] {
         &mut definition.inputs[self.index].blend_time
     } else {
@@ -82,7 +82,7 @@ define_absm_swap_command!(SetBlendAnimationsByIndexInputBlendTimeCommand<PoseNod
     }
 });
 
-define_absm_swap_command!(SetBlendAnimationsPoseWeightCommand<PoseNodeDefinition, PoseWeight>[index: usize](self, context) {
+define_absm_swap_command!(SetBlendAnimationsPoseWeightCommand<Handle<PoseNodeDefinition>, PoseWeight>[index: usize](self, context) {
     if let PoseNodeDefinition::BlendAnimations(ref mut definition) = context.definition.nodes[self.handle] {
         &mut definition.pose_sources[self.index].weight
     } else {
@@ -90,7 +90,7 @@ define_absm_swap_command!(SetBlendAnimationsPoseWeightCommand<PoseNodeDefinition
     }
 });
 
-define_absm_swap_command!(SetPoseWeightConstantCommand<PoseNodeDefinition, f32>[index: usize](self, context) {
+define_absm_swap_command!(SetPoseWeightConstantCommand<Handle<PoseNodeDefinition>, f32>[index: usize](self, context) {
     if let PoseNodeDefinition::BlendAnimations(ref mut definition) = context.definition.nodes[self.handle] {
         if let PoseWeight::Constant(ref mut value) = definition.pose_sources[self.index].weight {
             value
@@ -102,7 +102,7 @@ define_absm_swap_command!(SetPoseWeightConstantCommand<PoseNodeDefinition, f32>[
     }
 });
 
-define_absm_swap_command!(SetPoseWeightParameterCommand<PoseNodeDefinition, String>[index: usize](self, context) {
+define_absm_swap_command!(SetPoseWeightParameterCommand<Handle<PoseNodeDefinition>, String>[index: usize](self, context) {
     if let PoseNodeDefinition::BlendAnimations(ref mut definition) = context.definition.nodes[self.handle] {
         if let PoseWeight::Parameter(ref mut value) = definition.pose_sources[self.index].weight {
             value

@@ -2,7 +2,7 @@ use crate::{absm::SelectedEntity, define_command_stack};
 use fyrox::{
     animation::machine::{
         node::PoseNodeDefinition, parameter::ParameterDefinition, state::StateDefinition,
-        transition::TransitionDefinition, MachineDefinition,
+        transition::TransitionDefinition, MachineDefinition, Parameter,
     },
     core::{
         algebra::Vector2,
@@ -520,6 +520,7 @@ macro_rules! define_push_element_to_collection_command {
 macro_rules! define_remove_collection_element_command {
     ($name:ident<$model_handle:ty, $value_type:ty>($self:ident, $context:ident) $get_collection:block) => {
         #[derive(Debug)]
+        #[allow(dead_code)]
         pub struct $name {
             handle: $model_handle,
             index: usize,
@@ -620,7 +621,7 @@ macro_rules! define_absm_swap_command {
     ($name:ident<$model_type:ty, $value_type:ty>[$($field_name:ident:$field_type:ty),*]($self:ident, $context:ident) $get_field:block) => {
         #[derive(Debug)]
         pub struct $name {
-            pub handle: Handle<$model_type>,
+            pub handle: $model_type,
             pub value: $value_type,
             $(
                 pub $field_name: $field_type,
@@ -651,15 +652,15 @@ macro_rules! define_absm_swap_command {
     };
 }
 
-define_absm_swap_command!(SetStateRootPoseCommand<StateDefinition, Handle<PoseNodeDefinition>>[](self, context) {
+define_absm_swap_command!(SetStateRootPoseCommand<Handle<StateDefinition>, Handle<PoseNodeDefinition>>[](self, context) {
     &mut context.definition.states[self.handle].root
 });
 
-define_absm_swap_command!(SetStateNameCommand<StateDefinition, String>[](self, context) {
+define_absm_swap_command!(SetStateNameCommand<Handle<StateDefinition>, String>[](self, context) {
     &mut context.definition.states[self.handle].name
 });
 
-define_absm_swap_command!(SetPlayAnimationResourceCommand<PoseNodeDefinition, String>[](self, context) {
+define_absm_swap_command!(SetPlayAnimationResourceCommand<Handle<PoseNodeDefinition>, String>[](self, context) {
     if let PoseNodeDefinition::PlayAnimation(ref mut play_animation) = context.definition.nodes[self.handle] {
         &mut play_animation.animation
     } else {
@@ -673,4 +674,36 @@ define_push_element_to_collection_command!(AddParameterCommand<(), ParameterDefi
 
 define_remove_collection_element_command!(RemoveParameterCommand<(), ParameterDefinition>(self, context) {
     &mut context.definition.parameters.container
+});
+
+define_absm_swap_command!(SetParameterNameCommand<usize, String>[](self, context) {
+    &mut context.definition.parameters.container[self.handle].name
+});
+
+define_absm_swap_command!(SetParameterValueCommand<usize, Parameter>[](self, context) {
+    &mut context.definition.parameters.container[self.handle].value
+});
+
+define_absm_swap_command!(SetParameterWeightValueCommand<usize, f32>[](self, context) {
+    if let Parameter::Weight(ref mut weight) = context.definition.parameters.container[self.handle].value {
+        weight
+    } else {
+        unreachable!()
+    }
+});
+
+define_absm_swap_command!(SetParameterRuleValueCommand<usize, bool>[](self, context) {
+    if let Parameter::Rule(ref mut rule) = context.definition.parameters.container[self.handle].value {
+        rule
+    } else {
+        unreachable!()
+    }
+});
+
+define_absm_swap_command!(SetParameterIndexValueCommand<usize, u32>[](self, context) {
+    if let Parameter::Index(ref mut index) = context.definition.parameters.container[self.handle].value {
+        index
+    } else {
+        unreachable!()
+    }
 });
