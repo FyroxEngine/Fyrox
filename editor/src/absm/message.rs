@@ -30,6 +30,10 @@ impl MessageSender {
         self.send(AbsmMessage::DoCommand(AbsmCommand::new(command)))
     }
 
+    pub fn do_command_value(&self, command: AbsmCommand) {
+        self.send(AbsmMessage::DoCommand(command))
+    }
+
     pub fn undo(&self) {
         self.send(AbsmMessage::Undo)
     }

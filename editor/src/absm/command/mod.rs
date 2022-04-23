@@ -1,8 +1,8 @@
 use crate::{absm::SelectedEntity, define_command_stack};
 use fyrox::{
     animation::machine::{
-        node::PoseNodeDefinition, state::StateDefinition, transition::TransitionDefinition,
-        MachineDefinition,
+        node::PoseNodeDefinition, parameter::ParameterDefinition, state::StateDefinition,
+        transition::TransitionDefinition, MachineDefinition,
     },
     core::{
         algebra::Vector2,
@@ -665,4 +665,12 @@ define_absm_swap_command!(SetPlayAnimationResourceCommand<PoseNodeDefinition, St
     } else {
         unreachable!()
     }
+});
+
+define_push_element_to_collection_command!(AddParameterCommand<(), ParameterDefinition>(self, context) {
+   &mut context.definition.parameters.container
+});
+
+define_remove_collection_element_command!(RemoveParameterCommand<(), ParameterDefinition>(self, context) {
+    &mut context.definition.parameters.container
 });

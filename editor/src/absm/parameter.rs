@@ -1,19 +1,26 @@
 use crate::{
-    absm::AbsmDataModel, inspector::editors::make_property_editors_container, Message,
-    MessageDirection, MSG_SYNC_FLAG,
+    absm::{
+        command::{AbsmCommand, AddParameterCommand, RemoveParameterCommand},
+        message::MessageSender,
+        AbsmDataModel,
+    },
+    inspector::editors::make_property_editors_container,
+    Message, MessageDirection, MSG_SYNC_FLAG,
 };
 use fyrox::{
-    animation::machine::parameter::ParameterDefinition,
+    animation::machine::parameter::{Parameter, ParameterContainerDefinition, ParameterDefinition},
     core::pool::Handle,
     gui::{
         inspector::{
             editors::{
                 collection::VecCollectionPropertyEditorDefinition,
+                enumeration::EnumPropertyEditorDefinition,
                 inspectable::InspectablePropertyEditorDefinition,
                 PropertyEditorDefinitionContainer,
             },
-            InspectorBuilder, InspectorContext, InspectorMessage,
+            CollectionChanged, FieldKind, InspectorBuilder, InspectorContext, InspectorMessage,
         },
+        message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
@@ -35,6 +42,7 @@ impl ParameterPanel {
         property_editors
             .insert(VecCollectionPropertyEditorDefinition::<ParameterDefinition>::new());
         property_editors.insert(InspectablePropertyEditorDefinition::<ParameterDefinition>::new());
+        property_editors.insert(EnumPropertyEditorDefinition::<Parameter>::new());
 
         let inspector;
         let window = WindowBuilder::new(WidgetBuilder::new())
@@ -88,6 +96,46 @@ impl ParameterPanel {
         if let Err(sync_errors) = ctx.sync(&data_model.absm_definition.parameters, ui, 0) {
             for error in sync_errors {
                 Log::err(format!("Failed to sync property. Reason: {:?}", error))
+            }
+        }
+    }
+
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        data_model: &AbsmDataModel,
+        sender: &MessageSender,
+    ) {
+        if message.destination() == self.inspector
+            && message.direction() == MessageDirection::FromWidget
+        {
+            if let Some(InspectorMessage::PropertyChanged(args)) =
+                message.data::<InspectorMessage>()
+            {
+                let command = match args.name.as_ref() {
+                    ParameterContainerDefinition::CONTAINER => {
+                        if let FieldKind::Collection(ref collection_args) = args.value {
+                            match **collection_args {
+                                CollectionChanged::Add => Some(AbsmCommand::new(
+                                    AddParameterCommand::new((), Default::default()),
+                                )),
+                                CollectionChanged::Remove(i) => {
+                                    Some(AbsmCommand::new(RemoveParameterCommand::new((), i)))
+                                }
+                                CollectionChanged::ItemChanged { .. } => None,
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                };
+
+                if let Some(command) = command {
+                    sender.do_command_value(command);
+                } else {
+                    Log::err(format!("Failed to handle a property {}", args.path()))
+                }
             }
         }
     }
