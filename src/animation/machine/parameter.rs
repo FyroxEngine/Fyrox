@@ -8,7 +8,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 /// Machine parameter.  Machine uses various parameters for specific actions. For example
 /// Rule parameter is used to check where transition from a state to state is possible.
 /// See module docs for example.
-#[derive(Copy, Clone, Debug, Visit)]
+#[derive(Copy, Clone, Debug, Visit, EnumVariantNames, EnumString, AsRefStr)]
 pub enum Parameter {
     /// Weight parameter is used to control blend weight in BlendAnimation node.
     Weight(f32),
@@ -44,3 +44,14 @@ impl Default for PoseWeight {
 }
 
 pub type ParameterContainer = FxHashMap<String, Parameter>;
+
+#[derive(Debug, Default, Visit, Clone, Inspect)]
+pub struct ParameterDefinition {
+    pub name: String,
+    pub value: Parameter,
+}
+
+#[derive(Debug, Default, Visit, Clone, Inspect)]
+pub struct ParameterContainerDefinition {
+    pub container: Vec<ParameterDefinition>,
+}

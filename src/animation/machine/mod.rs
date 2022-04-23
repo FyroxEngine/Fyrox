@@ -91,7 +91,8 @@ use std::sync::Arc;
 use crate::{
     animation::{
         machine::{
-            event::LimitedEventQueue, node::PoseNodeDefinition, state::StateDefinition,
+            event::LimitedEventQueue, node::PoseNodeDefinition,
+            parameter::ParameterContainerDefinition, state::StateDefinition,
             transition::TransitionDefinition,
         },
         AnimationContainer, AnimationPose,
@@ -144,7 +145,7 @@ pub struct Machine {
 
 #[derive(Default, Debug, Visit, Clone)]
 pub struct MachineDefinition {
-    pub parameters: ParameterContainer,
+    pub parameters: ParameterContainerDefinition,
     pub nodes: Pool<PoseNodeDefinition>,
     pub transitions: Pool<TransitionDefinition>,
     pub states: Pool<StateDefinition>,
@@ -220,8 +221,8 @@ impl MachineDefinition {
         let mut machine = Machine::new();
 
         // Initialize parameters.
-        for (name, parameter) in self.parameters.iter() {
-            machine.set_parameter(name, *parameter);
+        for definition in self.parameters.container.iter() {
+            machine.set_parameter(&definition.name, definition.value.clone());
         }
 
         // Instantiate nodes.
