@@ -707,3 +707,15 @@ define_absm_swap_command!(SetParameterIndexValueCommand<usize, u32>[](self, cont
         unreachable!()
     }
 });
+
+define_absm_swap_command!(SetTransitionNameCommand<Handle<TransitionDefinition>, String>[](self, context) {
+    &mut context.definition.transitions[self.handle].name
+});
+
+define_absm_swap_command!(SetTransitionTimeCommand<Handle<TransitionDefinition>, f32>[](self, context) {
+    &mut context.definition.transitions[self.handle].transition_time
+});
+
+define_absm_swap_command!(SetTransitionRuleCommand<Handle<TransitionDefinition>, String>[](self, context) {
+    &mut context.definition.transitions[self.handle].rule
+});

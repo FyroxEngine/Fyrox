@@ -416,7 +416,7 @@ impl AbsmEditor {
             self.inspector
                 .handle_ui_message(message, data_model, &self.message_sender);
             self.parameter_panel
-                .handle_ui_message(message, data_model, &self.message_sender);
+                .handle_ui_message(message, &self.message_sender);
         }
 
         if let Some(FileSelectorMessage::Commit(path)) = message.data() {

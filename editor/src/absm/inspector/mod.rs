@@ -1,4 +1,3 @@
-use crate::absm::command::blend::{SetPoseWeightConstantCommand, SetPoseWeightParameterCommand};
 use crate::{
     absm::{
         command::{
@@ -6,9 +5,11 @@ use crate::{
                 AddInputCommand, AddPoseSourceCommand, RemoveInputCommand, RemovePoseSourceCommand,
                 SetBlendAnimationsByIndexInputBlendTimeCommand,
                 SetBlendAnimationsByIndexParameterCommand, SetBlendAnimationsPoseWeightCommand,
+                SetPoseWeightConstantCommand, SetPoseWeightParameterCommand,
             },
             AbsmCommand, CommandGroup, MovePoseNodeCommand, MoveStateNodeCommand,
-            SetPlayAnimationResourceCommand, SetStateNameCommand,
+            SetPlayAnimationResourceCommand, SetStateNameCommand, SetTransitionNameCommand,
+            SetTransitionRuleCommand, SetTransitionTimeCommand,
         },
         message::MessageSender,
         AbsmDataModel, SelectedEntity,
@@ -27,6 +28,7 @@ use fyrox::{
             BasePoseNodeDefinition, PoseNodeDefinition,
         },
         state::StateDefinition,
+        transition::TransitionDefinition,
         PoseWeight,
     },
     core::{inspect::Inspect, pool::Handle},
@@ -155,7 +157,9 @@ impl Inspector {
                     .selection
                     .iter()
                     .filter_map(|entry| match entry {
-                        SelectedEntity::Transition(_transition) => None, // TODO
+                        SelectedEntity::Transition(transition) => {
+                            handle_transition_property_changed(args, *transition)
+                        }
                         SelectedEntity::State(state) => handle_state_property_changed(
                             args,
                             *state,
@@ -191,6 +195,32 @@ impl Inspector {
                 }
             }
         }
+    }
+}
+
+fn handle_transition_property_changed(
+    args: &PropertyChanged,
+    handle: Handle<TransitionDefinition>,
+) -> Option<AbsmCommand> {
+    match args.value {
+        FieldKind::Object(ref value) => match args.name.as_ref() {
+            TransitionDefinition::NAME => Some(AbsmCommand::new(SetTransitionNameCommand {
+                handle,
+                value: value.cast_clone()?,
+            })),
+            TransitionDefinition::RULE => Some(AbsmCommand::new(SetTransitionRuleCommand {
+                handle,
+                value: value.cast_clone()?,
+            })),
+            TransitionDefinition::TRANSITION_TIME => {
+                Some(AbsmCommand::new(SetTransitionTimeCommand {
+                    handle,
+                    value: value.cast_clone()?,
+                }))
+            }
+            _ => None,
+        },
+        _ => None,
     }
 }
 

@@ -105,12 +105,7 @@ impl ParameterPanel {
         }
     }
 
-    pub fn handle_ui_message(
-        &mut self,
-        message: &UiMessage,
-        data_model: &AbsmDataModel,
-        sender: &MessageSender,
-    ) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, sender: &MessageSender) {
         if message.destination() == self.inspector
             && message.direction() == MessageDirection::FromWidget
         {

@@ -1,5 +1,3 @@
-#![allow(dead_code)] // TODO
-
 use crate::{
     absm::command::{AbsmCommandTrait, AbsmEditorContext},
     define_absm_swap_command, define_push_element_to_collection_command,
