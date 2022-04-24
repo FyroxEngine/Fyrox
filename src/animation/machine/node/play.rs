@@ -1,7 +1,7 @@
 use crate::{
     animation::{
         machine::{
-            node::{BasePoseNodeDefinition, EvaluatePose},
+            node::{BasePoseNode, BasePoseNodeDefinition, EvaluatePose},
             ParameterContainer, PoseNode,
         },
         Animation, AnimationContainer, AnimationPose,
@@ -20,9 +20,24 @@ use std::{
 /// Machine node that plays specified animation.
 #[derive(Default, Debug, Visit, Clone)]
 pub struct PlayAnimation {
+    pub base: BasePoseNode,
     pub animation: Handle<Animation>,
     #[visit(skip)]
-    output_pose: RefCell<AnimationPose>,
+    pub(crate) output_pose: RefCell<AnimationPose>,
+}
+
+impl Deref for PlayAnimation {
+    type Target = BasePoseNode;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl DerefMut for PlayAnimation {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
+    }
 }
 
 #[derive(Default, Debug, Visit, Clone, Inspect)]
@@ -49,6 +64,7 @@ impl PlayAnimation {
     /// Creates new PlayAnimation node with given animation handle.
     pub fn new(animation: Handle<Animation>) -> Self {
         Self {
+            base: Default::default(),
             animation,
             output_pose: Default::default(),
         }

@@ -6,6 +6,7 @@ use crate::core::{
     parking_lot::{Mutex, MutexGuard},
     visitor::prelude::*,
 };
+use std::fmt::Formatter;
 use std::{
     borrow::Cow,
     fmt::Debug,
@@ -149,6 +150,32 @@ where
     E: ResourceLoadError,
 {
     guard: MutexGuard<'a, ResourceState<T, E>>,
+}
+
+impl<'a, T, E> Debug for ResourceDataRef<'a, T, E>
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match *self.guard {
+            ResourceState::Pending { ref path, .. } => {
+                write!(
+                    f,
+                    "Attempt to get reference to resource data while it is not loaded! Path is {}",
+                    path.display()
+                )
+            }
+            ResourceState::LoadError { ref path, .. } => {
+                write!(
+                    f,
+                    "Attempt to get reference to resource data which failed to load! Path is {}",
+                    path.display()
+                )
+            }
+            ResourceState::Ok(ref data) => data.fmt(f),
+        }
+    }
 }
 
 impl<'a, T, E> Deref for ResourceDataRef<'a, T, E>

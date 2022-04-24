@@ -1,4 +1,3 @@
-use crate::animation::machine::state::StateDefinition;
 use crate::{
     animation::{
         machine::{
@@ -8,6 +7,7 @@ use crate::{
                 },
                 play::{PlayAnimation, PlayAnimationDefinition},
             },
+            state::StateDefinition,
             BlendAnimationsByIndex, BlendPose, IndexedBlendInput, ParameterContainer,
         },
         Animation, AnimationContainer, AnimationPose,
@@ -26,6 +26,11 @@ use std::{
 
 pub mod blend;
 pub mod play;
+
+#[derive(Debug, Visit, Clone, Default)]
+pub struct BasePoseNode {
+    pub definition: Handle<PoseNodeDefinition>,
+}
 
 /// Specialized node that provides animation pose. See documentation for each variant.
 #[derive(Debug, Visit, Clone)]
@@ -66,6 +71,30 @@ impl PoseNode {
     }
 }
 
+macro_rules! static_dispatch {
+    ($self:ident, $func:ident, $($args:expr),*) => {
+        match $self {
+            PoseNode::PlayAnimation(v) => v.$func($($args),*),
+            PoseNode::BlendAnimations(v) => v.$func($($args),*),
+            PoseNode::BlendAnimationsByIndex(v) => v.$func($($args),*),
+        }
+    };
+}
+
+impl Deref for PoseNode {
+    type Target = BasePoseNode;
+
+    fn deref(&self) -> &Self::Target {
+        static_dispatch!(self, deref,)
+    }
+}
+
+impl DerefMut for PoseNode {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        static_dispatch!(self, deref_mut,)
+    }
+}
+
 pub trait EvaluatePose {
     fn eval_pose(
         &self,
@@ -76,16 +105,6 @@ pub trait EvaluatePose {
     ) -> Ref<AnimationPose>;
 
     fn pose(&self) -> Ref<AnimationPose>;
-}
-
-macro_rules! static_dispatch {
-    ($self:ident, $func:ident, $($args:expr),*) => {
-        match $self {
-            PoseNode::PlayAnimation(v) => v.$func($($args),*),
-            PoseNode::BlendAnimations(v) => v.$func($($args),*),
-            PoseNode::BlendAnimationsByIndex(v) => v.$func($($args),*),
-        }
-    };
 }
 
 impl EvaluatePose for PoseNode {

@@ -167,7 +167,7 @@ impl Document {
     }
 
     pub fn sync_to_model(&mut self, data_model: &AbsmDataModel, ui: &mut UserInterface) {
-        let definition = &data_model.absm_definition;
+        let definition = &data_model.resource.data_ref().absm_definition;
 
         let canvas = ui
             .node(self.canvas)

@@ -1,7 +1,7 @@
 use crate::{
     animation::{
         machine::{
-            node::{BasePoseNodeDefinition, PoseNodeDefinition},
+            node::{BasePoseNode, BasePoseNodeDefinition, PoseNodeDefinition},
             EvaluatePose, Parameter, ParameterContainer, PoseNode, PoseWeight,
         },
         AnimationContainer, AnimationPose,
@@ -70,9 +70,24 @@ impl BlendPose {
 /// recover from his wounds.
 #[derive(Default, Debug, Visit, Clone)]
 pub struct BlendAnimations {
+    pub base: BasePoseNode,
     pub pose_sources: Vec<BlendPose>,
     #[visit(skip)]
-    output_pose: RefCell<AnimationPose>,
+    pub(crate) output_pose: RefCell<AnimationPose>,
+}
+
+impl Deref for BlendAnimations {
+    type Target = BasePoseNode;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl DerefMut for BlendAnimations {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
+    }
 }
 
 #[derive(Default, Debug, Visit, Clone, Inspect)]
@@ -105,6 +120,7 @@ impl BlendAnimations {
     /// Creates new animation blend node with given poses.
     pub fn new(poses: Vec<BlendPose>) -> Self {
         Self {
+            base: Default::default(),
             pose_sources: poses,
             output_pose: Default::default(),
         }
@@ -161,12 +177,27 @@ pub struct IndexedBlendInputDefinition {
 
 #[derive(Default, Debug, Visit, Clone)]
 pub struct BlendAnimationsByIndex {
-    index_parameter: String,
+    pub base: BasePoseNode,
+    pub(crate) index_parameter: String,
     pub inputs: Vec<IndexedBlendInput>,
-    prev_index: Cell<Option<u32>>,
-    blend_time: Cell<f32>,
+    pub(crate) prev_index: Cell<Option<u32>>,
+    pub(crate) blend_time: Cell<f32>,
     #[visit(skip)]
-    output_pose: RefCell<AnimationPose>,
+    pub(crate) output_pose: RefCell<AnimationPose>,
+}
+
+impl Deref for BlendAnimationsByIndex {
+    type Target = BasePoseNode;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl DerefMut for BlendAnimationsByIndex {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
+    }
 }
 
 #[derive(Default, Debug, Visit, Clone, Inspect)]
@@ -199,6 +230,7 @@ impl DerefMut for BlendAnimationsByIndexDefinition {
 impl BlendAnimationsByIndex {
     pub fn new(index_parameter: String, inputs: Vec<IndexedBlendInput>) -> Self {
         Self {
+            base: Default::default(),
             index_parameter,
             inputs,
             output_pose: RefCell::new(Default::default()),

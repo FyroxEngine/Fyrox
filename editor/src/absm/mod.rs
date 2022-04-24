@@ -16,6 +16,9 @@ use crate::{
     utils::{create_file_selector, open_file_selector},
     Message,
 };
+use fyrox::animation::machine::MachineDefinition;
+use fyrox::asset::{Resource, ResourceState};
+use fyrox::resource::absm::{AbsmResource, AbsmResourceState};
 use fyrox::{
     animation::machine::{
         node::{
@@ -24,7 +27,6 @@ use fyrox::{
         },
         state::StateDefinition,
         transition::TransitionDefinition,
-        MachineDefinition,
     },
     core::{
         color::Color,
@@ -83,21 +85,35 @@ pub struct AbsmDataModel {
     path: PathBuf,
     preview_model_path: PathBuf,
     selection: Vec<SelectedEntity>,
-    absm_definition: MachineDefinition,
+    resource: AbsmResource,
 }
 
 impl AbsmDataModel {
     pub fn ctx(&mut self) -> AbsmEditorContext {
         AbsmEditorContext {
             selection: &mut self.selection,
-            definition: &mut self.absm_definition,
+            resource: self.resource.data_ref(),
         }
     }
 
     // Manual implementation is needed to store editor data alongside the engine data.
     fn visit(&mut self, visitor: &mut Visitor) -> VisitResult {
         // Visit engine data first.
-        self.absm_definition.visit("Machine", visitor)?;
+        if visitor.is_reading() {
+            let mut definition = MachineDefinition::default();
+            definition.visit("Machine", visitor)?;
+
+            self.resource =
+                AbsmResource::from(Resource::new(ResourceState::Ok(AbsmResourceState {
+                    path: Default::default(),
+                    absm_definition: definition,
+                })));
+        } else {
+            self.resource
+                .data_ref()
+                .absm_definition
+                .visit("Machine", visitor)?;
+        }
 
         // Visit editor-specific data. These fields are optional so we ignore any errors here.
         let _ = self.preview_model_path.visit("PreviewModelPath", visitor);
@@ -242,10 +258,9 @@ impl AbsmEditor {
             let ui = &mut engine.user_interface;
             self.parameter_panel.sync_to_model(ui, data_model);
             self.document.sync_to_model(data_model, ui);
-            self.state_viewer
-                .sync_to_model(&data_model.absm_definition, ui, data_model);
+            self.state_viewer.sync_to_model(ui, data_model);
             self.inspector.sync_to_model(ui, data_model);
-            self.previewer.set_absm(engine, &data_model.absm_definition);
+            self.previewer.set_absm(engine, &data_model.resource);
         }
     }
 
@@ -319,7 +334,7 @@ impl AbsmEditor {
     fn set_preview_model(&mut self, engine: &mut Engine, path: &Path) {
         if let Some(data_model) = self.data_model.as_mut() {
             self.previewer
-                .set_preview_model(engine, path, &data_model.absm_definition);
+                .set_preview_model(engine, path, &data_model.resource);
 
             data_model.preview_model_path = path.to_path_buf();
         }
@@ -443,7 +458,8 @@ impl AbsmEditor {
                             .node(message.destination())
                             .query_component::<AbsmNode<PoseNodeDefinition>>()
                         {
-                            let model_ref = &data_model.absm_definition.nodes[node.model_handle];
+                            let model_ref = &data_model.resource.data_ref().absm_definition.nodes
+                                [node.model_handle];
 
                             match model_ref {
                                 PoseNodeDefinition::PlayAnimation(_) => {

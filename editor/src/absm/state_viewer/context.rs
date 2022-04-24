@@ -10,7 +10,7 @@ use crate::{
         connection::Connection,
         message::MessageSender,
         node::AbsmNode,
-        AbsmDataModel, SelectedEntity,
+        SelectedEntity,
     },
     menu::create_menu_item,
 };
@@ -22,6 +22,7 @@ use fyrox::{
             BasePoseNodeDefinition, PoseNodeDefinition,
         },
         state::StateDefinition,
+        MachineDefinition,
     },
     core::pool::Handle,
     gui::{
@@ -176,7 +177,8 @@ impl NodeContextMenu {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        data_model: &AbsmDataModel,
+        selection: &[SelectedEntity],
+        definition: &MachineDefinition,
         sender: &MessageSender,
         ui: &UserInterface,
     ) {
@@ -186,7 +188,7 @@ impl NodeContextMenu {
                     selection: vec![],
                 })];
 
-                group.extend(data_model.selection.iter().filter_map(|entry| {
+                group.extend(selection.iter().filter_map(|entry| {
                     if let SelectedEntity::PoseNode(pose_node) = entry {
                         Some(AbsmCommand::new(DeletePoseNodeCommand::new(*pose_node)))
                     } else {
@@ -203,7 +205,7 @@ impl NodeContextMenu {
                     .model_handle;
 
                 sender.do_command(SetStateRootPoseCommand {
-                    handle: data_model.absm_definition.nodes[root].parent_state,
+                    handle: definition.nodes[root].parent_state,
                     value: root,
                 })
             }
@@ -246,7 +248,7 @@ impl ConnectionContextMenu {
         message: &UiMessage,
         ui: &mut UserInterface,
         sender: &MessageSender,
-        data_model: &AbsmDataModel,
+        definition: &MachineDefinition,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination == self.remove {
@@ -268,7 +270,7 @@ impl ConnectionContextMenu {
                     .unwrap();
 
                 let model_handle = dest_node_ref.model_handle;
-                match data_model.absm_definition.nodes[model_handle] {
+                match definition.nodes[model_handle] {
                     PoseNodeDefinition::PlayAnimation(_) => {
                         // No connections
                     }

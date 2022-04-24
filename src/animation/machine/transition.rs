@@ -11,29 +11,37 @@ use crate::{
 /// of actual transition with blending.
 #[derive(Default, Debug, Visit, Clone)]
 pub struct Transition {
-    name: String,
+    pub definition: Handle<TransitionDefinition>,
+    pub(crate) name: String,
     /// Total amount of time to transition from `src` to `dst` state.
-    transition_time: f32,
-    elapsed_time: f32,
-    source: Handle<State>,
-    dest: Handle<State>,
+    pub(crate) transition_time: f32,
+    pub(crate) elapsed_time: f32,
+    pub(crate) source: Handle<State>,
+    pub(crate) dest: Handle<State>,
     /// Identifier of Rule parameter which defines is transition should be activated or not.
-    rule: String,
+    pub(crate) rule: String,
     /// 0 - evaluates `src` pose, 1 - `dest`, 0..1 - blends `src` and `dest`
-    blend_factor: f32,
+    pub(crate) blend_factor: f32,
 }
 
 #[derive(Default, Debug, Visit, Clone, Inspect)]
 pub struct TransitionDefinition {
+    #[inspect(description = "The name of the transition, it is used for debug output.")]
     pub name: String,
     /// Total amount of time to transition from `src` to `dst` state.
+    #[inspect(description = "Total amount of time (in seconds) to transition \
+        from source to destination state")]
     pub transition_time: f32,
-    #[inspect(read_only)]
-    pub source: Handle<StateDefinition>,
-    #[inspect(read_only)]
-    pub dest: Handle<StateDefinition>,
     /// Identifier of Rule parameter which defines is transition should be activated or not.
+    #[inspect(
+        description = "Name of the Rule parameter which defines whether transition \
+        should be activated or not"
+    )]
     pub rule: String,
+    #[inspect(skip)]
+    pub source: Handle<StateDefinition>,
+    #[inspect(skip)]
+    pub dest: Handle<StateDefinition>,
 }
 
 impl Transition {
@@ -45,6 +53,7 @@ impl Transition {
         rule: &str,
     ) -> Transition {
         Self {
+            definition: Default::default(),
             name: name.to_owned(),
             transition_time: time,
             elapsed_time: 0.0,

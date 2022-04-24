@@ -153,6 +153,8 @@ impl NodeContextMenu {
 
                 // Gather every transition that leads from/to any of states to remove.
                 let transitions_to_remove = data_model
+                    .resource
+                    .data_ref()
                     .absm_definition
                     .transitions
                     .pair_iter()

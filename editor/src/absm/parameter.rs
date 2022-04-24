@@ -73,7 +73,7 @@ impl ParameterPanel {
         let inspector_context = data_model
             .map(|data_model| {
                 InspectorContext::from_object(
-                    &data_model.absm_definition.parameters,
+                    &data_model.resource.data_ref().absm_definition.parameters,
                     &mut ui.build_ctx(),
                     self.property_editors.clone(),
                     None,
@@ -98,7 +98,11 @@ impl ParameterPanel {
             .context()
             .clone();
 
-        if let Err(sync_errors) = ctx.sync(&data_model.absm_definition.parameters, ui, 0) {
+        if let Err(sync_errors) = ctx.sync(
+            &data_model.resource.data_ref().absm_definition.parameters,
+            ui,
+            0,
+        ) {
             for error in sync_errors {
                 Log::err(format!("Failed to sync property. Reason: {:?}", error))
             }
@@ -144,6 +148,7 @@ impl ParameterPanel {
     }
 }
 
+#[allow(clippy::manual_map)]
 fn handle_parameter_property_change(
     index: usize,
     property_changed: &PropertyChanged,

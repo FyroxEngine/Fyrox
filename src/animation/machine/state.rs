@@ -12,11 +12,13 @@ use crate::{
 };
 use std::cell::Ref;
 
-/// State is a
+/// State is a final "container" for animation pose. It has backing pose node which provides a
+/// set of values.
 #[derive(Default, Debug, Visit, Clone)]
 pub struct State {
-    name: String,
-    root: Handle<PoseNode>,
+    pub definition: Handle<StateDefinition>,
+    pub(crate) name: String,
+    pub(crate) root: Handle<PoseNode>,
 }
 
 #[derive(Default, Debug, Visit, Clone, Inspect)]
@@ -31,6 +33,7 @@ impl State {
     /// Creates new instance of state with a given pose.
     pub fn new(name: &str, root: Handle<PoseNode>) -> Self {
         Self {
+            definition: Default::default(),
             name: name.to_owned(),
             root,
         }

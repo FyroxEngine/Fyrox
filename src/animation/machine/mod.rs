@@ -58,7 +58,10 @@
 //! let walk_animation = Handle::default();
 //! let aim_animation = Handle::default();
 //!
-//! let mut machine = Machine::new();
+//! // A handle to root node of animated object.
+//! let root = Handle::default();
+//!
+//! let mut machine = Machine::new(root);
 //!
 //! let aim = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(aim_animation)));
 //! let walk = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(walk_animation)));
@@ -86,17 +89,21 @@
 //! lower body and combat machine will control upper body.
 
 use fxhash::FxHashMap;
+use std::cmp::Ordering;
 use std::sync::Arc;
 
 use crate::{
     animation::{
         machine::{
-            event::LimitedEventQueue, node::PoseNodeDefinition,
-            parameter::ParameterContainerDefinition, state::StateDefinition,
+            event::LimitedEventQueue,
+            node::{BasePoseNode, PoseNodeDefinition},
+            parameter::ParameterContainerDefinition,
+            state::StateDefinition,
             transition::TransitionDefinition,
         },
         AnimationContainer, AnimationPose,
     },
+    core::futures::future::join_all,
     core::{
         io::FileLoadError,
         pool::{Handle, Pool},
@@ -104,11 +111,15 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    resource::model::ModelLoadError,
-    scene::{node::Node, Scene},
+    resource::{
+        absm::AbsmResource,
+        model::{Model, ModelLoadError},
+    },
+    scene::{graph::Graph, node::Node, Scene},
     utils::log::{Log, MessageKind},
 };
 pub use event::Event;
+use fyrox_resource::ResourceState;
 pub use node::{
     blend::{BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput},
     play::PlayAnimation,
@@ -127,6 +138,8 @@ pub mod transition;
 
 #[derive(Default, Debug, Visit, Clone)]
 pub struct Machine {
+    pub(crate) root: Handle<Node>,
+    pub(crate) resource: Option<AbsmResource>,
     parameters: ParameterContainer,
     nodes: Pool<PoseNode>,
     transitions: Pool<Transition>,
@@ -191,7 +204,92 @@ impl From<Option<Arc<ModelLoadError>>> for MachineInstantiationError {
     }
 }
 
+fn instantiate_node(
+    node_definition: &PoseNodeDefinition,
+    definition_handle: Handle<PoseNodeDefinition>,
+    animation_resources: &FxHashMap<String, Model>,
+    root: Handle<Node>,
+    graph: &mut Graph,
+    animations: &mut AnimationContainer,
+) -> Result<PoseNode, MachineInstantiationError> {
+    let mut node = match node_definition {
+        PoseNodeDefinition::PlayAnimation(play_animation) => {
+            let resource = animation_resources.get(&play_animation.animation).unwrap();
+
+            let animation = if matches!(*resource.state(), ResourceState::Ok(_)) {
+                *resource
+                    .retarget_animations_internal(root, graph, animations)
+                    .first()
+                    .ok_or(MachineInstantiationError::InvalidAnimation)?
+            } else {
+                Handle::NONE
+            };
+
+            PoseNode::make_play_animation(animation)
+        }
+        PoseNodeDefinition::BlendAnimations(blend_animations) => {
+            PoseNode::make_blend_animations(
+                blend_animations
+                    .pose_sources
+                    .iter()
+                    .map(|p| BlendPose {
+                        weight: p.weight.clone(),
+                        // Will be assigned on the next stage.
+                        pose_source: Default::default(),
+                    })
+                    .collect(),
+            )
+        }
+        PoseNodeDefinition::BlendAnimationsByIndex(blend_animations) => {
+            PoseNode::make_blend_animations_by_index(
+                blend_animations.index_parameter.clone(),
+                blend_animations
+                    .inputs
+                    .iter()
+                    .map(|i| IndexedBlendInput {
+                        blend_time: i.blend_time,
+                        // Will be assigned on the next stage.
+                        pose_source: Default::default(),
+                    })
+                    .collect(),
+            )
+        }
+    };
+
+    node.definition = definition_handle;
+
+    Ok(node)
+}
+
+async fn load_animation_resources(
+    definition: &MachineDefinition,
+    resource_manager: ResourceManager,
+) -> FxHashMap<String, Model> {
+    let models = definition
+        .collect_animation_paths()
+        .into_iter()
+        .map(|path| (path.clone(), resource_manager.request_model(path)))
+        .collect::<FxHashMap<_, _>>();
+
+    join_all(models.values().cloned()).await;
+
+    models
+}
+
 impl MachineDefinition {
+    pub(crate) fn collect_animation_paths(&self) -> Vec<String> {
+        self.nodes
+            .iter()
+            .filter_map(|node| {
+                if let PoseNodeDefinition::PlayAnimation(play_animation) = node {
+                    Some(play_animation.animation.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
     /// Instantiates animation blending state machine to the specified scene for a given root node.
     ///
     /// # Steps
@@ -212,13 +310,15 @@ impl MachineDefinition {
     /// The method is intended to be used with the ABSM resources made in the Fyroxed, any
     /// "hand-crafted" resources may contain invalid data which may cause errors during instantiation
     /// or even panic.  
-    pub async fn instantiate(
+    pub(crate) async fn instantiate(
         &self,
         root: Handle<Node>,
         scene: &mut Scene,
         resource_manager: ResourceManager,
     ) -> Result<Handle<Machine>, MachineInstantiationError> {
-        let mut machine = Machine::new();
+        let mut machine = Machine::new(root);
+
+        let animation_resources = load_animation_resources(self, resource_manager).await;
 
         // Initialize parameters.
         for definition in self.parameters.container.iter() {
@@ -228,60 +328,14 @@ impl MachineDefinition {
         // Instantiate nodes.
         let mut node_map = FxHashMap::default();
         for (definition_handle, node_definition) in self.nodes.pair_iter() {
-            let node = match node_definition {
-                PoseNodeDefinition::PlayAnimation(play_animation) => {
-                    let animation = match resource_manager
-                        .request_model(&play_animation.animation)
-                        .await
-                    {
-                        Ok(animation) => *animation
-                            .retarget_animations(root, scene)
-                            .first()
-                            .ok_or(MachineInstantiationError::InvalidAnimation)?,
-                        Err(e) => {
-                            Log::err(format!(
-                                "Failed to load animation {} for PlayAnimation node {}. Reason: {:?}",
-                                play_animation.animation,
-                                definition_handle,
-                                e
-                            ));
-
-                            Handle::NONE
-                        }
-                    };
-
-                    PoseNode::make_play_animation(animation)
-                }
-                PoseNodeDefinition::BlendAnimations(blend_animations) => {
-                    PoseNode::make_blend_animations(
-                        blend_animations
-                            .pose_sources
-                            .iter()
-                            .map(|p| BlendPose {
-                                weight: p.weight.clone(),
-                                // Will be assigned on the next stage.
-                                pose_source: Default::default(),
-                            })
-                            .collect(),
-                    )
-                }
-                PoseNodeDefinition::BlendAnimationsByIndex(blend_animations) => {
-                    PoseNode::make_blend_animations_by_index(
-                        blend_animations.index_parameter.clone(),
-                        blend_animations
-                            .inputs
-                            .iter()
-                            .map(|i| IndexedBlendInput {
-                                blend_time: i.blend_time,
-                                // Will be assigned on the next stage.
-                                pose_source: Default::default(),
-                            })
-                            .collect(),
-                    )
-                }
-            };
-
-            let instance_handle = machine.add_node(node);
+            let instance_handle = machine.add_node(instantiate_node(
+                node_definition,
+                definition_handle,
+                &animation_resources,
+                root,
+                &mut scene.graph,
+                &mut scene.animations,
+            )?);
 
             node_map.insert(definition_handle, instance_handle);
         }
@@ -337,20 +391,24 @@ impl MachineDefinition {
         // Instantiate states.
         let mut state_map = FxHashMap::default();
         for (definition_handle, state_definition) in self.states.pair_iter() {
-            let instance_handle = machine.add_state(State::new(
+            let mut state = State::new(
                 state_definition.name.as_ref(),
                 node_map
                     .get(&state_definition.root)
                     .cloned()
                     .unwrap_or_default(),
-            ));
+            );
+
+            state.definition = definition_handle;
+
+            let instance_handle = machine.add_state(state);
 
             state_map.insert(definition_handle, instance_handle);
         }
 
         // Instantiate transitions.
-        for transition_definition in self.transitions.iter() {
-            machine.add_transition(Transition::new(
+        for (transition_definition_handle, transition_definition) in self.transitions.pair_iter() {
+            let mut transition = Transition::new(
                 transition_definition.name.as_ref(),
                 state_map
                     .get(&transition_definition.source)
@@ -362,7 +420,11 @@ impl MachineDefinition {
                     .expect("There must be a respective dest state!"),
                 transition_definition.transition_time,
                 transition_definition.rule.as_str(),
-            ));
+            );
+
+            transition.definition = transition_definition_handle;
+
+            machine.add_transition(transition);
         }
 
         machine.set_entry_state(
@@ -376,9 +438,43 @@ impl MachineDefinition {
     }
 }
 
+fn find_state_by_definition(
+    states: &Pool<State>,
+    definition: Handle<StateDefinition>,
+) -> Handle<State> {
+    states
+        .pair_iter()
+        .find_map(|(h, s)| {
+            if s.definition == definition {
+                Some(h)
+            } else {
+                None
+            }
+        })
+        .unwrap_or_default()
+}
+
+fn find_node_by_definition(
+    nodes: &Pool<PoseNode>,
+    definition: Handle<PoseNodeDefinition>,
+) -> Handle<PoseNode> {
+    nodes
+        .pair_iter()
+        .find_map(|(h, s)| {
+            if s.definition == definition {
+                Some(h)
+            } else {
+                None
+            }
+        })
+        .unwrap_or_default()
+}
+
 impl Machine {
-    pub fn new() -> Self {
+    pub fn new(root: Handle<Node>) -> Self {
         Self {
+            root,
+            resource: None,
             nodes: Default::default(),
             states: Default::default(),
             transitions: Default::default(),
@@ -442,6 +538,10 @@ impl Machine {
         self.events.pop()
     }
 
+    pub fn resource(&self) -> Option<AbsmResource> {
+        self.resource.clone()
+    }
+
     pub fn reset(&mut self) {
         for transition in self.transitions.iter_mut() {
             transition.reset();
@@ -468,6 +568,310 @@ impl Machine {
 
     pub fn transitions(&self) -> &Pool<Transition> {
         &self.transitions
+    }
+
+    pub fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        resource_manager
+            .state()
+            .containers_mut()
+            .absm
+            .try_restore_optional_resource(&mut self.resource);
+    }
+
+    /// Synchronizes state of the machine with respective resource (if any).
+    pub fn resolve(
+        &mut self,
+        animation_resources: &FxHashMap<String, Model>,
+        graph: &mut Graph,
+        animations: &mut AnimationContainer,
+    ) {
+        if let Some(resource) = self.resource.clone() {
+            let definition = &resource.data_ref().absm_definition;
+
+            // Step 1. Restore integrity - add missing entities, remove nonexistent from instance.
+            match definition
+                .nodes
+                .alive_count()
+                .cmp(&self.nodes.alive_count())
+            {
+                Ordering::Less => {
+                    // Some nodes were deleted in definition, remove respective instances.
+                    let mut nodes_to_remove = Vec::new();
+                    for (handle, node) in self.nodes.pair_iter() {
+                        if !definition.nodes.is_valid_handle(node.definition) {
+                            nodes_to_remove.push(handle);
+                        }
+                    }
+
+                    for node_to_remove in nodes_to_remove {
+                        self.nodes.free(node_to_remove);
+                    }
+                }
+                Ordering::Equal => {
+                    // Do nothing
+                }
+                Ordering::Greater => {
+                    // Some nodes were added in definition, create respective instances.
+                    for (node_definition_handle, node_definition) in definition.nodes.pair_iter() {
+                        if self
+                            .nodes
+                            .iter()
+                            .all(|n| n.definition != node_definition_handle)
+                        {
+                            let pose_node = instantiate_node(
+                                node_definition,
+                                node_definition_handle,
+                                animation_resources,
+                                self.root,
+                                graph,
+                                animations,
+                            )
+                            .unwrap();
+
+                            let _ = self.nodes.spawn(pose_node);
+                        }
+                    }
+                }
+            }
+            let definition_to_node_map = self
+                .nodes
+                .pair_iter()
+                .map(|(h, n)| (n.definition, h))
+                .collect::<FxHashMap<_, _>>();
+            let fetch_node_by_definition = |definition: Handle<PoseNodeDefinition>| {
+                definition_to_node_map
+                    .get(&definition)
+                    .cloned()
+                    .unwrap_or_default()
+            };
+
+            match definition
+                .states
+                .alive_count()
+                .cmp(&self.states.alive_count())
+            {
+                Ordering::Less => {
+                    // Some states were deleted in definition, remove respective instances.
+                    let mut states_to_remove = Vec::new();
+                    for (handle, state) in self.states.pair_iter() {
+                        if !definition.states.is_valid_handle(state.definition) {
+                            states_to_remove.push(handle);
+                        }
+                    }
+
+                    for node_to_remove in states_to_remove {
+                        self.states.free(node_to_remove);
+                    }
+                }
+                Ordering::Equal => {
+                    // Do nothing.
+                }
+                Ordering::Greater => {
+                    // Some states were added in definition, create respective instances.
+                    for (state_definition_handle, state_definition) in definition.states.pair_iter()
+                    {
+                        if self
+                            .states
+                            .iter()
+                            .all(|s| s.definition != state_definition_handle)
+                        {
+                            let root = find_node_by_definition(&self.nodes, state_definition.root);
+
+                            let mut state = State::new(state_definition.name.as_ref(), root);
+
+                            state.definition = state_definition_handle;
+
+                            let _ = self.states.spawn(state);
+                        }
+                    }
+                }
+            }
+
+            match definition
+                .transitions
+                .alive_count()
+                .cmp(&self.transitions.alive_count())
+            {
+                Ordering::Less => {
+                    // Some transitions were deleted in definition, remove respective instances.
+                    let mut transitions_to_remove = Vec::new();
+                    for (handle, transition) in self.transitions.pair_iter() {
+                        if !definition
+                            .transitions
+                            .is_valid_handle(transition.definition)
+                        {
+                            transitions_to_remove.push(handle);
+                        }
+                    }
+
+                    for node_to_remove in transitions_to_remove {
+                        self.transitions.free(node_to_remove);
+                    }
+                }
+                Ordering::Equal => {
+                    // Do nothing.
+                }
+                Ordering::Greater => {
+                    // Some transitions were added in definition, create respective instances.
+                    for (transition_definition_handle, transition_definition) in
+                        definition.transitions.pair_iter()
+                    {
+                        if self
+                            .transitions
+                            .iter()
+                            .all(|t| t.definition != transition_definition_handle)
+                        {
+                            let mut transition = Transition::new(
+                                transition_definition.name.as_ref(),
+                                find_state_by_definition(
+                                    &self.states,
+                                    transition_definition.source,
+                                ),
+                                find_state_by_definition(&self.states, transition_definition.dest),
+                                transition_definition.transition_time,
+                                transition_definition.rule.as_str(),
+                            );
+
+                            transition.definition = transition_definition_handle;
+
+                            let _ = self.transitions.spawn(transition);
+                        }
+                    }
+                }
+            }
+
+            // Step 2. Sync data of instance entities with respective definitions.
+            for node in self.nodes.iter_mut() {
+                let node_definition = &definition.nodes[node.definition];
+
+                match node {
+                    PoseNode::PlayAnimation(play_animation) => {
+                        if let PoseNodeDefinition::PlayAnimation(play_animation_definition) =
+                            node_definition
+                        {
+                            let definition_animation =
+                                animation_resources.get(&play_animation_definition.animation);
+
+                            if animations.try_get(play_animation.animation).map_or(
+                                true,
+                                |current_animation| {
+                                    definition_animation != current_animation.resource.as_ref()
+                                },
+                            ) {
+                                animations.remove(play_animation.animation);
+
+                                let new_animation = if let Some(definition_animation) =
+                                    definition_animation
+                                {
+                                    if matches!(*definition_animation.state(), ResourceState::Ok(_))
+                                    {
+                                        definition_animation
+                                            .retarget_animations_internal(
+                                                self.root, graph, animations,
+                                            )
+                                            .first()
+                                            .cloned()
+                                            .unwrap_or_default()
+                                    } else {
+                                        Handle::NONE
+                                    }
+                                } else {
+                                    Handle::NONE
+                                };
+
+                                *play_animation = PlayAnimation {
+                                    base: BasePoseNode {
+                                        definition: play_animation.definition,
+                                    },
+                                    animation: new_animation,
+                                    output_pose: Default::default(),
+                                };
+                            }
+                        } else {
+                            unreachable!()
+                        }
+                    }
+                    PoseNode::BlendAnimations(blend_animations) => {
+                        if let PoseNodeDefinition::BlendAnimations(blend_animations_definition) =
+                            node_definition
+                        {
+                            *blend_animations = BlendAnimations {
+                                base: BasePoseNode {
+                                    definition: blend_animations.definition,
+                                },
+                                pose_sources: blend_animations_definition
+                                    .pose_sources
+                                    .iter()
+                                    .map(|s| BlendPose {
+                                        weight: s.weight.clone(),
+                                        pose_source: fetch_node_by_definition(s.pose_source),
+                                    })
+                                    .collect(),
+                                output_pose: std::mem::take(&mut blend_animations.output_pose),
+                            }
+                        }
+                    }
+                    PoseNode::BlendAnimationsByIndex(blend_animations) => {
+                        if let PoseNodeDefinition::BlendAnimationsByIndex(
+                            blend_animations_definition,
+                        ) = node_definition
+                        {
+                            *blend_animations = BlendAnimationsByIndex {
+                                base: BasePoseNode {
+                                    definition: blend_animations.definition,
+                                },
+                                index_parameter: blend_animations_definition
+                                    .index_parameter
+                                    .clone(),
+                                inputs: blend_animations_definition
+                                    .inputs
+                                    .iter()
+                                    .map(|i| IndexedBlendInput {
+                                        blend_time: i.blend_time,
+                                        pose_source: fetch_node_by_definition(i.pose_source),
+                                    })
+                                    .collect(),
+                                prev_index: blend_animations.prev_index.clone(),
+                                blend_time: blend_animations.blend_time.clone(),
+                                output_pose: std::mem::take(&mut blend_animations.output_pose),
+                            }
+                        }
+                    }
+                }
+            }
+
+            for state in self.states.iter_mut() {
+                let state_definition = &definition.states[state.definition];
+
+                // Reassign the entire state to trigger compiler error if there's a new field.
+                *state = State {
+                    definition: state.definition,
+                    name: state_definition.name.clone(),
+                    root: find_node_by_definition(&self.nodes, state_definition.root),
+                };
+            }
+
+            for transition in self.transitions.iter_mut() {
+                let transition_definition = &definition.transitions[transition.definition];
+
+                *transition = Transition {
+                    definition: transition.definition,
+                    name: transition_definition.name.clone(),
+                    transition_time: transition_definition.transition_time,
+                    elapsed_time: transition.elapsed_time,
+                    source: find_state_by_definition(&self.states, transition_definition.source),
+                    dest: find_state_by_definition(&self.states, transition_definition.dest),
+                    rule: transition_definition.rule.clone(),
+                    blend_factor: transition.blend_factor,
+                };
+            }
+
+            // Step 3. Sync parameters.
+            self.parameters.clear();
+            for definition in definition.parameters.container.iter() {
+                self.set_parameter(&definition.name, definition.value);
+            }
+        }
     }
 
     pub fn evaluate_pose(&mut self, animations: &AnimationContainer, dt: f32) -> &AnimationPose {

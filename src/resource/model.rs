@@ -17,6 +17,7 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native Fyroxed format) formats are supported.
+use crate::animation::AnimationContainer;
 use crate::{
     animation::Animation,
     asset::{define_new_resource, Resource, ResourceData},
@@ -135,6 +136,49 @@ impl Model {
         }
     }
 
+    pub(crate) fn retarget_animations_internal(
+        &self,
+        root: Handle<Node>,
+        graph: &mut Graph,
+        animations: &mut AnimationContainer,
+    ) -> Vec<Handle<Animation>> {
+        let data = self.data_ref();
+        let mut animation_handles = Vec::new();
+
+        for ref_anim in data.scene.animations.iter() {
+            let mut anim_copy = ref_anim.clone();
+
+            // Keep reference to resource from which this animation was taken from. This will help
+            // us to correctly reload keyframes for each track when we'll be loading a save file.
+            anim_copy.resource = Some(self.clone());
+
+            // Remap animation track nodes from resource to instance. This is required
+            // because we've made a plain copy and it has tracks with node handles mapped
+            // to nodes of internal scene.
+            for (i, ref_track) in ref_anim.get_tracks().iter().enumerate() {
+                let ref_node = &data.scene.graph[ref_track.get_node()];
+                // Find instantiated node that corresponds to node in resource
+                let instance_node = graph.find_by_name(root, ref_node.name());
+                if instance_node.is_none() {
+                    Log::writeln(
+                        MessageKind::Error,
+                        format!(
+                            "Failed to retarget animation {:?} for node {}",
+                            data.path(),
+                            ref_node.name()
+                        ),
+                    );
+                }
+                // One-to-one track mapping so there is [i] indexing.
+                anim_copy.get_tracks_mut()[i].set_node(instance_node);
+            }
+
+            animation_handles.push(animations.add(anim_copy));
+        }
+
+        animation_handles
+    }
+
     /// Tries to retarget animations from given model resource to a node hierarchy starting
     /// from `root` on a given scene.
     ///
@@ -161,41 +205,7 @@ impl Model {
         root: Handle<Node>,
         dest_scene: &mut Scene,
     ) -> Vec<Handle<Animation>> {
-        let data = self.data_ref();
-        let mut animation_handles = Vec::new();
-
-        for ref_anim in data.scene.animations.iter() {
-            let mut anim_copy = ref_anim.clone();
-
-            // Keep reference to resource from which this animation was taken from. This will help
-            // us to correctly reload keyframes for each track when we'll be loading a save file.
-            anim_copy.resource = Some(self.clone());
-
-            // Remap animation track nodes from resource to instance. This is required
-            // because we've made a plain copy and it has tracks with node handles mapped
-            // to nodes of internal scene.
-            for (i, ref_track) in ref_anim.get_tracks().iter().enumerate() {
-                let ref_node = &data.scene.graph[ref_track.get_node()];
-                // Find instantiated node that corresponds to node in resource
-                let instance_node = dest_scene.graph.find_by_name(root, ref_node.name());
-                if instance_node.is_none() {
-                    Log::writeln(
-                        MessageKind::Error,
-                        format!(
-                            "Failed to retarget animation {:?} for node {}",
-                            data.path(),
-                            ref_node.name()
-                        ),
-                    );
-                }
-                // One-to-one track mapping so there is [i] indexing.
-                anim_copy.get_tracks_mut()[i].set_node(instance_node);
-            }
-
-            animation_handles.push(dest_scene.animations.add(anim_copy));
-        }
-
-        animation_handles
+        self.retarget_animations_internal(root, &mut dest_scene.graph, &mut dest_scene.animations)
     }
 }
 

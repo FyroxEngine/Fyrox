@@ -29,7 +29,7 @@ use fyrox::{
         },
         state::StateDefinition,
         transition::TransitionDefinition,
-        PoseWeight,
+        MachineDefinition, PoseWeight,
     },
     core::{inspect::Inspect, pool::Handle},
     gui::{
@@ -91,25 +91,26 @@ impl Inspector {
         }
     }
 
-    fn first_selected_entity<'a>(&self, data_model: &'a AbsmDataModel) -> Option<&'a dyn Inspect> {
+    fn first_selected_entity<'a>(
+        &self,
+        definition: &'a MachineDefinition,
+    ) -> Option<&'a dyn Inspect> {
         self.selection.first().map(|first| match first {
             SelectedEntity::Transition(transition) => {
-                &data_model.absm_definition.transitions[*transition] as &dyn Inspect
+                &definition.transitions[*transition] as &dyn Inspect
             }
-            SelectedEntity::State(state) => {
-                &data_model.absm_definition.states[*state] as &dyn Inspect
-            }
-            SelectedEntity::PoseNode(pose) => {
-                &data_model.absm_definition.nodes[*pose] as &dyn Inspect
-            }
+            SelectedEntity::State(state) => &definition.states[*state] as &dyn Inspect,
+            SelectedEntity::PoseNode(pose) => &definition.nodes[*pose] as &dyn Inspect,
         })
     }
 
     pub fn sync_to_model(&mut self, ui: &mut UserInterface, data_model: &AbsmDataModel) {
+        let guard = data_model.resource.data_ref();
+
         if self.selection != data_model.selection {
             self.selection = data_model.selection.clone();
 
-            if let Some(obj_ref) = self.first_selected_entity(data_model) {
+            if let Some(obj_ref) = self.first_selected_entity(&guard.absm_definition) {
                 let ctx = InspectorContext::from_object(
                     obj_ref,
                     &mut ui.build_ctx(),
@@ -125,7 +126,7 @@ impl Inspector {
                     ctx,
                 ));
             }
-        } else if let Some(obj_ref) = self.first_selected_entity(data_model) {
+        } else if let Some(obj_ref) = self.first_selected_entity(&guard.absm_definition) {
             let ctx = ui
                 .node(self.inspector)
                 .cast::<fyrox::gui::inspector::Inspector>()
@@ -163,10 +164,11 @@ impl Inspector {
                         SelectedEntity::State(state) => handle_state_property_changed(
                             args,
                             *state,
-                            &data_model.absm_definition.states[*state],
+                            &data_model.resource.data_ref().absm_definition.states[*state],
                         ),
                         SelectedEntity::PoseNode(pose_node) => {
-                            let node = &data_model.absm_definition.nodes[*pose_node];
+                            let node =
+                                &data_model.resource.data_ref().absm_definition.nodes[*pose_node];
                             if args.owner_type_id == TypeId::of::<PlayAnimationDefinition>() {
                                 handle_play_animation_node_property_changed(args, *pose_node, node)
                             } else if args.owner_type_id

@@ -2,12 +2,14 @@ use crate::{absm::SelectedEntity, define_command_stack};
 use fyrox::{
     animation::machine::{
         node::PoseNodeDefinition, parameter::ParameterDefinition, state::StateDefinition,
-        transition::TransitionDefinition, MachineDefinition, Parameter,
+        transition::TransitionDefinition, MachineDefinition, MachineInstantiationError, Parameter,
     },
+    asset::ResourceDataRef,
     core::{
         algebra::Vector2,
         pool::{Handle, Ticket},
     },
+    resource::absm::AbsmResourceState,
 };
 use std::{
     fmt::Debug,
@@ -17,7 +19,7 @@ use std::{
 #[derive(Debug)]
 pub struct AbsmEditorContext<'a> {
     pub selection: &'a mut Vec<SelectedEntity>,
-    pub definition: &'a mut MachineDefinition,
+    pub resource: ResourceDataRef<'a, AbsmResourceState, MachineInstantiationError>,
 }
 
 pub mod blend;
@@ -131,12 +133,16 @@ macro_rules! define_spawn_command {
                 match std::mem::replace(self, $name::Unknown) {
                     $name::NonExecuted { state } => {
                         *self = $name::Executed {
-                            handle: context.definition.$container.spawn(state),
+                            handle: context.resource.absm_definition.$container.spawn(state),
                         };
                     }
                     $name::Reverted { ticket, state } => {
                         *self = $name::Executed {
-                            handle: context.definition.$container.put_back(ticket, state),
+                            handle: context
+                                .resource
+                                .absm_definition
+                                .$container
+                                .put_back(ticket, state),
                         }
                     }
                     _ => unreachable!(),
@@ -146,7 +152,11 @@ macro_rules! define_spawn_command {
             fn revert(&mut self, context: &mut AbsmEditorContext) {
                 match std::mem::replace(self, $name::Unknown) {
                     $name::Executed { handle } => {
-                        let (ticket, state) = context.definition.$container.take_reserve(handle);
+                        let (ticket, state) = context
+                            .resource
+                            .absm_definition
+                            .$container
+                            .take_reserve(handle);
                         *self = $name::Reverted { ticket, state }
                     }
                     _ => unreachable!(),
@@ -155,7 +165,11 @@ macro_rules! define_spawn_command {
 
             fn finalize(&mut self, context: &mut AbsmEditorContext) {
                 if let $name::Reverted { ticket, .. } = std::mem::replace(self, $name::Unknown) {
-                    context.definition.$container.forget_ticket(ticket)
+                    context
+                        .resource
+                        .absm_definition
+                        .$container
+                        .forget_ticket(ticket)
                 }
             }
         }
@@ -194,13 +208,13 @@ impl AbsmCommandTrait for AddStateCommand {
     fn execute(&mut self, context: &mut AbsmEditorContext) {
         match std::mem::replace(self, AddStateCommand::Unknown) {
             AddStateCommand::NonExecuted { state } => {
-                let handle = context.definition.states.spawn(state);
+                let handle = context.resource.absm_definition.states.spawn(state);
 
-                let prev_entry_state = context.definition.entry_state;
+                let prev_entry_state = context.resource.absm_definition.entry_state;
 
                 // Set entry state if it wasn't set yet.
-                if context.definition.entry_state.is_none() {
-                    context.definition.entry_state = handle;
+                if context.resource.absm_definition.entry_state.is_none() {
+                    context.resource.absm_definition.entry_state = handle;
                 }
 
                 *self = AddStateCommand::Executed {
@@ -209,13 +223,17 @@ impl AbsmCommandTrait for AddStateCommand {
                 };
             }
             AddStateCommand::Reverted { ticket, state } => {
-                let handle = context.definition.states.put_back(ticket, state);
+                let handle = context
+                    .resource
+                    .absm_definition
+                    .states
+                    .put_back(ticket, state);
 
-                let prev_entry_state = context.definition.entry_state;
+                let prev_entry_state = context.resource.absm_definition.entry_state;
 
                 // Set entry state if it wasn't set yet.
-                if context.definition.entry_state.is_none() {
-                    context.definition.entry_state = handle;
+                if context.resource.absm_definition.entry_state.is_none() {
+                    context.resource.absm_definition.entry_state = handle;
                 }
 
                 *self = AddStateCommand::Executed {
@@ -233,9 +251,9 @@ impl AbsmCommandTrait for AddStateCommand {
                 handle,
                 prev_entry_state,
             } => {
-                context.definition.entry_state = prev_entry_state;
+                context.resource.absm_definition.entry_state = prev_entry_state;
 
-                let (ticket, state) = context.definition.states.take_reserve(handle);
+                let (ticket, state) = context.resource.absm_definition.states.take_reserve(handle);
                 *self = AddStateCommand::Reverted { ticket, state }
             }
             _ => unreachable!(),
@@ -246,7 +264,11 @@ impl AbsmCommandTrait for AddStateCommand {
         if let AddStateCommand::Reverted { ticket, .. } =
             std::mem::replace(self, AddStateCommand::Unknown)
         {
-            context.definition.states.forget_ticket(ticket)
+            context
+                .resource
+                .absm_definition
+                .states
+                .forget_ticket(ticket)
         }
     }
 }
@@ -283,9 +305,9 @@ impl AbsmCommandTrait for AddPoseNodeCommand {
             AddPoseNodeCommand::NonExecuted { node } => {
                 let parent_state = node.parent_state;
 
-                let handle = context.definition.nodes.spawn(node);
+                let handle = context.resource.absm_definition.nodes.spawn(node);
 
-                let parent_state_ref = &mut context.definition.states[parent_state];
+                let parent_state_ref = &mut context.resource.absm_definition.states[parent_state];
                 let prev_root_node = parent_state_ref.root;
                 if parent_state_ref.root.is_none() {
                     parent_state_ref.root = handle;
@@ -299,9 +321,13 @@ impl AbsmCommandTrait for AddPoseNodeCommand {
             AddPoseNodeCommand::Reverted { ticket, node } => {
                 let parent_state = node.parent_state;
 
-                let handle = context.definition.nodes.put_back(ticket, node);
+                let handle = context
+                    .resource
+                    .absm_definition
+                    .nodes
+                    .put_back(ticket, node);
 
-                let parent_state_ref = &mut context.definition.states[parent_state];
+                let parent_state_ref = &mut context.resource.absm_definition.states[parent_state];
                 let prev_root_node = parent_state_ref.root;
                 if parent_state_ref.root.is_none() {
                     parent_state_ref.root = handle;
@@ -322,9 +348,9 @@ impl AbsmCommandTrait for AddPoseNodeCommand {
                 handle,
                 prev_root_node,
             } => {
-                let (ticket, node) = context.definition.nodes.take_reserve(handle);
+                let (ticket, node) = context.resource.absm_definition.nodes.take_reserve(handle);
 
-                context.definition.states[node.parent_state].root = prev_root_node;
+                context.resource.absm_definition.states[node.parent_state].root = prev_root_node;
 
                 *self = AddPoseNodeCommand::Reverted { ticket, node }
             }
@@ -336,7 +362,7 @@ impl AbsmCommandTrait for AddPoseNodeCommand {
         if let AddPoseNodeCommand::Reverted { ticket, .. } =
             std::mem::replace(self, AddPoseNodeCommand::Unknown)
         {
-            context.definition.nodes.forget_ticket(ticket)
+            context.resource.absm_definition.nodes.forget_ticket(ticket)
         }
     }
 }
@@ -381,12 +407,12 @@ macro_rules! define_move_command {
 
             fn execute(&mut self, context: &mut AbsmEditorContext) {
                 let position = self.swap();
-                self.set_position(context.definition, position);
+                self.set_position(&mut context.resource.absm_definition, position);
             }
 
             fn revert(&mut self, context: &mut AbsmEditorContext) {
                 let position = self.swap();
-                self.set_position(context.definition, position);
+                self.set_position(&mut context.resource.absm_definition, position);
             }
         }
     };
@@ -447,7 +473,11 @@ macro_rules! define_free_command {
             fn execute(&mut self, context: &mut AbsmEditorContext) {
                 match std::mem::replace(self, Self::Unknown) {
                     Self::NonExecuted(state) | Self::Reverted(state) => {
-                        let (ticket, state) = context.definition.$container.take_reserve(state);
+                        let (ticket, state) = context
+                            .resource
+                            .absm_definition
+                            .$container
+                            .take_reserve(state);
                         *self = Self::Executed { state, ticket }
                     }
                     _ => unreachable!(),
@@ -457,8 +487,13 @@ macro_rules! define_free_command {
             fn revert(&mut self, context: &mut AbsmEditorContext) {
                 match std::mem::replace(self, Self::Unknown) {
                     Self::Executed { state, ticket } => {
-                        *self =
-                            Self::Reverted(context.definition.$container.put_back(ticket, state));
+                        *self = Self::Reverted(
+                            context
+                                .resource
+                                .absm_definition
+                                .$container
+                                .put_back(ticket, state),
+                        );
                     }
                     _ => unreachable!(),
                 }
@@ -467,7 +502,11 @@ macro_rules! define_free_command {
             fn finalize(&mut self, context: &mut AbsmEditorContext) {
                 match std::mem::replace(self, Self::Unknown) {
                     Self::Executed { ticket, .. } => {
-                        context.definition.$container.forget_ticket(ticket);
+                        context
+                            .resource
+                            .absm_definition
+                            .$container
+                            .forget_ticket(ticket);
                     }
                     _ => (),
                 }
@@ -598,7 +637,10 @@ pub struct SetMachineEntryStateCommand {
 
 impl SetMachineEntryStateCommand {
     fn swap(&mut self, context: &mut AbsmEditorContext) {
-        std::mem::swap(&mut context.definition.entry_state, &mut self.entry);
+        std::mem::swap(
+            &mut context.resource.absm_definition.entry_state,
+            &mut self.entry,
+        );
     }
 }
 
@@ -653,15 +695,15 @@ macro_rules! define_absm_swap_command {
 }
 
 define_absm_swap_command!(SetStateRootPoseCommand<Handle<StateDefinition>, Handle<PoseNodeDefinition>>[](self, context) {
-    &mut context.definition.states[self.handle].root
+    &mut context.resource.absm_definition.states[self.handle].root
 });
 
 define_absm_swap_command!(SetStateNameCommand<Handle<StateDefinition>, String>[](self, context) {
-    &mut context.definition.states[self.handle].name
+    &mut context.resource.absm_definition.states[self.handle].name
 });
 
 define_absm_swap_command!(SetPlayAnimationResourceCommand<Handle<PoseNodeDefinition>, String>[](self, context) {
-    if let PoseNodeDefinition::PlayAnimation(ref mut play_animation) = context.definition.nodes[self.handle] {
+    if let PoseNodeDefinition::PlayAnimation(ref mut play_animation) = context.resource.absm_definition.nodes[self.handle] {
         &mut play_animation.animation
     } else {
         unreachable!()
@@ -669,23 +711,23 @@ define_absm_swap_command!(SetPlayAnimationResourceCommand<Handle<PoseNodeDefinit
 });
 
 define_push_element_to_collection_command!(AddParameterCommand<(), ParameterDefinition>(self, context) {
-   &mut context.definition.parameters.container
+   &mut context.resource.absm_definition.parameters.container
 });
 
 define_remove_collection_element_command!(RemoveParameterCommand<(), ParameterDefinition>(self, context) {
-    &mut context.definition.parameters.container
+    &mut context.resource.absm_definition.parameters.container
 });
 
 define_absm_swap_command!(SetParameterNameCommand<usize, String>[](self, context) {
-    &mut context.definition.parameters.container[self.handle].name
+    &mut context.resource.absm_definition.parameters.container[self.handle].name
 });
 
 define_absm_swap_command!(SetParameterValueCommand<usize, Parameter>[](self, context) {
-    &mut context.definition.parameters.container[self.handle].value
+    &mut context.resource.absm_definition.parameters.container[self.handle].value
 });
 
 define_absm_swap_command!(SetParameterWeightValueCommand<usize, f32>[](self, context) {
-    if let Parameter::Weight(ref mut weight) = context.definition.parameters.container[self.handle].value {
+    if let Parameter::Weight(ref mut weight) = context.resource.absm_definition.parameters.container[self.handle].value {
         weight
     } else {
         unreachable!()
@@ -693,7 +735,7 @@ define_absm_swap_command!(SetParameterWeightValueCommand<usize, f32>[](self, con
 });
 
 define_absm_swap_command!(SetParameterRuleValueCommand<usize, bool>[](self, context) {
-    if let Parameter::Rule(ref mut rule) = context.definition.parameters.container[self.handle].value {
+    if let Parameter::Rule(ref mut rule) = context.resource.absm_definition.parameters.container[self.handle].value {
         rule
     } else {
         unreachable!()
@@ -701,7 +743,7 @@ define_absm_swap_command!(SetParameterRuleValueCommand<usize, bool>[](self, cont
 });
 
 define_absm_swap_command!(SetParameterIndexValueCommand<usize, u32>[](self, context) {
-    if let Parameter::Index(ref mut index) = context.definition.parameters.container[self.handle].value {
+    if let Parameter::Index(ref mut index) = context.resource.absm_definition.parameters.container[self.handle].value {
         index
     } else {
         unreachable!()
@@ -709,13 +751,13 @@ define_absm_swap_command!(SetParameterIndexValueCommand<usize, u32>[](self, cont
 });
 
 define_absm_swap_command!(SetTransitionNameCommand<Handle<TransitionDefinition>, String>[](self, context) {
-    &mut context.definition.transitions[self.handle].name
+    &mut context.resource.absm_definition.transitions[self.handle].name
 });
 
 define_absm_swap_command!(SetTransitionTimeCommand<Handle<TransitionDefinition>, f32>[](self, context) {
-    &mut context.definition.transitions[self.handle].transition_time
+    &mut context.resource.absm_definition.transitions[self.handle].transition_time
 });
 
 define_absm_swap_command!(SetTransitionRuleCommand<Handle<TransitionDefinition>, String>[](self, context) {
-    &mut context.definition.transitions[self.handle].rule
+    &mut context.resource.absm_definition.transitions[self.handle].rule
 });

@@ -28,6 +28,7 @@ use crate::{
     utils::log::Log,
     window::{Window, WindowBuilder},
 };
+use fyrox_core::futures::executor::block_on;
 use std::{
     collections::HashSet,
     sync::{
@@ -103,6 +104,7 @@ pub struct Engine {
 struct ResourceGraphVertex {
     resource: Model,
     children: Vec<ResourceGraphVertex>,
+    resource_manager: ResourceManager,
 }
 
 impl ResourceGraphVertex {
@@ -134,6 +136,7 @@ impl ResourceGraphVertex {
         Self {
             resource: model,
             children,
+            resource_manager,
         }
     }
 
@@ -143,7 +146,12 @@ impl ResourceGraphVertex {
             self.resource.state().path().display()
         ));
 
-        self.resource.data_ref().get_scene_mut().resolve();
+        block_on(
+            self.resource
+                .data_ref()
+                .get_scene_mut()
+                .resolve(self.resource_manager.clone()),
+        );
 
         for child in self.children.iter() {
             child.resolve();
@@ -599,7 +607,7 @@ impl Engine {
                 // TODO: This might be inefficient if there is bunch of scenes loaded,
                 // however this seems to be very rare case so it should be ok.
                 for scene in self.scenes.iter_mut() {
-                    scene.resolve();
+                    block_on(scene.resolve(self.resource_manager.clone()));
                 }
             }
         }

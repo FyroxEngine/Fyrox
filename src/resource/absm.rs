@@ -16,7 +16,8 @@ use std::{
 /// State of the [`AbsmResource`]
 #[derive(Debug, Visit, Default)]
 pub struct AbsmResourceState {
-    pub(in crate) path: PathBuf,
+    /// A path to source.
+    pub path: PathBuf,
     /// Animation blending state machine definition.
     pub absm_definition: MachineDefinition,
 }
@@ -79,7 +80,13 @@ impl AbsmResource {
         let data = self.data_ref();
         let definition = &data.absm_definition;
 
-        definition.instantiate(root, scene, resource_manager).await
+        let machine = definition
+            .instantiate(root, scene, resource_manager)
+            .await?;
+
+        scene.animation_machines[machine].resource = Some(self.clone());
+
+        Ok(machine)
     }
 }
 

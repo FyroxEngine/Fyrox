@@ -410,8 +410,17 @@ impl SceneLoader {
         }
         join_all(animation_resources).await;
 
+        let mut animation_machines = Vec::new();
+        for machine in scene.animation_machines.iter_mut() {
+            machine.restore_resources(resource_manager.clone());
+            if let Some(resource) = machine.resource.as_ref() {
+                animation_machines.push(resource.clone());
+            }
+        }
+        join_all(animation_machines).await;
+
         // And do resolve to extract correct graphical data and so on.
-        scene.resolve();
+        scene.resolve(resource_manager).await;
 
         scene
     }
@@ -463,11 +472,15 @@ impl Scene {
         self.graph.remove_node(handle)
     }
 
-    pub(in crate) fn resolve(&mut self) {
+    /// Synchronizes the state of the scene with external resources.
+    pub async fn resolve(&mut self, resource_manager: ResourceManager) {
         Log::writeln(MessageKind::Information, "Starting resolve...".to_owned());
 
         self.graph.resolve();
         self.animations.resolve(&self.graph);
+        self.animation_machines
+            .resolve(resource_manager, &mut self.graph, &mut self.animations)
+            .await;
         self.graph.update_hierarchical_data();
 
         // Re-apply lightmap if any. This has to be done after resolve because we must patch surface
@@ -634,7 +647,10 @@ impl Scene {
             }
         }
 
-        let animation_machines = self.animation_machines.clone();
+        let mut animation_machines = self.animation_machines.clone();
+        for machine in animation_machines.iter_mut() {
+            machine.root = old_new_map.get(&machine.root).cloned().unwrap_or_default();
+        }
 
         (
             Self {
