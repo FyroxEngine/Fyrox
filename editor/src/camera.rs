@@ -1,8 +1,8 @@
-use fyrox::core::math::Matrix4Ext;
+use crate::utils::built_in_skybox;
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
-        math::{plane::Plane, ray::Ray, TriangleDefinition, Vector3Ext},
+        math::{plane::Plane, ray::Ray, Matrix4Ext, TriangleDefinition, Vector3Ext},
         pool::Handle,
     },
     gui::message::{KeyCode, MouseButton},
@@ -89,6 +89,7 @@ impl CameraController {
                             .with_name("EditorCamera"),
                     )
                     .with_exposure(Exposure::Manual(std::f32::consts::E))
+                    .with_skybox(built_in_skybox())
                     .with_z_far(512.0)
                     .build(graph);
                     camera

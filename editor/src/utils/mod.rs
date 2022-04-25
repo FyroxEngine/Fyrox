@@ -1,16 +1,16 @@
 use crate::WindowEvent;
-use fyrox::gui::file_browser::FileSelectorMessage;
-use fyrox::gui::window::WindowMessage;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     event::Event,
     gui::{
-        file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
+        file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
         message::MessageDirection,
         widget::{WidgetBuilder, WidgetMessage},
-        window::{Window, WindowBuilder},
+        window::{Window, WindowBuilder, WindowMessage},
         BuildContext, UiNode, UserInterface,
     },
+    resource::texture::{CompressionOptions, Texture},
+    scene::camera::{SkyBox, SkyBoxBuilder},
 };
 
 pub mod path_fixer;
@@ -132,4 +132,30 @@ pub fn fetch_node_screen_center_ui(handle: Handle<UiNode>, ui: &UserInterface) -
     ui.try_get_node(handle)
         .map(|node| node.screen_bounds().center())
         .unwrap_or_default()
+}
+
+fn load_texture(data: &[u8]) -> Texture {
+    Texture::load_from_memory(data, CompressionOptions::NoCompression, false)
+        .ok()
+        .unwrap()
+}
+
+pub fn built_in_skybox() -> SkyBox {
+    let front = load_texture(include_bytes!("../../resources/embed/skybox/front.png"));
+    let back = load_texture(include_bytes!("../../resources/embed/skybox/back.png"));
+    let top = load_texture(include_bytes!("../../resources/embed/skybox/top.png"));
+    let bottom = load_texture(include_bytes!("../../resources/embed/skybox/bottom.png"));
+    let left = load_texture(include_bytes!("../../resources/embed/skybox/left.png"));
+    let right = load_texture(include_bytes!("../../resources/embed/skybox/right.png"));
+
+    SkyBoxBuilder {
+        front: Some(front),
+        back: Some(back),
+        left: Some(left),
+        right: Some(right),
+        top: Some(top),
+        bottom: Some(bottom),
+    }
+    .build()
+    .unwrap()
 }

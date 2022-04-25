@@ -1,4 +1,4 @@
-use crate::GameEngine;
+use crate::{utils::built_in_skybox, GameEngine};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -122,6 +122,7 @@ impl PreviewPanel {
                             .build(),
                     ),
                 )
+                .with_skybox(built_in_skybox())
                 .build(&mut scene.graph);
                 camera
             }]))
