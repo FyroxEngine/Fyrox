@@ -977,6 +977,7 @@ impl Editor {
                     configurator_window: self.configurator.window,
                     path_fixer: self.path_fixer.window,
                     curve_editor: &self.curve_editor,
+                    absm_editor: &self.absm_editor,
                 },
                 settings: &mut self.settings,
             },

@@ -16,9 +16,6 @@ use crate::{
     utils::{create_file_selector, open_file_selector},
     Message,
 };
-use fyrox::animation::machine::MachineDefinition;
-use fyrox::asset::{Resource, ResourceState};
-use fyrox::resource::absm::{AbsmResource, AbsmResourceState};
 use fyrox::{
     animation::machine::{
         node::{
@@ -27,7 +24,9 @@ use fyrox::{
         },
         state::StateDefinition,
         transition::TransitionDefinition,
+        MachineDefinition,
     },
+    asset::{Resource, ResourceState},
     core::{
         color::Color,
         futures::executor::block_on,
@@ -39,11 +38,13 @@ use fyrox::{
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
         file_browser::{FileBrowserMode, FileSelectorMessage},
         grid::{Column, GridBuilder, Row},
+        message::MessageDirection,
         message::UiMessage,
         widget::WidgetBuilder,
-        window::{WindowBuilder, WindowTitle},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
         UiNode, UserInterface,
     },
+    resource::absm::{AbsmResource, AbsmResourceState},
     utils::log::Log,
 };
 use std::{
@@ -123,7 +124,6 @@ impl AbsmDataModel {
 }
 
 pub struct AbsmEditor {
-    #[allow(dead_code)] // TODO
     window: Handle<UiNode>,
     command_stack: AbsmCommandStack,
     data_model: Option<AbsmDataModel>,
@@ -213,6 +213,7 @@ impl AbsmEditor {
         .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(1600.0).with_height(800.0))
+            .open(false)
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
@@ -301,16 +302,31 @@ impl AbsmEditor {
         }
     }
 
-    fn create_new_absm(&mut self, engine: &mut Engine) {
+    fn set_data_model(&mut self, engine: &mut Engine, data_model: Option<AbsmDataModel>) {
         self.clear_command_stack();
 
-        let data_model = AbsmDataModel::default();
-        self.state_viewer
-            .set_state(Handle::NONE, &data_model, &engine.user_interface);
-        self.data_model = Some(data_model);
-        self.previewer.panel.clear(engine);
-        self.parameter_panel
-            .reset(&mut engine.user_interface, self.data_model.as_ref());
+        self.data_model = data_model;
+
+        if let Some(data_model) = self.data_model.as_ref() {
+            self.parameter_panel
+                .reset(&mut engine.user_interface, Some(data_model));
+            self.previewer.set_preview_model(
+                engine,
+                &data_model.preview_model_path,
+                &data_model.resource,
+            );
+            self.sync_to_model(engine);
+        } else {
+            self.document.clear(&engine.user_interface);
+            self.state_viewer.clear(&engine.user_interface);
+            self.previewer.clear(engine);
+            self.parameter_panel.reset(&mut engine.user_interface, None);
+            self.inspector.clear(&engine.user_interface);
+        }
+    }
+
+    fn create_new_absm(&mut self, engine: &mut Engine) {
+        self.set_data_model(engine, Some(AbsmDataModel::default()));
     }
 
     fn open_save_dialog(&self, ui: &UserInterface) {
@@ -352,12 +368,7 @@ impl AbsmEditor {
                     ));
                 } else {
                     data_model.path = path.to_path_buf();
-                    let preview_model_path = data_model.preview_model_path.clone();
-                    self.data_model = Some(data_model);
-                    self.message_sender.sync();
-                    self.parameter_panel
-                        .reset(&mut engine.user_interface, self.data_model.as_ref());
-                    self.set_preview_model(engine, &preview_model_path);
+                    self.set_data_model(engine, Some(data_model));
                 }
             }
             Err(e) => Log::err(format!(
@@ -366,6 +377,14 @@ impl AbsmEditor {
                 e
             )),
         };
+    }
+
+    pub fn open(&self, ui: &UserInterface) {
+        ui.send_message(WindowMessage::open(
+            self.window,
+            MessageDirection::ToWidget,
+            true,
+        ));
     }
 
     pub fn update(&mut self, engine: &mut Engine) {
@@ -385,10 +404,7 @@ impl AbsmEditor {
                 AbsmMessage::ClearCommandStack => {
                     need_sync |= self.clear_command_stack();
                 }
-                AbsmMessage::CreateNewAbsm => {
-                    self.create_new_absm(engine);
-                    need_sync = true;
-                }
+                AbsmMessage::CreateNewAbsm => self.create_new_absm(engine),
                 AbsmMessage::LoadAbsm => {
                     self.open_load_dialog(&engine.user_interface);
                 }
@@ -439,6 +455,11 @@ impl AbsmEditor {
                 self.save_current_absm(path.clone())
             } else if message.destination() == self.load_dialog {
                 self.load_absm(path, engine);
+            }
+        } else if let Some(WindowMessage::Close) = message.data() {
+            if message.destination() == self.window {
+                // Clear on close.
+                self.set_data_model(engine, None);
             }
         } else if let Some(msg) = message.data::<AbsmNodeMessage>() {
             if let Some(data_model) = self.data_model.as_ref() {

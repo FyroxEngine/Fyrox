@@ -13,12 +13,14 @@ pub struct UtilsMenu {
     pub menu: Handle<UiNode>,
     open_path_fixer: Handle<UiNode>,
     open_curve_editor: Handle<UiNode>,
+    absm_editor: Handle<UiNode>,
 }
 
 impl UtilsMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let open_path_fixer;
         let open_curve_editor;
+        let absm_editor;
         let menu = create_root_menu_item(
             "Utils",
             vec![
@@ -30,6 +32,10 @@ impl UtilsMenu {
                     open_curve_editor = create_menu_item("Curve Editor", vec![], ctx);
                     open_curve_editor
                 },
+                {
+                    absm_editor = create_menu_item("Animation Editor", vec![], ctx);
+                    absm_editor
+                },
             ],
             ctx,
         );
@@ -38,6 +44,7 @@ impl UtilsMenu {
             menu,
             open_path_fixer,
             open_curve_editor,
+            absm_editor,
         }
     }
 
@@ -51,6 +58,8 @@ impl UtilsMenu {
                 ));
             } else if message.destination() == self.open_curve_editor {
                 panels.curve_editor.open(ui);
+            } else if message.destination() == self.absm_editor {
+                panels.absm_editor.open(ui);
             }
         }
     }

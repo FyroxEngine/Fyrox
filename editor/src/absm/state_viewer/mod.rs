@@ -128,6 +128,8 @@ impl StateViewer {
         data_model: &AbsmDataModel,
         ui: &UserInterface,
     ) {
+        assert!(state.is_some());
+
         self.state = state;
 
         let (state_name, exists) = data_model
@@ -160,13 +162,26 @@ impl StateViewer {
             MessageDirection::ToWidget,
             exists,
         ));
+    }
 
-        if state.is_none() {
-            // Clear canvas if state wasn't specified.
-            for &child in ui.node(self.canvas).children() {
-                ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
-            }
+    pub fn clear(&mut self, ui: &UserInterface) {
+        self.state = Handle::NONE;
+
+        for &child in ui.node(self.canvas).children() {
+            ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
         }
+
+        ui.send_message(WindowMessage::title(
+            self.window,
+            MessageDirection::ToWidget,
+            WindowTitle::text("State Viewer - No State"),
+        ));
+
+        ui.send_message(WidgetMessage::enabled(
+            self.canvas_context_menu.menu,
+            MessageDirection::ToWidget,
+            false,
+        ));
     }
 
     pub fn handle_ui_message(

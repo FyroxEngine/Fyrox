@@ -6,7 +6,7 @@ use crate::{
     scene::EditorScene,
     send_sync_message,
     settings::Settings,
-    CurveEditorWindow, GameEngine, Message, Mode,
+    AbsmEditor, CurveEditorWindow, GameEngine, Message, Mode,
 };
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
@@ -47,6 +47,7 @@ pub struct Panels<'b> {
     pub configurator_window: Handle<UiNode>,
     pub path_fixer: Handle<UiNode>,
     pub curve_editor: &'b CurveEditorWindow,
+    pub absm_editor: &'b AbsmEditor,
 }
 
 pub struct MenuContext<'a, 'b> {

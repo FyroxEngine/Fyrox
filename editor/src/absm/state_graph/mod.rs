@@ -85,6 +85,12 @@ impl Document {
         }
     }
 
+    pub fn clear(&self, ui: &UserInterface) {
+        for &child in ui.node(self.canvas).children() {
+            ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+        }
+    }
+
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,

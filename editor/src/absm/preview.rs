@@ -21,7 +21,7 @@ use std::path::Path;
 
 pub struct Previewer {
     pub window: Handle<UiNode>,
-    pub panel: PreviewPanel,
+    panel: PreviewPanel,
     load_preview_model: Handle<UiNode>,
     load_dialog: Handle<UiNode>,
     current_absm: Handle<Machine>,
@@ -83,9 +83,27 @@ impl Previewer {
         self.panel.update(engine)
     }
 
-    pub fn set_absm(&mut self, engine: &mut Engine, resource: &AbsmResource) {
+    pub fn clear(&mut self, engine: &mut Engine) {
+        self.remove_current_absm(engine);
+
+        self.panel.clear(engine);
+    }
+
+    fn remove_current_absm(&mut self, engine: &mut Engine) {
         let scene = &mut engine.scenes[self.panel.scene()];
 
+        if scene
+            .animation_machines
+            .try_get(self.current_absm)
+            .is_some()
+        {
+            scene
+                .animation_machines
+                .remove_with_animations(self.current_absm, &mut scene.animations);
+        }
+    }
+
+    pub fn set_absm(&mut self, engine: &mut Engine, resource: &AbsmResource) {
         if self
             .current_resource
             .as_ref()
@@ -97,25 +115,17 @@ impl Previewer {
             {
                 machine_instance.resolve();
             }*/
-            block_on(scene.resolve(engine.resource_manager.clone()));
+            block_on(engine.scenes[self.panel.scene()].resolve(engine.resource_manager.clone()));
         } else {
             self.current_resource = Some(resource.clone());
 
             // Remove previous machine first (if any).
-            if scene
-                .animation_machines
-                .try_get(self.current_absm)
-                .is_some()
-            {
-                scene
-                    .animation_machines
-                    .remove_with_animations(self.current_absm, &mut scene.animations);
-            }
+            self.remove_current_absm(engine);
 
             // Instantiate new immediately.
             self.current_absm = block_on(resource.instantiate(
                 self.panel.model(),
-                scene,
+                &mut engine.scenes[self.panel.scene()],
                 engine.resource_manager.clone(),
             ))
             .unwrap();

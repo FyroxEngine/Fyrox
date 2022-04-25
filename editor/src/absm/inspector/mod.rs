@@ -104,6 +104,16 @@ impl Inspector {
         })
     }
 
+    pub fn clear(&mut self, ui: &UserInterface) {
+        self.selection.clear();
+
+        ui.send_message(InspectorMessage::context(
+            self.inspector,
+            MessageDirection::ToWidget,
+            Default::default(),
+        ));
+    }
+
     pub fn sync_to_model(&mut self, ui: &mut UserInterface, data_model: &AbsmDataModel) {
         let guard = data_model.resource.data_ref();
 
