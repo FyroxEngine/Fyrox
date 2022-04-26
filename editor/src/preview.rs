@@ -18,8 +18,15 @@ use fyrox::{
     },
     resource::texture::{Texture, TextureKind},
     scene::{
-        base::BaseBuilder, camera::CameraBuilder, camera::Projection, debug::Line, mesh::Mesh,
-        node::Node, pivot::PivotBuilder, transform::TransformBuilder, Scene,
+        base::BaseBuilder,
+        camera::{CameraBuilder, Projection},
+        debug::Line,
+        light::{directional::DirectionalLightBuilder, BaseLightBuilder},
+        mesh::Mesh,
+        node::Node,
+        pivot::PivotBuilder,
+        transform::TransformBuilder,
+        Scene,
     },
     utils::into_gui_texture,
 };
@@ -132,6 +139,23 @@ impl PreviewPanel {
         .build(&mut scene.graph);
 
         scene.graph.link_nodes(hinge, camera_pivot);
+
+        DirectionalLightBuilder::new(
+            BaseLightBuilder::new(
+                BaseBuilder::new().with_local_transform(
+                    TransformBuilder::new()
+                        .with_local_rotation(UnitQuaternion::from_axis_angle(
+                            &Vector3::y_axis(),
+                            45.0f32.to_radians(),
+                        ))
+                        .build(),
+                ),
+            )
+            .cast_shadows(false),
+        )
+        .build(&mut scene.graph);
+
+        scene.ambient_lighting_color = Color::opaque(80, 80, 80);
 
         let render_target = Texture::new_render_target(width, height);
         scene.render_target = Some(render_target.clone());
