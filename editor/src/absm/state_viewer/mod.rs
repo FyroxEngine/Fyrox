@@ -226,9 +226,9 @@ impl StateViewer {
                                             SelectedEntity::PoseNode(state_node.model_handle)
                                         })
                                 })
-                                .collect();
+                                .collect::<Vec<_>>();
 
-                            if selection != data_model.selection {
+                            if !selection.is_empty() && selection != data_model.selection {
                                 sender.do_command(ChangeSelectionCommand { selection });
                             }
                         }
