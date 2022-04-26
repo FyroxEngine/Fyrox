@@ -45,7 +45,7 @@ pub struct PreviewPanel {
     pitch: f32,
     distance: f32,
     mode: Mode,
-    xz_position: Vector2<f32>,
+    position: Vector3<f32>,
     model: Handle<Node>,
     pub tools_panel: Handle<UiNode>,
 }
@@ -193,7 +193,7 @@ impl PreviewPanel {
             pitch: -45.0,
             distance: 3.0,
             hinge,
-            xz_position: Default::default(),
+            position: Default::default(),
             model: Default::default(),
             tools_panel,
         }
@@ -212,7 +212,7 @@ impl PreviewPanel {
 
         if let Projection::Perspective(proj) = scene.graph[self.camera].as_camera().projection() {
             let fov = proj.fov;
-            self.xz_position = bounding_box.center().xz();
+            self.position = bounding_box.center();
             self.distance = (bounding_box.max - bounding_box.min).norm() * (fov * 0.5).tan();
         }
     }
@@ -238,7 +238,13 @@ impl PreviewPanel {
                         match self.mode {
                             Mode::None => {}
                             Mode::Move => {
-                                self.xz_position += delta;
+                                let pivot = &scene.graph[self.camera_pivot];
+
+                                let side_vector = pivot.side_vector().normalize();
+                                let up_vector = pivot.up_vector().normalize();
+
+                                self.position +=
+                                    side_vector.scale(-delta.x) + up_vector.scale(delta.y);
                             }
                             Mode::Rotate => {
                                 self.yaw -= delta.x;
@@ -265,7 +271,10 @@ impl PreviewPanel {
                         }
                     }
                     WidgetMessage::MouseWheel { amount, .. } => {
-                        self.distance = (self.distance - amount).max(0.0);
+                        let step = 0.1;
+                        let k = 1.0 - amount.signum() * step;
+
+                        self.distance = (self.distance * k).max(0.0);
                     }
                     _ => {}
                 }
@@ -274,7 +283,7 @@ impl PreviewPanel {
 
         scene.graph[self.camera_pivot]
             .local_transform_mut()
-            .set_position(Vector3::new(self.xz_position.x, 0.0, self.xz_position.y))
+            .set_position(self.position)
             .set_rotation(UnitQuaternion::from_axis_angle(
                 &Vector3::y_axis(),
                 self.yaw.to_radians(),
