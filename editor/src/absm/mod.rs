@@ -10,7 +10,7 @@ use crate::{
         node::{AbsmNode, AbsmNodeMessage},
         parameter::ParameterPanel,
         preview::Previewer,
-        state_graph::Document,
+        state_graph::StateGraphViewer,
         state_viewer::StateViewer,
     },
     utils::{create_file_selector, open_file_selector},
@@ -130,7 +130,7 @@ pub struct AbsmEditor {
     message_sender: MessageSender,
     message_receiver: Receiver<AbsmMessage>,
     inspector: Inspector,
-    document: Document,
+    state_graph_viewer: StateGraphViewer,
     save_dialog: Handle<UiNode>,
     load_dialog: Handle<UiNode>,
     previewer: Previewer,
@@ -151,7 +151,7 @@ impl AbsmEditor {
         let menu = Menu::new(ctx);
 
         let inspector = Inspector::new(ctx, sender.clone());
-        let document = Document::new(ctx);
+        let state_graph_viewer = StateGraphViewer::new(ctx);
         let state_viewer = StateViewer::new(ctx);
         let parameter_panel = ParameterPanel::new(ctx, sender);
 
@@ -188,7 +188,7 @@ impl AbsmEditor {
                                                 tiles: [
                                                     TileBuilder::new(WidgetBuilder::new())
                                                         .with_content(TileContent::Window(
-                                                            document.window,
+                                                            state_graph_viewer.window,
                                                         ))
                                                         .build(ctx),
                                                     TileBuilder::new(WidgetBuilder::new())
@@ -244,7 +244,7 @@ impl AbsmEditor {
             command_stack: AbsmCommandStack::new(false),
             data_model: None,
             menu,
-            document,
+            state_graph_viewer,
             inspector,
             save_dialog,
             load_dialog,
@@ -258,7 +258,7 @@ impl AbsmEditor {
         if let Some(data_model) = self.data_model.as_ref() {
             let ui = &mut engine.user_interface;
             self.parameter_panel.sync_to_model(ui, data_model);
-            self.document.sync_to_model(data_model, ui);
+            self.state_graph_viewer.sync_to_model(data_model, ui);
             self.state_viewer.sync_to_model(ui, data_model);
             self.inspector.sync_to_model(ui, data_model);
             self.previewer.set_absm(engine, &data_model.resource);
@@ -317,7 +317,7 @@ impl AbsmEditor {
             );
             self.sync_to_model(engine);
         } else {
-            self.document.clear(&engine.user_interface);
+            self.state_graph_viewer.clear(&engine.user_interface);
             self.state_viewer.clear(&engine.user_interface);
             self.previewer.clear(engine);
             self.parameter_panel.reset(&mut engine.user_interface, None);
@@ -442,8 +442,12 @@ impl AbsmEditor {
         if let Some(data_model) = self.data_model.as_ref() {
             self.state_viewer
                 .handle_ui_message(message, ui, &self.message_sender, data_model);
-            self.document
-                .handle_ui_message(message, ui, &self.message_sender, data_model);
+            self.state_graph_viewer.handle_ui_message(
+                message,
+                ui,
+                &self.message_sender,
+                data_model,
+            );
             self.inspector
                 .handle_ui_message(message, data_model, &self.message_sender);
             self.parameter_panel

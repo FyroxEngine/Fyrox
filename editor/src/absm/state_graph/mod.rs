@@ -29,7 +29,7 @@ use std::cmp::Ordering;
 
 mod context;
 
-pub struct Document {
+pub struct StateGraphViewer {
     pub window: Handle<UiNode>,
     pub canvas: Handle<UiNode>,
     canvas_context_menu: CanvasContextMenu,
@@ -47,7 +47,7 @@ fn fetch_state_node_model_handle(
         .model_handle
 }
 
-impl Document {
+impl StateGraphViewer {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let mut node_context_menu = NodeContextMenu::new(ctx);
         let mut canvas_context_menu = CanvasContextMenu::new(ctx);
