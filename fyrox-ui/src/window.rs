@@ -597,10 +597,12 @@ impl WindowTitle {
 fn make_text_title(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
     TextBuilder::new(
         WidgetBuilder::new()
-            .with_margin(Thickness::uniform(5.0))
+            .with_margin(Thickness::left(5.0))
             .on_row(0)
             .on_column(0),
     )
+    .with_vertical_text_alignment(VerticalAlignment::Center)
+    .with_horizontal_text_alignment(HorizontalAlignment::Left)
     .with_text(text)
     .build(ctx)
 }
