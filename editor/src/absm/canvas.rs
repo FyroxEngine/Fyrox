@@ -210,7 +210,9 @@ impl AbsmCanvas {
                     MessageDirection::ToWidget,
                     source_pos,
                 ));
-            } else if connection.dest_node == moved_node || force {
+            }
+
+            if connection.dest_node == moved_node || force {
                 let dest_pos =
                     self.screen_to_local(fetch_node_screen_center_ui(connection.segment.dest, ui));
                 ui.send_message(SegmentMessage::dest_position(
