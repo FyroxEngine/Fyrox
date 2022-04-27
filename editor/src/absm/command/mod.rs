@@ -761,3 +761,7 @@ define_absm_swap_command!(SetTransitionTimeCommand<Handle<TransitionDefinition>,
 define_absm_swap_command!(SetTransitionRuleCommand<Handle<TransitionDefinition>, String>[](self, context) {
     &mut context.resource.absm_definition.transitions[self.handle].rule
 });
+
+define_absm_swap_command!(SetTransitionInvertRuleCommand<Handle<TransitionDefinition>, bool>[](self, context) {
+    &mut context.resource.absm_definition.transitions[self.handle].invert_rule
+});

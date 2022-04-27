@@ -20,6 +20,10 @@ pub struct Transition {
     pub(crate) dest: Handle<State>,
     /// Identifier of Rule parameter which defines is transition should be activated or not.
     pub(crate) rule: String,
+    /// If set, then fetched value from `rule` will be inverted. It is useful for cases when you
+    /// have a pair of transitions that depend on a single Rule parameter, but have different
+    /// directions (A -> B, B -> A).
+    pub(crate) invert_rule: bool,
     /// 0 - evaluates `src` pose, 1 - `dest`, 0..1 - blends `src` and `dest`
     pub(crate) blend_factor: f32,
 }
@@ -42,6 +46,16 @@ pub struct TransitionDefinition {
     pub source: Handle<StateDefinition>,
     #[inspect(skip)]
     pub dest: Handle<StateDefinition>,
+    /// If set, then fetched value from `rule` will be inverted. It is useful for cases when you
+    /// have a pair of transitions that depend on a single Rule parameter, but have different
+    /// directions (A -> B, B -> A).
+    #[visit(optional)]
+    #[inspect(
+        description = "If set, then fetched value from `rule` will be inverted. It is useful
+     for cases when you have a pair of transitions that depend on a single Rule parameter,
+      but have different directions (A -> B, B -> A)."
+    )]
+    pub invert_rule: bool,
 }
 
 impl Transition {
@@ -60,6 +74,7 @@ impl Transition {
             source: src,
             dest,
             rule: rule.to_owned(),
+            invert_rule: false,
             blend_factor: 0.0,
         }
     }
@@ -97,6 +112,16 @@ impl Transition {
     #[inline]
     pub fn blend_factor(&self) -> f32 {
         self.blend_factor
+    }
+
+    #[inline]
+    pub fn set_invert_rule(&mut self, invert: bool) {
+        self.invert_rule = invert;
+    }
+
+    #[inline]
+    pub fn is_invert_rule(&self) -> bool {
+        self.invert_rule
     }
 
     pub(super) fn reset(&mut self) {

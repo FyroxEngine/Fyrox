@@ -115,6 +115,7 @@ impl StateGraphViewer {
                                 source,
                                 dest,
                                 rule: "".to_string(),
+                                invert_rule: false,
                             }));
                         }
                     }

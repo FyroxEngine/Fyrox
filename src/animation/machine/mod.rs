@@ -862,6 +862,7 @@ impl Machine {
                     source: find_state_by_definition(&self.states, transition_definition.source),
                     dest: find_state_by_definition(&self.states, transition_definition.dest),
                     rule: transition_definition.rule.clone(),
+                    invert_rule: transition_definition.invert_rule,
                     blend_factor: transition.blend_factor,
                 };
             }
@@ -891,8 +892,14 @@ impl Machine {
                     {
                         continue;
                     }
-                    if let Some(Parameter::Rule(active)) = self.parameters.get(transition.rule()) {
-                        if *active {
+                    if let Some(Parameter::Rule(mut active)) =
+                        self.parameters.get(transition.rule()).cloned()
+                    {
+                        if transition.invert_rule {
+                            active = !active;
+                        }
+
+                        if active {
                             self.events.push(Event::StateLeave(self.active_state));
                             if self.debug {
                                 Log::writeln(

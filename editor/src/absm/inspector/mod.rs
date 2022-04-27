@@ -8,8 +8,8 @@ use crate::{
                 SetPoseWeightConstantCommand, SetPoseWeightParameterCommand,
             },
             AbsmCommand, CommandGroup, MovePoseNodeCommand, MoveStateNodeCommand,
-            SetPlayAnimationResourceCommand, SetStateNameCommand, SetTransitionNameCommand,
-            SetTransitionRuleCommand, SetTransitionTimeCommand,
+            SetPlayAnimationResourceCommand, SetStateNameCommand, SetTransitionInvertRuleCommand,
+            SetTransitionNameCommand, SetTransitionRuleCommand, SetTransitionTimeCommand,
         },
         message::MessageSender,
         AbsmDataModel, SelectedEntity,
@@ -226,6 +226,12 @@ fn handle_transition_property_changed(
             })),
             TransitionDefinition::TRANSITION_TIME => {
                 Some(AbsmCommand::new(SetTransitionTimeCommand {
+                    handle,
+                    value: value.cast_clone()?,
+                }))
+            }
+            TransitionDefinition::INVERT_RULE => {
+                Some(AbsmCommand::new(SetTransitionInvertRuleCommand {
                     handle,
                     value: value.cast_clone()?,
                 }))
