@@ -8,7 +8,7 @@ use crate::{
         message::MessageSender,
         node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
         state_graph::context::{CanvasContextMenu, NodeContextMenu, TransitionContextMenu},
-        transition::{Transition, TransitionBuilder},
+        transition::{Transition, TransitionBuilder, TransitionMessage},
         AbsmDataModel, SelectedEntity, NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND,
         SELECTED_ROOT_COLOR,
     },
@@ -88,6 +88,25 @@ impl StateGraphViewer {
     pub fn clear(&self, ui: &UserInterface) {
         for &child in ui.node(self.canvas).children() {
             ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+        }
+    }
+
+    pub fn activate_transition(
+        &self,
+        ui: &UserInterface,
+        transition: Handle<TransitionDefinition>,
+    ) {
+        if let Some(view_handle) = ui.node(self.canvas).children().iter().cloned().find(|c| {
+            ui.node(*c)
+                .query_component::<Transition>()
+                .map_or(false, |transition_view_ref| {
+                    transition_view_ref.model_handle == transition
+                })
+        }) {
+            ui.send_message(TransitionMessage::activate(
+                view_handle,
+                MessageDirection::ToWidget,
+            ));
         }
     }
 

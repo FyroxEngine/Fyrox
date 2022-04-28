@@ -24,7 +24,7 @@ use fyrox::{
         },
         state::StateDefinition,
         transition::TransitionDefinition,
-        MachineDefinition,
+        Event, MachineDefinition,
     },
     asset::{Resource, ResourceState},
     core::{
@@ -38,8 +38,7 @@ use fyrox::{
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
         file_browser::{FileBrowserMode, FileSelectorMessage},
         grid::{Column, GridBuilder, Row},
-        message::MessageDirection,
-        message::UiMessage,
+        message::{MessageDirection, UiMessage},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
         UiNode, UserInterface,
@@ -430,6 +429,34 @@ impl AbsmEditor {
         }
 
         self.previewer.update(engine);
+
+        self.handle_machine_events(engine);
+    }
+
+    pub fn handle_machine_events(&self, engine: &mut Engine) {
+        let scene = &mut engine.scenes[self.previewer.scene()];
+
+        if let Some(machine) = scene
+            .animation_machines
+            .try_get_mut(self.previewer.current_absm())
+        {
+            while let Some(event) = machine.pop_event() {
+                match event {
+                    Event::ActiveStateChanged(_) => {
+                        // TODO
+                    }
+                    Event::ActiveTransitionChanged(transition) => {
+                        if let Some(transition_ref) = machine.transitions().try_borrow(transition) {
+                            self.state_graph_viewer.activate_transition(
+                                &mut engine.user_interface,
+                                transition_ref.definition,
+                            );
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {

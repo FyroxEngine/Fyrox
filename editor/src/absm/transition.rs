@@ -7,10 +7,10 @@ use crate::{
 };
 use fyrox::{
     animation::machine::transition::TransitionDefinition,
-    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
+    core::{algebra::Vector2, color::Color, color::Hsv, math::Rect, pool::Handle},
     gui::{
         brush::Brush,
-        define_widget_deref,
+        define_constructor, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         message::{MessageDirection, UiMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -20,11 +20,25 @@ use fyrox::{
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
 };
 
-const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(100, 100, 100));
-const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(80, 80, 80));
-const SELECTED_BRUSH: Brush = Brush::Solid(Color::opaque(120, 120, 120));
+const PICKED_COLOR: Color = Color::opaque(100, 100, 100);
+const NORMAL_COLOR: Color = Color::opaque(80, 80, 80);
+const SELECTED_COLOR: Color = Color::opaque(120, 120, 120);
+
+const PICKED_BRUSH: Brush = Brush::Solid(PICKED_COLOR);
+const NORMAL_BRUSH: Brush = Brush::Solid(NORMAL_COLOR);
+const SELECTED_BRUSH: Brush = Brush::Solid(SELECTED_COLOR);
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TransitionMessage {
+    Activate,
+}
+
+impl TransitionMessage {
+    define_constructor!(TransitionMessage:Activate => fn activate(), layout: false);
+}
 
 #[derive(Clone, Debug)]
 pub struct Transition {
@@ -32,6 +46,7 @@ pub struct Transition {
     pub segment: Segment,
     pub model_handle: Handle<TransitionDefinition>,
     selectable: Selectable,
+    activity_factor: f32,
 }
 
 impl Transition {
@@ -86,10 +101,16 @@ impl Control for Transition {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
+        let color = if let Brush::Solid(color) = self.foreground() {
+            color
+        } else {
+            NORMAL_COLOR
+        };
+
         draw_transition(
             drawing_context,
             self.clip_bounds(),
-            self.foreground(),
+            Brush::Solid(color + Color::from(Hsv::new(180.0, 100.0, 50.0 * self.activity_factor))),
             self.segment.source_pos,
             self.segment.dest_pos,
         );
@@ -121,7 +142,14 @@ impl Control for Transition {
             {
                 self.handle_selection_change(ui);
             }
+        } else if let Some(TransitionMessage::Activate) = message.data() {
+            self.activity_factor = 1.0;
         }
+    }
+
+    fn update(&mut self, dt: f32, _sender: &Sender<UiMessage>) {
+        // Slowly fade.
+        self.activity_factor = (self.activity_factor - dt).max(0.0);
     }
 }
 
@@ -169,6 +197,7 @@ impl TransitionBuilder {
             },
             model_handle,
             selectable: Selectable::default(),
+            activity_factor: 0.0,
         };
 
         ctx.add_node(UiNode::new(transition))

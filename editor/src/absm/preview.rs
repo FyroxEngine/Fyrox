@@ -3,7 +3,6 @@ use crate::{
     preview::PreviewPanel,
     utils::{create_file_selector, open_file_selector},
 };
-use fyrox::resource::absm::AbsmResource;
 use fyrox::{
     animation::machine::Machine,
     core::{futures::executor::block_on, pool::Handle},
@@ -16,6 +15,8 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         Thickness, UiNode,
     },
+    resource::absm::AbsmResource,
+    scene::Scene,
 };
 use std::path::Path;
 
@@ -137,5 +138,13 @@ impl Previewer {
         if block_on(self.panel.load_model(path, engine)) {
             self.set_absm(engine, resource)
         }
+    }
+
+    pub fn current_absm(&self) -> Handle<Machine> {
+        self.current_absm
+    }
+
+    pub fn scene(&self) -> Handle<Scene> {
+        self.panel.scene()
     }
 }
