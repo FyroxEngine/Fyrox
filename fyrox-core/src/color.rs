@@ -1,5 +1,8 @@
-use crate::algebra::{Vector3, Vector4};
-use crate::visitor::{Visit, VisitResult, Visitor};
+use crate::{
+    algebra::{Vector3, Vector4},
+    visitor::{Visit, VisitResult, Visitor},
+};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq)]
 #[repr(C)]
@@ -308,5 +311,43 @@ impl Visit for Color {
         self.a.visit("A", visitor)?;
 
         visitor.leave_region()
+    }
+}
+
+impl Add for Color {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            r: self.r.saturating_add(rhs.r),
+            g: self.g.saturating_add(rhs.g),
+            b: self.b.saturating_add(rhs.b),
+            a: self.a.saturating_add(rhs.a),
+        }
+    }
+}
+
+impl AddAssign for Color {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
+    }
+}
+
+impl Sub for Color {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            r: self.r.saturating_sub(rhs.r),
+            g: self.g.saturating_sub(rhs.g),
+            b: self.b.saturating_sub(rhs.b),
+            a: self.a.saturating_sub(rhs.a),
+        }
+    }
+}
+
+impl SubAssign for Color {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
     }
 }
