@@ -1,4 +1,7 @@
-use crate::{animation::machine::State, core::pool::Handle};
+use crate::{
+    animation::machine::{State, Transition},
+    core::pool::Handle,
+};
 use std::collections::VecDeque;
 
 /// Specific machine event.
@@ -12,6 +15,9 @@ pub enum Event {
 
     /// Occurs when transition is done and new active state was set.
     ActiveStateChanged(Handle<State>),
+
+    /// Occurs when active transition was changed.
+    ActiveTransitionChanged(Handle<Transition>),
 }
 
 #[derive(Debug, Clone)]

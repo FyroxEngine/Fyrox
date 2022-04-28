@@ -923,7 +923,10 @@ impl Machine {
                             }
 
                             self.active_state = Handle::NONE;
+
                             self.active_transition = handle;
+                            self.events
+                                .push(Event::ActiveTransitionChanged(self.active_transition));
 
                             break;
                         }
@@ -949,7 +952,11 @@ impl Machine {
 
                 if transition.is_done() {
                     transition.reset();
+
                     self.active_transition = Handle::NONE;
+                    self.events
+                        .push(Event::ActiveTransitionChanged(self.active_transition));
+
                     self.active_state = transition.dest();
                     self.events
                         .push(Event::ActiveStateChanged(self.active_state));
