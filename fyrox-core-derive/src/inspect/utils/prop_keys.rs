@@ -27,12 +27,12 @@ pub fn prop_keys_impl(ty_args: &args::TypeArgs) -> TokenStream2 {
 ///
 /// # Definition format
 ///
-/// | Type         | Identifier                | Name                     |
-/// |--------------|---------------------------|--------------------------|
-/// | Struct       | `FIELD_NAME`              | `field_name`             |
-/// | Unit struct  | `F_<number>`              | `<number>`               |
-/// | Tuple struct | `VARIANT_NAME_FIELD_NAME  | `VariantName.field_name` |
-/// | Enum         | `VARIANT_NAME_F_<number>` | `VariantName.<number>`   |
+/// | Type           | Identifier                | Name                     |
+/// |----------------|---------------------------|--------------------------|
+/// | Struct         | `FIELD_NAME`              | `field_name`             |
+/// | Struct (tuple) | `F_<number>`              | `<number>`               |
+/// | Enum (struct)  | `VARIANT_NAME_FIELD_NAME  | `VariantName.field_name` |
+/// | Enum (tuple)   | `VARIANT_NAME_F_<number>` | `VariantName.<number>`   |
 pub fn quote_prop_keys(ty_args: &args::TypeArgs) -> TokenStream2 {
     let mut prop_idents = Vec::new();
     let mut prop_key_names = Vec::new();
