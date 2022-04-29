@@ -44,18 +44,6 @@ pub struct FieldArgs {
     #[darling(default)]
     pub display_name: Option<String>,
 
-    /// `#[inspect(expand)]`
-    ///
-    /// Include the fields of the field, exclude the marked field itself.
-    #[darling(default)]
-    pub expand: bool,
-
-    /// `#[inspect(expand_subtree)]`
-    ///
-    /// Include the field and the fields of the field.
-    #[darling(default)]
-    pub expand_subtree: bool,
-
     /// `#[inspect(getter = "<path>")]`
     ///
     /// Convert the field reference to another reference
