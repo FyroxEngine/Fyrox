@@ -2,22 +2,22 @@
 
 mod prop_keys;
 
+use convert_case::*;
 use darling::ast;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::*;
 use syn::*;
 
-use convert_case::*;
-
 use crate::inspect::args;
 
 /// Handles struct/enum variant field style differences in syntax
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct FieldPrefix {
     /// Struct | Enum
     is_struct: bool,
     /// Field style of the struct or the enum variant
     style: ast::Style,
+    variant: Option<args::VariantArgs>,
 }
 
 impl FieldPrefix {
@@ -25,13 +25,15 @@ impl FieldPrefix {
         Self {
             is_struct: true,
             style,
+            variant: None,
         }
     }
 
-    pub fn of_enum_variant(style: ast::Style) -> Self {
+    pub fn of_enum_variant(args: &args::VariantArgs) -> Self {
         Self {
             is_struct: false,
-            style,
+            style: args.fields.style,
+            variant: Some(args.clone()),
         }
     }
 
@@ -61,7 +63,12 @@ impl FieldPrefix {
 
     // Returns syntax that corresponds to  `&self.field` for struct, `&variant.field` for structural
     // enum variant, and `&variant.i` for tuple enum variant.
-    fn quote_field_ref(self, i: usize, field: &args::FieldArgs, style: ast::Style) -> TokenStream2 {
+    fn quote_field_ref(
+        &self,
+        i: usize,
+        field: &args::FieldArgs,
+        style: ast::Style,
+    ) -> TokenStream2 {
         match style {
             ast::Style::Struct => {
                 let field_ident = field.ident.as_ref().unwrap();
@@ -89,6 +96,31 @@ impl FieldPrefix {
             }
         }
     }
+
+    fn property_key_name(
+        &self,
+        name: Option<String>,
+        nth_field: usize,
+        field: &args::FieldArgs,
+    ) -> String {
+        let name = name.unwrap_or_else(|| match self.style {
+            ast::Style::Struct => {
+                format!("{}", field.ident.as_ref().unwrap())
+            }
+            ast::Style::Tuple => {
+                format!("{}", nth_field)
+            }
+            ast::Style::Unit => {
+                unreachable!()
+            }
+        });
+
+        if let Some(variant) = &self.variant {
+            format!("{}.{}", variant.ident, name)
+        } else {
+            name
+        }
+    }
 }
 
 /// Creates `Inspect` trait impl and field prop keys
@@ -97,26 +129,12 @@ pub fn create_inspect_impl<'f>(
     field_args: impl Iterator<Item = &'f args::FieldArgs>,
     impl_body: TokenStream2,
 ) -> TokenStream2 {
-    let prop_keys_impl = self::prop_keys_impl(ty_args);
+    let prop_keys_impl = prop_keys::prop_keys_impl(ty_args);
     let trait_impl = self::inspect_trait_impl(ty_args, field_args, impl_body);
 
     quote! {
         #prop_keys_impl
         #trait_impl
-    }
-}
-
-/// `pub const [VARIANT_]FIELD: &'static str = "key";`
-fn prop_keys_impl(ty_args: &args::TypeArgs) -> TokenStream2 {
-    let ty_ident = &ty_args.ident;
-    let (impl_generics, ty_generics, where_clause) = ty_args.generics.split_for_impl();
-
-    let prop_keys = prop_keys::quote_prop_keys(ty_args);
-    quote! {
-        /// Property key constants
-        impl #impl_generics #ty_ident #ty_generics #where_clause {
-            #prop_keys
-        }
     }
 }
 
@@ -159,9 +177,10 @@ pub fn gen_inspect_fn_body(
     let props = field_args
         .fields
         .iter()
+        // enumerate first, and then filter!
         .enumerate()
         .filter(|(_i, f)| !f.skip)
-        .map(|(i, field)| self::quote_field_prop(field_prefix, i, field, field_args.style));
+        .map(|(i, field)| self::quote_field_prop(&field_prefix, i, field, field_args.style));
 
     quotes.push(quote! {
         let mut props = Vec::new();
@@ -177,7 +196,7 @@ pub fn gen_inspect_fn_body(
 
 /// `PropertyInfo { .. }`
 fn quote_field_prop(
-    field_prefix: FieldPrefix,
+    field_prefix: &FieldPrefix,
     nth_field: usize,
     field: &args::FieldArgs,
     style: ast::Style,
@@ -202,11 +221,7 @@ fn quote_field_prop(
         None => field_ref.clone(),
     };
 
-    // consider #[inspect(name = ..)]
-    let field_name = field
-        .name
-        .clone()
-        .unwrap_or_else(|| field_ident.to_string());
+    let prop_key_name = field_prefix.property_key_name(field.name.clone(), nth_field, field);
 
     // consider #[inspect(display_name = ..)]
     let display_name = field
@@ -250,7 +265,7 @@ fn quote_field_prop(
     quote! {
         PropertyInfo {
             owner_type_id: std::any::TypeId::of::<Self>(),
-            name: #field_name,
+            name: #prop_key_name,
             display_name: #display_name,
             value: #getter,
             read_only: #read_only,
@@ -262,18 +277,4 @@ fn quote_field_prop(
             is_modified: #is_modified,
         }
     }
-}
-
-pub fn prop_name(nth: usize, field: &args::FieldArgs) -> String {
-    field.name.clone().unwrap_or_else(|| {
-        let field_ident = match &field.ident {
-            Some(ident) => quote!(#ident),
-            None => {
-                let nth_field = Index::from(nth);
-                quote!(#nth_field)
-            }
-        };
-
-        field_ident.to_string()
-    })
 }

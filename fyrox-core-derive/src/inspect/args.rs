@@ -93,7 +93,7 @@ pub struct FieldArgs {
     pub is_modified: Option<String>,
 }
 
-#[derive(FromVariant)]
+#[derive(FromVariant, Clone)]
 #[darling(attributes(inspect))]
 pub struct VariantArgs {
     pub ident: Ident,

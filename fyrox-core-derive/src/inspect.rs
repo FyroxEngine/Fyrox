@@ -23,43 +23,42 @@ fn impl_inspect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
 }
 
 fn impl_inspect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
-    let variant_matches =
-        variant_args.iter().map(|variant| {
-            let variant_ident = &variant.ident;
+    let variant_matches = variant_args.iter().map(|variant| {
+        let variant_ident = &variant.ident;
 
-            let field_prefix = utils::FieldPrefix::of_enum_variant(variant.fields.style);
+        let field_prefix = utils::FieldPrefix::of_enum_variant(variant);
 
-            let field_match_idents =
-                variant.fields.fields.iter().enumerate().map(|(i, field)| {
-                    field_prefix.field_match_ident(i, field, variant.fields.style)
-                });
+        let field_match_idents = variant.fields.fields.iter().enumerate().map(|(i, field)| {
+            let field_prefix = field_prefix.clone();
+            field_prefix.field_match_ident(i, field, variant.fields.style)
+        });
 
-            let variant_match = match variant.fields.style {
-                ast::Style::Struct => {
-                    quote! {
-                        Self::#variant_ident { #(#field_match_idents),* }
-                    }
-                }
-                ast::Style::Tuple => {
-                    quote! {
-                        Self::#variant_ident(#(#field_match_idents),*)
-                    }
-                }
-                ast::Style::Unit => {
-                    quote! {
-                        Self::#variant_ident
-                    }
-                }
-            };
-
-            let fields_inspects = utils::gen_inspect_fn_body(field_prefix, &variant.fields);
-
-            quote! {
-                #variant_match => {
-                    #fields_inspects
+        let variant_match = match variant.fields.style {
+            ast::Style::Struct => {
+                quote! {
+                    Self::#variant_ident { #(#field_match_idents),* }
                 }
             }
-        });
+            ast::Style::Tuple => {
+                quote! {
+                    Self::#variant_ident(#(#field_match_idents),*)
+                }
+            }
+            ast::Style::Unit => {
+                quote! {
+                    Self::#variant_ident
+                }
+            }
+        };
+
+        let fields_inspects = utils::gen_inspect_fn_body(field_prefix, &variant.fields);
+
+        quote! {
+            #variant_match => {
+                #fields_inspects
+            }
+        }
+    });
 
     let body = quote! {
         match self {
