@@ -65,10 +65,6 @@ fn inspect_attributes() {
         _skipped: u32,
         #[inspect(name = "the_x", display_name = "Super X")]
         x: f32,
-        // Expand properties are added to the end of the list.
-        // NOTE: Even though this field inspection is postponed, this field is given index `2`
-        #[inspect(expand)]
-        aar_gee: AarGee,
         #[inspect(
             read_only,
             min_value = 0.1,
@@ -106,21 +102,6 @@ fn inspect_attributes() {
     ];
 
     assert_eq!(data.properties()[0..2], expected);
-    assert_eq!(data.properties().len(), 2 + data.aar_gee.properties().len());
-
-    #[derive(Debug, Default, Inspect)]
-    pub struct X {
-        #[inspect(expand_subtree)]
-        y: Y,
-    }
-
-    #[derive(Debug, Default, Inspect)]
-    pub struct Y {
-        a: u32,
-    }
-
-    let x = X::default();
-    assert_eq!(x.properties().len(), 1 + x.y.properties().len());
 }
 
 #[test]
@@ -247,27 +228,19 @@ fn inspect_enum() {
 
 #[test]
 fn inspect_prop_key_constants() {
-    #[derive(Debug, Inspect)]
-    pub struct X;
-
     #[allow(dead_code)]
     #[derive(Inspect)]
     pub struct SStruct {
         field: usize,
         #[inspect(skip)]
         hidden: usize,
-        #[inspect(expand)]
-        expand: X,
-        #[inspect(expand_subtree)]
-        expand_subtree: X,
     }
 
     // NOTE: property names are in snake_case (not Title Case)
     assert_eq!(SStruct::FIELD, "field");
-    // property keys for uninspectable fields are NOT emitted
+
+    // hidden properties
     // assert_eq!(SStruct::HIDDEN, "hidden");
-    // assert_eq!(SStruct::EXPAND, "expand");
-    assert_eq!(SStruct::EXPAND_SUBTREE, "expand_subtree");
 
     #[derive(Inspect)]
     pub struct STuple(usize);

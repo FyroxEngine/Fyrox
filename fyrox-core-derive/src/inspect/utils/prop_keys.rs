@@ -16,8 +16,7 @@ pub fn quote_prop_keys(ty_args: &args::TypeArgs) -> TokenStream2 {
     match &ty_args.data {
         ast::Data::Struct(field_args) => {
             for (nth, field) in field_args.fields.iter().enumerate() {
-                // don't expose uninspectable fields' properties
-                if field.expand || field.skip {
+                if field.skip {
                     continue;
                 }
 
@@ -31,12 +30,9 @@ pub fn quote_prop_keys(ty_args: &args::TypeArgs) -> TokenStream2 {
         ast::Data::Enum(variants) => {
             for v in variants {
                 for (nth, field) in v.fields.iter().enumerate() {
-                    // don't expose uninspectable fields' properties
-                    if field.expand || field.skip {
+                    if field.skip {
                         continue;
                     }
-
-                    // REMARK: We can't refer to expanded fields
 
                     let prop_ident = self::enum_field_prop(v, nth, field);
                     let prop_name = utils::prop_name(nth, field);

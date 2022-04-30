@@ -156,42 +156,17 @@ pub fn gen_inspect_fn_body(
     // `inspect` function body, consisting of a sequence of quotes
     let mut quotes = Vec::new();
 
-    // 1. collect non-expanible field properties
     let props = field_args
         .fields
         .iter()
         .enumerate()
-        .filter(|(_i, f)| !(f.skip || f.expand || f.expand_subtree))
+        .filter(|(_i, f)| !f.skip)
         .map(|(i, field)| self::quote_field_prop(field_prefix, i, field, field_args.style));
 
     quotes.push(quote! {
         let mut props = Vec::new();
         #(props.push(#props);)*
     });
-
-    // 2. visit expansible fields
-    for (i, field) in field_args
-        .fields
-        .iter()
-        .enumerate()
-        .filter(|(_i, f)| !f.skip && (f.expand || f.expand_subtree))
-    {
-        // parent (the field)
-        if field.expand_subtree {
-            let prop = self::quote_field_prop(field_prefix, i, field, field_args.style);
-
-            quotes.push(quote! {
-                props.push(#prop);
-            });
-        }
-
-        // children (fields of the field)
-        let field_ref = field_prefix.quote_field_ref(i, field, field_args.style);
-
-        quotes.push(quote! {
-            props.extend(#field_ref.properties());
-        });
-    }
 
     // concatenate the quotes
     quote! {
