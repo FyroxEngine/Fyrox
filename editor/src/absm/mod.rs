@@ -448,7 +448,7 @@ impl AbsmEditor {
                     Event::ActiveTransitionChanged(transition) => {
                         if let Some(transition_ref) = machine.transitions().try_borrow(transition) {
                             self.state_graph_viewer.activate_transition(
-                                &mut engine.user_interface,
+                                &engine.user_interface,
                                 transition_ref.definition,
                             );
                         }
