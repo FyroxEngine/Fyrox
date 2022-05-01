@@ -110,6 +110,26 @@ impl StateGraphViewer {
         }
     }
 
+    pub fn activate_state(&self, ui: &UserInterface, state: Handle<StateDefinition>) {
+        for (state_view_handle, state_view_ref) in ui
+            .node(self.canvas)
+            .children()
+            .iter()
+            .cloned()
+            .filter_map(|c| {
+                ui.node(c)
+                    .query_component::<AbsmNode<StateDefinition>>()
+                    .map(|state_view_ref| (c, state_view_ref))
+            })
+        {
+            ui.send_message(AbsmNodeMessage::set_active(
+                state_view_handle,
+                MessageDirection::ToWidget,
+                state_view_ref.model_handle == state,
+            ));
+        }
+    }
+
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,

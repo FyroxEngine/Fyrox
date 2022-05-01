@@ -80,7 +80,6 @@ pub enum SelectedEntity {
     PoseNode(Handle<PoseNodeDefinition>),
 }
 
-#[derive(Default)]
 pub struct AbsmDataModel {
     path: PathBuf,
     preview_model_path: PathBuf,
@@ -89,6 +88,18 @@ pub struct AbsmDataModel {
 }
 
 impl AbsmDataModel {
+    pub fn new() -> Self {
+        Self {
+            path: Default::default(),
+            preview_model_path: Default::default(),
+            selection: Default::default(),
+            resource: AbsmResource::from(Resource::new(ResourceState::Ok(AbsmResourceState {
+                path: Default::default(),
+                absm_definition: Default::default(),
+            }))),
+        }
+    }
+
     pub fn ctx(&mut self) -> AbsmEditorContext {
         AbsmEditorContext {
             selection: &mut self.selection,
@@ -325,7 +336,7 @@ impl AbsmEditor {
     }
 
     fn create_new_absm(&mut self, engine: &mut Engine) {
-        self.set_data_model(engine, Some(AbsmDataModel::default()));
+        self.set_data_model(engine, Some(AbsmDataModel::new()));
     }
 
     fn open_save_dialog(&self, ui: &UserInterface) {
@@ -358,7 +369,7 @@ impl AbsmEditor {
     fn load_absm(&mut self, path: &Path, engine: &mut Engine) {
         match block_on(Visitor::load_binary(path)) {
             Ok(mut visitor) => {
-                let mut data_model = AbsmDataModel::default();
+                let mut data_model = AbsmDataModel::new();
                 if let Err(e) = data_model.visit(&mut visitor) {
                     Log::err(format!(
                         "Unable to read ABSM from {}. Reason: {}",
@@ -442,8 +453,11 @@ impl AbsmEditor {
         {
             while let Some(event) = machine.pop_event() {
                 match event {
-                    Event::ActiveStateChanged(_) => {
-                        // TODO
+                    Event::ActiveStateChanged(state) => {
+                        if let Some(state_ref) = machine.states().try_borrow(state) {
+                            self.state_graph_viewer
+                                .activate_state(&engine.user_interface, state_ref.definition);
+                        }
                     }
                     Event::ActiveTransitionChanged(transition) => {
                         if let Some(transition_ref) = machine.transitions().try_borrow(transition) {

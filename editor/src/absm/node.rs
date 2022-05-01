@@ -2,18 +2,17 @@ use crate::absm::{
     selectable::{Selectable, SelectableMessage},
     BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
 };
-use fyrox::gui::text::TextMessage;
 use fyrox::{
     core::{color::Color, pool::Handle},
     gui::{
-        border::BorderBuilder,
+        border::{BorderBuilder, BorderMessage},
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         define_constructor,
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
+        text::{TextBuilder, TextMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
         VerticalAlignment,
@@ -113,6 +112,7 @@ pub enum AbsmNodeMessage {
     InputSockets(Vec<Handle<UiNode>>),
     NormalColor(Color),
     SelectedColor(Color),
+    SetActive(bool),
 }
 
 impl AbsmNodeMessage {
@@ -122,6 +122,7 @@ impl AbsmNodeMessage {
     define_constructor!(AbsmNodeMessage:InputSockets => fn input_sockets(Vec<Handle<UiNode>>), layout: false);
     define_constructor!(AbsmNodeMessage:NormalColor => fn normal_color(Color), layout: false);
     define_constructor!(AbsmNodeMessage:SelectedColor => fn selected_color(Color), layout: false);
+    define_constructor!(AbsmNodeMessage:SetActive => fn set_active(bool), layout: false);
 }
 
 impl<T> Control for AbsmNode<T>
@@ -218,6 +219,24 @@ where
                                 name.clone(),
                             ));
                         }
+                    }
+                    AbsmNodeMessage::SetActive(active) => {
+                        let (thickness, color) = if *active {
+                            (Thickness::uniform(3.0), Color::opaque(120, 80, 60))
+                        } else {
+                            (Thickness::uniform(1.0), BORDER_COLOR)
+                        };
+
+                        ui.send_message(BorderMessage::stroke_thickness(
+                            self.background,
+                            MessageDirection::ToWidget,
+                            thickness,
+                        ));
+                        ui.send_message(WidgetMessage::foreground(
+                            self.background,
+                            MessageDirection::ToWidget,
+                            Brush::Solid(color),
+                        ));
                     }
                     _ => (),
                 }
