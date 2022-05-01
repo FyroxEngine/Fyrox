@@ -471,6 +471,7 @@ fn find_node_by_definition(
 }
 
 impl Machine {
+    #[inline]
     pub fn new(root: Handle<Node>) -> Self {
         Self {
             root,
@@ -488,10 +489,12 @@ impl Machine {
         }
     }
 
+    #[inline]
     pub fn add_node(&mut self, node: PoseNode) -> Handle<PoseNode> {
         self.nodes.spawn(node)
     }
 
+    #[inline]
     pub fn set_parameter(&mut self, id: &str, new_value: Parameter) -> &mut Self {
         match self.parameters.get_mut(id) {
             Some(parameter) => {
@@ -505,15 +508,18 @@ impl Machine {
         self
     }
 
+    #[inline]
     pub fn set_entry_state(&mut self, entry_state: Handle<State>) {
         self.active_state = entry_state;
         self.entry_state = entry_state;
     }
 
+    #[inline]
     pub fn debug(&mut self, state: bool) {
         self.debug = state;
     }
 
+    #[inline]
     pub fn add_state(&mut self, state: State) -> Handle<State> {
         let state = self.states.spawn(state);
         if self.active_state.is_none() {
@@ -522,26 +528,32 @@ impl Machine {
         state
     }
 
+    #[inline]
     pub fn add_transition(&mut self, transition: Transition) -> Handle<Transition> {
         self.transitions.spawn(transition)
     }
 
+    #[inline]
     pub fn get_state(&self, state: Handle<State>) -> &State {
         &self.states[state]
     }
 
+    #[inline]
     pub fn get_transition(&self, transition: Handle<Transition>) -> &Transition {
         &self.transitions[transition]
     }
 
+    #[inline]
     pub fn pop_event(&mut self) -> Option<Event> {
         self.events.pop()
     }
 
+    #[inline]
     pub fn resource(&self) -> Option<AbsmResource> {
         self.resource.clone()
     }
 
+    #[inline]
     pub fn reset(&mut self) {
         for transition in self.transitions.iter_mut() {
             transition.reset();
@@ -550,24 +562,34 @@ impl Machine {
         self.active_state = self.entry_state;
     }
 
+    #[inline]
     pub fn nodes(&self) -> impl Iterator<Item = &PoseNode> {
         self.nodes.iter()
     }
 
+    #[inline]
     pub fn node_mut(&mut self, handle: Handle<PoseNode>) -> &mut PoseNode {
         &mut self.nodes[handle]
     }
 
+    #[inline]
     pub fn active_state(&self) -> Handle<State> {
         self.active_state
     }
 
+    #[inline]
     pub fn active_transition(&self) -> Handle<Transition> {
         self.active_transition
     }
 
+    #[inline]
     pub fn transitions(&self) -> &Pool<Transition> {
         &self.transitions
+    }
+
+    #[inline]
+    pub fn states(&self) -> &Pool<State> {
+        &self.states
     }
 
     pub fn restore_resources(&mut self, resource_manager: ResourceManager) {
