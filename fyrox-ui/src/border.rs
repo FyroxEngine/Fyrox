@@ -1,12 +1,15 @@
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
+    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_PRIMARY,
+    BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, BRUSH_PRIMARY,
 };
-use std::any::{Any, TypeId};
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Clone)]
 pub struct Border {
@@ -15,6 +18,15 @@ pub struct Border {
 }
 
 crate::define_widget_deref!(Border);
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BorderMessage {
+    StrokeThickness(Thickness),
+}
+
+impl BorderMessage {
+    define_constructor!(BorderMessage:StrokeThickness => fn stroke_thickness(Thickness), layout: false);
+}
 
 impl Control for Border {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -90,6 +102,18 @@ impl Control for Border {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
+
+        if message.destination() == self.handle()
+            && message.direction() == MessageDirection::ToWidget
+        {
+            if let Some(BorderMessage::StrokeThickness(thickness)) = message.data() {
+                if *thickness != self.stroke_thickness {
+                    self.stroke_thickness = *thickness;
+                    ui.send_message(message.reverse());
+                    self.invalidate_layout();
+                }
+            }
+        }
     }
 }
 
