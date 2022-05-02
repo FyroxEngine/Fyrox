@@ -156,28 +156,27 @@ fn handle_parameter_property_change(
     match property_changed.value {
         FieldKind::Inspectable(ref inner) => {
             if property_changed.name == ParameterDefinition::VALUE {
-                if inner.name == "0" {
-                    if let FieldKind::Object(ref value) = inner.value {
-                        if let Some(weight) = value.cast_clone::<f32>() {
+                if let FieldKind::Object(ref value) = inner.value {
+                    match inner.name.as_ref() {
+                        Parameter::WEIGHT_F_0 => {
                             Some(AbsmCommand::new(SetParameterWeightValueCommand {
                                 handle: index,
-                                value: weight,
+                                value: value.cast_clone::<f32>()?,
                             }))
-                        } else if let Some(rule) = value.cast_clone::<bool>() {
+                        }
+                        Parameter::RULE_F_0 => {
                             Some(AbsmCommand::new(SetParameterRuleValueCommand {
                                 handle: index,
-                                value: rule,
+                                value: value.cast_clone::<bool>()?,
                             }))
-                        } else if let Some(idx) = value.cast_clone::<u32>() {
+                        }
+                        Parameter::INDEX_F_0 => {
                             Some(AbsmCommand::new(SetParameterIndexValueCommand {
                                 handle: index,
-                                value: idx,
+                                value: value.cast_clone::<u32>()?,
                             }))
-                        } else {
-                            None
                         }
-                    } else {
-                        None
+                        _ => None,
                     }
                 } else {
                     None

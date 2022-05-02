@@ -65,39 +65,54 @@ pub fn handle_base_property_changed(
                         _ => None,
                     },
                     FieldKind::Inspectable(ref property_changed) => {
-                        match property_changed.name.as_ref() {
-                            "0" => {
-                                if let FieldKind::Object(ref value) = property_changed.value {
-                                    let value = value
-                                        .cast_value()
-                                        .map(|v| PropertyValue::I64(*v))
-                                        .or_else(|| value.cast_clone().map(PropertyValue::U64))
-                                        .or_else(|| value.cast_clone().map(PropertyValue::I32))
-                                        .or_else(|| value.cast_clone().map(PropertyValue::U32))
-                                        .or_else(|| value.cast_clone().map(PropertyValue::I16))
-                                        .or_else(|| value.cast_clone().map(PropertyValue::U16))
-                                        .or_else(|| value.cast_clone().map(PropertyValue::I8))
-                                        .or_else(|| value.cast_clone().map(PropertyValue::U8))
-                                        .or_else(|| value.cast_clone().map(PropertyValue::F32))
-                                        .or_else(|| value.cast_clone().map(PropertyValue::F64))
-                                        .or_else(|| value.cast_clone().map(PropertyValue::String))
-                                        .or_else(|| {
-                                            value.cast_clone().map(PropertyValue::NodeHandle)
-                                        })
-                                        .or_else(|| value.cast_clone().map(PropertyValue::Handle));
-
-                                    value.map(|value| {
-                                        SceneCommand::new(SetPropertyValueCommand {
-                                            handle,
-                                            index,
-                                            value,
-                                        })
-                                    })
-                                } else {
-                                    None
+                        if let FieldKind::Object(ref value) = property_changed.value {
+                            let value = match property_changed.name.as_ref() {
+                                PropertyValue::I_64_F_0 => {
+                                    value.cast_clone().map(PropertyValue::I64)
                                 }
-                            }
-                            _ => None,
+                                PropertyValue::U_64_F_0 => {
+                                    value.cast_clone().map(PropertyValue::U64)
+                                }
+                                PropertyValue::I_32_F_0 => {
+                                    value.cast_clone().map(PropertyValue::I32)
+                                }
+                                PropertyValue::U_32_F_0 => {
+                                    value.cast_clone().map(PropertyValue::U32)
+                                }
+                                PropertyValue::I_16_F_0 => {
+                                    value.cast_clone().map(PropertyValue::I16)
+                                }
+                                PropertyValue::U_16_F_0 => {
+                                    value.cast_clone().map(PropertyValue::U16)
+                                }
+                                PropertyValue::I_8_F_0 => value.cast_clone().map(PropertyValue::I8),
+                                PropertyValue::U_8_F_0 => value.cast_clone().map(PropertyValue::U8),
+                                PropertyValue::F_32_F_0 => {
+                                    value.cast_clone().map(PropertyValue::F32)
+                                }
+                                PropertyValue::F_64_F_0 => {
+                                    value.cast_clone().map(PropertyValue::F64)
+                                }
+                                PropertyValue::STRING_F_0 => {
+                                    value.cast_clone().map(PropertyValue::String)
+                                }
+                                PropertyValue::NODE_HANDLE_F_0 => {
+                                    value.cast_clone().map(PropertyValue::NodeHandle)
+                                }
+                                PropertyValue::HANDLE_F_0 => {
+                                    value.cast_clone().map(PropertyValue::Handle)
+                                }
+                                _ => None,
+                            };
+                            value.map(|value| {
+                                SceneCommand::new(SetPropertyValueCommand {
+                                    handle,
+                                    index,
+                                    value,
+                                })
+                            })
+                        } else {
+                            None
                         }
                     }
                     _ => None,

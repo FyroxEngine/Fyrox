@@ -377,24 +377,21 @@ fn handle_blend_animations_node_property_changed(
                         }
                         _ => None,
                     },
-                    FieldKind::Inspectable(ref inner) => match inner.name.as_ref() {
-                        "0" => match inner.value {
-                            FieldKind::Object(ref value) => {
-                                if let Some(constant) = value.cast_clone::<f32>() {
-                                    Some(AbsmCommand::new(SetPoseWeightConstantCommand {
-                                        handle,
-                                        value: constant,
-                                        index,
-                                    }))
-                                } else if let Some(parameter) = value.cast_clone::<String>() {
-                                    Some(AbsmCommand::new(SetPoseWeightParameterCommand {
-                                        handle,
-                                        value: parameter,
-                                        index,
-                                    }))
-                                } else {
-                                    None
-                                }
+                    FieldKind::Inspectable(ref inner) => match inner.value {
+                        FieldKind::Object(ref value) => match inner.name.as_ref() {
+                            PoseWeight::CONSTANT_F_0 => {
+                                Some(AbsmCommand::new(SetPoseWeightConstantCommand {
+                                    handle,
+                                    value: value.cast_clone()?,
+                                    index,
+                                }))
+                            }
+                            PoseWeight::PARAMETER_F_0 => {
+                                Some(AbsmCommand::new(SetPoseWeightParameterCommand {
+                                    handle,
+                                    value: value.cast_clone()?,
+                                    index,
+                                }))
                             }
                             _ => None,
                         },
