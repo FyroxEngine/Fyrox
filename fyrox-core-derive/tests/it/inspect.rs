@@ -162,7 +162,7 @@ fn inspect_enum() {
         vec![
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
-                name: "x",
+                name: "Named.x",
                 display_name: "X",
                 value: match data {
                     Data::Named { ref x, .. } => x,
@@ -172,7 +172,7 @@ fn inspect_enum() {
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
-                name: "y",
+                name: "Named.y",
                 display_name: "Y",
                 value: match data {
                     Data::Named { ref y, .. } => y,
@@ -182,7 +182,7 @@ fn inspect_enum() {
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
-                name: "z",
+                name: "Named.z",
                 display_name: "Z",
                 value: match data {
                     Data::Named { ref z, .. } => z,
@@ -200,7 +200,7 @@ fn inspect_enum() {
         vec![
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
-                name: "0",
+                name: "Tuple.0",
                 display_name: "0",
                 value: match data {
                     Data::Tuple(ref f0, ref _f1) => f0,
@@ -210,7 +210,7 @@ fn inspect_enum() {
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
-                name: "1",
+                name: "Tuple.1",
                 display_name: "1",
                 value: match data {
                     Data::Tuple(ref _f0, ref f1) => f1,
@@ -254,11 +254,11 @@ fn inspect_prop_key_constants() {
         Unit,
     }
 
-    assert_eq!(E::TUPLE_F_0, "0");
-    assert_eq!(E::STRUCT_FIELD, "field");
+    assert_eq!(E::TUPLE_F_0, "Tuple.0");
+    assert_eq!(E::TUPLE_F_0, E::Tuple(0).properties()[0].name);
 
-    // variant itself it not a property
-    // assert_eq!(E::UNIT, "unit");
+    assert_eq!(E::STRUCT_FIELD, "Struct.field");
+    assert_eq!(E::STRUCT_FIELD, E::Struct { field: 0 }.properties()[0].name);
 }
 
 #[test]

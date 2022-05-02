@@ -6,12 +6,36 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::*;
 
-use crate::inspect::{args, utils};
+use crate::inspect::args;
 
-/// Returns a list of `pub const [VARIANT_]FIELD: &'static str = "key_value"`;
+/// `pub const [VARIANT_]FIELD: &'static str = "key";`
+pub fn prop_keys_impl(ty_args: &args::TypeArgs) -> TokenStream2 {
+    let ty_ident = &ty_args.ident;
+    let (impl_generics, ty_generics, where_clause) = ty_args.generics.split_for_impl();
+
+    let prop_keys = self::quote_prop_keys(ty_args);
+
+    quote! {
+        /// Property key constants
+        impl #impl_generics #ty_ident #ty_generics #where_clause {
+            #prop_keys
+        }
+    }
+}
+
+/// List of `pub const <ident> = <name>;`
+///
+/// # Definition format
+///
+/// | Type           | Identifier                | Name                     |
+/// |----------------|---------------------------|--------------------------|
+/// | Struct         | `FIELD_NAME`              | `field_name`             |
+/// | Struct (tuple) | `F_<number>`              | `<number>`               |
+/// | Enum (struct)  | `VARIANT_NAME_FIELD_NAME  | `VariantName.field_name` |
+/// | Enum (tuple)   | `VARIANT_NAME_F_<number>` | `VariantName.<number>`   |
 pub fn quote_prop_keys(ty_args: &args::TypeArgs) -> TokenStream2 {
     let mut prop_idents = Vec::new();
-    let mut prop_names = Vec::new();
+    let mut prop_key_names = Vec::new();
 
     match &ty_args.data {
         ast::Data::Struct(field_args) => {
@@ -20,11 +44,11 @@ pub fn quote_prop_keys(ty_args: &args::TypeArgs) -> TokenStream2 {
                     continue;
                 }
 
-                let prop_ident = self::struct_field_prop(ty_args, nth, field);
-                let prop_name = utils::prop_name(nth, field);
+                let prop_ident = self::struct_prop_ident(ty_args, nth, field);
+                let prop_key_name = self::struct_prop_key_name(nth, field);
 
                 prop_idents.push(prop_ident);
-                prop_names.push(prop_name);
+                prop_key_names.push(prop_key_name);
             }
         }
         ast::Data::Enum(variants) => {
@@ -34,11 +58,11 @@ pub fn quote_prop_keys(ty_args: &args::TypeArgs) -> TokenStream2 {
                         continue;
                     }
 
-                    let prop_ident = self::enum_field_prop(v, nth, field);
-                    let prop_name = utils::prop_name(nth, field);
+                    let prop_ident = self::enum_prop_ident(v, nth, field);
+                    let prop_key_name = self::enum_prop_key_name(nth, field, v);
 
                     prop_idents.push(prop_ident);
-                    prop_names.push(prop_name);
+                    prop_key_names.push(prop_key_name);
                 }
             }
         }
@@ -47,12 +71,40 @@ pub fn quote_prop_keys(ty_args: &args::TypeArgs) -> TokenStream2 {
     quote! {
         #(
             #[allow(missing_docs)]
-            pub const #prop_idents: &'static str = #prop_names;
+            pub const #prop_idents: &'static str = #prop_key_names;
         )*
     }
 }
 
-fn struct_field_prop(ty_args: &args::TypeArgs, nth: usize, field: &args::FieldArgs) -> Ident {
+pub fn struct_prop_key_name(nth: usize, field: &args::FieldArgs) -> String {
+    field.name.clone().unwrap_or_else(|| {
+        let field_ident = match &field.ident {
+            Some(ident) => quote!(#ident),
+            None => {
+                let nth_field = Index::from(nth);
+                quote!(#nth_field)
+            }
+        };
+
+        field_ident.to_string()
+    })
+}
+
+pub fn enum_prop_key_name(nth: usize, field: &args::FieldArgs, v: &args::VariantArgs) -> String {
+    field.name.clone().unwrap_or_else(|| {
+        let field_ident = match &field.ident {
+            Some(ident) => quote!(#ident),
+            None => {
+                let nth_field = Index::from(nth);
+                quote!(#nth_field)
+            }
+        };
+
+        format!("{}.{}", v.ident, field_ident)
+    })
+}
+
+pub fn struct_prop_ident(ty_args: &args::TypeArgs, nth: usize, field: &args::FieldArgs) -> Ident {
     let fields = match &ty_args.data {
         ast::Data::Struct(xs) => xs,
         _ => unreachable!(),
@@ -63,7 +115,11 @@ fn struct_field_prop(ty_args: &args::TypeArgs, nth: usize, field: &args::FieldAr
     syn::parse_str(&ident).unwrap()
 }
 
-fn enum_field_prop(variant_args: &args::VariantArgs, nth: usize, field: &args::FieldArgs) -> Ident {
+pub fn enum_prop_ident(
+    variant_args: &args::VariantArgs,
+    nth: usize,
+    field: &args::FieldArgs,
+) -> Ident {
     let variant_ident = &variant_args.ident;
     let field_ident = self::field_ident(&variant_args.fields, nth, field);
 
