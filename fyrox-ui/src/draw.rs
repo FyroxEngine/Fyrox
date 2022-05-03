@@ -313,6 +313,39 @@ pub trait Draw {
             }
         }
     }
+
+    fn push_bezier(
+        &mut self,
+        p0: Vector2<f32>,
+        p1: Vector2<f32>,
+        p2: Vector2<f32>,
+        p3: Vector2<f32>,
+        subdivisions: usize,
+        thickness: f32,
+    ) {
+        fn cubic_bezier(
+            p0: Vector2<f32>,
+            p1: Vector2<f32>,
+            p2: Vector2<f32>,
+            p3: Vector2<f32>,
+            t: f32,
+        ) -> Vector2<f32> {
+            p0.scale((1.0 - t).powi(3))
+                + p1.scale(3.0 * t * (1.0 - t).powi(2))
+                + p2.scale(3.0 * t.powi(2) * (1.0 - t))
+                + p3.scale(t.powi(3))
+        }
+
+        let mut prev = cubic_bezier(p0, p1, p2, p3, 0.0);
+        for i in 0..subdivisions {
+            let t = (i + 1) as f32 / subdivisions as f32;
+            let next = cubic_bezier(p0, p1, p2, p3, t);
+            // TODO: This could give gaps between segments on sharp turns, it should be either patched
+            // or be continuous line instead of separate segments.
+            self.push_line(prev, next, thickness);
+            prev = next;
+        }
+    }
 }
 
 #[derive(Clone)]
