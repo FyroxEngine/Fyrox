@@ -35,7 +35,15 @@ pub fn draw_connection(
     clip_bounds: Rect<f32>,
     brush: Brush,
 ) {
-    drawing_context.push_line(source, dest, 4.0);
+    let k = 75.0;
+    drawing_context.push_bezier(
+        source,
+        source + Vector2::new(k, 0.0),
+        dest - Vector2::new(k, 0.0),
+        dest,
+        20,
+        4.0,
+    );
     drawing_context.commit(clip_bounds, brush, CommandTexture::None, None);
 }
 
