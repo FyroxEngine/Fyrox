@@ -21,7 +21,7 @@ use crate::{
     utils::log::Log,
 };
 use fxhash::FxHashMap;
-use rapier2d::dynamics::JointHandle;
+use rapier2d::dynamics::ImpulseJointHandle;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -38,14 +38,8 @@ pub struct BallJoint {
     /// Where the prismatic joint is attached on the second body, expressed in the local space of the
     /// second attached body.
     pub local_anchor2: Vector2<f32>,
-    /// Are the limits enabled for this joint?
-    pub limits_enabled: bool,
-    /// The axis of the limit cone for this joint, if the local-space of the first body.
-    pub limits_local_axis1: Vector2<f32>,
-    /// The axis of the limit cone for this joint, if the local-space of the first body.
-    pub limits_local_axis2: Vector2<f32>,
     /// The maximum angle allowed between the two limit axes in world-space.
-    pub limits_angle: f32,
+    pub limits_angles: [f32; 2],
 }
 
 impl Default for BallJoint {
@@ -53,10 +47,7 @@ impl Default for BallJoint {
         Self {
             local_anchor1: Default::default(),
             local_anchor2: Default::default(),
-            limits_enabled: false,
-            limits_local_axis1: Default::default(),
-            limits_local_axis2: Default::default(),
-            limits_angle: f32::MAX,
+            limits_angles: [f32::MIN, f32::MAX],
         }
     }
 }
@@ -165,7 +156,7 @@ pub struct Joint {
 
     #[visit(skip)]
     #[inspect(skip)]
-    pub(crate) native: Cell<JointHandle>,
+    pub(crate) native: Cell<ImpulseJointHandle>,
 }
 
 impl_directly_inheritable_entity_trait!(Joint;
@@ -181,7 +172,7 @@ impl Default for Joint {
             params: Default::default(),
             body1: Default::default(),
             body2: Default::default(),
-            native: Cell::new(JointHandle::invalid()),
+            native: Cell::new(ImpulseJointHandle::invalid()),
         }
     }
 }
@@ -207,7 +198,7 @@ impl Clone for Joint {
             params: self.params.clone(),
             body1: self.body1.clone(),
             body2: self.body2.clone(),
-            native: Cell::new(JointHandle::invalid()),
+            native: Cell::new(ImpulseJointHandle::invalid()),
         }
     }
 }
@@ -370,7 +361,7 @@ impl JointBuilder {
             params: self.params.into(),
             body1: self.body1.into(),
             body2: self.body2.into(),
-            native: Cell::new(JointHandle::invalid()),
+            native: Cell::new(ImpulseJointHandle::invalid()),
         }
     }
 
@@ -402,10 +393,7 @@ mod test {
             .with_params(JointParams::BallJoint(BallJoint {
                 local_anchor1: Vector2::new(1.0, 0.0),
                 local_anchor2: Vector2::new(1.0, 1.0),
-                limits_enabled: true,
-                limits_local_axis1: Vector2::new(1.0, 1.0),
-                limits_local_axis2: Vector2::new(1.0, 1.0),
-                limits_angle: 1.57,
+                limits_angles: [-1.57, 1.57],
             }))
             .build_node();
 

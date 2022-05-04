@@ -67,7 +67,7 @@ impl From<dynamics::RigidBodyType> for RigidBodyType {
     fn from(s: dynamics::RigidBodyType) -> Self {
         match s {
             dynamics::RigidBodyType::Dynamic => Self::Dynamic,
-            dynamics::RigidBodyType::Static => Self::Static,
+            dynamics::RigidBodyType::Fixed => Self::Static,
             dynamics::RigidBodyType::KinematicPositionBased => Self::KinematicPositionBased,
             dynamics::RigidBodyType::KinematicVelocityBased => Self::KinematicVelocityBased,
         }
@@ -78,7 +78,7 @@ impl From<RigidBodyType> for rapier3d::dynamics::RigidBodyType {
     fn from(v: RigidBodyType) -> Self {
         match v {
             RigidBodyType::Dynamic => rapier3d::dynamics::RigidBodyType::Dynamic,
-            RigidBodyType::Static => rapier3d::dynamics::RigidBodyType::Static,
+            RigidBodyType::Static => rapier3d::dynamics::RigidBodyType::Fixed,
             RigidBodyType::KinematicPositionBased => {
                 rapier3d::dynamics::RigidBodyType::KinematicPositionBased
             }
@@ -93,7 +93,7 @@ impl From<RigidBodyType> for rapier2d::dynamics::RigidBodyType {
     fn from(v: RigidBodyType) -> Self {
         match v {
             RigidBodyType::Dynamic => rapier2d::dynamics::RigidBodyType::Dynamic,
-            RigidBodyType::Static => rapier2d::dynamics::RigidBodyType::Static,
+            RigidBodyType::Static => rapier2d::dynamics::RigidBodyType::Fixed,
             RigidBodyType::KinematicPositionBased => {
                 rapier2d::dynamics::RigidBodyType::KinematicPositionBased
             }

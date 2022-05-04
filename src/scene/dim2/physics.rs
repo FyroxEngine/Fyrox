@@ -1,14 +1,9 @@
 //! Scene physics module.
 
-use crate::scene::dim2;
-use crate::scene::graph::NodePool;
-use crate::scene::variable::VariableFlags;
 use crate::{
+    core::algebra::Vector2,
     core::{
-        algebra::{
-            Isometry2, Matrix4, Point2, Translation2, Unit, UnitComplex, UnitQuaternion,
-            UnitVector2, Vector2, Vector3,
-        },
+        algebra::{Isometry2, Matrix4, Point2, Translation2, UnitComplex, UnitQuaternion, Vector3},
         algebra::{Isometry3, Point3, Rotation3, Translation3},
         arrayvec::ArrayVec,
         color::Color,
@@ -23,22 +18,28 @@ use crate::{
         self,
         collider::{self},
         debug::{Line, SceneDrawingContext},
-        dim2::{collider::ColliderShape, rigidbody::ApplyAction},
-        graph::physics::{FeatureId, IntegrationParameters, PhysicsPerformanceStatistics},
+        dim2::{self, collider::ColliderShape, rigidbody::ApplyAction},
+        graph::{
+            physics::{FeatureId, IntegrationParameters, PhysicsPerformanceStatistics},
+            NodePool,
+        },
         node::Node,
+        variable::VariableFlags,
     },
     utils::log::{Log, MessageKind},
 };
 use rapier2d::{
     dynamics::{
-        BallJoint, CCDSolver, FixedJoint, IslandManager, JointHandle, JointParams, JointSet,
-        PrismaticJoint, RigidBody, RigidBodyActivation, RigidBodyBuilder, RigidBodyHandle,
+        CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
+        IslandManager, JointAxesMask, JointAxis, MultibodyJointHandle, MultibodyJointSet,
+        RevoluteJointBuilder, RigidBody, RigidBodyActivation, RigidBodyBuilder, RigidBodyHandle,
         RigidBodySet, RigidBodyType,
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
         InteractionGroups, NarrowPhase, Ray, SharedShape, TriMesh,
     },
+    math::UnitVector,
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
 use std::{
@@ -197,49 +198,39 @@ where
     map: BiDirHashMap<A, Handle<Node>>,
 }
 
-fn convert_joint_params(params: scene::dim2::joint::JointParams) -> JointParams {
+fn convert_joint_params(params: scene::dim2::joint::JointParams) -> GenericJoint {
     match params {
-        scene::dim2::joint::JointParams::BallJoint(v) => {
-            let mut ball_joint =
-                BallJoint::new(Point2::from(v.local_anchor1), Point2::from(v.local_anchor2));
-
-            ball_joint.limits_enabled = v.limits_enabled;
-            ball_joint.limits_local_axis1 = UnitVector2::new_normalize(v.limits_local_axis1);
-            ball_joint.limits_local_axis2 = UnitVector2::new_normalize(v.limits_local_axis2);
-            ball_joint.limits_angle = v.limits_angle;
-
-            JointParams::from(ball_joint)
-        }
+        scene::dim2::joint::JointParams::BallJoint(v) => RevoluteJointBuilder::new()
+            .local_anchor1(Point2::from(v.local_anchor1))
+            .local_anchor2(Point2::from(v.local_anchor2))
+            .limits(v.limits_angles)
+            .build()
+            .into(),
         scene::dim2::joint::JointParams::FixedJoint(v) => {
-            let fixed_joint = FixedJoint::new(
-                Isometry2 {
+            GenericJointBuilder::new(JointAxesMask::LOCKED_FIXED_AXES)
+                .local_frame1(Isometry2 {
                     translation: Translation2 {
                         vector: v.local_anchor1_translation,
                     },
                     rotation: v.local_anchor1_rotation,
-                },
-                Isometry2 {
+                })
+                .local_frame2(Isometry2 {
                     translation: Translation2 {
                         vector: v.local_anchor2_translation,
                     },
                     rotation: v.local_anchor2_rotation,
-                },
-            );
-
-            JointParams::from(fixed_joint)
+                })
+                .build()
         }
         scene::dim2::joint::JointParams::PrismaticJoint(v) => {
-            let mut prismatic_joint = PrismaticJoint::new(
-                Point2::from(v.local_anchor1),
-                Unit::<Vector2<f32>>::new_normalize(v.local_axis1),
-                Point2::from(v.local_anchor2),
-                Unit::<Vector2<f32>>::new_normalize(v.local_axis2),
-            );
-
-            prismatic_joint.limits = v.limits;
-            prismatic_joint.limits_enabled = v.limits_enabled;
-
-            JointParams::from(prismatic_joint)
+            GenericJointBuilder::new(JointAxesMask::LOCKED_PRISMATIC_AXES)
+                .local_anchor1(Point2::from(v.local_anchor1))
+                .local_axis1(UnitVector::new_normalize(v.local_axis1))
+                .local_anchor2(Point2::from(v.local_anchor2))
+                .local_axis2(UnitVector::new_normalize(v.local_axis2))
+                .limits(JointAxis::X, v.limits)
+                .build()
+                .into()
         }
     }
 }
@@ -332,10 +323,14 @@ pub struct PhysicsWorld {
     #[visit(skip)]
     #[inspect(skip)]
     colliders: Container<ColliderSet, ColliderHandle>,
-    // A container of joints.
+    // A container of impulse joints.
     #[visit(skip)]
     #[inspect(skip)]
-    joints: Container<JointSet, JointHandle>,
+    joints: Container<ImpulseJointSet, ImpulseJointHandle>,
+    // A container of multibody joints.
+    #[visit(skip)]
+    #[inspect(skip)]
+    multibody_joints: Container<MultibodyJointSet, MultibodyJointHandle>,
     // Event handler collects info about contacts and proximity events.
     #[visit(skip)]
     #[inspect(skip)]
@@ -366,7 +361,11 @@ impl PhysicsWorld {
                 map: Default::default(),
             },
             joints: Container {
-                set: JointSet::new(),
+                set: ImpulseJointSet::new(),
+                map: Default::default(),
+            },
+            multibody_joints: Container {
+                set: MultibodyJointSet::new(),
                 map: Default::default(),
             },
             event_handler: Box::new(()),
@@ -383,20 +382,25 @@ impl PhysicsWorld {
                 dt: self.integration_parameters.dt,
                 min_ccd_dt: self.integration_parameters.min_ccd_dt,
                 erp: self.integration_parameters.erp,
+                damping_ratio: self.integration_parameters.damping_ratio,
                 joint_erp: self.integration_parameters.joint_erp,
-                warmstart_coeff: self.integration_parameters.warmstart_coeff,
-                warmstart_correction_slope: self.integration_parameters.warmstart_correction_slope,
-                velocity_solve_fraction: self.integration_parameters.velocity_solve_fraction,
-                velocity_based_erp: self.integration_parameters.velocity_based_erp,
+                joint_damping_ratio: self.integration_parameters.joint_damping_ratio,
                 allowed_linear_error: self.integration_parameters.allowed_linear_error,
+                max_penetration_correction: self.integration_parameters.max_penetration_correction,
                 prediction_distance: self.integration_parameters.prediction_distance,
-                allowed_angular_error: self.integration_parameters.allowed_angular_error,
-                max_linear_correction: self.integration_parameters.max_linear_correction,
-                max_angular_correction: self.integration_parameters.max_angular_correction,
                 max_velocity_iterations: self.integration_parameters.max_velocity_iterations
                     as usize,
-                max_position_iterations: self.integration_parameters.max_position_iterations
+                max_velocity_friction_iterations: self
+                    .integration_parameters
+                    .max_velocity_friction_iterations
                     as usize,
+                max_stabilization_iterations: self
+                    .integration_parameters
+                    .max_stabilization_iterations
+                    as usize,
+                interleave_restitution_and_friction_resolution: self
+                    .integration_parameters
+                    .interleave_restitution_and_friction_resolution,
                 min_island_size: self.integration_parameters.min_island_size as usize,
                 max_ccd_substeps: self.integration_parameters.max_ccd_substeps as usize,
             };
@@ -410,6 +414,7 @@ impl PhysicsWorld {
                 &mut self.bodies.set,
                 &mut self.colliders.set,
                 &mut self.joints.set,
+                &mut self.multibody_joints.set,
                 &mut self.ccd_solver,
                 &(),
                 &*self.event_handler,
@@ -432,6 +437,8 @@ impl PhysicsWorld {
             &mut self.islands,
             &mut self.colliders.set,
             &mut self.joints.set,
+            &mut self.multibody_joints.set,
+            true,
         );
     }
 
@@ -468,14 +475,14 @@ impl PhysicsWorld {
         owner: Handle<Node>,
         body1: RigidBodyHandle,
         body2: RigidBodyHandle,
-        params: JointParams,
-    ) -> JointHandle {
+        params: GenericJoint,
+    ) -> ImpulseJointHandle {
         let handle = self.joints.set.insert(body1, body2, params);
         self.joints.map.insert(handle, owner);
         handle
     }
 
-    pub(crate) fn remove_joint(&mut self, handle: JointHandle) {
+    pub(crate) fn remove_joint(&mut self, handle: ImpulseJointHandle) {
         assert!(self.joints.map.remove_by_key(&handle).is_some());
         self.joints
             .set
@@ -697,7 +704,7 @@ impl PhysicsWorld {
                     rigid_body_node.mass.try_sync_model(|v| {
                         let mut props = *native.mass_properties();
                         props.set_mass(v, true);
-                        native.set_mass_properties(props, true)
+                        native.set_additional_mass_properties(props, true)
                     });
                     rigid_body_node
                         .lin_damping
@@ -711,10 +718,14 @@ impl PhysicsWorld {
                     rigid_body_node.can_sleep.try_sync_model(|v| {
                         let mut activation = native.activation_mut();
                         if v {
-                            activation.threshold = RigidBodyActivation::default_threshold()
+                            activation.linear_threshold =
+                                RigidBodyActivation::default_linear_threshold();
+                            activation.angular_threshold =
+                                RigidBodyActivation::default_angular_threshold();
                         } else {
                             activation.sleeping = false;
-                            activation.threshold = -1.0;
+                            activation.linear_threshold = -1.0;
+                            activation.angular_threshold = -1.0;
                         };
                     });
                     rigid_body_node
@@ -734,10 +745,10 @@ impl PhysicsWorld {
 
                     while let Some(action) = actions.pop_front() {
                         match action {
-                            ApplyAction::Force(force) => native.apply_force(force, false),
-                            ApplyAction::Torque(torque) => native.apply_torque(torque, false),
+                            ApplyAction::Force(force) => native.add_force(force, false),
+                            ApplyAction::Torque(torque) => native.add_torque(torque, false),
                             ApplyAction::ForceAtPoint { force, point } => {
-                                native.apply_force_at_point(force, Point2::from(point), false)
+                                native.add_force_at_point(force, Point2::from(point), false)
                             }
                             ApplyAction::Impulse(impulse) => native.apply_impulse(impulse, false),
                             ApplyAction::TorqueImpulse(impulse) => {
@@ -919,7 +930,7 @@ impl PhysicsWorld {
         if let Some(native) = self.joints.set.get_mut(joint.native.get()) {
             joint
                 .params
-                .try_sync_model(|v| native.params = convert_joint_params(v));
+                .try_sync_model(|v| native.data = convert_joint_params(v));
             joint.body1.try_sync_model(|v| {
                 if let Some(rigid_body_node) = nodes
                     .try_borrow(v)

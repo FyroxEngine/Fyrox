@@ -3,8 +3,8 @@
 use crate::{
     core::{
         algebra::{
-            DMatrix, Dynamic, Isometry3, Matrix4, Point3, Translation3, Unit, UnitQuaternion,
-            UnitVector3, VecStorage, Vector2, Vector3,
+            DMatrix, Dynamic, Isometry3, Matrix4, Point3, Translation3, UnitQuaternion, VecStorage,
+            Vector2, Vector3,
         },
         arrayvec::ArrayVec,
         color::Color,
@@ -37,15 +37,18 @@ use crate::{
 };
 use rapier3d::{
     dynamics::{
-        BallJoint, CCDSolver, FixedJoint, IslandManager, JointHandle, JointParams, JointSet,
-        PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyActivation, RigidBodyBuilder,
-        RigidBodyHandle, RigidBodySet, RigidBodyType,
+        CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
+        IslandManager, JointAxesMask, MultibodyJointHandle, MultibodyJointSet, RigidBody,
+        RigidBodyActivation, RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
+        SphericalJointBuilder,
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
         InteractionGroups, NarrowPhase, Ray, Shape, SharedShape, TriMesh,
     },
+    math::UnitVector,
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
+    prelude::JointAxis,
 };
 use std::{
     cell::{Cell, RefCell},
@@ -328,64 +331,50 @@ where
     map: BiDirHashMap<A, Handle<Node>>,
 }
 
-fn convert_joint_params(params: scene::joint::JointParams) -> JointParams {
+fn convert_joint_params(params: scene::joint::JointParams) -> GenericJoint {
     match params {
-        scene::joint::JointParams::BallJoint(v) => {
-            let mut ball_joint =
-                BallJoint::new(Point3::from(v.local_anchor1), Point3::from(v.local_anchor2));
-
-            ball_joint.limits_enabled = v.limits_enabled;
-            ball_joint.limits_local_axis1 = UnitVector3::new_normalize(v.limits_local_axis1);
-            ball_joint.limits_local_axis2 = UnitVector3::new_normalize(v.limits_local_axis2);
-            ball_joint.limits_angle = v.limits_angle;
-
-            JointParams::from(ball_joint)
-        }
+        scene::joint::JointParams::BallJoint(v) => SphericalJointBuilder::new()
+            .local_anchor1(Point3::from(v.local_anchor1))
+            .local_anchor2(Point3::from(v.local_anchor2))
+            .limits(JointAxis::AngX, v.limits_angles)
+            .limits(JointAxis::AngY, v.limits_angles)
+            .limits(JointAxis::AngZ, v.limits_angles)
+            .build()
+            .into(),
         scene::joint::JointParams::FixedJoint(v) => {
-            let fixed_joint = FixedJoint::new(
-                Isometry3 {
+            GenericJointBuilder::new(JointAxesMask::LOCKED_FIXED_AXES)
+                .local_frame1(Isometry3 {
                     translation: Translation3 {
                         vector: v.local_anchor1_translation,
                     },
                     rotation: v.local_anchor1_rotation,
-                },
-                Isometry3 {
+                })
+                .local_frame2(Isometry3 {
                     translation: Translation3 {
                         vector: v.local_anchor2_translation,
                     },
                     rotation: v.local_anchor2_rotation,
-                },
-            );
-
-            JointParams::from(fixed_joint)
+                })
+                .build()
         }
         scene::joint::JointParams::PrismaticJoint(v) => {
-            let mut prismatic_joint = PrismaticJoint::new(
-                Point3::from(v.local_anchor1),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
-                Default::default(), // TODO
-                Point3::from(v.local_anchor2),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
-                Default::default(), // TODO
-            );
-
-            prismatic_joint.limits = v.limits;
-            prismatic_joint.limits_enabled = v.limits_enabled;
-
-            JointParams::from(prismatic_joint)
+            GenericJointBuilder::new(JointAxesMask::LOCKED_PRISMATIC_AXES)
+                .local_anchor1(Point3::from(v.local_anchor1))
+                .local_axis1(UnitVector::new_normalize(v.local_axis1))
+                .local_anchor2(Point3::from(v.local_anchor2))
+                .local_axis2(UnitVector::new_normalize(v.local_axis2))
+                .limits(JointAxis::X, v.limits)
+                .build()
+                .into()
         }
         scene::joint::JointParams::RevoluteJoint(v) => {
-            let mut revolute_joint = RevoluteJoint::new(
-                Point3::from(v.local_anchor1),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
-                Point3::from(v.local_anchor2),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
-            );
-
-            revolute_joint.limits_enabled = v.limits_enabled;
-            revolute_joint.limits = v.limits;
-
-            JointParams::from(revolute_joint)
+            GenericJointBuilder::new(JointAxesMask::LOCKED_REVOLUTE_AXES)
+                .local_anchor1(Point3::from(v.local_anchor1))
+                .local_axis1(UnitVector::new_normalize(v.local_axis1))
+                .local_anchor2(Point3::from(v.local_anchor2))
+                .local_axis2(UnitVector::new_normalize(v.local_axis2))
+                .limits(JointAxis::AngX, v.limits)
+                .build()
         }
     }
 }
@@ -704,6 +693,18 @@ pub struct IntegrationParameters {
     )]
     pub erp: f32,
 
+    /// 0-1: the damping ratio used by the springs.
+    /// Lower values make the constraints more compliant (more "springy", allowing more visible penetrations
+    /// before stabilization).
+    /// (default `0.25`).
+    #[inspect(
+        min_value = 0.0,
+        max_value = 1.0,
+        description = "The damping ratio used by the springs in `[0, 1]` Lower values make the constraints more \
+     compliant (more springy, allowing more visible penetrations before stabilization). Default `0.25`"
+    )]
+    pub damping_ratio: f32,
+
     /// The Error Reduction Parameter for joints in `[0, 1]` is the proportion of the positional
     /// error to be corrected at each time step (default: `0.2`).
     #[inspect(
@@ -714,43 +715,14 @@ pub struct IntegrationParameters {
     )]
     pub joint_erp: f32,
 
-    /// Each cached impulse are multiplied by this coefficient in `[0, 1]` when they are re-used to
-    /// initialize the solver (default `1.0`).
+    /// The fraction of critical damping applied to the joint for constraints regularization.
+    /// (default `0.25`).
     #[inspect(
         min_value = 0.0,
-        max_value = 1.0,
-        description = "Each cached impulse are multiplied by this coefficient in `[0, 1]` when they
-         are re-used to initialize the solver (default `1.0`)."
+        description = "The fraction of critical damping applied to the joint for \
+        constraints regularization (default: `0.25`)."
     )]
-    pub warmstart_coeff: f32,
-
-    /// Correction factor to avoid large warmstart impulse after a strong impact (default `10.0`).
-    #[inspect(
-        description = "Correction factor to avoid large warmstart impulse after a strong\
-         impact (default `10.0`)."
-    )]
-    pub warmstart_correction_slope: f32,
-
-    /// `[0, 1]`: how much of the velocity to dampen out in the constraint solver (default `1.0`).
-    #[inspect(
-        min_value = 0.0,
-        max_value = 1.0,
-        description = "`[0, 1]`: how much of the velocity to dampen out in the \
-        constraint solver (default `1.0`)."
-    )]
-    pub velocity_solve_fraction: f32,
-
-    /// `[0, 1]`: multiplier for how much of the constraint violation (e.g. contact penetration)
-    /// will be compensated for during the velocity solve. If zero, you need to enable the positional
-    /// solver. If non-zero, you do not need the positional solver. A good non-zero value is
-    /// around `0.2` (default `0.0`).
-    #[inspect(
-        min_value = 0.0,
-        max_value = 1.0,
-        description = "`[0, 1]`: multiplier for how much of the constraint violation \
-         (e.g. contact penetration) will be compensated for during the velocity solve."
-    )]
-    pub velocity_based_erp: f32,
+    pub joint_damping_ratio: f32,
 
     /// Amount of penetration the engine wont attempt to correct (default: `0.005m`).
     #[inspect(
@@ -758,6 +730,13 @@ pub struct IntegrationParameters {
         description = "Amount of penetration the engine wont attempt to correct (default: `0.005m`)."
     )]
     pub allowed_linear_error: f32,
+
+    /// Maximum amount of penetration the solver will attempt to resolve in one timestep.
+    #[inspect(
+        min_value = 0.0,
+        description = "Maximum amount of penetration the solver will attempt to resolve in one timestep."
+    )]
+    pub max_penetration_correction: f32,
 
     /// The maximal distance separating two objects that will generate predictive contacts (default: `0.002`).
     #[inspect(
@@ -767,30 +746,6 @@ pub struct IntegrationParameters {
     )]
     pub prediction_distance: f32,
 
-    /// Amount of angular drift of joint limits the engine wont attempt to correct (default: `0.001rad`).
-    #[inspect(
-        min_value = 0.0,
-        description = "Amount of angular drift of joint limits the engine wont attempt \
-        to correct (default: `0.001rad`)."
-    )]
-    pub allowed_angular_error: f32,
-
-    /// Maximum linear correction during one step of the non-linear position solver (default: `0.2`).
-    #[inspect(
-        min_value = 0.0,
-        description = "Maximum linear correction during one step of the non-linear \
-        position solver (default: `0.2`)."
-    )]
-    pub max_linear_correction: f32,
-
-    /// Maximum angular correction during one step of the non-linear position solver (default: `0.2`).
-    #[inspect(
-        min_value = 0.0,
-        description = "Maximum angular correction during one step of \
-    the non-linear position solver (default: `0.2`)."
-    )]
-    pub max_angular_correction: f32,
-
     /// Maximum number of iterations performed by the velocity constraints solver (default: `4`).
     #[inspect(
         min_value = 0.0,
@@ -799,13 +754,27 @@ pub struct IntegrationParameters {
     )]
     pub max_velocity_iterations: u32,
 
-    /// Maximum number of iterations performed by the position-based constraints solver (default: `1`).
+    /// Maximum number of iterations performed to solve friction constraints (default: `8`).
     #[inspect(
         min_value = 0.0,
-        description = "Maximum number of iterations performed by the \
-    position-based constraints solver (default: `1`)."
+        description = "Maximum number of iterations performed to solve friction constraints (default: `8`)"
     )]
-    pub max_position_iterations: u32,
+    pub max_velocity_friction_iterations: u32,
+
+    /// Maximum number of iterations performed to remove the energy introduced by penetration corrections  (default: `1`).
+    #[inspect(
+        min_value = 0.0,
+        description = "Maximum number of iterations performed to remove the energy introduced by penetration corrections  (default: `1`)."
+    )]
+    pub max_stabilization_iterations: u32,
+
+    /// If `false`, friction and non-penetration constraints will be solved in the same loop. Otherwise,
+    /// non-penetration constraints are solved first, and friction constraints are solved after (default: `true`).
+    #[inspect(
+        description = "If `false`, friction and non-penetration constraints will be solved in the same loop. Otherwise, \
+        non-penetration constraints are solved first, and friction constraints are solved after (default: `true`)."
+    )]
+    pub interleave_restitution_and_friction_resolution: bool,
 
     /// Minimum number of dynamic bodies in each active island (default: `128`).
     #[inspect(
@@ -829,19 +798,17 @@ impl Default for IntegrationParameters {
             min_ccd_dt: 1.0 / 60.0 / 100.0,
             erp: 0.2,
             joint_erp: 0.2,
-            velocity_solve_fraction: 1.0,
-            velocity_based_erp: 0.0,
-            warmstart_coeff: 1.0,
-            warmstart_correction_slope: 10.0,
             allowed_linear_error: 0.005,
             prediction_distance: 0.002,
-            allowed_angular_error: 0.001,
-            max_linear_correction: 0.2,
-            max_angular_correction: 0.2,
             max_velocity_iterations: 4,
-            max_position_iterations: 1,
             min_island_size: 128,
             max_ccd_substeps: 1,
+            damping_ratio: 0.25,
+            joint_damping_ratio: 0.25,
+            max_penetration_correction: f32::MAX,
+            max_velocity_friction_iterations: 8,
+            max_stabilization_iterations: 1,
+            interleave_restitution_and_friction_resolution: true,
         }
     }
 }
@@ -894,10 +861,14 @@ pub struct PhysicsWorld {
     #[visit(skip)]
     #[inspect(skip)]
     colliders: Container<ColliderSet, ColliderHandle>,
-    // A container of joints.
+    // A container of impulse joints.
     #[visit(skip)]
     #[inspect(skip)]
-    joints: Container<JointSet, JointHandle>,
+    joints: Container<ImpulseJointSet, ImpulseJointHandle>,
+    // A container of multibody joints.
+    #[visit(skip)]
+    #[inspect(skip)]
+    multibody_joints: Container<MultibodyJointSet, MultibodyJointHandle>,
     // Event handler collects info about contacts and proximity events.
     #[visit(skip)]
     #[inspect(skip)]
@@ -952,8 +923,8 @@ fn draw_shape(shape: &dyn Shape, transform: Matrix4<f32>, context: &mut SceneDra
     } else if let Some(round_cylinder) = shape.as_round_cylinder() {
         context.draw_cylinder(
             10,
-            round_cylinder.base_shape.radius,
-            round_cylinder.base_shape.half_height * 2.0,
+            round_cylinder.inner_shape.radius,
+            round_cylinder.inner_shape.half_height * 2.0,
             false,
             transform,
             Color::opaque(200, 200, 200),
@@ -1025,7 +996,11 @@ impl PhysicsWorld {
                 map: Default::default(),
             },
             joints: Container {
-                set: JointSet::new(),
+                set: ImpulseJointSet::new(),
+                map: Default::default(),
+            },
+            multibody_joints: Container {
+                set: MultibodyJointSet::new(),
                 map: Default::default(),
             },
             event_handler: Box::new(()),
@@ -1042,20 +1017,25 @@ impl PhysicsWorld {
                 dt: self.integration_parameters.dt,
                 min_ccd_dt: self.integration_parameters.min_ccd_dt,
                 erp: self.integration_parameters.erp,
+                damping_ratio: self.integration_parameters.damping_ratio,
                 joint_erp: self.integration_parameters.joint_erp,
-                warmstart_coeff: self.integration_parameters.warmstart_coeff,
-                warmstart_correction_slope: self.integration_parameters.warmstart_correction_slope,
-                velocity_solve_fraction: self.integration_parameters.velocity_solve_fraction,
-                velocity_based_erp: self.integration_parameters.velocity_based_erp,
+                joint_damping_ratio: self.integration_parameters.joint_damping_ratio,
                 allowed_linear_error: self.integration_parameters.allowed_linear_error,
+                max_penetration_correction: self.integration_parameters.max_penetration_correction,
                 prediction_distance: self.integration_parameters.prediction_distance,
-                allowed_angular_error: self.integration_parameters.allowed_angular_error,
-                max_linear_correction: self.integration_parameters.max_linear_correction,
-                max_angular_correction: self.integration_parameters.max_angular_correction,
                 max_velocity_iterations: self.integration_parameters.max_velocity_iterations
                     as usize,
-                max_position_iterations: self.integration_parameters.max_position_iterations
+                max_velocity_friction_iterations: self
+                    .integration_parameters
+                    .max_velocity_friction_iterations
                     as usize,
+                max_stabilization_iterations: self
+                    .integration_parameters
+                    .max_stabilization_iterations
+                    as usize,
+                interleave_restitution_and_friction_resolution: self
+                    .integration_parameters
+                    .interleave_restitution_and_friction_resolution,
                 min_island_size: self.integration_parameters.min_island_size as usize,
                 max_ccd_substeps: self.integration_parameters.max_ccd_substeps as usize,
             };
@@ -1069,6 +1049,7 @@ impl PhysicsWorld {
                 &mut self.bodies.set,
                 &mut self.colliders.set,
                 &mut self.joints.set,
+                &mut self.multibody_joints.set,
                 &mut self.ccd_solver,
                 &(),
                 &*self.event_handler,
@@ -1091,6 +1072,8 @@ impl PhysicsWorld {
             &mut self.islands,
             &mut self.colliders.set,
             &mut self.joints.set,
+            &mut self.multibody_joints.set,
+            true,
         );
     }
 
@@ -1127,14 +1110,14 @@ impl PhysicsWorld {
         owner: Handle<Node>,
         body1: RigidBodyHandle,
         body2: RigidBodyHandle,
-        params: JointParams,
-    ) -> JointHandle {
-        let handle = self.joints.set.insert(body1, body2, params);
+        joint: GenericJoint,
+    ) -> ImpulseJointHandle {
+        let handle = self.joints.set.insert(body1, body2, joint);
         self.joints.map.insert(handle, owner);
         handle
     }
 
-    pub(crate) fn remove_joint(&mut self, handle: JointHandle) {
+    pub(crate) fn remove_joint(&mut self, handle: ImpulseJointHandle) {
         assert!(self.joints.map.remove_by_key(&handle).is_some());
         self.joints
             .set
@@ -1298,7 +1281,7 @@ impl PhysicsWorld {
                     rigid_body_node.mass.try_sync_model(|v| {
                         let mut props = *native.mass_properties();
                         props.set_mass(v, true);
-                        native.set_mass_properties(props, true)
+                        native.set_additional_mass_properties(props, true)
                     });
                     rigid_body_node
                         .lin_damping
@@ -1312,10 +1295,14 @@ impl PhysicsWorld {
                     rigid_body_node.can_sleep.try_sync_model(|v| {
                         let mut activation = native.activation_mut();
                         if v {
-                            activation.threshold = RigidBodyActivation::default_threshold()
+                            activation.linear_threshold =
+                                RigidBodyActivation::default_linear_threshold();
+                            activation.angular_threshold =
+                                RigidBodyActivation::default_angular_threshold();
                         } else {
                             activation.sleeping = false;
-                            activation.threshold = -1.0;
+                            activation.linear_threshold = -1.0;
+                            activation.angular_threshold = -1.0;
                         };
                     });
                     rigid_body_node
@@ -1360,10 +1347,10 @@ impl PhysicsWorld {
 
                     while let Some(action) = actions.pop_front() {
                         match action {
-                            ApplyAction::Force(force) => native.apply_force(force, false),
-                            ApplyAction::Torque(torque) => native.apply_torque(torque, false),
+                            ApplyAction::Force(force) => native.add_force(force, false),
+                            ApplyAction::Torque(torque) => native.add_torque(torque, false),
                             ApplyAction::ForceAtPoint { force, point } => {
-                                native.apply_force_at_point(force, Point3::from(point), false)
+                                native.add_force_at_point(force, Point3::from(point), false)
                             }
                             ApplyAction::Impulse(impulse) => native.apply_impulse(impulse, false),
                             ApplyAction::TorqueImpulse(impulse) => {
@@ -1547,7 +1534,7 @@ impl PhysicsWorld {
         if let Some(native) = self.joints.set.get_mut(joint.native.get()) {
             joint
                 .params
-                .try_sync_model(|v| native.params = convert_joint_params(v));
+                .try_sync_model(|v| native.data = convert_joint_params(v));
             joint.body1.try_sync_model(|v| {
                 if let Some(rigid_body_node) = nodes
                     .try_borrow(v)
