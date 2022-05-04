@@ -1,8 +1,9 @@
-# 0.25 (future)
+# 0.25
 
 - Static plugin system
 - User-defined scripts
 - Play mode for the editor
+- Animation Blending State Machine (ABSM) editor.
 - Some of sound entities were integrated in the scene graph.
 - New `Sound` and `Listener` scene nodes.
 - Sound buffer import options.
@@ -16,7 +17,41 @@ types of scene nodes.
 - `Base` is not a scene node anymore, it was replaced with `Pivot` node (see migration guide for more info)
 - `Base` now has `cast_shadows` property, respective property setters/getters was removed from `Mesh` and 
 `Terrain` nodes.
-- **WIP**
+- Ability to bring ListView item into view.
+- Logger improvements: event subscriptions + collecting timestamps
+- Log panel improvements in the editor: severity filtering, color differentiation.
+- Scene nodes now have more or less correct local bounds (a bounding box that can fit the node).
+- Improved picking in the editor: now it is using precise hit test against node's geometry.
+- "Ignore back faces" option for picking in the editor: allows you to pick through "back" of polygon
+faces, especially useful for closed environment.
+- Rotation ribbons were replaced with torus, it is much easier to select desired rotation mode.
+- New material for gizmos in the editor, that prevent depth issues.
+- New expander for TreeView widget, `V` and `>` arrows instead of `+` and `-` signs.
+- ScrollBar widget is much thinner by default.
+- Editor settings window now based on Inspector widget, which provides uniform way of data visualization.
+- `DEFAULT_FONT` singleton was removed, it is replaced with `default_font`
+- Shortcuts improvements in the editor.
+- Overall UI performance improvements.
+- Ability to disable clipping of widget bounds to parent bounds.
+- Layout and render transform support for widgets - allows you to scale/rotate/translate widgets.
+- Ability to make widget lowermost in hierarchy.
+- Animation blending state machine refactoring, optimizations and stability improvements.
+- Animation blending state machines are now stored in special container which stored in the Scene.
+- Docking manager now shows anchors only for its windows.
+- Model previewer now has much more intuitive controls.
+- NumericUpDown don't panic anymore on edges of numeric bounds (i.e when trying to do `i32::MAX_VALUE + 1`)
+- DoubleClick support for UI.
+- Update rate fix for editor, it fixes annoying issue with flickering in text boxes.
+- `UserInterface::hit_test_unrestricted` which performs hit test that is not restricted to current 
+picking restriction stack.
+- WASM renderer fixes.
+- `Pool::try_free` which returns `Option<T>` on invalid handles, instead of panicking.
+- Light source for model previewer
+- Default skybox for editor and model previewer cameras
+- `Color` API improvements.
+- `#[inspect(expand)]` and `#[inspect(expand_subtree)]` were removed from `Inspect` proc-macro
+- Correct field name generation for enum variants
+- Ability to draw Bézier curves in the UI.
 
 ## Migration guide
 
