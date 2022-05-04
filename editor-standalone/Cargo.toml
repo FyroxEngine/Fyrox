@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = { path = "../" }
-fyroxed = { path = "../editor" }
+fyrox = { version = "0.25", path = "../" }
+fyroxed = { version = "0.12.0", path = "../editor" }
