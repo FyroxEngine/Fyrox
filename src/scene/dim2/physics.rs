@@ -340,6 +340,15 @@ pub struct PhysicsWorld {
     query: RefCell<QueryPipeline>,
 }
 
+fn isometry_from_global_transform(transform: &Matrix4<f32>) -> Isometry2<f32> {
+    Isometry2 {
+        translation: Translation2::new(transform[12], transform[13]),
+        rotation: UnitComplex::from_angle(
+            Rotation3::from_matrix(&transform.basis()).euler_angles().2,
+        ),
+    }
+}
+
 impl PhysicsWorld {
     /// Creates a new instance of the physics world.
     pub(crate) fn new() -> Self {
@@ -625,18 +634,8 @@ impl PhysicsWorld {
         new_global_transform: &Matrix4<f32>,
     ) {
         if let Some(native) = self.bodies.set.get_mut(rigid_body.native.get()) {
-            let global_rotation = UnitComplex::from_angle(
-                Rotation3::from_matrix(&new_global_transform.basis())
-                    .euler_angles()
-                    .2,
-            );
-            let global_position = Vector2::new(new_global_transform[12], new_global_transform[13]);
-
             native.set_position(
-                Isometry2 {
-                    translation: Translation2::from(global_position),
-                    rotation: global_rotation,
-                },
+                isometry_from_global_transform(new_global_transform),
                 // Do not wake up body, it is too expensive and must be done **only** by explicit
                 // `wake_up` call!
                 false,
@@ -762,18 +761,9 @@ impl PhysicsWorld {
             }
         } else {
             let mut builder = RigidBodyBuilder::new(rigid_body_node.body_type().into())
-                .position(Isometry2 {
-                    rotation: UnitComplex::from_angle(
-                        rigid_body_node
-                            .local_transform()
-                            .rotation()
-                            .euler_angles()
-                            .2,
-                    ),
-                    translation: Translation2 {
-                        vector: rigid_body_node.local_transform().position().xy(),
-                    },
-                })
+                .position(isometry_from_global_transform(
+                    &rigid_body_node.global_transform(),
+                ))
                 .ccd_enabled(rigid_body_node.is_ccd_enabled())
                 .additional_mass(rigid_body_node.mass())
                 .angvel(*rigid_body_node.ang_vel)

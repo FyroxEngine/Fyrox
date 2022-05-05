@@ -975,6 +975,13 @@ fn draw_shape(shape: &dyn Shape, transform: Matrix4<f32>, context: &mut SceneDra
     }
 }
 
+fn isometry_from_global_transform(transform: &Matrix4<f32>) -> Isometry3<f32> {
+    Isometry3 {
+        translation: Translation3::new(transform[12], transform[13], transform[14]),
+        rotation: UnitQuaternion::from_matrix(&transform.basis()),
+    }
+}
+
 impl PhysicsWorld {
     /// Creates a new instance of the physics world.
     pub(super) fn new() -> Self {
@@ -1200,18 +1207,8 @@ impl PhysicsWorld {
         new_global_transform: &Matrix4<f32>,
     ) {
         if let Some(native) = self.bodies.set.get_mut(rigid_body.native.get()) {
-            let global_rotation = UnitQuaternion::from_matrix(&new_global_transform.basis());
-            let global_position = Vector3::new(
-                new_global_transform[12],
-                new_global_transform[13],
-                new_global_transform[14],
-            );
-
             native.set_position(
-                Isometry3 {
-                    translation: Translation3::from(global_position),
-                    rotation: global_rotation,
-                },
+                isometry_from_global_transform(new_global_transform),
                 // Do not wake up body, it is too expensive and must be done **only** by explicit
                 // `wake_up` call!
                 false,
@@ -1360,12 +1357,9 @@ impl PhysicsWorld {
             }
         } else {
             let mut builder = RigidBodyBuilder::new(rigid_body_node.body_type().into())
-                .position(Isometry3 {
-                    rotation: **rigid_body_node.local_transform().rotation(),
-                    translation: Translation3 {
-                        vector: **rigid_body_node.local_transform().position(),
-                    },
-                })
+                .position(isometry_from_global_transform(
+                    &rigid_body_node.global_transform(),
+                ))
                 .ccd_enabled(rigid_body_node.is_ccd_enabled())
                 .additional_mass(rigid_body_node.mass())
                 .angvel(*rigid_body_node.ang_vel)
