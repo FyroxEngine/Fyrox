@@ -633,8 +633,14 @@ impl Graph {
                     if node_resource == resource {
                         let previous_mapping =
                             old_new_mapping.insert(node.original_handle_in_resource, node_handle);
-                        // There must be no such node.
-                        assert!(previous_mapping.is_none());
+                        // There should be no such node.
+                        if previous_mapping.is_some() {
+                            Log::warn(format!(
+                                "There are multiple original nodes for {:?}! Previous was {:?}. \
+                                This can happen if a respective node was deleted.",
+                                node_handle, node.original_handle_in_resource
+                            ))
+                        }
                     }
                 }
 
