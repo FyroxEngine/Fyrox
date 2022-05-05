@@ -796,19 +796,19 @@ impl Default for IntegrationParameters {
         Self {
             dt: 1.0 / 60.0,
             min_ccd_dt: 1.0 / 60.0 / 100.0,
-            erp: 0.2,
-            joint_erp: 0.2,
-            allowed_linear_error: 0.005,
+            erp: 0.8,
+            damping_ratio: 0.25,
+            joint_erp: 1.0,
+            joint_damping_ratio: 1.0,
+            allowed_linear_error: 0.001,
+            max_penetration_correction: f32::MAX,
             prediction_distance: 0.002,
             max_velocity_iterations: 4,
-            min_island_size: 128,
-            max_ccd_substeps: 1,
-            damping_ratio: 0.25,
-            joint_damping_ratio: 0.25,
-            max_penetration_correction: f32::MAX,
             max_velocity_friction_iterations: 8,
             max_stabilization_iterations: 1,
             interleave_restitution_and_friction_resolution: true,
+            min_island_size: 128,
+            max_ccd_substeps: 1,
         }
     }
 }
