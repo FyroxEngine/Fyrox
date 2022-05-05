@@ -1309,32 +1309,26 @@ impl PhysicsWorld {
                         .translation_locked
                         .try_sync_model(|v| native.lock_translations(v, false));
                     rigid_body_node.x_rotation_locked.try_sync_model(|v| {
-                        // Logic is inverted here:
-                        // See https://github.com/dimforge/rapier/pull/265
                         native.restrict_rotations(
-                            v,
-                            native.is_rotation_locked()[1],
-                            native.is_rotation_locked()[2],
+                            !v,
+                            !native.is_rotation_locked()[1],
+                            !native.is_rotation_locked()[2],
                             false,
                         );
                     });
                     rigid_body_node.y_rotation_locked.try_sync_model(|v| {
-                        // Logic is inverted here:
-                        // See https://github.com/dimforge/rapier/pull/265
                         native.restrict_rotations(
-                            native.is_rotation_locked()[0],
-                            v,
-                            native.is_rotation_locked()[2],
+                            !native.is_rotation_locked()[0],
+                            !v,
+                            !native.is_rotation_locked()[2],
                             false,
                         );
                     });
                     rigid_body_node.z_rotation_locked.try_sync_model(|v| {
-                        // Logic is inverted here:
-                        // See https://github.com/dimforge/rapier/pull/265
                         native.restrict_rotations(
-                            native.is_rotation_locked()[0],
-                            native.is_rotation_locked()[1],
-                            v,
+                            !native.is_rotation_locked()[0],
+                            !native.is_rotation_locked()[1],
+                            !v,
                             false,
                         );
                     });

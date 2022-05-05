@@ -732,9 +732,7 @@ impl PhysicsWorld {
                         .translation_locked
                         .try_sync_model(|v| native.lock_translations(v, false));
                     rigid_body_node.rotation_locked.try_sync_model(|v| {
-                        // Logic is inverted here:
-                        // See https://github.com/dimforge/rapier/pull/265
-                        native.restrict_rotations(v, v, v, false);
+                        native.restrict_rotations(!v, !v, !v, false);
                     });
                     rigid_body_node
                         .dominance
@@ -793,12 +791,10 @@ impl PhysicsWorld {
 
             let mut body = builder.build();
 
-            // Logic is inverted here:
-            // See https://github.com/dimforge/rapier/pull/265
             body.restrict_rotations(
-                rigid_body_node.is_rotation_locked(),
-                rigid_body_node.is_rotation_locked(),
-                rigid_body_node.is_rotation_locked(),
+                !rigid_body_node.is_rotation_locked(),
+                !rigid_body_node.is_rotation_locked(),
+                !rigid_body_node.is_rotation_locked(),
                 false,
             );
 
