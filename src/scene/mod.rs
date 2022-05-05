@@ -182,6 +182,26 @@ impl NavMeshContainer {
     pub fn is_valid_handle(&self, handle: Handle<Navmesh>) -> bool {
         self.pool.is_valid_handle(handle)
     }
+
+    /// Tries to borrow a navmesh by its index.
+    pub fn at(&self, i: u32) -> Option<&Navmesh> {
+        self.pool.at(i)
+    }
+
+    /// Tries to borrow a navmesh by its handle.
+    pub fn try_get(&self, handle: Handle<Navmesh>) -> Option<&Navmesh> {
+        self.pool.try_borrow(handle)
+    }
+
+    /// Tries to borrow a navmesh by its index.
+    pub fn at_mut(&mut self, i: u32) -> Option<&mut Navmesh> {
+        self.pool.at_mut(i)
+    }
+
+    /// Tries to borrow a navmesh by its handle.
+    pub fn try_get_mut(&mut self, handle: Handle<Navmesh>) -> Option<&mut Navmesh> {
+        self.pool.try_borrow_mut(handle)
+    }
 }
 
 impl Index<Handle<Navmesh>> for NavMeshContainer {
