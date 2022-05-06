@@ -155,6 +155,13 @@ pub trait NodeTrait: BaseNodeTrait + Inspect + Visit {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox;
 
     /// Returns axis-aligned bounding box in **world space** of the node.
+    ///
+    /// # Important notes
+    ///
+    /// World bounding box will become valid **only** after first `update` call of the parent scene.
+    /// It is because to calculate world bounding box we must get world transform first, but it
+    /// can be calculated with a knowledge of parent world transform, so node on its own cannot know
+    /// its world bounding box without additional information.
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox;
 
     /// Prefab inheritance resolving.
