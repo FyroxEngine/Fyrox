@@ -270,12 +270,14 @@ impl Navmesh {
         self.pathfinder.build(from, to, path)
     }
 
-    /// Tries to pick a triangle by given ray.
+    /// Tries to pick a triangle by given ray. Returns closest result.
     pub fn ray_cast(&self, ray: Ray) -> Option<(Vector3<f32>, usize, TriangleDefinition)> {
         let mut buffer = ArrayVec::<Handle<OctreeNode>, 128>::new();
 
         self.octree.ray_query_static(&ray, &mut buffer);
 
+        let mut closest_distance = f32::MAX;
+        let mut result = None;
         for node in buffer.into_iter() {
             if let OctreeNode::Leaf { indices, .. } = self.octree.node(node) {
                 for &index in indices {
@@ -285,7 +287,11 @@ impl Navmesh {
                     let c = self.pathfinder.vertices()[triangle[2] as usize].position;
 
                     if let Some(intersection) = ray.triangle_intersection_point(&[a, b, c]) {
-                        return Some((intersection, index as usize, triangle));
+                        let distance = intersection.metric_distance(&ray.origin);
+                        if distance < closest_distance {
+                            closest_distance = distance;
+                            result = Some((intersection, index as usize, triangle));
+                        }
                     }
                 }
             } else {
@@ -293,7 +299,7 @@ impl Navmesh {
             }
         }
 
-        None
+        result
     }
 }
 
