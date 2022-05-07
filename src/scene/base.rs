@@ -855,7 +855,11 @@ impl Visit for Base {
         // None of the reasons are fatal and we should still give an ability to load such node
         // to edit or remove it.
         if let Err(e) = visit_opt_script("Script", &mut self.script, visitor) {
-            Log::err(format!("Unable to visit script. Reason: {:?}", e))
+            // Do not spam with error messages if there is missing `Script` field. It is ok
+            // for old scenes not to have script at all.
+            if !matches!(e, VisitError::RegionDoesNotExist(_)) {
+                Log::err(format!("Unable to visit script. Reason: {:?}", e))
+            }
         }
 
         visitor.leave_region()
