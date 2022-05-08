@@ -119,11 +119,11 @@ pub fn create_field_visits<'a>(
         .map(|(ident, name, optional)| {
             if *optional {
                 quote! {
-                    #ident.visit(#name, visitor).ok();
+                    #ident.visit(#name, &mut region).ok();
                 }
             } else {
                 quote! {
-                    #ident.visit(#name, visitor)?;
+                    #ident.visit(#name, &mut region)?;
                 }
             }
         })

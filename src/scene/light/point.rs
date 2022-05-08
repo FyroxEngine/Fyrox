@@ -40,7 +40,7 @@ use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug, Inspect, Clone)]
+#[derive(Debug, Inspect, Clone, Visit)]
 pub struct PointLight {
     base_light: BaseLight,
 
@@ -146,18 +146,6 @@ impl NodeTrait for PointLight {
 
     fn id(&self) -> Uuid {
         Self::type_uuid()
-    }
-}
-
-impl Visit for PointLight {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.base_light.visit("BaseLight", visitor)?;
-        self.radius.visit("Radius", visitor)?;
-        self.shadow_bias.visit("ShadowBias", visitor)?;
-
-        visitor.leave_region()
     }
 }
 

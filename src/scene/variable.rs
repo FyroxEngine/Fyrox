@@ -298,34 +298,29 @@ where
                 Ok(())
             } else {
                 // Reading the latest version.
-                if visitor
-                    .current_region()
-                    .map(|region| region != name)
-                    .unwrap_or_default()
-                {
-                    visitor.enter_region(name)?;
-                }
 
-                self.value.visit("Value", visitor)?;
+                let mut region = visitor.enter_region(name)?;
+
+                self.value.visit("Value", &mut region)?;
 
                 // We still might have old version with single IsCustom flag.
                 let mut is_custom = false;
-                if is_custom.visit("IsCustom", visitor).is_ok() {
+                if is_custom.visit("IsCustom", &mut region).is_ok() {
                     self.flags.get_mut().set(VariableFlags::MODIFIED, is_custom);
                 } else {
-                    self.flags.get_mut().bits.visit("Flags", visitor)?;
+                    self.flags.get_mut().bits.visit("Flags", &mut region)?;
                 }
 
-                visitor.leave_region()
+                Ok(())
             }
         } else {
             // Write in latest format.
-            visitor.enter_region(name)?;
+            let mut region = visitor.enter_region(name)?;
 
-            self.value.visit("Value", visitor)?;
-            self.flags.get_mut().bits.visit("Flags", visitor)?;
+            self.value.visit("Value", &mut region)?;
+            self.flags.get_mut().bits.visit("Flags", &mut region)?;
 
-            visitor.leave_region()
+            Ok(())
         }
     }
 }

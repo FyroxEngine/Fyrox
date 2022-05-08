@@ -257,12 +257,12 @@ where
     V: Hash + Eq + Clone + Default + Visit,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.forward_map.visit("ForwardMap", visitor)?;
-        self.backward_map.visit("BackwardMap", visitor)?;
+        self.forward_map.visit("ForwardMap", &mut region)?;
+        self.backward_map.visit("BackwardMap", &mut region)?;
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 

@@ -142,7 +142,7 @@ macro_rules! impl_directly_inheritable_entity_trait {
 }
 
 /// A container for navigational meshes.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Visit)]
 pub struct NavMeshContainer {
     pool: Pool<Navmesh>,
 }
@@ -215,16 +215,6 @@ impl Index<Handle<Navmesh>> for NavMeshContainer {
 impl IndexMut<Handle<Navmesh>> for NavMeshContainer {
     fn index_mut(&mut self, index: Handle<Navmesh>) -> &mut Self::Output {
         &mut self.pool[index]
-    }
-}
-
-impl Visit for NavMeshContainer {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.pool.visit("Pool", visitor)?;
-
-        visitor.leave_region()
     }
 }
 
@@ -692,18 +682,20 @@ impl Scene {
     }
 
     fn visit(&mut self, region_name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(region_name)?;
+        let mut region = visitor.enter_region(region_name)?;
 
-        self.graph.visit("Graph", visitor)?;
-        self.animations.visit("Animations", visitor)?;
-        self.lightmap.visit("Lightmap", visitor)?;
-        self.navmeshes.visit("NavMeshes", visitor)?;
+        self.graph.visit("Graph", &mut region)?;
+        self.animations.visit("Animations", &mut region)?;
+        self.lightmap.visit("Lightmap", &mut region)?;
+        self.navmeshes.visit("NavMeshes", &mut region)?;
         self.ambient_lighting_color
-            .visit("AmbientLightingColor", visitor)?;
-        self.enabled.visit("Enabled", visitor)?;
-        let _ = self.animation_machines.visit("AnimationMachines", visitor);
+            .visit("AmbientLightingColor", &mut region)?;
+        self.enabled.visit("Enabled", &mut region)?;
+        let _ = self
+            .animation_machines
+            .visit("AnimationMachines", &mut region);
 
-        visitor.leave_region()
+        Ok(())
     }
 
     /// Saves scene in a specified file.

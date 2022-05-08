@@ -19,7 +19,7 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Visit)]
 pub struct KeyFrame {
     pub position: Vector3<f32>,
     pub scale: Vector3<f32>,
@@ -54,42 +54,18 @@ impl Default for KeyFrame {
     }
 }
 
-impl Visit for KeyFrame {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.position.visit("Position", visitor)?;
-        self.scale.visit("Scale", visitor)?;
-        self.rotation.visit("Rotation", visitor)?;
-        self.time.visit("Time", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug, Visit)]
 pub struct PoseEvaluationFlags {
     pub ignore_position: bool,
     pub ignore_rotation: bool,
     pub ignore_scale: bool,
 }
 
-impl Visit for PoseEvaluationFlags {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.ignore_position.visit("IgnorePosition", visitor)?;
-        self.ignore_rotation.visit("IgnoreRotation", visitor)?;
-        self.ignore_scale.visit("IgnoreScale", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Visit)]
 pub struct Track {
     // Frames are not serialized, because it makes no sense to store them in save file,
     // they will be taken from resource on Resolve stage.
+    #[visit(skip)]
     frames: Vec<KeyFrame>,
     enabled: bool,
     max_time: f32,
@@ -118,19 +94,6 @@ impl Default for Track {
             node: Default::default(),
             flags: Default::default(),
         }
-    }
-}
-
-impl Visit for Track {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.enabled.visit("Enabled", visitor)?;
-        self.max_time.visit("MaxTime", visitor)?;
-        self.node.visit("Node", visitor)?;
-        self.flags.visit("Flags", visitor)?;
-
-        visitor.leave_region()
     }
 }
 
@@ -260,7 +223,7 @@ pub struct AnimationEvent {
     pub signal_id: u64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Visit)]
 pub struct AnimationSignal {
     id: u64,
     time: f32,
@@ -303,19 +266,7 @@ impl Default for AnimationSignal {
     }
 }
 
-impl Visit for AnimationSignal {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.id.visit("Id", visitor)?;
-        self.time.visit("Time", visitor)?;
-        self.enabled.visit("Enabled", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Visit)]
 pub struct Animation {
     // TODO: Extract into separate struct AnimationTimeline
     tracks: Vec<Track>,
@@ -326,8 +277,10 @@ pub struct Animation {
     looped: bool,
     enabled: bool,
     pub(in crate) resource: Option<Model>,
+    #[visit(skip)]
     pose: AnimationPose,
     signals: Vec<AnimationSignal>,
+    #[visit(skip)]
     events: VecDeque<AnimationEvent>,
 }
 
@@ -744,23 +697,6 @@ impl Default for Animation {
     }
 }
 
-impl Visit for Animation {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.tracks.visit("Tracks", visitor)?;
-        self.speed.visit("Speed", visitor)?;
-        self.length.visit("Length", visitor)?;
-        self.time_position.visit("TimePosition", visitor)?;
-        self.resource.visit("Resource", visitor)?;
-        self.looped.visit("Looped", visitor)?;
-        self.enabled.visit("Enabled", visitor)?;
-        self.signals.visit("Signals", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct AnimationContainer {
     pool: Pool<Animation>,
@@ -898,15 +834,15 @@ impl AnimationContainer {
 
 impl Visit for AnimationContainer {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
         if visitor.is_reading() && self.pool.get_capacity() != 0 {
             panic!("Animation pool must be empty on load!");
         }
 
-        self.pool.visit("Pool", visitor)?;
+        let mut region = visitor.enter_region(name)?;
 
-        visitor.leave_region()
+        self.pool.visit("Pool", &mut region)?;
+
+        Ok(())
     }
 }
 

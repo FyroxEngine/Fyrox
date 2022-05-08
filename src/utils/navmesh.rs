@@ -37,10 +37,12 @@ pub struct Navmesh {
 
 impl Visit for Navmesh {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.pathfinder.visit("PathFinder", visitor)?;
-        self.triangles.visit("Triangles", visitor)?;
+        self.pathfinder.visit("PathFinder", &mut region)?;
+        self.triangles.visit("Triangles", &mut region)?;
+
+        drop(region);
 
         // No need to save octree, we can restore it on load.
         if visitor.is_reading() {
@@ -60,7 +62,7 @@ impl Visit for Navmesh {
             self.octree = Octree::new(&raw_triangles, 32);
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
@@ -305,6 +307,7 @@ impl Navmesh {
 
 /// Navmesh agent is a "pathfinding unit" that performs navigation on a mesh. It is designed to
 /// cover most of simple use cases when you need to build and follow some path from point A to point B.
+#[derive(Visit)]
 pub struct NavmeshAgent {
     path: Vec<Vector3<f32>>,
     current: u32,
@@ -315,26 +318,6 @@ pub struct NavmeshAgent {
     recalculation_threshold: f32,
     speed: f32,
     path_dirty: bool,
-}
-
-impl Visit for NavmeshAgent {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.path.visit("Path", visitor)?;
-        self.current.visit("Current", visitor)?;
-        self.position.visit("Position", visitor)?;
-        self.last_warp_position.visit("LastWarpPosition", visitor)?;
-        self.target.visit("Target", visitor)?;
-        self.last_target_position
-            .visit("LastTargetPosition", visitor)?;
-        self.recalculation_threshold
-            .visit("RecalculationThreshold", visitor)?;
-        self.speed.visit("Speed", visitor)?;
-        self.path_dirty.visit("PathDirty", visitor)?;
-
-        visitor.leave_region()
-    }
 }
 
 impl Default for NavmeshAgent {

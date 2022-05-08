@@ -93,19 +93,21 @@ pub struct Chunk {
 // Manual implementation of the trait because we need to serialize heightmap differently.
 impl Visit for Chunk {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         let mut view = PodVecView::from_pod_vec(&mut self.heightmap);
-        view.visit("Heightmap", visitor)?;
+        view.visit("Heightmap", &mut region)?;
 
-        self.position.visit("Position", visitor)?;
-        self.width.visit("Width", visitor)?;
-        self.length.visit("Length", visitor)?;
-        self.width_point_count.visit("WidthPointCount", visitor)?;
-        self.length_point_count.visit("LengthPointCount", visitor)?;
+        self.position.visit("Position", &mut region)?;
+        self.width.visit("Width", &mut region)?;
+        self.length.visit("Length", &mut region)?;
+        self.width_point_count
+            .visit("WidthPointCount", &mut region)?;
+        self.length_point_count
+            .visit("LengthPointCount", &mut region)?;
         // self.surface_data, self.dirty is are not serialized.
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 

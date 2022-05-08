@@ -28,25 +28,19 @@ use std::path::Path;
 use std::{path::PathBuf, time::Duration};
 
 /// Generic sound buffer that contains decoded samples and allows random access.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Visit)]
 pub struct GenericBuffer {
     /// Interleaved decoded samples (mono sounds: L..., stereo sounds: LR...)
     /// For streaming buffers it contains only small part of decoded data
     /// (usually something around 1 sec).
+    #[visit(skip)]
     pub(in crate) samples: Vec<f32>,
+    #[visit(skip)]
     pub(in crate) channel_count: usize,
+    #[visit(skip)]
     pub(in crate) sample_rate: usize,
+    #[visit(rename = "Path")]
     pub(in crate) external_source_path: PathBuf,
-}
-
-impl Visit for GenericBuffer {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.external_source_path.visit("Path", visitor)?;
-
-        visitor.leave_region()
-    }
 }
 
 impl GenericBuffer {

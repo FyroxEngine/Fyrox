@@ -117,15 +117,15 @@ impl SoundEngine {
 
 impl Visit for SoundEngine {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
         if visitor.is_reading() {
             self.contexts.clear();
         }
 
-        self.master_gain.visit("MasterGain", visitor)?;
-        self.contexts.visit("Contexts", visitor)?;
+        let mut region = visitor.enter_region(name)?;
 
-        visitor.leave_region()
+        self.master_gain.visit("MasterGain", &mut region)?;
+        self.contexts.visit("Contexts", &mut region)?;
+
+        Ok(())
     }
 }

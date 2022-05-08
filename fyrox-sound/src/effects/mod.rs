@@ -21,19 +21,9 @@ use std::ops::{Deref, DerefMut};
 pub mod reverb;
 
 /// Stub effect that does nothing.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Visit)]
 pub struct StubEffect {
     base: BaseEffect,
-}
-
-impl Visit for StubEffect {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.base.visit("Base", visitor)?;
-
-        visitor.leave_region()
-    }
 }
 
 impl EffectRenderTrait for StubEffect {
@@ -62,7 +52,7 @@ impl DerefMut for StubEffect {
 }
 
 /// See module docs.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit)]
 pub enum Effect {
     /// Stub effect that does nothing.
     Stub(StubEffect),
@@ -73,42 +63,6 @@ pub enum Effect {
 impl Default for Effect {
     fn default() -> Self {
         Effect::Stub(Default::default())
-    }
-}
-
-impl Effect {
-    fn id(&self) -> u32 {
-        match self {
-            Effect::Stub(_) => 0,
-            Effect::Reverb(_) => 1,
-        }
-    }
-
-    fn from_id(id: u32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Effect::Stub(Default::default())),
-            1 => Ok(Effect::Reverb(Default::default())),
-            _ => Err(format!("Unknown effect id {}", id)),
-        }
-    }
-}
-
-impl Visit for Effect {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let mut id = self.id();
-        id.visit("Id", visitor)?;
-        if visitor.is_reading() {
-            *self = Self::from_id(id)?;
-        }
-
-        match self {
-            Effect::Stub(v) => v.visit("Data", visitor)?,
-            Effect::Reverb(v) => v.visit("Data", visitor)?,
-        }
-
-        visitor.leave_region()
     }
 }
 
@@ -124,10 +78,11 @@ pub(in crate) trait EffectRenderTrait {
 
 /// Base effect for all other kinds of effects. It contains set of inputs (direct
 /// or filtered), provides some basic methods to control them.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit)]
 pub struct BaseEffect {
     gain: f32,
     inputs: Vec<EffectInput>,
+    #[visit(skip)]
     frame_samples: Vec<(f32, f32)>,
 }
 
@@ -231,20 +186,9 @@ impl BaseEffect {
     }
 }
 
-impl Visit for BaseEffect {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.gain.visit("Gain", visitor)?;
-        self.inputs.visit("Inputs", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// Input filter is used to transform samples in desired manner, it is based
 /// on generic second order biquad filter. See docs for Biquad filter.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Visit)]
 pub struct InputFilter {
     left: Biquad,
     right: Biquad,
@@ -266,21 +210,10 @@ impl InputFilter {
     }
 }
 
-impl Visit for InputFilter {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.left.visit("Left", visitor)?;
-        self.right.visit("Right", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// Input is a "reference" to a sound source. Samples of sound source will be
 /// either passed directly to effect or will be transformed by filter if one
 /// is set.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Visit)]
 pub struct EffectInput {
     /// Handle of source from which effect will take samples each render frame.
     source: Handle<SoundSource>,
@@ -291,6 +224,7 @@ pub struct EffectInput {
 
     /// Distance gain from last frame, it is used to interpolate distance gain from
     /// frame to frame to prevent clicks in output signal.
+    #[visit(skip)]
     last_distance_gain: Option<f32>,
 }
 
@@ -316,17 +250,6 @@ impl EffectInput {
             filter: Some(filter),
             last_distance_gain: None,
         }
-    }
-}
-
-impl Visit for EffectInput {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.source.visit("Source", visitor)?;
-        self.filter.visit("Filter", visitor)?;
-
-        visitor.leave_region()
     }
 }
 

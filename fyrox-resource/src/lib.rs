@@ -76,11 +76,11 @@ where
     E: ResourceLoadError,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         let mut id = self.id();
-        id.visit("Id", visitor)?;
-        if visitor.is_reading() {
+        id.visit("Id", &mut region)?;
+        if region.is_reading() {
             *self = Self::from_id(id)?;
         }
 
@@ -91,11 +91,11 @@ where
             ),
             // This may look strange if we attempting to save an invalid resource, but this may be
             // actually useful - a resource may become loadable at the deserialization.
-            Self::LoadError { path, .. } => path.visit("Path", visitor)?,
-            Self::Ok(details) => details.visit("Details", visitor)?,
+            Self::LoadError { path, .. } => path.visit("Path", &mut region)?,
+            Self::Ok(details) => details.visit("Details", &mut region)?,
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 

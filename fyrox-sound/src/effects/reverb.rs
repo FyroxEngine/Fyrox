@@ -41,12 +41,15 @@ use std::{
     time::Duration,
 };
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Visit)]
 struct ChannelReverb {
+    #[visit(rename = "FC")]
     fc: f32,
     sample_rate: u32,
     stereo_spread: u32,
+    #[visit(rename = "LPCFilters")]
     lp_fb_comb_filters: Vec<LpfComb>,
+    #[visit(rename = "APFilters")]
     all_pass_filters: Vec<AllPass>,
 }
 
@@ -136,22 +139,8 @@ impl ChannelReverb {
     }
 }
 
-impl Visit for ChannelReverb {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.all_pass_filters.visit("APFilters", visitor)?;
-        self.fc.visit("FC", visitor)?;
-        self.lp_fb_comb_filters.visit("LPCFilters", visitor)?;
-        self.sample_rate.visit("SampleRate", visitor)?;
-        self.stereo_spread.visit("StereoSpread", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// See module docs.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit)]
 pub struct Reverb {
     base: BaseEffect,
     dry: f32,
@@ -245,20 +234,6 @@ impl Reverb {
     pub fn set_fc(&mut self, fc: f32) {
         self.left.set_fc(fc);
         self.right.set_fc(fc);
-    }
-}
-
-impl Visit for Reverb {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.base.visit("Base", visitor)?;
-        self.right.visit("Right", visitor)?;
-        self.left.visit("Left", visitor)?;
-        self.dry.visit("Dry", visitor)?;
-        self.wet.visit("Wet", visitor)?;
-
-        visitor.leave_region()
     }
 }
 

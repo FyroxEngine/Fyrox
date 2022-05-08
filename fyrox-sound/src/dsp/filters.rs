@@ -14,7 +14,7 @@ use fyrox_core::{
 
 /// One-pole Filter.
 /// For details see - <https://www.earlevel.com/main/2012/12/15/a-one-pole-filter/>
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit)]
 pub struct OnePole {
     a0: f32,
     b1: f32,
@@ -66,21 +66,9 @@ impl OnePole {
     }
 }
 
-impl Visit for OnePole {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.a0.visit("A0", visitor)?;
-        self.b1.visit("B1", visitor)?;
-        self.last.visit("Last", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// Lowpass-Feedback Comb Filter
 /// For details see - <https://ccrma.stanford.edu/~jos/pasp/Lowpass_Feedback_Comb_Filter.html>
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit)]
 pub struct LpfComb {
     low_pass: OnePole,
     delay_line: DelayLine,
@@ -135,21 +123,9 @@ impl LpfComb {
     }
 }
 
-impl Visit for LpfComb {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.delay_line.visit("DelayLine", visitor)?;
-        self.feedback.visit("Feedback", visitor)?;
-        self.low_pass.visit("LowPass", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// Allpass Filter - <https://ccrma.stanford.edu/~jos/pasp/Allpass_Filters.html>
 /// For details see - <https://ccrma.stanford.edu/~jos/pasp/Allpass_Two_Combs.html>
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit)]
 pub struct AllPass {
     delay_line: DelayLine,
     gain: f32,
@@ -194,17 +170,6 @@ impl AllPass {
     }
 }
 
-impl Visit for AllPass {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.delay_line.visit("DelayLine", visitor)?;
-        self.gain.visit("Gain", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// Exact kind of biquad filter - it defines coefficients of the filter.
 /// More info here: <https://shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html>
 pub enum BiquadKind {
@@ -231,7 +196,7 @@ pub enum BiquadKind {
 
 /// Generic second order digital filter.
 /// More info here: <https://ccrma.stanford.edu/~jos/filters/BiQuad_Section.html>
-#[derive(Clone, Debug, Inspect)]
+#[derive(Clone, Debug, Inspect, Visit)]
 pub struct Biquad {
     /// B0 Coefficient of the equation.
     pub b0: f32,
@@ -374,21 +339,5 @@ impl Default for Biquad {
             prev1: 0.0,
             prev2: 0.0,
         }
-    }
-}
-
-impl Visit for Biquad {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.b0.visit("b0", visitor)?;
-        self.b1.visit("b1", visitor)?;
-        self.b2.visit("b2", visitor)?;
-        self.a1.visit("a1", visitor)?;
-        self.a2.visit("a2", visitor)?;
-        self.prev1.visit("prev1", visitor)?;
-        self.prev2.visit("prev2", visitor)?;
-
-        visitor.leave_region()
     }
 }

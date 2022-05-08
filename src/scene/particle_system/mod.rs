@@ -119,14 +119,16 @@ pub enum ParticleLimit {
 
 impl Visit for ParticleLimit {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         let mut amount = match self {
             Self::Unlimited => -1,
             Self::Strict(value) => *value as i32,
         };
 
-        amount.visit("Amount", visitor)?;
+        amount.visit("Amount", &mut region)?;
+
+        drop(region);
 
         if visitor.is_reading() {
             *self = if amount < 0 {
@@ -136,7 +138,7 @@ impl Visit for ParticleLimit {
             };
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 

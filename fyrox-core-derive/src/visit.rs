@@ -28,9 +28,9 @@ fn impl_visit_struct(
             utils::create_field_visits(None, field_args.fields.iter(), field_args.style);
 
         quote! {
-            visitor.enter_region(name)?;
+            let mut region = visitor.enter_region(name)?;
             #(self.#field_visits)*
-            visitor.leave_region()
+            Ok(())
         }
     };
 
@@ -187,12 +187,12 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
         ty_args,
         variant_args.iter().flat_map(|v| v.fields.iter()).cloned(),
         quote! {
-             visitor.enter_region(name)?;
+             let mut region = visitor.enter_region(name)?;
 
              let mut id = id(self);
-             id.visit("Id", visitor)?;
+             id.visit("Id", &mut region)?;
 
-             if visitor.is_reading() {
+             if region.is_reading() {
                  *self = from_id(id)?;
              }
 
@@ -200,7 +200,7 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
                  #(#variant_visits)*
              }
 
-             return visitor.leave_region();
+             return Ok(());
 
              #fn_id
 

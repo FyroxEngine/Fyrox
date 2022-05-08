@@ -37,13 +37,15 @@ use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 
 /// Streaming buffer for long sounds. Does not support random access.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Visit)]
 pub struct StreamingBuffer {
     pub(in crate) generic: GenericBuffer,
     /// Count of sources that share this buffer, it is important to keep only one
     /// user of streaming buffer, because streaming buffer does not allow random
     /// access.
+    #[visit(skip)]
     pub(in crate) use_count: usize,
+    #[visit(skip)]
     streaming_source: StreamingSource,
 }
 
@@ -219,15 +221,5 @@ impl DerefMut for StreamingBuffer {
     /// Returns mutable reference to internal generic buffer. Can be used to modify it.
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.generic
-    }
-}
-
-impl Visit for StreamingBuffer {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.generic.visit("Generic", visitor)?;
-
-        visitor.leave_region()
     }
 }

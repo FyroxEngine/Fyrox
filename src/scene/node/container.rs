@@ -37,10 +37,10 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
             let mut node = match kind_id {
                 0 => Node::new(Pivot::default()),
                 1 => {
-                    visitor.enter_region(name)?;
+                    let mut region = visitor.enter_region(name)?;
 
                     let mut light_id = 0u32;
-                    light_id.visit("KindId", visitor)?;
+                    light_id.visit("KindId", &mut region)?;
 
                     let mut light_node = match light_id {
                         0 => Node::new(SpotLight::default()),
@@ -54,9 +54,7 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
                         }
                     };
 
-                    light_node.visit("Data", visitor)?;
-
-                    visitor.leave_region()?;
+                    light_node.visit("Data", &mut region)?;
 
                     return Ok(light_node);
                 }
@@ -88,12 +86,12 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
             node
         } else {
             // Latest version
-            visitor.enter_region(name)?;
+            let mut region = visitor.enter_region(name)?;
 
             let mut id = Uuid::default();
-            id.visit("TypeUuid", visitor)?;
+            id.visit("TypeUuid", &mut region)?;
 
-            let serialization_context = visitor
+            let serialization_context = region
                 .environment
                 .as_ref()
                 .and_then(|e| e.downcast_ref::<SerializationContext>())
@@ -104,9 +102,7 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
                 .try_create(&id)
                 .ok_or_else(|| VisitError::User(format!("Unknown node type uuid {}!", id)))?;
 
-            node.visit("NodeData", visitor)?;
-
-            visitor.leave_region()?;
+            node.visit("NodeData", &mut region)?;
 
             node
         }
@@ -116,32 +112,31 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
 }
 
 fn write_node(name: &str, node: &mut Node, visitor: &mut Visitor) -> VisitResult {
-    visitor.enter_region(name)?;
+    let mut region = visitor.enter_region(name)?;
 
     let mut id = node.id();
-    id.visit("TypeUuid", visitor)?;
+    id.visit("TypeUuid", &mut region)?;
 
-    node.visit("NodeData", visitor)?;
+    node.visit("NodeData", &mut region)?;
 
-    visitor.leave_region()
+    Ok(())
 }
 
 impl Visit for NodeContainer {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         let mut is_some = if self.is_some() { 1u8 } else { 0u8 };
-        is_some.visit("IsSome", visitor)?;
+        is_some.visit("IsSome", &mut region)?;
 
         if is_some != 0 {
-            if visitor.is_reading() {
-                *self = NodeContainer(Some(read_node("Data", visitor)?));
+            if region.is_reading() {
+                *self = NodeContainer(Some(read_node("Data", &mut region)?));
             } else {
-                write_node("Data", self.0.as_mut().unwrap(), visitor)?;
+                write_node("Data", self.0.as_mut().unwrap(), &mut region)?;
             }
         }
 
-        visitor.leave_region()?;
         Ok(())
     }
 }

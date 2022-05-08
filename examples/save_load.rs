@@ -47,7 +47,7 @@ impl Visit for LocomotionMachine {
         // new node in tree structure and makes it current so every later calls of visit
         // will write data into that node, of course inner calls can call enter_region -
         // visitor can manage trees of any depth.
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         // Just call visit on every field, checking the result of operation.
         // For backwards compatibility you can ignore result.
@@ -55,48 +55,46 @@ impl Visit for LocomotionMachine {
         // or some other generic type, inner type must implement at least Default trait plus
         // some types (Arc, Mutex) adds Send, Sync - if compiler tells you that .visit method is
         // not found then it is probably you missed some of required trait bounds.
-        self.jump_animation.visit("JumpAnimation", visitor)?;
-        self.walk_animation.visit("WalkAnimation", visitor)?;
-        self.walk_state.visit("WalkState", visitor)?;
+        self.jump_animation.visit("JumpAnimation", &mut region)?;
+        self.walk_animation.visit("WalkAnimation", &mut region)?;
+        self.walk_state.visit("WalkState", &mut region)?;
         // Machine is an internal Fyrox type, however it has implementation of Visit and
         // can be serialized in one call.
-        self.machine.visit("Machine", visitor)?;
+        self.machine.visit("Machine", &mut region)?;
 
-        // This line should always be in pair with enter_region. It pops current node from
-        // internal stack of visitor and makes parent node current.
-        visitor.leave_region()
+        Ok(())
     }
 }
 
 // Continue implementing Visit trait for Rest of game structures.
 impl Visit for Player {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.model.visit("Model", visitor)?;
-        self.body.visit("Body", visitor)?;
-        self.camera_pivot.visit("CameraPivot", visitor)?;
-        self.camera_hinge.visit("CameraHinge", visitor)?;
-        self.camera.visit("Camera", visitor)?;
+        self.model.visit("Model", &mut region)?;
+        self.body.visit("Body", &mut region)?;
+        self.camera_pivot.visit("CameraPivot", &mut region)?;
+        self.camera_hinge.visit("CameraHinge", &mut region)?;
+        self.camera.visit("Camera", &mut region)?;
         self.locomotion_machine
-            .visit("LocomotionMachine", visitor)?;
-        self.model_yaw.visit("ModelYaw", visitor)?;
-        self.pivot.visit("Pivot", visitor)?;
+            .visit("LocomotionMachine", &mut region)?;
+        self.model_yaw.visit("ModelYaw", &mut region)?;
+        self.pivot.visit("Pivot", &mut region)?;
         // self.input_controller isn't visited because we don't care about its state -
         // it will be synced with keyboard state anyway.
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
 impl Visit for GameScene {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.scene.visit("Scene", visitor)?;
-        self.player.visit("Player", visitor)?;
+        self.scene.visit("Scene", &mut region)?;
+        self.player.visit("Player", &mut region)?;
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 

@@ -136,24 +136,26 @@ impl_directly_inheritable_entity_trait!(Transform;
 
 impl Visit for Transform {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.local_scale.visit("LocalScale", visitor)?;
-        self.local_position.visit("LocalPosition", visitor)?;
-        self.local_rotation.visit("LocalRotation", visitor)?;
-        self.pre_rotation.visit("PreRotation", visitor)?;
-        self.post_rotation.visit("PostRotation", visitor)?;
-        self.rotation_offset.visit("RotationOffset", visitor)?;
-        self.rotation_pivot.visit("RotationPivot", visitor)?;
-        self.scaling_offset.visit("ScalingOffset", visitor)?;
-        self.scaling_pivot.visit("ScalingPivot", visitor)?;
+        self.local_scale.visit("LocalScale", &mut region)?;
+        self.local_position.visit("LocalPosition", &mut region)?;
+        self.local_rotation.visit("LocalRotation", &mut region)?;
+        self.pre_rotation.visit("PreRotation", &mut region)?;
+        self.post_rotation.visit("PostRotation", &mut region)?;
+        self.rotation_offset.visit("RotationOffset", &mut region)?;
+        self.rotation_pivot.visit("RotationPivot", &mut region)?;
+        self.scaling_offset.visit("ScalingOffset", &mut region)?;
+        self.scaling_pivot.visit("ScalingPivot", &mut region)?;
+
+        drop(region);
 
         if visitor.is_reading() {
             self.post_rotation_matrix =
                 build_post_rotation_matrix(self.post_rotation.clone_inner());
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 

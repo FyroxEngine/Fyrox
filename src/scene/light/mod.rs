@@ -54,7 +54,7 @@ pub const DEFAULT_SCATTER_B: f32 = 0.03;
 /// Light scene node. It contains common properties of light such as color,
 /// scattering factor (per color channel) and other useful properties. Exact
 /// behavior defined by specific light kind.
-#[derive(Debug, Inspect, Clone)]
+#[derive(Debug, Inspect, Clone, Visit)]
 pub struct BaseLight {
     base: Base,
 
@@ -65,12 +65,14 @@ pub struct BaseLight {
     cast_shadows: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
+    #[visit(rename = "ScatterFactor")]
     scatter: TemplateVariable<Vector3<f32>>,
 
     #[inspect(getter = "Deref::deref")]
     scatter_enabled: TemplateVariable<bool>,
 
     #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    #[visit(optional)]
     intensity: TemplateVariable<f32>,
 }
 
@@ -110,21 +112,6 @@ impl Default for BaseLight {
             scatter_enabled: TemplateVariable::new(true),
             intensity: TemplateVariable::new(1.0),
         }
-    }
-}
-
-impl Visit for BaseLight {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.color.visit("Color", visitor)?;
-        self.base.visit("Base", visitor)?;
-        self.cast_shadows.visit("CastShadows", visitor)?;
-        self.scatter.visit("ScatterFactor", visitor)?;
-        self.scatter_enabled.visit("ScatterEnabled", visitor)?;
-        let _ = self.intensity.visit("Intensity", visitor); // Backward compatibility.
-
-        visitor.leave_region()
     }
 }
 

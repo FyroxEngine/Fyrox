@@ -74,9 +74,12 @@ pub struct HrtfRenderer {
 
 impl Visit for HrtfRenderer {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.hrir_path.visit("ResourcePath", visitor)?;
+        self.hrir_path.visit("ResourcePath", &mut region)?;
+
+        drop(region);
+
         if visitor.is_reading() {
             self.processor = Some(hrtf::HrtfProcessor::new(
                 HrirSphere::from_file(&self.hrir_path, context::SAMPLE_RATE).unwrap(),
@@ -85,7 +88,7 @@ impl Visit for HrtfRenderer {
             ));
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 

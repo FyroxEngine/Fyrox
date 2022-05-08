@@ -10,7 +10,7 @@ use fyrox_core::math::Matrix3Ext;
 use fyrox_core::visitor::{Visit, VisitResult, Visitor};
 
 /// See module docs.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit)]
 pub struct Listener {
     basis: Matrix3<f32>,
     position: Vector3<f32>,
@@ -96,16 +96,5 @@ impl Listener {
     /// Returns ear axis from basis.
     pub fn ear_axis(&self) -> Vector3<f32> {
         self.basis.side()
-    }
-}
-
-impl Visit for Listener {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.basis.visit("Basis", visitor)?;
-        self.position.visit("Position", visitor)?;
-
-        visitor.leave_region()
     }
 }

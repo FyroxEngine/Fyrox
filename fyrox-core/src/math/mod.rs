@@ -283,14 +283,14 @@ where
     T: NumAssign + Scalar + Visit + PartialOrd + Copy + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.position.x.visit("X", visitor)?;
-        self.position.y.visit("Y", visitor)?;
-        self.size.x.visit("W", visitor)?;
-        self.size.y.visit("H", visitor)?;
+        self.position.x.visit("X", &mut region)?;
+        self.position.y.visit("Y", &mut region)?;
+        self.size.x.visit("W", &mut region)?;
+        self.size.y.visit("H", &mut region)?;
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
@@ -732,13 +732,13 @@ impl TriangleDefinition {
 
 impl Visit for TriangleDefinition {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.0[0].visit("A", visitor)?;
-        self.0[1].visit("B", visitor)?;
-        self.0[2].visit("C", visitor)?;
+        self.0[0].visit("A", &mut region)?;
+        self.0[1].visit("B", &mut region)?;
+        self.0[2].visit("C", &mut region)?;
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
@@ -846,7 +846,7 @@ pub fn get_closest_point_triangle_set<P: PositionProvider>(
     closest_index
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Visit)]
 pub struct SmoothAngle {
     /// Current angle in radians.
     pub angle: f32,
@@ -938,18 +938,6 @@ impl Default for SmoothAngle {
             target: 0.0,
             speed: 1.0,
         }
-    }
-}
-
-impl Visit for SmoothAngle {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.angle.visit("Angle", visitor)?;
-        self.target.visit("Target", visitor)?;
-        self.speed.visit("Speed", visitor)?;
-
-        visitor.leave_region()
     }
 }
 

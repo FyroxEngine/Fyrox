@@ -24,7 +24,7 @@ pub mod hrtf;
 // This "large size difference" is not a problem because renderer
 // can be only one at a time on context.
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Debug, Clone, AsRefStr, EnumString, EnumVariantNames, Visit)]
 pub enum Renderer {
     /// Stateless default renderer.
     Default,
@@ -41,23 +41,6 @@ impl Inspect for Renderer {
                 vec![]
             }
             Renderer::HrtfRenderer(v) => v.properties(),
-        }
-    }
-}
-
-impl Renderer {
-    fn id(&self) -> u32 {
-        match self {
-            Renderer::Default => 0,
-            Renderer::HrtfRenderer(_) => 1,
-        }
-    }
-
-    fn from_id(id: u32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::Default),
-            1 => Ok(Self::HrtfRenderer(HrtfRenderer::default())),
-            _ => Err(format!("Invalid renderer id {}!", id)),
         }
     }
 }
@@ -132,24 +115,4 @@ pub(in crate) fn render_source_2d_only(source: &mut SoundSource, mix_buffer: &mu
     render_with_params(source, left_gain, right_gain, mix_buffer);
     source.last_left_gain = Some(left_gain);
     source.last_right_gain = Some(right_gain);
-}
-
-impl Visit for Renderer {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let mut id = self.id();
-        id.visit("Id", visitor)?;
-        if visitor.is_reading() {
-            *self = Self::from_id(id)?;
-        }
-        match self {
-            Renderer::Default => {}
-            Renderer::HrtfRenderer(hrtf) => {
-                hrtf.visit("Hrtf", visitor)?;
-            }
-        }
-
-        visitor.leave_region()
-    }
 }

@@ -4,7 +4,7 @@ use crate::{
     visitor::{Visit, VisitResult, Visitor},
 };
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Visit)]
 pub struct AxisAlignedBoundingBox {
     pub min: Vector3<f32>,
     pub max: Vector3<f32>,
@@ -254,17 +254,6 @@ impl AxisAlignedBoundingBox {
                 Vector3::new(max.x, max.y, max.z),
             ),
         ]
-    }
-}
-
-impl Visit for AxisAlignedBoundingBox {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.min.visit("Min", visitor)?;
-        self.max.visit("Max", visitor)?;
-
-        visitor.leave_region()
     }
 }
 

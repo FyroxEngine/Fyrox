@@ -252,15 +252,15 @@ impl Frustum {
 
 impl Visit for Frustum {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.planes[0].visit("Left", visitor)?;
-        self.planes[1].visit("Right", visitor)?;
-        self.planes[2].visit("Top", visitor)?;
-        self.planes[3].visit("Bottom", visitor)?;
-        self.planes[4].visit("Far", visitor)?;
-        self.planes[5].visit("Near", visitor)?;
+        self.planes[0].visit("Left", &mut region)?;
+        self.planes[1].visit("Right", &mut region)?;
+        self.planes[2].visit("Top", &mut region)?;
+        self.planes[3].visit("Bottom", &mut region)?;
+        self.planes[4].visit("Far", &mut region)?;
+        self.planes[5].visit("Near", &mut region)?;
 
-        visitor.leave_region()
+        Ok(())
     }
 }

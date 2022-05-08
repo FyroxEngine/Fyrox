@@ -86,7 +86,7 @@ impl Default for DistanceModel {
 }
 
 /// See module docs.
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Visit)]
 pub struct SoundContext {
     pub(in crate) state: Option<Arc<Mutex<State>>>,
 }
@@ -372,50 +372,24 @@ impl SoundContext {
     }
 }
 
-impl Visit for SoundContext {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.state.visit("State", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 impl Visit for State {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
         if visitor.is_reading() {
             self.sources.clear();
             self.effects.clear();
             self.renderer = Renderer::Default;
         }
 
-        self.master_gain.visit("MasterGain", visitor)?;
-        self.listener.visit("Listener", visitor)?;
-        self.sources.visit("Sources", visitor)?;
-        self.effects.visit("Effects", visitor)?;
-        self.renderer.visit("Renderer", visitor)?;
-        let _ = self.paused.visit("Paused", visitor);
+        let mut region = visitor.enter_region(name)?;
 
-        let mut distance_model = self.distance_model as u32;
-        distance_model.visit("DistanceModel", visitor)?;
-        if visitor.is_reading() {
-            self.distance_model = match distance_model {
-                0 => DistanceModel::None,
-                1 => DistanceModel::InverseDistance,
-                2 => DistanceModel::LinearDistance,
-                3 => DistanceModel::ExponentDistance,
-                _ => {
-                    return VisitResult::Err(VisitError::User(format!(
-                        "Invalid distance model id {}!",
-                        distance_model
-                    )))
-                }
-            }
-        }
+        self.master_gain.visit("MasterGain", &mut region)?;
+        self.listener.visit("Listener", &mut region)?;
+        self.sources.visit("Sources", &mut region)?;
+        self.effects.visit("Effects", &mut region)?;
+        self.renderer.visit("Renderer", &mut region)?;
+        self.paused.visit("Paused", &mut region)?;
+        self.distance_model.visit("DistanceModel", &mut region)?;
 
-        visitor.leave_region()
+        Ok(())
     }
 }

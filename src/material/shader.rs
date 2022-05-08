@@ -49,9 +49,11 @@ pub struct ShaderState {
 
 impl Visit for ShaderState {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.path.visit("Path", visitor)?;
+        self.path.visit("Path", &mut region)?;
+
+        drop(region);
 
         if visitor.is_reading() {
             if self.path == Path::new("Standard") {
@@ -61,7 +63,7 @@ impl Visit for ShaderState {
             }
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 

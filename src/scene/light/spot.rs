@@ -46,7 +46,7 @@ use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug, Inspect, Clone)]
+#[derive(Debug, Inspect, Clone, Visit)]
 pub struct SpotLight {
     base_light: BaseLight,
 
@@ -241,22 +241,6 @@ impl NodeTrait for SpotLight {
 
     fn id(&self) -> Uuid {
         Self::type_uuid()
-    }
-}
-
-impl Visit for SpotLight {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.base_light.visit("BaseLight", visitor)?;
-        self.hotspot_cone_angle.visit("HotspotConeAngle", visitor)?;
-        self.falloff_angle_delta
-            .visit("FalloffAngleDelta", visitor)?;
-        self.distance.visit("Distance", visitor)?;
-        self.shadow_bias.visit("ShadowBias", visitor)?;
-        self.cookie_texture.visit("CookieTexture", visitor)?;
-
-        visitor.leave_region()
     }
 }
 

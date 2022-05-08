@@ -4,7 +4,7 @@ use crate::{
 };
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-#[derive(Copy, Clone, Debug, PartialOrd, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Visit)]
 #[repr(C)]
 pub struct Color {
     // Do not change order! OpenGL requires this order!
@@ -298,19 +298,6 @@ impl Color {
             b: self.b,
             a,
         }
-    }
-}
-
-impl Visit for Color {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.r.visit("R", visitor)?;
-        self.g.visit("G", visitor)?;
-        self.b.visit("B", visitor)?;
-        self.a.visit("A", visitor)?;
-
-        visitor.leave_region()
     }
 }
 

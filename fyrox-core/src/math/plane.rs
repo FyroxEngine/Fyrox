@@ -1,7 +1,7 @@
 use crate::algebra::Vector3;
 use crate::visitor::{Visit, VisitResult, Visitor};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Visit)]
 pub struct Plane {
     pub normal: Vector3<f32>,
     pub d: f32,
@@ -66,17 +66,6 @@ impl Plane {
         let v3 = self.normal.cross(&b.normal).scale(c.d);
 
         (v1 + v2 + v3).scale(f)
-    }
-}
-
-impl Visit for Plane {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.normal.visit("Normal", visitor)?;
-        self.d.visit("D", visitor)?;
-
-        visitor.leave_region()
     }
 }
 

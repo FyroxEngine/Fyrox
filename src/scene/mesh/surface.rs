@@ -847,32 +847,37 @@ impl SurfaceData {
 
 impl Visit for SurfaceData {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.is_procedural.visit("IsProcedural", visitor)?;
+        self.is_procedural.visit("IsProcedural", &mut region)?;
 
         if self.is_procedural {
-            if self.vertex_buffer.visit("VertexBuffer", visitor).is_err() && visitor.is_reading() {
+            if self
+                .vertex_buffer
+                .visit("VertexBuffer", &mut region)
+                .is_err()
+                && region.is_reading()
+            {
                 // Backward compatibility
                 let mut old_vertices = Vec::<OldVertex>::new();
-                old_vertices.visit("Vertices", visitor)?;
+                old_vertices.visit("Vertices", &mut region)?;
                 self.vertex_buffer =
                     VertexBuffer::new(old_vertices.len(), OldVertex::layout(), old_vertices)
                         .unwrap();
             };
             if self
                 .geometry_buffer
-                .visit("GeometryBuffer", visitor)
+                .visit("GeometryBuffer", &mut region)
                 .is_err()
-                && visitor.is_reading()
+                && region.is_reading()
             {
                 let mut triangles = Vec::<TriangleDefinition>::new();
-                triangles.visit("Triangles", visitor)?;
+                triangles.visit("Triangles", &mut region)?;
                 self.geometry_buffer = TriangleBuffer::new(triangles);
             }
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
@@ -955,11 +960,12 @@ impl VertexWeightSet {
 }
 
 /// See module docs.
-#[derive(Debug, Clone, Inspect)]
+#[derive(Debug, Clone, Inspect, Visit)]
 pub struct Surface {
     // Wrapped into option to be able to implement Default for serialization.
     // In normal conditions it must never be None!
     data: Option<Arc<Mutex<SurfaceData>>>,
+    #[visit(optional)]
     material: Arc<Mutex<Material>>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be
@@ -968,6 +974,7 @@ pub struct Surface {
     /// like so: iterate over all vertices and weight data and calculate index of node handle that
     /// associated with vertex in `bones` array and store it as bone index in vertex.
     #[inspect(skip)]
+    #[visit(skip)]
     pub vertex_weights: Vec<VertexWeightSet>,
     /// Array of handle to scene nodes which are used as bones.
     pub bones: Vec<Handle<Node>>,
@@ -1044,19 +1051,6 @@ impl Surface {
     #[inline]
     pub fn bones(&self) -> &[Handle<Node>] {
         &self.bones
-    }
-}
-
-impl Visit for Surface {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        // self.vertex_weights intentionally not serialized!
-        self.data.visit("Data", visitor)?;
-        self.bones.visit("Bones", visitor)?;
-        let _ = self.material.visit("Material", visitor); // Backward compatibility.
-
-        visitor.leave_region()
     }
 }
 

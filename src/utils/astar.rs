@@ -20,13 +20,17 @@ enum PathVertexState {
 
 /// Graph vertex that contains position in world and list of indices of neighbour
 /// vertices.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Visit)]
 pub struct PathVertex {
     /// Position in world.
     pub position: Vector3<f32>,
+    #[visit(skip)]
     state: PathVertexState,
+    #[visit(skip)]
     g_score: f32,
+    #[visit(skip)]
     f_score: f32,
+    #[visit(skip)]
     parent: Option<usize>,
     neighbours: Vec<u32>,
 }
@@ -41,18 +45,6 @@ impl Default for PathVertex {
             state: PathVertexState::NonVisited,
             neighbours: Default::default(),
         }
-    }
-}
-
-impl Visit for PathVertex {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.position.visit("Position", visitor)?;
-        self.neighbours.visit("Neighbours", visitor)?;
-        // Rest of fields are runtime state and valid only while in a build method of pathfinder.
-
-        visitor.leave_region()
     }
 }
 
@@ -83,19 +75,9 @@ impl PathVertex {
 }
 
 /// See module docs.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Visit)]
 pub struct PathFinder {
     vertices: Vec<PathVertex>,
-}
-
-impl Visit for PathFinder {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.vertices.visit("Vertices", visitor)?;
-
-        visitor.leave_region()
-    }
 }
 
 /// Shows path status.

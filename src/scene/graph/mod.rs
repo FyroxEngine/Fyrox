@@ -1240,21 +1240,21 @@ impl<'a> Iterator for GraphHandleTraverseIterator<'a> {
 
 impl Visit for Graph {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
         // Pool must be empty, otherwise handles will be invalid and everything will blow up.
         if visitor.is_reading() && self.pool.get_capacity() != 0 {
             panic!("Graph pool must be empty on load!")
         }
 
-        self.root.visit("Root", visitor)?;
-        self.pool.visit("Pool", visitor)?;
-        // Backward compatibility
-        let _ = self.sound_context.visit("SoundContext", visitor);
-        let _ = self.physics.visit("PhysicsWorld", visitor);
-        let _ = self.physics2d.visit("PhysicsWorld2D", visitor);
+        let mut region = visitor.enter_region(name)?;
 
-        visitor.leave_region()
+        self.root.visit("Root", &mut region)?;
+        self.pool.visit("Pool", &mut region)?;
+        // Backward compatibility
+        let _ = self.sound_context.visit("SoundContext", &mut region);
+        let _ = self.physics.visit("PhysicsWorld", &mut region);
+        let _ = self.physics2d.visit("PhysicsWorld2D", &mut region);
+
+        Ok(())
     }
 }
 

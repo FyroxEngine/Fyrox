@@ -4,21 +4,10 @@ use crate::{
 };
 use std::cmp::Ordering;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Visit)]
 pub struct GradientPoint {
     location: f32,
     color: Color,
-}
-
-impl Visit for GradientPoint {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.location.visit("Location", visitor)?;
-        self.color.visit("Color", visitor)?;
-
-        visitor.leave_region()
-    }
 }
 
 impl GradientPoint {
@@ -45,7 +34,7 @@ impl Clone for GradientPoint {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Visit)]
 pub struct ColorGradient {
     points: Vec<GradientPoint>,
 }
@@ -55,16 +44,6 @@ impl Clone for ColorGradient {
         Self {
             points: self.points.clone(),
         }
-    }
-}
-
-impl Visit for ColorGradient {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.points.visit("Points", visitor)?;
-
-        visitor.leave_region()
     }
 }
 

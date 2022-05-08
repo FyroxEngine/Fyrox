@@ -164,7 +164,7 @@ impl<T> Display for Handle<T> {
 }
 
 /// Type-erased handle.
-#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Inspect)]
+#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Inspect, Visit)]
 pub struct ErasedHandle {
     /// Index of object in pool.
     #[inspect(read_only)]
@@ -197,17 +197,6 @@ impl<T> From<Handle<T>> for ErasedHandle {
             index: h.index,
             generation: h.generation,
         }
-    }
-}
-
-impl Visit for ErasedHandle {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.index.visit("Index", visitor)?;
-        self.generation.visit("Generation", visitor)?;
-
-        visitor.leave_region()
     }
 }
 
@@ -246,12 +235,12 @@ impl ErasedHandle {
 
 impl<T> Visit for Handle<T> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.index.visit("Index", visitor)?;
-        self.generation.visit("Generation", visitor)?;
+        self.index.visit("Index", &mut region)?;
+        self.generation.visit("Generation", &mut region)?;
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
@@ -305,12 +294,12 @@ where
     P: PayloadContainer<Element = T> + Visit,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.generation.visit("Generation", visitor)?;
-        self.payload.visit("Payload", visitor)?;
+        self.generation.visit("Generation", &mut region)?;
+        self.payload.visit("Payload", &mut region)?;
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
@@ -340,10 +329,10 @@ where
     P: PayloadContainer<Element = T> + Default + Visit + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-        self.records.visit("Records", visitor)?;
-        self.free_stack.visit("FreeStack", visitor)?;
-        visitor.leave_region()
+        let mut region = visitor.enter_region(name)?;
+        self.records.visit("Records", &mut region)?;
+        self.free_stack.visit("FreeStack", &mut region)?;
+        Ok(())
     }
 }
 

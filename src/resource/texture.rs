@@ -88,7 +88,7 @@ impl Default for TextureKind {
 
 impl Visit for TextureKind {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         let mut id = match self {
             TextureKind::Line { .. } => 0,
@@ -96,8 +96,8 @@ impl Visit for TextureKind {
             TextureKind::Cube { .. } => 2,
             TextureKind::Volume { .. } => 3,
         };
-        id.visit("Id", visitor)?;
-        if visitor.is_reading() {
+        id.visit("Id", &mut region)?;
+        if region.is_reading() {
             *self = match id {
                 0 => TextureKind::Line { length: 0 },
                 1 => TextureKind::Rectangle {
@@ -123,28 +123,28 @@ impl Visit for TextureKind {
         }
         match self {
             TextureKind::Line { length } => {
-                length.visit("Length", visitor)?;
+                length.visit("Length", &mut region)?;
             }
             TextureKind::Rectangle { width, height } => {
-                width.visit("Width", visitor)?;
-                height.visit("Height", visitor)?;
+                width.visit("Width", &mut region)?;
+                height.visit("Height", &mut region)?;
             }
             TextureKind::Cube { width, height } => {
-                width.visit("Width", visitor)?;
-                height.visit("Height", visitor)?;
+                width.visit("Width", &mut region)?;
+                height.visit("Height", &mut region)?;
             }
             TextureKind::Volume {
                 width,
                 height,
                 depth,
             } => {
-                width.visit("Width", visitor)?;
-                height.visit("Height", visitor)?;
-                depth.visit("Depth", visitor)?;
+                width.visit("Width", &mut region)?;
+                height.visit("Height", &mut region)?;
+                depth.visit("Depth", &mut region)?;
             }
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
@@ -213,33 +213,35 @@ impl ResourceData for TextureData {
 
 impl Visit for TextureData {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         let mut kind = self.pixel_kind.id();
-        kind.visit("KindId", visitor)?;
-        if visitor.is_reading() {
+        kind.visit("KindId", &mut region)?;
+        if region.is_reading() {
             self.pixel_kind = TexturePixelKind::new(kind)?;
         }
 
-        self.path.visit("Path", visitor)?;
+        self.path.visit("Path", &mut region)?;
 
         self.minification_filter
-            .visit("MinificationFilter", visitor)?;
+            .visit("MinificationFilter", &mut region)?;
         self.magnification_filter
-            .visit("MagnificationFilter", visitor)?;
-        self.anisotropy.visit("Anisotropy", visitor)?;
-        self.s_wrap_mode.visit("SWrapMode", visitor)?;
-        self.t_wrap_mode.visit("TWrapMode", visitor)?;
-        self.mip_count.visit("MipCount", visitor)?;
-        self.kind.visit("Kind", visitor)?;
-        let _ = self.serialize_content.visit("SerializeContent", visitor);
+            .visit("MagnificationFilter", &mut region)?;
+        self.anisotropy.visit("Anisotropy", &mut region)?;
+        self.s_wrap_mode.visit("SWrapMode", &mut region)?;
+        self.t_wrap_mode.visit("TWrapMode", &mut region)?;
+        self.mip_count.visit("MipCount", &mut region)?;
+        self.kind.visit("Kind", &mut region)?;
+        let _ = self
+            .serialize_content
+            .visit("SerializeContent", &mut region);
 
         if self.serialize_content {
             let mut bytes_view = PodVecView::from_pod_vec(&mut self.bytes);
-            bytes_view.visit("Data", visitor)?;
+            bytes_view.visit("Data", &mut region)?;
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
@@ -488,6 +490,7 @@ impl Texture {
     EnumVariantNames,
     EnumString,
     AsRefStr,
+    Visit,
 )]
 #[repr(u32)]
 pub enum TextureMagnificationFilter {
@@ -506,30 +509,6 @@ impl Default for TextureMagnificationFilter {
     }
 }
 
-impl Visit for TextureMagnificationFilter {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let mut id = *self as u32;
-        id.visit("Id", visitor)?;
-
-        if visitor.is_reading() {
-            *self = match id {
-                0 => TextureMagnificationFilter::Nearest,
-                1 => TextureMagnificationFilter::Linear,
-                _ => {
-                    return VisitResult::Err(VisitError::User(format!(
-                        "Invalid magnification filter {}!",
-                        id
-                    )))
-                }
-            }
-        }
-
-        visitor.leave_region()
-    }
-}
-
 /// The texture minifying function is used whenever the pixel being textured maps to an area
 /// greater than one texture element.
 #[derive(
@@ -545,6 +524,7 @@ impl Visit for TextureMagnificationFilter {
     EnumVariantNames,
     EnumString,
     AsRefStr,
+    Visit,
 )]
 #[repr(u32)]
 pub enum TextureMinificationFilter {
@@ -598,34 +578,6 @@ impl Default for TextureMinificationFilter {
     }
 }
 
-impl Visit for TextureMinificationFilter {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let mut id = *self as u32;
-        id.visit("Id", visitor)?;
-
-        if visitor.is_reading() {
-            *self = match id {
-                0 => TextureMinificationFilter::Nearest,
-                1 => TextureMinificationFilter::NearestMipMapNearest,
-                2 => TextureMinificationFilter::NearestMipMapLinear,
-                3 => TextureMinificationFilter::Linear,
-                4 => TextureMinificationFilter::LinearMipMapNearest,
-                5 => TextureMinificationFilter::LinearMipMapLinear,
-                _ => {
-                    return VisitResult::Err(VisitError::User(format!(
-                        "Invalid minification filter {}!",
-                        id
-                    )))
-                }
-            }
-        }
-
-        visitor.leave_region()
-    }
-}
-
 /// Defines a law of texture coordinate modification.
 #[derive(
     Copy,
@@ -640,6 +592,7 @@ impl Visit for TextureMinificationFilter {
     EnumVariantNames,
     EnumString,
     AsRefStr,
+    Visit,
 )]
 #[repr(u32)]
 pub enum TextureWrapMode {
@@ -669,30 +622,6 @@ pub enum TextureWrapMode {
 impl Default for TextureWrapMode {
     fn default() -> Self {
         Self::Repeat
-    }
-}
-
-impl Visit for TextureWrapMode {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let mut id = *self as u32;
-        id.visit("Id", visitor)?;
-
-        if visitor.is_reading() {
-            *self = match id {
-                0 => TextureWrapMode::Repeat,
-                1 => TextureWrapMode::ClampToEdge,
-                2 => TextureWrapMode::ClampToBorder,
-                3 => TextureWrapMode::MirroredRepeat,
-                4 => TextureWrapMode::MirrorClampToEdge,
-                _ => {
-                    return VisitResult::Err(VisitError::User(format!("Invalid wrap mode {}!", id)))
-                }
-            }
-        }
-
-        visitor.leave_region()
     }
 }
 

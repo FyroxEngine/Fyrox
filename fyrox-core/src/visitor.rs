@@ -28,6 +28,7 @@ use crate::{
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fxhash::FxHashMap;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::time::Duration;
 use std::{
     any::Any,
@@ -709,6 +710,31 @@ impl Default for Node {
     }
 }
 
+#[must_use = "the guard must be used"]
+pub struct RegionGuard<'a>(&'a mut Visitor);
+
+impl<'a> Deref for RegionGuard<'a> {
+    type Target = Visitor;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+impl<'a> DerefMut for RegionGuard<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
+    }
+}
+
+impl<'a> Drop for RegionGuard<'a> {
+    fn drop(&mut self) {
+        // If we acquired RegionGuard instance, then it is safe to assert that
+        // `leave_region` was successful.
+        self.0.leave_region().unwrap();
+    }
+}
+
 pub struct Visitor {
     nodes: Pool<Node>,
     rc_map: FxHashMap<u64, Rc<dyn Any>>,
@@ -764,7 +790,7 @@ impl Visitor {
         self.nodes.borrow_mut(self.current_node)
     }
 
-    pub fn enter_region(&mut self, name: &str) -> VisitResult {
+    pub fn enter_region(&mut self, name: &str) -> Result<RegionGuard, VisitError> {
         let node = self.nodes.borrow(self.current_node);
         if self.reading {
             let mut region = Handle::NONE;
@@ -777,7 +803,7 @@ impl Visitor {
             }
             if region.is_some() {
                 self.current_node = region;
-                Ok(())
+                Ok(RegionGuard(self))
             } else {
                 Err(VisitError::RegionDoesNotExist(name.to_owned()))
             }
@@ -797,7 +823,7 @@ impl Visitor {
                 .push(node_handle);
             self.current_node = node_handle;
 
-            Ok(())
+            Ok(RegionGuard(self))
         }
     }
 
@@ -807,7 +833,7 @@ impl Visitor {
             .map(|n| n.name.as_str())
     }
 
-    pub fn leave_region(&mut self) -> VisitResult {
+    fn leave_region(&mut self) -> VisitResult {
         self.current_node = self.nodes.borrow(self.current_node).parent;
         if self.current_node.is_none() {
             Err(VisitError::NoActiveNode)
@@ -952,29 +978,27 @@ where
     T: Default + Visit + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         let mut len = self.len() as u32;
-        len.visit("Length", visitor)?;
+        len.visit("Length", &mut region)?;
 
-        if visitor.reading {
+        if region.reading {
             for index in 0..len {
                 let region_name = format!("Item{}", index);
-                visitor.enter_region(region_name.as_str())?;
+                let mut region = region.enter_region(region_name.as_str())?;
                 let mut object = T::default();
-                object.visit("ItemData", visitor)?;
+                object.visit("ItemData", &mut region)?;
                 self.push(object);
-                visitor.leave_region()?;
             }
         } else {
             for (index, item) in self.iter_mut().enumerate() {
                 let region_name = format!("Item{}", index);
-                visitor.enter_region(region_name.as_str())?;
-                item.visit("ItemData", visitor)?;
-                visitor.leave_region()?;
+                let mut region = region.enter_region(region_name.as_str())?;
+                item.visit("ItemData", &mut region)?;
             }
         }
-        visitor.leave_region()?;
+
         Ok(())
     }
 }
@@ -984,52 +1008,51 @@ where
     T: Default + Visit + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         let mut is_some = if self.is_some() { 1u8 } else { 0u8 };
-        is_some.visit("IsSome", visitor)?;
+        is_some.visit("IsSome", &mut region)?;
 
         if is_some != 0 {
-            if visitor.reading {
+            if region.reading {
                 let mut value = T::default();
-                value.visit("Data", visitor)?;
+                value.visit("Data", &mut region)?;
                 *self = Some(value);
             } else {
-                self.as_mut().unwrap().visit("Data", visitor)?;
+                self.as_mut().unwrap().visit("Data", &mut region)?;
             }
         }
 
-        visitor.leave_region()?;
         Ok(())
     }
 }
 
 impl Visit for String {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         let mut len = self.as_bytes().len() as u32;
-        len.visit("Length", visitor)?;
+        len.visit("Length", &mut region)?;
 
-        let mut data = if visitor.reading {
+        let mut data = if region.reading {
             Vec::new()
         } else {
             Vec::from(self.as_bytes())
         };
 
         let mut proxy = Data { vec: &mut data };
-        proxy.visit("Data", visitor)?;
+        proxy.visit("Data", &mut region)?;
 
-        if visitor.reading {
+        if region.reading {
             *self = String::from_utf8(data)?;
         }
-        visitor.leave_region()
+        Ok(())
     }
 }
 
 impl Visit for PathBuf {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         // We have to replace Windows back slashes \ to forward / to make paths portable
         // across all OSes.
@@ -1042,22 +1065,22 @@ impl Visit for PathBuf {
         };
 
         let mut len = bytes.len() as u32;
-        len.visit("Length", visitor)?;
+        len.visit("Length", &mut region)?;
 
-        let mut data = if visitor.reading {
+        let mut data = if region.reading {
             Vec::new()
         } else {
             Vec::from(bytes)
         };
 
         let mut proxy = Data { vec: &mut data };
-        proxy.visit("Data", visitor)?;
+        proxy.visit("Data", &mut region)?;
 
-        if visitor.reading {
+        if region.reading {
             *self = PathBuf::from(String::from_utf8(data)?);
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
@@ -1080,15 +1103,15 @@ where
     T: Visit + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        if visitor.reading {
+        if region.reading {
             let mut raw = 0u64;
-            raw.visit("Id", visitor)?;
+            raw.visit("Id", &mut region)?;
             if raw == 0 {
                 return Err(VisitError::UnexpectedRcNullIndex);
             }
-            if let Some(ptr) = visitor.rc_map.get(&raw) {
+            if let Some(ptr) = region.rc_map.get(&raw) {
                 if let Ok(res) = Rc::downcast::<T>(ptr.clone()) {
                     *self = res;
                 } else {
@@ -1096,10 +1119,10 @@ where
                 }
             } else {
                 // Remember that we already visited data Rc store.
-                visitor.rc_map.insert(raw as u64, self.clone());
+                region.rc_map.insert(raw as u64, self.clone());
 
                 let raw = rc_to_raw(self);
-                unsafe { &mut *raw }.visit("RcData", visitor)?;
+                unsafe { &mut *raw }.visit("RcData", &mut region)?;
             }
         } else {
             // Take raw pointer to inner data.
@@ -1107,15 +1130,13 @@ where
 
             // Save it as id.
             let mut index = raw as u64;
-            index.visit("Id", visitor)?;
+            index.visit("Id", &mut region)?;
 
-            if let Entry::Vacant(entry) = visitor.rc_map.entry(index) {
+            if let Entry::Vacant(entry) = region.rc_map.entry(index) {
                 entry.insert(self.clone());
-                unsafe { &mut *raw }.visit("RcData", visitor)?;
+                unsafe { &mut *raw }.visit("RcData", &mut region)?;
             }
         }
-
-        visitor.leave_region()?;
 
         Ok(())
     }
@@ -1170,15 +1191,15 @@ where
     T: Visit + Send + Sync + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        if visitor.reading {
+        if region.reading {
             let mut raw = 0u64;
-            raw.visit("Id", visitor)?;
+            raw.visit("Id", &mut region)?;
             if raw == 0 {
                 return Err(VisitError::UnexpectedRcNullIndex);
             }
-            if let Some(ptr) = visitor.arc_map.get(&raw) {
+            if let Some(ptr) = &mut region.arc_map.get(&raw) {
                 if let Ok(res) = Arc::downcast::<T>(ptr.clone()) {
                     *self = res;
                 } else {
@@ -1186,10 +1207,10 @@ where
                 }
             } else {
                 // Remember that we already visited data Rc store.
-                visitor.arc_map.insert(raw as u64, self.clone());
+                region.arc_map.insert(raw as u64, self.clone());
 
                 let raw = arc_to_raw(self);
-                unsafe { &mut *raw }.visit("ArcData", visitor)?;
+                unsafe { &mut *raw }.visit("ArcData", &mut region)?;
             }
         } else {
             // Take raw pointer to inner data.
@@ -1197,15 +1218,13 @@ where
 
             // Save it as id.
             let mut index = raw as u64;
-            index.visit("Id", visitor)?;
+            index.visit("Id", &mut region)?;
 
-            if let Entry::Vacant(entry) = visitor.arc_map.entry(index) {
+            if let Entry::Vacant(entry) = region.arc_map.entry(index) {
                 entry.insert(self.clone());
-                unsafe { &mut *raw }.visit("ArcData", visitor)?;
+                unsafe { &mut *raw }.visit("ArcData", &mut region)?;
             }
         }
-
-        visitor.leave_region()?;
 
         Ok(())
     }
@@ -1216,14 +1235,14 @@ where
     T: Default + Visit + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        if visitor.reading {
+        if region.reading {
             let mut raw = 0u64;
-            raw.visit("Id", visitor)?;
+            raw.visit("Id", &mut region)?;
 
             if raw != 0 {
-                if let Some(ptr) = visitor.rc_map.get(&raw) {
+                if let Some(ptr) = &mut region.rc_map.get(&raw) {
                     if let Ok(res) = Rc::downcast::<T>(ptr.clone()) {
                         *self = Rc::downgrade(&res);
                     } else {
@@ -1232,10 +1251,10 @@ where
                 } else {
                     // Create new value wrapped into Rc and deserialize it.
                     let rc = Rc::new(T::default());
-                    visitor.rc_map.insert(raw as u64, rc.clone());
+                    region.rc_map.insert(raw as u64, rc.clone());
 
                     let raw = rc_to_raw(&rc);
-                    unsafe { &mut *raw }.visit("RcData", visitor)?;
+                    unsafe { &mut *raw }.visit("RcData", &mut region)?;
 
                     *self = Rc::downgrade(&rc);
                 }
@@ -1246,18 +1265,16 @@ where
 
             // Save it as id.
             let mut index = raw as u64;
-            index.visit("Id", visitor)?;
+            index.visit("Id", &mut region)?;
 
-            if let Entry::Vacant(entry) = visitor.rc_map.entry(index) {
+            if let Entry::Vacant(entry) = region.rc_map.entry(index) {
                 entry.insert(rc);
-                unsafe { &mut *raw }.visit("RcData", visitor)?;
+                unsafe { &mut *raw }.visit("RcData", &mut region)?;
             }
         } else {
             let mut index = 0u64;
-            index.visit("Id", visitor)?;
+            index.visit("Id", &mut region)?;
         }
-
-        visitor.leave_region()?;
 
         Ok(())
     }
@@ -1268,14 +1285,14 @@ where
     T: Default + Visit + Send + Sync + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        if visitor.reading {
+        if region.reading {
             let mut raw = 0u64;
-            raw.visit("Id", visitor)?;
+            raw.visit("Id", &mut region)?;
 
             if raw != 0 {
-                if let Some(ptr) = visitor.arc_map.get(&raw) {
+                if let Some(ptr) = region.arc_map.get(&raw) {
                     if let Ok(res) = Arc::downcast::<T>(ptr.clone()) {
                         *self = Arc::downgrade(&res);
                     } else {
@@ -1284,10 +1301,10 @@ where
                 } else {
                     // Create new value wrapped into Arc and deserialize it.
                     let arc = Arc::new(T::default());
-                    visitor.arc_map.insert(raw as u64, arc.clone());
+                    region.arc_map.insert(raw as u64, arc.clone());
 
                     let raw = arc_to_raw(&arc);
-                    unsafe { &mut *raw }.visit("ArcData", visitor)?;
+                    unsafe { &mut *raw }.visit("ArcData", &mut region)?;
 
                     *self = Arc::downgrade(&arc);
                 }
@@ -1298,18 +1315,16 @@ where
 
             // Save it as id.
             let mut index = raw as u64;
-            index.visit("Id", visitor)?;
+            index.visit("Id", &mut region)?;
 
-            if let Entry::Vacant(entry) = visitor.arc_map.entry(index) {
+            if let Entry::Vacant(entry) = region.arc_map.entry(index) {
                 entry.insert(arc);
-                unsafe { &mut *raw }.visit("ArcData", visitor)?;
+                unsafe { &mut *raw }.visit("ArcData", &mut region)?;
             }
         } else {
             let mut index = 0u64;
-            index.visit("Id", visitor)?;
+            index.visit("Id", &mut region)?;
         }
-
-        visitor.leave_region()?;
 
         Ok(())
     }
@@ -1321,43 +1336,39 @@ where
     V: Visit + Default,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         let mut count = self.len() as u32;
-        count.visit("Count", visitor)?;
+        count.visit("Count", &mut region)?;
 
-        if visitor.is_reading() {
+        if region.is_reading() {
             for i in 0..(count as usize) {
                 let name = format!("Item{}", i);
 
-                visitor.enter_region(name.as_str())?;
+                let mut region = region.enter_region(name.as_str())?;
 
                 let mut key = K::default();
-                key.visit("Key", visitor)?;
+                key.visit("Key", &mut region)?;
 
                 let mut value = V::default();
-                value.visit("Value", visitor)?;
+                value.visit("Value", &mut region)?;
 
                 self.insert(key, value);
-
-                visitor.leave_region()?;
             }
         } else {
             for (i, (key, value)) in self.iter_mut().enumerate() {
                 let name = format!("Item{}", i);
 
-                visitor.enter_region(name.as_str())?;
+                let mut region = region.enter_region(name.as_str())?;
 
                 let mut key = key.clone();
-                key.visit("Key", visitor)?;
+                key.visit("Key", &mut region)?;
 
-                value.visit("Value", visitor)?;
-
-                visitor.leave_region()?;
+                value.visit("Value", &mut region)?;
             }
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
@@ -1367,54 +1378,50 @@ where
     V: Visit + Default,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         let mut count = self.len() as u32;
-        count.visit("Count", visitor)?;
+        count.visit("Count", &mut region)?;
 
-        if visitor.is_reading() {
+        if region.is_reading() {
             for i in 0..(count as usize) {
                 let name = format!("Item{}", i);
 
-                visitor.enter_region(name.as_str())?;
+                let mut region = region.enter_region(name.as_str())?;
 
                 let mut key = K::default();
-                key.visit("Key", visitor)?;
+                key.visit("Key", &mut region)?;
 
                 let mut value = V::default();
-                value.visit("Value", visitor)?;
+                value.visit("Value", &mut region)?;
 
                 self.insert(key, value);
-
-                visitor.leave_region()?;
             }
         } else {
             for (i, (key, value)) in self.iter_mut().enumerate() {
                 let name = format!("Item{}", i);
 
-                visitor.enter_region(name.as_str())?;
+                let mut region = region.enter_region(name.as_str())?;
 
                 let mut key = key.clone();
-                key.visit("Key", visitor)?;
+                key.visit("Key", &mut region)?;
 
-                value.visit("Value", visitor)?;
-
-                visitor.leave_region()?;
+                value.visit("Value", &mut region)?;
             }
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
 impl<T: Default + Visit, const SIZE: usize> Visit for [T; SIZE] {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         let mut len = SIZE as u32;
-        len.visit("Length", visitor)?;
+        len.visit("Length", &mut region)?;
 
-        if visitor.reading {
+        if region.reading {
             if len > SIZE as u32 {
                 return VisitResult::Err(VisitError::User(format!(
                     "Not enough space in static array, got {}, needed {}!",
@@ -1424,103 +1431,93 @@ impl<T: Default + Visit, const SIZE: usize> Visit for [T; SIZE] {
 
             for index in 0..len {
                 let region_name = format!("Item{}", index);
-                visitor.enter_region(region_name.as_str())?;
+                let mut region = region.enter_region(region_name.as_str())?;
                 let mut object = T::default();
-                object.visit("ItemData", visitor)?;
+                object.visit("ItemData", &mut region)?;
                 self[index as usize] = object;
-                visitor.leave_region()?;
             }
         } else {
             for (index, item) in self.iter_mut().enumerate() {
                 let region_name = format!("Item{}", index);
-                visitor.enter_region(region_name.as_str())?;
-                item.visit("ItemData", visitor)?;
-                visitor.leave_region()?;
+                let mut region = region.enter_region(region_name.as_str())?;
+                item.visit("ItemData", &mut region)?;
             }
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
 impl Visit for Duration {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
         let mut secs: u64 = self.as_secs();
         let mut nanos: u32 = self.subsec_nanos();
 
-        secs.visit("Secs", visitor)?;
-        nanos.visit("Nanos", visitor)?;
+        secs.visit("Secs", &mut region)?;
+        nanos.visit("Nanos", &mut region)?;
 
-        if visitor.is_reading() {
+        if region.is_reading() {
             *self = Duration::new(secs, nanos);
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
 impl<T: Visit> Visit for Range<T> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.start.visit("Start", visitor)?;
-        self.end.visit("End", visitor)?;
+        self.start.visit("Start", &mut region)?;
+        self.end.visit("End", &mut region)?;
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::visitor::{Data, Visit, VisitError, VisitResult, Visitor};
+    use crate::visitor::{Data, Visit, VisitResult, Visitor};
     use std::{fs::File, io::Write, path::Path, rc::Rc};
 
+    #[derive(Visit, Default)]
     pub struct Model {
         data: u64,
     }
 
+    #[derive(Default)]
     pub struct Texture {
         data: Vec<u8>,
     }
 
     impl Visit for Texture {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-            visitor.enter_region(name)?;
+            let mut region = visitor.enter_region(name)?;
             let mut proxy = Data {
                 vec: &mut self.data,
             };
-            proxy.visit("Data", visitor)?;
-            visitor.leave_region()
-        }
-    }
-
-    impl Visit for Model {
-        fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-            visitor.enter_region(name)?;
-            self.data.visit("Data", visitor)?;
-            visitor.leave_region()
-        }
-    }
-
-    impl Visit for ResourceKind {
-        fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-            match self {
-                ResourceKind::Unknown => Err(VisitError::User("invalid resource type".to_string())),
-                ResourceKind::Texture(tex) => tex.visit(name, visitor),
-                ResourceKind::Model(model) => model.visit(name, visitor),
-            }
+            proxy.visit("Data", &mut region)?;
+            Ok(())
         }
     }
 
     #[allow(dead_code)]
+    #[derive(Visit)]
     pub enum ResourceKind {
         Unknown,
         Model(Model),
         Texture(Texture),
     }
 
+    impl Default for ResourceKind {
+        fn default() -> Self {
+            Self::Unknown
+        }
+    }
+
+    #[derive(Visit)]
     struct Resource {
         kind: ResourceKind,
         data: u16,
@@ -1541,27 +1538,7 @@ mod test {
         }
     }
 
-    impl Visit for Resource {
-        fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-            visitor.enter_region(name)?;
-            if visitor.reading {
-            } else {
-                let mut kind_id: u8 = match &self.kind {
-                    ResourceKind::Unknown => {
-                        return Err(VisitError::User("Invalid resource!".to_string()))
-                    }
-                    ResourceKind::Model(_) => 0,
-                    ResourceKind::Texture(_) => 1,
-                };
-                kind_id.visit("KindId", visitor)?;
-                self.kind.visit("KindData", visitor)?;
-            }
-            self.data.visit("ResData", visitor)?;
-            visitor.leave_region()
-        }
-    }
-
-    #[derive(Default)]
+    #[derive(Default, Visit)]
     struct Foo {
         bar: u64,
         shared_resource: Option<Rc<Resource>>,
@@ -1573,15 +1550,6 @@ mod test {
                 bar: 123,
                 shared_resource: Some(resource),
             }
-        }
-    }
-
-    impl Visit for Foo {
-        fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-            visitor.enter_region(name)?;
-            self.bar.visit("Bar", visitor)?;
-            self.shared_resource.visit("SharedResource", visitor)?;
-            visitor.leave_region()
         }
     }
 

@@ -48,7 +48,7 @@ use std::{
 };
 
 ///
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Visit)]
 pub struct LightmapEntry {
     /// Lightmap texture.
     ///
@@ -62,19 +62,8 @@ pub struct LightmapEntry {
     pub lights: Vec<Handle<Node>>,
 }
 
-impl Visit for LightmapEntry {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.texture.visit("Texture", visitor)?;
-        self.lights.visit("Lights", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// Lightmap is a texture with precomputed lighting.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Visit)]
 pub struct Lightmap {
     /// Node handle to lightmap mapping. It is used to quickly get information about
     /// lightmaps for any node in scene.
@@ -83,17 +72,6 @@ pub struct Lightmap {
     /// List of surface data patches. Each patch will be applied to corresponding
     /// surface data on resolve stage.
     pub patches: FxHashMap<u64, SurfaceDataPatch>,
-}
-
-impl Visit for Lightmap {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.map.visit("Map", visitor)?;
-        self.patches.visit("Patches", visitor)?;
-
-        visitor.leave_region()
-    }
 }
 
 struct WorldVertex {

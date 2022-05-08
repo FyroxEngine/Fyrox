@@ -116,7 +116,7 @@ fn make_seam(
 /// it just does not have secondary texture coordinates. So we have to patch data after
 /// loading somehow with required data, this is where `SurfaceDataPatch` comes into
 /// play.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Visit)]
 pub struct SurfaceDataPatch {
     /// A surface data id. Usually it is just a hash of surface data.
     pub data_id: u64,
@@ -128,20 +128,6 @@ pub struct SurfaceDataPatch {
     /// List of indices of vertices that must be cloned and pushed into vertices
     /// array of surface data.
     pub additional_vertices: Vec<u32>,
-}
-
-impl Visit for SurfaceDataPatch {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.data_id.visit("DataId", visitor)?;
-        self.triangles.visit("Triangles", visitor)?;
-        self.second_tex_coords.visit("SecondTexCoords", visitor)?;
-        self.additional_vertices
-            .visit("AdditionalVertices", visitor)?;
-
-        visitor.leave_region()
-    }
 }
 
 /// Maps each triangle from surface to appropriate side of box. This is so called

@@ -787,16 +787,16 @@ pub fn visit_opt_script(
     script: &mut Option<Script>,
     visitor: &mut Visitor,
 ) -> VisitResult {
-    visitor.enter_region(name)?;
+    let mut region = visitor.enter_region(name)?;
 
     let mut script_type_uuid = script.as_ref().map(|s| s.id()).unwrap_or_default();
-    script_type_uuid.visit("TypeUuid", visitor)?;
+    script_type_uuid.visit("TypeUuid", &mut region)?;
 
-    if visitor.is_reading() {
+    if region.is_reading() {
         *script = if script_type_uuid.is_nil() {
             None
         } else {
-            let serialization_context = visitor
+            let serialization_context = region
                 .environment
                 .as_ref()
                 .and_then(|e| e.downcast_ref::<SerializationContext>())
@@ -817,34 +817,34 @@ pub fn visit_opt_script(
     }
 
     if let Some(script) = script {
-        script.visit("ScriptData", visitor)?;
+        script.visit("ScriptData", &mut region)?;
     }
 
-    visitor.leave_region()
+    Ok(())
 }
 
 impl Visit for Base {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.name.visit("Name", visitor)?;
-        self.local_transform.visit("Transform", visitor)?;
-        self.visibility.visit("Visibility", visitor)?;
-        self.parent.visit("Parent", visitor)?;
-        self.children.visit("Children", visitor)?;
-        self.resource.visit("Resource", visitor)?;
+        self.name.visit("Name", &mut region)?;
+        self.local_transform.visit("Transform", &mut region)?;
+        self.visibility.visit("Visibility", &mut region)?;
+        self.parent.visit("Parent", &mut region)?;
+        self.children.visit("Children", &mut region)?;
+        self.resource.visit("Resource", &mut region)?;
         self.is_resource_instance_root
-            .visit("IsResourceInstance", visitor)?;
-        self.lifetime.visit("Lifetime", visitor)?;
-        self.depth_offset.visit("DepthOffset", visitor)?;
-        self.lod_group.visit("LodGroup", visitor)?;
-        self.mobility.visit("Mobility", visitor)?;
+            .visit("IsResourceInstance", &mut region)?;
+        self.lifetime.visit("Lifetime", &mut region)?;
+        self.depth_offset.visit("DepthOffset", &mut region)?;
+        self.lod_group.visit("LodGroup", &mut region)?;
+        self.mobility.visit("Mobility", &mut region)?;
         self.original_handle_in_resource
-            .visit("Original", visitor)?;
-        self.tag.visit("Tag", visitor)?;
-        let _ = self.properties.visit("Properties", visitor);
-        let _ = self.frustum_culling.visit("FrustumCulling", visitor);
-        let _ = self.cast_shadows.visit("CastShadows", visitor);
+            .visit("Original", &mut region)?;
+        self.tag.visit("Tag", &mut region)?;
+        let _ = self.properties.visit("Properties", &mut region);
+        let _ = self.frustum_culling.visit("FrustumCulling", &mut region);
+        let _ = self.cast_shadows.visit("CastShadows", &mut region);
 
         // Script visiting may fail for various reasons:
         //
@@ -854,7 +854,7 @@ impl Visit for Base {
         //
         // None of the reasons are fatal and we should still give an ability to load such node
         // to edit or remove it.
-        if let Err(e) = visit_opt_script("Script", &mut self.script, visitor) {
+        if let Err(e) = visit_opt_script("Script", &mut self.script, &mut region) {
             // Do not spam with error messages if there is missing `Script` field. It is ok
             // for old scenes not to have script at all.
             if !matches!(e, VisitError::RegionDoesNotExist(_)) {
@@ -862,7 +862,7 @@ impl Visit for Base {
             }
         }
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 

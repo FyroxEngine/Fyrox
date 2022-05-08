@@ -29,19 +29,9 @@ use std::{
     sync::mpsc::Sender,
 };
 
-#[derive(Default, Eq, PartialEq)]
+#[derive(Default, Eq, PartialEq, Visit)]
 struct HistoryEntry {
     work_dir: PathBuf,
-}
-
-impl Visit for HistoryEntry {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.work_dir.visit("WorkDir", visitor)?;
-
-        visitor.leave_region()
-    }
 }
 
 pub const HISTORY_PATH: &str = "history.bin";

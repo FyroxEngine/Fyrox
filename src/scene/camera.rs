@@ -1009,7 +1009,7 @@ impl SkyBoxBuilder {
 /// skies and/or some other objects (mountains, buildings, etc.). Usually skyboxes used
 /// in outdoor scenes, however real use of it limited only by your imagination. Skybox
 /// will be drawn first, none of objects could be drawn before skybox.
-#[derive(Debug, Clone, Default, PartialEq, Inspect)]
+#[derive(Debug, Clone, Default, PartialEq, Inspect, Visit)]
 pub struct SkyBox {
     /// Texture for front face.
     pub(in crate) front: Option<Texture>,
@@ -1025,6 +1025,7 @@ pub struct SkyBox {
     pub(in crate) bottom: Option<Texture>,
     /// Cubemap texture
     #[inspect(skip)]
+    #[visit(skip)]
     pub(in crate) cubemap: Option<Texture>,
 }
 
@@ -1170,20 +1171,5 @@ impl SkyBox {
     /// This textures is not used for rendering! The renderer uses cube map made of face textures.
     pub fn back(&self) -> Option<Texture> {
         self.back.clone()
-    }
-}
-
-impl Visit for SkyBox {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.left.visit("Left", visitor)?;
-        self.right.visit("Right", visitor)?;
-        self.top.visit("Top", visitor)?;
-        self.bottom.visit("Bottom", visitor)?;
-        self.front.visit("Front", visitor)?;
-        self.back.visit("Back", visitor)?;
-
-        visitor.leave_region()
     }
 }

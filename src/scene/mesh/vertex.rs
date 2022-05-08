@@ -292,25 +292,25 @@ pub struct OldVertex {
 
 impl Visit for OldVertex {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+        let mut region = visitor.enter_region(name)?;
 
-        self.position.visit("Position", visitor)?;
-        self.tex_coord.visit("TexCoord", visitor)?;
-        self.second_tex_coord.visit("SecondTexCoord", visitor)?;
-        self.normal.visit("Normal", visitor)?;
-        self.tangent.visit("Tangent", visitor)?;
+        self.position.visit("Position", &mut region)?;
+        self.tex_coord.visit("TexCoord", &mut region)?;
+        self.second_tex_coord.visit("SecondTexCoord", &mut region)?;
+        self.normal.visit("Normal", &mut region)?;
+        self.tangent.visit("Tangent", &mut region)?;
 
-        self.bone_weights[0].visit("Weight0", visitor)?;
-        self.bone_weights[1].visit("Weight1", visitor)?;
-        self.bone_weights[2].visit("Weight2", visitor)?;
-        self.bone_weights[3].visit("Weight3", visitor)?;
+        self.bone_weights[0].visit("Weight0", &mut region)?;
+        self.bone_weights[1].visit("Weight1", &mut region)?;
+        self.bone_weights[2].visit("Weight2", &mut region)?;
+        self.bone_weights[3].visit("Weight3", &mut region)?;
 
-        self.bone_indices[0].visit("BoneIndex0", visitor)?;
-        self.bone_indices[1].visit("BoneIndex1", visitor)?;
-        self.bone_indices[2].visit("BoneIndex2", visitor)?;
-        self.bone_indices[3].visit("BoneIndex3", visitor)?;
+        self.bone_indices[0].visit("BoneIndex0", &mut region)?;
+        self.bone_indices[1].visit("BoneIndex1", &mut region)?;
+        self.bone_indices[2].visit("BoneIndex2", &mut region)?;
+        self.bone_indices[3].visit("BoneIndex3", &mut region)?;
 
-        visitor.leave_region()
+        Ok(())
     }
 }
 
