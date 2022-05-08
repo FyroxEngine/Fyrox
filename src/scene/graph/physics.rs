@@ -365,7 +365,6 @@ fn convert_joint_params(params: scene::joint::JointParams) -> GenericJoint {
                 .local_axis2(UnitVector::new_normalize(v.local_axis2))
                 .limits(JointAxis::X, v.limits)
                 .build()
-                .into()
         }
         scene::joint::JointParams::RevoluteJoint(v) => {
             GenericJointBuilder::new(JointAxesMask::LOCKED_REVOLUTE_AXES)

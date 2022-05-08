@@ -230,7 +230,6 @@ fn convert_joint_params(params: scene::dim2::joint::JointParams) -> GenericJoint
                 .local_axis2(UnitVector::new_normalize(v.local_axis2))
                 .limits(JointAxis::X, v.limits)
                 .build()
-                .into()
         }
     }
 }
