@@ -159,12 +159,14 @@ impl Control for CurveEditor {
     }
 
     fn draw(&self, ctx: &mut DrawingContext) {
+        ctx.transform_stack.push(Matrix3::identity());
         self.update_matrices();
         self.draw_background(ctx);
         self.draw_grid(ctx);
         self.draw_curve(ctx);
         self.draw_keys(ctx);
         self.draw_operation(ctx);
+        ctx.transform_stack.pop();
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
