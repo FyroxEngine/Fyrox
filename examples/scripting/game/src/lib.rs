@@ -30,7 +30,7 @@ use fyrox::{
     script::{ScriptContext, ScriptTrait},
     utils::translate_event,
 };
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use std::{cell::RefCell, rc::Rc};
 
 mod bot;
 

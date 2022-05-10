@@ -19,7 +19,6 @@ use fyrox::{
     },
     script::{ScriptContext, ScriptTrait},
 };
-use std::str::FromStr;
 
 #[derive(Visit, Inspect, Default, Debug)]
 pub struct Bot {
@@ -59,7 +58,7 @@ impl ScriptTrait for Bot {
             ..
         } = context;
 
-        // Load bot 3D model as usual.
+        // Load bot 3D model.
         let model = block_on(resource_manager.request_model("data/zombie/zombie.fbx"))
             .unwrap()
             .instantiate_geometry(scene);
@@ -195,7 +194,7 @@ impl BotAnimationMachine {
         model: Handle<Node>,
         resource_manager: ResourceManager,
     ) -> Self {
-        let mut machine = Machine::new();
+        let mut machine = Machine::new(model);
 
         // Load animations in parallel.
         let (walk_animation_resource, idle_animation_resource, attack_animation_resource) = fyrox::core::futures::join!(
