@@ -98,9 +98,6 @@ impl Model {
             dest_graph[new].original_handle_in_resource = old;
         }
 
-        // Make sure to calculate global transforms (and other stuff) of newly instantiated nodes.
-        dest_graph.update_hierarchical_data();
-
         (root, old_to_new)
     }
 

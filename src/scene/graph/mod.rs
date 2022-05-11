@@ -26,6 +26,7 @@ use crate::{
     asset::ResourceState,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
+        inspect::{Inspect, PropertyInfo},
         instant,
         math::Matrix4Ext,
         pool::{Handle, Pool, Ticket},
@@ -92,10 +93,15 @@ impl GraphPerformanceStatistics {
 pub type NodePool = Pool<Node, NodeContainer>;
 
 /// See module docs.
-#[derive(Debug)]
+#[derive(Debug, Inspect)]
 pub struct Graph {
+    #[inspect(skip)]
     root: Handle<Node>,
+
+    #[inspect(skip)]
     pool: NodePool,
+
+    #[inspect(skip)]
     stack: Vec<Handle<Node>>,
 
     /// Backing physics "world". It is responsible for the physics simulation.
@@ -108,6 +114,7 @@ pub struct Graph {
     pub sound_context: SoundContext,
 
     /// Performance statistics of a last [`Graph::update`] call.
+    #[inspect(skip)]
     pub performance_statistics: GraphPerformanceStatistics,
 }
 

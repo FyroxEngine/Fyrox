@@ -26,13 +26,13 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
-use crate::animation::machine::container::AnimationMachineContainer;
 use crate::{
-    animation::AnimationContainer,
+    animation::{machine::container::AnimationMachineContainer, AnimationContainer},
     core::{
         algebra::Vector2,
         color::Color,
         futures::future::join_all,
+        inspect::{Inspect, PropertyInfo},
         instant,
         pool::{Handle, Pool, Ticket},
         sstorage::ImmutableString,
@@ -219,7 +219,7 @@ impl IndexMut<Handle<Navmesh>> for NavMeshContainer {
 }
 
 /// See module docs.
-#[derive(Debug)]
+#[derive(Debug, Inspect)]
 pub struct Scene {
     /// Graph is main container for all scene nodes. It calculates global transforms for nodes,
     /// updates them and performs all other important work. See `graph` module docs for more
@@ -228,6 +228,7 @@ pub struct Scene {
 
     /// Animations container controls all animation on scene. Each animation can have tracks which
     /// has handles to graph nodes. See `animation` module docs for more info.
+    #[inspect(skip)]
     pub animations: AnimationContainer,
 
     /// Texture to draw scene to. If empty, scene will be drawn on screen directly.
@@ -237,18 +238,23 @@ pub struct Scene {
     /// main scene you can attach this texture to some quad which will be used as
     /// monitor. Other usage could be previewer of models, like pictogram of character
     /// in real-time strategies, in other words there are plenty of possible uses.
+    #[inspect(skip)]
     pub render_target: Option<Texture>,
 
     /// Drawing context for simple graphics.
+    #[inspect(skip)]
     pub drawing_context: SceneDrawingContext,
 
     /// A container for navigational meshes.
+    #[inspect(skip)]
     pub navmeshes: NavMeshContainer,
 
     /// Current lightmap.
+    #[inspect(skip)]
     lightmap: Option<Lightmap>,
 
     /// Performance statistics from last `update` call.
+    #[inspect(skip)]
     pub performance_statistics: PerformanceStatistics,
 
     /// Color of ambient lighting.
@@ -264,6 +270,7 @@ pub struct Scene {
     pub enabled: bool,
 
     /// A container for animation blending state machines.
+    #[inspect(skip)]
     pub animation_machines: AnimationMachineContainer,
 }
 
