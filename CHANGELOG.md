@@ -52,6 +52,8 @@ picking restriction stack.
 - `#[inspect(expand)]` and `#[inspect(expand_subtree)]` were removed from `Inspect` proc-macro
 - Correct field name generation for enum variants
 - Ability to draw Bézier curves in the UI.
+- Fix for navmesh agent navigation of multilayer navigational meshes.
+- Improvements for serializer, now it allows you correctly recover from serialization errors.
 
 ## Migration guide
 
