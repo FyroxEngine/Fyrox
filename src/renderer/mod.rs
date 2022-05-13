@@ -81,6 +81,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
+use glow::HasContext;
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
@@ -1058,6 +1059,12 @@ impl Renderer {
         // Box pipeline state because we'll store pointers to it inside framework's entities and
         // it must have constant address.
         let mut state = Box::new(PipelineState::new(context));
+
+        // Dump available GL extensions to the log, this will help debugging graphical issues.
+        Log::info(format!(
+            "Supported GL Extensions: {:?}",
+            state.gl.supported_extensions()
+        ));
 
         Ok(Self {
             backbuffer: FrameBuffer::backbuffer(&mut state),
