@@ -1,8 +1,8 @@
 [package]
-name = "fyroxed-standalone"
-version = "0.1.0"
+name = "fyroxed"
+version = "0.12.0"
 edition = "2021"
 
 [dependencies]
 fyrox = { version = "0.25", path = "../" }
-fyroxed = { version = "0.12.0", path = "../editor" }
+fyroxed_base = { version = "0.12.0", path = "../editor" }

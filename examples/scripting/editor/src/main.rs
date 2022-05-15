@@ -1,5 +1,5 @@
 use fyrox::event_loop::EventLoop;
-use fyroxed::{Editor, StartupData};
+use fyroxed_base::{Editor, StartupData};
 use game::GamePlugin;
 
 fn main() {

@@ -1,5 +1,5 @@
 use fyrox::event_loop::EventLoop;
-use fyroxed::Editor;
+use fyroxed_base::Editor;
 
 fn main() {
     let event_loop = EventLoop::new();

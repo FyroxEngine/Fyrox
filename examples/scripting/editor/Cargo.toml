@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 fyrox = { path = "../../../../fyrox" }
-fyroxed = { path = "../../../../fyrox/editor" }
+fyroxed_base = { path = "../../../../fyrox/editor" }
 game = {path = "../game" }
