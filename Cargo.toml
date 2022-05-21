@@ -24,7 +24,8 @@ members = [
     "fyrox-resource",
     "examples/wasm",
 	"editor",
-    "editor-standalone"
+    "editor-standalone",
+	"template"
 ]
 exclude = ["examples/scripting"]
 
