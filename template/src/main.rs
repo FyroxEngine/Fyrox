@@ -210,7 +210,7 @@ fn main() {{
     );
 }
 
-fn init_workspace(base_path: &Path, args: &Args) {
+fn init_workspace(base_path: &Path) {
     Command::new("cargo")
         .args(&["init", "--vcs", "git"])
         .arg(base_path)
@@ -242,7 +242,7 @@ fn main() {
 
     let base_path = Path::new(&args.name);
 
-    init_workspace(&base_path, &args);
+    init_workspace(&base_path);
     init_game(&base_path, &args);
     init_editor(&base_path, &args);
     init_executor(&base_path, &args);
