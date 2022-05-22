@@ -1538,7 +1538,7 @@ impl Editor {
                 Message::SaveScene(path) => self.save_current_scene(path),
                 Message::LoadScene(scene_path) => {
                     self.load_scene(scene_path);
-                    needs_sync |= true;
+                    needs_sync = true;
                 }
                 Message::SetInteractionMode(mode_kind) => {
                     self.set_interaction_mode(Some(mode_kind))
@@ -1547,7 +1547,10 @@ impl Editor {
                 Message::CloseScene => {
                     needs_sync |= self.close_current_scene();
                 }
-                Message::NewScene => self.create_new_scene(),
+                Message::NewScene => {
+                    self.create_new_scene();
+                    needs_sync = true;
+                }
                 Message::Configure { working_directory } => {
                     self.configure(working_directory);
                     needs_sync = true;

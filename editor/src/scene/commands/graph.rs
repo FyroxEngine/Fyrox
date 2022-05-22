@@ -468,7 +468,7 @@ define_swap_command! {
     SetTagCommand(String): tag_owned, set_tag, "Set Tag";
     SetFrustumCullingCommand(bool): frustum_culling, set_frustum_culling, "Set Frustum Culling";
     SetVisibleCommand(bool): visibility, set_visibility, "Set Visible";
-    SetLifetimeCommand(Option<f32>): lifetime, set_lifetime, "Set Lifetime";
+    //SetLifetimeCommand(Option<f32>): lifetime, set_lifetime, "Set Lifetime";
     SetMobilityCommand(Mobility): mobility, set_mobility, "Set Mobility";
     SetDepthOffsetCommand(f32): depth_offset_factor, set_depth_offset_factor, "Set Depth Offset";
     SetCastShadowsCommand(bool): cast_shadows, set_cast_shadows, "Set Cast Shadows";

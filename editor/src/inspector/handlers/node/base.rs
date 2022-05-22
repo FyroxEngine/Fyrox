@@ -29,7 +29,7 @@ pub fn handle_base_property_changed(
                 Base::FRUSTUM_CULLING => SetFrustumCullingCommand,
                 Base::VISIBILITY => SetVisibleCommand,
                 Base::MOBILITY => SetMobilityCommand,
-                Base::LIFETIME => SetLifetimeCommand,
+                //Base::LIFETIME => SetLifetimeCommand,
                 Base::DEPTH_OFFSET => SetDepthOffsetCommand,
                 Base::LOD_GROUP => SetLodGroupCommand,
                 Base::CAST_SHADOWS => SetCastShadowsCommand,

@@ -294,7 +294,7 @@ pub struct Base {
 
     // Maximum amount of Some(time) that node will "live" or None
     // if node has undefined lifetime.
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(skip)] // TEMPORARILY HIDDEN. It causes crashes when set from the editor.
     pub(in crate) lifetime: TemplateVariable<Option<f32>>,
 
     #[inspect(min_value = 0.0, max_value = 1.0, step = 0.1, getter = "Deref::deref")]
