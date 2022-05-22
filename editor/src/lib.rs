@@ -819,6 +819,8 @@ impl Editor {
                     .to_string())
             ),
         );
+        self.scene_viewer
+            .reset_camera_projection(&self.engine.user_interface);
         self.engine.renderer.flush();
     }
 

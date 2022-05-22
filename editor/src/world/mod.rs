@@ -507,9 +507,7 @@ impl WorldViewer {
             let ui_node = ui.node(handle);
 
             if let Some(item) = ui_node.cast::<SceneItem<Node>>() {
-                if graph.is_valid_handle(item.entity_handle) {
-                    let node = &graph[item.entity_handle];
-
+                if let Some(node) = graph.try_get(item.entity_handle) {
                     if item.name() != node.name() {
                         send_sync_message(
                             ui,
@@ -525,6 +523,9 @@ impl WorldViewer {
                 }
             } else if let Some(root) = ui_node.cast::<TreeRoot>() {
                 stack.extend_from_slice(root.items())
+            } else if let Some(tree) = ui_node.cast::<Tree>() {
+                // Make sure to take folders into account.
+                stack.extend_from_slice(tree.items())
             }
         }
 

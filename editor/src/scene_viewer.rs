@@ -369,7 +369,9 @@ impl SceneViewer {
                 self.sender.send(Message::OpenSettings).unwrap();
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
-            if message.destination() == self.camera_projection {
+            if message.destination() == self.camera_projection
+                && message.direction == MessageDirection::FromWidget
+            {
                 if *index == 0 {
                     self.sender
                         .send(Message::SetEditorCameraProjection(Projection::Perspective(
@@ -454,6 +456,15 @@ impl SceneViewer {
             self.window,
             MessageDirection::ToWidget,
             WindowTitle::Text(title),
+        ));
+    }
+
+    pub fn reset_camera_projection(&self, ui: &UserInterface) {
+        // Default camera projection is Perspective.
+        ui.send_message(DropdownListMessage::selection(
+            self.camera_projection,
+            MessageDirection::ToWidget,
+            Some(0),
         ));
     }
 
