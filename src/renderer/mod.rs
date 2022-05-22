@@ -1432,12 +1432,25 @@ impl Renderer {
                     {
                         let width = frame_size.x as usize;
                         let height = frame_size.y as usize;
+
+                        Log::info(format!(
+                            "Associated scene rendering data was re-created for scene {}, because render frame size was changed. Old is {}x{}, new {}x{}!",
+                            scene_handle,
+                            data.gbuffer.width,data.gbuffer.height,width,height
+                        ));
+
                         *data = AssociatedSceneData::new(state, width, height).unwrap();
                     }
                 })
                 .or_insert_with(|| {
                     let width = frame_size.x as usize;
                     let height = frame_size.y as usize;
+
+                    Log::info(format!(
+                        "A new associated scene rendering data was created for scene {}!",
+                        scene_handle
+                    ));
+
                     AssociatedSceneData::new(state, width, height).unwrap()
                 });
 
