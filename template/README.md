@@ -20,7 +20,7 @@ cargo install fyrox-template
 Navigate to a folder and call:
 
 ```shell
-fyrox-template <project_name>
+fyrox-template --name <project_name>
 ```
 
 It will create a new folder with `<project_name>` and it will contain three projects, runnable only two of them:

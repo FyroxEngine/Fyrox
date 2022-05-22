@@ -55,11 +55,19 @@ use fyrox::{{
     }},
     event::Event,
     plugin::{{Plugin, PluginContext, PluginRegistrationContext}},
-    scene::Scene,
+    scene::{{Scene, node::TypeUuidProvider}},
 }};
 
 pub struct Game {{
     scene: Handle<Scene>,
+}}
+
+impl TypeUuidProvider for Game {{
+    // Returns unique plugin id for serialization needs.
+    fn type_uuid() -> Uuid {{
+        // Ideally this should be unique per-project.
+        uuid!("cb358b1c-fc23-4c44-9e59-0a9671324196")
+    }}
 }}
 
 impl Game {{
@@ -99,8 +107,7 @@ impl Plugin for Game {{
     }}
 
     fn id(&self) -> Uuid {{
-        // Ideally this should be unique per-project.
-        uuid!("cb358b1c-fc23-4c44-9e59-0a9671324196")
+        Self::type_uuid()
     }}
 
     fn on_os_event(&mut self, _event: &Event<()>, _context: PluginContext) {{
