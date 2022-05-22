@@ -1,7 +1,6 @@
-use crate::core::sstorage::ImmutableString;
 use crate::{
     asset::ResourceState,
-    core::{scope_profile, sparse::SparseBuffer},
+    core::{scope_profile, sparse::SparseBuffer, sstorage::ImmutableString},
     engine::resource_manager::container::entry::DEFAULT_RESOURCE_LIFETIME,
     material::shader::{Shader, ShaderState},
     renderer::{
@@ -80,7 +79,12 @@ impl ShaderCache {
 
         if let ResourceState::Ok(shader_state) = shader.deref() {
             if self.buffer.is_index_valid(&shader_state.cache_index) {
-                Some(&self.buffer.get(&shader_state.cache_index).unwrap().value)
+                let entry = self.buffer.get_mut(&shader_state.cache_index).unwrap();
+
+                // ShaderSet won't be destroyed while it used.
+                entry.time_to_live = DEFAULT_RESOURCE_LIFETIME;
+
+                Some(&entry.value)
             } else {
                 let index = self.buffer.spawn(CacheEntry {
                     value: ShaderSet::new(state, shader_state)?,
