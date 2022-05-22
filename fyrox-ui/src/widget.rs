@@ -903,6 +903,7 @@ impl Widget {
     #[inline]
     pub(in crate) fn set_children(&mut self, children: Vec<Handle<UiNode>>) {
         self.invalidate_layout();
+        self.request_update_visibility();
         self.children = children;
     }
 
@@ -948,11 +949,16 @@ impl Widget {
         if self.visibility != visibility {
             self.visibility = visibility;
             self.invalidate_layout();
-            if let Some(layout_events_sender) = self.layout_events_sender.as_ref() {
-                let _ = layout_events_sender.send(LayoutEvent::VisibilityChanged(self.handle));
-            }
+            self.request_update_visibility();
         }
         self
+    }
+
+    #[inline]
+    pub fn request_update_visibility(&self) {
+        if let Some(layout_events_sender) = self.layout_events_sender.as_ref() {
+            let _ = layout_events_sender.send(LayoutEvent::VisibilityChanged(self.handle));
+        }
     }
 
     #[inline]

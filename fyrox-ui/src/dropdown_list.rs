@@ -158,6 +158,7 @@ impl Control for DropdownList {
                                         MessageDirection::ToWidget,
                                         self.main_grid,
                                     ));
+                                    ui.node(self.current).request_update_visibility();
                                 } else {
                                     self.current = Handle::NONE;
                                 }
