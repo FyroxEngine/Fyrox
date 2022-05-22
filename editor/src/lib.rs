@@ -190,7 +190,6 @@ pub enum Message {
     RedoSceneCommand,
     ClearSceneCommandStack,
     SelectionChanged,
-    SyncToModel,
     SaveScene(PathBuf),
     LoadScene(PathBuf),
     CloseScene,
@@ -754,22 +753,24 @@ impl Editor {
     }
 
     fn set_scene(&mut self, mut scene: Scene, path: Option<PathBuf>) {
+        // Discard previous scene.
         if let Some(previous_editor_scene) = self.scene.as_ref() {
             self.engine.scenes.remove(previous_editor_scene.scene);
         }
         self.scene = None;
         self.sync_to_model();
-        poll_ui_messages(self);
+        self.poll_ui_messages();
 
+        for mut interaction_mode in self.interaction_modes.drain(..) {
+            interaction_mode.on_drop(&mut self.engine);
+        }
+
+        // Setup new one.
         scene.render_target = Some(Texture::new_render_target(0, 0));
         self.scene_viewer
             .set_render_target(&self.engine.user_interface, scene.render_target.clone());
 
         let editor_scene = EditorScene::from_native_scene(scene, &mut self.engine, path.clone());
-
-        for mut interaction_mode in self.interaction_modes.drain(..) {
-            interaction_mode.on_drop(&mut self.engine);
-        }
 
         self.interaction_modes = vec![
             Box::new(SelectInteractionMode::new(
@@ -808,7 +809,6 @@ impl Editor {
         self.scene = Some(editor_scene);
 
         self.set_interaction_mode(Some(InteractionModeKind::Move));
-        self.sync_to_model();
 
         self.scene_viewer.set_title(
             &self.engine.user_interface,
@@ -1485,10 +1485,16 @@ impl Editor {
         ));
     }
 
-    fn update(&mut self, dt: f32) {
+    fn poll_ui_messages(&mut self) {
         scope_profile!();
 
-        self.engine.pre_update(dt);
+        while let Some(mut ui_message) = self.engine.user_interface.poll_message() {
+            self.handle_ui_message(&mut ui_message);
+        }
+    }
+
+    fn update(&mut self, dt: f32) {
+        scope_profile!();
 
         self.absm_editor.update(&mut self.engine);
         self.log.update(&mut self.engine);
@@ -1529,11 +1535,11 @@ impl Editor {
                 Message::SelectionChanged => {
                     self.world_viewer.sync_selection = true;
                 }
-                Message::SyncToModel => {
-                    needs_sync = true;
-                }
                 Message::SaveScene(path) => self.save_current_scene(path),
-                Message::LoadScene(scene_path) => self.load_scene(scene_path),
+                Message::LoadScene(scene_path) => {
+                    self.load_scene(scene_path);
+                    needs_sync |= true;
+                }
                 Message::SetInteractionMode(mode_kind) => {
                     self.set_interaction_mode(Some(mode_kind))
                 }
@@ -1708,14 +1714,6 @@ impl Editor {
     }
 }
 
-fn poll_ui_messages(editor: &mut Editor) {
-    scope_profile!();
-
-    while let Some(mut ui_message) = editor.engine.user_interface.poll_message() {
-        editor.handle_ui_message(&mut ui_message);
-    }
-}
-
 fn update(editor: &mut Editor) {
     scope_profile!();
 
@@ -1725,9 +1723,11 @@ fn update(editor: &mut Editor) {
         dt -= FIXED_TIMESTEP;
         editor.game_loop_data.elapsed_time += FIXED_TIMESTEP;
 
+        editor.engine.pre_update(dt);
+
         editor.update(FIXED_TIMESTEP);
 
-        poll_ui_messages(editor);
+        editor.poll_ui_messages();
 
         editor.engine.post_update(FIXED_TIMESTEP);
 
