@@ -64,6 +64,7 @@ use std::{cell::Cell, ops::Deref};
 pub struct Transform {
     // Indicates that some property has changed and matrix must be
     // recalculated before use. This is some sort of lazy evaluation.
+    #[inspect(skip)]
     dirty: Cell<bool>,
 
     #[inspect(getter = "Deref::deref", description = "Local scale of the transform")]
