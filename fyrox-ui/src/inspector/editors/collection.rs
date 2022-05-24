@@ -380,6 +380,7 @@ where
             property_info,
             definition_container,
             layer_index,
+            environment,
         } = ctx;
 
         let instance_ref = if let Some(instance) = ui.node(instance).cast::<CollectionEditor>() {
@@ -396,7 +397,7 @@ where
             // Re-create items.
             let items = create_items(
                 value.iter(),
-                None,
+                environment,
                 definition_container,
                 &mut ui.build_ctx(),
                 sync_flag,

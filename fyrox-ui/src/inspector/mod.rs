@@ -467,6 +467,7 @@ impl InspectorContext {
                     property_info: &info,
                     definition_container: self.property_definitions.clone(),
                     layer_index,
+                    environment: self.environment.clone(),
                 };
 
                 match constructor.create_message(ctx) {

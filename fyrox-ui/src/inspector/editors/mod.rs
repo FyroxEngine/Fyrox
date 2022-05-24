@@ -56,6 +56,7 @@ pub struct PropertyEditorMessageContext<'a, 'b> {
     pub property_info: &'a PropertyInfo<'a>,
     pub definition_container: Rc<PropertyEditorDefinitionContainer>,
     pub layer_index: usize,
+    pub environment: Option<Rc<dyn InspectorEnvironment>>,
 }
 
 pub struct PropertyEditorTranslationContext<'b, 'c> {
