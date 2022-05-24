@@ -252,3 +252,117 @@ impl Script {
         Self(Box::new(script_object))
     }
 }
+
+/// A helper macro that allows you to handle object's property changed message. Such messages may come
+/// from editor's Inspector. It handles Object variant of the message.
+///
+/// # Examples
+///
+/// ```rust
+/// use fyrox::handle_object_property_changed;
+/// use fyrox::gui::inspector::PropertyChanged;
+/// use fyrox::core::inspect::{Inspect, PropertyInfo};
+///
+/// #[derive(Inspect)]
+/// struct Foo {
+///     bar: String,
+///     baz: u32
+/// }
+///
+/// impl Foo {
+///     fn on_property_changed(&mut self, args: &PropertyChanged) -> bool {
+///          handle_object_property_changed!(self, args,
+///             Self::BAR => bar,
+///             Self::BAZ => baz
+///          )
+///     }
+/// }
+/// ```
+///
+/// This will apply changes to the respective properties in a few lines of code. The main reason of this
+/// macro to exist is to reduce amount of boilerplate code.
+#[macro_export]
+macro_rules! handle_object_property_changed {
+    ($self:expr, $args:expr, $($prop:path => $field:tt),*) => {
+        match $args.value {
+            FieldKind::Object(ref value) => {
+                match $args.name.as_ref() {
+                    $($prop => {
+                        $self.$field = value.cast_clone().unwrap();
+                        true
+                    })*
+                    _ => false,
+                }
+            }
+            _ => false
+        }
+    }
+}
+
+/// A helper macro that allows you to handle object's property changed message. Such messages may come
+/// from editor's Inspector. It handles CollectionChanged variant of the message. The type of the collection
+/// item **must** have a method called `on_property_changed` - you could use newtype for that (see examples).
+///
+/// # Examples
+///
+/// ```rust
+/// use fyrox::{handle_collection_property_changed, handle_object_property_changed};
+/// use fyrox::gui::inspector::{PropertyChanged, CollectionChanged};
+/// use fyrox::core::inspect::{Inspect, PropertyInfo};
+///
+/// // Wrap parameter in a newtype to implement `on_property_changed` method.
+/// #[derive(Inspect, Debug, Default)]
+/// struct Name(String);
+///
+/// impl Name {
+///     fn on_property_changed(&mut self, args: &PropertyChanged) -> bool {
+///         handle_object_property_changed!(self, args, Self::F_0 => 0)
+///     }
+/// }
+///
+/// #[derive(Inspect)]
+/// struct Foo {
+///     // Collections could be any type that has `push`, `remove(index)`, `impl IndexMut`
+///     names: Vec<Name>,
+///     other_names: Vec<Name>,
+/// }
+///
+/// impl Foo {
+///     fn on_property_changed(&mut self, args: &PropertyChanged) -> bool {
+///         handle_collection_property_changed!(self, args,
+///             Self::NAMES => names,
+///             Self::OTHER_NAMES => other_names
+///         )
+///     }
+/// }
+/// ```
+///
+/// This will apply changes to the respective properties in a few lines of code. The main reason of this
+/// macro to exist is to reduce amount of boilerplate code.
+#[macro_export]
+macro_rules! handle_collection_property_changed {
+    ($self:expr, $args:expr, $($prop:path => $field:ident),*) => {
+        match $args.value {
+            FieldKind::Collection(ref collection) => match $args.name.as_ref() {
+                 $($prop => {
+                     match **collection {
+                        CollectionChanged::Add => {
+                            $self.$field.push(Default::default());
+                            true
+                        }
+                        CollectionChanged::Remove(i) => {
+                            $self.$field.remove(i);
+                            true
+                        }
+                        CollectionChanged::ItemChanged {
+                            index,
+                            ref property,
+                        } => $self.$field[index].on_property_changed(property),
+                    }
+                })*,
+                _ => false
+            },
+            _ => false
+        }
+    }
+}
