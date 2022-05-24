@@ -69,7 +69,7 @@ impl Inspector {
             .with_content(inspector)
             .build(ctx);
 
-        let mut property_editors = make_property_editors_container(sender);
+        let property_editors = make_property_editors_container(sender);
         property_editors
             .insert(InspectablePropertyEditorDefinition::<BasePoseNodeDefinition>::new());
         property_editors.insert(InspectablePropertyEditorDefinition::<

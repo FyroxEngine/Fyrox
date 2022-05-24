@@ -83,7 +83,7 @@ pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Stat
 pub fn make_property_editors_container(
     sender: Sender<Message>,
 ) -> PropertyEditorDefinitionContainer {
-    let mut container = PropertyEditorDefinitionContainer::new();
+    let container = PropertyEditorDefinitionContainer::new();
 
     container.insert(TexturePropertyEditorDefinition);
     container.insert(MaterialPropertyEditorDefinition {

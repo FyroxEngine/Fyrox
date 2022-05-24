@@ -440,7 +440,7 @@ pub struct Editor {
     settings: Settings,
     path_fixer: PathFixer,
     material_editor: MaterialEditor,
-    inspector: Inspector,
+    pub inspector: Inspector,
     curve_editor: CurveEditorWindow,
     audio_panel: AudioPanel,
     #[allow(dead_code)] // TODO

@@ -99,7 +99,7 @@ impl Settings {
     fn make_property_editors_container(
         sender: Sender<Message>,
     ) -> Rc<PropertyEditorDefinitionContainer> {
-        let mut container = make_property_editors_container(sender);
+        let container = make_property_editors_container(sender);
 
         container.insert(InspectablePropertyEditorDefinition::<GraphicsSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<SelectionSettings>::new());

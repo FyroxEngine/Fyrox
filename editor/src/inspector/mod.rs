@@ -51,9 +51,10 @@ impl InspectorEnvironment for EditorEnvironment {
 }
 
 pub struct Inspector {
-    pub window: Handle<UiNode>,
+    /// Allows you to register your property editors for custom types.
+    pub property_editors: Rc<PropertyEditorDefinitionContainer>,
+    pub(crate) window: Handle<UiNode>,
     inspector: Handle<UiNode>,
-    property_editors: Rc<PropertyEditorDefinitionContainer>,
     // Hack. This flag tells whether the inspector should sync with model or not.
     // There is only one situation when it has to be `false` - when inspector has
     // got new context - in this case we don't need to sync with model, because

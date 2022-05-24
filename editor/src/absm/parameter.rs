@@ -43,7 +43,7 @@ pub struct ParameterPanel {
 
 impl ParameterPanel {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
-        let mut property_editors = make_property_editors_container(sender);
+        let property_editors = make_property_editors_container(sender);
         property_editors
             .insert(VecCollectionPropertyEditorDefinition::<ParameterDefinition>::new());
         property_editors.insert(InspectablePropertyEditorDefinition::<ParameterDefinition>::new());
