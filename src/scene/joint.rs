@@ -291,7 +291,9 @@ impl NodeTrait for Joint {
         self.reset_self_inheritable_properties();
     }
 
-    fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
+    fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        self.base.restore_resources(resource_manager);
+    }
 
     fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
         if let Some(entry) = old_new_mapping.get(&self.body1()) {

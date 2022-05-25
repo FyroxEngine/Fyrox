@@ -168,6 +168,8 @@ impl NodeTrait for Rectangle {
     }
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        self.base.restore_resources(resource_manager.clone());
+
         resource_manager
             .state()
             .containers_mut()

@@ -658,6 +658,8 @@ impl NodeTrait for Terrain {
     }
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        self.base.restore_resources(resource_manager.clone());
+
         for layer in self.layers() {
             layer.material.lock().resolve(resource_manager.clone());
         }

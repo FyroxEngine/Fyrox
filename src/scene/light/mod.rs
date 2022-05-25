@@ -24,6 +24,7 @@ use crate::{
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
+    engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
@@ -189,6 +190,10 @@ impl BaseLight {
     #[inline]
     pub fn is_scatter_enabled(&self) -> bool {
         *self.scatter_enabled
+    }
+
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        self.base.restore_resources(resource_manager);
     }
 
     // Prefab inheritance resolving.

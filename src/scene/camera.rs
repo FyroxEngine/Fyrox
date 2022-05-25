@@ -596,6 +596,8 @@ impl NodeTrait for Camera {
     }
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        self.base.restore_resources(resource_manager.clone());
+
         let mut state = resource_manager.state();
         let texture_container = &mut state.containers_mut().textures;
         texture_container.try_restore_template_resource(&mut self.environment);

@@ -674,7 +674,11 @@ impl Base {
         }
     }
 
-    pub(crate) fn restore_resources(&mut self, _resource_manager: ResourceManager) {}
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+        if let Some(script) = self.script.as_mut() {
+            script.restore_resources(resource_manager);
+        }
+    }
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit_properties(&mut self, parent: &Base) -> Result<(), InheritError> {

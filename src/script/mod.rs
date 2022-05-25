@@ -158,6 +158,15 @@ pub trait ScriptTrait: BaseScript {
     ) {
     }
 
+    /// Allows you to restore resources after deserialization.
+    ///
+    /// # Motivation
+    ///
+    /// Some scripts may store resources "handles" (for example a texture or a 3d model), when the
+    /// handle is saved, only path to resource is saved. When you loading a save, you must ask resource
+    /// manager to restore handles.
+    fn restore_resources(&mut self, #[allow(unused_variables)] resource_manager: ResourceManager) {}
+
     /// Script instance type UUID. The value will be used for serialization, to write type
     /// identifier to a data source so the engine can restore the script from data source.
     ///
