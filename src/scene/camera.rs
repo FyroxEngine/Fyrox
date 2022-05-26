@@ -36,6 +36,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_resource::ResourceState;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -1038,6 +1039,37 @@ pub enum SkyBoxError {
     UnsupportedTextureKind(TextureKind),
     /// Cube map was failed to build.
     UnableToBuildCubeMap,
+    /// Input texture is not square.
+    NonSquareTexture {
+        /// Texture index.
+        index: usize,
+        /// Width of the faulty texture.
+        width: u32,
+        /// Height of the faulty texture.
+        height: u32,
+    },
+    /// Some input texture differs in size or pixel kind.
+    DifferentTexture {
+        /// Actual width of the first valid texture in the input set.
+        expected_width: u32,
+        /// Actual height of the first valid texture in the input set.
+        expected_height: u32,
+        /// Actual pixel kind of the first valid texture in the input set.
+        expected_pixel_kind: TexturePixelKind,
+        /// Index of the faulty input texture.
+        index: usize,
+        /// Width of the faulty texture.
+        actual_width: u32,
+        /// Height of the faulty texture.
+        actual_height: u32,
+        /// Pixel kind of the faulty texture.
+        actual_pixel_kind: TexturePixelKind,
+    },
+    /// Occurs when one of the input textures is either still loading or failed to load.
+    TextureIsNotReady {
+        /// Index of the faulty input texture.
+        index: usize,
+    },
 }
 
 impl SkyBox {
@@ -1051,12 +1083,71 @@ impl SkyBox {
         self.cubemap.as_ref()
     }
 
+    /// Validates input set of texture and checks if it possible to create a cube map from them.
+    /// There are two main conditions for successful cube map creation:
+    /// - All textures must have same width and height, and width must be equal to height.
+    /// - All textures must have same pixel kind.
+    pub fn validate(&self) -> Result<(), SkyBoxError> {
+        struct TextureInfo {
+            pixel_kind: TexturePixelKind,
+            width: u32,
+            height: u32,
+        }
+
+        let mut first_info: Option<TextureInfo> = None;
+
+        for (index, texture) in self.textures().iter().enumerate() {
+            if let Some(texture) = texture {
+                if let ResourceState::Ok(texture) = &*texture.state() {
+                    if let TextureKind::Rectangle { width, height } = texture.kind() {
+                        if width != height {
+                            return Err(SkyBoxError::NonSquareTexture {
+                                index,
+                                width,
+                                height,
+                            });
+                        }
+
+                        if let Some(first_info) = first_info.as_mut() {
+                            if first_info.width != width
+                                || first_info.height != height
+                                || first_info.pixel_kind != texture.pixel_kind()
+                            {
+                                return Err(SkyBoxError::DifferentTexture {
+                                    expected_width: first_info.width,
+                                    expected_height: first_info.height,
+                                    expected_pixel_kind: first_info.pixel_kind,
+                                    index,
+                                    actual_width: width,
+                                    actual_height: height,
+                                    actual_pixel_kind: texture.pixel_kind(),
+                                });
+                            }
+                        } else {
+                            first_info = Some(TextureInfo {
+                                pixel_kind: texture.pixel_kind(),
+                                width,
+                                height,
+                            });
+                        }
+                    }
+                } else {
+                    return Err(SkyBoxError::TextureIsNotReady { index });
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Creates a cubemap using provided faces. If some face has not been provided corresponding side will be black.
     ///
     /// # Important notes.
     ///
     /// It will fail if provided face's kind is not TextureKind::Rectangle.
     pub fn create_cubemap(&mut self) -> Result<(), SkyBoxError> {
+        self.validate()?;
+
         let (kind, pixel_kind, bytes_per_face) =
             self.textures().iter().find(|face| face.is_some()).map_or(
                 (
