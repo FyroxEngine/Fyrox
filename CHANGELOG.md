@@ -1,3 +1,30 @@
+# 0.26
+
+This release is mostly to fix critical bugs of 0.25 and add missing functionality that stops you from using scripting
+system.
+
+- Added project template generator
+- Fixed invisible selected item in drop-down list widget.
+- Correctly sync node names in `World Viewer`
+- Reset editor's camera projection mode switch when creating new scene
+- Fixed doubling scene entities in `World Viewer` when loading scene via `StartupData`
+- More logging for renderer
+- Fixed shader cache - now the engine won't re-compile shaders each 20 seconds.
+- Temporarily disable `Lifetime` property editing because it causes crashes
+- Do not show `dirty` flag of `Transform` in the `Inspector`
+- Provide access to property editors container for editor's `Inspector` - it is now possible
+to register your own property editors
+- Fixed panic when syncing `Inspector` for an entity with `Option<Texture>` field.
+- Added `handle_object_property_changed` and `handle_collection_property_changed` macros to reduce 
+boilerplate code in script property handling.
+- Added ability to restore resource handles for scripts
+- Fixed selection visualization in `Asset Browser`
+- Validation for sky box cube map generator
+
+## Migration guide
+
+There are no breaking changes in this release.
+
 # 0.25
 
 - Static plugin system
