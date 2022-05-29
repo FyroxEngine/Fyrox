@@ -3,6 +3,7 @@
 
 use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
+    core::variable::TemplateVariable,
     core::VecExtensions,
     engine::resource_manager::{
         container::{
@@ -13,7 +14,6 @@ use crate::{
         options::ImportOptions,
         task::TaskPool,
     },
-    scene::variable::TemplateVariable,
     utils::log::Log,
 };
 use std::{future::Future, ops::Deref, path::Path, sync::Arc};

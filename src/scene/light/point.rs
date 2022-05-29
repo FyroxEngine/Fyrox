@@ -18,6 +18,7 @@
 //! scattering is relatively heavy too.
 
 use crate::{
+    core::variable::{InheritError, TemplateVariable},
     core::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
@@ -32,7 +33,6 @@ use crate::{
         graph::Graph,
         light::{BaseLight, BaseLightBuilder},
         node::{Node, NodeTrait, TypeUuidProvider},
-        variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };

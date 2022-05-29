@@ -45,16 +45,14 @@
 //! properties back.
 
 use crate::{
+    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Matrix3, Matrix4, UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
         visitor::{Visit, VisitResult, Visitor},
     },
     impl_directly_inheritable_entity_trait,
-    scene::{
-        variable::{InheritError, TemplateVariable},
-        DirectlyInheritableEntity,
-    },
+    scene::DirectlyInheritableEntity,
     utils::log::{Log, MessageKind},
 };
 use std::{cell::Cell, ops::Deref};

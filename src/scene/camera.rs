@@ -15,6 +15,7 @@
 //! almost double load of your GPU.
 
 use crate::{
+    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         inspect::{Inspect, PropertyInfo},
@@ -30,7 +31,6 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
-        variable::{InheritError, TemplateVariable},
         visibility::VisibilityCache,
         DirectlyInheritableEntity,
     },

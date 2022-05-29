@@ -9,6 +9,7 @@
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
 use crate::{
+    core::variable::{InheritError, TemplateVariable, VariableFlags},
     core::{
         algebra::{Matrix4, Point3, Vector3},
         inspect::{Inspect, PropertyInfo},
@@ -27,7 +28,6 @@ use crate::{
             surface::Surface,
         },
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
-        variable::{InheritError, TemplateVariable, VariableFlags},
         DirectlyInheritableEntity,
     },
 };

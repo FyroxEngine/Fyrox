@@ -71,6 +71,7 @@
 //! ```
 
 use crate::{
+    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Vector2, Vector3},
         color::Color,
@@ -93,7 +94,6 @@ use crate::{
             emitter::{Emit, Emitter},
             particle::Particle,
         },
-        variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };

@@ -4,6 +4,7 @@
 
 use crate::{
     core::uuid::Uuid,
+    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Matrix4, Vector3},
         inspect::{Inspect, PropertyInfo},
@@ -15,12 +16,7 @@ use crate::{
     engine::{resource_manager::ResourceManager, SerializationContext},
     impl_directly_inheritable_entity_trait,
     resource::model::Model,
-    scene::{
-        node::Node,
-        transform::Transform,
-        variable::{InheritError, TemplateVariable},
-        DirectlyInheritableEntity,
-    },
+    scene::{node::Node, transform::Transform, DirectlyInheritableEntity},
     script::Script,
     utils::log::Log,
 };

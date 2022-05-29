@@ -1,5 +1,6 @@
 //! A simplest possible node which represents point in space.
 use crate::{
+    core::variable::InheritError,
     core::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
@@ -12,7 +13,6 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait, TypeUuidProvider},
-        variable::InheritError,
     },
 };
 use fxhash::FxHashMap;

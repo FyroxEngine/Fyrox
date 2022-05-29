@@ -1,6 +1,7 @@
 //! Everything related to terrains.
 
 use crate::{
+    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         arrayvec::ArrayVec,
@@ -26,7 +27,6 @@ use crate::{
             vertex::StaticVertex,
         },
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
-        variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };

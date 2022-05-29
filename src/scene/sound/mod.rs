@@ -1,6 +1,7 @@
 //! Everything related to sound in the engine.
 
 use crate::{
+    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::Matrix4,
         inspect::{Inspect, PropertyInfo},
@@ -16,7 +17,6 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider, UpdateContext},
-        variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
     utils::log::Log,

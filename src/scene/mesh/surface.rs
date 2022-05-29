@@ -23,7 +23,7 @@ use crate::{
                 TriangleBuffer, VertexAttributeDescriptor, VertexAttributeUsage, VertexBuffer,
                 VertexFetchError, VertexReadTrait, VertexWriteTrait,
             },
-            vertex::{OldVertex, StaticVertex},
+            vertex::StaticVertex,
         },
         node::Node,
     },

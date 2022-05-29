@@ -1,13 +1,14 @@
 //! Everything related to effects.
 
 use crate::{
+    core::variable::TemplateVariable,
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::prelude::*,
     },
     define_with,
-    scene::{node::Node, sound::context::SoundContext, variable::TemplateVariable},
+    scene::{node::Node, sound::context::SoundContext},
 };
 use fyrox_core::define_is_as;
 use fyrox_sound::dsp::filters::Biquad;

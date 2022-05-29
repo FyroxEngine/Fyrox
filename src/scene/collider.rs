@@ -2,6 +2,7 @@
 //! participate in contact generation, collision response and proximity queries.
 
 use crate::{
+    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::Vector3,
         inspect::{Inspect, PropertyInfo},
@@ -19,7 +20,6 @@ use crate::{
             Graph,
         },
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
-        variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
     utils::log::Log,

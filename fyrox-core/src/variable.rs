@@ -2,7 +2,7 @@
 //!
 //! For more info see [`TemplateVariable`]
 
-use crate::core::visitor::prelude::*;
+use crate::visitor::prelude::*;
 use bitflags::bitflags;
 use std::fmt::Debug;
 use std::{

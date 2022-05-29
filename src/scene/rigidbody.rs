@@ -9,6 +9,7 @@
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
 use crate::{
+    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Matrix4, Vector3},
         inspect::{Inspect, PropertyInfo},
@@ -24,7 +25,6 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider, UpdateContext},
-        variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
     utils::log::Log,

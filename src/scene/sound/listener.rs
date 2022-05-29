@@ -4,6 +4,7 @@
 //! See [`Listener`] docs for more info.
 
 use crate::{
+    core::variable::InheritError,
     core::{
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
@@ -16,7 +17,6 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
-        variable::InheritError,
     },
 };
 use fxhash::FxHashMap;

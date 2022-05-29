@@ -5,6 +5,7 @@
 #![warn(missing_docs)]
 
 use crate::{
+    core::variable::InheritError,
     core::{
         algebra::{Matrix4, Vector2},
         inspect::{Inspect, PropertyInfo},
@@ -27,7 +28,6 @@ use crate::{
         sound::{context::SoundContext, listener::Listener, Sound},
         sprite::Sprite,
         terrain::Terrain,
-        variable::InheritError,
     },
 };
 use fxhash::FxHashMap;

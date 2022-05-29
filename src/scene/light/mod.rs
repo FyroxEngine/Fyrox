@@ -17,6 +17,7 @@
 //! performance.
 
 use crate::{
+    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::Vector3,
         color::Color,
@@ -29,7 +30,6 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         node::Node,
-        variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };

@@ -2,6 +2,7 @@
 //! participate in contact generation, collision response and proximity queries.
 
 use crate::{
+    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::Vector2,
         inspect::{Inspect, PropertyInfo},
@@ -18,7 +19,6 @@ use crate::{
         dim2::physics::{ContactPair, PhysicsWorld},
         graph::{physics::CoefficientCombineRule, Graph},
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
-        variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
     utils::log::Log,

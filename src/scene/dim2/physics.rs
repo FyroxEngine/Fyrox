@@ -2,6 +2,7 @@
 
 use crate::{
     core::algebra::Vector2,
+    core::variable::VariableFlags,
     core::{
         algebra::{Isometry2, Matrix4, Point2, Translation2, UnitComplex, UnitQuaternion, Vector3},
         algebra::{Isometry3, Point3, Rotation3, Translation3},
@@ -24,7 +25,6 @@ use crate::{
             NodePool,
         },
         node::Node,
-        variable::VariableFlags,
     },
     utils::log::{Log, MessageKind},
 };

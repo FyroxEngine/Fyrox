@@ -23,11 +23,11 @@ pub mod sound;
 pub mod sprite;
 pub mod terrain;
 pub mod transform;
-pub mod variable;
 pub mod visibility;
 
 use crate::{
     animation::{machine::container::AnimationMachineContainer, AnimationContainer},
+    core::variable::{InheritError, InheritableVariable},
     core::{
         algebra::Vector2,
         color::Color,
@@ -52,7 +52,6 @@ use crate::{
         mesh::Mesh,
         node::Node,
         sound::SoundEngine,
-        variable::{InheritError, InheritableVariable},
     },
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
@@ -119,7 +118,7 @@ macro_rules! impl_directly_inheritable_entity_trait {
     ($ty:ty; $($name:ident),*) => {
         impl crate::scene::DirectlyInheritableEntity for $ty {
             fn inheritable_properties_ref(&self)
-                -> Vec<&dyn crate::scene::variable::InheritableVariable>
+                -> Vec<&dyn crate::core::variable::InheritableVariable>
             {
                 vec![
                     $(&self.$name),*
@@ -127,7 +126,7 @@ macro_rules! impl_directly_inheritable_entity_trait {
             }
 
             fn inheritable_properties_mut(&mut self)
-                -> Vec<&mut dyn crate::scene::variable::InheritableVariable>
+                -> Vec<&mut dyn crate::core::variable::InheritableVariable>
             {
                 vec![
                     $(&mut self.$name),*

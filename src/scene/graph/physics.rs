@@ -1,6 +1,7 @@
 //! Scene physics module.
 
 use crate::{
+    core::variable::VariableFlags,
     core::{
         algebra::{
             DMatrix, Dynamic, Isometry3, Matrix4, Point3, Translation3, UnitQuaternion, VecStorage,
@@ -28,7 +29,6 @@ use crate::{
         node::Node,
         rigidbody::ApplyAction,
         terrain::Terrain,
-        variable::VariableFlags,
     },
     utils::{
         log::{Log, MessageKind},

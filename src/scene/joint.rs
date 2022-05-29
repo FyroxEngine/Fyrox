@@ -1,6 +1,7 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
 use crate::{
+    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
@@ -15,7 +16,6 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
-        variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
     utils::log::Log,

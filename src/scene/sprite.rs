@@ -3,6 +3,7 @@
 //! For more info see [`Sprite`].
 
 use crate::{
+    core::variable::{InheritError, TemplateVariable},
     core::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
@@ -18,7 +19,6 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait, TypeUuidProvider},
-        variable::{InheritError, TemplateVariable},
         DirectlyInheritableEntity,
     },
 };
