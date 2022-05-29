@@ -259,7 +259,6 @@ pub struct Terrain {
     #[inspect(getter = "Deref::deref")]
     layers: TemplateVariable<Vec<Layer>>,
 
-    #[visit(optional)] // Backward compatibility
     #[inspect(getter = "Deref::deref")]
     decal_layer_index: TemplateVariable<u8>,
 

@@ -96,7 +96,6 @@ pub struct Mesh {
     surfaces: TemplateVariable<Vec<Surface>>,
 
     #[inspect(getter = "Deref::deref")]
-    #[visit(optional)]
     render_path: TemplateVariable<RenderPath>,
 
     #[inspect(getter = "Deref::deref")]

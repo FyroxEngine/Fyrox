@@ -169,11 +169,9 @@ pub struct RigidBody {
     pub(crate) can_sleep: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
-    #[visit(optional)] // Backward compatibility
     pub(crate) dominance: TemplateVariable<i8>,
 
     #[inspect(getter = "Deref::deref")]
-    #[visit(optional)] // Backward compatibility
     pub(crate) gravity_scale: TemplateVariable<f32>,
 
     #[visit(skip)]

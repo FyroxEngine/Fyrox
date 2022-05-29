@@ -852,29 +852,8 @@ impl Visit for SurfaceData {
         self.is_procedural.visit("IsProcedural", &mut region)?;
 
         if self.is_procedural {
-            if self
-                .vertex_buffer
-                .visit("VertexBuffer", &mut region)
-                .is_err()
-                && region.is_reading()
-            {
-                // Backward compatibility
-                let mut old_vertices = Vec::<OldVertex>::new();
-                old_vertices.visit("Vertices", &mut region)?;
-                self.vertex_buffer =
-                    VertexBuffer::new(old_vertices.len(), OldVertex::layout(), old_vertices)
-                        .unwrap();
-            };
-            if self
-                .geometry_buffer
-                .visit("GeometryBuffer", &mut region)
-                .is_err()
-                && region.is_reading()
-            {
-                let mut triangles = Vec::<TriangleDefinition>::new();
-                triangles.visit("Triangles", &mut region)?;
-                self.geometry_buffer = TriangleBuffer::new(triangles);
-            }
+            self.vertex_buffer.visit("VertexBuffer", &mut region)?;
+            self.geometry_buffer.visit("GeometryBuffer", &mut region)?
         }
 
         Ok(())
@@ -965,7 +944,6 @@ pub struct Surface {
     // Wrapped into option to be able to implement Default for serialization.
     // In normal conditions it must never be None!
     data: Option<Arc<Mutex<SurfaceData>>>,
-    #[visit(optional)]
     material: Arc<Mutex<Material>>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be

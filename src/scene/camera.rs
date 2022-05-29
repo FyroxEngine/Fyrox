@@ -256,7 +256,6 @@ pub struct Camera {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
-    #[visit(optional)] // Backward compatibility
     projection: TemplateVariable<Projection>,
 
     #[inspect(getter = "Deref::deref")]
@@ -272,15 +271,12 @@ pub struct Camera {
     environment: TemplateVariable<Option<Texture>>,
 
     #[inspect(getter = "Deref::deref")]
-    #[visit(optional)] // Backward compatibility.
     exposure: TemplateVariable<Exposure>,
 
     #[inspect(getter = "Deref::deref")]
-    #[visit(optional)] // Backward compatibility.
     color_grading_lut: TemplateVariable<Option<ColorGradingLut>>,
 
     #[inspect(getter = "Deref::deref")]
-    #[visit(optional)] // Backward compatibility.
     color_grading_enabled: TemplateVariable<bool>,
 
     #[visit(skip)]

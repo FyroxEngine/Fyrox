@@ -1256,10 +1256,9 @@ impl Visit for Graph {
 
         self.root.visit("Root", &mut region)?;
         self.pool.visit("Pool", &mut region)?;
-        // Backward compatibility
-        let _ = self.sound_context.visit("SoundContext", &mut region);
-        let _ = self.physics.visit("PhysicsWorld", &mut region);
-        let _ = self.physics2d.visit("PhysicsWorld2D", &mut region);
+        self.sound_context.visit("SoundContext", &mut region)?;
+        self.physics.visit("PhysicsWorld", &mut region)?;
+        self.physics2d.visit("PhysicsWorld2D", &mut region)?;
 
         Ok(())
     }

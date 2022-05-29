@@ -161,11 +161,9 @@ pub struct ParticleSystem {
     #[inspect(getter = "Deref::deref")]
     color_over_lifetime: TemplateVariable<Option<ColorGradient>>,
 
-    #[visit(optional)] // Backward compatibility.
     #[inspect(getter = "Deref::deref")]
     soft_boundary_sharpness_factor: TemplateVariable<f32>,
 
-    #[visit(optional)] // Backward compatibility.
     #[inspect(getter = "Deref::deref")]
     enabled: TemplateVariable<bool>,
 

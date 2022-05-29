@@ -107,7 +107,6 @@ pub struct DirectionalLight {
     base_light: BaseLight,
     /// See [`CsmOptions`].
     #[inspect(getter = "Deref::deref")]
-    #[visit(optional)] // Backward compatibility
     pub csm_options: TemplateVariable<CsmOptions>,
 }
 

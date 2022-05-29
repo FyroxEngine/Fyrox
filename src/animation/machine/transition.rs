@@ -49,7 +49,6 @@ pub struct TransitionDefinition {
     /// If set, then fetched value from `rule` will be inverted. It is useful for cases when you
     /// have a pair of transitions that depend on a single Rule parameter, but have different
     /// directions (A -> B, B -> A).
-    #[visit(optional)]
     #[inspect(
         description = "If set, then fetched value from `rule` will be inverted. It is useful
      for cases when you have a pair of transitions that depend on a single Rule parameter,

@@ -197,11 +197,7 @@ pub struct InputController {
 struct Player {
     speed: f32,
     yaw: f32,
-
-    #[visit(optional)]
     pitch: f32,
-
-    #[visit(optional)]
     camera: Handle<Node>,
 
     #[visit(skip)]
@@ -361,8 +357,6 @@ impl ScriptTrait for Player {
 #[derive(Visit, Inspect, Debug, Clone)]
 struct Jumper {
     timer: f32,
-
-    #[visit(optional)]
     period: f32,
 }
 

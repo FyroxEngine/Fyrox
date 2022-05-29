@@ -73,7 +73,6 @@ pub struct BaseLight {
     scatter_enabled: TemplateVariable<bool>,
 
     #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
-    #[visit(optional)]
     intensity: TemplateVariable<f32>,
 }
 

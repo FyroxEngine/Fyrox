@@ -95,11 +95,9 @@ pub struct Decal {
     #[inspect(getter = "Deref::deref")]
     normal_texture: TemplateVariable<Option<Texture>>,
 
-    #[visit(optional)] // Backward compatibility
     #[inspect(getter = "Deref::deref")]
     color: TemplateVariable<Color>,
 
-    #[visit(optional)] // Backward compatibility
     #[inspect(min_value = 0.0, getter = "Deref::deref")]
     layer: TemplateVariable<u8>,
 }
