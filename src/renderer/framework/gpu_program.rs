@@ -393,6 +393,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     }
 }
 
+#[inline]
 fn fetch_uniform_location(
     state: &PipelineState,
     program: glow::Program,
