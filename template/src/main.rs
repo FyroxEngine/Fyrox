@@ -15,9 +15,9 @@ struct Args {
     name: String,
 }
 
-fn write_file<P: AsRef<Path>>(path: P, content: String) {
+fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) {
     let mut file = File::create(path).unwrap();
-    file.write_all(content.as_bytes()).unwrap();
+    file.write_all(content.as_ref().as_bytes()).unwrap();
 }
 
 fn init_game(base_path: &Path, args: &Args) {
@@ -46,80 +46,78 @@ fyrox = "0.26""#,
     // Write lib.rs
     write_file(
         base_path.join("game/src/lib.rs"),
-        format!(
-            r#"//! Game project.
-use fyrox::{{
-    core::{{
+        r#"//! Game project.
+use fyrox::{
+    core::{
         pool::Handle,
-        uuid::{{uuid, Uuid}},
-    }},
+        uuid::{uuid, Uuid},
+    },
     event::Event,
-    plugin::{{Plugin, PluginContext, PluginRegistrationContext}},
-    scene::{{Scene, node::TypeUuidProvider}},
-}};
+    plugin::{Plugin, PluginContext, PluginRegistrationContext},
+    scene::{Scene, node::TypeUuidProvider},
+};
 
-pub struct Game {{
+pub struct Game {
     scene: Handle<Scene>,
-}}
+}
 
-impl TypeUuidProvider for Game {{
+impl TypeUuidProvider for Game {
     // Returns unique plugin id for serialization needs.
-    fn type_uuid() -> Uuid {{
+    fn type_uuid() -> Uuid {
         // Ideally this should be unique per-project.
         uuid!("cb358b1c-fc23-4c44-9e59-0a9671324196")
-    }}
-}}
+    }
+}
 
-impl Game {{
-    pub fn new() -> Self {{
-        Self {{
+impl Game {
+    pub fn new() -> Self {
+        Self {
             scene: Default::default(),
-        }}
-    }}
+        }
+    }
 
-    fn set_scene(&mut self, scene: Handle<Scene>, _context: PluginContext) {{
+    fn set_scene(&mut self, scene: Handle<Scene>, _context: PluginContext) {
         self.scene = scene;
 
         // Do additional actions with scene here.
-    }}
-}}
+    }
+}
 
-impl Plugin for Game {{
-    fn on_register(&mut self, _context: PluginRegistrationContext) {{
+impl Plugin for Game {
+    fn on_register(&mut self, _context: PluginRegistrationContext) {
         // Register your scripts here.
-    }}
+    }
 
-    fn on_standalone_init(&mut self, context: PluginContext) {{
+    fn on_standalone_init(&mut self, context: PluginContext) {
         self.set_scene(context.scenes.add(Scene::new()), context);
-    }}
+    }
 
-    fn on_enter_play_mode(&mut self, scene: Handle<Scene>, context: PluginContext) {{
+    fn on_enter_play_mode(&mut self, scene: Handle<Scene>, context: PluginContext) {
         // Obtain scene from the editor.
         self.set_scene(scene, context);
-    }}
+    }
 
-    fn on_leave_play_mode(&mut self, context: PluginContext) {{
+    fn on_leave_play_mode(&mut self, context: PluginContext) {
         self.set_scene(Handle::NONE, context)
-    }}
+    }
 
-    fn update(&mut self, _context: &mut PluginContext) {{
+    fn update(&mut self, _context: &mut PluginContext) {
         // Add your global update code here.
-    }}
+    }
 
-    fn id(&self) -> Uuid {{
+    fn id(&self) -> Uuid {
         Self::type_uuid()
-    }}
+    }
 
-    fn on_os_event(&mut self, _event: &Event<()>, _context: PluginContext) {{
+    fn on_os_event(&mut self, _event: &Event<()>, _context: PluginContext) {
         // Do something on OS event here.
-    }}
+    }
 
-    fn on_unload(&mut self, _context: &mut PluginContext) {{
+    fn on_unload(&mut self, _context: &mut PluginContext) {
         // Do a cleanup here.
-    }}
-}}
+    }
+}
 "#,
-        ),
     );
 }
 
@@ -232,11 +230,9 @@ fn init_workspace(base_path: &Path) {
     // Write Cargo.toml
     write_file(
         base_path.join("Cargo.toml"),
-        format!(
-            r#"
+        r#"
 [workspace]
 members = ["editor", "executor", "game"]"#,
-        ),
     );
 }
 
@@ -249,10 +245,10 @@ fn main() {
 
     let base_path = Path::new(&args.name);
 
-    init_workspace(&base_path);
-    init_game(&base_path, &args);
-    init_editor(&base_path, &args);
-    init_executor(&base_path, &args);
+    init_workspace(base_path);
+    init_game(base_path, &args);
+    init_editor(base_path, &args);
+    init_executor(base_path, &args);
 
     println!("Project {} was generated successfully!", args.name);
     println!(
