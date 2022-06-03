@@ -1,6 +1,6 @@
-use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     border::BorderBuilder,
+    button::ButtonBuilder,
     check_box::CheckBoxBuilder,
     core::{
         algebra::Vector2,
@@ -13,7 +13,7 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     inspector::editors::{
         PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorDefinitionContainer,
-        PropertyEditorInstance, PropertyEditorMessageContext,
+        PropertyEditorInstance, PropertyEditorMessageContext, PropertyEditorTranslationContext,
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
@@ -198,6 +198,7 @@ pub struct ContextEntry {
     pub property_owner_type_id: TypeId,
     pub property_editor_definition: Rc<dyn PropertyEditorDefinition>,
     pub property_editor: Handle<UiNode>,
+    pub revert: Handle<UiNode>,
 }
 
 impl PartialEq for ContextEntry {
@@ -391,18 +392,41 @@ impl InspectorContext {
                                 }
                             };
 
+                            let revert;
+                            let grid = GridBuilder::new(
+                                WidgetBuilder::new().with_child(container).with_child({
+                                    revert = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_visibility(info.is_modified)
+                                            .on_column(1)
+                                            .with_width(16.0)
+                                            .with_height(16.0)
+                                            .with_margin(Thickness::uniform(1.0))
+                                            .with_vertical_alignment(VerticalAlignment::Top),
+                                    )
+                                    .with_text("<")
+                                    .build(ctx);
+                                    revert
+                                }),
+                            )
+                            .add_row(Row::auto())
+                            .add_column(Column::stretch())
+                            .add_column(Column::auto())
+                            .build(ctx);
+
                             entries.push(ContextEntry {
                                 property_editor: editor,
                                 property_editor_definition: definition.clone(),
                                 property_name: info.name.to_string(),
                                 property_owner_type_id: info.owner_type_id,
+                                revert,
                             });
 
                             if info.read_only {
                                 ctx[editor].set_enabled(false);
                             }
 
-                            container
+                            grid
                         }
                         Err(e) => make_simple_property_container(
                             create_header(ctx, info.display_name, layer_index),
@@ -460,24 +484,32 @@ impl InspectorContext {
                 .definitions()
                 .get(&info.value.type_id())
             {
-                let ctx = PropertyEditorMessageContext {
-                    sync_flag: self.sync_flag,
-                    instance: self.find_property_editor(info.name),
-                    ui,
-                    property_info: &info,
-                    definition_container: self.property_definitions.clone(),
-                    layer_index,
-                    environment: self.environment.clone(),
-                };
+                if let Some(property_editor) = self.find_property_editor(info.name) {
+                    ui.send_message(WidgetMessage::visibility(
+                        property_editor.revert,
+                        MessageDirection::ToWidget,
+                        info.is_modified,
+                    ));
 
-                match constructor.create_message(ctx) {
-                    Ok(message) => {
-                        if let Some(mut message) = message {
-                            message.flags = self.sync_flag;
-                            ui.send_message(message);
+                    let ctx = PropertyEditorMessageContext {
+                        sync_flag: self.sync_flag,
+                        instance: property_editor.property_editor,
+                        ui,
+                        property_info: &info,
+                        definition_container: self.property_definitions.clone(),
+                        layer_index,
+                        environment: self.environment.clone(),
+                    };
+
+                    match constructor.create_message(ctx) {
+                        Ok(message) => {
+                            if let Some(mut message) = message {
+                                message.flags = self.sync_flag;
+                                ui.send_message(message);
+                            }
                         }
+                        Err(e) => sync_errors.push(e),
                     }
-                    Err(e) => sync_errors.push(e),
                 }
             }
         }
@@ -493,17 +525,14 @@ impl InspectorContext {
         self.entries.iter()
     }
 
-    pub fn find_property_editor(&self, name: &str) -> Handle<UiNode> {
-        if let Some(property_editor) = self
-            .entries
-            .iter()
-            .find(|e| e.property_name == name)
-            .map(|e| e.property_editor)
-        {
-            return property_editor;
-        }
+    pub fn find_property_editor(&self, name: &str) -> Option<&ContextEntry> {
+        self.entries.iter().find(|e| e.property_name == name)
+    }
 
-        Default::default()
+    pub fn find_property_editor_widget(&self, name: &str) -> Handle<UiNode> {
+        self.find_property_editor(name)
+            .map(|e| e.property_editor)
+            .unwrap_or_default()
     }
 }
 

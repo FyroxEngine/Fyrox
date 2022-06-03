@@ -45,10 +45,10 @@
 //! properties back.
 
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Matrix3, Matrix4, UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::{Visit, VisitResult, Visitor},
     },
     impl_directly_inheritable_entity_trait,
@@ -65,52 +65,67 @@ pub struct Transform {
     #[inspect(skip)]
     dirty: Cell<bool>,
 
-    #[inspect(getter = "Deref::deref", description = "Local scale of the transform")]
+    #[inspect(
+        getter = "Deref::deref",
+        description = "Local scale of the transform",
+        is_modified = "is_modified"
+    )]
     local_scale: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
         getter = "Deref::deref",
-        description = "Local position of the transform"
+        description = "Local position of the transform",
+        is_modified = "is_modified"
     )]
     local_position: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
         getter = "Deref::deref",
-        description = "Local rotation of the transform"
+        description = "Local rotation of the transform",
+        is_modified = "is_modified"
     )]
     local_rotation: TemplateVariable<UnitQuaternion<f32>>,
 
     #[inspect(
         getter = "Deref::deref",
-        description = "Pre rotation of the transform. Applied before local rotation."
+        description = "Pre rotation of the transform. Applied before local rotation.",
+        is_modified = "is_modified"
     )]
     pre_rotation: TemplateVariable<UnitQuaternion<f32>>,
 
     #[inspect(
         getter = "Deref::deref",
-        description = "Post rotation of the transform. Applied after local rotation."
+        description = "Post rotation of the transform. Applied after local rotation.",
+        is_modified = "is_modified"
     )]
     post_rotation: TemplateVariable<UnitQuaternion<f32>>,
 
     #[inspect(
         getter = "Deref::deref",
-        description = "Rotation offset of the transform."
+        description = "Rotation offset of the transform.",
+        is_modified = "is_modified"
     )]
     rotation_offset: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
         getter = "Deref::deref",
-        description = "Rotation pivot of the transform."
+        description = "Rotation pivot of the transform.",
+        is_modified = "is_modified"
     )]
     rotation_pivot: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
         getter = "Deref::deref",
-        description = "Scale offset of the transform."
+        description = "Scale offset of the transform.",
+        is_modified = "is_modified"
     )]
     scaling_offset: TemplateVariable<Vector3<f32>>,
 
-    #[inspect(getter = "Deref::deref", description = "Scale pivot of the transform.")]
+    #[inspect(
+        getter = "Deref::deref",
+        description = "Scale pivot of the transform.",
+        is_modified = "is_modified"
+    )]
     scaling_pivot: TemplateVariable<Vector3<f32>>,
 
     // Combined transform. Final result of combination of other properties.
