@@ -269,7 +269,7 @@ impl Script {
 ///
 /// ```rust
 /// use fyrox::handle_object_property_changed;
-/// use fyrox::gui::inspector::PropertyChanged;
+/// use fyrox::gui::inspector::{PropertyChanged, FieldKind};
 /// use fyrox::core::inspect::{Inspect, PropertyInfo};
 ///
 /// #[derive(Inspect)]
@@ -316,7 +316,7 @@ macro_rules! handle_object_property_changed {
 ///
 /// ```rust
 /// use fyrox::{handle_collection_property_changed, handle_object_property_changed};
-/// use fyrox::gui::inspector::{PropertyChanged, CollectionChanged};
+/// use fyrox::gui::inspector::{PropertyChanged, CollectionChanged, FieldKind};
 /// use fyrox::core::inspect::{Inspect, PropertyInfo};
 ///
 /// // Wrap parameter in a newtype to implement `on_property_changed` method.
