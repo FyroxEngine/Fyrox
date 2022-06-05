@@ -118,25 +118,17 @@ impl FbxAnimationCurveNode {
         if self.curves.is_empty() {
             Default::default()
         } else {
-            let x = if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[0]) {
-                curve.eval(time)
-            } else {
-                0.0
+            let fetch_curve = |index: usize| {
+                if let Some(FbxComponent::AnimationCurve(curve)) =
+                    self.curves.get(index).map(|c| scene.get(*c))
+                {
+                    curve.eval(time)
+                } else {
+                    0.0
+                }
             };
 
-            let y = if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[1]) {
-                curve.eval(time)
-            } else {
-                0.0
-            };
-
-            let z = if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[2]) {
-                curve.eval(time)
-            } else {
-                0.0
-            };
-
-            Vector3::new(x, y, z)
+            Vector3::new(fetch_curve(0), fetch_curve(1), fetch_curve(2))
         }
     }
 
