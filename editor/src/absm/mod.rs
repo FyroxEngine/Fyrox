@@ -222,7 +222,7 @@ impl AbsmEditor {
         )
         .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(1600.0).with_height(800.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(1200.0).with_height(700.0))
             .open(false)
             .with_content(
                 GridBuilder::new(
