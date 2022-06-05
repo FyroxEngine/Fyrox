@@ -105,17 +105,16 @@ impl Previewer {
     }
 
     pub fn set_absm(&mut self, engine: &mut Engine, resource: &AbsmResource) {
+        if self.panel.model().is_none() {
+            return;
+        }
+
         if self
             .current_resource
             .as_ref()
             .map_or(false, |current_resource| current_resource == resource)
         {
-            /*
             // Just sync instance to resource.
-            if let Some(machine_instance) = scene.animation_machines.try_get_mut(self.current_absm)
-            {
-                machine_instance.resolve();
-            }*/
             block_on(engine.scenes[self.panel.scene()].resolve(engine.resource_manager.clone()));
         } else {
             self.current_resource = Some(resource.clone());
