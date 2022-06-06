@@ -1640,10 +1640,10 @@ impl Editor {
                     &mut self.engine,
                 );
             }
-
-            self.asset_browser.update(&mut self.engine);
-            self.material_editor.update(&mut self.engine);
         }
+
+        self.material_editor.update(&mut self.engine);
+        self.asset_browser.update(&mut self.engine);
     }
 
     pub fn add_game_plugin<P: Plugin>(&mut self, plugin: P) {

@@ -134,7 +134,7 @@ impl Previewer {
 
     pub fn set_preview_model(&mut self, engine: &mut Engine, path: &Path, resource: &AbsmResource) {
         // TODO: Implement async loading for this.
-        if block_on(self.panel.load_model(path, engine)) {
+        if block_on(self.panel.load_model(path, false, engine)) {
             self.set_absm(engine, resource)
         }
     }

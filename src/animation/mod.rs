@@ -714,6 +714,11 @@ impl AnimationContainer {
     }
 
     #[inline]
+    pub fn alive_count(&self) -> u32 {
+        self.pool.alive_count()
+    }
+
+    #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &Animation> {
         self.pool.iter()
     }

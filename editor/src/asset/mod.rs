@@ -212,7 +212,7 @@ impl AssetBrowser {
                 AssetKind::Unknown => {}
                 AssetKind::Model => {
                     let path = item.path.clone();
-                    block_on(self.preview.load_model(&path, engine));
+                    block_on(self.preview.load_model(&path, true, engine));
 
                     self.inspector.inspect_resource_import_options(
                         ModelImportOptionsHandler::new(&path),

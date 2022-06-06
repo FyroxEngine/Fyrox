@@ -55,6 +55,7 @@ pub struct PreviewPanel {
     position: Vector3<f32>,
     model: Handle<Node>,
     pub tools_panel: Handle<UiNode>,
+    pub allow_animations: bool,
 }
 
 impl PreviewPanel {
@@ -220,6 +221,7 @@ impl PreviewPanel {
             position: Default::default(),
             model: Default::default(),
             tools_panel,
+            allow_animations: true,
         }
     }
 
@@ -328,11 +330,20 @@ impl PreviewPanel {
         }
     }
 
-    pub async fn load_model(&mut self, model: &Path, engine: &mut GameEngine) -> bool {
+    pub async fn load_model(
+        &mut self,
+        model: &Path,
+        with_animations: bool,
+        engine: &mut GameEngine,
+    ) -> bool {
         self.clear(engine);
         if let Ok(model) = engine.resource_manager.request_model(model).await {
             let scene = &mut engine.scenes[self.scene];
-            self.model = model.instantiate_geometry(scene);
+            self.model = if with_animations {
+                model.instantiate(scene).root
+            } else {
+                model.instantiate_geometry(scene)
+            };
             self.fit_to_model(scene);
             true
         } else {
@@ -342,6 +353,13 @@ impl PreviewPanel {
 
     pub fn update(&mut self, engine: &mut GameEngine) {
         let scene = &mut engine.scenes[self.scene];
+
+        if self.allow_animations {
+            for animation in scene.animations.iter_mut() {
+                animation.set_enabled(true);
+                animation.get_pose().apply(&mut scene.graph);
+            }
+        }
 
         // Create new render target if preview frame has changed its size.
         let (rt_width, rt_height) = if let TextureKind::Rectangle { width, height } =
