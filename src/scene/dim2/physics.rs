@@ -485,16 +485,14 @@ impl PhysicsWorld {
         body2: RigidBodyHandle,
         params: GenericJoint,
     ) -> ImpulseJointHandle {
-        let handle = self.joints.set.insert(body1, body2, params);
+        let handle = self.joints.set.insert(body1, body2, params, false);
         self.joints.map.insert(handle, owner);
         handle
     }
 
     pub(crate) fn remove_joint(&mut self, handle: ImpulseJointHandle) {
         assert!(self.joints.map.remove_by_key(&handle).is_some());
-        self.joints
-            .set
-            .remove(handle, &mut self.islands, &mut self.bodies.set, false);
+        self.joints.set.remove(handle, false);
     }
 
     /// Draws physics world. Very useful for debugging, it allows you to see where are
