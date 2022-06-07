@@ -167,7 +167,7 @@ fn link_child_with_parent_component(
         // Link animation curve node with animation curve
         FbxComponent::AnimationCurveNode(anim_curve_node) => {
             if let FbxComponent::AnimationCurve(_) = child {
-                anim_curve_node.curves.push(child_handle);
+                anim_curve_node.curves.insert(property, child_handle);
             }
         }
         // Link deformer with sub-deformers

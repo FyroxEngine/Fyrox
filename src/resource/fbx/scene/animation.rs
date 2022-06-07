@@ -9,6 +9,7 @@ use crate::{
     },
     utils::log::Log,
 };
+use fxhash::FxHashMap;
 
 pub struct FbxTimeValuePair {
     pub time: f32,
@@ -97,7 +98,9 @@ pub enum FbxAnimationCurveNodeType {
 
 pub struct FbxAnimationCurveNode {
     pub actual_type: FbxAnimationCurveNodeType,
-    pub curves: Vec<Handle<FbxComponent>>,
+
+    /// Parameter name to curve mapping, usually it has `d|X`, `d|Y`, `d|Z` as key.
+    pub curves: FxHashMap<String, Handle<FbxComponent>>,
 }
 
 impl FbxAnimationCurveNode {
@@ -110,7 +113,7 @@ impl FbxAnimationCurveNode {
                 "S" | "AnimCurveNode::S" => FbxAnimationCurveNodeType::Scale,
                 _ => FbxAnimationCurveNodeType::Unknown,
             },
-            curves: Vec::new(),
+            curves: Default::default(),
         })
     }
 
@@ -118,17 +121,21 @@ impl FbxAnimationCurveNode {
         if self.curves.is_empty() {
             default
         } else {
-            let fetch_curve = |index: usize| {
+            let fetch_curve = |name: &str, default: f32| {
                 if let Some(FbxComponent::AnimationCurve(curve)) =
-                    self.curves.get(index).map(|c| scene.get(*c))
+                    self.curves.get(name).map(|c| scene.get(*c))
                 {
                     curve.eval(time)
                 } else {
-                    default[index]
+                    default
                 }
             };
 
-            Vector3::new(fetch_curve(0), fetch_curve(1), fetch_curve(2))
+            Vector3::new(
+                fetch_curve("d|X", default[0]),
+                fetch_curve("d|Y", default[1]),
+                fetch_curve("d|Z", default[2]),
+            )
         }
     }
 

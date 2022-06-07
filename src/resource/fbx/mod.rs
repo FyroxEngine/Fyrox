@@ -582,7 +582,7 @@ async fn convert_model(
 
             let mut next_time = f32::MAX;
             for node in [lcl_translation, lcl_rotation, lcl_scale].iter().flatten() {
-                for &curve_handle in node.curves.iter() {
+                for &curve_handle in node.curves.values() {
                     let curve_component = fbx_scene.get(curve_handle);
                     if let FbxComponent::AnimationCurve(curve) = curve_component {
                         for key in curve.keys.iter() {
