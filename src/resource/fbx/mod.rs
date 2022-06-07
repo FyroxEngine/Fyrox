@@ -567,15 +567,15 @@ async fn convert_model(
         let mut time = 0.0;
         loop {
             let translation = lcl_translation
-                .map(|curve| curve.eval_vec3(fbx_scene, time))
+                .map(|curve| curve.eval_vec3(fbx_scene, model.translation, time))
                 .unwrap_or(model.translation);
 
             let rotation = lcl_rotation
-                .map(|curve| curve.eval_quat(fbx_scene, time))
+                .map(|curve| curve.eval_quat(fbx_scene, model.rotation, time))
                 .unwrap_or(node_local_rotation);
 
             let scale = lcl_scale
-                .map(|curve| curve.eval_vec3(fbx_scene, time))
+                .map(|curve| curve.eval_vec3(fbx_scene, model.scale, time))
                 .unwrap_or(model.scale);
 
             track.add_key_frame(KeyFrame::new(time, translation, scale, rotation));

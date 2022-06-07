@@ -114,9 +114,9 @@ impl FbxAnimationCurveNode {
         })
     }
 
-    pub fn eval_vec3(&self, scene: &FbxScene, time: f32) -> Vector3<f32> {
+    pub fn eval_vec3(&self, scene: &FbxScene, default: Vector3<f32>, time: f32) -> Vector3<f32> {
         if self.curves.is_empty() {
-            Default::default()
+            default
         } else {
             let fetch_curve = |index: usize| {
                 if let Some(FbxComponent::AnimationCurve(curve)) =
@@ -124,7 +124,7 @@ impl FbxAnimationCurveNode {
                 {
                     curve.eval(time)
                 } else {
-                    0.0
+                    default[index]
                 }
             };
 
@@ -132,7 +132,12 @@ impl FbxAnimationCurveNode {
         }
     }
 
-    pub fn eval_quat(&self, scene: &FbxScene, time: f32) -> UnitQuaternion<f32> {
-        quat_from_euler(self.eval_vec3(scene, time))
+    pub fn eval_quat(
+        &self,
+        scene: &FbxScene,
+        default_euler: Vector3<f32>,
+        time: f32,
+    ) -> UnitQuaternion<f32> {
+        quat_from_euler(self.eval_vec3(scene, default_euler, time))
     }
 }
