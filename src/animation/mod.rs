@@ -1,14 +1,14 @@
 pub mod machine;
 
-use crate::engine::resource_manager::ResourceManager;
 use crate::{
     asset::ResourceState,
     core::{
         algebra::{UnitQuaternion, Vector3},
-        math::{clampf, wrapf},
+        math::wrapf,
         pool::{Handle, Pool, Ticket},
         visitor::{Visit, VisitResult, Visitor},
     },
+    engine::resource_manager::ResourceManager,
     resource::model::Model,
     scene::{graph::Graph, node::Node},
     utils::log::{Log, MessageKind},
@@ -166,7 +166,7 @@ impl Track {
             });
         }
 
-        time = clampf(time, 0.0, self.max_time);
+        time = time.clamp(0.0, self.max_time);
 
         let mut right_index = 0;
         for (i, keyframe) in self.frames.iter().enumerate() {
@@ -432,7 +432,7 @@ impl Animation {
         if self.looped {
             self.time_position = wrapf(time, 0.0, self.length);
         } else {
-            self.time_position = clampf(time, 0.0, self.length);
+            self.time_position = time.clamp(0.0, self.length);
         }
         self
     }

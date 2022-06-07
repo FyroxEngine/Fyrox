@@ -3,12 +3,7 @@ use crate::{
     brush::{Brush, GradientPoint},
     button::{ButtonBuilder, ButtonMessage},
     canvas::CanvasBuilder,
-    core::{
-        algebra::Vector2,
-        color::Color,
-        math::{self},
-        pool::Handle,
-    },
+    core::{algebra::Vector2, color::Color, pool::Handle},
     decorator::DecoratorBuilder,
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -170,7 +165,7 @@ impl Control for ScrollBar {
                 match *msg {
                     ScrollBarMessage::Value(value) => {
                         let old_value = self.value;
-                        let new_value = math::clampf(value, self.min, self.max);
+                        let new_value = value.clamp(self.min, self.max);
                         if (new_value - old_value).abs() > f32::EPSILON {
                             self.value = new_value;
                             self.invalidate_arrange();
@@ -199,7 +194,7 @@ impl Control for ScrollBar {
                                 std::mem::swap(&mut self.min, &mut self.max);
                             }
                             let old_value = self.value;
-                            let new_value = math::clampf(self.value, self.min, self.max);
+                            let new_value = self.value.clamp(self.min, self.max);
                             if (new_value - old_value).abs() > f32::EPSILON {
                                 ui.send_message(ScrollBarMessage::value(
                                     self.handle(),
@@ -224,7 +219,7 @@ impl Control for ScrollBar {
                                 std::mem::swap(&mut self.min, &mut self.max);
                             }
                             let old_value = self.value;
-                            let value = math::clampf(self.value, self.min, self.max);
+                            let value = self.value.clamp(self.min, self.max);
                             if (value - old_value).abs() > f32::EPSILON {
                                 ui.send_message(ScrollBarMessage::value(
                                     self.handle(),
@@ -273,7 +268,7 @@ impl Control for ScrollBar {
                                         let offset = mouse_pos.x - canvas.screen_position().x
                                             + self.offset.x;
                                         if span > 0.0 {
-                                            math::clampf(offset / span, 0.0, 1.0)
+                                            (offset / span).clamp(0.0, 1.0)
                                         } else {
                                             0.0
                                         }
@@ -283,7 +278,7 @@ impl Control for ScrollBar {
                                         let offset = mouse_pos.y - canvas.screen_position().y
                                             + self.offset.y;
                                         if span > 0.0 {
-                                            math::clampf(offset / span, 0.0, 1.0)
+                                            (offset / span).clamp(0.0, 1.0)
                                         } else {
                                             0.0
                                         }
@@ -528,7 +523,7 @@ impl ScrollBarBuilder {
 
         let min = self.min.unwrap_or(0.0);
         let max = self.max.unwrap_or(100.0);
-        let value = math::clampf(self.value.unwrap_or(0.0), min, max);
+        let value = self.value.unwrap_or(0.0).clamp(min, max);
 
         let value_text = if self.show_value {
             let value_text = TextBuilder::new(

@@ -415,17 +415,6 @@ pub fn wrap_angle(angle: f32) -> f32 {
     }
 }
 
-#[inline]
-pub fn clampf(v: f32, min: f32, max: f32) -> f32 {
-    if v < min {
-        min
-    } else if v > max {
-        max
-    } else {
-        v
-    }
-}
-
 /// There are two versions of remainder, the standard `%` operator which does `x - (x/y).trunc()*y` and IEEE remainder which does `x - (x/y).round()*y`.
 #[inline]
 pub fn ieee_remainder(x: f32, y: f32) -> f32 {

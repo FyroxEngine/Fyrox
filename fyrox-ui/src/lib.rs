@@ -59,7 +59,7 @@ use crate::{
     core::{
         algebra::Vector2,
         color::Color,
-        math::{clampf, Rect},
+        math::Rect,
         pool::{Handle, Pool},
         scope_profile,
     },
@@ -1100,8 +1100,8 @@ impl UserInterface {
 
             size = transform_size(size, &node.layout_transform);
 
-            size.x = clampf(size.x, node.min_size().x, node.max_size().x);
-            size.y = clampf(size.y, node.min_size().y, node.max_size().y);
+            size.x = size.x.clamp(node.min_size().x, node.max_size().x);
+            size.y = size.y.clamp(node.min_size().y, node.max_size().y);
 
             let mut desired_size = node.measure_override(self, size);
 
@@ -1116,8 +1116,8 @@ impl UserInterface {
                 desired_size.y = node.height();
             }
 
-            desired_size.x = clampf(desired_size.x, node.min_size().x, node.max_size().x);
-            desired_size.y = clampf(desired_size.y, node.min_size().y, node.max_size().y);
+            desired_size.x = desired_size.x.clamp(node.min_size().x, node.max_size().x);
+            desired_size.y = desired_size.y.clamp(node.min_size().y, node.max_size().y);
 
             desired_size += axes_margin;
 
