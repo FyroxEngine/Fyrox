@@ -314,6 +314,7 @@ impl AbsmEditor {
 
     fn set_data_model(&mut self, engine: &mut Engine, data_model: Option<AbsmDataModel>) {
         self.clear_command_stack();
+        self.state_viewer.clear(&engine.user_interface);
 
         self.data_model = data_model;
 
@@ -328,7 +329,6 @@ impl AbsmEditor {
             self.sync_to_model(engine);
         } else {
             self.state_graph_viewer.clear(&engine.user_interface);
-            self.state_viewer.clear(&engine.user_interface);
             self.previewer.clear(engine);
             self.parameter_panel.reset(&mut engine.user_interface, None);
             self.inspector.clear(&engine.user_interface);
