@@ -225,6 +225,12 @@ fn instantiate_node(
                 Handle::NONE
             };
 
+            if let Some(animation) = animations.try_get_mut(animation) {
+                animation
+                    .set_speed(play_animation.speed)
+                    .set_time_slice(play_animation.time_slice.clone().map(|s| s.0));
+            }
+
             PoseNode::make_play_animation(animation)
         }
         PoseNodeDefinition::BlendAnimations(blend_animations) => {
@@ -808,6 +814,17 @@ impl Machine {
                                     animation: new_animation,
                                     output_pose: Default::default(),
                                 };
+                            }
+
+                            // Apply definition properties to instance.
+                            if let Some(animation) =
+                                animations.try_get_mut(play_animation.animation)
+                            {
+                                animation
+                                    .set_speed(play_animation_definition.speed)
+                                    .set_time_slice(
+                                        play_animation_definition.time_slice.clone().map(|s| s.0),
+                                    );
                             }
                         } else {
                             unreachable!()

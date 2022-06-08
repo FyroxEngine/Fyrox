@@ -103,6 +103,8 @@ impl CanvasContextMenu {
                         parent_state: current_state,
                     },
                     animation: Default::default(),
+                    speed: 1.0,
+                    time_slice: None,
                 }))
             } else if message.destination() == self.create_blend_animations {
                 Some(PoseNodeDefinition::BlendAnimations(

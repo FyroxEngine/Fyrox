@@ -14,6 +14,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
+use std::ops::Range;
 use std::{
     collections::VecDeque,
     ops::{Index, IndexMut},
@@ -272,6 +273,8 @@ pub struct Animation {
     tracks: Vec<Track>,
     length: f32,
     time_position: f32,
+    #[visit(optional)] // Backward compatibility
+    time_slice: Option<Range<f32>>,
     ///////////////////////////////////////////////////////
     speed: f32,
     looped: bool,
@@ -409,6 +412,7 @@ impl Clone for Animation {
             pose: Default::default(),
             signals: self.signals.clone(),
             events: Default::default(),
+            time_slice: self.time_slice.clone(),
         }
     }
 }
@@ -429,12 +433,29 @@ impl Animation {
     }
 
     pub fn set_time_position(&mut self, time: f32) -> &mut Self {
+        let time_slice = self.time_slice.clone().unwrap_or(Range {
+            start: 0.0,
+            end: self.length,
+        });
+
         if self.looped {
-            self.time_position = wrapf(time, 0.0, self.length);
+            self.time_position = wrapf(time, time_slice.start, time_slice.end);
         } else {
-            self.time_position = time.clamp(0.0, self.length);
+            self.time_position = time.clamp(time_slice.start, time_slice.end);
         }
+
         self
+    }
+
+    pub fn set_time_slice(&mut self, time_slice: Option<Range<f32>>) {
+        if let Some(time_slice) = time_slice.clone() {
+            assert!(time_slice.start <= time_slice.end);
+        }
+
+        self.time_slice = time_slice;
+
+        // Ensure time position is in given time slice.
+        self.set_time_position(self.time_position);
     }
 
     pub fn rewind(&mut self) -> &mut Self {
@@ -693,6 +714,7 @@ impl Default for Animation {
             pose: Default::default(),
             signals: Default::default(),
             events: Default::default(),
+            time_slice: Default::default(),
         }
     }
 }

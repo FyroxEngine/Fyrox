@@ -1,4 +1,5 @@
 use crate::{absm::SelectedEntity, define_command_stack};
+use fyrox::animation::machine::node::play::TimeSlice;
 use fyrox::{
     animation::machine::{
         node::PoseNodeDefinition, parameter::ParameterDefinition, state::StateDefinition,
@@ -705,6 +706,22 @@ define_absm_swap_command!(SetStateNameCommand<Handle<StateDefinition>, String>[]
 define_absm_swap_command!(SetPlayAnimationResourceCommand<Handle<PoseNodeDefinition>, String>[](self, context) {
     if let PoseNodeDefinition::PlayAnimation(ref mut play_animation) = context.resource.absm_definition.nodes[self.handle] {
         &mut play_animation.animation
+    } else {
+        unreachable!()
+    }
+});
+
+define_absm_swap_command!(SetPlayAnimationSpeedCommand<Handle<PoseNodeDefinition>, f32>[](self, context) {
+    if let PoseNodeDefinition::PlayAnimation(ref mut play_animation) = context.resource.absm_definition.nodes[self.handle] {
+        &mut play_animation.speed
+    } else {
+        unreachable!()
+    }
+});
+
+define_absm_swap_command!(SetPlayAnimationTimeSliceCommand<Handle<PoseNodeDefinition>, Option<TimeSlice>>[](self, context) {
+    if let PoseNodeDefinition::PlayAnimation(ref mut play_animation) = context.resource.absm_definition.nodes[self.handle] {
+        &mut play_animation.time_slice
     } else {
         unreachable!()
     }
