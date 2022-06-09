@@ -1726,7 +1726,7 @@ fn update(editor: &mut Editor) {
         dt -= FIXED_TIMESTEP;
         editor.game_loop_data.elapsed_time += FIXED_TIMESTEP;
 
-        editor.engine.pre_update(dt);
+        editor.engine.pre_update(FIXED_TIMESTEP);
 
         editor.update(FIXED_TIMESTEP);
 
