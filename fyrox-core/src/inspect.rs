@@ -9,6 +9,11 @@ use std::{
     fmt::{self, Debug},
 };
 
+pub mod prelude {
+    //! Standard import for `Inspect` proc macro.
+    pub use super::{Inspect, PropertyInfo};
+}
+
 /// A value of a property.
 pub trait PropertyValue: Any + Debug {
     /// Casts `self` to a `&dyn Any`
