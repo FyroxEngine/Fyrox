@@ -59,7 +59,7 @@ pub struct PreviewPanel {
 }
 
 impl PreviewPanel {
-    pub fn new(engine: &mut GameEngine, width: u32, height: u32) -> Self {
+    pub fn new(engine: &mut GameEngine, width: u32, height: u32, allow_animations: bool) -> Self {
         let mut scene = Scene::new();
 
         let size = 10;
@@ -221,7 +221,7 @@ impl PreviewPanel {
             position: Default::default(),
             model: Default::default(),
             tools_panel,
-            allow_animations: true,
+            allow_animations,
         }
     }
 

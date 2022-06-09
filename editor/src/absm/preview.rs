@@ -31,7 +31,7 @@ pub struct Previewer {
 
 impl Previewer {
     pub fn new(engine: &mut Engine) -> Self {
-        let panel = PreviewPanel::new(engine, 300, 300);
+        let panel = PreviewPanel::new(engine, 300, 300, false);
 
         let ctx = &mut engine.user_interface.build_ctx();
         let window = WindowBuilder::new(WidgetBuilder::new())
