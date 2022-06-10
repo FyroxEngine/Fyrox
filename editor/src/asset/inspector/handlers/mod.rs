@@ -4,6 +4,7 @@ use fyrox::{
 };
 
 pub mod model;
+pub mod sound;
 pub mod texture;
 
 pub trait ImportOptionsHandler {

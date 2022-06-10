@@ -33,6 +33,7 @@ pub enum AssetKind {
     Texture,
     Sound,
     Shader,
+    Absm,
 }
 
 impl Deref for AssetItem {
@@ -157,6 +158,10 @@ impl AssetItemBuilder {
                     "shader" => {
                         kind = AssetKind::Shader;
                         load_image(include_bytes!("../../resources/embed/shader.png"))
+                    }
+                    "absm" => {
+                        kind = AssetKind::Absm;
+                        load_image(include_bytes!("../../resources/embed/absm.png"))
                     }
                     _ => None,
                 });

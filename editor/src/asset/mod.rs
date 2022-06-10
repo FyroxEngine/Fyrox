@@ -1,3 +1,4 @@
+use crate::asset::inspector::handlers::sound::SoundBufferImportOptionsHandler;
 use crate::utils::window_content;
 use crate::{
     asset::{
@@ -225,8 +226,13 @@ impl AssetBrowser {
                     &mut engine.user_interface,
                     sender,
                 ),
-                AssetKind::Sound => {}
+                AssetKind::Sound => self.inspector.inspect_resource_import_options(
+                    SoundBufferImportOptionsHandler::new(&item.path),
+                    &mut engine.user_interface,
+                    sender,
+                ),
                 AssetKind::Shader => {}
+                AssetKind::Absm => {}
             }
         } else if let Some(FileBrowserMessage::Path(path)) = message.data::<FileBrowserMessage>() {
             if message.destination() == self.folder_browser
@@ -256,6 +262,7 @@ impl AssetBrowser {
                                     | "ogg"
                                     | "wav"
                                     | "shader"
+                                    | "absm"
                             )
                         }
 
