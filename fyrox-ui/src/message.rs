@@ -17,13 +17,7 @@ use crate::{
     core::{algebra::Vector2, pool::Handle},
     UiNode,
 };
-use std::{
-    any::Any,
-    cell::Cell,
-    fmt::Debug,
-    ops::{Deref, DerefMut},
-    rc::Rc,
-};
+use std::{any::Any, cell::Cell, fmt::Debug, rc::Rc};
 
 #[macro_export]
 macro_rules! define_constructor {
@@ -67,29 +61,6 @@ macro_rules! define_constructor {
                 flags: 0
             }
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct UserMessageData(pub Box<dyn MessageData>);
-
-impl Deref for UserMessageData {
-    type Target = dyn MessageData;
-
-    fn deref(&self) -> &Self::Target {
-        &*self.0
-    }
-}
-
-impl DerefMut for UserMessageData {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.0
-    }
-}
-
-impl PartialEq for UserMessageData {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.compare(&*other.0)
     }
 }
 
