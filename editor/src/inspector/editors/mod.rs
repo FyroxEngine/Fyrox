@@ -1,23 +1,23 @@
-use crate::inspector::editors::script::ScriptPropertyEditorDefinition;
 use crate::{
     inspector::editors::{
         handle::HandlePropertyEditorDefinition,
         material::MaterialPropertyEditorDefinition,
-        resource::{
-            ModelResourcePropertyEditorDefinition, SoundBufferResourcePropertyEditorDefinition,
-        },
+        resource::{ModelResourcePropertyEditorDefinition, ResourceFieldPropertyEditorDefinition},
+        script::ScriptPropertyEditorDefinition,
         texture::TexturePropertyEditorDefinition,
     },
     Message,
 };
 use fyrox::{
-    core::{parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
+    animation::machine::MachineInstantiationError,
+    core::{futures::executor::block_on, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
     gui::inspector::editors::{
         array::ArrayPropertyEditorDefinition, collection::VecCollectionPropertyEditorDefinition,
         enumeration::EnumPropertyEditorDefinition,
         inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
     resource::{
+        absm::{AbsmResource, AbsmResourceState},
         model::MaterialSearchOptions,
         texture::{
             CompressionOptions, TextureMagnificationFilter, TextureMinificationFilter,
@@ -49,11 +49,12 @@ use fyrox::{
             effect::{BaseEffect, EffectInput},
             Biquad, DistanceModel, Status,
         },
+        sound::{SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
         terrain::Layer,
         transform::Transform,
     },
 };
-use std::sync::mpsc::Sender;
+use std::{rc::Rc, sync::mpsc::Sender};
 
 pub mod handle;
 pub mod material;
@@ -103,7 +104,20 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<f32>::new_optional());
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
     container.insert(ModelResourcePropertyEditorDefinition);
-    container.insert(SoundBufferResourcePropertyEditorDefinition);
+    container.insert(ResourceFieldPropertyEditorDefinition::<
+        SoundBufferResource,
+        SoundBufferState,
+        SoundBufferResourceLoadError,
+    >::new(Rc::new(|resource_manager, path| {
+        block_on(resource_manager.request_sound_buffer(path))
+    })));
+    container.insert(ResourceFieldPropertyEditorDefinition::<
+        AbsmResource,
+        AbsmResourceState,
+        MachineInstantiationError,
+    >::new(Rc::new(|resource_manager, path| {
+        block_on(resource_manager.request_absm(path))
+    })));
     container.insert(InspectablePropertyEditorDefinition::<InteractionGroups>::new());
     container.insert(InspectablePropertyEditorDefinition::<ColliderShape>::new());
     container.insert(InspectablePropertyEditorDefinition::<GeometrySource>::new());
