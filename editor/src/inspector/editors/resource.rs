@@ -20,7 +20,6 @@ use fyrox::{
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
     },
-    resource::model::Model,
 };
 use std::sync::Arc;
 use std::{
@@ -30,9 +29,6 @@ use std::{
     path::Path,
     rc::Rc,
 };
-
-#[derive(Debug)]
-pub struct ModelResourcePropertyEditorDefinition;
 
 fn resource_path<T, S, E>(resource: &Option<T>) -> String
 where
@@ -44,43 +40,6 @@ where
         .as_ref()
         .map(|m| m.state().path().to_string_lossy().to_string())
         .unwrap_or_else(|| "None".to_string())
-}
-
-impl PropertyEditorDefinition for ModelResourcePropertyEditorDefinition {
-    fn value_type_id(&self) -> TypeId {
-        TypeId::of::<Option<Model>>()
-    }
-
-    fn create_instance(
-        &self,
-        ctx: PropertyEditorBuildContext,
-    ) -> Result<PropertyEditorInstance, InspectorError> {
-        let value = ctx.property_info.cast_value::<Option<Model>>()?;
-
-        Ok(PropertyEditorInstance::Simple {
-            editor: TextBuilder::new(WidgetBuilder::new())
-                .with_text(resource_path(value))
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .build(ctx.build_context),
-        })
-    }
-
-    fn create_message(
-        &self,
-        ctx: PropertyEditorMessageContext,
-    ) -> Result<Option<UiMessage>, InspectorError> {
-        let value = ctx.property_info.cast_value::<Option<Model>>()?;
-
-        Ok(Some(TextMessage::text(
-            ctx.instance,
-            MessageDirection::ToWidget,
-            resource_path(value),
-        )))
-    }
-
-    fn translate_message(&self, _ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        None
-    }
 }
 
 #[derive(Debug)]

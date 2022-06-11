@@ -1,9 +1,7 @@
 use crate::{
     inspector::editors::{
-        handle::HandlePropertyEditorDefinition,
-        material::MaterialPropertyEditorDefinition,
-        resource::{ModelResourcePropertyEditorDefinition, ResourceFieldPropertyEditorDefinition},
-        script::ScriptPropertyEditorDefinition,
+        handle::HandlePropertyEditorDefinition, material::MaterialPropertyEditorDefinition,
+        resource::ResourceFieldPropertyEditorDefinition, script::ScriptPropertyEditorDefinition,
         texture::TexturePropertyEditorDefinition,
     },
     Message,
@@ -16,9 +14,11 @@ use fyrox::{
         enumeration::EnumPropertyEditorDefinition,
         inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
+    material::shader::{Shader, ShaderError, ShaderState},
     resource::{
         absm::{AbsmResource, AbsmResourceState},
-        model::MaterialSearchOptions,
+        curve::{CurveResource, CurveResourceError, CurveResourceState},
+        model::{MaterialSearchOptions, Model, ModelData, ModelLoadError},
         texture::{
             CompressionOptions, TextureMagnificationFilter, TextureMinificationFilter,
             TextureWrapMode,
@@ -103,7 +103,13 @@ pub fn make_property_editors_container(
     container.insert(make_status_enum_editor_definition());
     container.insert(EnumPropertyEditorDefinition::<f32>::new_optional());
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
-    container.insert(ModelResourcePropertyEditorDefinition);
+    container.insert(ResourceFieldPropertyEditorDefinition::<
+        Model,
+        ModelData,
+        ModelLoadError,
+    >::new(Rc::new(|resource_manager, path| {
+        block_on(resource_manager.request_model(path))
+    })));
     container.insert(ResourceFieldPropertyEditorDefinition::<
         SoundBufferResource,
         SoundBufferState,
@@ -117,6 +123,20 @@ pub fn make_property_editors_container(
         MachineInstantiationError,
     >::new(Rc::new(|resource_manager, path| {
         block_on(resource_manager.request_absm(path))
+    })));
+    container.insert(ResourceFieldPropertyEditorDefinition::<
+        CurveResource,
+        CurveResourceState,
+        CurveResourceError,
+    >::new(Rc::new(|resource_manager, path| {
+        block_on(resource_manager.request_curve(path))
+    })));
+    container.insert(ResourceFieldPropertyEditorDefinition::<
+        Shader,
+        ShaderState,
+        ShaderError,
+    >::new(Rc::new(|resource_manager, path| {
+        block_on(resource_manager.request_shader(path))
     })));
     container.insert(InspectablePropertyEditorDefinition::<InteractionGroups>::new());
     container.insert(InspectablePropertyEditorDefinition::<ColliderShape>::new());
