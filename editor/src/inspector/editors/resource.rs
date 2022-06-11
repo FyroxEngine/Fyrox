@@ -117,6 +117,9 @@ where
     define_constructor!(ResourceFieldMessage:Value => fn value(Option<T>), layout: false);
 }
 
+pub type ResourceLoaderCallback<T, E> =
+    Rc<dyn Fn(&ResourceManager, &Path) -> Result<T, Option<Arc<E>>>>;
+
 pub struct ResourceField<T, S, E>
 where
     T: Deref<Target = Resource<S, E>>,
@@ -127,7 +130,7 @@ where
     name: Handle<UiNode>,
     resource_manager: ResourceManager,
     resource: Option<T>,
-    loader: Rc<dyn Fn(&ResourceManager, &Path) -> Result<T, Option<Arc<E>>>>,
+    loader: ResourceLoaderCallback<T, E>,
 }
 
 impl<T, S, E> Debug for ResourceField<T, S, E>
@@ -150,7 +153,7 @@ where
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.clone(),
-            name: self.name.clone(),
+            name: self.name,
             resource_manager: self.resource_manager.clone(),
             resource: self.resource.clone(),
             loader: self.loader.clone(),
@@ -242,7 +245,7 @@ where
 {
     widget_builder: WidgetBuilder,
     resource: Option<T>,
-    loader: Rc<dyn Fn(&ResourceManager, &Path) -> Result<T, Option<Arc<E>>>>,
+    loader: ResourceLoaderCallback<T, E>,
 }
 
 impl<T, S, E> ResourceFieldBuilder<T, S, E>
@@ -251,10 +254,7 @@ where
     S: ResourceData,
     E: ResourceLoadError,
 {
-    pub fn new(
-        widget_builder: WidgetBuilder,
-        loader: Rc<dyn Fn(&ResourceManager, &Path) -> Result<T, Option<Arc<E>>>>,
-    ) -> Self {
+    pub fn new(widget_builder: WidgetBuilder, loader: ResourceLoaderCallback<T, E>) -> Self {
         Self {
             widget_builder,
             resource: None,
@@ -322,7 +322,7 @@ where
     S: ResourceData,
     E: ResourceLoadError,
 {
-    loader: Rc<dyn Fn(&ResourceManager, &Path) -> Result<T, Option<Arc<E>>>>,
+    loader: ResourceLoaderCallback<T, E>,
 }
 
 impl<T, S, E> ResourceFieldPropertyEditorDefinition<T, S, E>
@@ -331,7 +331,7 @@ where
     S: ResourceData,
     E: ResourceLoadError,
 {
-    pub fn new(loader: Rc<dyn Fn(&ResourceManager, &Path) -> Result<T, Option<Arc<E>>>>) -> Self {
+    pub fn new(loader: ResourceLoaderCallback<T, E>) -> Self {
         Self { loader }
     }
 }

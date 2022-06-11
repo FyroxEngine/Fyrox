@@ -47,11 +47,8 @@ impl ImportOptionsHandler for SoundBufferImportOptionsHandler {
 
     fn handle_property_changed(&mut self, property_changed: &PropertyChanged) {
         if let FieldKind::Object(ref args) = property_changed.value {
-            match property_changed.name.as_ref() {
-                SoundBufferImportOptions::STREAM => {
-                    self.options.stream = args.cast_clone().unwrap();
-                }
-                _ => (),
+            if let SoundBufferImportOptions::STREAM = property_changed.name.as_ref() {
+                self.options.stream = args.cast_clone().unwrap();
             }
         }
     }
