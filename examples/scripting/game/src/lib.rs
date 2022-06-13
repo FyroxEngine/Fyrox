@@ -245,16 +245,16 @@ impl ScriptTrait for Player {
 
     fn on_update(&mut self, context: ScriptContext) {
         let ScriptContext {
-            dt, node, scene, ..
+            dt, handle, scene, ..
         } = context;
 
-        node.local_transform_mut()
-            .set_rotation(UnitQuaternion::from_axis_angle(
-                &Vector3::y_axis(),
-                self.yaw,
-            ));
+        if let Some(body) = scene.graph[handle].cast_mut::<RigidBody>() {
+            body.local_transform_mut()
+                .set_rotation(UnitQuaternion::from_axis_angle(
+                    &Vector3::y_axis(),
+                    self.yaw,
+                ));
 
-        if let Some(body) = node.cast_mut::<RigidBody>() {
             let look_vector = body
                 .look_vector()
                 .try_normalize(f32::EPSILON)
@@ -390,7 +390,7 @@ impl ScriptTrait for Jumper {
     fn on_init(&mut self, _context: ScriptContext) {}
 
     fn on_update(&mut self, context: ScriptContext) {
-        if let Some(rigid_body) = context.node.cast_mut::<RigidBody>() {
+        if let Some(rigid_body) = context.scene.graph[context.handle].cast_mut::<RigidBody>() {
             if self.timer > self.period {
                 rigid_body.apply_force(Vector3::new(0.0, 200.0, 0.0));
                 self.timer = 0.0;

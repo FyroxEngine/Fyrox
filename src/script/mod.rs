@@ -1,4 +1,7 @@
-use crate::engine::resource_manager::ResourceManager;
+#![warn(missing_docs)]
+
+//! Script is used to add custom logic to scene nodes. See [ScriptTrait] for more info.
+
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -6,6 +9,7 @@ use crate::{
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
+    engine::resource_manager::ResourceManager,
     event::Event,
     gui::inspector::PropertyChanged,
     plugin::Plugin,
@@ -19,7 +23,9 @@ use std::{
 
 pub mod constructor;
 
+/// Base script trait is used to automatically implement some trait to reduce amount of boilerplate code.
 pub trait BaseScript: Visit + Inspect + Send + Debug + 'static {
+    /// Creates exact copy of the script.
     fn clone_box(&self) -> Box<dyn ScriptTrait>;
 }
 
@@ -32,15 +38,36 @@ where
     }
 }
 
-pub struct ScriptContext<'a, 'b, 'c> {
+/// A set of data, that provides contextual information for script methods.
+pub struct ScriptContext<'a, 'b> {
+    /// Amount of time that passed from last call. It has valid values only when called from `on_update`.
     pub dt: f32,
+
+    /// A reference to the plugin which the script instance belongs to. You can use it to access plugin data
+    /// inside script methods. For example you can store some "global" data in the plugin - for example a
+    /// controls configuration, some entity managers and so on.
     pub plugin: &'a mut dyn Plugin,
-    pub node: &'b mut Node,
+
+    /// Handle of a node to which the script instance belongs to. To access the node itself use `scene` field:
+    ///
+    /// ```rust
+    /// # use fyrox::script::ScriptContext;
+    /// # fn foo(context: ScriptContext) {
+    /// let node_mut = &mut context.scene.graph[context.handle];
+    /// # }
+    /// ```
     pub handle: Handle<Node>,
-    pub scene: &'c mut Scene,
+
+    /// A reference to a scene the script instance belongs to. You have full mutable access to scene content
+    /// in most of the script methods.
+    pub scene: &'b mut Scene,
+
+    /// A reference to resource manager, use it to load resources.
     pub resource_manager: &'a ResourceManager,
 }
 
+/// Script is a set predefined methods that are called on various stages by the engine. It is used to add
+/// custom behaviour to game entities.
 pub trait ScriptTrait: BaseScript {
     /// Mutates the state of the script according to the [`PropertyChanged`] info. It is invoked
     /// from the editor when user changes property of the script from the inspector.
@@ -71,6 +98,7 @@ pub trait ScriptTrait: BaseScript {
     /// use fyrox::core::uuid::Uuid;
     /// use fyrox::core::inspect::{Inspect, PropertyInfo};
     /// use fyrox::core::visitor::prelude::*;
+    /// use fyrox::handle_object_property_changed;
     ///
     /// #[derive(Inspect, Visit, Debug, Clone)]
     /// struct MyScript {
@@ -82,18 +110,7 @@ pub trait ScriptTrait: BaseScript {
     ///
     /// impl ScriptTrait for MyScript {
     ///     fn on_property_changed(&mut self, args: &PropertyChanged) -> bool {
-    ///         if let FieldKind::Object(ref value) = args.value {
-    ///             return match args.name.as_ref() {
-    ///                 Self::FOO => value.try_override(&mut self.foo),
-    ///                 Self::BAR => value.try_override(&mut self.bar),
-    ///                 _ => false
-    ///             }
-    ///         }
-    ///
-    ///         // Nothing changed, in this case the editor will give you a diagnostic message
-    ///         // that the change in Inspector had no effect and probably property handler is
-    ///         // missing.
-    ///         false
+    ///         handle_object_property_changed!(self, args, Self::FOO => foo, Self::BAR => bar)
     ///     }
     ///
     ///     // ...
@@ -221,6 +238,7 @@ pub trait ScriptTrait: BaseScript {
     fn plugin_uuid(&self) -> Uuid;
 }
 
+/// A wrapper for actual script instance internals, it used by the engine.
 #[derive(Debug)]
 pub struct Script(pub Box<dyn ScriptTrait>);
 
@@ -257,6 +275,7 @@ impl Clone for Script {
 }
 
 impl Script {
+    /// Creates new script wrapper using given script instance.
     pub fn new<T: ScriptTrait>(script_object: T) -> Self {
         Self(Box::new(script_object))
     }

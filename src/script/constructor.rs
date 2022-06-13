@@ -10,6 +10,8 @@ use crate::{
 };
 use std::collections::BTreeMap;
 
+/// Script constructor contains all required data and methods to create script instances
+/// by their UUIDs. Its is primarily used for serialization needs.
 pub struct ScriptConstructor {
     /// Parent plugin UUID.
     pub plugin_uuid: Uuid,

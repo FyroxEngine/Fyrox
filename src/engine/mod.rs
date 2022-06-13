@@ -503,24 +503,22 @@ impl Engine {
         for node_index in 0..scene.graph.capacity() {
             let handle = scene.graph.handle_from_index(node_index);
 
-            // We're interested only in nodes with scripts.
-            if scene
-                .graph
-                .try_get(handle)
-                .map_or(true, |node| node.script.is_none())
-            {
-                continue;
-            }
-
-            // If a node has script assigned, then temporarily move it out of the pool with taking
-            // the ownership to satisfy borrow checker. Moving a node out of the pool is fast, because
-            // it is just a copy of 16 bytes which can be performed in a single instruction on modern
-            // CPUs.
-            let (ticket, mut node) = scene.graph.take_reserve_internal(handle);
-
-            // Take the script off the node to get mutable borrow to it without mutably borrowing
-            // the node itself. This operation is fast as well.
-            let mut script = node.script.take().unwrap();
+            // Take a script from node. We're temporarily taking ownership over script
+            // instance.
+            let mut script = match scene.graph.try_get_mut(handle) {
+                Some(node) => {
+                    if let Some(script) = node.script.take() {
+                        script
+                    } else {
+                        // No script.
+                        continue;
+                    }
+                }
+                None => {
+                    // Invalid handle.
+                    continue;
+                }
+            };
 
             // Find respective plugin.
             if let Some(plugin) = self
@@ -532,7 +530,6 @@ impl Engine {
                 let context = ScriptContext {
                     dt,
                     plugin: &mut **plugin,
-                    node: &mut node,
                     handle,
                     scene,
                     resource_manager: &self.resource_manager,
@@ -542,10 +539,7 @@ impl Engine {
             }
 
             // Put the script back to the node.
-            node.script = Some(script);
-
-            // Put the node back in the graph.
-            scene.graph.put_back_internal(ticket, node);
+            scene.graph[handle].script = Some(script);
         }
     }
 

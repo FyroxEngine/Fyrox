@@ -53,7 +53,6 @@ impl ScriptTrait for Bot {
         let ScriptContext {
             scene,
             resource_manager,
-            node,
             handle,
             ..
         } = context;
@@ -70,7 +69,7 @@ impl ScriptTrait for Bot {
             // Scale the model because it is too big.
             .set_scale(Vector3::new(0.01, 0.01, 0.01));
 
-        scene.graph.link_nodes_reserved(model, node, handle);
+        scene.graph.link_nodes(model, handle);
 
         self.machine = Some(block_on(BotAnimationMachine::new(
             scene,
@@ -88,8 +87,10 @@ impl ScriptTrait for Bot {
 
     fn on_update(&mut self, context: ScriptContext) {
         let ScriptContext {
-            scene, node, dt, ..
+            scene, handle, dt, ..
         } = context;
+
+        let node = &mut scene.graph[handle];
 
         let attack_distance = 0.6;
 
