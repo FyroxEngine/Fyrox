@@ -313,7 +313,7 @@ impl Script {
 macro_rules! handle_object_property_changed {
     ($self:expr, $args:expr, $($prop:path => $field:tt),*) => {
         match $args.value {
-            FieldKind::Object(ref value) => {
+            $crate::gui::inspector::FieldKind::Object(ref value) => {
                 match $args.name.as_ref() {
                     $($prop => {
                         $self.$field = value.cast_clone().unwrap();
@@ -374,15 +374,15 @@ macro_rules! handle_collection_property_changed {
             FieldKind::Collection(ref collection) => match $args.name.as_ref() {
                  $($prop => {
                      match **collection {
-                        CollectionChanged::Add => {
+                        $crate::gui::inspector::CollectionChanged::Add => {
                             $self.$field.push(Default::default());
                             true
                         }
-                        CollectionChanged::Remove(i) => {
+                        $crate::gui::inspector::CollectionChanged::Remove(i) => {
                             $self.$field.remove(i);
                             true
                         }
-                        CollectionChanged::ItemChanged {
+                        $crate::gui::inspector::CollectionChanged::ItemChanged {
                             index,
                             ref property,
                         } => $self.$field[index].on_property_changed(property),
