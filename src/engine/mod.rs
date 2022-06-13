@@ -538,8 +538,11 @@ impl Engine {
                 func(&mut script, context);
             }
 
-            // Put the script back to the node.
-            scene.graph[handle].script = Some(script);
+            // Put the script back to the node. We must do a checked borrow, because it is possible
+            // that the node is already destroyed by script logic.
+            if let Some(node) = scene.graph.try_get_mut(handle) {
+                node.script = Some(script);
+            }
         }
     }
 
