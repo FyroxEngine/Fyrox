@@ -515,6 +515,11 @@ impl Machine {
     }
 
     #[inline]
+    pub fn parameters(&self) -> &ParameterContainer {
+        &self.parameters
+    }
+
+    #[inline]
     pub fn set_entry_state(&mut self, entry_state: Handle<State>) {
         self.active_state = entry_state;
         self.entry_state = entry_state;
