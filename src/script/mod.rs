@@ -16,6 +16,7 @@ use crate::{
     scene::{node::Node, Scene},
 };
 use fxhash::FxHashMap;
+use std::any::Any;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -27,14 +28,28 @@ pub mod constructor;
 pub trait BaseScript: Visit + Inspect + Send + Debug + 'static {
     /// Creates exact copy of the script.
     fn clone_box(&self) -> Box<dyn ScriptTrait>;
+
+    /// Returns a reference to `self` as a reference to Any trait. It is used for dynamic type casting.
+    fn as_any(&self) -> &dyn Any;
+
+    /// Returns a reference to `self` as a reference to Any trait. It is used for dynamic type casting.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl<T> BaseScript for T
 where
-    T: Clone + ScriptTrait,
+    T: Clone + ScriptTrait + Any,
 {
     fn clone_box(&self) -> Box<dyn ScriptTrait> {
         Box::new(self.clone())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -278,6 +293,16 @@ impl Script {
     /// Creates new script wrapper using given script instance.
     pub fn new<T: ScriptTrait>(script_object: T) -> Self {
         Self(Box::new(script_object))
+    }
+
+    /// Performs downcasting to a particular type.
+    pub fn cast<T: ScriptTrait>(&self) -> Option<&T> {
+        self.0.as_any().downcast_ref::<T>()
+    }
+
+    /// Performs downcasting to a particular type.
+    pub fn cast_mut<T: ScriptTrait>(&mut self) -> Option<&mut T> {
+        self.0.as_any_mut().downcast_mut::<T>()
     }
 }
 
