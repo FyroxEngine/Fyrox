@@ -414,23 +414,23 @@ impl MachineDefinition {
 
         // Instantiate transitions.
         for (transition_definition_handle, transition_definition) in self.transitions.pair_iter() {
-            let mut transition = Transition::new(
-                transition_definition.name.as_ref(),
-                state_map
+            machine.add_transition(Transition {
+                definition: transition_definition_handle,
+                name: transition_definition.name.clone(),
+                transition_time: transition_definition.transition_time,
+                elapsed_time: 0.0,
+                source: state_map
                     .get(&transition_definition.source)
                     .cloned()
                     .expect("There must be a respective source state!"),
-                state_map
+                dest: state_map
                     .get(&transition_definition.dest)
                     .cloned()
                     .expect("There must be a respective dest state!"),
-                transition_definition.transition_time,
-                transition_definition.rule.as_str(),
-            );
-
-            transition.definition = transition_definition_handle;
-
-            machine.add_transition(transition);
+                rule: transition_definition.rule.clone(),
+                invert_rule: transition_definition.invert_rule,
+                blend_factor: 0.0,
+            });
         }
 
         machine.set_entry_state(
