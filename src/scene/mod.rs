@@ -116,9 +116,9 @@ pub trait DirectlyInheritableEntity: Any {
 #[macro_export]
 macro_rules! impl_directly_inheritable_entity_trait {
     ($ty:ty; $($name:ident),*) => {
-        impl crate::scene::DirectlyInheritableEntity for $ty {
+        impl $crate::scene::DirectlyInheritableEntity for $ty {
             fn inheritable_properties_ref(&self)
-                -> Vec<&dyn crate::core::variable::InheritableVariable>
+                -> Vec<&dyn $crate::core::variable::InheritableVariable>
             {
                 vec![
                     $(&self.$name),*
@@ -126,7 +126,7 @@ macro_rules! impl_directly_inheritable_entity_trait {
             }
 
             fn inheritable_properties_mut(&mut self)
-                -> Vec<&mut dyn crate::core::variable::InheritableVariable>
+                -> Vec<&mut dyn $crate::core::variable::InheritableVariable>
             {
                 vec![
                     $(&mut self.$name),*
