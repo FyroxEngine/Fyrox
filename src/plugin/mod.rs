@@ -3,14 +3,13 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::pool::Handle,
-    core::uuid::Uuid,
+    core::{pool::Handle, uuid::Uuid},
     engine::{resource_manager::ResourceManager, SerializationContext},
     event::Event,
     renderer::Renderer,
     scene::{Scene, SceneContainer},
 };
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 /// Contains plugin environment for the registration stage.
 pub struct PluginRegistrationContext {
@@ -49,6 +48,40 @@ pub struct PluginContext<'a> {
     /// A reference to serialization context of the engine. See [`SerializationContext`] for more
     /// info.
     pub serialization_context: Arc<SerializationContext>,
+}
+
+/// Base plugin automatically implements type casting for plugins.
+pub trait BasePlugin: Any + 'static {
+    /// Returns a reference to Any trait. It is used for type casting.
+    fn as_any(&self) -> &dyn Any;
+
+    /// Returns a reference to Any trait. It is used for type casting.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+
+impl<T> BasePlugin for T
+where
+    T: Any + 'static,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+impl dyn Plugin {
+    /// Performs downcasting to a particular type.
+    pub fn cast<T: Plugin>(&self) -> Option<&T> {
+        self.as_any().downcast_ref::<T>()
+    }
+
+    /// Performs downcasting to a particular type.
+    pub fn cast_mut<T: Plugin>(&mut self) -> Option<&mut T> {
+        self.as_any_mut().downcast_mut::<T>()
+    }
 }
 
 /// Plugin is a convenient interface that allow you to extend engine's functionality.
@@ -159,7 +192,7 @@ pub struct PluginContext<'a> {
 ///     }
 /// }
 /// ```
-pub trait Plugin: 'static {
+pub trait Plugin: BasePlugin {
     /// The method is called when the plugin was just registered in the engine. The main use of the
     /// method is to register scripts and custom scene graph nodes in [`SerializationContext`].
     fn on_register(&mut self, #[allow(unused_variables)] context: PluginRegistrationContext) {}
