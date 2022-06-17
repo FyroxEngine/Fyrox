@@ -3,8 +3,7 @@
 
 use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
-    core::variable::TemplateVariable,
-    core::VecExtensions,
+    core::{futures::future::JoinAll, variable::TemplateVariable, VecExtensions},
     engine::resource_manager::{
         container::{
             entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
@@ -201,10 +200,13 @@ where
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            crate::core::futures::executor::block_on(crate::core::futures::future::join_all(
-                self.resources.iter().map(|t| t.value.clone()),
-            ));
+            crate::core::futures::executor::block_on(self.wait_concurrent());
         }
+    }
+
+    /// Waits until all resources are loaded (or failed to load) in concurrent manner.
+    pub fn wait_concurrent(&self) -> JoinAll<T> {
+        crate::core::futures::future::join_all(self.resources.iter().map(|t| t.value.clone()))
     }
 
     /// Tries to load a resources at a given path.

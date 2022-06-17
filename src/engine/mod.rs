@@ -580,6 +580,16 @@ impl Engine {
     /// engine as a framework, then you should not call this method because you'll most likely
     /// do something wrong.
     pub fn initialize_scene_scripts(&mut self, scene: Handle<Scene>, dt: f32) {
+        // Wait until all resources are fully loaded (or failed to load). It is needed
+        // because some scripts may use resources and any attempt to use non loaded resource
+        // will result in panic.
+        block_on(
+            self.resource_manager
+                .state()
+                .containers_mut()
+                .wait_concurrent(),
+        );
+
         self.process_scripts(scene, dt, |script, context| script.on_init(context))
     }
 

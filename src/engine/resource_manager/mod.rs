@@ -31,6 +31,7 @@ use crate::{
     },
     utils::{log::Log, watcher::FileSystemWatcher},
 };
+use fyrox_core::futures::join;
 use fyrox_sound::buffer::SoundBufferResource;
 use notify::DebouncedEvent;
 use std::{path::Path, sync::Arc};
@@ -108,6 +109,18 @@ impl ContainersStorage {
         L: 'static + ResourceLoader<AbsmResource, AbsmImportOptions>,
     {
         self.absm.set_loader(loader);
+    }
+
+    /// Wait until all resources are loaded (or failed to load).
+    pub async fn wait_concurrent(&self) {
+        join!(
+            self.models.wait_concurrent(),
+            self.absm.wait_concurrent(),
+            self.curves.wait_concurrent(),
+            self.shaders.wait_concurrent(),
+            self.textures.wait_concurrent(),
+            self.sound_buffers.wait_concurrent()
+        );
     }
 }
 
