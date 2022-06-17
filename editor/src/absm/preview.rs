@@ -122,13 +122,16 @@ impl Previewer {
             // Remove previous machine first (if any).
             self.remove_current_absm(engine);
 
+            let animations = block_on(resource.load_animations(engine.resource_manager.clone()));
+
             // Instantiate new immediately.
-            self.current_absm = block_on(resource.instantiate(
-                self.panel.model(),
-                &mut engine.scenes[self.panel.scene()],
-                engine.resource_manager.clone(),
-            ))
-            .unwrap();
+            self.current_absm = resource
+                .instantiate(
+                    self.panel.model(),
+                    &mut engine.scenes[self.panel.scene()],
+                    animations,
+                )
+                .unwrap();
         }
     }
 

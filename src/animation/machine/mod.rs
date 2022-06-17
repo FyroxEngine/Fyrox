@@ -207,14 +207,17 @@ impl From<Option<Arc<ModelLoadError>>> for MachineInstantiationError {
 fn instantiate_node(
     node_definition: &PoseNodeDefinition,
     definition_handle: Handle<PoseNodeDefinition>,
-    animation_resources: &FxHashMap<String, Model>,
+    animations_pack: &AnimationsPack,
     root: Handle<Node>,
     graph: &mut Graph,
     animations: &mut AnimationContainer,
 ) -> Result<PoseNode, MachineInstantiationError> {
     let mut node = match node_definition {
         PoseNodeDefinition::PlayAnimation(play_animation) => {
-            let resource = animation_resources.get(&play_animation.animation).unwrap();
+            let resource = animations_pack
+                .animations()
+                .get(&play_animation.animation)
+                .unwrap();
 
             let animation = if matches!(*resource.state(), ResourceState::Ok(_)) {
                 *resource
@@ -267,19 +270,25 @@ fn instantiate_node(
     Ok(node)
 }
 
-async fn load_animation_resources(
-    definition: &MachineDefinition,
-    resource_manager: ResourceManager,
-) -> FxHashMap<String, Model> {
-    let models = definition
-        .collect_animation_paths()
-        .into_iter()
-        .map(|path| (path.clone(), resource_manager.request_model(path)))
-        .collect::<FxHashMap<_, _>>();
+pub struct AnimationsPack {
+    animations: FxHashMap<String, Model>,
+}
 
-    join_all(models.values().cloned()).await;
+impl AnimationsPack {
+    pub async fn load(paths: &[String], resource_manager: ResourceManager) -> Self {
+        let animations = paths
+            .iter()
+            .map(|path| (path.clone(), resource_manager.request_model(path)))
+            .collect::<FxHashMap<_, _>>();
 
-    models
+        join_all(animations.values().cloned()).await;
+
+        Self { animations }
+    }
+
+    pub fn animations(&self) -> &FxHashMap<String, Model> {
+        &self.animations
+    }
 }
 
 impl MachineDefinition {
@@ -294,6 +303,10 @@ impl MachineDefinition {
                 }
             })
             .collect()
+    }
+
+    pub async fn animations(&self, resource_manager: ResourceManager) -> AnimationsPack {
+        AnimationsPack::load(&self.collect_animation_paths(), resource_manager).await
     }
 
     /// Instantiates animation blending state machine to the specified scene for a given root node.
@@ -316,15 +329,13 @@ impl MachineDefinition {
     /// The method is intended to be used with the ABSM resources made in the Fyroxed, any
     /// "hand-crafted" resources may contain invalid data which may cause errors during instantiation
     /// or even panic.  
-    pub(crate) async fn instantiate(
+    pub(crate) fn instantiate(
         &self,
         root: Handle<Node>,
         scene: &mut Scene,
-        resource_manager: ResourceManager,
+        animations: AnimationsPack,
     ) -> Result<Handle<Machine>, MachineInstantiationError> {
         let mut machine = Machine::new(root);
-
-        let animation_resources = load_animation_resources(self, resource_manager).await;
 
         // Initialize parameters.
         for definition in self.parameters.container.iter() {
@@ -337,7 +348,7 @@ impl MachineDefinition {
             let instance_handle = machine.add_node(instantiate_node(
                 node_definition,
                 definition_handle,
-                &animation_resources,
+                &animations,
                 root,
                 &mut scene.graph,
                 &mut scene.animations,
@@ -614,7 +625,7 @@ impl Machine {
     /// Synchronizes state of the machine with respective resource (if any).
     pub fn resolve(
         &mut self,
-        animation_resources: &FxHashMap<String, Model>,
+        animations_pack: &AnimationsPack,
         graph: &mut Graph,
         animations: &mut AnimationContainer,
     ) {
@@ -654,7 +665,7 @@ impl Machine {
                             let pose_node = instantiate_node(
                                 node_definition,
                                 node_definition_handle,
-                                animation_resources,
+                                animations_pack,
                                 self.root,
                                 graph,
                                 animations,
@@ -782,8 +793,9 @@ impl Machine {
                         if let PoseNodeDefinition::PlayAnimation(play_animation_definition) =
                             node_definition
                         {
-                            let definition_animation =
-                                animation_resources.get(&play_animation_definition.animation);
+                            let definition_animation = animations_pack
+                                .animations()
+                                .get(&play_animation_definition.animation);
 
                             if animations.try_get(play_animation.animation).map_or(
                                 true,

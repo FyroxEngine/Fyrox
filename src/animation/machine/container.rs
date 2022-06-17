@@ -1,17 +1,15 @@
 use crate::{
     animation::{
-        machine::{Machine, PoseNode},
+        machine::{AnimationsPack, Machine, PoseNode},
         Animation, AnimationContainer,
     },
     core::{
-        futures::future::join_all,
         pool::{Handle, Pool},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
     scene::graph::Graph,
 };
-use fxhash::FxHashMap;
 use std::ops::{Index, IndexMut};
 
 #[derive(Default, Clone, Visit, Debug)]
@@ -88,15 +86,10 @@ impl AnimationMachineContainer {
             }
         }
 
-        let animation_resources = animation_paths
-            .into_iter()
-            .map(|path| (path.clone(), resource_manager.request_model(path)))
-            .collect::<FxHashMap<_, _>>();
-
-        join_all(animation_resources.values().cloned()).await;
+        let pack = AnimationsPack::load(&animation_paths, resource_manager).await;
 
         for machine in self.pool.iter_mut() {
-            machine.resolve(&animation_resources, graph, animations);
+            machine.resolve(&pack, graph, animations);
         }
     }
 }
