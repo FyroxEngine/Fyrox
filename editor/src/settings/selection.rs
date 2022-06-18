@@ -1,6 +1,7 @@
 use fyrox::{
     core::inspect::{Inspect, PropertyInfo},
-    gui::inspector::{FieldKind, PropertyChanged},
+    gui::inspector::PropertyChanged,
+    handle_object_property_changed,
 };
 use serde::{Deserialize, Serialize};
 
@@ -11,12 +12,6 @@ pub struct SelectionSettings {
 
 impl SelectionSettings {
     pub fn handle_property_changed(&mut self, property_changed: &PropertyChanged) -> bool {
-        if let FieldKind::Object(ref args) = property_changed.value {
-            return match property_changed.name.as_ref() {
-                Self::IGNORE_BACK_FACES => args.try_override(&mut self.ignore_back_faces),
-                _ => false,
-            };
-        }
-        false
+        handle_object_property_changed!(self, property_changed, Self::IGNORE_BACK_FACES => ignore_back_faces)
     }
 }

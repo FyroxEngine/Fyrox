@@ -1,3 +1,4 @@
+use crate::scene::commands::graph::ScaleNodeCommand;
 use crate::{
     camera::PickingOptions, gui::make_dropdown_list_option_with_height, load_image,
     utils::enable_widget, AddModelCommand, AssetItem, AssetKind, ChangeSelectionCommand,
@@ -5,6 +6,7 @@ use crate::{
     InteractionModeKind, Message, Mode, SceneCommand, Selection, SetMeshTextureCommand,
     SetParticleSystemTextureCommand, SetSpriteTextureCommand, Settings,
 };
+use fyrox::core::algebra::Vector3;
 use fyrox::{
     core::{algebra::Vector2, color::Color, make_relative_path, math::Rect, pool::Handle},
     engine::Engine,
@@ -658,6 +660,11 @@ impl SceneViewer {
                             SceneCommand::new(ChangeSelectionCommand::new(
                                 Selection::Graph(GraphSelection::single_or_empty(instance.root)),
                                 editor_scene.selection.clone(),
+                            )),
+                            SceneCommand::new(ScaleNodeCommand::new(
+                                instance.root,
+                                Vector3::new(1.0, 1.0, 1.0),
+                                settings.model.instantiation_scale,
                             )),
                         ];
 

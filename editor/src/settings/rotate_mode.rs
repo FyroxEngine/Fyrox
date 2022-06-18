@@ -1,6 +1,7 @@
 use fyrox::{
     core::inspect::{Inspect, PropertyInfo},
-    gui::inspector::{FieldKind, PropertyChanged},
+    gui::inspector::PropertyChanged,
+    handle_object_property_changed,
 };
 use serde::{Deserialize, Serialize};
 
@@ -25,15 +26,11 @@ impl Default for RotateInteractionModeSettings {
 
 impl RotateInteractionModeSettings {
     pub fn handle_property_changed(&mut self, property_changed: &PropertyChanged) -> bool {
-        if let FieldKind::Object(ref args) = property_changed.value {
-            return match property_changed.name.as_ref() {
-                Self::ANGLE_SNAPPING => args.try_override(&mut self.angle_snapping),
-                Self::X_SNAP_STEP => args.try_override(&mut self.x_snap_step),
-                Self::Y_SNAP_STEP => args.try_override(&mut self.y_snap_step),
-                Self::Z_SNAP_STEP => args.try_override(&mut self.z_snap_step),
-                _ => false,
-            };
-        }
-        false
+        handle_object_property_changed!(self, property_changed,
+            Self::ANGLE_SNAPPING => angle_snapping,
+            Self::X_SNAP_STEP => x_snap_step,
+            Self::Y_SNAP_STEP => y_snap_step,
+            Self::Z_SNAP_STEP => z_snap_step
+        )
     }
 }

@@ -1,6 +1,7 @@
 use fyrox::{
     core::inspect::{Inspect, PropertyInfo},
-    gui::inspector::{FieldKind, PropertyChanged},
+    gui::inspector::PropertyChanged,
+    handle_object_property_changed,
 };
 use serde::{Deserialize, Serialize};
 
@@ -23,14 +24,10 @@ impl Default for DebuggingSettings {
 
 impl DebuggingSettings {
     pub fn handle_property_changed(&mut self, property_changed: &PropertyChanged) -> bool {
-        if let FieldKind::Object(ref args) = property_changed.value {
-            return match property_changed.name.as_ref() {
-                Self::SHOW_PHYSICS => args.try_override(&mut self.show_physics),
-                Self::SHOW_BOUNDS => args.try_override(&mut self.show_bounds),
-                Self::SHOW_TBN => args.try_override(&mut self.show_tbn),
-                _ => false,
-            };
-        }
-        false
+        handle_object_property_changed!(self, property_changed,
+            Self::SHOW_PHYSICS => show_physics,
+            Self::SHOW_BOUNDS => show_bounds,
+            Self::SHOW_TBN => show_tbn
+        )
     }
 }

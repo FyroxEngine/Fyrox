@@ -1,7 +1,7 @@
 use crate::{
     inspector::editors::make_property_editors_container,
     settings::{
-        debugging::DebuggingSettings, graphics::GraphicsSettings,
+        debugging::DebuggingSettings, graphics::GraphicsSettings, model::ModelSettings,
         move_mode::MoveInteractionModeSettings, rotate_mode::RotateInteractionModeSettings,
         selection::SelectionSettings,
     },
@@ -40,6 +40,7 @@ use std::{fs::File, path::PathBuf, rc::Rc, sync::mpsc::Sender};
 
 pub mod debugging;
 pub mod graphics;
+pub mod model;
 pub mod move_mode;
 pub mod rotate_mode;
 pub mod selection;
@@ -58,6 +59,7 @@ pub struct Settings {
     pub debugging: DebuggingSettings,
     pub move_mode_settings: MoveInteractionModeSettings,
     pub rotate_mode_settings: RotateInteractionModeSettings,
+    pub model: ModelSettings,
 }
 
 #[derive(Debug)]
@@ -113,6 +115,7 @@ impl Settings {
         container.insert(InspectablePropertyEditorDefinition::<
             RotateInteractionModeSettings,
         >::new());
+        container.insert(InspectablePropertyEditorDefinition::<ModelSettings>::new());
 
         Rc::new(container)
     }
@@ -129,6 +132,7 @@ impl Settings {
                 Self::ROTATE_MODE_SETTINGS => {
                     self.rotate_mode_settings.handle_property_changed(&**inner)
                 }
+                Self::MODEL => self.model.handle_property_changed(&**inner),
                 _ => false,
             };
         }
