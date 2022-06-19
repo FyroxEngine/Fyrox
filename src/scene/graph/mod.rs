@@ -22,6 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::scene::graph::event::GraphEvent;
 use crate::{
     asset::ResourceState,
     core::{
@@ -37,7 +38,10 @@ use crate::{
         self,
         camera::Camera,
         dim2::{self},
-        graph::physics::{PhysicsPerformanceStatistics, PhysicsWorld},
+        graph::{
+            event::GraphEventBroadcaster,
+            physics::{PhysicsPerformanceStatistics, PhysicsWorld},
+        },
         mesh::Mesh,
         node::{container::NodeContainer, Node, SyncContext, UpdateContext},
         pivot::Pivot,
@@ -54,6 +58,7 @@ use std::{
     time::Duration,
 };
 
+pub mod event;
 pub mod physics;
 
 /// Graph performance statistics. Allows you to find out "hot" parts of the scene graph, which
@@ -116,6 +121,9 @@ pub struct Graph {
     /// Performance statistics of a last [`Graph::update`] call.
     #[inspect(skip)]
     pub performance_statistics: GraphPerformanceStatistics,
+
+    /// Allows you to "subscribe" for graph events.
+    pub event_broadcaster: GraphEventBroadcaster,
 }
 
 impl Default for Graph {
@@ -128,6 +136,7 @@ impl Default for Graph {
             stack: Vec::new(),
             sound_context: Default::default(),
             performance_statistics: Default::default(),
+            event_broadcaster: Default::default(),
         }
     }
 }
@@ -196,6 +205,7 @@ impl Graph {
             physics2d: Default::default(),
             sound_context: SoundContext::new(),
             performance_statistics: Default::default(),
+            event_broadcaster: Default::default(),
         }
     }
 
@@ -213,6 +223,8 @@ impl Graph {
         for child in children {
             self.link_nodes(child, handle);
         }
+
+        self.event_broadcaster.broadcast(GraphEvent::Added(handle));
 
         handle
     }
@@ -277,6 +289,9 @@ impl Graph {
             // Remove associated entities.
             let mut node = self.pool.free(handle);
             self.clean_up_for_node(&mut node);
+
+            self.event_broadcaster
+                .broadcast(GraphEvent::Removed(handle));
         }
     }
 
