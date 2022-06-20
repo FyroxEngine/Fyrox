@@ -12,6 +12,7 @@ use fyrox::{
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
+    impl_component_provider,
     resource::model::Model,
     scene::{
         node::{Node, TypeUuidProvider},
@@ -29,6 +30,8 @@ pub struct Bot {
     #[inspect(skip)]
     machine: Option<BotAnimationMachine>,
 }
+
+impl_component_provider!(Bot);
 
 impl Clone for Bot {
     fn clone(&self) -> Self {

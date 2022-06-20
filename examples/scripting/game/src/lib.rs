@@ -17,6 +17,7 @@ use fyrox::{
         widget::WidgetBuilder,
         UserInterface,
     },
+    impl_component_provider,
     plugin::{Plugin, PluginContext, PluginRegistrationContext},
     renderer::{
         framework::{error::FrameworkError, gpu_texture::GpuTextureKind},
@@ -205,6 +206,8 @@ struct Player {
     controller: InputController,
 }
 
+impl_component_provider!(Player);
+
 impl Default for Player {
     fn default() -> Self {
         Self {
@@ -359,6 +362,8 @@ struct Jumper {
     timer: f32,
     period: f32,
 }
+
+impl_component_provider!(Jumper);
 
 impl Default for Jumper {
     fn default() -> Self {

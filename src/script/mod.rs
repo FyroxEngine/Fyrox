@@ -14,10 +14,11 @@ use crate::{
     gui::inspector::PropertyChanged,
     plugin::Plugin,
     scene::{node::Node, Scene},
+    utils::component::ComponentProvider,
 };
 use fxhash::FxHashMap;
-use std::any::Any;
 use std::{
+    any::Any,
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
@@ -83,7 +84,7 @@ pub struct ScriptContext<'a, 'b> {
 
 /// Script is a set predefined methods that are called on various stages by the engine. It is used to add
 /// custom behaviour to game entities.
-pub trait ScriptTrait: BaseScript {
+pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// Mutates the state of the script according to the [`PropertyChanged`] info. It is invoked
     /// from the editor when user changes property of the script from the inspector.
     ///
@@ -113,13 +114,15 @@ pub trait ScriptTrait: BaseScript {
     /// use fyrox::core::uuid::Uuid;
     /// use fyrox::core::inspect::{Inspect, PropertyInfo};
     /// use fyrox::core::visitor::prelude::*;
-    /// use fyrox::handle_object_property_changed;
+    /// use fyrox::{handle_object_property_changed, impl_component_provider};
     ///
     /// #[derive(Inspect, Visit, Debug, Clone)]
     /// struct MyScript {
     ///     foo: f32,
     ///     bar: String,
     /// }
+    ///
+    /// impl_component_provider!(MyScript);
     ///
     /// // Some functions are intentionally omitted.
     ///
@@ -219,7 +222,8 @@ pub trait ScriptTrait: BaseScript {
     ///     core::inspect::{Inspect, PropertyInfo},
     ///     core::uuid::Uuid,
     ///     script::ScriptTrait,
-    ///     core::uuid::uuid
+    ///     core::uuid::uuid,
+    ///     impl_component_provider,
     /// };
     ///
     /// #[derive(Inspect, Visit, Debug, Clone)]
@@ -234,6 +238,8 @@ pub trait ScriptTrait: BaseScript {
     ///         uuid!("4cfbe65e-a2c1-474f-b123-57516d80b1f8")
     ///     }
     /// }
+    ///
+    /// impl_component_provider!(MyScript);
     ///
     /// impl ScriptTrait for MyScript {
     ///     fn id(&self) -> Uuid {
