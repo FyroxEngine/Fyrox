@@ -31,7 +31,6 @@ use crate::{
     },
     utils::{log::Log, watcher::FileSystemWatcher},
 };
-use fyrox_core::futures::join;
 use fyrox_sound::buffer::SoundBufferResource;
 use notify::DebouncedEvent;
 use std::{path::Path, sync::Arc};
@@ -112,15 +111,38 @@ impl ContainersStorage {
     }
 
     /// Wait until all resources are loaded (or failed to load).
-    pub async fn wait_concurrent(&self) {
-        join!(
-            self.models.wait_concurrent(),
-            self.absm.wait_concurrent(),
-            self.curves.wait_concurrent(),
-            self.shaders.wait_concurrent(),
-            self.textures.wait_concurrent(),
-            self.sound_buffers.wait_concurrent()
-        );
+    pub fn wait_concurrent(&self) -> ResourceWaitContext {
+        ResourceWaitContext {
+            models: self.models.resources(),
+            absm: self.absm.resources(),
+            curves: self.curves.resources(),
+            shaders: self.shaders.resources(),
+            textures: self.textures.resources(),
+            sound_buffers: self.sound_buffers.resources(),
+        }
+    }
+}
+
+/// A set of resources that can be waited for.
+#[must_use]
+pub struct ResourceWaitContext {
+    models: Vec<Model>,
+    absm: Vec<AbsmResource>,
+    curves: Vec<CurveResource>,
+    shaders: Vec<Shader>,
+    textures: Vec<Texture>,
+    sound_buffers: Vec<SoundBufferResource>,
+}
+
+impl ResourceWaitContext {
+    /// Wait until all resources are loaded (or failed to load).
+    pub async fn wait_concurrent(self) {
+        join_all(self.models).await;
+        join_all(self.absm).await;
+        join_all(self.curves).await;
+        join_all(self.shaders).await;
+        join_all(self.textures).await;
+        join_all(self.sound_buffers).await;
     }
 }
 

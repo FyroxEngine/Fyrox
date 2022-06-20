@@ -635,12 +635,12 @@ impl Engine {
         // Wait until all resources are fully loaded (or failed to load). It is needed
         // because some scripts may use resources and any attempt to use non loaded resource
         // will result in panic.
-        block_on(
-            self.resource_manager
-                .state()
-                .containers_mut()
-                .wait_concurrent(),
-        );
+        let wait_context = self
+            .resource_manager
+            .state()
+            .containers_mut()
+            .wait_concurrent();
+        block_on(wait_context.wait_concurrent());
 
         // Subscribe to graph events, we're interested in newly added nodes.
         // Subscription is weak and will break after this method automatically.
@@ -653,6 +653,13 @@ impl Engine {
         // are correctly processed.
         while let Ok(event) = rx.try_recv() {
             if let GraphEvent::Added(node) = event {
+                let wait_context = self
+                    .resource_manager
+                    .state()
+                    .containers_mut()
+                    .wait_concurrent();
+                block_on(wait_context.wait_concurrent());
+
                 process_node(
                     &mut self.scenes[scene],
                     dt,

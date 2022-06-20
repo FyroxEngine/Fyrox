@@ -206,7 +206,12 @@ where
 
     /// Waits until all resources are loaded (or failed to load) in concurrent manner.
     pub fn wait_concurrent(&self) -> JoinAll<T> {
-        crate::core::futures::future::join_all(self.resources.iter().map(|t| t.value.clone()))
+        crate::core::futures::future::join_all(self.resources())
+    }
+
+    /// Returns a set of resource handled by this container.
+    pub fn resources(&self) -> Vec<T> {
+        self.resources.iter().map(|t| t.value.clone()).collect()
     }
 
     /// Tries to load a resources at a given path.
