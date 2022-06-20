@@ -22,7 +22,10 @@ use crate::{
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{model::Model, texture::TextureKind},
     scene::{
-        node::constructor::NodeConstructorContainer, sound::SoundEngine, Scene, SceneContainer,
+        graph::event::GraphEvent,
+        node::{constructor::NodeConstructorContainer, Node},
+        sound::SoundEngine,
+        Scene, SceneContainer,
     },
     script::{constructor::ScriptConstructorContainer, Script, ScriptContext},
     utils::log::Log,
@@ -32,7 +35,7 @@ use fyrox_core::futures::executor::block_on;
 use std::{
     collections::HashSet,
     sync::{
-        mpsc::{channel, Receiver},
+        mpsc::{self, channel, Receiver},
         Arc, Mutex,
     },
     time::Duration,
@@ -190,6 +193,54 @@ pub struct EngineInitParams<'a> {
     /// vertical synchronization could not be available on your OS and engine might fail to
     /// initialize if v-sync is on.
     pub vsync: bool,
+}
+
+fn process_node<T>(
+    scene: &mut Scene,
+    dt: f32,
+    handle: Handle<Node>,
+    plugins: &mut [Box<dyn Plugin>],
+    resource_manager: &ResourceManager,
+    func: &mut T,
+) where
+    T: FnMut(&mut Script, ScriptContext),
+{
+    // Take a script from node. We're temporarily taking ownership over script
+    // instance.
+    let mut script = match scene.graph.try_get_mut(handle) {
+        Some(node) => {
+            if let Some(script) = node.script.take() {
+                script
+            } else {
+                // No script.
+                return;
+            }
+        }
+        None => {
+            // Invalid handle.
+            return;
+        }
+    };
+
+    // Find respective plugin.
+    if let Some(plugin) = plugins.iter_mut().find(|p| p.id() == script.plugin_uuid()) {
+        // Form the context with all available data.
+        let context = ScriptContext {
+            dt,
+            plugin: &mut **plugin,
+            handle,
+            scene,
+            resource_manager,
+        };
+
+        func(&mut script, context);
+    }
+
+    // Put the script back to the node. We must do a checked borrow, because it is possible
+    // that the node is already destroyed by script logic.
+    if let Some(node) = scene.graph.try_get_mut(handle) {
+        node.script = Some(script);
+    }
 }
 
 impl Engine {
@@ -499,50 +550,18 @@ impl Engine {
     {
         let scene = &mut self.scenes[scene];
 
-        // Iterate over the nodes without borrowing, we'll move data around to solve borrowing issues.
+        // Start processing by going through the graph and processing nodes one-by-one.
         for node_index in 0..scene.graph.capacity() {
             let handle = scene.graph.handle_from_index(node_index);
 
-            // Take a script from node. We're temporarily taking ownership over script
-            // instance.
-            let mut script = match scene.graph.try_get_mut(handle) {
-                Some(node) => {
-                    if let Some(script) = node.script.take() {
-                        script
-                    } else {
-                        // No script.
-                        continue;
-                    }
-                }
-                None => {
-                    // Invalid handle.
-                    continue;
-                }
-            };
-
-            // Find respective plugin.
-            if let Some(plugin) = self
-                .plugins
-                .iter_mut()
-                .find(|p| p.id() == script.plugin_uuid())
-            {
-                // Form the context with all available data.
-                let context = ScriptContext {
-                    dt,
-                    plugin: &mut **plugin,
-                    handle,
-                    scene,
-                    resource_manager: &self.resource_manager,
-                };
-
-                func(&mut script, context);
-            }
-
-            // Put the script back to the node. We must do a checked borrow, because it is possible
-            // that the node is already destroyed by script logic.
-            if let Some(node) = scene.graph.try_get_mut(handle) {
-                node.script = Some(script);
-            }
+            process_node(
+                scene,
+                dt,
+                handle,
+                &mut self.plugins,
+                &self.resource_manager,
+                &mut func,
+            );
         }
     }
 
@@ -555,7 +574,40 @@ impl Engine {
     /// engine as a framework, then you should not call this method because you'll most likely
     /// do something wrong.
     pub fn update_scene_scripts(&mut self, scene: Handle<Scene>, dt: f32) {
+        // Subscribe to graph events, we're interested in newly added nodes.
+        // Subscription is weak and will break after this method automatically.
+        let (tx, rx) = mpsc::channel();
+        self.scenes[scene].graph.event_broadcaster.subscribe(tx);
+
         self.process_scripts(scene, dt, |script, context| script.on_update(context));
+
+        // Initialize and update any newly added nodes, this will ensure that any newly created instances
+        // are correctly processed.
+        while let Ok(event) = rx.try_recv() {
+            if let GraphEvent::Added(node) = event {
+                let scene = &mut self.scenes[scene];
+
+                // Init first.
+                process_node(
+                    scene,
+                    dt,
+                    node,
+                    &mut self.plugins,
+                    &self.resource_manager,
+                    &mut |script, context| script.on_init(context),
+                );
+
+                // Then update.
+                process_node(
+                    scene,
+                    dt,
+                    node,
+                    &mut self.plugins,
+                    &self.resource_manager,
+                    &mut |script, context| script.on_update(context),
+                );
+            }
+        }
     }
 
     /// Passes specified OS event to every script of the specified scene.
@@ -590,7 +642,27 @@ impl Engine {
                 .wait_concurrent(),
         );
 
-        self.process_scripts(scene, dt, |script, context| script.on_init(context))
+        // Subscribe to graph events, we're interested in newly added nodes.
+        // Subscription is weak and will break after this method automatically.
+        let (tx, rx) = mpsc::channel();
+        self.scenes[scene].graph.event_broadcaster.subscribe(tx);
+
+        self.process_scripts(scene, dt, |script, context| script.on_init(context));
+
+        // Initialize any newly added nodes, this will ensure that any newly created instances
+        // are correctly processed.
+        while let Ok(event) = rx.try_recv() {
+            if let GraphEvent::Added(node) = event {
+                process_node(
+                    &mut self.scenes[scene],
+                    dt,
+                    node,
+                    &mut self.plugins,
+                    &self.resource_manager,
+                    &mut |script, context| script.on_init(context),
+                );
+            }
+        }
     }
 
     /// Handle hot-reloading of resources.
