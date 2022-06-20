@@ -60,8 +60,14 @@ impl ScriptConstructorContainer {
     }
 
     /// Adds custom type constructor.
+    ///
+    /// # Panic
+    ///
+    /// The method will panic if there is already a constructor for given type uuid.
     pub fn add_custom(&self, type_uuid: Uuid, constructor: ScriptConstructor) {
-        self.map.lock().insert(type_uuid, constructor);
+        let old = self.map.lock().insert(type_uuid, constructor);
+
+        assert!(old.is_none());
     }
 
     /// Unregisters type constructor.
