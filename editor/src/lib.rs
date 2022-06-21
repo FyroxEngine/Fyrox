@@ -1167,6 +1167,8 @@ impl Editor {
                     engine.scenes.remove(scene_to_destroy);
                 }
 
+                engine.call_plugins_on_left_play_mode(FIXED_TIMESTEP, true);
+
                 // Force previewer to use editor's scene.
                 let render_target = engine.scenes[editor_scene.scene].render_target.clone();
                 self.scene_viewer

@@ -544,6 +544,20 @@ impl Engine {
         }
     }
 
+    /// Calls [`Plugin::on_left_play_mode`] for every plugin.
+    pub fn call_plugins_on_left_play_mode(&mut self, dt: f32, is_in_editor: bool) {
+        for plugin in self.plugins.iter_mut() {
+            plugin.on_left_play_mode(PluginContext {
+                is_in_editor,
+                scenes: &mut self.scenes,
+                resource_manager: &self.resource_manager,
+                renderer: &mut self.renderer,
+                dt,
+                serialization_context: self.serialization_context.clone(),
+            });
+        }
+    }
+
     pub(crate) fn process_scripts<T>(&mut self, scene: Handle<Scene>, dt: f32, mut func: T)
     where
         T: FnMut(&mut Script, ScriptContext),

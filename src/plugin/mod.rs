@@ -223,6 +223,10 @@ pub trait Plugin: BasePlugin {
     /// "play mode".
     fn on_leave_play_mode(&mut self, #[allow(unused_variables)] context: PluginContext) {}
 
+    /// The method is called when the plugin is running inside the editor and it left
+    /// "play mode". It is guaranteed to be called after [Self::on_leave_play_mode]
+    fn on_left_play_mode(&mut self, #[allow(unused_variables)] context: PluginContext) {}
+
     /// The method is called when the game/editor is about to shutdown.
     fn on_unload(&mut self, #[allow(unused_variables)] context: &mut PluginContext) {}
 
