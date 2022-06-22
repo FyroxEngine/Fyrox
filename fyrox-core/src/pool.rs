@@ -1257,6 +1257,12 @@ where
         }
     }
 
+    /// Removes all elements from the pool.
+    pub fn drain(&mut self) -> impl Iterator<Item = T> + '_ {
+        self.free_stack.clear();
+        self.records.drain(..).filter_map(|mut r| r.payload.take())
+    }
+
     fn end(&self) -> *const PoolRecord<T, P> {
         unsafe { self.records.as_ptr().add(self.records.len()) }
     }
