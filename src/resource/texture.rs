@@ -312,7 +312,7 @@ impl Default for TextureImportOptions {
             s_wrap_mode: TextureWrapMode::Repeat,
             t_wrap_mode: TextureWrapMode::Repeat,
             anisotropy: 16.0,
-            compression: CompressionOptions::Quality,
+            compression: CompressionOptions::default(),
         }
     }
 }
@@ -795,7 +795,7 @@ pub enum CompressionOptions {
 
 impl Default for CompressionOptions {
     fn default() -> Self {
-        Self::Quality
+        Self::NoCompression
     }
 }
 
