@@ -22,7 +22,6 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::graph::event::GraphEvent;
 use crate::{
     asset::ResourceState,
     core::{
@@ -36,8 +35,10 @@ use crate::{
     resource::model::{Model, NodeMapping},
     scene::{
         self,
+        base::NodeMessage,
         camera::Camera,
         dim2::{self},
+        graph::event::GraphEvent,
         graph::{
             event::GraphEventBroadcaster,
             physics::{PhysicsPerformanceStatistics, PhysicsWorld},
@@ -55,6 +56,7 @@ use rapier3d::geometry::ColliderHandle;
 use std::{
     fmt::Debug,
     ops::{Index, IndexMut},
+    sync::mpsc::{channel, Receiver, Sender},
     time::Duration,
 };
 
@@ -124,10 +126,15 @@ pub struct Graph {
 
     /// Allows you to "subscribe" for graph events.
     pub event_broadcaster: GraphEventBroadcaster,
+
+    pub(crate) message_sender: Sender<NodeMessage>,
+    pub(crate) message_receiver: Receiver<NodeMessage>,
 }
 
 impl Default for Graph {
     fn default() -> Self {
+        let (tx, rx) = channel();
+
         Self {
             physics: PhysicsWorld::new(),
             physics2d: dim2::physics::PhysicsWorld::new(),
@@ -137,6 +144,8 @@ impl Default for Graph {
             sound_context: Default::default(),
             performance_statistics: Default::default(),
             event_broadcaster: Default::default(),
+            message_receiver: rx,
+            message_sender: tx,
         }
     }
 }
@@ -193,6 +202,7 @@ fn isometric_global_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f
 impl Graph {
     /// Creates new graph instance with single root node.
     pub fn new() -> Self {
+        let (tx, rx) = channel();
         let mut pool = Pool::new();
         let mut root = Node::new(Pivot::default());
         root.set_name("__ROOT__");
@@ -206,6 +216,8 @@ impl Graph {
             sound_context: SoundContext::new(),
             performance_statistics: Default::default(),
             event_broadcaster: Default::default(),
+            message_receiver: rx,
+            message_sender: tx,
         }
     }
 
@@ -225,6 +237,11 @@ impl Graph {
         }
 
         self.event_broadcaster.broadcast(GraphEvent::Added(handle));
+
+        let sender = self.message_sender.clone();
+        let node = &mut self[handle];
+        node.self_handle = handle;
+        node.message_sender = Some(sender);
 
         handle
     }
@@ -765,9 +782,17 @@ impl Graph {
         instances
     }
 
+    fn restore_dynamic_node_data(&mut self) {
+        for (handle, node) in self.pool.pair_iter_mut() {
+            node.self_handle = handle;
+            node.message_sender = Some(self.message_sender.clone());
+        }
+    }
+
     pub(in crate) fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Resolving graph...".to_owned());
 
+        self.restore_dynamic_node_data();
         self.update_hierarchical_data();
         self.restore_original_handles();
         let instances = self.restore_integrity();

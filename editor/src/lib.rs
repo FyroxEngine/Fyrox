@@ -1121,6 +1121,8 @@ impl Editor {
 
             let handle = engine.scenes.add(purified_scene);
 
+            assert!(engine.scripted_scenes.insert(handle));
+
             engine.call_plugins_on_enter_play_mode(handle, FIXED_TIMESTEP, true);
 
             // Initialize scripts.
@@ -1147,6 +1149,9 @@ impl Editor {
 
                 // Remove play mode scene.
                 engine.scenes.remove(scene);
+
+                engine.handle_script_destruction();
+                assert!(engine.scripted_scenes.remove(&scene));
 
                 // Remove every scene that was created in the play mode.
                 let scenes_to_destroy = engine
@@ -1503,7 +1508,6 @@ impl Editor {
 
         if let Mode::Play { scene, .. } = self.mode {
             self.engine.update_plugins(dt, true);
-
             self.engine.update_scene_scripts(scene, dt);
         }
 

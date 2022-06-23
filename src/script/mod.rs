@@ -82,6 +82,25 @@ pub struct ScriptContext<'a, 'b> {
     pub resource_manager: &'a ResourceManager,
 }
 
+/// A set of data that will be passed to a script instance just before its destruction.
+pub struct ScriptDeinitContext<'a, 'b> {
+    /// A reference to the plugin which the script instance belongs to. You can use it to access plugin data
+    /// inside script methods. For example you can store some "global" data in the plugin - for example a
+    /// controls configuration, some entity managers and so on.
+    pub plugin: &'a mut dyn Plugin,
+
+    /// A reference to resource manager, use it to load resources.
+    pub resource_manager: &'a ResourceManager,
+
+    /// A reference to a scene the script instance was belonging to. You have full mutable access to scene content
+    /// in most of the script methods.
+    pub scene: &'b mut Scene,
+
+    /// Handle to a parent scene node. Use it with caution because parent node could be deleted already and
+    /// any unchecked borrowing using the handle will cause panic!
+    pub node_handle: Handle<Node>,
+}
+
 /// Script is a set predefined methods that are called on various stages by the engine. It is used to add
 /// custom behaviour to game entities.
 pub trait ScriptTrait: BaseScript + ComponentProvider {
@@ -145,13 +164,20 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
         false
     }
 
-    /// Called on parent scene initialization. It is guaranteed to be called once, and before any
-    /// other method of the script.
+    /// The method is called when the script wasn't initialized yet. It is guaranteed to be called once,
+    /// and before any other methods of the script.
     ///
-    /// # Editor-specific infomation
+    /// # Editor-specific information
     ///
     /// In the editor, the method will be called on entering the play mode.
     fn on_init(&mut self, #[allow(unused_variables)] context: ScriptContext) {}
+
+    /// The method is called when the script is about to be destroyed. It is guaranteed to be called last.
+    ///
+    /// # Editor-specific information
+    ///
+    /// In the editor, the method will be called before leaving the play mode.
+    fn on_deinit(&mut self, #[allow(unused_variables)] context: ScriptDeinitContext) {}
 
     /// Called when there is an event from the OS. The method allows you to "listen" for events
     /// coming from the main window of your game (or the editor if the game running inside the

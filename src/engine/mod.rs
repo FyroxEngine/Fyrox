@@ -8,6 +8,7 @@ pub mod executor;
 pub mod framework;
 pub mod resource_manager;
 
+use crate::script::ScriptDeinitContext;
 use crate::{
     asset::ResourceState,
     core::{algebra::Vector2, instant, pool::Handle},
@@ -102,6 +103,9 @@ pub struct Engine {
     /// A special container that is able to create nodes by their type UUID. Use a copy of this
     /// value whenever you need it as a parameter in other parts of the engine.
     pub serialization_context: Arc<SerializationContext>,
+
+    /// Defines a set of scenes whose scripts can be processed by the engine.
+    pub scripted_scenes: HashSet<Handle<Scene>>,
 }
 
 struct ResourceGraphVertex {
@@ -372,6 +376,7 @@ impl Engine {
             window,
             plugins: Default::default(),
             serialization_context: node_constructors,
+            scripted_scenes: Default::default(),
         })
     }
 
@@ -445,6 +450,8 @@ impl Engine {
         let time = instant::Instant::now();
         self.user_interface.update(window_size, dt);
         self.ui_time = instant::Instant::now() - time;
+
+        self.handle_script_destruction();
     }
 
     /// Performs update of every plugin.
@@ -555,6 +562,48 @@ impl Engine {
                 dt,
                 serialization_context: self.serialization_context.clone(),
             });
+        }
+    }
+
+    /// Correctly destroys all script instances. It is called automatically once per frame, but
+    /// you can call it manually if you want immediate script destruction.
+    pub fn handle_script_destruction(&mut self) {
+        for (handle, scene) in self.scenes.pair_iter_mut() {
+            if self.scripted_scenes.contains(&handle) {
+                scene.handle_messages(&mut self.plugins, &self.resource_manager);
+            }
+        }
+
+        // Process scripts from destroyed scenes.
+        for (handle, mut detached_scene) in self.scenes.destruction_list.drain(..) {
+            // Destroy every queued script instances first.
+            if self.scripted_scenes.contains(&handle) {
+                detached_scene.handle_messages(&mut self.plugins, &self.resource_manager);
+
+                // Destroy every script instance from nodes that were still alive.
+                for node_index in 0..detached_scene.graph.capacity() {
+                    let node_handle = detached_scene.graph.handle_from_index(node_index);
+
+                    if let Some(mut script) = detached_scene
+                        .graph
+                        .try_get_mut(node_handle)
+                        .and_then(|node| node.script.take())
+                    {
+                        if let Some(plugin) = self
+                            .plugins
+                            .iter_mut()
+                            .find(|p| p.id() == script.plugin_uuid())
+                        {
+                            script.on_deinit(ScriptDeinitContext {
+                                plugin: &mut **plugin,
+                                resource_manager: &self.resource_manager,
+                                scene: &mut detached_scene,
+                                node_handle,
+                            })
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -771,6 +820,22 @@ impl Engine {
 
 impl Drop for Engine {
     fn drop(&mut self) {
+        // Destroy all scenes first and correctly destroy all script instances.
+        // This will ensure that any `on_destroy` logic will be executed before
+        // engine destroyed.
+        let scenes = self
+            .scenes
+            .pair_iter()
+            .map(|(h, _)| h)
+            .collect::<Vec<Handle<Scene>>>();
+
+        for handle in scenes {
+            self.scenes.remove(handle);
+        }
+
+        self.handle_script_destruction();
+
+        // Finally unload plugins.
         self.unload_plugins(0.0, false);
     }
 }

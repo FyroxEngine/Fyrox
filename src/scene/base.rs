@@ -24,6 +24,7 @@ use fxhash::FxHashMap;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -258,6 +259,18 @@ pub struct Property {
     pub value: PropertyValue,
 }
 
+/// A message from scene node.
+pub enum NodeMessage {
+    /// A node script must be destroyed. It can happen if the script was replaced with some other
+    /// or a node was destroyed.
+    DestroyScript {
+        /// Script instance.
+        script: Script,
+        /// Node handle.
+        handle: Handle<Node>,
+    },
+}
+
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -280,6 +293,11 @@ pub struct Property {
 /// ```
 #[derive(Debug, Inspect)]
 pub struct Base {
+    #[inspect(skip)]
+    pub(crate) self_handle: Handle<Node>,
+
+    pub(crate) message_sender: Option<Sender<NodeMessage>>,
+
     #[inspect(getter = "Deref::deref")]
     pub(crate) name: TemplateVariable<String>,
 
@@ -351,8 +369,14 @@ pub struct Base {
     #[inspect(read_only)]
     pub(in crate) original_handle_in_resource: Handle<Node>,
 
-    /// Current script of the scene node.
-    pub script: Option<Script>,
+    // Current script of the scene node.
+    pub(crate) script: Option<Script>,
+}
+
+impl Drop for Base {
+    fn drop(&mut self) {
+        self.remove_script();
+    }
 }
 
 impl_directly_inheritable_entity_trait!(Base;
@@ -370,6 +394,8 @@ impl_directly_inheritable_entity_trait!(Base;
 impl Clone for Base {
     fn clone(&self) -> Self {
         Self {
+            self_handle: Default::default(), // Intentionally not copied!
+            message_sender: None,            // Intentionally not copied!
             name: self.name.clone(),
             local_transform: self.local_transform.clone(),
             global_transform: self.global_transform.clone(),
@@ -650,14 +676,54 @@ impl Base {
         self.cast_shadows.set(cast_shadows);
     }
 
+    fn remove_script(&mut self) {
+        // Send script to the graph to destroy script instances correctly.
+        if let Some(script) = self.script.take() {
+            if let Some(sender) = self.message_sender.as_ref() {
+                Log::verify(sender.send(NodeMessage::DestroyScript {
+                    script,
+                    handle: self.self_handle,
+                }));
+            } else {
+                Log::warn(format!(
+                    "There is a script instance on a node {}, but no message sender. \
+                    The script won't be correctly destroyed!",
+                    self.name(),
+                ))
+            }
+        }
+    }
+
     /// Sets new script for the scene node.
     pub fn set_script(&mut self, script: Option<Script>) {
+        self.remove_script();
         self.script = script;
+    }
+
+    /// Returns shared reference to current script instance.
+    pub fn script(&self) -> Option<&Script> {
+        self.script.as_ref()
+    }
+
+    /// Returns mutable reference to current script instance.
+    ///
+    /// # Important notes
+    ///
+    /// Do **not** replace script instance using mutable reference given to you by this method.
+    /// This will prevent correct script de-initialization! Use `Self::set_script` if you need
+    /// to replace the script.
+    pub fn script_mut(&mut self) -> Option<&mut Script> {
+        self.script.as_mut()
     }
 
     /// Returns a copy of the current script.
     pub fn script_cloned(&self) -> Option<Script> {
         self.script.clone()
+    }
+
+    /// Internal. Do not use.
+    pub fn script_inner(&mut self) -> &mut Option<Script> {
+        &mut self.script
     }
 
     /// Updates node lifetime and returns true if the node is still alive, false - otherwise.
@@ -997,6 +1063,8 @@ impl BaseBuilder {
     /// Creates an instance of [`Base`].
     pub fn build_base(self) -> Base {
         Base {
+            self_handle: Default::default(),
+            message_sender: None,
             name: self.name.into(),
             children: self.children,
             local_transform: self.local_transform,

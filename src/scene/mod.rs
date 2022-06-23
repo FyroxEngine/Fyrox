@@ -25,6 +25,9 @@ pub mod terrain;
 pub mod transform;
 pub mod visibility;
 
+use crate::plugin::Plugin;
+use crate::scene::base::NodeMessage;
+use crate::script::ScriptDeinitContext;
 use crate::{
     animation::{machine::container::AnimationMachineContainer, AnimationContainer},
     core::variable::{InheritError, InheritableVariable},
@@ -714,13 +717,33 @@ impl Scene {
 
         self.visit(region_name, visitor)
     }
+
+    #[allow(irrefutable_let_patterns)]
+    pub(crate) fn handle_messages(
+        &mut self,
+        plugins: &mut [Box<dyn Plugin>],
+        resource_manager: &ResourceManager,
+    ) {
+        while let Ok(message) = self.graph.message_receiver.try_recv() {
+            if let NodeMessage::DestroyScript { mut script, handle } = message {
+                if let Some(plugin) = plugins.iter_mut().find(|p| p.id() == script.plugin_uuid()) {
+                    script.on_deinit(ScriptDeinitContext {
+                        plugin: &mut **plugin,
+                        resource_manager,
+                        scene: self,
+                        node_handle: handle,
+                    })
+                }
+            }
+        }
+    }
 }
 
 /// Container for scenes in the engine.
-#[derive(Default)]
 pub struct SceneContainer {
     pool: Pool<Scene>,
     sound_engine: Arc<Mutex<SoundEngine>>,
+    pub(crate) destruction_list: Vec<(Handle<Scene>, Scene)>,
 }
 
 impl SceneContainer {
@@ -728,6 +751,7 @@ impl SceneContainer {
         Self {
             pool: Pool::new(),
             sound_engine,
+            destruction_list: Default::default(),
         }
     }
 
@@ -784,14 +808,14 @@ impl SceneContainer {
         self.pool.clear()
     }
 
-    /// Removes given scene from container.
+    /// Removes given scene from container. The scene will be destroyed on a next update call.
     #[inline]
     pub fn remove(&mut self, handle: Handle<Scene>) {
         self.sound_engine
             .lock()
             .unwrap()
             .remove_context(self.pool[handle].graph.sound_context.native.clone());
-        self.pool.free(handle);
+        self.destruction_list.push((handle, self.pool.free(handle)));
     }
 
     /// Takes scene from the container and transfers ownership to caller. You must either

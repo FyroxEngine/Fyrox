@@ -545,12 +545,12 @@ impl Command for SetScriptCommand {
 
         match std::mem::replace(&mut self.state, SetScriptCommandState::Executed) {
             SetScriptCommandState::NonExecuted { script } => {
-                node.script = script;
+                node.set_script(script);
             }
             SetScriptCommandState::Reverted { data } => {
                 let mut visitor = Visitor::load_from_memory(data).unwrap();
                 visitor.environment = Some(context.serialization_context.clone());
-                visit_opt_script("Script", &mut node.script, &mut visitor).unwrap();
+                visit_opt_script("Script", node.script_inner(), &mut visitor).unwrap();
             }
             _ => unreachable!(),
         }
@@ -560,7 +560,7 @@ impl Command for SetScriptCommand {
         let node = &mut context.scene.graph[self.handle];
         match std::mem::replace(&mut self.state, SetScriptCommandState::Undefined) {
             SetScriptCommandState::Executed => {
-                let mut script = node.script.take();
+                let mut script = node.script_inner().take();
                 let mut visitor = Visitor::new();
                 visitor.environment = Some(context.serialization_context.clone());
                 visit_opt_script("Script", &mut script, &mut visitor).unwrap();
@@ -586,7 +586,7 @@ impl ScriptDataBlobCommand {
     fn swap(&mut self, context: &mut SceneContext) {
         let data = self.new_value.clone();
         std::mem::swap(&mut self.old_value, &mut self.new_value);
-        if let Some(script) = context.scene.graph[self.handle].script.as_mut() {
+        if let Some(script) = context.scene.graph[self.handle].script_mut() {
             *script = deserialize_script(data, &context.serialization_context).unwrap();
             script.restore_resources(context.resource_manager.clone());
         } else {

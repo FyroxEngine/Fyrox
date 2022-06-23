@@ -212,7 +212,7 @@ fn handle_script_property_changed(
     node_handle: Handle<Node>,
     base: &mut Base,
 ) -> Option<SceneCommand> {
-    if let Some(script) = base.script.as_mut() {
+    if let Some(script) = base.script_mut() {
         let old_data = serialize_script(script).expect("Script must be serializable!");
 
         if script.on_property_changed(args) {
