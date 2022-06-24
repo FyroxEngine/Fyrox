@@ -16,24 +16,22 @@
 //! these are common effects for modern games but still can significantly impact
 //! performance.
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::Vector3,
         color::Color,
         inspect::{Inspect, PropertyInfo},
-        pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
-        node::Node,
         DirectlyInheritableEntity,
     },
 };
-use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
 pub mod directional;
@@ -207,10 +205,7 @@ impl BaseLight {
         self.reset_self_inheritable_properties();
     }
 
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    pub(crate) fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base.remap_handles(old_new_mapping);
     }
 }

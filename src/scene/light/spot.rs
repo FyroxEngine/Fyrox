@@ -22,6 +22,7 @@
 //! Light scattering feature may significantly impact performance on low-end
 //! hardware!
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
@@ -42,7 +43,6 @@ use crate::{
         DirectlyInheritableEntity,
     },
 };
-use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
@@ -237,7 +237,7 @@ impl NodeTrait for SpotLight {
         texture_container.try_restore_template_resource(&mut self.cookie_texture);
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base_light.remap_handles(old_new_mapping);
     }
 

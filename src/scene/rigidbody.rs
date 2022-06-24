@@ -8,6 +8,7 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
@@ -29,7 +30,6 @@ use crate::{
     },
     utils::log::Log,
 };
-use fxhash::FxHashMap;
 use rapier3d::{dynamics, prelude::RigidBodyHandle};
 use std::{
     cell::Cell,
@@ -542,7 +542,7 @@ impl NodeTrait for RigidBody {
         self.base.restore_resources(resource_manager);
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base.remap_handles(old_new_mapping);
     }
 

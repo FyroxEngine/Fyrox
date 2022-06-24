@@ -4,6 +4,7 @@
 
 #![warn(missing_docs)]
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::InheritError,
     core::{
@@ -30,7 +31,6 @@ use crate::{
         terrain::Terrain,
     },
 };
-use fxhash::FxHashMap;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -179,7 +179,7 @@ pub trait NodeTrait: BaseNodeTrait + Inspect + Visit {
     /// Re-maps internal handles after cloning or property inheritance. It is needed because a node
     /// might store handles to other nodes in scene graph, for example a skinned mesh stores handles
     /// to bones and when we copy the mesh, handles must be mapped to respective copies of each bone.
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>);
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap);
 
     /// Returns actual type id. It will be used for serialization, the type will be saved together
     /// with node's data allowing you to create correct node instance on deserialization.

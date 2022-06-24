@@ -17,6 +17,7 @@
 //! can easily ruin performance of your game, especially on low-end hardware. Light
 //! scattering is relatively heavy too.
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
@@ -36,7 +37,6 @@ use crate::{
         DirectlyInheritableEntity,
     },
 };
-use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
@@ -142,7 +142,7 @@ impl NodeTrait for PointLight {
         self.base_light.restore_resources(resource_manager);
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base_light.remap_handles(old_new_mapping);
     }
 

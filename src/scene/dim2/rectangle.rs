@@ -3,6 +3,7 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
@@ -23,7 +24,6 @@ use crate::{
         DirectlyInheritableEntity,
     },
 };
-use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
 /// Rectangle is the simplest "2D" node, it can be used to create "2D" graphics. 2D is in quotes
@@ -191,7 +191,7 @@ impl NodeTrait for Rectangle {
         Ok(())
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base.remap_handles(old_new_mapping);
     }
 

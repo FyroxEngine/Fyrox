@@ -14,6 +14,7 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
@@ -35,7 +36,6 @@ use crate::{
         DirectlyInheritableEntity,
     },
 };
-use fxhash::FxHashMap;
 use fyrox_resource::ResourceState;
 use std::{
     ops::{Deref, DerefMut},
@@ -609,7 +609,7 @@ impl NodeTrait for Camera {
         }
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base.remap_handles(old_new_mapping);
     }
 

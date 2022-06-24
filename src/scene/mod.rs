@@ -27,6 +27,7 @@ pub mod visibility;
 
 use crate::plugin::Plugin;
 use crate::scene::base::NodeMessage;
+use crate::scene::graph::map::NodeHandleMap;
 use crate::script::ScriptDeinitContext;
 use crate::{
     animation::{machine::container::AnimationMachineContainer, AnimationContainer},
@@ -651,7 +652,7 @@ impl Scene {
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
     /// by your criteria.
-    pub fn clone<F>(&self, filter: &mut F) -> (Self, FxHashMap<Handle<Node>, Handle<Node>>)
+    pub fn clone<F>(&self, filter: &mut F) -> (Self, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
@@ -659,16 +660,20 @@ impl Scene {
         let mut animations = self.animations.clone();
         for animation in animations.iter_mut() {
             // Remove all tracks for nodes that were filtered out.
-            animation.retain_tracks(|track| old_new_map.contains_key(&track.get_node()));
+            animation.retain_tracks(|track| old_new_map.map.contains_key(&track.get_node()));
             // Remap track nodes.
             for track in animation.get_tracks_mut() {
-                track.set_node(old_new_map[&track.get_node()]);
+                track.set_node(old_new_map.map[&track.get_node()]);
             }
         }
 
         let mut animation_machines = self.animation_machines.clone();
         for machine in animation_machines.iter_mut() {
-            machine.root = old_new_map.get(&machine.root).cloned().unwrap_or_default();
+            machine.root = old_new_map
+                .map
+                .get(&machine.root)
+                .cloned()
+                .unwrap_or_default();
         }
 
         (

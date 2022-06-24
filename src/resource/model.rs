@@ -17,9 +17,8 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native Fyroxed format) formats are supported.
-use crate::animation::AnimationContainer;
 use crate::{
-    animation::Animation,
+    animation::{Animation, AnimationContainer},
     asset::{define_new_resource, Resource, ResourceData},
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -31,10 +30,13 @@ use crate::{
         SerializationContext,
     },
     resource::fbx::{self, error::FbxError},
-    scene::{graph::Graph, node::Node, Scene, SceneLoader},
+    scene::{
+        graph::{map::NodeHandleMap, Graph},
+        node::Node,
+        Scene, SceneLoader,
+    },
     utils::log::{Log, MessageKind},
 };
-use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
@@ -71,7 +73,7 @@ impl Model {
         model_data: &ModelData,
         handle: Handle<Node>,
         dest_graph: &mut Graph,
-    ) -> (Handle<Node>, FxHashMap<Handle<Node>, Handle<Node>>) {
+    ) -> (Handle<Node>, NodeHandleMap) {
         let (root, old_to_new) =
             model_data
                 .scene
@@ -94,7 +96,7 @@ impl Model {
         }
 
         // Fill original handles to instances.
-        for (&old, &new) in old_to_new.iter() {
+        for (&old, &new) in old_to_new.inner().iter() {
             dest_graph[new].original_handle_in_resource = old;
         }
 

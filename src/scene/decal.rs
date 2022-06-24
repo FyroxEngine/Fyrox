@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Decal`]
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
@@ -22,7 +23,6 @@ use crate::{
         DirectlyInheritableEntity,
     },
 };
-use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
 /// Decal is an image that gets projected to a geometry of a scene. Blood splatters, bullet holes, scratches
@@ -223,7 +223,7 @@ impl NodeTrait for Decal {
         texture_container.try_restore_template_resource(&mut self.normal_texture);
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base.remap_handles(old_new_mapping);
     }
 

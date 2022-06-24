@@ -3,13 +3,13 @@
 //! For more info see [`Sprite`].
 
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         uuid::{uuid, Uuid},
+        variable::{InheritError, TemplateVariable},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -17,12 +17,11 @@ use crate::{
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
-        graph::Graph,
+        graph::{map::NodeHandleMap, Graph},
         node::{Node, NodeTrait, TypeUuidProvider},
         DirectlyInheritableEntity,
     },
 };
-use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
 /// Sprite is billboard which always faces towards camera. It can be used as a "model" for bullets, and so on.
@@ -193,7 +192,7 @@ impl NodeTrait for Sprite {
         texture_container.try_restore_template_resource(&mut self.texture);
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base.remap_handles(old_new_mapping);
     }
 

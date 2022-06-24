@@ -2,6 +2,7 @@
 
 //! Script is used to add custom logic to scene nodes. See [ScriptTrait] for more info.
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -16,7 +17,6 @@ use crate::{
     scene::{node::Node, Scene},
     utils::component::ComponentProvider,
 };
-use fxhash::FxHashMap;
 use std::{
     any::Any,
     fmt::Debug,
@@ -213,11 +213,7 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// nodes in the scene, for example a collider. When you copy the node with the script, you
     /// want the copy to contain references to respective copies, not the original objects.
     /// The method allows you to do exactly this.
-    fn remap_handles(
-        &mut self,
-        #[allow(unused_variables)] old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
-    }
+    fn remap_handles(&mut self, #[allow(unused_variables)] old_new_mapping: &NodeHandleMap) {}
 
     /// Allows you to restore resources after deserialization.
     ///

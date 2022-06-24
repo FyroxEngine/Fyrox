@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Base`]
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::uuid::Uuid,
     core::variable::{InheritError, TemplateVariable},
@@ -20,7 +21,6 @@ use crate::{
     script::Script,
     utils::log::Log,
 };
-use fxhash::FxHashMap;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -754,15 +754,10 @@ impl Base {
         self.local_transform.reset_inheritable_properties();
     }
 
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    pub(crate) fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         for property in self.properties.get_mut_silent().iter_mut() {
             if let PropertyValue::NodeHandle(ref mut handle) = property.value {
-                if let Some(new_handle) = old_new_mapping.get(handle) {
-                    *handle = *new_handle;
-                } else {
+                if !old_new_mapping.try_map(handle) {
                     Log::warn(format!(
                         "Unable to remap node handle property {} of a node {}. Handle is {}!",
                         property.name, *self.name, handle
@@ -775,9 +770,7 @@ impl Base {
         if let Some(lod_group) = self.lod_group.get_mut_silent() {
             for level in lod_group.levels.iter_mut() {
                 level.objects.retain_mut_ext(|object| {
-                    if let Some(entry) = old_new_mapping.get(object) {
-                        // Replace to mapped.
-                        object.0 = *entry;
+                    if old_new_mapping.try_map(object) {
                         true
                     } else {
                         Log::warn(format!(

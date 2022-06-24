@@ -1,4 +1,5 @@
 //! A simplest possible node which represents point in space.
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::InheritError,
     core::{
@@ -15,7 +16,6 @@ use crate::{
         node::{Node, NodeTrait, TypeUuidProvider},
     },
 };
-use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
 /// A simplest possible node which represents point in space.
@@ -73,7 +73,7 @@ impl NodeTrait for Pivot {
         self.base.restore_resources(resource_manager)
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base.remap_handles(old_new_mapping)
     }
 

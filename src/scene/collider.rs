@@ -1,6 +1,7 @@
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
@@ -24,7 +25,6 @@ use crate::{
     },
     utils::log::Log,
 };
-use fxhash::FxHashMap;
 use rapier3d::geometry::{self, ColliderHandle};
 use std::{
     cell::Cell,
@@ -700,15 +700,13 @@ impl NodeTrait for Collider {
         self.base.restore_resources(resource_manager);
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base.remap_handles(old_new_mapping);
 
         match self.shape.get_mut_silent() {
             ColliderShape::Trimesh(ref mut trimesh) => {
                 for source in trimesh.sources.iter_mut() {
-                    if let Some(entry) = old_new_mapping.get(&source.0) {
-                        source.0 = *entry;
-                    } else {
+                    if !old_new_mapping.try_map(&mut source.0) {
                         Log::warn(format!(
                             "Unable to remap geometry source of a Trimesh collider {} shape. Handle is {}!",
                             *self.base.name,
@@ -718,9 +716,7 @@ impl NodeTrait for Collider {
                 }
             }
             ColliderShape::Heightfield(ref mut heightfield) => {
-                if let Some(entry) = old_new_mapping.get(&heightfield.geometry_source.0) {
-                    heightfield.geometry_source.0 = *entry;
-                } else {
+                if !old_new_mapping.try_map(&mut heightfield.geometry_source.0) {
                     Log::warn(format!(
                         "Unable to remap geometry source of a Height Field collider {} shape. Handle is {}!",
                         *self.base.name,

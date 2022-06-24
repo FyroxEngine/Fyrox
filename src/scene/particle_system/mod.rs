@@ -70,6 +70,7 @@
 //! }
 //! ```
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
@@ -97,7 +98,6 @@ use crate::{
         DirectlyInheritableEntity,
     },
 };
-use fxhash::FxHashMap;
 use std::{
     cmp::Ordering,
     fmt::Debug,
@@ -397,7 +397,7 @@ impl NodeTrait for ParticleSystem {
         texture_container.try_restore_template_resource(&mut self.texture);
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base.remap_handles(old_new_mapping);
     }
 

@@ -34,7 +34,7 @@ pub use fyrox_sound::{
     source::Status,
 };
 
-use fxhash::FxHashMap;
+use crate::scene::graph::map::NodeHandleMap;
 use fyrox_sound::source::SoundSource;
 use std::{
     cell::Cell,
@@ -354,7 +354,7 @@ impl NodeTrait for Sound {
         }
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base.remap_handles(old_new_mapping);
     }
 

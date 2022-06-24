@@ -15,11 +15,10 @@ use crate::{
     engine::resource_manager::ResourceManager,
     scene::{
         base::{Base, BaseBuilder},
-        graph::Graph,
+        graph::{map::NodeHandleMap, Graph},
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
     },
 };
-use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
 /// Listener represents directional microphone-like device. It receives sound from surroundings
@@ -90,7 +89,7 @@ impl NodeTrait for Listener {
         self.base.restore_resources(resource_manager);
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base.remap_handles(old_new_mapping);
     }
 

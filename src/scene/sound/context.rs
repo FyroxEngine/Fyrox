@@ -1,21 +1,18 @@
 //! Sound context.
 
-use crate::scene::graph::NodePool;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
-        pool::{Handle, Pool},
+        pool::{Handle, Pool, Ticket},
         visitor::prelude::*,
     },
     resource::model::Model,
     scene::{
-        node::Node,
+        graph::{map::NodeHandleMap, NodePool},
         sound::{self, effect::Effect, Sound},
     },
     utils::log::{Log, MessageKind},
 };
-use fxhash::FxHashMap;
-use fyrox_core::pool::Ticket;
 use fyrox_sound::{
     context::DistanceModel,
     effects::{reverb::Reverb, BaseEffect, EffectInput, InputFilter},
@@ -338,15 +335,10 @@ impl SoundContext {
         }
     }
 
-    pub(crate) fn remap_handles(
-        &mut self,
-        old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>,
-    ) {
+    pub(crate) fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         for effect in self.effects.iter_mut() {
             for input in effect.inputs.get_mut_silent().iter_mut() {
-                if let Some(new_handle) = old_new_mapping.get(&input.sound) {
-                    input.sound = *new_handle;
-                }
+                old_new_mapping.try_map(&mut input.sound);
             }
         }
     }

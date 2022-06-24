@@ -8,6 +8,7 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::{InheritError, TemplateVariable, VariableFlags},
     core::{
@@ -31,7 +32,6 @@ use crate::{
         DirectlyInheritableEntity,
     },
 };
-use fxhash::FxHashMap;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -301,14 +301,12 @@ impl NodeTrait for Mesh {
         }
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base.remap_handles(old_new_mapping);
 
         for surface in self.surfaces.get_mut_silent() {
             for bone_handle in surface.bones.iter_mut() {
-                if let Some(entry) = old_new_mapping.get(bone_handle) {
-                    *bone_handle = *entry;
-                }
+                old_new_mapping.try_map(bone_handle);
             }
         }
     }

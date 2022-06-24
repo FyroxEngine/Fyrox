@@ -1,5 +1,6 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
@@ -20,7 +21,6 @@ use crate::{
     },
     utils::log::Log,
 };
-use fxhash::FxHashMap;
 use rapier3d::dynamics::ImpulseJointHandle;
 use std::{
     cell::Cell,
@@ -295,10 +295,8 @@ impl NodeTrait for Joint {
         self.base.restore_resources(resource_manager);
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
-        if let Some(entry) = old_new_mapping.get(&self.body1()) {
-            self.body1.set_silent(*entry);
-        } else {
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
+        if !old_new_mapping.try_map_silent(&mut self.body1) {
             Log::warn(format!(
                 "Unable to remap first body of a joint {}. Handle is {}!",
                 self.name(),
@@ -306,9 +304,7 @@ impl NodeTrait for Joint {
             ))
         }
 
-        if let Some(entry) = old_new_mapping.get(&self.body2()) {
-            self.body2.set_silent(*entry);
-        } else {
+        if !old_new_mapping.try_map_silent(&mut self.body2) {
             Log::warn(format!(
                 "Unable to remap second body of a joint {}. Handle is {}!",
                 self.name(),

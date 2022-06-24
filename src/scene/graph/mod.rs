@@ -22,6 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     asset::ResourceState,
     core::{
@@ -51,7 +52,6 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
-use fxhash::FxHashMap;
 use rapier3d::geometry::ColliderHandle;
 use std::{
     fmt::Debug,
@@ -61,6 +61,7 @@ use std::{
 };
 
 pub mod event;
+pub mod map;
 pub mod physics;
 
 /// Graph performance statistics. Allows you to find out "hot" parts of the scene graph, which
@@ -165,9 +166,9 @@ pub struct SubGraph {
     pub descendants: Vec<(Ticket<Node>, Node)>,
 }
 
-fn remap_handles(old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>, dest_graph: &mut Graph) {
+fn remap_handles(old_new_mapping: &NodeHandleMap, dest_graph: &mut Graph) {
     // Iterate over instantiated nodes and remap handles.
-    for (_, &new_node_handle) in old_new_mapping.iter() {
+    for (_, &new_node_handle) in old_new_mapping.inner().iter() {
         let dest_node = &mut dest_graph.pool[new_node_handle];
         dest_node.remap_handles(old_new_mapping);
 
@@ -453,11 +454,11 @@ impl Graph {
         node_handle: Handle<Node>,
         dest_graph: &mut Graph,
         filter: &mut F,
-    ) -> (Handle<Node>, FxHashMap<Handle<Node>, Handle<Node>>)
+    ) -> (Handle<Node>, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
-        let mut old_new_mapping = FxHashMap::default();
+        let mut old_new_mapping = NodeHandleMap::default();
         let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping, filter);
 
         remap_handles(&old_new_mapping, dest_graph);
@@ -492,11 +493,11 @@ impl Graph {
         &mut self,
         node_handle: Handle<Node>,
         filter: &mut F,
-    ) -> (Handle<Node>, FxHashMap<Handle<Node>, Handle<Node>>)
+    ) -> (Handle<Node>, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
-        let mut old_new_mapping = FxHashMap::default();
+        let mut old_new_mapping = NodeHandleMap::default();
 
         let to_copy = self
             .traverse_handle_iter(node_handle)
@@ -509,7 +510,7 @@ impl Graph {
             // Copy parent first.
             let parent_copy = self.pool[*parent].clone_box();
             let parent_copy_handle = self.add_node(parent_copy);
-            old_new_mapping.insert(*parent, parent_copy_handle);
+            old_new_mapping.map.insert(*parent, parent_copy_handle);
 
             if root_handle.is_none() {
                 root_handle = parent_copy_handle;
@@ -520,7 +521,7 @@ impl Graph {
                 if filter(child, &self.pool[child]) {
                     let child_copy = self.pool[child].clone_box();
                     let child_copy_handle = self.add_node(child_copy);
-                    old_new_mapping.insert(child, child_copy_handle);
+                    old_new_mapping.map.insert(child, child_copy_handle);
                     self.link_nodes(child_copy_handle, parent_copy_handle);
                 }
             }
@@ -553,7 +554,7 @@ impl Graph {
         &self,
         root_handle: Handle<Node>,
         dest_graph: &mut Graph,
-        old_new_mapping: &mut FxHashMap<Handle<Node>, Handle<Node>>,
+        old_new_mapping: &mut NodeHandleMap,
         filter: &mut F,
     ) -> Handle<Node>
     where
@@ -562,7 +563,7 @@ impl Graph {
         let src_node = &self.pool[root_handle];
         let dest_node = src_node.clone_box();
         let dest_copy_handle = dest_graph.add_node(dest_node);
-        old_new_mapping.insert(root_handle, dest_copy_handle);
+        old_new_mapping.map.insert(root_handle, dest_copy_handle);
         for &src_child_handle in src_node.children() {
             if filter(src_child_handle, &self.pool[src_child_handle]) {
                 let dest_child_handle =
@@ -643,15 +644,16 @@ impl Graph {
         for (instance_root, resource) in instances {
             // Prepare old -> new handle mapping first by walking over the graph
             // starting from instance root.
-            let mut old_new_mapping = FxHashMap::default();
+            let mut old_new_mapping = NodeHandleMap::default();
             let mut traverse_stack = vec![*instance_root];
             while let Some(node_handle) = traverse_stack.pop() {
                 let node = &self.pool[node_handle];
                 if let Some(node_resource) = node.resource().as_ref() {
                     // We're interested only in instance nodes.
                     if node_resource == resource {
-                        let previous_mapping =
-                            old_new_mapping.insert(node.original_handle_in_resource, node_handle);
+                        let previous_mapping = old_new_mapping
+                            .map
+                            .insert(node.original_handle_in_resource, node_handle);
                         // There should be no such node.
                         if previous_mapping.is_some() {
                             Log::warn(format!(
@@ -668,7 +670,7 @@ impl Graph {
 
             // Lastly, remap handles. We can't do this in single pass because there could
             // be cross references.
-            for (_, handle) in old_new_mapping.iter() {
+            for (_, handle) in old_new_mapping.map.iter() {
                 self.pool[*handle].remap_handles(&old_new_mapping);
             }
         }
@@ -746,7 +748,7 @@ impl Graph {
                             self,
                         );
 
-                        restored_count += old_to_new_mapping.len();
+                        restored_count += old_to_new_mapping.map.len();
 
                         // Link it with existing node.
                         if resource_node.parent().is_some() {
@@ -1116,7 +1118,7 @@ impl Graph {
 
     /// Creates deep copy of graph. Allows filtering while copying, returns copy and
     /// old-to-new node mapping.
-    pub fn clone<F>(&self, filter: &mut F) -> (Self, FxHashMap<Handle<Node>, Handle<Node>>)
+    pub fn clone<F>(&self, filter: &mut F) -> (Self, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
