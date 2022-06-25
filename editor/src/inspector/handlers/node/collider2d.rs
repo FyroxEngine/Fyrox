@@ -26,7 +26,9 @@ pub fn handle_collider2d_property_changed(
                 Collider::RESTITUTION => SetColliderRestitutionCommand,
                 Collider::IS_SENSOR => SetColliderIsSensorCommand,
                 Collider::DENSITY => SetColliderDensityCommand,
-                Collider::SHAPE => SetColliderShapeCommand
+                Collider::SHAPE => SetColliderShapeCommand,
+                Collider::FRICTION_COMBINE_RULE => SetColliderFrictionCombineRule,
+                Collider::RESTITUTION_COMBINE_RULE => SetColliderRestitutionCombineRule
             )
         }
         FieldKind::Inspectable(ref inner_property) => match args.name.as_ref() {

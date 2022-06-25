@@ -14,4 +14,6 @@ define_swap_command! {
     SetBodyTranslationLockedCommand(bool): is_translation_locked, lock_translation, "Set 2D Body Translation Locked";
     SetBodyCanSleepCommand(bool): is_can_sleep, set_can_sleep, "Set 2D Body Can Sleep";
     SetBodyCcdEnabledCommand(bool): is_ccd_enabled, enable_ccd, "Set 2D Body Ccd Enabled";
+    SetBodyLinDampingCommand(f32): lin_damping, set_lin_damping, "Set Lin Damping";
+    SetBodyAngDampingCommand(f32): ang_damping, set_ang_damping, "Set Ang Damping";
 }

@@ -3,7 +3,7 @@ use crate::{
 };
 use fyrox::{
     core::{algebra::Vector3, pool::Handle},
-    scene::{collider::*, graph::Graph, node::Node},
+    scene::{collider::*, graph::physics::CoefficientCombineRule, graph::Graph, node::Node},
 };
 
 macro_rules! define_collider_shape_variant_command {
@@ -44,6 +44,8 @@ define_swap_command! {
     SetColliderRestitutionCommand(f32): restitution, set_restitution, "Set Collider Restitution";
     SetColliderIsSensorCommand(bool): is_sensor, set_is_sensor, "Set Collider Is Sensor";
     SetColliderDensityCommand(Option<f32>): density, set_density, "Set Collider Density";
+    SetColliderFrictionCombineRule(CoefficientCombineRule): friction_combine_rule, set_friction_combine_rule, "Set Collider Friction Combine Rule";
+    SetColliderRestitutionCombineRule(CoefficientCombineRule): restitution_combine_rule, set_restitution_combine_rule, "Set Collider Restitution Combine Rule";
     SetColliderCollisionGroupsCommand(InteractionGroups): collision_groups, set_collision_groups, "Set Collider Collision Groups";
     SetColliderSolverGroupsCommand(InteractionGroups): solver_groups, set_solver_groups, "Set Collider Solver Groups";
 }
