@@ -2,22 +2,23 @@
 //!
 //! For more info see [`Base`]
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::uuid::Uuid,
-    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Matrix4, Vector3},
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{ErasedHandle, Handle},
+        uuid::Uuid,
+        variable::{InheritError, TemplateVariable},
         visitor::{Visit, VisitError, VisitResult, Visitor},
         VecExtensions,
     },
     engine::{resource_manager::ResourceManager, SerializationContext},
     impl_directly_inheritable_entity_trait,
     resource::model::Model,
-    scene::{node::Node, transform::Transform, DirectlyInheritableEntity},
+    scene::{
+        graph::map::NodeHandleMap, node::Node, transform::Transform, DirectlyInheritableEntity,
+    },
     script::Script,
     utils::log::Log,
 };
@@ -259,8 +260,13 @@ pub struct Property {
     pub value: PropertyValue,
 }
 
-/// A message from scene node.
-pub enum NodeMessage {
+/// A script message from scene node. It is used for deferred initialization/deinitialization.
+pub enum ScriptMessage {
+    /// A script was set to a node and needs to be initialized.
+    InitializeScript {
+        /// Node handle.
+        handle: Handle<Node>,
+    },
     /// A node script must be destroyed. It can happen if the script was replaced with some other
     /// or a node was destroyed.
     DestroyScript {
@@ -296,7 +302,7 @@ pub struct Base {
     #[inspect(skip)]
     pub(crate) self_handle: Handle<Node>,
 
-    pub(crate) message_sender: Option<Sender<NodeMessage>>,
+    pub(crate) script_message_sender: Option<Sender<ScriptMessage>>,
 
     #[inspect(getter = "Deref::deref")]
     pub(crate) name: TemplateVariable<String>,
@@ -395,7 +401,7 @@ impl Clone for Base {
     fn clone(&self) -> Self {
         Self {
             self_handle: Default::default(), // Intentionally not copied!
-            message_sender: None,            // Intentionally not copied!
+            script_message_sender: None,     // Intentionally not copied!
             name: self.name.clone(),
             local_transform: self.local_transform.clone(),
             global_transform: self.global_transform.clone(),
@@ -679,8 +685,8 @@ impl Base {
     fn remove_script(&mut self) {
         // Send script to the graph to destroy script instances correctly.
         if let Some(script) = self.script.take() {
-            if let Some(sender) = self.message_sender.as_ref() {
-                Log::verify(sender.send(NodeMessage::DestroyScript {
+            if let Some(sender) = self.script_message_sender.as_ref() {
+                Log::verify(sender.send(ScriptMessage::DestroyScript {
                     script,
                     handle: self.self_handle,
                 }));
@@ -698,6 +704,13 @@ impl Base {
     pub fn set_script(&mut self, script: Option<Script>) {
         self.remove_script();
         self.script = script;
+        if let Some(sender) = self.script_message_sender.as_ref() {
+            if self.script.is_some() {
+                Log::verify(sender.send(ScriptMessage::InitializeScript {
+                    handle: self.self_handle,
+                }));
+            }
+        }
     }
 
     /// Returns shared reference to current script instance.
@@ -1057,7 +1070,7 @@ impl BaseBuilder {
     pub fn build_base(self) -> Base {
         Base {
             self_handle: Default::default(),
-            message_sender: None,
+            script_message_sender: None,
             name: self.name.into(),
             children: self.children,
             local_transform: self.local_transform,

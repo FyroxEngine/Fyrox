@@ -26,9 +26,9 @@ pub mod transform;
 pub mod visibility;
 
 use crate::plugin::Plugin;
-use crate::scene::base::NodeMessage;
+use crate::scene::base::ScriptMessage;
 use crate::scene::graph::map::NodeHandleMap;
-use crate::script::ScriptDeinitContext;
+use crate::script::{ScriptContext, ScriptDeinitContext};
 use crate::{
     animation::{machine::container::AnimationMachineContainer, AnimationContainer},
     core::variable::{InheritError, InheritableVariable},
@@ -723,21 +723,53 @@ impl Scene {
         self.visit(region_name, visitor)
     }
 
-    #[allow(irrefutable_let_patterns)]
-    pub(crate) fn handle_messages(
+    pub(crate) fn discard_script_messages(&mut self) {
+        while self.graph.script_message_receiver.try_recv().is_ok() {
+            // Drop messages one by one.
+        }
+    }
+
+    pub(crate) fn handle_script_messages(
         &mut self,
         plugins: &mut [Box<dyn Plugin>],
         resource_manager: &ResourceManager,
     ) {
-        while let Ok(message) = self.graph.message_receiver.try_recv() {
-            if let NodeMessage::DestroyScript { mut script, handle } = message {
-                if let Some(plugin) = plugins.iter_mut().find(|p| p.id() == script.plugin_uuid()) {
-                    script.on_deinit(ScriptDeinitContext {
-                        plugin: &mut **plugin,
-                        resource_manager,
-                        scene: self,
-                        node_handle: handle,
-                    })
+        while let Ok(message) = self.graph.script_message_receiver.try_recv() {
+            match message {
+                ScriptMessage::DestroyScript { mut script, handle } => {
+                    if let Some(plugin) =
+                        plugins.iter_mut().find(|p| p.id() == script.plugin_uuid())
+                    {
+                        script.on_deinit(ScriptDeinitContext {
+                            plugin: &mut **plugin,
+                            resource_manager,
+                            scene: self,
+                            node_handle: handle,
+                        })
+                    }
+                }
+                ScriptMessage::InitializeScript { handle } => {
+                    if let Some(mut script) =
+                        self.graph.try_get_mut(handle).and_then(|n| n.script.take())
+                    {
+                        if let Some(plugin) =
+                            plugins.iter_mut().find(|p| p.id() == script.plugin_uuid())
+                        {
+                            script.on_init(ScriptContext {
+                                dt: 0.0,
+                                plugin: &mut **plugin,
+                                handle,
+                                scene: self,
+                                resource_manager,
+                            });
+
+                            // Put script back to node, checked borrow is used because the node might be deleted
+                            // on initialization.
+                            if let Some(node) = self.graph.try_get_mut(handle) {
+                                node.script = Some(script);
+                            }
+                        }
+                    }
                 }
             }
         }

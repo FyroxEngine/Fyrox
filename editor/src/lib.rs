@@ -1150,7 +1150,7 @@ impl Editor {
                 // Remove play mode scene.
                 engine.scenes.remove(scene);
 
-                engine.handle_script_destruction();
+                engine.handle_script_messages();
                 assert!(engine.scripted_scenes.remove(&scene));
 
                 // Remove every scene that was created in the play mode.

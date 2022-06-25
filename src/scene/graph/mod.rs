@@ -22,7 +22,6 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     asset::ResourceState,
     core::{
@@ -36,12 +35,12 @@ use crate::{
     resource::model::{Model, NodeMapping},
     scene::{
         self,
-        base::NodeMessage,
+        base::ScriptMessage,
         camera::Camera,
         dim2::{self},
-        graph::event::GraphEvent,
         graph::{
-            event::GraphEventBroadcaster,
+            event::{GraphEvent, GraphEventBroadcaster},
+            map::NodeHandleMap,
             physics::{PhysicsPerformanceStatistics, PhysicsWorld},
         },
         mesh::Mesh,
@@ -128,8 +127,8 @@ pub struct Graph {
     /// Allows you to "subscribe" for graph events.
     pub event_broadcaster: GraphEventBroadcaster,
 
-    pub(crate) message_sender: Sender<NodeMessage>,
-    pub(crate) message_receiver: Receiver<NodeMessage>,
+    pub(crate) script_message_sender: Sender<ScriptMessage>,
+    pub(crate) script_message_receiver: Receiver<ScriptMessage>,
 }
 
 impl Default for Graph {
@@ -145,8 +144,8 @@ impl Default for Graph {
             sound_context: Default::default(),
             performance_statistics: Default::default(),
             event_broadcaster: Default::default(),
-            message_receiver: rx,
-            message_sender: tx,
+            script_message_receiver: rx,
+            script_message_sender: tx,
         }
     }
 }
@@ -217,8 +216,8 @@ impl Graph {
             sound_context: SoundContext::new(),
             performance_statistics: Default::default(),
             event_broadcaster: Default::default(),
-            message_receiver: rx,
-            message_sender: tx,
+            script_message_receiver: rx,
+            script_message_sender: tx,
         }
     }
 
@@ -239,10 +238,10 @@ impl Graph {
 
         self.event_broadcaster.broadcast(GraphEvent::Added(handle));
 
-        let sender = self.message_sender.clone();
+        let sender = self.script_message_sender.clone();
         let node = &mut self[handle];
         node.self_handle = handle;
-        node.message_sender = Some(sender);
+        node.script_message_sender = Some(sender);
 
         handle
     }
@@ -787,7 +786,7 @@ impl Graph {
     fn restore_dynamic_node_data(&mut self) {
         for (handle, node) in self.pool.pair_iter_mut() {
             node.self_handle = handle;
-            node.message_sender = Some(self.message_sender.clone());
+            node.script_message_sender = Some(self.script_message_sender.clone());
         }
     }
 

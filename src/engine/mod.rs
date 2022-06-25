@@ -451,7 +451,7 @@ impl Engine {
         self.user_interface.update(window_size, dt);
         self.ui_time = instant::Instant::now() - time;
 
-        self.handle_script_destruction();
+        self.handle_script_messages();
     }
 
     /// Performs update of every plugin.
@@ -565,12 +565,20 @@ impl Engine {
         }
     }
 
-    /// Correctly destroys all script instances. It is called automatically once per frame, but
-    /// you can call it manually if you want immediate script destruction.
-    pub fn handle_script_destruction(&mut self) {
+    /// Correctly handle all script instances. It is called automatically once per frame, but
+    /// you can call it manually if you want immediate script message processing.
+    ///
+    /// # Motivation
+    ///
+    /// There is no way to initialize or destruct script instances on demand, that's why script
+    /// initialization and destruction is deferred. It is called in controlled environment that
+    /// has unique access to all required components thus solving borrowing issues.
+    pub fn handle_script_messages(&mut self) {
         for (handle, scene) in self.scenes.pair_iter_mut() {
             if self.scripted_scenes.contains(&handle) {
-                scene.handle_messages(&mut self.plugins, &self.resource_manager);
+                scene.handle_script_messages(&mut self.plugins, &self.resource_manager);
+            } else {
+                scene.discard_script_messages();
             }
         }
 
@@ -578,7 +586,7 @@ impl Engine {
         for (handle, mut detached_scene) in self.scenes.destruction_list.drain(..) {
             // Destroy every queued script instances first.
             if self.scripted_scenes.contains(&handle) {
-                detached_scene.handle_messages(&mut self.plugins, &self.resource_manager);
+                detached_scene.handle_script_messages(&mut self.plugins, &self.resource_manager);
 
                 // Destroy every script instance from nodes that were still alive.
                 for node_index in 0..detached_scene.graph.capacity() {
@@ -833,7 +841,7 @@ impl Drop for Engine {
             self.scenes.remove(handle);
         }
 
-        self.handle_script_destruction();
+        self.handle_script_messages();
 
         // Finally unload plugins.
         self.unload_plugins(0.0, false);
