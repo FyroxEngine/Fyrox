@@ -482,17 +482,19 @@ impl Engine {
     }
 
     fn update_plugins(&mut self, dt: f32) {
-        let mut context = PluginContext {
-            scenes: &mut self.scenes,
-            resource_manager: &self.resource_manager,
-            renderer: &mut self.renderer,
-            dt,
-            serialization_context: self.serialization_context.clone(),
-            window: get_window!(self),
-        };
+        if self.plugins_enabled {
+            let mut context = PluginContext {
+                scenes: &mut self.scenes,
+                resource_manager: &self.resource_manager,
+                renderer: &mut self.renderer,
+                dt,
+                serialization_context: self.serialization_context.clone(),
+                window: get_window!(self),
+            };
 
-        for plugin in self.plugins.iter_mut() {
-            plugin.update(&mut context);
+            for plugin in self.plugins.iter_mut() {
+                plugin.update(&mut context);
+            }
         }
     }
 
