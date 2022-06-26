@@ -41,7 +41,7 @@ impl ScriptConstructorContainer {
     /// # Panic
     ///
     /// The method will panic if there is already a constructor for given type uuid.
-    pub fn add<P, T, N>(&self, name: N)
+    pub fn add<P, T, N>(&self, name: N) -> &Self
     where
         P: TypeUuidProvider,
         T: TypeUuidProvider + ScriptTrait + Default,
@@ -57,6 +57,8 @@ impl ScriptConstructorContainer {
         );
 
         assert!(old.is_none());
+
+        self
     }
 
     /// Adds custom type constructor.
