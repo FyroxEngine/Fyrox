@@ -5,12 +5,10 @@ use fyrox::{
         futures::executor::block_on,
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
-        uuid::uuid,
-        uuid::Uuid,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
-    fxhash::FxHashMap,
     gui::{
         button::ButtonBuilder,
         inspector::{FieldKind, PropertyChanged},
@@ -25,8 +23,11 @@ use fyrox::{
         RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
     },
     scene::{
-        camera::Camera, node::Node, node::TypeUuidProvider, rigidbody::RigidBody, Scene,
-        SceneLoader,
+        camera::Camera,
+        graph::map::NodeHandleMap,
+        node::{Node, TypeUuidProvider},
+        rigidbody::RigidBody,
+        Scene, SceneLoader,
     },
     script::{ScriptContext, ScriptTrait},
     utils::translate_event,
@@ -120,34 +121,29 @@ impl Plugin for GamePlugin {
         scripts.add::<GamePlugin, Bot, &str>("Bot");
     }
 
-    fn on_standalone_init(&mut self, context: PluginContext) {
-        let mut scene = block_on(
-            block_on(SceneLoader::from_file(
-                "data/scene.rgs",
-                context.serialization_context.clone(),
-            ))
-            .expect("Invalid scene!")
-            .finish(context.resource_manager.clone()),
-        );
+    fn on_init(&mut self, override_scene: Handle<Scene>, context: PluginContext) {
+        let scene = if override_scene.is_some() {
+            dbg!(override_scene)
+        } else {
+            let scene = block_on(
+                block_on(SceneLoader::from_file(
+                    "data/scene.rgs",
+                    context.serialization_context.clone(),
+                ))
+                .expect("Invalid scene!")
+                .finish(context.resource_manager.clone()),
+            );
+            dbg!(context.scenes.add(scene))
+        };
 
-        for node in scene.graph.linear_iter_mut() {
+        for node in context.scenes[scene].graph.linear_iter_mut() {
             if let Some(camera) = node.cast_mut::<Camera>() {
                 camera.set_enabled(true);
             }
         }
 
-        self.set_scene(context.scenes.add(scene), context);
-    }
-
-    fn on_enter_play_mode(&mut self, scene: Handle<Scene>, context: PluginContext) {
         self.set_scene(scene, context);
     }
-
-    fn on_leave_play_mode(&mut self, _context: PluginContext) {
-        self.scene = Handle::NONE;
-    }
-
-    fn on_unload(&mut self, _context: &mut PluginContext) {}
 
     fn update(&mut self, context: &mut PluginContext) {
         let scene = &mut context.scenes[self.scene];
@@ -240,10 +236,8 @@ impl ScriptTrait for Player {
         false
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
-        if let Some(camera) = old_new_mapping.get(&self.camera) {
-            self.camera = *camera;
-        }
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
+        old_new_mapping.map(&mut self.camera);
     }
 
     fn on_update(&mut self, context: ScriptContext) {

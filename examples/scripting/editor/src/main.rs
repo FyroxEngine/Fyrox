@@ -11,6 +11,6 @@ fn main() {
             scene: "data/scene.rgs".into(),
         }),
     );
-    editor.add_game_plugin(GamePlugin::new());
+    editor.add_game_plugin::<GamePlugin>();
     editor.run(event_loop)
 }

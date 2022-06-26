@@ -1,4 +1,4 @@
-use crate::{block_on, FxHashMap, GamePlugin, Uuid};
+use crate::{block_on, GamePlugin};
 use fyrox::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
@@ -8,13 +8,14 @@ use fyrox::{
         algebra::{UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
-        uuid::uuid,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
     impl_component_provider,
     resource::model::Model,
     scene::{
+        graph::map::NodeHandleMap,
         node::{Node, TypeUuidProvider},
         Scene,
     },
@@ -82,10 +83,8 @@ impl ScriptTrait for Bot {
         self.follow_target = false;
     }
 
-    fn remap_handles(&mut self, old_new_mapping: &FxHashMap<Handle<Node>, Handle<Node>>) {
-        if let Some(collider) = old_new_mapping.get(&self.collider) {
-            self.collider = *collider;
-        }
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
+        old_new_mapping.map(&mut self.collider);
     }
 
     fn on_update(&mut self, context: ScriptContext) {
