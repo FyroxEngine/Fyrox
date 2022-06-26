@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+use crate::scene::node::TypeUuidProvider;
 use crate::{
     core::instant::Instant,
     engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
@@ -63,11 +64,11 @@ impl Executor {
         Self { event_loop, engine }
     }
 
-    pub fn add_plugin<P>(&mut self, plugin: P)
+    pub fn add_plugin<P>(&mut self) -> bool
     where
-        P: Plugin,
+        P: Plugin + Default + TypeUuidProvider,
     {
-        self.engine.add_plugin(plugin, false, true);
+        self.engine.add_plugin::<P>()
     }
 
     pub fn run(self) -> ! {
@@ -78,8 +79,10 @@ impl Executor {
         let fixed_timestep = 1.0 / 60.0;
         let mut elapsed_time = 0.0;
 
+        engine.enable_plugins(Default::default(), true);
+
         event_loop.run(move |event, _, control_flow| {
-            engine.handle_os_event_by_plugins(&event, fixed_timestep, true);
+            engine.handle_os_event_by_plugins(&event, fixed_timestep);
 
             let scenes = engine
                 .scenes
@@ -93,6 +96,10 @@ impl Executor {
                     engine.scripted_scenes.insert(*scene_handle);
                 }
 
+                engine
+                    .scripted_scenes
+                    .retain(|s| engine.scenes.is_valid_handle(*s));
+
                 engine.handle_os_event_by_scripts(&event, *scene_handle, fixed_timestep);
             }
 
@@ -102,12 +109,6 @@ impl Executor {
                     while dt >= fixed_timestep {
                         dt -= fixed_timestep;
                         elapsed_time += fixed_timestep;
-
-                        engine.update_plugins(fixed_timestep, false);
-
-                        for &scene_handle in scenes.iter() {
-                            engine.update_scene_scripts(scene_handle, fixed_timestep);
-                        }
 
                         engine.update(fixed_timestep);
                     }

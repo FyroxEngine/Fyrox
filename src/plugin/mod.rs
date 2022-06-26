@@ -20,9 +20,6 @@ pub struct PluginRegistrationContext {
 
 /// Contains plugin environment.
 pub struct PluginContext<'a> {
-    /// `true` if  the plugin running under the editor, `false` - otherwise.
-    pub is_in_editor: bool,
-
     /// A reference to scene container of the engine. You can add new scenes from [`Plugin`] methods
     /// by using [`SceneContainer::add`].
     ///
@@ -57,11 +54,14 @@ pub trait BasePlugin: Any + 'static {
 
     /// Returns a reference to Any trait. It is used for type casting.
     fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    /// Returns default state of plugin instance. It is used to reset plugin state.
+    fn default_boxed(&self) -> Box<dyn Plugin>;
 }
 
 impl<T> BasePlugin for T
 where
-    T: Any + 'static,
+    T: Default + Any + Plugin + 'static,
 {
     fn as_any(&self) -> &dyn Any {
         self
@@ -69,6 +69,10 @@ where
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn default_boxed(&self) -> Box<dyn Plugin> {
+        Box::new(T::default())
     }
 }
 
@@ -145,6 +149,7 @@ impl dyn Plugin {
 /// };
 /// use std::str::FromStr;
 ///
+/// #[derive(Default)]
 /// struct MyPlugin {}
 ///
 /// impl Plugin for MyPlugin {
@@ -154,25 +159,13 @@ impl dyn Plugin {
 ///         // The implementation is optional.
 ///     }
 ///
-///     fn on_standalone_init(&mut self, context: PluginContext) {
-///         // The method is called when the plugin is running in standalone mode (editor-less).
+///     fn on_init(&mut self, override_scene: Handle<Scene>, context: PluginContext) {
+///         // The method is called when the plugin is enabling.
 ///         // The implementation is optional.
 ///     }
 ///
-///     fn on_enter_play_mode(&mut self, scene: Handle<Scene>, context: PluginContext) {
-///         // The method is called when the plugin is running inside the editor and it enters
-///         // "play mode".
-///         // The implementation is optional.
-///     }
-///
-///     fn on_leave_play_mode(&mut self, context: PluginContext) {
-///         // The method is called when the plugin is running inside the editor and it leaves
-///         // "play mode".
-///         // The implementation is optional.
-///     }
-///
-///     fn on_unload(&mut self, context: &mut PluginContext) {
-///         // The method is called when the game/editor is about to shutdown.
+///     fn on_deinit(&mut self, context: PluginContext) {
+///         // The method is called when the plugin is disabling.
 ///         // The implementation is optional.
 ///     }
 ///
@@ -197,38 +190,19 @@ pub trait Plugin: BasePlugin {
     /// method is to register scripts and custom scene graph nodes in [`SerializationContext`].
     fn on_register(&mut self, #[allow(unused_variables)] context: PluginRegistrationContext) {}
 
-    /// The method is called when the plugin is registered in game executor. It is guaranteed to be
-    /// called once.
+    /// The method is called when the plugin is enabling.
     ///
-    /// # Important notes
-    ///
-    /// The method is **not** called if the plugin is running in the editor! Use
-    /// [`Self::on_enter_play_mode`] instead.
-    fn on_standalone_init(&mut self, #[allow(unused_variables)] context: PluginContext) {}
-
-    /// The method is called if the plugin running in the editor and the editor enters play mode.
-    ///
-    /// # Important notes
-    ///
-    /// The method replaces [`Self::on_standalone_init`] when the plugin runs in the editor! Use
-    /// the method to obtain a handle to the scene being edited in the editor.
-    fn on_enter_play_mode(
+    /// `override_scene` is a handle to an override scene that is currently active. It is used only in editor
+    /// when you enter play mode, on other cases it is `Handle::NONE`.
+    fn on_init(
         &mut self,
-        #[allow(unused_variables)] scene: Handle<Scene>,
+        #[allow(unused_variables)] override_scene: Handle<Scene>,
         #[allow(unused_variables)] context: PluginContext,
     ) {
     }
 
-    /// The method is called when the plugin is running inside the editor and it leaves
-    /// "play mode".
-    fn on_leave_play_mode(&mut self, #[allow(unused_variables)] context: PluginContext) {}
-
-    /// The method is called when the plugin is running inside the editor and it left
-    /// "play mode". It is guaranteed to be called after [Self::on_leave_play_mode]
-    fn on_left_play_mode(&mut self, #[allow(unused_variables)] context: PluginContext) {}
-
-    /// The method is called when the game/editor is about to shutdown.
-    fn on_unload(&mut self, #[allow(unused_variables)] context: &mut PluginContext) {}
+    /// The method is called when the plugin is disabling.
+    fn on_deinit(&mut self, #[allow(unused_variables)] context: PluginContext) {}
 
     /// Updates the plugin internals at fixed rate (see [`PluginContext::dt`] parameter for more
     /// info).

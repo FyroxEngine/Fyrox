@@ -102,7 +102,7 @@ use fyrox::{
     scene::{
         camera::{Camera, Projection},
         mesh::Mesh,
-        node::Node,
+        node::{Node, TypeUuidProvider},
         Scene, SceneLoader,
     },
     utils::{
@@ -1123,7 +1123,7 @@ impl Editor {
 
             assert!(engine.scripted_scenes.insert(handle));
 
-            engine.call_plugins_on_enter_play_mode(handle, FIXED_TIMESTEP, true);
+            engine.enable_plugins(handle, true);
 
             // Initialize scripts.
             engine.initialize_scene_scripts(handle, 0.0);
@@ -1141,18 +1141,9 @@ impl Editor {
         if let Some(editor_scene) = self.scene.as_ref() {
             // Destroy play mode scene.
             if let Mode::Play {
-                scene,
-                existing_scenes,
+                existing_scenes, ..
             } = std::mem::replace(&mut self.mode, Mode::Edit)
             {
-                engine.call_plugins_on_leave_play_mode(FIXED_TIMESTEP, true);
-
-                // Remove play mode scene.
-                engine.scenes.remove(scene);
-
-                engine.handle_script_messages();
-                assert!(engine.scripted_scenes.remove(&scene));
-
                 // Remove every scene that was created in the play mode.
                 let scenes_to_destroy = engine
                     .scenes
@@ -1172,7 +1163,7 @@ impl Editor {
                     engine.scenes.remove(scene_to_destroy);
                 }
 
-                engine.call_plugins_on_left_play_mode(FIXED_TIMESTEP, true);
+                engine.enable_plugins(Default::default(), false);
 
                 // Force previewer to use editor's scene.
                 let render_target = engine.scenes[editor_scene.scene].render_target.clone();
@@ -1506,11 +1497,6 @@ impl Editor {
         self.absm_editor.update(&mut self.engine);
         self.log.update(&mut self.engine);
 
-        if let Mode::Play { scene, .. } = self.mode {
-            self.engine.update_plugins(dt, true);
-            self.engine.update_scene_scripts(scene, dt);
-        }
-
         let mut needs_sync = false;
 
         while let Ok(message) = self.message_receiver.try_recv() {
@@ -1652,8 +1638,11 @@ impl Editor {
         self.asset_browser.update(&mut self.engine);
     }
 
-    pub fn add_game_plugin<P: Plugin>(&mut self, plugin: P) {
-        self.engine.add_plugin(plugin, true, false);
+    pub fn add_game_plugin<P>(&mut self) -> bool
+    where
+        P: Plugin + Default + TypeUuidProvider,
+    {
+        self.engine.add_plugin::<P>()
     }
 
     pub fn run(mut self, event_loop: EventLoop<()>) -> ! {
@@ -1714,7 +1703,7 @@ impl Editor {
                 normalize_os_event(&mut event, screen_bounds.position, screen_bounds.size);
 
                 self.engine
-                    .handle_os_event_by_plugins(&event, FIXED_TIMESTEP, true);
+                    .handle_os_event_by_plugins(&event, FIXED_TIMESTEP);
 
                 self.engine
                     .handle_os_event_by_scripts(&event, scene, FIXED_TIMESTEP);
