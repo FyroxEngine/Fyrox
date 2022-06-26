@@ -264,6 +264,19 @@ pub(crate) fn process_scripts<T>(
     }
 }
 
+macro_rules! get_window {
+    ($self:ident) => {{
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            $self.context.window()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            &$self.window
+        }
+    }};
+}
+
 impl Engine {
     /// Creates new instance of engine from given initialization parameters.
     ///
@@ -414,14 +427,7 @@ impl Engine {
     /// size of window, its title, etc.
     #[inline]
     pub fn get_window(&self) -> &Window {
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            self.context.window()
-        }
-        #[cfg(target_arch = "wasm32")]
-        {
-            &self.window
-        }
+        get_window!(self)
     }
 
     /// Performs single update tick with given time delta. Engine internally will perform update
@@ -482,6 +488,7 @@ impl Engine {
             renderer: &mut self.renderer,
             dt,
             serialization_context: self.serialization_context.clone(),
+            window: get_window!(self),
         };
 
         for plugin in self.plugins.iter_mut() {
@@ -501,6 +508,7 @@ impl Engine {
                         renderer: &mut self.renderer,
                         dt,
                         serialization_context: self.serialization_context.clone(),
+                        window: get_window!(self),
                     },
                 );
             }
@@ -751,6 +759,7 @@ impl Engine {
                             renderer: &mut self.renderer,
                             dt: 0.0,
                             serialization_context: self.serialization_context.clone(),
+                            window: get_window!(self),
                         },
                     );
                 }
@@ -765,6 +774,7 @@ impl Engine {
                         renderer: &mut self.renderer,
                         dt: 0.0,
                         serialization_context: self.serialization_context.clone(),
+                        window: get_window!(self),
                     });
                     // Reset plugin state.
                     *plugin = plugin.default_boxed();

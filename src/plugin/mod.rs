@@ -2,6 +2,7 @@
 
 #![warn(missing_docs)]
 
+use crate::window::Window;
 use crate::{
     core::{pool::Handle, uuid::Uuid},
     engine::{resource_manager::ResourceManager, SerializationContext},
@@ -45,6 +46,9 @@ pub struct PluginContext<'a> {
     /// A reference to serialization context of the engine. See [`SerializationContext`] for more
     /// info.
     pub serialization_context: Arc<SerializationContext>,
+
+    /// A reference to the main application window.
+    pub window: &'a Window,
 }
 
 /// Base plugin automatically implements type casting for plugins.
