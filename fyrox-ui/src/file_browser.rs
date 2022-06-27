@@ -1212,7 +1212,7 @@ impl FileSelectorBuilder {
 #[cfg(test)]
 mod test {
     use crate::{
-        core::{algebra::Vector2, pool::Handle},
+        core::pool::Handle,
         file_browser::{build_tree, find_tree},
         tree::TreeRootBuilder,
         widget::WidgetBuilder,
@@ -1222,7 +1222,7 @@ mod test {
 
     #[test]
     fn test_find_tree() {
-        let mut ui = UserInterface::new(Vector2::new(100.0, 100.0));
+        let mut ui = UserInterface::new();
 
         let root = TreeRootBuilder::new(
             WidgetBuilder::new().with_user_data(Rc::new(PathBuf::from("test"))),

@@ -288,15 +288,16 @@ impl CheckBoxBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::check_box::CheckBoxMessage;
     use crate::{
-        check_box::CheckBoxBuilder, core::algebra::Vector2, message::MessageDirection,
-        widget::WidgetBuilder, UserInterface,
+        check_box::{CheckBoxBuilder, CheckBoxMessage},
+        message::MessageDirection,
+        widget::WidgetBuilder,
+        UserInterface,
     };
 
     #[test]
     fn check_box() {
-        let mut ui = UserInterface::new(Vector2::new(1000.0, 1000.0));
+        let mut ui = UserInterface::new();
 
         assert_eq!(ui.poll_message(), None);
 

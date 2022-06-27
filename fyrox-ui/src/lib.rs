@@ -695,13 +695,19 @@ fn is_node_enabled(nodes: &Pool<UiNode>, handle: Handle<UiNode>) -> bool {
     enabled
 }
 
+impl Default for UserInterface {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UserInterface {
-    pub fn new(screen_size: Vector2<f32>) -> UserInterface {
+    pub fn new() -> UserInterface {
         let (sender, receiver) = mpsc::channel();
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
         let default_font = SharedFont::new(FontBuilder::new().build_builtin().unwrap());
         let mut ui = UserInterface {
-            screen_size,
+            screen_size: Vector2::new(100.0, 100.0),
             sender,
             receiver,
             visual_debug: false,
@@ -2490,7 +2496,7 @@ mod test {
     fn center() {
         let screen_size = Vector2::new(1000.0, 1000.0);
         let widget_size = Vector2::new(100.0, 100.0);
-        let mut ui = UserInterface::new(screen_size);
+        let mut ui = UserInterface::new();
         let widget = BorderBuilder::new(
             WidgetBuilder::new()
                 .with_width(widget_size.x)
