@@ -25,7 +25,6 @@ use fyrox::{
         Scene, SceneLoader,
     },
     script::{ScriptContext, ScriptTrait},
-    utils::translate_event,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -117,11 +116,7 @@ impl Plugin for GamePlugin {
 
     fn on_os_event(&mut self, event: &Event<()>, _context: PluginContext) {
         if let Some(mut ui) = self.ui.as_mut().map(|ui| ui.borrow_mut()) {
-            if let Event::WindowEvent { event, .. } = event {
-                if let Some(e) = translate_event(event) {
-                    ui.process_os_event(&e);
-                }
-            }
+            ui.process_event(event);
         }
     }
 }

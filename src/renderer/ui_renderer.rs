@@ -1,7 +1,5 @@
 //! See [`UiRenderer`] docs.
 
-use crate::renderer::framework::gpu_texture::GpuTextureKind;
-use crate::renderer::Renderer;
 use crate::{
     asset::Resource,
     core::{
@@ -13,6 +11,7 @@ use crate::{
         scope_profile,
         sstorage::ImmutableString,
     },
+    event::Event,
     gui::{
         brush::Brush,
         draw::{CommandTexture, DrawingContext, SharedTexture},
@@ -27,17 +26,17 @@ use crate::{
                 GeometryBufferBuilder, GeometryBufferKind,
             },
             gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::GpuTexture,
+            gpu_texture::{GpuTexture, GpuTextureKind},
             state::{
                 BlendFactor, BlendFunc, ColorMask, CompareFunc, PipelineState, StencilAction,
                 StencilFunc, StencilOp,
             },
         },
-        RenderPassStatistics, TextureCache,
+        RenderPassStatistics, Renderer, SceneRenderPass, SceneRenderPassContext, TextureCache,
     },
-    renderer::{SceneRenderPass, SceneRenderPassContext},
     resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
     scene::Scene,
+    utils::translate_event,
 };
 use std::{
     cell::RefCell,
@@ -72,6 +71,16 @@ impl SceneUserInterface {
             {
                 self.ui
                     .update(Vector2::new(width as f32, height as f32), dt);
+            }
+        }
+    }
+
+    /// Processes raw input event from the main application window. It must be called for every input event,
+    /// otherwise UI will not respond to any of user input.
+    pub fn process_event(&mut self, event: &Event<()>) {
+        if let Event::WindowEvent { event, .. } = event {
+            if let Some(e) = translate_event(event) {
+                self.ui.process_os_event(&e);
             }
         }
     }
