@@ -1,6 +1,7 @@
 //! See [`UiRenderer`] docs.
 
-use crate::core::sstorage::ImmutableString;
+use crate::renderer::framework::gpu_texture::GpuTextureKind;
+use crate::renderer::Renderer;
 use crate::{
     asset::Resource,
     core::{
@@ -8,11 +9,14 @@ use crate::{
         color::Color,
         math::Rect,
         parking_lot::Mutex,
+        pool::Handle,
         scope_profile,
+        sstorage::ImmutableString,
     },
     gui::{
         brush::Brush,
         draw::{CommandTexture, DrawingContext, SharedTexture},
+        UserInterface,
     },
     renderer::{
         framework::{
@@ -31,9 +35,84 @@ use crate::{
         },
         RenderPassStatistics, TextureCache,
     },
+    renderer::{SceneRenderPass, SceneRenderPassContext},
     resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
+    scene::Scene,
 };
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{
+    cell::RefCell,
+    ops::{Deref, DerefMut},
+    rc::Rc,
+    sync::Arc,
+};
+
+/// A small helper that can render user interface to an associated render target of a scene.
+/// It can be used to create a user interface that will be renderer only to a scene.
+pub struct SceneUserInterface {
+    scene: Handle<Scene>,
+    ui: UserInterface,
+}
+
+impl SceneUserInterface {
+    /// Creates new user interface wrapper. Specified scene handle must be valid.
+    pub fn new(scene: Handle<Scene>) -> Self {
+        assert!(scene.is_some());
+
+        Self {
+            scene,
+            ui: Default::default(),
+        }
+    }
+
+    /// Updates user interface.
+    pub fn update(&mut self, dt: f32, renderer: &Renderer) {
+        if let Some(data) = renderer.scene_data_map.get(&self.scene) {
+            if let GpuTextureKind::Rectangle { width, height } =
+                data.ldr_scene_frame_texture().borrow().kind()
+            {
+                self.ui
+                    .update(Vector2::new(width as f32, height as f32), dt);
+            }
+        }
+    }
+}
+
+impl Deref for SceneUserInterface {
+    type Target = UserInterface;
+
+    fn deref(&self) -> &Self::Target {
+        &self.ui
+    }
+}
+
+impl DerefMut for SceneUserInterface {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.ui
+    }
+}
+
+impl SceneRenderPass for SceneUserInterface {
+    fn on_ldr_render(
+        &mut self,
+        ctx: SceneRenderPassContext,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
+        // Render only to scene render target.
+        if ctx.scene_handle == self.scene {
+            ctx.ui_renderer.render(UiRenderContext {
+                state: ctx.pipeline_state,
+                viewport: ctx.viewport,
+                frame_buffer: ctx.framebuffer,
+                frame_width: ctx.viewport.size.x as f32,
+                frame_height: ctx.viewport.size.y as f32,
+                drawing_context: self.ui.draw(),
+                white_dummy: ctx.white_dummy.clone(),
+                texture_cache: ctx.texture_cache,
+            })
+        } else {
+            Ok(Default::default())
+        }
+    }
+}
 
 struct UiShader {
     program: GpuProgram,

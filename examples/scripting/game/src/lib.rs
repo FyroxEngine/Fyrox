@@ -1,7 +1,7 @@
 use crate::bot::Bot;
 use fyrox::{
     core::{
-        algebra::{UnitQuaternion, Vector2, Vector3},
+        algebra::{UnitQuaternion, Vector3},
         futures::executor::block_on,
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
@@ -13,15 +13,10 @@ use fyrox::{
         button::ButtonBuilder,
         inspector::{FieldKind, PropertyChanged},
         widget::WidgetBuilder,
-        UserInterface,
     },
     impl_component_provider,
     plugin::{Plugin, PluginContext, PluginRegistrationContext},
-    renderer::{
-        framework::{error::FrameworkError, gpu_texture::GpuTextureKind},
-        ui_renderer::UiRenderContext,
-        RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
-    },
+    renderer::ui_renderer::SceneUserInterface,
     scene::{
         camera::Camera,
         graph::map::NodeHandleMap,
@@ -36,73 +31,29 @@ use std::{cell::RefCell, rc::Rc};
 
 mod bot;
 
+#[derive(Default)]
 pub struct GamePlugin {
     scene: Handle<Scene>,
-    ui: Rc<RefCell<UserInterface>>,
+    ui: Option<Rc<RefCell<SceneUserInterface>>>,
     debug_draw: bool,
-}
-
-impl Default for GamePlugin {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl GamePlugin {
-    pub fn new() -> Self {
-        Self {
-            scene: Default::default(),
-            ui: Rc::new(RefCell::new(UserInterface::new(Vector2::new(100.0, 100.0)))),
-            debug_draw: false,
-        }
-    }
-}
-
-struct UiRenderPass {
-    scene: Handle<Scene>,
-    ui: Rc<RefCell<UserInterface>>,
-}
-
-impl SceneRenderPass for UiRenderPass {
-    fn on_ldr_render(
-        &mut self,
-        ctx: SceneRenderPassContext,
-    ) -> Result<RenderPassStatistics, FrameworkError> {
-        if ctx.scene_handle == self.scene {
-            let mut ui = self.ui.borrow_mut();
-
-            ctx.ui_renderer.render(UiRenderContext {
-                state: ctx.pipeline_state,
-                viewport: ctx.viewport,
-                frame_buffer: ctx.framebuffer,
-                frame_width: ctx.viewport.size.x as f32,
-                frame_height: ctx.viewport.size.y as f32,
-                drawing_context: ui.draw(),
-                white_dummy: ctx.white_dummy.clone(),
-                texture_cache: ctx.texture_cache,
-            })?;
-        }
-
-        Ok(Default::default())
-    }
 }
 
 impl GamePlugin {
     pub fn set_scene(&mut self, scene: Handle<Scene>, context: PluginContext) {
         self.scene = scene;
 
-        context
-            .renderer
-            .add_render_pass(Rc::new(RefCell::new(UiRenderPass {
-                scene,
-                ui: self.ui.clone(),
-            })));
+        let mut ui = SceneUserInterface::new(scene);
 
-        let mut ui = self.ui.borrow_mut();
         let ctx = &mut ui.build_ctx();
         ButtonBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(32.0))
             .with_text("Click me")
             .build(ctx);
+
+        let shared_ui = Rc::new(RefCell::new(ui));
+
+        context.renderer.add_render_pass(shared_ui.clone());
+
+        self.ui = Some(shared_ui);
     }
 }
 
@@ -123,7 +74,7 @@ impl Plugin for GamePlugin {
 
     fn on_init(&mut self, override_scene: Handle<Scene>, context: PluginContext) {
         let scene = if override_scene.is_some() {
-            dbg!(override_scene)
+            override_scene
         } else {
             let scene = block_on(
                 block_on(SceneLoader::from_file(
@@ -133,7 +84,7 @@ impl Plugin for GamePlugin {
                 .expect("Invalid scene!")
                 .finish(context.resource_manager.clone()),
             );
-            dbg!(context.scenes.add(scene))
+            context.scenes.add(scene)
         };
 
         for node in context.scenes[scene].graph.linear_iter_mut() {
@@ -154,17 +105,10 @@ impl Plugin for GamePlugin {
             scene.graph.physics.draw(drawing_context);
         }
 
-        let mut ui = self.ui.borrow_mut();
-
-        if let Some(data) = context.renderer.scene_data_map.get(&self.scene) {
-            if let GpuTextureKind::Rectangle { width, height } =
-                data.ldr_scene_frame_texture().borrow().kind()
-            {
-                ui.update(Vector2::new(width as f32, height as f32), context.dt);
-            }
+        if let Some(mut ui) = self.ui.as_mut().map(|ui| ui.borrow_mut()) {
+            ui.update(context.dt, context.renderer);
+            while ui.poll_message().is_some() {}
         }
-
-        while ui.poll_message().is_some() {}
     }
 
     fn id(&self) -> Uuid {
@@ -172,10 +116,11 @@ impl Plugin for GamePlugin {
     }
 
     fn on_os_event(&mut self, event: &Event<()>, _context: PluginContext) {
-        if let Event::WindowEvent { event, .. } = event {
-            if let Some(e) = translate_event(event) {
-                let mut ui = self.ui.borrow_mut();
-                ui.process_os_event(&e);
+        if let Some(mut ui) = self.ui.as_mut().map(|ui| ui.borrow_mut()) {
+            if let Event::WindowEvent { event, .. } = event {
+                if let Some(e) = translate_event(event) {
+                    ui.process_os_event(&e);
+                }
             }
         }
     }
