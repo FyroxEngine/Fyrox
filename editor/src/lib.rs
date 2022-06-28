@@ -67,6 +67,7 @@ use crate::{
     utils::{normalize_os_event, path_fixer::PathFixer},
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use fyrox::renderer::SceneRenderPass;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -112,6 +113,8 @@ use fyrox::{
         watcher::FileSystemWatcher,
     },
 };
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::{
     any::TypeId,
     path::{Path, PathBuf},
@@ -259,6 +262,8 @@ pub enum Mode {
         scene: Handle<Scene>,
         // List of scenes that existed before entering play mode.
         existing_scenes: Vec<Handle<Scene>>,
+        // List of render passes that existed before entering play mode.
+        render_passes: Vec<Rc<RefCell<dyn SceneRenderPass>>>,
     },
 }
 
@@ -1119,6 +1124,9 @@ impl Editor {
                 .map(|(h, _)| h)
                 .collect::<Vec<_>>();
 
+            // Remember existing render passes.
+            let render_passes = engine.renderer.render_passes().to_vec();
+
             let handle = engine.scenes.add(purified_scene);
 
             assert!(engine.scripted_scenes.insert(handle));
@@ -1131,6 +1139,7 @@ impl Editor {
             self.mode = Mode::Play {
                 scene: handle,
                 existing_scenes,
+                render_passes,
             };
             self.on_mode_changed();
         }
@@ -1141,7 +1150,9 @@ impl Editor {
         if let Some(editor_scene) = self.scene.as_ref() {
             // Destroy play mode scene.
             if let Mode::Play {
-                existing_scenes, ..
+                existing_scenes,
+                render_passes,
+                ..
             } = std::mem::replace(&mut self.mode, Mode::Edit)
             {
                 // Remove every scene that was created in the play mode.
@@ -1162,6 +1173,26 @@ impl Editor {
                 for scene_to_destroy in scenes_to_destroy {
                     engine.scenes.remove(scene_to_destroy);
                 }
+
+                // Remove all render pass that was created in the play mode.
+                let render_passes_to_destroy = engine
+                    .renderer
+                    .render_passes()
+                    .iter()
+                    .filter_map(|p| {
+                        if render_passes.iter().any(|existing| Rc::ptr_eq(existing, p)) {
+                            None
+                        } else {
+                            Some(p.clone())
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                for render_pass_to_destroy in render_passes_to_destroy {
+                    engine.renderer.remove_render_pass(render_pass_to_destroy);
+                }
+
+                assert_eq!(engine.renderer.render_passes().len(), render_passes.len());
 
                 engine.enable_plugins(Default::default(), false);
 
