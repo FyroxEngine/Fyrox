@@ -1171,6 +1171,27 @@ impl Renderer {
         self.scene_render_passes.push(pass);
     }
 
+    /// Removes specified render pass.
+    pub fn remove_render_pass(&mut self, pass: Rc<RefCell<dyn SceneRenderPass>>) {
+        if let Some(index) = self
+            .scene_render_passes
+            .iter()
+            .position(|p| Rc::ptr_eq(p, &pass))
+        {
+            self.scene_render_passes.remove(index);
+        }
+    }
+
+    /// Returns a slice with every registered render passes.
+    pub fn render_passes(&self) -> &[Rc<RefCell<dyn SceneRenderPass>>] {
+        &self.scene_render_passes
+    }
+
+    /// Removes all render passes from the renderer.
+    pub fn clear_render_passes(&mut self) {
+        self.scene_render_passes.clear()
+    }
+
     /// Returns statistics for last frame.
     pub fn get_statistics(&self) -> Statistics {
         self.statistics
