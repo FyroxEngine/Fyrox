@@ -1,7 +1,5 @@
-use crate::WindowEvent;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
-    event::Event,
     gui::{
         file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
         message::MessageDirection,
@@ -49,38 +47,6 @@ pub fn enable_widget(handle: Handle<UiNode>, state: bool, ui: &UserInterface) {
         MessageDirection::ToWidget,
         state,
     ));
-}
-
-pub fn normalize_os_event(
-    result: &mut Event<()>,
-    frame_position: Vector2<f32>,
-    frame_size: Vector2<f32>,
-) {
-    if let Event::WindowEvent { event, .. } = result {
-        match event {
-            WindowEvent::Resized(size) => {
-                size.width = frame_size.x as u32;
-                size.height = frame_size.y as u32;
-            }
-            WindowEvent::Moved(position) => {
-                position.x -= frame_position.x as i32;
-                position.y -= frame_position.y as i32;
-            }
-            WindowEvent::CursorMoved { position, .. } => {
-                position.x -= frame_position.x as f64;
-                position.y -= frame_position.y as f64;
-            }
-            WindowEvent::Touch(touch) => {
-                touch.location.x -= frame_position.x as f64;
-                touch.location.y -= frame_position.y as f64;
-            }
-            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                new_inner_size.width = frame_size.x as u32;
-                new_inner_size.height = frame_size.y as u32;
-            }
-            _ => (),
-        }
-    }
 }
 
 pub fn create_file_selector(
