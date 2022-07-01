@@ -10,6 +10,7 @@ use crate::{
     renderer::Renderer,
     scene::{Scene, SceneContainer},
 };
+use fyrox_ui::UserInterface;
 use std::{any::Any, sync::Arc};
 
 /// Contains plugin environment for the registration stage.
@@ -23,17 +24,14 @@ pub struct PluginRegistrationContext {
 pub struct PluginContext<'a> {
     /// A reference to scene container of the engine. You can add new scenes from [`Plugin`] methods
     /// by using [`SceneContainer::add`].
-    ///
-    /// # Important notes
-    ///
-    /// Do not clear this container when running your plugin in the editor, otherwise you'll get
-    /// panic. Every scene that was added in the container while "play mode" in the editor was
-    /// active will be removed when you leave play mode.
     pub scenes: &'a mut SceneContainer,
 
     /// A reference to the resource manager, it can be used to load various resources and manage
     /// them. See [`ResourceManager`] docs for more info.
     pub resource_manager: &'a ResourceManager,
+
+    /// A reference to user interface instance.
+    pub user_interface: &'a mut UserInterface,
 
     /// A reference to the renderer, it can be used to add custom render passes (for example to
     /// render custom effects and so on).
@@ -101,32 +99,6 @@ impl dyn Plugin {
 /// high-level structure of your game and forces you to implement game logic inside plugins and
 /// scripts. The framework mode provides low-level access to engine details and leaves implementation
 /// details to you.
-///
-/// By default the engine, if used alone, **completely ignores** every plugin, it calls a few methods
-/// ([`Plugin::on_register`], [`Plugin::on_standalone_init`]) and does not call any other methods.
-/// The plugins are meant to be used only in "true" engine mode. If you're using the engine alone
-/// (without the editor, executor, and required project structure), it means that you're using the
-/// engine in **framework** mode and you're able to setup your project as you want.
-///
-/// The plugins managed either by `Executor` or the editor (`Fyroxed`). The first one is a small
-/// framework that calls all methods of the plugin as it needs to be, `Executor` is used to build
-/// final binary of your game. The editor is also able to use plugins, it manages them in special
-/// way that guarantees some invariants.
-///
-/// # Interface details
-///
-/// There is one confusing part in the plugin interface: two methods that looks like they're doing
-/// the same thing - [`Plugin::on_standalone_init`] and [`Plugin::on_enter_play_mode`]. However
-/// there is one major difference in the two. The first method is called when the plugin is running
-/// in a standalone mode (in game executor, which is final binary of your game). The second is used
-/// in the editor and called when the editor enters "play mode".
-///
-/// The "play mode" is special and should be described a bit more. The editor is able to edit
-/// scenes, there could be only one scene opened at a time. However your game could use multiple
-/// scenes (for example one for game menu and one per game level). This fact leads to a problem:
-/// how the game will know which scene is currently edited and requested for "play mode"?
-/// [`Plugin::on_enter_play_mode`] solves the problem by providing you the handle to the active
-/// scene, in this method you should force your game to use provided scene.
 ///
 /// # Static vs dynamic plugins
 ///
