@@ -114,8 +114,11 @@ use fyrox::{
 };
 use std::{
     any::TypeId,
+    io::{BufRead, BufReader},
     path::{Path, PathBuf},
+    process::Stdio,
     sync::{
+        atomic::{AtomicBool, Ordering},
         mpsc::{self, channel, Receiver, Sender},
         Arc,
     },
@@ -254,7 +257,10 @@ pub fn make_save_file_selector(ctx: &mut BuildContext) -> Handle<UiNode> {
 
 pub enum Mode {
     Edit,
-    Play { process: std::process::Child },
+    Play {
+        process: std::process::Child,
+        active: Arc<AtomicBool>,
+    },
 }
 
 impl Mode {
@@ -1095,6 +1101,8 @@ impl Editor {
                 self.save_current_scene(path.clone());
 
                 match std::process::Command::new("cargo")
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
                     .arg("run")
                     .arg("--package")
                     .arg("executor")
@@ -1104,8 +1112,23 @@ impl Editor {
                     .arg(path.clone())
                     .spawn()
                 {
-                    Ok(process) => {
-                        self.mode = Mode::Play { process };
+                    Ok(mut process) => {
+                        let active = Arc::new(AtomicBool::new(true));
+
+                        // Capture output from child process.
+                        let mut stdout = process.stdout.take().unwrap();
+                        let reader_active = active.clone();
+                        std::thread::spawn(move || {
+                            while reader_active.load(Ordering::SeqCst) {
+                                for line in BufReader::new(&mut stdout).lines().take(10) {
+                                    if let Ok(line) = line {
+                                        Log::info(line);
+                                    }
+                                }
+                            }
+                        });
+
+                        self.mode = Mode::Play { active, process };
 
                         self.on_mode_changed();
                     }
@@ -1116,7 +1139,7 @@ impl Editor {
     }
 
     fn set_editor_mode(&mut self) {
-        if let Mode::Play { mut process } = std::mem::replace(&mut self.mode, Mode::Edit) {
+        if let Mode::Play { mut process, .. } = std::mem::replace(&mut self.mode, Mode::Edit) {
             Log::verify(process.kill());
 
             self.on_mode_changed();
@@ -1439,10 +1462,17 @@ impl Editor {
     fn update(&mut self, dt: f32) {
         scope_profile!();
 
-        if let Mode::Play { ref mut process } = self.mode {
+        if let Mode::Play {
+            ref mut process,
+            ref active,
+        } = self.mode
+        {
             match process.try_wait() {
                 Ok(status) => {
                     if let Some(status) = status {
+                        // Stop reader thread.
+                        active.store(false, Ordering::SeqCst);
+
                         self.mode = Mode::Edit;
                         self.on_mode_changed();
 
