@@ -64,11 +64,11 @@ impl Executor {
         Self { event_loop, engine }
     }
 
-    pub fn add_plugin<P>(&mut self) -> bool
+    pub fn add_plugin<P>(&mut self, plugin: P) -> bool
     where
-        P: Plugin + Default + TypeUuidProvider,
+        P: Plugin + TypeUuidProvider,
     {
-        self.engine.add_plugin::<P>()
+        self.engine.add_plugin(plugin)
     }
 
     pub fn run(self) -> ! {

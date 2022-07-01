@@ -1594,11 +1594,11 @@ impl Editor {
         self.asset_browser.update(&mut self.engine);
     }
 
-    pub fn add_game_plugin<P>(&mut self) -> bool
+    pub fn add_game_plugin<P>(&mut self, plugin: P) -> bool
     where
-        P: Plugin + Default + TypeUuidProvider,
+        P: Plugin + TypeUuidProvider,
     {
-        self.engine.add_plugin::<P>()
+        self.engine.add_plugin(plugin)
     }
 
     pub fn run(mut self, event_loop: EventLoop<()>) -> ! {
