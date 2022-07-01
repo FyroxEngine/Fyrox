@@ -1099,6 +1099,9 @@ impl Editor {
                     .arg("--package")
                     .arg("executor")
                     .arg("--release")
+                    .arg("--")
+                    .arg("--override-scene")
+                    .arg(path.clone())
                     .spawn()
                 {
                     Ok(process) => {
