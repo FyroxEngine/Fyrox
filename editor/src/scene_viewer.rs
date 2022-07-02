@@ -1,19 +1,18 @@
-use crate::scene::commands::graph::ScaleNodeCommand;
 use crate::{
     camera::PickingOptions, gui::make_dropdown_list_option_with_height, load_image,
-    utils::enable_widget, AddModelCommand, AssetItem, AssetKind, ChangeSelectionCommand,
-    CommandGroup, DropdownListBuilder, EditorScene, GameEngine, GraphSelection, InteractionMode,
-    InteractionModeKind, Message, Mode, SceneCommand, Selection, SetMeshTextureCommand,
-    SetParticleSystemTextureCommand, SetSpriteTextureCommand, Settings,
+    scene::commands::graph::ScaleNodeCommand, utils::enable_widget, AddModelCommand, AssetItem,
+    AssetKind, ChangeSelectionCommand, CommandGroup, DropdownListBuilder, EditorScene, GameEngine,
+    GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand, Selection,
+    SetMeshTextureCommand, SetParticleSystemTextureCommand, SetSpriteTextureCommand, Settings,
 };
-use fyrox::core::algebra::Vector3;
 use fyrox::{
+    core::algebra::Vector3,
     core::{algebra::Vector2, color::Color, make_relative_path, math::Rect, pool::Handle},
     engine::Engine,
     gui::{
         border::BorderBuilder,
         brush::Brush,
-        button::{ButtonBuilder, ButtonMessage},
+        button::{ButtonBuilder, ButtonContent, ButtonMessage},
         canvas::CanvasBuilder,
         dropdown_list::DropdownListMessage,
         formatted_text::WrapMode,
@@ -219,7 +218,7 @@ impl SceneViewer {
                             .with_margin(Thickness::uniform(1.0))
                             .with_width(100.0),
                     )
-                    .with_text("Play/Stop")
+                    .with_text("Play")
                     .build(ctx);
                     switch_mode
                 })
@@ -440,6 +439,11 @@ impl SceneViewer {
 
     pub fn on_mode_changed(&self, ui: &UserInterface, mode: &Mode) {
         let enabled = mode.is_edit();
+        ui.send_message(ButtonMessage::content(
+            self.switch_mode,
+            MessageDirection::ToWidget,
+            ButtonContent::text(if enabled { "Play" } else { "Stop" }),
+        ));
         for widget in [self.interaction_mode_panel, self.contextual_actions] {
             enable_widget(widget, enabled, ui);
         }
