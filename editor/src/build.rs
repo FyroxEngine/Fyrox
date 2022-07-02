@@ -12,7 +12,7 @@ use fyrox::{
     },
 };
 use std::{
-    io::{BufRead, BufReader, Read},
+    io::{BufRead, BufReader},
     process::ChildStdout,
     sync::{
         atomic::{AtomicBool, Ordering},

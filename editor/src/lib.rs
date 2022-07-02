@@ -1138,30 +1138,46 @@ impl Editor {
                     }
                     Err(e) => Log::err(format!("Failed to enter play mode: {:?}", e)),
                 }
+            } else {
+                Log::err("Save you scene first!".to_owned());
             }
+        } else {
+            Log::err("Cannot enter build mode when there is no scene!".to_owned());
         }
     }
 
     fn set_build_mode(&mut self) {
         if let Mode::Edit = self.mode {
-            match std::process::Command::new("cargo")
-                .stdout(Stdio::piped())
-                .arg("build")
-                .arg("--package")
-                .arg("executor")
-                .arg("--release")
-                .spawn()
-            {
-                Ok(mut process) => {
-                    self.build_window
-                        .listen(process.stdout.take().unwrap(), &self.engine.user_interface);
+            if let Some(scene) = self.scene.as_ref() {
+                if let Some(path) = scene.path.as_ref().cloned() {
+                    match std::process::Command::new("cargo")
+                        .stdout(Stdio::piped())
+                        .arg("build")
+                        .arg("--package")
+                        .arg("executor")
+                        .arg("--release")
+                        .spawn()
+                    {
+                        Ok(mut process) => {
+                            self.build_window.listen(
+                                process.stdout.take().unwrap(),
+                                &self.engine.user_interface,
+                            );
 
-                    self.mode = Mode::Build { process };
+                            self.mode = Mode::Build { process };
 
-                    self.on_mode_changed();
+                            self.on_mode_changed();
+                        }
+                        Err(e) => Log::err(format!("Failed to enter build mode: {:?}", e)),
+                    }
+                } else {
+                    Log::err("Save you scene first!".to_owned());
                 }
-                Err(e) => Log::err(format!("Failed to enter build mode: {:?}", e)),
+            } else {
+                Log::err("Cannot enter build mode when there is no scene!".to_owned());
             }
+        } else {
+            Log::err("Cannot enter build mode when from non-Edit mode!".to_owned());
         }
     }
 
