@@ -405,19 +405,19 @@ impl Display for VisitError {
     }
 }
 
-impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for VisitError {
-    fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'a, T>>) -> Self {
+impl<T> From<std::sync::PoisonError<std::sync::MutexGuard<'_, T>>> for VisitError {
+    fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'_, T>>) -> Self {
         Self::PoisonedMutex
     }
 }
 
-impl<'a, T> From<std::sync::PoisonError<&mut T>> for VisitError {
+impl<T> From<std::sync::PoisonError<&mut T>> for VisitError {
     fn from(_: std::sync::PoisonError<&mut T>) -> Self {
         Self::PoisonedMutex
     }
 }
 
-impl<'a, T> From<std::sync::PoisonError<std::sync::RwLockWriteGuard<'_, T>>> for VisitError {
+impl<T> From<std::sync::PoisonError<std::sync::RwLockWriteGuard<'_, T>>> for VisitError {
     fn from(_: std::sync::PoisonError<std::sync::RwLockWriteGuard<'_, T>>) -> Self {
         Self::PoisonedMutex
     }

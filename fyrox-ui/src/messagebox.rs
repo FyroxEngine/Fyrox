@@ -193,7 +193,7 @@ pub struct MessageBoxBuilder<'b> {
     text: &'b str,
 }
 
-impl<'a, 'b> MessageBoxBuilder<'b> {
+impl<'b> MessageBoxBuilder<'b> {
     pub fn new(window_builder: WindowBuilder) -> Self {
         Self {
             window_builder,

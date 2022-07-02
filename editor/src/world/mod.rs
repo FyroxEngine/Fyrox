@@ -789,13 +789,11 @@ impl WorldViewer {
     pub fn clear(&mut self, ui: &UserInterface) {
         self.node_to_view_map.clear();
 
-        for folder in [self.graph_folder] {
-            ui.send_message(TreeMessage::set_items(
-                folder,
-                MessageDirection::ToWidget,
-                vec![],
-            ));
-        }
+        ui.send_message(TreeMessage::set_items(
+            self.graph_folder,
+            MessageDirection::ToWidget,
+            vec![],
+        ));
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {

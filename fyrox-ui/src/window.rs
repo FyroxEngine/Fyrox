@@ -668,7 +668,7 @@ fn make_header_button(ctx: &mut BuildContext, button: HeaderButton) -> Handle<Ui
         .build(ctx)
 }
 
-impl<'a> WindowBuilder {
+impl WindowBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
