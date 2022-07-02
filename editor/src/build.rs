@@ -1,17 +1,18 @@
 use fyrox::{
     core::{parking_lot::Mutex, pool::Handle},
     gui::{
+        border::BorderBuilder,
         grid::{Column, GridBuilder, Row},
         message::MessageDirection,
         scroll_viewer::ScrollViewerBuilder,
         text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UiNode, UserInterface,
+        BuildContext, Thickness, UiNode, UserInterface, BRUSH_DARKEST,
     },
 };
 use std::{
-    io::Read,
+    io::{BufRead, BufReader, Read},
     process::ChildStdout,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -30,7 +31,7 @@ pub struct BuildWindow {
 impl BuildWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let log_text;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(200.0))
             .can_minimize(false)
             .can_close(false)
             .open(false)
@@ -39,16 +40,26 @@ impl BuildWindow {
                     WidgetBuilder::new()
                         .with_child(
                             TextBuilder::new(WidgetBuilder::new())
-                                .with_text("Please wait while your game is building...")
+                                .with_text("Please wait while your game is building...\nLog:")
                                 .build(ctx),
                         )
                         .with_child(
-                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
-                                .with_content({
-                                    log_text = TextBuilder::new(WidgetBuilder::new()).build(ctx);
-                                    log_text
-                                })
-                                .build(ctx),
+                            BorderBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(1)
+                                    .with_margin(Thickness::uniform(2.0))
+                                    .with_background(BRUSH_DARKEST)
+                                    .with_child(
+                                        ScrollViewerBuilder::new(WidgetBuilder::new())
+                                            .with_content({
+                                                log_text = TextBuilder::new(WidgetBuilder::new())
+                                                    .build(ctx);
+                                                log_text
+                                            })
+                                            .build(ctx),
+                                    ),
+                            )
+                            .build(ctx),
                         ),
                 )
                 .add_row(Row::auto())
@@ -80,14 +91,10 @@ impl BuildWindow {
         let reader_active = self.active.clone();
         let log_changed = self.changed.clone();
         std::thread::spawn(move || {
-            let mut buf = Vec::new();
             while reader_active.load(Ordering::SeqCst) {
-                let mut slice = [0u8; 64];
-                if let Ok(size) = stdout.read(&mut slice) {
-                    buf.extend_from_slice(&slice[..size]);
-                    if let Ok(string) = std::str::from_utf8(&buf) {
-                        *log.lock() += string;
-                        buf.clear();
+                for line in BufReader::new(&mut stdout).lines().take(10) {
+                    if let Ok(line) = line {
+                        log.lock().push_str(&line);
                         log_changed.store(true, Ordering::SeqCst);
                     }
                 }

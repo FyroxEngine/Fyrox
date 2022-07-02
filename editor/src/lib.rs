@@ -270,11 +270,7 @@ pub enum Mode {
 
 impl Mode {
     pub fn is_edit(&self) -> bool {
-        !self.is_play()
-    }
-
-    pub fn is_play(&self) -> bool {
-        matches!(self, Mode::Play { .. })
+        matches!(self, Mode::Edit { .. })
     }
 }
 
@@ -1110,7 +1106,6 @@ impl Editor {
                 self.save_current_scene(path.clone());
 
                 match std::process::Command::new("cargo")
-                    .stdin(Stdio::piped())
                     .stdout(Stdio::piped())
                     .arg("run")
                     .arg("--package")
@@ -1150,7 +1145,6 @@ impl Editor {
     fn set_build_mode(&mut self) {
         if let Mode::Edit = self.mode {
             match std::process::Command::new("cargo")
-                .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .arg("build")
                 .arg("--package")
