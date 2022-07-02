@@ -2,6 +2,7 @@
 
 #![warn(missing_docs)]
 
+use crate::event_loop::ControlFlow;
 use crate::window::Window;
 use crate::{
     core::{pool::Handle, uuid::Uuid},
@@ -124,6 +125,7 @@ impl dyn Plugin {
 ///     event::Event
 /// };
 /// use std::str::FromStr;
+/// use fyrox::event_loop::ControlFlow;
 ///
 /// #[derive(Default)]
 /// struct MyPlugin {}
@@ -145,7 +147,7 @@ impl dyn Plugin {
 ///         // The implementation is optional.
 ///     }
 ///
-///     fn update(&mut self, context: &mut PluginContext) {
+///     fn update(&mut self, context: &mut PluginContext, control_flow: &mut ControlFlow) {
 ///         // The method is called on every frame, it is guaranteed to have fixed update rate.
 ///         // The implementation is optional.
 ///     }
@@ -156,7 +158,7 @@ impl dyn Plugin {
 ///         uuid!("b9302812-81a7-48a5-89d2-921774d94943")
 ///     }
 ///
-///     fn on_os_event(&mut self, event: &Event<()>, context: PluginContext) {
+///     fn on_os_event(&mut self, event: &Event<()>, context: PluginContext, control_flow: &mut ControlFlow) {
 ///         // The method is called when the main window receives an event from the OS.
 ///     }
 /// }
@@ -182,7 +184,12 @@ pub trait Plugin: BasePlugin {
 
     /// Updates the plugin internals at fixed rate (see [`PluginContext::dt`] parameter for more
     /// info).
-    fn update(&mut self, #[allow(unused_variables)] context: &mut PluginContext) {}
+    fn update(
+        &mut self,
+        #[allow(unused_variables)] context: &mut PluginContext,
+        #[allow(unused_variables)] control_flow: &mut ControlFlow,
+    ) {
+    }
 
     /// The method must return persistent type id. The id is used for serialization, the engine
     /// saves the id into file (scene in most cases) and when you loading file it re-creates
@@ -205,6 +212,7 @@ pub trait Plugin: BasePlugin {
         &mut self,
         #[allow(unused_variables)] event: &Event<()>,
         #[allow(unused_variables)] context: PluginContext,
+        #[allow(unused_variables)] control_flow: &mut ControlFlow,
     ) {
     }
 }

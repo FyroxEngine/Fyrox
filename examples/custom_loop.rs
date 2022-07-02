@@ -60,7 +60,7 @@ fn main() {
                     // ************************
 
                     // It is very important to update the engine every frame!
-                    engine.update(fixed_timestep);
+                    engine.update(fixed_timestep, control_flow);
                 }
 
                 // It is very important to "pump" messages from UI. Even if don't need to

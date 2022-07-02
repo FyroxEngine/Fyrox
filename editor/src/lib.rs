@@ -1703,7 +1703,7 @@ impl Editor {
     pub fn run(mut self, event_loop: EventLoop<()>) -> ! {
         event_loop.run(move |event, _, control_flow| match event {
             Event::MainEventsCleared => {
-                update(&mut self);
+                update(&mut self, control_flow);
 
                 if self.exit {
                     *control_flow = ControlFlow::Exit;
@@ -1753,7 +1753,7 @@ impl Editor {
     }
 }
 
-fn update(editor: &mut Editor) {
+fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
     scope_profile!();
 
     let mut dt =
@@ -1762,7 +1762,7 @@ fn update(editor: &mut Editor) {
         dt -= FIXED_TIMESTEP;
         editor.game_loop_data.elapsed_time += FIXED_TIMESTEP;
 
-        editor.engine.pre_update(FIXED_TIMESTEP);
+        editor.engine.pre_update(FIXED_TIMESTEP, control_flow);
 
         editor.update(FIXED_TIMESTEP);
 

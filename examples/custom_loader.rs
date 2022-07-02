@@ -236,7 +236,7 @@ fn main() {
 
                 state.on_tick(&mut engine, fixed_timestep, control_flow);
 
-                engine.update(fixed_timestep);
+                engine.update(fixed_timestep, control_flow);
             }
 
             while let Some(ui_msg) = engine.user_interface.poll_message() {

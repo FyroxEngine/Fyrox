@@ -110,7 +110,7 @@ impl Executor {
         engine.enable_plugins(override_scene, true);
 
         event_loop.run(move |event, _, control_flow| {
-            engine.handle_os_event_by_plugins(&event, fixed_timestep);
+            engine.handle_os_event_by_plugins(&event, fixed_timestep, control_flow);
 
             let scenes = engine
                 .scenes
@@ -138,7 +138,7 @@ impl Executor {
                         dt -= fixed_timestep;
                         elapsed_time += fixed_timestep;
 
-                        engine.update(fixed_timestep);
+                        engine.update(fixed_timestep, control_flow);
                     }
 
                     while let Some(_ui_event) = engine.user_interface.poll_message() {}

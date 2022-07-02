@@ -412,7 +412,7 @@ fn main() {
                         MessageDirection::ToWidget,
                         format!("Example 04 - User Interface\nFPS: {}", fps),
                     ));
-                    engine.update(fixed_timestep);
+                    engine.update(fixed_timestep, control_flow);
                 }
 
                 // It is very important to "pump" messages from UI. This our main point where we communicate

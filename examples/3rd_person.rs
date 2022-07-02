@@ -155,7 +155,7 @@ fn main() {
                         // ************************
                     }
 
-                    game.engine.update(fixed_timestep);
+                    game.engine.update(fixed_timestep, control_flow);
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.

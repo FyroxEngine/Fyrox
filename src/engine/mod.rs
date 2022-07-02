@@ -16,7 +16,7 @@ use crate::{
         resource_manager::{container::event::ResourceEvent, ResourceManager},
     },
     event::Event,
-    event_loop::EventLoop,
+    event_loop::{ControlFlow, EventLoop},
     gui::UserInterface,
     plugin::{Plugin, PluginContext, PluginRegistrationContext},
     renderer::{framework::error::FrameworkError, Renderer},
@@ -433,8 +433,8 @@ impl Engine {
     /// Performs single update tick with given time delta. Engine internally will perform update
     /// of all scenes, sub-systems, user interface, etc. Must be called in order to get engine
     /// functioning.
-    pub fn update(&mut self, dt: f32) {
-        self.pre_update(dt);
+    pub fn update(&mut self, dt: f32, control_flow: &mut ControlFlow) {
+        self.pre_update(dt, control_flow);
         self.post_update(dt);
     }
 
@@ -442,7 +442,7 @@ impl Engine {
     ///
     /// Normally, this is called from `Engine::update()`.
     /// You should only call this manually if you don't use that method.
-    pub fn pre_update(&mut self, dt: f32) {
+    pub fn pre_update(&mut self, dt: f32, control_flow: &mut ControlFlow) {
         let inner_size = self.get_window().inner_size();
         let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
@@ -462,7 +462,7 @@ impl Engine {
             scene.update(frame_size, dt);
         }
 
-        self.update_plugins(dt);
+        self.update_plugins(dt, control_flow);
         self.update_scripted_scene_scripts(dt);
     }
 
@@ -481,7 +481,7 @@ impl Engine {
         self.handle_script_messages();
     }
 
-    fn update_plugins(&mut self, dt: f32) {
+    fn update_plugins(&mut self, dt: f32, control_flow: &mut ControlFlow) {
         if self.plugins_enabled {
             let mut context = PluginContext {
                 scenes: &mut self.scenes,
@@ -494,13 +494,18 @@ impl Engine {
             };
 
             for plugin in self.plugins.iter_mut() {
-                plugin.update(&mut context);
+                plugin.update(&mut context, control_flow);
             }
         }
     }
 
     /// Processes an OS event by every registered plugin.
-    pub fn handle_os_event_by_plugins(&mut self, event: &Event<()>, dt: f32) {
+    pub fn handle_os_event_by_plugins(
+        &mut self,
+        event: &Event<()>,
+        dt: f32,
+        control_flow: &mut ControlFlow,
+    ) {
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
                 plugin.on_os_event(
@@ -514,6 +519,7 @@ impl Engine {
                         serialization_context: self.serialization_context.clone(),
                         window: get_window!(self),
                     },
+                    control_flow,
                 );
             }
         }
