@@ -1113,7 +1113,7 @@ impl Editor {
                     .arg("--release")
                     .arg("--")
                     .arg("--override-scene")
-                    .arg(path.clone())
+                    .arg(path)
                     .spawn()
                 {
                     Ok(mut process) => {
@@ -1124,10 +1124,8 @@ impl Editor {
                         let reader_active = active.clone();
                         std::thread::spawn(move || {
                             while reader_active.load(Ordering::SeqCst) {
-                                for line in BufReader::new(&mut stdout).lines().take(10) {
-                                    if let Ok(line) = line {
-                                        Log::info(line);
-                                    }
+                                for line in BufReader::new(&mut stdout).lines().take(10).flatten() {
+                                    Log::info(line);
                                 }
                             }
                         });
@@ -1149,7 +1147,7 @@ impl Editor {
     fn set_build_mode(&mut self) {
         if let Mode::Edit = self.mode {
             if let Some(scene) = self.scene.as_ref() {
-                if let Some(path) = scene.path.as_ref().cloned() {
+                if scene.path.is_some() {
                     match std::process::Command::new("cargo")
                         .stdout(Stdio::piped())
                         .arg("build")
@@ -1537,7 +1535,7 @@ impl Editor {
                             let err_code = 101;
                             let code = status.code().unwrap_or(err_code);
                             if code == err_code {
-                                Log::info(format!("Failed to build the game!"));
+                                Log::info("Failed to build the game!".to_owned());
                                 self.mode = Mode::Edit;
                                 self.on_mode_changed();
                             } else {

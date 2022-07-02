@@ -92,11 +92,9 @@ impl BuildWindow {
         let log_changed = self.changed.clone();
         std::thread::spawn(move || {
             while reader_active.load(Ordering::SeqCst) {
-                for line in BufReader::new(&mut stdout).lines().take(10) {
-                    if let Ok(line) = line {
-                        log.lock().push_str(&line);
-                        log_changed.store(true, Ordering::SeqCst);
-                    }
+                for line in BufReader::new(&mut stdout).lines().take(10).flatten() {
+                    log.lock().push_str(&line);
+                    log_changed.store(true, Ordering::SeqCst);
                 }
             }
         });
