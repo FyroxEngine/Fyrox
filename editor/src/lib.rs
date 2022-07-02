@@ -13,6 +13,7 @@ extern crate lazy_static;
 mod absm;
 mod asset;
 mod audio;
+mod build;
 mod camera;
 mod command;
 mod configurator;
@@ -32,6 +33,7 @@ mod settings;
 mod utils;
 mod world;
 
+use crate::build::BuildWindow;
 use crate::{
     absm::AbsmEditor,
     asset::{item::AssetItem, item::AssetKind, AssetBrowser},
@@ -257,6 +259,9 @@ pub fn make_save_file_selector(ctx: &mut BuildContext) -> Handle<UiNode> {
 
 pub enum Mode {
     Edit,
+    Build {
+        process: std::process::Child,
+    },
     Play {
         process: std::process::Child,
         active: Arc<AtomicBool>,
@@ -447,6 +452,7 @@ pub struct Editor {
     #[allow(dead_code)] // TODO
     absm_editor: AbsmEditor,
     mode: Mode,
+    build_window: BuildWindow,
 }
 
 impl Editor {
@@ -677,6 +683,8 @@ impl Editor {
 
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
 
+        let build_window = BuildWindow::new(ctx);
+
         let absm_editor = AbsmEditor::new(&mut engine, message_sender.clone());
 
         let material_editor = MaterialEditor::new(&mut engine);
@@ -716,6 +724,7 @@ impl Editor {
                 elapsed_time: 0.0,
             },
             absm_editor,
+            build_window,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move));
@@ -1138,6 +1147,30 @@ impl Editor {
         }
     }
 
+    fn set_build_mode(&mut self) {
+        if let Mode::Edit = self.mode {
+            match std::process::Command::new("cargo")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .arg("build")
+                .arg("--package")
+                .arg("executor")
+                .arg("--release")
+                .spawn()
+            {
+                Ok(mut process) => {
+                    self.build_window
+                        .listen(process.stdout.take().unwrap(), &self.engine.user_interface);
+
+                    self.mode = Mode::Build { process };
+
+                    self.on_mode_changed();
+                }
+                Err(e) => Log::err(format!("Failed to enter build mode: {:?}", e)),
+            }
+        }
+    }
+
     fn set_editor_mode(&mut self) {
         if let Mode::Play { mut process, .. } = std::mem::replace(&mut self.mode, Mode::Edit) {
             Log::verify(process.kill());
@@ -1462,25 +1495,50 @@ impl Editor {
     fn update(&mut self, dt: f32) {
         scope_profile!();
 
-        if let Mode::Play {
-            ref mut process,
-            ref active,
-        } = self.mode
-        {
-            match process.try_wait() {
-                Ok(status) => {
-                    if let Some(status) = status {
-                        // Stop reader thread.
-                        active.store(false, Ordering::SeqCst);
+        match self.mode {
+            Mode::Play {
+                ref mut process,
+                ref active,
+            } => {
+                match process.try_wait() {
+                    Ok(status) => {
+                        if let Some(status) = status {
+                            // Stop reader thread.
+                            active.store(false, Ordering::SeqCst);
 
-                        self.mode = Mode::Edit;
-                        self.on_mode_changed();
+                            self.mode = Mode::Edit;
+                            self.on_mode_changed();
 
-                        Log::info(format!("Game was closed: {:?}", status))
+                            Log::info(format!("Game was closed: {:?}", status))
+                        }
                     }
+                    Err(err) => Log::err(format!("Failed to wait for game process: {:?}", err)),
                 }
-                Err(err) => Log::err(format!("Failed to wait for game process: {:?}", err)),
             }
+            Mode::Build { ref mut process } => {
+                self.build_window.update(&self.engine.user_interface);
+
+                match process.try_wait() {
+                    Ok(status) => {
+                        if let Some(status) = status {
+                            self.build_window.reset(&self.engine.user_interface);
+
+                            // https://doc.rust-lang.org/cargo/commands/cargo-build.html#exit-status
+                            let err_code = 101;
+                            let code = status.code().unwrap_or(err_code);
+                            if code == err_code {
+                                Log::info(format!("Failed to build the game!"));
+                                self.mode = Mode::Edit;
+                                self.on_mode_changed();
+                            } else {
+                                self.set_play_mode();
+                            }
+                        }
+                    }
+                    Err(err) => Log::err(format!("Failed to wait for game process: {:?}", err)),
+                }
+            }
+            _ => {}
         }
 
         self.absm_editor.update(&mut self.engine);
@@ -1568,8 +1626,8 @@ impl Editor {
                     }
                 }
                 Message::SwitchMode => match self.mode {
-                    Mode::Edit => self.set_play_mode(),
-                    Mode::Play { .. } => self.set_editor_mode(),
+                    Mode::Edit => self.set_build_mode(),
+                    _ => self.set_editor_mode(),
                 },
                 Message::SwitchToPlayMode => self.set_play_mode(),
                 Message::SwitchToEditMode => self.set_editor_mode(),
