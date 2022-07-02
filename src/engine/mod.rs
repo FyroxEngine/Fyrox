@@ -488,6 +488,7 @@ impl Engine {
                 resource_manager: &self.resource_manager,
                 renderer: &mut self.renderer,
                 dt,
+                user_interface: &mut self.user_interface,
                 serialization_context: self.serialization_context.clone(),
                 window: get_window!(self),
             };
@@ -509,6 +510,7 @@ impl Engine {
                         resource_manager: &self.resource_manager,
                         renderer: &mut self.renderer,
                         dt,
+                        user_interface: &mut self.user_interface,
                         serialization_context: self.serialization_context.clone(),
                         window: get_window!(self),
                     },
@@ -619,7 +621,12 @@ impl Engine {
     /// This method is intended to be used by the editor and game runner. If you're using the
     /// engine as a framework, then you should not call this method because you'll most likely
     /// do something wrong.
-    pub fn handle_os_event_by_scripts(&mut self, event: &Event<()>, scene: Handle<Scene>, dt: f32) {
+    pub(crate) fn handle_os_event_by_scripts(
+        &mut self,
+        event: &Event<()>,
+        scene: Handle<Scene>,
+        dt: f32,
+    ) {
         process_scripts(
             &mut self.scenes[scene],
             &mut self.plugins,
@@ -637,7 +644,7 @@ impl Engine {
     /// This method is intended to be used by the editor and game runner. If you're using the
     /// engine as a framework, then you should not call this method because you'll most likely
     /// do something wrong.
-    pub fn initialize_scene_scripts(&mut self, scene: Handle<Scene>, dt: f32) {
+    pub(crate) fn initialize_scene_scripts(&mut self, scene: Handle<Scene>, dt: f32) {
         // Wait until all resources are fully loaded (or failed to load). It is needed
         // because some scripts may use resources and any attempt to use non loaded resource
         // will result in panic.
@@ -746,7 +753,7 @@ impl Engine {
     }
 
     /// Enables or disables registered plugins.
-    pub fn enable_plugins(&mut self, override_scene: Handle<Scene>, enabled: bool) {
+    pub(crate) fn enable_plugins(&mut self, override_scene: Handle<Scene>, enabled: bool) {
         if self.plugins_enabled != enabled {
             self.plugins_enabled = enabled;
 
@@ -760,6 +767,7 @@ impl Engine {
                             resource_manager: &self.resource_manager,
                             renderer: &mut self.renderer,
                             dt: 0.0,
+                            user_interface: &mut self.user_interface,
                             serialization_context: self.serialization_context.clone(),
                             window: get_window!(self),
                         },
@@ -775,6 +783,7 @@ impl Engine {
                         resource_manager: &self.resource_manager,
                         renderer: &mut self.renderer,
                         dt: 0.0,
+                        user_interface: &mut self.user_interface,
                         serialization_context: self.serialization_context.clone(),
                         window: get_window!(self),
                     });
@@ -786,20 +795,19 @@ impl Engine {
     }
 
     /// Adds new plugin.
-    pub fn add_plugin<P>(&mut self) -> bool
+    pub fn add_plugin<P>(&mut self, mut plugin: P) -> bool
     where
-        P: Plugin + Default + TypeUuidProvider,
+        P: Plugin + TypeUuidProvider,
     {
         if self.plugins.iter().any(|p| p.id() == P::type_uuid()) {
             false
         } else {
-            let mut plugin = P::default();
-
             plugin.on_register(PluginRegistrationContext {
                 serialization_context: self.serialization_context.clone(),
             });
 
             self.plugins.push(Box::new(plugin));
+
             true
         }
     }

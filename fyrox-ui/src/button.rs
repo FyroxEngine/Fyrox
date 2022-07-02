@@ -20,12 +20,12 @@ use std::{
 #[derive(Debug, Clone, PartialEq)]
 pub enum ButtonMessage {
     Click,
-    Content(Handle<UiNode>),
+    Content(ButtonContent),
 }
 
 impl ButtonMessage {
     define_constructor!(ButtonMessage:Click => fn click(), layout: false);
-    define_constructor!(ButtonMessage:Content => fn content(Handle<UiNode>), layout: false);
+    define_constructor!(ButtonMessage:Content => fn content(ButtonContent), layout: false);
 }
 
 #[derive(Clone)]
@@ -104,7 +104,7 @@ impl Control for Button {
                                 MessageDirection::ToWidget,
                             ));
                         }
-                        self.content = *content;
+                        self.content = content.build(&mut ui.build_ctx());
                         ui.send_message(WidgetMessage::link(
                             self.content,
                             MessageDirection::ToWidget,
@@ -117,9 +117,31 @@ impl Control for Button {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum ButtonContent {
     Text(String),
     Node(Handle<UiNode>),
+}
+
+impl ButtonContent {
+    pub fn text<S: AsRef<str>>(s: S) -> Self {
+        Self::Text(s.as_ref().to_owned())
+    }
+
+    pub fn node(node: Handle<UiNode>) -> Self {
+        Self::Node(node)
+    }
+
+    fn build(&self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        match self {
+            Self::Text(txt) => TextBuilder::new(WidgetBuilder::new())
+                .with_text(txt.as_str())
+                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .build(ctx),
+            Self::Node(node) => *node,
+        }
+    }
 }
 
 pub struct ButtonBuilder {
@@ -160,19 +182,7 @@ impl ButtonBuilder {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let content = if let Some(content) = self.content {
-            match content {
-                ButtonContent::Text(txt) => TextBuilder::new(WidgetBuilder::new())
-                    .with_text(txt.as_str())
-                    .with_opt_font(self.font)
-                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .build(ctx),
-                ButtonContent::Node(node) => node,
-            }
-        } else {
-            Handle::NONE
-        };
+        let content = self.content.map(|c| c.build(ctx)).unwrap_or_default();
 
         let back = self.back.unwrap_or_else(|| {
             DecoratorBuilder::new(

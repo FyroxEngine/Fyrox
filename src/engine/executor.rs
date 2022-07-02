@@ -1,22 +1,30 @@
 #![allow(missing_docs)]
 
-use crate::scene::node::TypeUuidProvider;
 use crate::{
-    core::instant::Instant,
+    core::{futures::executor::block_on, instant::Instant, pool::Handle},
     engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     plugin::Plugin,
+    scene::{node::TypeUuidProvider, SceneLoader},
     utils::{
         log::{Log, MessageKind},
         translate_event,
     },
     window::WindowBuilder,
 };
+use clap::Parser;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
 };
+
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    #[clap(short, long, default_value = "")]
+    override_scene: String,
+}
 
 pub struct Executor {
     event_loop: EventLoop<()>,
@@ -64,11 +72,11 @@ impl Executor {
         Self { event_loop, engine }
     }
 
-    pub fn add_plugin<P>(&mut self) -> bool
+    pub fn add_plugin<P>(&mut self, plugin: P) -> bool
     where
-        P: Plugin + Default + TypeUuidProvider,
+        P: Plugin + TypeUuidProvider,
     {
-        self.engine.add_plugin::<P>()
+        self.engine.add_plugin(plugin)
     }
 
     pub fn run(self) -> ! {
@@ -79,7 +87,27 @@ impl Executor {
         let fixed_timestep = 1.0 / 60.0;
         let mut elapsed_time = 0.0;
 
-        engine.enable_plugins(Default::default(), true);
+        let args = Args::parse();
+
+        let mut override_scene = Handle::NONE;
+        if !args.override_scene.is_empty() {
+            match block_on(SceneLoader::from_file(
+                &args.override_scene,
+                engine.serialization_context.clone(),
+            )) {
+                Ok(loader) => {
+                    override_scene = engine
+                        .scenes
+                        .add(block_on(loader.finish(engine.resource_manager.clone())));
+                }
+                Err(e) => Log::warn(format!(
+                    "Unable to load {} override scene! Reason: {:?}",
+                    args.override_scene, e
+                )),
+            }
+        }
+
+        engine.enable_plugins(override_scene, true);
 
         event_loop.run(move |event, _, control_flow| {
             engine.handle_os_event_by_plugins(&event, fixed_timestep);
