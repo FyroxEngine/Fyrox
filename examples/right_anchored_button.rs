@@ -2,31 +2,75 @@
 //! It also shows how to automatically adjust UI to new window size.
 
 use fyrox::{
-    core::pool::Handle,
-    engine::{framework::prelude::*, Engine},
-    event::WindowEvent,
+    core::{
+        pool::Handle,
+        uuid::{uuid, Uuid},
+    },
+    engine::executor::Executor,
+    event::{Event, WindowEvent},
+    event_loop::ControlFlow,
     gui::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
         message::MessageDirection,
-        widget::WidgetBuilder,
-        widget::WidgetMessage,
-        HorizontalAlignment, UiNode, VerticalAlignment,
+        widget::{WidgetBuilder, WidgetMessage},
+        HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
+    plugin::{Plugin, PluginConstructor, PluginContext},
+    scene::{node::TypeUuidProvider, Scene},
 };
-use fyrox_ui::Thickness;
 
 struct Game {
     grid: Handle<UiNode>,
 }
 
-impl GameState for Game {
-    fn init(engine: &mut Engine) -> Self
-    where
-        Self: Sized,
-    {
-        let window_inner_size = engine.get_window().inner_size();
-        let ctx = &mut engine.user_interface.build_ctx();
+impl Plugin for Game {
+    fn id(&self) -> Uuid {
+        GameConstructor::type_uuid()
+    }
+
+    fn on_os_event(
+        &mut self,
+        event: &Event<()>,
+        context: PluginContext,
+        _control_flow: &mut ControlFlow,
+    ) {
+        if let Event::WindowEvent {
+            event: WindowEvent::Resized(size),
+            ..
+        } = event
+        {
+            // Adjust size of the root grid to make sure it equals to the size of screen.
+            context.user_interface.send_message(WidgetMessage::width(
+                self.grid,
+                MessageDirection::ToWidget,
+                size.width as f32,
+            ));
+            context.user_interface.send_message(WidgetMessage::height(
+                self.grid,
+                MessageDirection::ToWidget,
+                size.height as f32,
+            ));
+        }
+    }
+}
+
+struct GameConstructor;
+
+impl TypeUuidProvider for GameConstructor {
+    fn type_uuid() -> Uuid {
+        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
+    }
+}
+
+impl PluginConstructor for GameConstructor {
+    fn create_instance(
+        &self,
+        _override_scene: Handle<Scene>,
+        context: PluginContext,
+    ) -> Box<dyn Plugin> {
+        let window_inner_size = context.window.inner_size();
+        let ctx = &mut context.user_interface.build_ctx();
 
         let grid = GridBuilder::new(
             WidgetBuilder::new()
@@ -60,29 +104,15 @@ impl GameState for Game {
         .add_column(Column::stretch())
         .build(ctx);
 
-        Self { grid }
-    }
-
-    fn on_window_event(&mut self, engine: &mut Engine, event: WindowEvent) {
-        if let WindowEvent::Resized(size) = event {
-            // Adjust size of the root grid to make sure it equals to the size of screen.
-            engine.user_interface.send_message(WidgetMessage::width(
-                self.grid,
-                MessageDirection::ToWidget,
-                size.width as f32,
-            ));
-            engine.user_interface.send_message(WidgetMessage::height(
-                self.grid,
-                MessageDirection::ToWidget,
-                size.height as f32,
-            ));
-        }
+        Box::new(Game { grid })
     }
 }
 
 fn main() {
-    Framework::<Game>::new()
-        .unwrap()
-        .title("Example - Right Anchored Button")
-        .run();
+    let mut executor = Executor::new();
+    executor
+        .get_window()
+        .set_title("Example - Right Anchored Button");
+    executor.add_plugin_constructor(GameConstructor);
+    executor.run()
 }

@@ -16,9 +16,10 @@ use fyrox::{
         parking_lot::Mutex,
         pool::Handle,
         sstorage::ImmutableString,
+        uuid::{uuid, Uuid},
     },
-    engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
-    event::{ElementState, VirtualKeyCode, WindowEvent},
+    engine::{executor::Executor, resource_manager::ResourceManager},
+    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
         message::MessageDirection,
@@ -27,6 +28,7 @@ use fyrox::{
         UiNode,
     },
     material::{shader::SamplerFallback, Material, PropertyValue},
+    plugin::{Plugin, PluginConstructor, PluginContext},
     rand::Rng,
     renderer::QualitySettings,
     scene::{
@@ -36,7 +38,7 @@ use fyrox::{
             surface::{SurfaceBuilder, SurfaceData},
             MeshBuilder,
         },
-        node::Node,
+        node::{Node, TypeUuidProvider},
         transform::TransformBuilder,
         Scene,
     },
@@ -182,38 +184,15 @@ struct Game {
     animations: Vec<Handle<Animation>>,
 }
 
-impl GameState for Game {
-    fn init(engine: &mut Engine) -> Self
-    where
-        Self: Sized,
-    {
-        let mut settings = QualitySettings::ultra();
-        settings.point_shadows_distance = 1000.0;
-        engine.renderer.set_quality_settings(&settings).unwrap();
-
-        // Create test scene.
-        let loader = fyrox::core::futures::executor::block_on(SceneLoader::load_with(
-            engine.resource_manager.clone(),
-        ));
-
-        Self {
-            input_controller: InputController {
-                rotate_left: false,
-                rotate_right: false,
-            },
-            debug_text: TextBuilder::new(WidgetBuilder::new())
-                .build(&mut engine.user_interface.build_ctx()),
-            camera_angle: 0.0,
-            scene: engine.scenes.add(loader.scene),
-            camera: loader.camera,
-            animations: loader.animations,
-        }
+impl Plugin for Game {
+    fn id(&self) -> Uuid {
+        GameConstructor::type_uuid()
     }
 
-    fn on_tick(&mut self, engine: &mut Engine, _dt: f32, _: &mut ControlFlow) {
+    fn update(&mut self, context: &mut PluginContext, _control_flow: &mut ControlFlow) {
         // Use stored scene handle to borrow a mutable reference of scene in
         // engine.
-        let scene = &mut engine.scenes[self.scene];
+        let scene = &mut context.scenes[self.scene];
 
         // Our animations must be applied to scene explicitly, otherwise
         // it will have no effect.
@@ -236,7 +215,7 @@ impl GameState for Game {
             UnitQuaternion::from_axis_angle(&Vector3::y_axis(), self.camera_angle),
         );
 
-        engine.user_interface.send_message(TextMessage::text(
+        context.user_interface.send_message(TextMessage::text(
             self.debug_text,
             MessageDirection::ToWidget,
             format!(
@@ -245,13 +224,22 @@ impl GameState for Game {
                     Use [A][D] keys to rotate camera.\n\
                     {}",
                 self.animations.len(),
-                engine.renderer.get_statistics()
+                context.renderer.get_statistics()
             ),
         ));
     }
 
-    fn on_window_event(&mut self, _engine: &mut Engine, event: WindowEvent) {
-        if let WindowEvent::KeyboardInput { input, .. } = event {
+    fn on_os_event(
+        &mut self,
+        event: &Event<()>,
+        _context: PluginContext,
+        _control_flow: &mut ControlFlow,
+    ) {
+        if let Event::WindowEvent {
+            event: WindowEvent::KeyboardInput { input, .. },
+            ..
+        } = event
+        {
             if let Some(key_code) = input.virtual_keycode {
                 match key_code {
                     VirtualKeyCode::A => {
@@ -267,9 +255,47 @@ impl GameState for Game {
     }
 }
 
+struct GameConstructor;
+
+impl TypeUuidProvider for GameConstructor {
+    fn type_uuid() -> Uuid {
+        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
+    }
+}
+
+impl PluginConstructor for GameConstructor {
+    fn create_instance(
+        &self,
+        _override_scene: Handle<Scene>,
+        context: PluginContext,
+    ) -> Box<dyn Plugin> {
+        let mut settings = QualitySettings::ultra();
+        settings.point_shadows_distance = 1000.0;
+        context.renderer.set_quality_settings(&settings).unwrap();
+
+        // Create test scene.
+        let loader = fyrox::core::futures::executor::block_on(SceneLoader::load_with(
+            context.resource_manager.clone(),
+        ));
+
+        Box::new(Game {
+            input_controller: InputController {
+                rotate_left: false,
+                rotate_right: false,
+            },
+            debug_text: TextBuilder::new(WidgetBuilder::new())
+                .build(&mut context.user_interface.build_ctx()),
+            camera_angle: 0.0,
+            scene: context.scenes.add(loader.scene),
+            camera: loader.camera,
+            animations: loader.animations,
+        })
+    }
+}
+
 fn main() {
-    Framework::<Game>::new()
-        .unwrap()
-        .title("Example - Instancing")
-        .run();
+    let mut executor = Executor::new();
+    executor.get_window().set_title("Example - Instancing");
+    executor.add_plugin_constructor(GameConstructor);
+    executor.run()
 }

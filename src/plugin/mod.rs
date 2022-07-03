@@ -25,7 +25,7 @@ use std::{any::Any, sync::Arc};
 pub trait PluginConstructor {
     /// The method is called when the plugin constructor was just registered in the engine. The main use of the
     /// method is to register scripts and custom scene graph nodes in [`SerializationContext`].
-    fn register(&self, context: PluginRegistrationContext);
+    fn register(&self, #[allow(unused_variables)] context: PluginRegistrationContext) {}
 
     /// The method is called when the engine creates plugin instances. It allows to create initialized plugin
     /// instance.

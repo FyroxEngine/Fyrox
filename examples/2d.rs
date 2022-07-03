@@ -4,11 +4,15 @@
 //!
 //! This example shows simple 2D scene with light sources.
 
-use fyrox::scene::camera::{OrthographicProjection, Projection};
 use fyrox::{
-    core::{algebra::Vector3, pool::Handle},
-    engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
-    event::{ElementState, VirtualKeyCode, WindowEvent},
+    core::{
+        algebra::{UnitQuaternion, Vector3},
+        color::Color,
+        pool::Handle,
+        uuid::{uuid, Uuid},
+    },
+    engine::{executor::Executor, resource_manager::ResourceManager},
+    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
         message::MessageDirection,
@@ -16,18 +20,17 @@ use fyrox::{
         widget::WidgetBuilder,
         UiNode,
     },
+    plugin::{Plugin, PluginConstructor, PluginContext},
     scene::{
         base::BaseBuilder,
-        camera::CameraBuilder,
+        camera::{CameraBuilder, OrthographicProjection, Projection},
         dim2::rectangle::RectangleBuilder,
         light::{point::PointLightBuilder, spot::SpotLightBuilder, BaseLightBuilder},
-        node::Node,
+        node::{Node, TypeUuidProvider},
         transform::TransformBuilder,
         Scene,
     },
 };
-use fyrox_core::algebra::UnitQuaternion;
-use fyrox_core::color::Color;
 
 struct SceneLoader {
     scene: Scene,
@@ -122,35 +125,8 @@ struct Game {
     debug_text: Handle<UiNode>,
 }
 
-impl GameState for Game {
-    fn init(engine: &mut Engine) -> Self
-    where
-        Self: Sized,
-    {
-        // Create test scene.
-        let loader = SceneLoader::load_with(engine.resource_manager.clone());
-
-        Self {
-            // Create input controller - it will hold information about needed actions.
-            input_controller: InputController {
-                move_forward: false,
-                move_backward: false,
-                move_left: false,
-                move_right: false,
-            },
-            // Add scene to engine - engine will take ownership over scene and will return
-            // you a handle to scene which can be used later on to borrow it and do some
-            // actions you need.
-            scene: engine.scenes.add(loader.scene),
-            camera: loader.camera,
-            spot_light: loader.spot_light,
-            // Create simple user interface that will show some useful info.
-            debug_text: TextBuilder::new(WidgetBuilder::new())
-                .build(&mut engine.user_interface.build_ctx()),
-        }
-    }
-
-    fn on_tick(&mut self, engine: &mut Engine, _dt: f32, _: &mut ControlFlow) {
+impl Plugin for Game {
+    fn update(&mut self, context: &mut PluginContext, _control_flow: &mut ControlFlow) {
         let mut offset = Vector3::default();
         if self.input_controller.move_forward {
             offset.y += 1.0
@@ -165,7 +141,7 @@ impl GameState for Game {
             offset.x -= 1.0
         }
 
-        let graph = &mut engine.scenes[self.scene].graph;
+        let graph = &mut context.scenes[self.scene].graph;
 
         if let Some(offset) = offset.try_normalize(f32::EPSILON) {
             graph[self.camera]
@@ -178,16 +154,28 @@ impl GameState for Game {
             * UnitQuaternion::from_euler_angles(0.0, 0.0, 1.0f32.to_radians());
         local_transform.set_rotation(new_rotation);
 
-        engine.user_interface.send_message(TextMessage::text(
+        context.user_interface.send_message(TextMessage::text(
             self.debug_text,
             MessageDirection::ToWidget,
-            format!("Example - 2D\n{}", engine.renderer.get_statistics()),
+            format!("Example - 2D\n{}", context.renderer.get_statistics()),
         ));
     }
 
-    fn on_window_event(&mut self, _engine: &mut Engine, event: WindowEvent) {
-        if let WindowEvent::KeyboardInput { input, .. } = event {
-            // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
+    fn id(&self) -> Uuid {
+        GameConstructor::type_uuid()
+    }
+
+    fn on_os_event(
+        &mut self,
+        event: &Event<()>,
+        _context: PluginContext,
+        _control_flow: &mut ControlFlow,
+    ) {
+        if let Event::WindowEvent {
+            event: WindowEvent::KeyboardInput { input, .. },
+            ..
+        } = event
+        {
             if let Some(key_code) = input.virtual_keycode {
                 match key_code {
                     VirtualKeyCode::W => {
@@ -209,9 +197,47 @@ impl GameState for Game {
     }
 }
 
+struct GameConstructor;
+
+impl TypeUuidProvider for GameConstructor {
+    fn type_uuid() -> Uuid {
+        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
+    }
+}
+
+impl PluginConstructor for GameConstructor {
+    fn create_instance(
+        &self,
+        _override_scene: Handle<Scene>,
+        context: PluginContext,
+    ) -> Box<dyn Plugin> {
+        // Create test scene.
+        let loader = SceneLoader::load_with(context.resource_manager.clone());
+
+        Box::new(Game {
+            // Create input controller - it will hold information about needed actions.
+            input_controller: InputController {
+                move_forward: false,
+                move_backward: false,
+                move_left: false,
+                move_right: false,
+            },
+            // Add scene to engine - engine will take ownership over scene and will return
+            // you a handle to scene which can be used later on to borrow it and do some
+            // actions you need.
+            scene: context.scenes.add(loader.scene),
+            camera: loader.camera,
+            spot_light: loader.spot_light,
+            // Create simple user interface that will show some useful info.
+            debug_text: TextBuilder::new(WidgetBuilder::new())
+                .build(&mut context.user_interface.build_ctx()),
+        })
+    }
+}
+
 fn main() {
-    Framework::<Game>::new()
-        .unwrap()
-        .title("Example - 2D")
-        .run();
+    let mut executor = Executor::new();
+    executor.get_window().set_title("Example - 2D");
+    executor.add_plugin_constructor(GameConstructor);
+    executor.run()
 }

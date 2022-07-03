@@ -1,21 +1,42 @@
+use fyrox::engine::executor::Executor;
 use fyrox::{
-    engine::{framework::prelude::*, Engine},
+    core::{
+        pool::Handle,
+        uuid::{uuid, Uuid},
+    },
     gui::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
         text::TextBuilder,
         widget::WidgetBuilder,
     },
+    plugin::{Plugin, PluginConstructor, PluginContext},
+    scene::{node::TypeUuidProvider, Scene},
 };
 
 struct Game {}
 
-impl GameState for Game {
-    fn init(engine: &mut Engine) -> Self
-    where
-        Self: Sized,
-    {
-        let ctx = &mut engine.user_interface.build_ctx();
+impl Plugin for Game {
+    fn id(&self) -> Uuid {
+        GameConstructor::type_uuid()
+    }
+}
+
+struct GameConstructor;
+
+impl TypeUuidProvider for GameConstructor {
+    fn type_uuid() -> Uuid {
+        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
+    }
+}
+
+impl PluginConstructor for GameConstructor {
+    fn create_instance(
+        &self,
+        _override_scene: Handle<Scene>,
+        context: PluginContext,
+    ) -> Box<dyn Plugin> {
+        let ctx = &mut context.user_interface.build_ctx();
 
         GridBuilder::new(
             WidgetBuilder::new()
@@ -42,13 +63,13 @@ impl GameState for Game {
         .draw_border(true)
         .build(ctx);
 
-        Self {}
+        Box::new(Game {})
     }
 }
 
 fn main() {
-    Framework::<Game>::new()
-        .unwrap()
-        .title("Example - Grid")
-        .run();
+    let mut executor = Executor::new();
+    executor.get_window().set_title("Example - Grid");
+    executor.add_plugin_constructor(GameConstructor);
+    executor.run()
 }

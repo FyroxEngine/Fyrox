@@ -4,23 +4,45 @@
 //! based on compression options.
 
 use fyrox::{
-    core::{algebra::Vector2, color::Color},
-    engine::{framework::prelude::*, Engine},
+    core::{
+        algebra::Vector2,
+        color::Color,
+        pool::Handle,
+        uuid::{uuid, Uuid},
+    },
+    engine::executor::Executor,
     gui::{image::ImageBuilder, widget::WidgetBuilder},
+    plugin::{Plugin, PluginConstructor, PluginContext},
     resource::texture::{CompressionOptions, TextureImportOptions},
+    scene::{node::TypeUuidProvider, Scene},
     utils::into_gui_texture,
 };
 
 struct Game;
 
-impl GameState for Game {
-    fn init(engine: &mut Engine) -> Self
-    where
-        Self: Sized,
-    {
+impl Plugin for Game {
+    fn id(&self) -> Uuid {
+        GameConstructor::type_uuid()
+    }
+}
+
+struct GameConstructor;
+
+impl TypeUuidProvider for GameConstructor {
+    fn type_uuid() -> Uuid {
+        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
+    }
+}
+
+impl PluginConstructor for GameConstructor {
+    fn create_instance(
+        &self,
+        _override_scene: Handle<Scene>,
+        context: PluginContext,
+    ) -> Box<dyn Plugin> {
         // Explicitly set compression options - here we use Quality which in most cases will use
         // DXT5 compression with compression ratio 4:1
-        engine
+        context
             .resource_manager
             .state()
             .containers_mut()
@@ -29,7 +51,7 @@ impl GameState for Game {
                 TextureImportOptions::default().with_compression(CompressionOptions::Quality),
             );
 
-        engine
+        context
             .renderer
             .set_backbuffer_clear_color(Color::opaque(120, 120, 120));
 
@@ -40,11 +62,11 @@ impl GameState for Game {
                 .with_height(512.0),
         )
         .with_texture(into_gui_texture(
-            engine
+            context
                 .resource_manager
                 .request_texture("examples/data/MetalMesh_Base_Color.png"),
         ))
-        .build(&mut engine.user_interface.build_ctx());
+        .build(&mut context.user_interface.build_ctx());
 
         ImageBuilder::new(
             WidgetBuilder::new()
@@ -53,19 +75,18 @@ impl GameState for Game {
                 .with_height(512.0),
         )
         .with_texture(into_gui_texture(
-            engine
+            context
                 .resource_manager
                 .request_texture("examples/data/R8Texture.png"),
         ))
-        .build(&mut engine.user_interface.build_ctx());
+        .build(&mut context.user_interface.build_ctx());
 
-        Self
+        Box::new(Game)
     }
 }
 
 fn main() {
-    Framework::<Game>::new()
-        .unwrap()
-        .title("Example - Compressed Textures")
-        .run();
+    let mut executor = Executor::new();
+    executor.add_plugin_constructor(GameConstructor);
+    executor.run()
 }

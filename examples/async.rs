@@ -7,9 +7,6 @@
 
 pub mod shared;
 
-use std::sync::{Arc, Mutex};
-
-use crate::shared::create_camera;
 use fyrox::{
     animation::Animation,
     core::{
@@ -17,9 +14,10 @@ use fyrox::{
         color::Color,
         futures,
         pool::Handle,
+        uuid::{uuid, Uuid},
     },
-    engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
-    event::{ElementState, VirtualKeyCode, WindowEvent},
+    engine::{executor::Executor, resource_manager::ResourceManager},
+    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
         grid::{Column, GridBuilder, Row},
@@ -27,11 +25,17 @@ use fyrox::{
         progress_bar::{ProgressBarBuilder, ProgressBarMessage},
         text::{TextBuilder, TextMessage},
         widget::{WidgetBuilder, WidgetMessage},
-        HorizontalAlignment, Thickness, VerticalAlignment,
+        BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
-    gui::{BuildContext, UiNode},
-    scene::{node::Node, Scene},
+    plugin::{Plugin, PluginConstructor, PluginContext},
+    scene::{
+        node::{Node, TypeUuidProvider},
+        Scene,
+    },
 };
+use std::sync::{Arc, Mutex};
+
+use crate::shared::create_camera;
 
 struct Interface {
     root: Handle<UiNode>,
@@ -225,52 +229,28 @@ struct Game {
     scene_loader: Arc<Mutex<AsyncLoaderContext>>,
 }
 
-impl GameState for Game {
-    fn init(engine: &mut Engine) -> Self
-    where
-        Self: Sized,
-    {
-        // Create simple user interface that will show some useful info.
-        let window = engine.get_window();
-        let screen_size = window.inner_size().to_logical(window.scale_factor());
-        let interface = create_ui(
-            &mut engine.user_interface.build_ctx(),
-            Vector2::new(screen_size.width, screen_size.height),
-        );
-
-        Self {
-            interface,
-            input_controller: InputController {
-                rotate_left: false,
-                rotate_right: false,
-            },
-            model_angle: 180.0f32.to_radians(),
-            game_scene: None,
-            scene_loader: AsyncLoaderContext::load_with(engine.resource_manager.clone()),
-        }
-    }
-
-    fn on_tick(&mut self, engine: &mut Engine, _dt: f32, _: &mut ControlFlow) {
+impl Plugin for Game {
+    fn update(&mut self, context: &mut PluginContext, _control_flow: &mut ControlFlow) {
         // Check each frame if our scene is created - here we just trying to lock context
         // without blocking, it is important for main thread to be functional while other
         // thread still loading data.
         if let Ok(mut loader_context) = self.scene_loader.try_lock() {
             if let Some(loader) = loader_context.data.take() {
                 self.game_scene = Some(GameScene {
-                    scene: engine.scenes.add(loader.scene),
+                    scene: context.scenes.add(loader.scene),
                     model_handle: loader.model_handle,
                     walk_animation: loader.walk_animation,
                 });
 
                 // Once scene is loaded, we should hide progress bar and text.
-                engine
+                context
                     .user_interface
                     .send_message(WidgetMessage::visibility(
                         self.interface.progress_bar,
                         MessageDirection::ToWidget,
                         false,
                     ));
-                engine
+                context
                     .user_interface
                     .send_message(WidgetMessage::visibility(
                         self.interface.progress_text,
@@ -280,14 +260,14 @@ impl GameState for Game {
             }
 
             // Report progress in UI.
-            engine
+            context
                 .user_interface
                 .send_message(ProgressBarMessage::progress(
                     self.interface.progress_bar,
                     MessageDirection::ToWidget,
                     loader_context.progress,
                 ));
-            engine.user_interface.send_message(TextMessage::text(
+            context.user_interface.send_message(TextMessage::text(
                 self.interface.progress_text,
                 MessageDirection::ToWidget,
                 format!(
@@ -302,7 +282,7 @@ impl GameState for Game {
         if let Some(game_scene) = self.game_scene.as_mut() {
             // Use stored scene handle to borrow a mutable reference of scene in
             // engine.
-            let scene = &mut engine.scenes[game_scene.scene];
+            let scene = &mut context.scenes[game_scene.scene];
 
             // Our animation must be applied to scene explicitly, otherwise
             // it will have no effect.
@@ -328,58 +308,109 @@ impl GameState for Game {
         }
 
         // While scene is loading, we will update progress bar.
-        let fps = engine.renderer.get_statistics().frames_per_second;
+        let fps = context.renderer.get_statistics().frames_per_second;
         let debug_text = format!(
             "Example 02 - Asynchronous Scene Loading\nUse [A][D] keys to rotate model.\nFPS: {}",
             fps
         );
-        engine.user_interface.send_message(TextMessage::text(
+        context.user_interface.send_message(TextMessage::text(
             self.interface.debug_text,
             MessageDirection::ToWidget,
             debug_text,
         ));
     }
 
-    fn on_window_event(&mut self, engine: &mut Engine, event: WindowEvent) {
-        match event {
-            WindowEvent::Resized(size) => {
-                // Root UI node should be resized, otherwise progress bar will stay
-                // in wrong position after resize.
-                let size = size.to_logical(engine.get_window().scale_factor());
-                engine.user_interface.send_message(WidgetMessage::width(
-                    self.interface.root,
-                    MessageDirection::ToWidget,
-                    size.width,
-                ));
-                engine.user_interface.send_message(WidgetMessage::height(
-                    self.interface.root,
-                    MessageDirection::ToWidget,
-                    size.height,
-                ));
-            }
-            WindowEvent::KeyboardInput { input, .. } => {
-                // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
-                if let Some(key_code) = input.virtual_keycode {
-                    match key_code {
-                        VirtualKeyCode::A => {
-                            self.input_controller.rotate_left = input.state == ElementState::Pressed
+    fn id(&self) -> Uuid {
+        GameConstructor::type_uuid()
+    }
+
+    fn on_os_event(
+        &mut self,
+        event: &Event<()>,
+        context: PluginContext,
+        _control_flow: &mut ControlFlow,
+    ) {
+        if let Event::WindowEvent { event, .. } = event {
+            match event {
+                WindowEvent::Resized(size) => {
+                    // Root UI node should be resized, otherwise progress bar will stay
+                    // in wrong position after resize.
+                    let size = size.to_logical(context.window.scale_factor());
+                    context.user_interface.send_message(WidgetMessage::width(
+                        self.interface.root,
+                        MessageDirection::ToWidget,
+                        size.width,
+                    ));
+                    context.user_interface.send_message(WidgetMessage::height(
+                        self.interface.root,
+                        MessageDirection::ToWidget,
+                        size.height,
+                    ));
+                }
+                WindowEvent::KeyboardInput { input, .. } => {
+                    // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
+                    if let Some(key_code) = input.virtual_keycode {
+                        match key_code {
+                            VirtualKeyCode::A => {
+                                self.input_controller.rotate_left =
+                                    input.state == ElementState::Pressed
+                            }
+                            VirtualKeyCode::D => {
+                                self.input_controller.rotate_right =
+                                    input.state == ElementState::Pressed
+                            }
+                            _ => (),
                         }
-                        VirtualKeyCode::D => {
-                            self.input_controller.rotate_right =
-                                input.state == ElementState::Pressed
-                        }
-                        _ => (),
                     }
                 }
+                _ => (),
             }
-            _ => (),
         }
     }
 }
 
+struct GameConstructor;
+
+impl TypeUuidProvider for GameConstructor {
+    fn type_uuid() -> Uuid {
+        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
+    }
+}
+
+impl PluginConstructor for GameConstructor {
+    fn create_instance(
+        &self,
+        _override_scene: Handle<Scene>,
+        context: PluginContext,
+    ) -> Box<dyn Plugin> {
+        // Create simple user interface that will show some useful info.
+        let screen_size = context
+            .window
+            .inner_size()
+            .to_logical(context.window.scale_factor());
+        let interface = create_ui(
+            &mut context.user_interface.build_ctx(),
+            Vector2::new(screen_size.width, screen_size.height),
+        );
+
+        Box::new(Game {
+            interface,
+            input_controller: InputController {
+                rotate_left: false,
+                rotate_right: false,
+            },
+            model_angle: 180.0f32.to_radians(),
+            game_scene: None,
+            scene_loader: AsyncLoaderContext::load_with(context.resource_manager.clone()),
+        })
+    }
+}
+
 fn main() {
-    Framework::<Game>::new()
-        .unwrap()
-        .title("Example - Asynchronous Scene Loading")
-        .run();
+    let mut executor = Executor::new();
+    executor
+        .get_window()
+        .set_title("Example - Asynchronous Scene Loading");
+    executor.add_plugin_constructor(GameConstructor);
+    executor.run()
 }

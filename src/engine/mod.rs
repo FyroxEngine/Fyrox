@@ -5,7 +5,6 @@
 
 pub mod error;
 pub mod executor;
-pub mod framework;
 pub mod resource_manager;
 
 use crate::plugin::PluginConstructor;
@@ -820,7 +819,7 @@ impl Engine {
 
     /// Adds new plugin plugin constructor. Actual plugin instances will be created on-demand by calling
     /// [Self::enable_plugins]
-    pub fn add_plugin<P>(&mut self, constructor: P)
+    pub fn add_plugin_constructor<P>(&mut self, constructor: P)
     where
         P: PluginConstructor + TypeUuidProvider + 'static,
     {

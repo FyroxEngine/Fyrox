@@ -1697,7 +1697,7 @@ impl Editor {
     where
         P: PluginConstructor + TypeUuidProvider + 'static,
     {
-        self.engine.add_plugin(plugin)
+        self.engine.add_plugin_constructor(plugin)
     }
 
     pub fn run(mut self, event_loop: EventLoop<()>) -> ! {

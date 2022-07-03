@@ -72,11 +72,11 @@ impl Executor {
         Self { event_loop, engine }
     }
 
-    pub fn add_plugin<P>(&mut self, plugin: P)
+    pub fn add_plugin_constructor<P>(&mut self, plugin: P)
     where
         P: PluginConstructor + TypeUuidProvider + 'static,
     {
-        self.engine.add_plugin(plugin)
+        self.engine.add_plugin_constructor(plugin)
     }
 
     pub fn run(self) -> ! {

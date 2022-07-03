@@ -18,7 +18,6 @@ use fyrox::{
         sstorage::ImmutableString,
     },
     engine::{
-        framework::GameState,
         resource_manager::{
             container::event::ResourceEventBroadcaster,
             loader::{
@@ -51,6 +50,7 @@ use fyrox::{
     },
     window::WindowBuilder,
 };
+use fyrox_core::futures::executor::block_on;
 use std::sync::Arc;
 
 struct CustomModelLoader(Arc<ModelLoader>);
@@ -175,23 +175,6 @@ impl GameSceneLoader {
     }
 }
 
-struct Game {}
-
-impl GameState for Game {
-    fn init(engine: &mut Engine) -> Self
-    where
-        Self: Sized,
-    {
-        let scene = fyrox::core::futures::executor::block_on(GameSceneLoader::load_with(
-            engine.resource_manager.clone(),
-        ));
-
-        engine.scenes.add(scene.scene);
-
-        Game {}
-    }
-}
-
 fn main() {
     let event_loop = EventLoop::new();
 
@@ -222,7 +205,9 @@ fn main() {
     })
     .unwrap();
 
-    let mut state = Game::init(&mut engine);
+    let scene = block_on(GameSceneLoader::load_with(engine.resource_manager.clone())).scene;
+    engine.scenes.add(scene);
+
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
     let mut elapsed_time = 0.0;
@@ -234,13 +219,7 @@ fn main() {
                 dt -= fixed_timestep;
                 elapsed_time += fixed_timestep;
 
-                state.on_tick(&mut engine, fixed_timestep, control_flow);
-
                 engine.update(fixed_timestep, control_flow);
-            }
-
-            while let Some(ui_msg) = engine.user_interface.poll_message() {
-                state.on_ui_message(&mut engine, ui_msg);
             }
 
             engine.get_window().request_redraw();
@@ -265,13 +244,7 @@ fn main() {
             if let Some(os_event) = translate_event(&event) {
                 engine.user_interface.process_os_event(&os_event);
             }
-
-            state.on_window_event(&mut engine, event);
         }
-        Event::DeviceEvent { device_id, event } => {
-            state.on_device_event(&mut engine, device_id, event);
-        }
-        Event::LoopDestroyed => state.on_exit(&mut engine),
         _ => *control_flow = ControlFlow::Poll,
     });
 }

@@ -11,9 +11,10 @@ use fyrox::{
         pool::Handle,
         rand::Rng,
         sstorage::ImmutableString,
+        uuid::{uuid, Uuid},
     },
-    engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
-    event::{ElementState, VirtualKeyCode, WindowEvent},
+    engine::{executor::Executor, resource_manager::ResourceManager},
+    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
         message::MessageDirection,
@@ -22,11 +23,12 @@ use fyrox::{
         UiNode,
     },
     material::{shader::SamplerFallback, Material, PropertyValue},
+    plugin::{Plugin, PluginConstructor, PluginContext},
     rand::thread_rng,
     scene::{
         base::BaseBuilder,
         light::{point::PointLightBuilder, BaseLightBuilder},
-        node::Node,
+        node::{Node, TypeUuidProvider},
         terrain::{Brush, BrushMode, BrushShape, LayerDefinition, TerrainBuilder},
         transform::TransformBuilder,
         Scene,
@@ -177,33 +179,15 @@ struct Game {
     model_handle: Handle<Node>,
 }
 
-impl GameState for Game {
-    fn init(engine: &mut Engine) -> Self
-    where
-        Self: Sized,
-    {
-        // Create test scene.
-        let loader = fyrox::core::futures::executor::block_on(SceneLoader::load_with(
-            engine.resource_manager.clone(),
-        ));
-
-        Self {
-            debug_text: TextBuilder::new(WidgetBuilder::new())
-                .build(&mut engine.user_interface.build_ctx()),
-            input_controller: InputController {
-                rotate_left: false,
-                rotate_right: false,
-            },
-            scene: engine.scenes.add(loader.scene),
-            model_angle: 180.0f32.to_radians(),
-            model_handle: loader.model_handle,
-        }
+impl Plugin for Game {
+    fn id(&self) -> Uuid {
+        GameConstructor::type_uuid()
     }
 
-    fn on_tick(&mut self, engine: &mut Engine, _dt: f32, _: &mut ControlFlow) {
+    fn update(&mut self, context: &mut PluginContext, _control_flow: &mut ControlFlow) {
         // Use stored scene handle to borrow a mutable reference of scene in
         // engine.
-        let scene = &mut engine.scenes[self.scene];
+        let scene = &mut context.scenes[self.scene];
 
         // Rotate model according to input controller state.
         if self.input_controller.rotate_left {
@@ -219,18 +203,27 @@ impl GameState for Game {
                 self.model_angle,
             ));
 
-        engine.user_interface.send_message(TextMessage::text(
+        context.user_interface.send_message(TextMessage::text(
             self.debug_text,
             MessageDirection::ToWidget,
             format!(
                 "Example - Terrain\nUse [A][D] keys to rotate camera.\nFPS: {}",
-                engine.renderer.get_statistics().frames_per_second
+                context.renderer.get_statistics().frames_per_second
             ),
         ));
     }
 
-    fn on_window_event(&mut self, _engine: &mut Engine, event: WindowEvent) {
-        if let WindowEvent::KeyboardInput { input, .. } = event {
+    fn on_os_event(
+        &mut self,
+        event: &Event<()>,
+        _context: PluginContext,
+        _control_flow: &mut ControlFlow,
+    ) {
+        if let Event::WindowEvent {
+            event: WindowEvent::KeyboardInput { input, .. },
+            ..
+        } = event
+        {
             // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
             if let Some(key_code) = input.virtual_keycode {
                 match key_code {
@@ -247,9 +240,42 @@ impl GameState for Game {
     }
 }
 
+struct GameConstructor;
+
+impl TypeUuidProvider for GameConstructor {
+    fn type_uuid() -> Uuid {
+        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
+    }
+}
+
+impl PluginConstructor for GameConstructor {
+    fn create_instance(
+        &self,
+        _override_scene: Handle<Scene>,
+        context: PluginContext,
+    ) -> Box<dyn Plugin> {
+        // Create test scene.
+        let loader = fyrox::core::futures::executor::block_on(SceneLoader::load_with(
+            context.resource_manager.clone(),
+        ));
+
+        Box::new(Game {
+            debug_text: TextBuilder::new(WidgetBuilder::new())
+                .build(&mut context.user_interface.build_ctx()),
+            input_controller: InputController {
+                rotate_left: false,
+                rotate_right: false,
+            },
+            scene: context.scenes.add(loader.scene),
+            model_angle: 180.0f32.to_radians(),
+            model_handle: loader.model_handle,
+        })
+    }
+}
+
 fn main() {
-    Framework::<Game>::new()
-        .unwrap()
-        .title("Example - Terrain")
-        .run();
+    let mut executor = Executor::new();
+    executor.get_window().set_title("Example - Terrain");
+    executor.add_plugin_constructor(GameConstructor);
+    executor.run()
 }
