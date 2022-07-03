@@ -1,4 +1,4 @@
-use crate::{block_on, GamePlugin};
+use crate::{block_on, GameConstructor};
 use fyrox::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
@@ -142,7 +142,7 @@ impl ScriptTrait for Bot {
     }
 
     fn plugin_uuid(&self) -> Uuid {
-        GamePlugin::type_uuid()
+        GameConstructor::type_uuid()
     }
 
     fn id(&self) -> Uuid {

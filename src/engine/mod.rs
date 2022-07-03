@@ -8,6 +8,7 @@ pub mod executor;
 pub mod framework;
 pub mod resource_manager;
 
+use crate::plugin::PluginConstructor;
 use crate::{
     asset::ResourceState,
     core::{algebra::Vector2, futures::executor::block_on, instant, pool::Handle},
@@ -94,6 +95,9 @@ pub struct Engine {
     // because internally sound engine spawns separate thread to mix and send data to sound
     // device. For more info see docs for Context.
     sound_engine: Arc<Mutex<SoundEngine>>,
+
+    // A set of plugin constructors.
+    plugin_constructors: Vec<Box<dyn PluginConstructor>>,
 
     // A set of plugins used by the engine.
     plugins: Vec<Box<dyn Plugin>>,
@@ -408,6 +412,7 @@ impl Engine {
             serialization_context: node_constructors,
             scripted_scenes: Default::default(),
             plugins_enabled: false,
+            plugin_constructors: Default::default(),
         })
     }
 
@@ -779,9 +784,9 @@ impl Engine {
             self.plugins_enabled = enabled;
 
             if self.plugins_enabled {
-                for plugin in self.plugins.iter_mut() {
-                    // Initialize plugin.
-                    plugin.on_init(
+                // Create and initialize instances.
+                for constructor in self.plugin_constructors.iter() {
+                    self.plugins.push(constructor.create_instance(
                         override_scene,
                         PluginContext {
                             scenes: &mut self.scenes,
@@ -792,12 +797,12 @@ impl Engine {
                             serialization_context: self.serialization_context.clone(),
                             window: get_window!(self),
                         },
-                    );
+                    ));
                 }
             } else {
                 self.handle_script_messages();
 
-                for plugin in self.plugins.iter_mut() {
+                for mut plugin in self.plugins.drain(..) {
                     // Deinit plugin first.
                     plugin.on_deinit(PluginContext {
                         scenes: &mut self.scenes,
@@ -808,29 +813,22 @@ impl Engine {
                         serialization_context: self.serialization_context.clone(),
                         window: get_window!(self),
                     });
-                    // Reset plugin state.
-                    *plugin = plugin.default_boxed();
                 }
             }
         }
     }
 
-    /// Adds new plugin.
-    pub fn add_plugin<P>(&mut self, mut plugin: P) -> bool
+    /// Adds new plugin plugin constructor. Actual plugin instances will be created on-demand by calling
+    /// [Self::enable_plugins]
+    pub fn add_plugin<P>(&mut self, constructor: P)
     where
-        P: Plugin + TypeUuidProvider,
+        P: PluginConstructor + TypeUuidProvider + 'static,
     {
-        if self.plugins.iter().any(|p| p.id() == P::type_uuid()) {
-            false
-        } else {
-            plugin.on_register(PluginRegistrationContext {
-                serialization_context: self.serialization_context.clone(),
-            });
+        constructor.register(PluginRegistrationContext {
+            serialization_context: self.serialization_context.clone(),
+        });
 
-            self.plugins.push(Box::new(plugin));
-
-            true
-        }
+        self.plugin_constructors.push(Box::new(constructor));
     }
 }
 

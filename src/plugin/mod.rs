@@ -14,6 +14,33 @@ use crate::{
 };
 use std::{any::Any, sync::Arc};
 
+/// Plugin constructor is a first step of 2-stage plugin initialization. It is responsible for plugin script
+/// registration and for creating actual plugin instance.
+///
+/// # Details
+///
+/// Why there is a need in 2-state initialization? The editor requires it, it is interested only in plugin
+/// scripts so editor does not create any plugin instances, it just uses [Self::register] to obtain information
+/// about scripts.  
+pub trait PluginConstructor {
+    /// The method is called when the plugin constructor was just registered in the engine. The main use of the
+    /// method is to register scripts and custom scene graph nodes in [`SerializationContext`].
+    fn register(&self, context: PluginRegistrationContext);
+
+    /// The method is called when the engine creates plugin instances. It allows to create initialized plugin
+    /// instance.
+    ///
+    /// # Important notes
+    ///
+    /// `override_scene` is a handle to an override scene that is currently active. It is used only in editor
+    /// when you enter play mode, on other cases it is `Handle::NONE`.
+    fn create_instance(
+        &self,
+        #[allow(unused_variables)] override_scene: Handle<Scene>,
+        context: PluginContext,
+    ) -> Box<dyn Plugin>;
+}
+
 /// Contains plugin environment for the registration stage.
 pub struct PluginRegistrationContext {
     /// A reference to serialization context of the engine. See [`SerializationContext`] for more
@@ -57,14 +84,11 @@ pub trait BasePlugin: Any + 'static {
 
     /// Returns a reference to Any trait. It is used for type casting.
     fn as_any_mut(&mut self) -> &mut dyn Any;
-
-    /// Returns default state of plugin instance. It is used to reset plugin state.
-    fn default_boxed(&self) -> Box<dyn Plugin>;
 }
 
 impl<T> BasePlugin for T
 where
-    T: Default + Any + Plugin + 'static,
+    T: Any + Plugin + 'static,
 {
     fn as_any(&self) -> &dyn Any {
         self
@@ -72,10 +96,6 @@ where
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-
-    fn default_boxed(&self) -> Box<dyn Plugin> {
-        Box::new(T::default())
     }
 }
 
@@ -131,17 +151,6 @@ impl dyn Plugin {
 /// struct MyPlugin {}
 ///
 /// impl Plugin for MyPlugin {
-///     fn on_register(&mut self, context: PluginRegistrationContext) {
-///         // The method is called when the plugin was just registered in the engine.
-///         // Register your scripts here using `context`.
-///         // The implementation is optional.
-///     }
-///
-///     fn on_init(&mut self, override_scene: Handle<Scene>, context: PluginContext) {
-///         // The method is called when the plugin is enabling.
-///         // The implementation is optional.
-///     }
-///
 ///     fn on_deinit(&mut self, context: PluginContext) {
 ///         // The method is called when the plugin is disabling.
 ///         // The implementation is optional.
@@ -164,21 +173,6 @@ impl dyn Plugin {
 /// }
 /// ```
 pub trait Plugin: BasePlugin {
-    /// The method is called when the plugin was just registered in the engine. The main use of the
-    /// method is to register scripts and custom scene graph nodes in [`SerializationContext`].
-    fn on_register(&mut self, #[allow(unused_variables)] context: PluginRegistrationContext) {}
-
-    /// The method is called when the plugin is enabling.
-    ///
-    /// `override_scene` is a handle to an override scene that is currently active. It is used only in editor
-    /// when you enter play mode, on other cases it is `Handle::NONE`.
-    fn on_init(
-        &mut self,
-        #[allow(unused_variables)] override_scene: Handle<Scene>,
-        #[allow(unused_variables)] context: PluginContext,
-    ) {
-    }
-
     /// The method is called when the plugin is disabling.
     fn on_deinit(&mut self, #[allow(unused_variables)] context: PluginContext) {}
 

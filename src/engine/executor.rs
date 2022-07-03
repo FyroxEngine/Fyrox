@@ -5,7 +5,7 @@ use crate::{
     engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    plugin::Plugin,
+    plugin::PluginConstructor,
     scene::{node::TypeUuidProvider, SceneLoader},
     utils::{
         log::{Log, MessageKind},
@@ -72,9 +72,9 @@ impl Executor {
         Self { event_loop, engine }
     }
 
-    pub fn add_plugin<P>(&mut self, plugin: P) -> bool
+    pub fn add_plugin<P>(&mut self, plugin: P)
     where
-        P: Plugin + TypeUuidProvider,
+        P: PluginConstructor + TypeUuidProvider + 'static,
     {
         self.engine.add_plugin(plugin)
     }

@@ -99,7 +99,7 @@ use fyrox::{
         BuildContext, UiNode, UserInterface, VerticalAlignment,
     },
     material::{shader::Shader, Material, PropertyValue},
-    plugin::Plugin,
+    plugin::PluginConstructor,
     resource::texture::{CompressionOptions, Texture, TextureKind},
     scene::{
         camera::Projection,
@@ -1693,9 +1693,9 @@ impl Editor {
         self.asset_browser.update(&mut self.engine);
     }
 
-    pub fn add_game_plugin<P>(&mut self, plugin: P) -> bool
+    pub fn add_game_plugin<P>(&mut self, plugin: P)
     where
-        P: Plugin + TypeUuidProvider,
+        P: PluginConstructor + TypeUuidProvider + 'static,
     {
         self.engine.add_plugin(plugin)
     }

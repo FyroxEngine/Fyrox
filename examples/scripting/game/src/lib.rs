@@ -1,4 +1,5 @@
 use crate::bot::Bot;
+use fyrox::event_loop::ControlFlow;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -15,8 +16,7 @@ use fyrox::{
         widget::WidgetBuilder,
     },
     impl_component_provider,
-    plugin::{Plugin, PluginContext, PluginRegistrationContext},
-    renderer::ui_renderer::SceneUserInterface,
+    plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
     scene::{
         camera::Camera,
         graph::map::NodeHandleMap,
@@ -26,52 +26,38 @@ use fyrox::{
     },
     script::{ScriptContext, ScriptTrait},
 };
-use std::{cell::RefCell, rc::Rc};
 
 mod bot;
 
 #[derive(Default)]
 pub struct GamePlugin {
-    scene: Handle<Scene>,
-    ui: Option<Rc<RefCell<SceneUserInterface>>>,
     debug_draw: bool,
+    scene: Handle<Scene>,
+}
+
+pub struct GameConstructor;
+
+impl PluginConstructor for GameConstructor {
+    fn register(&self, context: PluginRegistrationContext) {
+        let scripts = &context.serialization_context.script_constructors;
+
+        scripts
+            .add::<GameConstructor, Player, _>("Player")
+            .add::<GameConstructor, Jumper, _>("Jumper")
+            .add::<GameConstructor, Bot, _>("Bot");
+    }
+
+    fn create_instance(
+        &self,
+        override_scene: Handle<Scene>,
+        context: PluginContext,
+    ) -> Box<dyn Plugin> {
+        Box::new(GamePlugin::new(override_scene, context))
+    }
 }
 
 impl GamePlugin {
-    pub fn set_scene(&mut self, scene: Handle<Scene>, context: PluginContext) {
-        self.scene = scene;
-
-        let mut ui = SceneUserInterface::new(scene);
-
-        let ctx = &mut ui.build_ctx();
-        ButtonBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(32.0))
-            .with_text("Click me")
-            .build(ctx);
-
-        let shared_ui = Rc::new(RefCell::new(ui));
-
-        context.renderer.add_render_pass(shared_ui.clone());
-
-        self.ui = Some(shared_ui);
-    }
-}
-
-impl TypeUuidProvider for GamePlugin {
-    fn type_uuid() -> Uuid {
-        uuid!("a9507fb2-0945-4fc1-91ce-115ae7c8a615")
-    }
-}
-
-impl Plugin for GamePlugin {
-    fn on_register(&mut self, context: PluginRegistrationContext) {
-        let scripts = &context.serialization_context.script_constructors;
-
-        scripts.add::<GamePlugin, Player, &str>("Player");
-        scripts.add::<GamePlugin, Jumper, &str>("Jumper");
-        scripts.add::<GamePlugin, Bot, &str>("Bot");
-    }
-
-    fn on_init(&mut self, override_scene: Handle<Scene>, context: PluginContext) {
+    fn new(override_scene: Handle<Scene>, context: PluginContext) -> Self {
         let scene = if override_scene.is_some() {
             override_scene
         } else {
@@ -92,10 +78,26 @@ impl Plugin for GamePlugin {
             }
         }
 
-        self.set_scene(scene, context);
-    }
+        let ctx = &mut context.user_interface.build_ctx();
+        ButtonBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(32.0))
+            .with_text("Click me")
+            .build(ctx);
 
-    fn update(&mut self, context: &mut PluginContext) {
+        Self {
+            scene,
+            debug_draw: true,
+        }
+    }
+}
+
+impl TypeUuidProvider for GameConstructor {
+    fn type_uuid() -> Uuid {
+        uuid!("a9507fb2-0945-4fc1-91ce-115ae7c8a615")
+    }
+}
+
+impl Plugin for GamePlugin {
+    fn update(&mut self, context: &mut PluginContext, _control_flow: &mut ControlFlow) {
         let scene = &mut context.scenes[self.scene];
 
         if self.debug_draw {
@@ -103,21 +105,10 @@ impl Plugin for GamePlugin {
             drawing_context.clear_lines();
             scene.graph.physics.draw(drawing_context);
         }
-
-        if let Some(mut ui) = self.ui.as_mut().map(|ui| ui.borrow_mut()) {
-            ui.update(context.dt, context.renderer);
-            while ui.poll_message().is_some() {}
-        }
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
-    }
-
-    fn on_os_event(&mut self, event: &Event<()>, _context: PluginContext) {
-        if let Some(mut ui) = self.ui.as_mut().map(|ui| ui.borrow_mut()) {
-            ui.process_event(event);
-        }
+        GameConstructor::type_uuid()
     }
 }
 
@@ -283,7 +274,7 @@ impl ScriptTrait for Player {
     }
 
     fn plugin_uuid(&self) -> Uuid {
-        GamePlugin::type_uuid()
+        GameConstructor::type_uuid()
     }
 
     fn id(&self) -> Uuid {
@@ -344,6 +335,6 @@ impl ScriptTrait for Jumper {
     }
 
     fn plugin_uuid(&self) -> Uuid {
-        GamePlugin::type_uuid()
+        GameConstructor::type_uuid()
     }
 }
