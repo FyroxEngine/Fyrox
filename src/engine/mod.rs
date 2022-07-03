@@ -496,6 +496,21 @@ impl Engine {
             for plugin in self.plugins.iter_mut() {
                 plugin.update(&mut context, control_flow);
             }
+
+            while let Some(message) = self.user_interface.poll_message() {
+                let mut context = PluginContext {
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    renderer: &mut self.renderer,
+                    dt,
+                    user_interface: &mut self.user_interface,
+                    serialization_context: self.serialization_context.clone(),
+                    window: get_window!(self),
+                };
+                for plugin in self.plugins.iter_mut() {
+                    plugin.on_ui_message(&mut context, &message, control_flow);
+                }
+            }
         }
     }
 

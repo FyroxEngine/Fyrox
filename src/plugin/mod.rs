@@ -2,16 +2,16 @@
 
 #![warn(missing_docs)]
 
-use crate::event_loop::ControlFlow;
-use crate::window::Window;
 use crate::{
     core::{pool::Handle, uuid::Uuid},
     engine::{resource_manager::ResourceManager, SerializationContext},
     event::Event,
+    event_loop::ControlFlow,
+    gui::{message::UiMessage, UserInterface},
     renderer::Renderer,
     scene::{Scene, SceneContainer},
+    window::Window,
 };
-use fyrox_ui::UserInterface;
 use std::{any::Any, sync::Arc};
 
 /// Contains plugin environment for the registration stage.
@@ -212,6 +212,15 @@ pub trait Plugin: BasePlugin {
         &mut self,
         #[allow(unused_variables)] event: &Event<()>,
         #[allow(unused_variables)] context: PluginContext,
+        #[allow(unused_variables)] control_flow: &mut ControlFlow,
+    ) {
+    }
+
+    /// Defines a function that will be called when there is any message from user interface.
+    fn on_ui_message(
+        &mut self,
+        #[allow(unused_variables)] context: &mut PluginContext,
+        #[allow(unused_variables)] message: &UiMessage,
         #[allow(unused_variables)] control_flow: &mut ControlFlow,
     ) {
     }
