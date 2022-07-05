@@ -13,9 +13,6 @@ use std::collections::BTreeMap;
 /// Script constructor contains all required data and methods to create script instances
 /// by their UUIDs. Its is primarily used for serialization needs.
 pub struct ScriptConstructor {
-    /// Parent plugin UUID.
-    pub plugin_uuid: Uuid,
-
     /// A simple type alias for boxed node constructor.
     pub constructor: Box<dyn FnMut() -> Script + Send>,
 
@@ -41,18 +38,15 @@ impl ScriptConstructorContainer {
     /// # Panic
     ///
     /// The method will panic if there is already a constructor for given type uuid.
-    pub fn add<P, T, N>(&self, name: N) -> &Self
+    pub fn add<T>(&self, name: &str) -> &Self
     where
-        P: TypeUuidProvider,
         T: TypeUuidProvider + ScriptTrait + Default,
-        N: AsRef<str>,
     {
         let old = self.map.lock().insert(
             T::type_uuid(),
             ScriptConstructor {
-                plugin_uuid: P::type_uuid(),
                 constructor: Box::new(|| Script::new(T::default())),
-                name: name.as_ref().to_string(),
+                name: name.to_owned(),
             },
         );
 
