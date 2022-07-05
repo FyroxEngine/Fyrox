@@ -493,7 +493,7 @@ impl Engine {
                 renderer: &mut self.renderer,
                 dt,
                 user_interface: &mut self.user_interface,
-                serialization_context: self.serialization_context.clone(),
+                serialization_context: &self.serialization_context,
                 window: get_window!(self),
             };
 
@@ -508,7 +508,7 @@ impl Engine {
                     renderer: &mut self.renderer,
                     dt,
                     user_interface: &mut self.user_interface,
-                    serialization_context: self.serialization_context.clone(),
+                    serialization_context: &self.serialization_context,
                     window: get_window!(self),
                 };
                 for plugin in self.plugins.iter_mut() {
@@ -535,7 +535,7 @@ impl Engine {
                         renderer: &mut self.renderer,
                         dt,
                         user_interface: &mut self.user_interface,
-                        serialization_context: self.serialization_context.clone(),
+                        serialization_context: &self.serialization_context,
                         window: get_window!(self),
                     },
                     control_flow,
@@ -793,7 +793,7 @@ impl Engine {
                             renderer: &mut self.renderer,
                             dt: 0.0,
                             user_interface: &mut self.user_interface,
-                            serialization_context: self.serialization_context.clone(),
+                            serialization_context: &self.serialization_context,
                             window: get_window!(self),
                         },
                     ));
@@ -809,7 +809,7 @@ impl Engine {
                         renderer: &mut self.renderer,
                         dt: 0.0,
                         user_interface: &mut self.user_interface,
-                        serialization_context: self.serialization_context.clone(),
+                        serialization_context: &self.serialization_context,
                         window: get_window!(self),
                     });
                 }
@@ -824,7 +824,7 @@ impl Engine {
         P: PluginConstructor + TypeUuidProvider + 'static,
     {
         constructor.register(PluginRegistrationContext {
-            serialization_context: self.serialization_context.clone(),
+            serialization_context: &self.serialization_context,
         });
 
         self.plugin_constructors.push(Box::new(constructor));

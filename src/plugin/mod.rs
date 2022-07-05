@@ -42,10 +42,10 @@ pub trait PluginConstructor {
 }
 
 /// Contains plugin environment for the registration stage.
-pub struct PluginRegistrationContext {
+pub struct PluginRegistrationContext<'a> {
     /// A reference to serialization context of the engine. See [`SerializationContext`] for more
     /// info.
-    pub serialization_context: Arc<SerializationContext>,
+    pub serialization_context: &'a Arc<SerializationContext>,
 }
 
 /// Contains plugin environment.
@@ -71,7 +71,7 @@ pub struct PluginContext<'a> {
 
     /// A reference to serialization context of the engine. See [`SerializationContext`] for more
     /// info.
-    pub serialization_context: Arc<SerializationContext>,
+    pub serialization_context: &'a Arc<SerializationContext>,
 
     /// A reference to the main application window.
     pub window: &'a Window,
@@ -112,14 +112,6 @@ impl dyn Plugin {
 }
 
 /// Plugin is a convenient interface that allow you to extend engine's functionality.
-///
-/// # Engine vs Framework
-///
-/// There are two completely different approaches that could be used to use the engine: you either
-/// use the engine in "true" engine mode, or use it in framework mode. The "true" engine mode fixes
-/// high-level structure of your game and forces you to implement game logic inside plugins and
-/// scripts. The framework mode provides low-level access to engine details and leaves implementation
-/// details to you.
 ///
 /// # Static vs dynamic plugins
 ///
@@ -173,7 +165,8 @@ impl dyn Plugin {
 /// }
 /// ```
 pub trait Plugin: BasePlugin {
-    /// The method is called when the plugin is disabling.
+    /// The method is called before plugin will be disabled. It should be used for clean up, or some
+    /// additional actions.
     fn on_deinit(&mut self, #[allow(unused_variables)] context: PluginContext) {}
 
     /// Updates the plugin internals at fixed rate (see [`PluginContext::dt`] parameter for more
@@ -185,14 +178,14 @@ pub trait Plugin: BasePlugin {
     ) {
     }
 
-    /// The method must return persistent type id. The id is used for serialization, the engine
-    /// saves the id into file (scene in most cases) and when you loading file it re-creates
-    /// correct plugin using the id.
+    /// The method must return persistent type id. It is used to link scripts and plugins, it is
+    /// possible to have multiple plugins and each script instance must be able to find correct
+    /// plugin, it is done by comparing UUIDs.
     ///
     /// # Important notes
     ///
-    /// Do **not** use [`Uuid::new_v4`] or any other [`Uuid`] methods that generates ids, ids
-    /// generated using these methods are **random** and are not suitable for serialization!
+    /// Do **not** use [`Uuid::new_v4`] or any other [`Uuid`] methods that generates ids, id must
+    /// be persistent until application running.
     ///
     /// # How to obtain UUID
     ///
@@ -210,7 +203,8 @@ pub trait Plugin: BasePlugin {
     ) {
     }
 
-    /// Defines a function that will be called when there is any message from user interface.
+    /// The method will be called when there is any message from main user interface instance
+    /// of the engine.
     fn on_ui_message(
         &mut self,
         #[allow(unused_variables)] context: &mut PluginContext,
