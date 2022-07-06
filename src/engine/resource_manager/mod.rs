@@ -508,11 +508,6 @@ impl ResourceManagerState {
             if let Some(DebouncedEvent::Write(path)) = watcher.try_get_event() {
                 let relative_path = make_relative_path(path);
 
-                Log::info(format!(
-                    "File {} was changed, trying to reload a respective resource...",
-                    relative_path.display()
-                ));
-
                 let containers = self.containers_mut();
                 for container in [
                     &mut containers.textures as &mut dyn Container,
@@ -523,6 +518,11 @@ impl ResourceManagerState {
                     &mut containers.absm as &mut dyn Container,
                 ] {
                     if container.try_reload_resource_from_path(&relative_path) {
+                        Log::info(format!(
+                            "File {} was changed, trying to reload a respective resource...",
+                            relative_path.display()
+                        ));
+
                         break;
                     }
                 }
