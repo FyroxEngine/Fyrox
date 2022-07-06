@@ -302,6 +302,7 @@ pub struct Base {
     #[inspect(skip)]
     pub(crate) self_handle: Handle<Node>,
 
+    #[inspect(skip)]
     pub(crate) script_message_sender: Option<Sender<ScriptMessage>>,
 
     #[inspect(getter = "Deref::deref")]
