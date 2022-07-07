@@ -2,7 +2,6 @@
 
 //! Script is used to add custom logic to scene nodes. See [ScriptTrait] for more info.
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -14,11 +13,11 @@ use crate::{
     event::Event,
     gui::inspector::PropertyChanged,
     plugin::Plugin,
-    scene::{node::Node, Scene},
+    scene::{graph::map::NodeHandleMap, node::Node, Scene},
     utils::component::ComponentProvider,
 };
 use std::{
-    any::Any,
+    any::{Any, TypeId},
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
@@ -331,6 +330,20 @@ impl Script {
     /// Performs downcasting to a particular type.
     pub fn cast_mut<T: ScriptTrait>(&mut self) -> Option<&mut T> {
         self.0.as_any_mut().downcast_mut::<T>()
+    }
+
+    /// Tries to borrow a component of given type.
+    pub fn query_component_ref<T: Any>(&self) -> Option<&T> {
+        self.0
+            .query_component_ref(TypeId::of::<T>())
+            .and_then(|c| c.downcast_ref())
+    }
+
+    /// Tries to borrow a component of given type.
+    pub fn query_component_mut<T: Any>(&mut self) -> Option<&mut T> {
+        self.0
+            .query_component_mut(TypeId::of::<T>())
+            .and_then(|c| c.downcast_mut())
     }
 }
 
