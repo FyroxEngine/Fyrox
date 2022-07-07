@@ -1707,6 +1707,17 @@ impl Editor {
 
                 if self.exit {
                     *control_flow = ControlFlow::Exit;
+
+                    // Kill any active child process on exit.
+                    match self.mode {
+                        Mode::Edit => {}
+                        Mode::Build { ref mut process }
+                        | Mode::Play {
+                            ref mut process, ..
+                        } => {
+                            let _ = process.kill();
+                        }
+                    }
                 }
             }
             Event::RedrawRequested(_) => {
