@@ -69,6 +69,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use fyrox::core::algebra::Matrix3;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -481,6 +482,16 @@ impl Editor {
         })
         .unwrap();
 
+        // High-DPI screen support
+        let logical_size = engine
+            .get_window()
+            .inner_size()
+            .to_logical(engine.get_window().scale_factor());
+        set_ui_scaling(
+            &engine.user_interface,
+            engine.get_window().scale_factor() as f32,
+        );
+
         let overlay_pass = OverlayRenderPass::new(engine.renderer.pipeline_state());
         engine.renderer.add_render_pass(overlay_pass);
 
@@ -543,8 +554,8 @@ impl Editor {
 
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()
-                .with_width(engine.renderer.get_frame_size().0 as f32)
-                .with_height(engine.renderer.get_frame_size().1 as f32)
+                .with_width(logical_size.width)
+                .with_height(logical_size.height)
                 .with_child(menu.menu)
                 .with_child(
                     DockingManagerBuilder::new(WidgetBuilder::new().on_row(1).with_child({
@@ -1737,20 +1748,25 @@ impl Editor {
                                 format!("Failed to set renderer size! Reason: {:?}", e),
                             );
                         }
+
+                        let logical_size = size.to_logical(self.engine.get_window().scale_factor());
                         self.engine
                             .user_interface
                             .send_message(WidgetMessage::width(
                                 self.root_grid,
                                 MessageDirection::ToWidget,
-                                size.width as f32,
+                                logical_size.width,
                             ));
                         self.engine
                             .user_interface
                             .send_message(WidgetMessage::height(
                                 self.root_grid,
                                 MessageDirection::ToWidget,
-                                size.height as f32,
+                                logical_size.height,
                             ));
+                    }
+                    WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                        set_ui_scaling(&self.engine.user_interface, *scale_factor as f32);
                     }
                     _ => (),
                 }
@@ -1762,6 +1778,15 @@ impl Editor {
             _ => *control_flow = ControlFlow::Poll,
         });
     }
+}
+
+fn set_ui_scaling(ui: &UserInterface, scale: f32) {
+    // High-DPI screen support
+    ui.send_message(WidgetMessage::render_transform(
+        ui.root(),
+        MessageDirection::ToWidget,
+        Matrix3::new_scaling(scale),
+    ));
 }
 
 fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {

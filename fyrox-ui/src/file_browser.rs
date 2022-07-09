@@ -1218,11 +1218,12 @@ mod test {
         widget::WidgetBuilder,
         UserInterface,
     };
+    use fyrox_core::algebra::Vector2;
     use std::{path::PathBuf, rc::Rc};
 
     #[test]
     fn test_find_tree() {
-        let mut ui = UserInterface::new();
+        let mut ui = UserInterface::new(Vector2::new(100.0, 100.0));
 
         let root = TreeRootBuilder::new(
             WidgetBuilder::new().with_user_data(Rc::new(PathBuf::from("test"))),

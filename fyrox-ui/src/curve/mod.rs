@@ -514,7 +514,7 @@ impl Control for CurveEditor {
                             let max = Vector2::new(max_x, max_y);
                             let center = (min + max).scale(0.5);
 
-                            let mut offset = self.actual_size().scale(0.5 * self.zoom);
+                            let mut offset = self.actual_local_size().scale(0.5 * self.zoom);
                             offset.y *= -1.0;
                             self.view_position = center + offset;
                         }
@@ -598,7 +598,7 @@ impl CurveEditor {
         self.view_matrix.set(
             Matrix3::new_nonuniform_scaling_wrt_point(
                 &Vector2::new(self.zoom, self.zoom),
-                &Point2::from(self.actual_size().scale(0.5)),
+                &Point2::from(self.actual_local_size().scale(0.5)),
             ) * Matrix3::new_translation(&vp),
         );
 
@@ -639,7 +639,7 @@ impl CurveEditor {
     /// Transforms a point to local space.
     pub fn point_to_local_space(&self, point: Vector2<f32>) -> Vector2<f32> {
         let mut p = point - self.screen_position();
-        p.y = self.actual_size().y - p.y;
+        p.y = self.actual_local_size().y - p.y;
         self.view_matrix
             .get()
             .try_inverse()

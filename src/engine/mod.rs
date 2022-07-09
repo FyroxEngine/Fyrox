@@ -401,7 +401,7 @@ impl Engine {
             renderer,
             scenes: SceneContainer::new(sound_engine.clone()),
             sound_engine,
-            user_interface: UserInterface::new(),
+            user_interface: UserInterface::new(Vector2::new(client_size.x, client_size.y)),
             ui_time: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             context,

@@ -294,10 +294,11 @@ mod test {
         widget::WidgetBuilder,
         UserInterface,
     };
+    use fyrox_core::algebra::Vector2;
 
     #[test]
     fn check_box() {
-        let mut ui = UserInterface::new();
+        let mut ui = UserInterface::new(Vector2::new(100.0, 100.0));
 
         assert_eq!(ui.poll_message(), None);
 

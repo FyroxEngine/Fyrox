@@ -103,26 +103,30 @@ impl Popup {
 
     fn right_top_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
         ui.try_get_node(target)
-            .map(|n| n.screen_position() + Vector2::new(n.actual_size().x, 0.0))
-            .unwrap_or_else(|| Vector2::new(ui.screen_size().x - self.widget.actual_size().x, 0.0))
+            .map(|n| n.screen_position() + Vector2::new(n.actual_global_size().x, 0.0))
+            .unwrap_or_else(|| {
+                Vector2::new(ui.screen_size().x - self.widget.actual_global_size().x, 0.0)
+            })
     }
 
     fn center_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
         ui.try_get_node(target)
-            .map(|n| n.screen_position() + n.actual_size().scale(0.5))
-            .unwrap_or_else(|| (ui.screen_size - self.widget.actual_size()).scale(0.5))
+            .map(|n| n.screen_position() + n.actual_global_size().scale(0.5))
+            .unwrap_or_else(|| (ui.screen_size - self.widget.actual_global_size()).scale(0.5))
     }
 
     fn left_bottom_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
         ui.try_get_node(target)
-            .map(|n| n.screen_position() + Vector2::new(0.0, n.actual_size().y))
-            .unwrap_or_else(|| Vector2::new(0.0, ui.screen_size().y - self.widget.actual_size().y))
+            .map(|n| n.screen_position() + Vector2::new(0.0, n.actual_global_size().y))
+            .unwrap_or_else(|| {
+                Vector2::new(0.0, ui.screen_size().y - self.widget.actual_global_size().y)
+            })
     }
 
     fn right_bottom_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
         ui.try_get_node(target)
-            .map(|n| n.screen_position() + n.actual_size())
-            .unwrap_or_else(|| ui.screen_size - self.widget.actual_size())
+            .map(|n| n.screen_position() + n.actual_global_size())
+            .unwrap_or_else(|| ui.screen_size - self.widget.actual_global_size())
     }
 }
 
@@ -175,10 +179,11 @@ impl Control for Popup {
                                 Placement::Cursor(_) => ui.cursor_position(),
                                 Placement::Position { position, .. } => position,
                             };
+
                             ui.send_message(WidgetMessage::desired_position(
                                 self.handle(),
                                 MessageDirection::ToWidget,
-                                position,
+                                ui.screen_to_root_canvas_space(position),
                             ));
                             if self.smart_placement {
                                 ui.send_message(PopupMessage::adjust_position(
@@ -229,7 +234,7 @@ impl Control for Popup {
                             ui.send_message(WidgetMessage::desired_position(
                                 self.handle,
                                 MessageDirection::ToWidget,
-                                new_position,
+                                ui.screen_to_root_canvas_space(new_position),
                             ));
                         }
                     }

@@ -78,7 +78,7 @@ impl Control for ScrollBar {
         // Adjust indicator position according to current value
         let percent = (self.value - self.min) / (self.max - self.min);
 
-        let field_size = ui.node(self.field).actual_size();
+        let field_size = ui.node(self.field).actual_local_size();
 
         let indicator = ui.node(self.indicator);
         match self.orientation {
@@ -100,7 +100,7 @@ impl Control for ScrollBar {
                 ));
 
                 let position = Vector2::new(
-                    percent * (field_size.x - indicator.actual_size().x).max(0.0),
+                    percent * (field_size.x - indicator.actual_local_size().x).max(0.0),
                     0.0,
                 );
                 ui.send_message(WidgetMessage::desired_position(
@@ -128,7 +128,7 @@ impl Control for ScrollBar {
 
                 let position = Vector2::new(
                     0.0,
-                    percent * (field_size.y - indicator.actual_size().y).max(0.0),
+                    percent * (field_size.y - indicator.actual_local_size().y).max(0.0),
                 );
                 ui.send_message(WidgetMessage::desired_position(
                     self.indicator,
@@ -260,11 +260,12 @@ impl Control for ScrollBar {
                         if self.indicator.is_some() {
                             let canvas =
                                 ui.borrow_by_name_up(self.indicator, ScrollBar::PART_CANVAS);
-                            let indicator_size = ui.nodes.borrow(self.indicator).actual_size();
+                            let indicator_size =
+                                ui.nodes.borrow(self.indicator).actual_global_size();
                             if self.is_dragging {
                                 let percent = match self.orientation {
                                     Orientation::Horizontal => {
-                                        let span = canvas.actual_size().x - indicator_size.x;
+                                        let span = canvas.actual_global_size().x - indicator_size.x;
                                         let offset = mouse_pos.x - canvas.screen_position().x
                                             + self.offset.x;
                                         if span > 0.0 {
@@ -274,7 +275,7 @@ impl Control for ScrollBar {
                                         }
                                     }
                                     Orientation::Vertical => {
-                                        let span = canvas.actual_size().y - indicator_size.y;
+                                        let span = canvas.actual_global_size().y - indicator_size.y;
                                         let offset = mouse_pos.y - canvas.screen_position().y
                                             + self.offset.y;
                                         if span > 0.0 {

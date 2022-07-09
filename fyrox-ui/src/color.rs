@@ -111,8 +111,8 @@ impl AlphaBar {
     fn alpha_at(&self, mouse_pos: Vector2<f32>) -> f32 {
         let relative_pos = mouse_pos - self.screen_position();
         let k = match self.orientation {
-            Orientation::Vertical => relative_pos.y / self.actual_size().y,
-            Orientation::Horizontal => relative_pos.x / self.actual_size().x,
+            Orientation::Vertical => relative_pos.y / self.actual_local_size().y,
+            Orientation::Horizontal => relative_pos.x / self.actual_local_size().x,
         };
         k.min(1.0).max(0.0) * 255.0
     }
@@ -366,8 +366,8 @@ impl HueBar {
     fn hue_at(&self, mouse_pos: Vector2<f32>) -> f32 {
         let relative_pos = mouse_pos - self.screen_position();
         let k = match self.orientation {
-            Orientation::Vertical => relative_pos.y / self.actual_size().y,
-            Orientation::Horizontal => relative_pos.x / self.actual_size().x,
+            Orientation::Vertical => relative_pos.y / self.actual_local_size().y,
+            Orientation::Horizontal => relative_pos.x / self.actual_local_size().x,
         };
         k.min(1.0).max(0.0) * 360.0
     }
@@ -1207,7 +1207,7 @@ impl Control for ColorField {
                 ui.send_message(WidgetMessage::width(
                     self.popup,
                     MessageDirection::ToWidget,
-                    self.actual_size().x,
+                    self.actual_local_size().x,
                 ));
                 ui.send_message(PopupMessage::placement(
                     self.popup,

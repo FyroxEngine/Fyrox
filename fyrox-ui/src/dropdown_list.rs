@@ -100,7 +100,7 @@ impl Control for DropdownList {
                         ui.send_message(WidgetMessage::width(
                             self.popup,
                             MessageDirection::ToWidget,
-                            self.actual_size().x,
+                            self.actual_local_size().x,
                         ));
                         ui.send_message(PopupMessage::placement(
                             self.popup,

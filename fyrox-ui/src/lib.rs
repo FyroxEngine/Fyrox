@@ -695,19 +695,13 @@ fn is_node_enabled(nodes: &Pool<UiNode>, handle: Handle<UiNode>) -> bool {
     enabled
 }
 
-impl Default for UserInterface {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl UserInterface {
-    pub fn new() -> UserInterface {
+    pub fn new(screen_size: Vector2<f32>) -> UserInterface {
         let (sender, receiver) = mpsc::channel();
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
         let default_font = SharedFont::new(FontBuilder::new().build_builtin().unwrap());
         let mut ui = UserInterface {
-            screen_size: Vector2::new(100.0, 100.0),
+            screen_size,
             sender,
             receiver,
             visual_debug: false,
@@ -1599,14 +1593,10 @@ impl UserInterface {
                         WidgetMessage::Center => {
                             if message.destination().is_some() {
                                 let node = self.node(message.destination());
-                                let size = node.actual_size();
+                                let size = node.actual_initial_size();
                                 let parent = node.parent();
                                 let parent_size = if parent.is_some() {
-                                    if parent == self.root_canvas {
-                                        self.screen_size
-                                    } else {
-                                        self.node(parent).actual_size()
-                                    }
+                                    self.node(parent).actual_initial_size()
                                 } else {
                                     self.screen_size
                                 };
@@ -1621,7 +1611,7 @@ impl UserInterface {
                         WidgetMessage::MouseDown { button, .. } => {
                             if *button == MouseButton::Right {
                                 if let Some(picked) = self.nodes.try_borrow(self.picked_node) {
-                                    // Get the context menu from the current node or aa parent node
+                                    // Get the context menu from the current node or a parent node
                                     let (context_menu, target) = if picked.context_menu().is_some()
                                     {
                                         (picked.context_menu(), self.picked_node)
@@ -1665,6 +1655,10 @@ impl UserInterface {
         }
     }
 
+    pub fn screen_to_root_canvas_space(&self, position: Vector2<f32>) -> Vector2<f32> {
+        self.node(self.root()).screen_to_local(position)
+    }
+
     fn show_tooltip(&self, tooltip: Handle<UiNode>) {
         self.send_message(WidgetMessage::visibility(
             tooltip,
@@ -1675,7 +1669,7 @@ impl UserInterface {
         self.send_message(WidgetMessage::desired_position(
             tooltip,
             MessageDirection::ToWidget,
-            self.cursor_position() + Vector2::new(0.0, 16.0),
+            self.screen_to_root_canvas_space(self.cursor_position() + Vector2::new(0.0, 16.0)),
         ));
     }
 
@@ -2496,7 +2490,7 @@ mod test {
     fn center() {
         let screen_size = Vector2::new(1000.0, 1000.0);
         let widget_size = Vector2::new(100.0, 100.0);
-        let mut ui = UserInterface::new();
+        let mut ui = UserInterface::new(screen_size);
         let widget = BorderBuilder::new(
             WidgetBuilder::new()
                 .with_width(widget_size.x)

@@ -140,7 +140,7 @@ impl Control for ScrollPanel {
                     }
                     ScrollPanelMessage::BringIntoView(handle) => {
                         if let Some(node_to_focus_ref) = ui.try_get_node(handle) {
-                            let size = node_to_focus_ref.actual_size();
+                            let size = node_to_focus_ref.actual_local_size();
                             let mut parent = handle;
                             let mut relative_position = Vector2::default();
                             while parent.is_some() && parent != self.handle {
@@ -152,10 +152,10 @@ impl Control for ScrollPanel {
                             // when bring into view was requested on already visible element.
                             if relative_position.x < 0.0
                                 || relative_position.y < 0.0
-                                || relative_position.x > self.actual_size().x
-                                || relative_position.y > self.actual_size().y
-                                || (relative_position.x + size.x) > self.actual_size().x
-                                || (relative_position.y + size.y) > self.actual_size().y
+                                || relative_position.x > self.actual_local_size().x
+                                || relative_position.y > self.actual_local_size().y
+                                || (relative_position.x + size.x) > self.actual_local_size().x
+                                || (relative_position.y + size.y) > self.actual_local_size().y
                             {
                                 relative_position += self.scroll;
                                 // This check is needed because it possible that given handle is not in

@@ -218,8 +218,8 @@ impl Control for Window {
                             let screen_bounds = grip.bounds.translate(offset);
                             if screen_bounds.contains(pos) {
                                 grip.is_dragging = true;
-                                self.initial_position = self.actual_local_position();
-                                self.initial_size = self.actual_size();
+                                self.initial_position = self.screen_position();
+                                self.initial_size = self.actual_local_size();
                                 self.mouse_click_pos = pos;
                                 ui.capture_mouse(self.handle());
                                 break;
@@ -271,7 +271,7 @@ impl Control for Window {
                                     ui.send_message(WidgetMessage::desired_position(
                                         self.handle(),
                                         MessageDirection::ToWidget,
-                                        new_pos,
+                                        ui.screen_to_root_canvas_space(new_pos),
                                     ));
                                     ui.send_message(WidgetMessage::width(
                                         self.handle(),
@@ -325,7 +325,7 @@ impl Control for Window {
                             ui.send_message(WindowMessage::move_to(
                                 self.handle(),
                                 MessageDirection::ToWidget,
-                                new_pos,
+                                ui.screen_to_root_canvas_space(new_pos),
                             ));
                         }
                         message.set_handled(true);
@@ -464,7 +464,7 @@ impl Control for Window {
                     WindowMessage::MoveStart => {
                         if !self.is_dragging {
                             ui.capture_mouse(self.header);
-                            let initial_position = self.actual_local_position();
+                            let initial_position = self.screen_position();
                             self.initial_position = initial_position;
                             self.is_dragging = true;
 
