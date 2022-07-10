@@ -1,21 +1,26 @@
+use crate::Message;
 use fyrox::{
     core::{parking_lot::Mutex, pool::Handle},
     gui::{
         border::BorderBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
-        message::MessageDirection,
+        message::{MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
+        stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface, BRUSH_DARKEST,
     },
+    gui::{HorizontalAlignment, Orientation},
 };
 use std::{
     io::{BufRead, BufReader},
     process::ChildStdout,
     sync::{
         atomic::{AtomicBool, Ordering},
+        mpsc::Sender,
         Arc,
     },
 };
@@ -26,11 +31,13 @@ pub struct BuildWindow {
     changed: Arc<AtomicBool>,
     log: Arc<Mutex<String>>,
     log_text: Handle<UiNode>,
+    stop: Handle<UiNode>,
 }
 
 impl BuildWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let log_text;
+        let stop;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(200.0))
             .can_minimize(false)
             .can_close(false)
@@ -60,10 +67,28 @@ impl BuildWindow {
                                     ),
                             )
                             .build(ctx),
+                        )
+                        .with_child(
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .on_row(2)
+                                    .with_child({
+                                        stop = ButtonBuilder::new(
+                                            WidgetBuilder::new().with_width(100.0),
+                                        )
+                                        .with_text("Stop")
+                                        .build(ctx);
+                                        stop
+                                    }),
+                            )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx),
                         ),
                 )
                 .add_row(Row::auto())
                 .add_row(Row::stretch())
+                .add_row(Row::strict(28.0))
                 .add_column(Column::stretch())
                 .build(ctx),
             )
@@ -76,6 +101,7 @@ impl BuildWindow {
             log: Arc::new(Default::default()),
             active: Arc::new(AtomicBool::new(false)),
             changed: Arc::new(AtomicBool::new(false)),
+            stop,
         }
     }
 
@@ -124,6 +150,20 @@ impl BuildWindow {
             ));
 
             self.changed.store(false, Ordering::SeqCst);
+        }
+    }
+
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        sender: &Sender<Message>,
+        ui: &UserInterface,
+    ) {
+        if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.stop {
+                sender.send(Message::SwitchToEditMode).unwrap();
+                self.reset(ui);
+            }
         }
     }
 }

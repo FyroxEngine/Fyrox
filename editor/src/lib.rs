@@ -1002,6 +1002,8 @@ impl Editor {
             },
         );
 
+        self.build_window
+            .handle_ui_message(message, &self.message_sender, &engine.user_interface);
         self.log.handle_ui_message(message, engine);
         self.asset_browser
             .handle_ui_message(message, engine, self.message_sender.clone());
@@ -1191,7 +1193,9 @@ impl Editor {
     }
 
     fn set_editor_mode(&mut self) {
-        if let Mode::Play { mut process, .. } = std::mem::replace(&mut self.mode, Mode::Edit) {
+        if let Mode::Play { mut process, .. } | Mode::Build { mut process } =
+            std::mem::replace(&mut self.mode, Mode::Edit)
+        {
             Log::verify(process.kill());
 
             self.on_mode_changed();
