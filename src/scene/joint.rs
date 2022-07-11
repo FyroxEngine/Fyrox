@@ -1,20 +1,20 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         uuid::{uuid, Uuid},
+        variable::{InheritError, TemplateVariable},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
+        graph::map::NodeHandleMap,
         graph::Graph,
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
         DirectlyInheritableEntity,
@@ -32,13 +32,24 @@ use std::{
 /// pendulum, etc.
 #[derive(Clone, Debug, Visit, PartialEq, Inspect)]
 pub struct BallJoint {
-    /// Where the prismatic joint is attached on the first body, expressed in the local space of the
+    /// Where the ball joint is attached on the first body, expressed in the local space of the
     /// first attached body.
+    #[inspect(
+        description = "Where the prismatic joint is attached on the first body, expressed in the local space of the first attached body."
+    )]
     pub local_anchor1: Vector3<f32>,
-    /// Where the prismatic joint is attached on the second body, expressed in the local space of the
+
+    /// Where the ball joint is attached on the second body, expressed in the local space of the
     /// second attached body.
+    #[inspect(
+        description = "Where the ball joint is attached on the second body, expressed in the local space of the second attached body."
+    )]
     pub local_anchor2: Vector3<f32>,
+
     /// The maximum angle allowed between the two limit axes in world-space.
+    #[inspect(
+        description = "The maximum angle allowed between the two limit axes in world-space."
+    )]
     pub limits_angles: [f32; 2],
 }
 
@@ -57,12 +68,19 @@ impl Default for BallJoint {
 #[derive(Clone, Debug, Visit, PartialEq, Inspect, Default)]
 pub struct FixedJoint {
     /// Local translation for the first body.
+    #[inspect(description = "Local translation for the first body.")]
     pub local_anchor1_translation: Vector3<f32>,
+
     /// Local rotation for the first body.
+    #[inspect(description = "Local rotation for the first body.")]
     pub local_anchor1_rotation: UnitQuaternion<f32>,
+
     /// Local translation for the second body.
+    #[inspect(description = "Local translation for the second body.")]
     pub local_anchor2_translation: Vector3<f32>,
+
     /// Local rotation for the second body.
+    #[inspect(description = "Local rotation for the second body.")]
     pub local_anchor2_rotation: UnitQuaternion<f32>,
 }
 
@@ -72,17 +90,36 @@ pub struct FixedJoint {
 pub struct PrismaticJoint {
     /// Where the prismatic joint is attached on the first body, expressed in the local space of the
     /// first attached body.
+    #[inspect(
+        description = "Where the prismatic joint is attached on the first body, expressed in the local space of the first attached body"
+    )]
     pub local_anchor1: Vector3<f32>,
+
     /// The rotation axis of this revolute joint expressed in the local space of the first attached
     /// body.
+    #[inspect(
+        description = "The rotation axis of this revolute joint expressed in the local space of the first attached body."
+    )]
     pub local_axis1: Vector3<f32>,
+
     /// Where the prismatic joint is attached on the second body, expressed in the local space of the
     /// second attached body.
+    #[inspect(
+        description = "Where the prismatic joint is attached on the second body, expressed in the local space of the second attached body."
+    )]
     pub local_anchor2: Vector3<f32>,
+
     /// The rotation axis of this revolute joint expressed in the local space of the second attached
     /// body.
+    #[inspect(
+        description = "The rotation axis of this revolute joint expressed in the local space of the second attached body."
+    )]
     pub local_axis2: Vector3<f32>,
+
     /// The min an max relative position of the attached bodies along this joint's axis.
+    #[inspect(
+        description = "The min an max relative position of the attached bodies along this joint's axis."
+    )]
     pub limits: [f32; 2],
 }
 
@@ -103,19 +140,38 @@ impl Default for PrismaticJoint {
 /// hinge.
 #[derive(Clone, Debug, Visit, PartialEq, Inspect)]
 pub struct RevoluteJoint {
-    /// Where the prismatic joint is attached on the first body, expressed in the local space of the
+    /// Where the revolute joint is attached on the first body, expressed in the local space of the
     /// first attached body.
+    #[inspect(
+        description = "Where the revolute joint is attached on the first body, expressed in the local space of the first attached body"
+    )]
     pub local_anchor1: Vector3<f32>,
+
     /// The rotation axis of this revolute joint expressed in the local space of the first attached
     /// body.
+    #[inspect(
+        description = "The rotation axis of this revolute joint expressed in the local space of the first attached body."
+    )]
     pub local_axis1: Vector3<f32>,
-    /// Where the prismatic joint is attached on the second body, expressed in the local space of the
+
+    /// Where the revolute joint is attached on the second body, expressed in the local space of the
     /// second attached body.
+    #[inspect(
+        description = "Where the revolute joint is attached on the second body, expressed in the local space of the second attached body."
+    )]
     pub local_anchor2: Vector3<f32>,
+
     /// The rotation axis of this revolute joint expressed in the local space of the second attached
     /// body.
+    #[inspect(
+        description = "The rotation axis of this revolute joint expressed in the local space of the second attached body."
+    )]
     pub local_axis2: Vector3<f32>,
-    /// The min an max relative position of the attached bodies along this joint's axis.
+
+    /// The min and max relative position of the attached bodies along this joint's axis.
+    #[inspect(
+        description = "The min and max relative position of the attached bodies along this joint's axis."
+    )]
     pub limits: [f32; 2],
 }
 
