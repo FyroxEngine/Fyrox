@@ -1,4 +1,3 @@
-use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -8,10 +7,10 @@ use crate::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
-            PropertyEditorMessageContext,
+            PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        CollectionChanged, FieldKind, Inspector, InspectorBuilder, InspectorContext,
-        InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
+        make_expander_container, CollectionChanged, FieldKind, Inspector, InspectorBuilder,
+        InspectorContext, InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
@@ -252,16 +251,26 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<[T; N]>()?;
 
-        Ok(PropertyEditorInstance::Simple {
-            editor: ArrayEditorBuilder::new(
-                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-            )
-            .with_collection(value.iter())
-            .with_environment(ctx.environment.clone())
-            .with_layer_index(ctx.layer_index + 1)
-            .with_definition_container(ctx.definition_container.clone())
-            .build(ctx.build_context, ctx.sync_flag),
-        })
+        let editor;
+        let container = make_expander_container(
+            ctx.layer_index,
+            ctx.property_info.display_name,
+            Handle::NONE,
+            {
+                editor = ArrayEditorBuilder::new(
+                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                )
+                .with_collection(value.iter())
+                .with_environment(ctx.environment.clone())
+                .with_layer_index(ctx.layer_index + 1)
+                .with_definition_container(ctx.definition_container.clone())
+                .build(ctx.build_context, ctx.sync_flag);
+                editor
+            },
+            ctx.build_context,
+        );
+
+        Ok(PropertyEditorInstance::Custom { container, editor })
     }
 
     fn create_message(
