@@ -1,18 +1,20 @@
-use crate::menu::create::CreateEntityMenu;
 use crate::{
+    menu::create::CreateEntityMenu,
     scene::{commands::make_delete_selection_command, EditorScene, Selection},
-    GameEngine, Message,
+    world::graph::item::SceneItem,
+    GameEngine, Message, MessageDirection,
 };
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
         menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
         message::UiMessage,
-        popup::PopupBuilder,
+        popup::{Placement, PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
-        widget::WidgetBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
         BuildContext, UiNode,
     },
+    scene::node::Node,
 };
 use std::sync::mpsc::Sender;
 
@@ -21,6 +23,9 @@ pub struct ItemContextMenu {
     delete_selection: Handle<UiNode>,
     copy_selection: Handle<UiNode>,
     create_entity_menu: CreateEntityMenu,
+    placement_target: Handle<UiNode>,
+    // TODO: Ideally this should belong to node-specific context menu only.
+    preview_camera: Handle<UiNode>,
 }
 
 impl ItemContextMenu {
@@ -30,6 +35,7 @@ impl ItemContextMenu {
 
         let (create_entity_menu, create_entity_menu_root_items) = CreateEntityMenu::new(ctx);
 
+        let preview_camera;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
                 StackPanelBuilder::new(
@@ -67,7 +73,17 @@ impl ItemContextMenu {
                             .with_content(MenuItemContent::text("Create Child"))
                             .with_items(create_entity_menu_root_items)
                             .build(ctx),
-                        ),
+                        )
+                        .with_child({
+                            preview_camera = MenuItemBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_enabled(false)
+                                    .with_min_size(Vector2::new(120.0, 20.0)),
+                            )
+                            .with_content(MenuItemContent::text_no_arrow("Preview"))
+                            .build(ctx);
+                            preview_camera
+                        }),
                 )
                 .build(ctx),
             )
@@ -78,6 +94,8 @@ impl ItemContextMenu {
             menu,
             delete_selection,
             copy_selection,
+            placement_target: Default::default(),
+            preview_camera,
         }
     }
 
@@ -113,6 +131,43 @@ impl ItemContextMenu {
                         engine,
                     );
                 }
+            } else if message.destination() == self.preview_camera {
+                let new_preview_camera = engine
+                    .user_interface
+                    .try_get_node(self.placement_target)
+                    .and_then(|n| n.query_component::<SceneItem<Node>>())
+                    .unwrap()
+                    .entity_handle;
+                if editor_scene.preview_camera == new_preview_camera {
+                    editor_scene.preview_camera = Handle::NONE;
+                } else {
+                    editor_scene.preview_camera = new_preview_camera
+                }
+            }
+        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
+            if message.destination() == self.menu {
+                self.placement_target = *target;
+
+                // Check if placement target is a Camera.
+                let mut is_camera = false;
+                if let Some(placement_target) = engine
+                    .user_interface
+                    .try_get_node(self.placement_target)
+                    .and_then(|n| n.query_component::<SceneItem<Node>>())
+                {
+                    if let Some(node) = engine.scenes[editor_scene.scene]
+                        .graph
+                        .try_get(placement_target.entity_handle)
+                    {
+                        is_camera = node.is_camera();
+                    }
+                }
+
+                engine.user_interface.send_message(WidgetMessage::enabled(
+                    self.preview_camera,
+                    MessageDirection::ToWidget,
+                    is_camera,
+                ));
             }
         }
     }

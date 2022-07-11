@@ -50,6 +50,7 @@ pub struct EditorScene {
     pub clipboard: Clipboard,
     pub camera_controller: CameraController,
     pub navmeshes: Pool<Navmesh>,
+    pub preview_camera: Handle<Node>,
 }
 
 pub fn is_scene_needs_to_be_saved(editor_scene: Option<&EditorScene>) -> bool {
@@ -99,6 +100,7 @@ impl EditorScene {
             selection: Default::default(),
             clipboard: Default::default(),
             has_unsaved_changes: false,
+            preview_camera: Default::default(),
         }
     }
 

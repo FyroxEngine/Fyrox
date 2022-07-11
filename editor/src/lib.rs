@@ -1740,18 +1740,19 @@ impl Editor {
                 // Temporarily disable cameras in currently edited scene. This is needed to prevent any
                 // scene camera to interfere with the editor camera.
                 let mut camera_state = Vec::new();
-                if let Some(scene) = self.scene.as_ref() {
-                    for (handle, camera) in self.engine.scenes[scene.scene]
-                        .graph
-                        .pair_iter_mut()
-                        .filter_map(|(h, n)| {
-                            if h != scene.camera_controller.camera {
-                                n.cast_mut::<Camera>().map(|c| (h, c))
-                            } else {
-                                None
-                            }
-                        })
-                    {
+                if let Some(editor_scene) = self.scene.as_ref() {
+                    let scene = &mut self.engine.scenes[editor_scene.scene];
+                    let has_preview_camera =
+                        scene.graph.is_valid_handle(editor_scene.preview_camera);
+                    for (handle, camera) in scene.graph.pair_iter_mut().filter_map(|(h, n)| {
+                        if has_preview_camera && h != editor_scene.preview_camera
+                            || !has_preview_camera && h != editor_scene.camera_controller.camera
+                        {
+                            n.cast_mut::<Camera>().map(|c| (h, c))
+                        } else {
+                            None
+                        }
+                    }) {
                         camera_state.push((handle, camera.is_enabled()));
                         camera.set_enabled(false);
                     }
