@@ -309,11 +309,7 @@ impl CreateEntityMenu {
                         .build_node(),
                 )
             } else if message.destination() == self.create_camera {
-                Some(
-                    CameraBuilder::new(BaseBuilder::new().with_name("Camera"))
-                        .enabled(false)
-                        .build_node(),
-                )
+                Some(CameraBuilder::new(BaseBuilder::new().with_name("Camera")).build_node())
             } else if message.destination() == self.create_sprite {
                 Some(SpriteBuilder::new(BaseBuilder::new().with_name("Sprite")).build_node())
             } else if message.destination() == self.create_sound_source {
