@@ -99,7 +99,7 @@ pub fn handle_camera_property_changed(
                     Camera::EXPOSURE => SetExposureCommand,
                     Camera::PROJECTION => SetProjectionCommand,
                     Camera::VIEWPORT => SetViewportCommand,
-                    Camera::ENABLED => SetCameraPreviewCommand,
+                    Camera::ENABLED => SetCameraEnabled,
                     Camera::SKY_BOX => SetSkyBoxCommand,
                     Camera::ENVIRONMENT => SetEnvironmentMap,
                     Camera::COLOR_GRADING_LUT => SetColorGradingLutCommand,

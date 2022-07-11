@@ -70,6 +70,7 @@ use crate::{
     world::{graph::selection::GraphSelection, WorldViewer},
 };
 use fyrox::core::algebra::Matrix3;
+use fyrox::scene::camera::Camera;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -1736,7 +1737,36 @@ impl Editor {
                 }
             }
             Event::RedrawRequested(_) => {
+                // Temporarily disable cameras in currently edited scene. This is needed to prevent any
+                // scene camera to interfere with the editor camera.
+                let mut camera_state = Vec::new();
+                if let Some(scene) = self.scene.as_ref() {
+                    for (handle, camera) in self.engine.scenes[scene.scene]
+                        .graph
+                        .pair_iter_mut()
+                        .filter_map(|(h, n)| {
+                            if h != scene.camera_controller.camera {
+                                n.cast_mut::<Camera>().map(|c| (h, c))
+                            } else {
+                                None
+                            }
+                        })
+                    {
+                        camera_state.push((handle, camera.is_enabled()));
+                        camera.set_enabled(false);
+                    }
+                }
+
                 self.engine.render().unwrap();
+
+                // Revert state of the cameras.
+                if let Some(scene) = self.scene.as_ref() {
+                    for (handle, enabled) in camera_state {
+                        self.engine.scenes[scene.scene].graph[handle]
+                            .as_camera_mut()
+                            .set_enabled(enabled);
+                    }
+                }
             }
             Event::WindowEvent { ref event, .. } => {
                 match event {

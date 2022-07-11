@@ -2,12 +2,11 @@ use crate::{
     define_node_command, define_swap_command,
     scene::commands::{Command, SceneContext},
 };
-use fyrox::scene::camera::Projection;
 use fyrox::{
     core::{math::Rect, pool::Handle},
     resource::texture::Texture,
     scene::{
-        camera::{Camera, ColorGradingLut, Exposure, SkyBox},
+        camera::{Camera, ColorGradingLut, Exposure, Projection, SkyBox},
         graph::Graph,
         node::Node,
     },
@@ -19,6 +18,7 @@ fn node_as_camera_mut(node: &mut Node) -> &mut Camera {
 
 define_swap_command! {
     node_as_camera_mut,
+    SetCameraEnabled(bool): is_enabled, set_enabled, "Set Enabled";
     SetViewportCommand(Rect<f32>): viewport, set_viewport, "Set Viewport";
     SetEnvironmentMap(Option<Texture>): environment_map, set_environment, "Set Camera Environment Map";
     SetProjectionCommand(Projection): projection_value, set_projection, "Set Camera Projection";
@@ -80,77 +80,5 @@ define_node_command! {
         } else {
             unreachable!()
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct SetCameraPreviewCommand {
-    handle: Handle<Node>,
-    value: bool,
-    old_value: bool,
-    prev_active: Vec<Handle<Node>>,
-}
-
-impl SetCameraPreviewCommand {
-    pub fn new(node: Handle<Node>, value: bool) -> Self {
-        Self {
-            handle: node,
-            value,
-            old_value: false,
-            prev_active: Vec::new(),
-        }
-    }
-}
-
-impl Command for SetCameraPreviewCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
-        "Set camera preview".to_owned()
-    }
-
-    fn execute(&mut self, context: &mut SceneContext) {
-        let camera = context.scene.graph[self.handle].as_camera_mut();
-        self.old_value = camera.is_enabled();
-        camera.set_enabled(self.value);
-
-        let editor_camera_handle = context.editor_scene.camera_controller.camera;
-        let editor_camera = context.scene.graph[editor_camera_handle].as_camera_mut();
-        editor_camera.set_enabled(!self.value);
-
-        // disable other cameras and save their handles to be able to revert
-        if self.value {
-            self.prev_active = context
-                .scene
-                .graph
-                .pair_iter_mut()
-                .filter(|(handle, _)| handle != &self.handle && handle != &editor_camera_handle)
-                .filter_map(|(handle, node)| {
-                    if let Some(cam) = node.cast_mut::<Camera>() {
-                        if cam.is_enabled() {
-                            cam.set_enabled(false);
-                            Some(handle)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-        }
-    }
-
-    fn revert(&mut self, context: &mut SceneContext) {
-        for handle in self.prev_active.iter_mut() {
-            let camera = context.scene.graph[*handle].as_camera_mut();
-            camera.set_enabled(true);
-        }
-
-        let camera = context.scene.graph[self.handle].as_camera_mut();
-        camera.set_enabled(self.old_value);
-
-        let editor_camera_handle = context.editor_scene.camera_controller.camera;
-        let editor_camera = context.scene.graph[editor_camera_handle].as_camera_mut();
-        let editor_camera_enabled = !self.old_value && self.prev_active.is_empty();
-        editor_camera.set_enabled(editor_camera_enabled);
     }
 }
