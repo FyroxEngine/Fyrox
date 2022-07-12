@@ -406,9 +406,7 @@ mod test {
     #[test]
     fn test_joint_inheritance() {
         let parent = JointBuilder::new(BaseBuilder::new())
-            .with_params(JointParams::BallJoint(BallJoint {
-                limits_angles: -1.57..1.57,
-            }))
+            .with_params(JointParams::BallJoint(BallJoint::default()))
             .build_node();
 
         let mut child = JointBuilder::new(BaseBuilder::new()).build_joint();
