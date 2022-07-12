@@ -31,7 +31,13 @@ use std::{
 /// pendulum, etc.
 #[derive(Clone, Debug, Visit, PartialEq, Inspect)]
 pub struct BallJoint {
-    /// The maximum angle allowed between the two limit axes in world-space.
+    /// Whether angular limits are enabled or not. Default is `false`
+    #[inspect(description = "Whether angular limits are enabled or not.")]
+    #[visit(optional)] // Backward compatibility
+    pub limits_enabled: bool,
+
+    /// Allowed angles range for the joint (in radians).
+    #[inspect(description = "Allowed angles range for the joint (in radians).")]
     #[visit(optional)] // Backward compatibility
     pub limits_angles: Range<f32>,
 }
@@ -39,6 +45,7 @@ pub struct BallJoint {
 impl Default for BallJoint {
     fn default() -> Self {
         Self {
+            limits_enabled: false,
             limits_angles: -std::f32::consts::PI..std::f32::consts::PI,
         }
     }
@@ -53,7 +60,15 @@ pub struct FixedJoint;
 /// translations along one axis. The real world example is a sliders that used to support drawers.
 #[derive(Clone, Debug, Visit, PartialEq, Inspect)]
 pub struct PrismaticJoint {
-    /// The min an max relative position of the attached bodies along this joint's axis.
+    /// Whether linear limits along local X axis of the joint are enabled or not. Default is `false`
+    #[inspect(
+        description = "Whether linear limits along local X axis of the joint are enabled or not."
+    )]
+    #[visit(optional)] // Backward compatibility
+    pub limits_enabled: bool,
+
+    /// Allowed linear distance range along local X axis of the joint.
+    #[inspect(description = "Allowed linear distance range along local X axis of the joint.")]
     #[visit(optional)] // Backward compatibility
     pub limits: Range<f32>,
 }
@@ -61,6 +76,7 @@ pub struct PrismaticJoint {
 impl Default for PrismaticJoint {
     fn default() -> Self {
         Self {
+            limits_enabled: false,
             limits: -std::f32::consts::PI..std::f32::consts::PI,
         }
     }

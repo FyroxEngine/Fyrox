@@ -45,13 +45,21 @@ pub fn handle_joint_property_changed(
 
 pub fn handle_ball_joint(args: &PropertyChanged, handle: Handle<Node>) -> Option<SceneCommand> {
     handle_property_changed!(args, handle,
-        BallJoint::LIMITS_ANGLES => SetBallJointLimitsCommand
+        BallJoint::X_LIMITS_ANGLES => SetBallJointXLimitsCommand,
+        BallJoint::X_LIMITS_ENABLED => SetBallJointXLimitsEnabledCommand,
+
+        BallJoint::Y_LIMITS_ANGLES => SetBallJointYLimitsCommand,
+        BallJoint::Y_LIMITS_ENABLED => SetBallJointYLimitsEnabledCommand,
+
+        BallJoint::Z_LIMITS_ANGLES => SetBallJointZLimitsCommand,
+        BallJoint::Z_LIMITS_ENABLED => SetBallJointZLimitsEnabledCommand
     )
 }
 
 pub fn handle_revolute_joint(args: &PropertyChanged, handle: Handle<Node>) -> Option<SceneCommand> {
     handle_property_changed!(args, handle,
-        RevoluteJoint::LIMITS => SetRevoluteJointLimitsCommand
+        RevoluteJoint::LIMITS => SetRevoluteJointLimitsCommand,
+        RevoluteJoint::LIMITS_ENABLED => SetRevoluteJointLimitsEnabledCommand
     )
 }
 
@@ -60,7 +68,8 @@ pub fn handle_prismatic_joint(
     handle: Handle<Node>,
 ) -> Option<SceneCommand> {
     handle_property_changed!(args, handle,
-        PrismaticJoint::LIMITS => SetPrismaticJointLimitsCommand
+        PrismaticJoint::LIMITS => SetPrismaticJointLimitsCommand,
+        PrismaticJoint::LIMITS_ENABLED => SetPrismaticJointLimitsEnabledCommand
     )
 }
 

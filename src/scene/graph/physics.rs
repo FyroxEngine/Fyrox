@@ -341,33 +341,46 @@ fn convert_joint_params(
         JointParams::RevoluteJoint(_) => JointAxesMask::LOCKED_REVOLUTE_AXES,
     };
 
-    let builder = GenericJointBuilder::new(locked_axis)
+    let mut joint = GenericJointBuilder::new(locked_axis)
         .local_frame1(local_frame1)
-        .local_frame2(local_frame2);
+        .local_frame2(local_frame2)
+        .build();
 
     match params {
-        scene::joint::JointParams::BallJoint(v) => builder
-            .limits(
-                JointAxis::AngX,
-                [v.limits_angles.start, v.limits_angles.end],
-            )
-            .limits(
-                JointAxis::AngY,
-                [v.limits_angles.start, v.limits_angles.end],
-            )
-            .limits(
-                JointAxis::AngZ,
-                [v.limits_angles.start, v.limits_angles.end],
-            )
-            .build(),
-        scene::joint::JointParams::FixedJoint(_) => builder.build(),
-        scene::joint::JointParams::PrismaticJoint(v) => builder
-            .limits(JointAxis::X, [v.limits.start, v.limits.end])
-            .build(),
-        scene::joint::JointParams::RevoluteJoint(v) => builder
-            .limits(JointAxis::AngX, [v.limits.start, v.limits.end])
-            .build(),
+        scene::joint::JointParams::BallJoint(v) => {
+            if v.x_limits_enabled {
+                joint.set_limits(
+                    JointAxis::AngX,
+                    [v.x_limits_angles.start, v.x_limits_angles.end],
+                );
+            }
+            if v.y_limits_enabled {
+                joint.set_limits(
+                    JointAxis::AngY,
+                    [v.y_limits_angles.start, v.y_limits_angles.end],
+                );
+            }
+            if v.z_limits_enabled {
+                joint.set_limits(
+                    JointAxis::AngZ,
+                    [v.z_limits_angles.start, v.z_limits_angles.end],
+                );
+            }
+        }
+        scene::joint::JointParams::FixedJoint(_) => {}
+        scene::joint::JointParams::PrismaticJoint(v) => {
+            if v.limits_enabled {
+                joint.set_limits(JointAxis::X, [v.limits.start, v.limits.end]);
+            }
+        }
+        scene::joint::JointParams::RevoluteJoint(v) => {
+            if v.limits_enabled {
+                joint.set_limits(JointAxis::AngX, [v.limits.start, v.limits.end]);
+            }
+        }
     }
+
+    joint
 }
 
 /// Creates new trimesh collider shape from given mesh node. It also bakes scale into

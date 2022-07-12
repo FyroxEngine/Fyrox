@@ -1,18 +1,18 @@
 //! Scene physics module.
 
-use crate::scene::dim2::joint::JointParams;
 use crate::{
-    core::algebra::Vector2,
-    core::variable::VariableFlags,
     core::{
-        algebra::{Isometry2, Matrix4, Point2, Translation2, UnitComplex, UnitQuaternion, Vector3},
-        algebra::{Isometry3, Point3, Rotation3, Translation3},
+        algebra::{
+            Isometry2, Isometry3, Matrix4, Point2, Point3, Rotation3, Translation2, Translation3,
+            UnitComplex, UnitQuaternion, Vector2, Vector3,
+        },
         arrayvec::ArrayVec,
         color::Color,
         inspect::{Inspect, PropertyInfo},
         instant,
         math::Matrix4Ext,
         pool::Handle,
+        variable::VariableFlags,
         visitor::prelude::*,
         BiDirHashMap,
     },
@@ -20,7 +20,7 @@ use crate::{
         self,
         collider::{self},
         debug::{Line, SceneDrawingContext},
-        dim2::{self, collider::ColliderShape, rigidbody::ApplyAction},
+        dim2::{self, collider::ColliderShape, joint::JointParams, rigidbody::ApplyAction},
         graph::{
             physics::{FeatureId, IntegrationParameters, PhysicsPerformanceStatistics},
             NodePool,
@@ -209,22 +209,29 @@ fn convert_joint_params(
         JointParams::PrismaticJoint(_) => JointAxesMask::LOCKED_PRISMATIC_AXES,
     };
 
-    let builder = GenericJointBuilder::new(locked_axis)
+    let mut joint = GenericJointBuilder::new(locked_axis)
         .local_frame1(local_frame1)
-        .local_frame2(local_frame2);
+        .local_frame2(local_frame2)
+        .build();
 
     match params {
-        scene::dim2::joint::JointParams::BallJoint(v) => builder
-            .limits(
-                JointAxis::AngX,
-                [v.limits_angles.start, v.limits_angles.end],
-            )
-            .build(),
-        scene::dim2::joint::JointParams::FixedJoint(_) => builder.build(),
-        scene::dim2::joint::JointParams::PrismaticJoint(v) => builder
-            .limits(JointAxis::X, [v.limits.start, v.limits.end])
-            .build(),
+        scene::dim2::joint::JointParams::BallJoint(v) => {
+            if v.limits_enabled {
+                joint.set_limits(
+                    JointAxis::AngX,
+                    [v.limits_angles.start, v.limits_angles.end],
+                );
+            }
+        }
+        scene::dim2::joint::JointParams::FixedJoint(_) => {}
+        scene::dim2::joint::JointParams::PrismaticJoint(v) => {
+            if v.limits_enabled {
+                joint.set_limits(JointAxis::X, [v.limits.start, v.limits.end]);
+            }
+        }
     }
+
+    joint
 }
 
 // Converts descriptor in a shared shape.

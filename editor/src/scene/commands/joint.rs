@@ -23,9 +23,18 @@ macro_rules! define_joint_variant_command {
 }
 
 define_joint_variant_command! {
-    SetBallJointLimitsCommand(Range<f32>): BallJoint, limits_angles, "Set Ball Joint Limits";
+    SetBallJointXLimitsCommand(Range<f32>): BallJoint, x_limits_angles, "Set Ball Joint X Limits";
+    SetBallJointXLimitsEnabledCommand(bool): BallJoint, x_limits_enabled, "Set Ball Joint X Limits Enabled";
+    SetBallJointYLimitsCommand(Range<f32>): BallJoint, y_limits_angles, "Set Ball Joint Y Limits";
+    SetBallJointYLimitsEnabledCommand(bool): BallJoint, y_limits_enabled, "Set Ball Joint Y Limits Enabled";
+    SetBallJointZLimitsCommand(Range<f32>): BallJoint, z_limits_angles, "Set Ball Joint Z Limits";
+    SetBallJointZLimitsEnabledCommand(bool): BallJoint, z_limits_enabled, "Set Ball Joint Z Limits Enabled";
+
     SetRevoluteJointLimitsCommand(Range<f32>): RevoluteJoint, limits, "Set Revolute Joint Limits";
+    SetRevoluteJointLimitsEnabledCommand(bool): RevoluteJoint, limits_enabled, "Set Revolute Joint Limits Enabled";
+
     SetPrismaticJointLimitsCommand(Range<f32>): PrismaticJoint, limits, "Set Prismatic Joint Limits";
+    SetPrismaticJointLimitsEnabledCommand(bool): PrismaticJoint, limits_enabled, "Set Prismatic Joint Limits Enabled";
 }
 
 define_swap_command! {

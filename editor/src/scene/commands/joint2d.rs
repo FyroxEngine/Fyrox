@@ -24,7 +24,10 @@ macro_rules! define_joint_variant_command {
 
 define_joint_variant_command! {
     SetBallJointLimitsCommand(Range<f32>): BallJoint, limits_angles, "Set Ball Joint Limits";
+    SetBallJointLimitsEnabledCommand(bool): BallJoint, limits_enabled, "Set Ball Joint Limits Enabled";
+
     SetPrismaticJointLimitsCommand(Range<f32>): PrismaticJoint, limits, "Set Prismatic Joint Limits";
+    SetPrismaticJointLimitsEnabledCommand(bool): PrismaticJoint, limits_enabled, "Set Prismatic Joint Limits";
 }
 
 define_swap_command! {
