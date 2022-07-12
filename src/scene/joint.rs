@@ -2,7 +2,6 @@
 
 use crate::{
     core::{
-        algebra::{UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
@@ -22,6 +21,7 @@ use crate::{
     utils::log::Log,
 };
 use rapier3d::dynamics::ImpulseJointHandle;
+use std::ops::Range;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -32,33 +32,18 @@ use std::{
 /// pendulum, etc.
 #[derive(Clone, Debug, Visit, PartialEq, Inspect)]
 pub struct BallJoint {
-    /// Where the ball joint is attached on the first body, expressed in the local space of the
-    /// first attached body.
-    #[inspect(
-        description = "Where the prismatic joint is attached on the first body, expressed in the local space of the first attached body."
-    )]
-    pub local_anchor1: Vector3<f32>,
-
-    /// Where the ball joint is attached on the second body, expressed in the local space of the
-    /// second attached body.
-    #[inspect(
-        description = "Where the ball joint is attached on the second body, expressed in the local space of the second attached body."
-    )]
-    pub local_anchor2: Vector3<f32>,
-
     /// The maximum angle allowed between the two limit axes in world-space.
     #[inspect(
         description = "The maximum angle allowed between the two limit axes in world-space."
     )]
-    pub limits_angles: [f32; 2],
+    #[visit(optional)] // Backward compatibility
+    pub limits_angles: Range<f32>,
 }
 
 impl Default for BallJoint {
     fn default() -> Self {
         Self {
-            local_anchor1: Default::default(),
-            local_anchor2: Default::default(),
-            limits_angles: [f32::MIN, f32::MAX],
+            limits_angles: -std::f32::consts::PI..std::f32::consts::PI,
         }
     }
 }
@@ -66,71 +51,24 @@ impl Default for BallJoint {
 /// A fixed joint ensures that two rigid bodies does not move relative to each other. There is no
 /// straightforward real-world example, but it can be thought as two bodies were "welded" together.
 #[derive(Clone, Debug, Visit, PartialEq, Inspect, Default)]
-pub struct FixedJoint {
-    /// Local translation for the first body.
-    #[inspect(description = "Local translation for the first body.")]
-    pub local_anchor1_translation: Vector3<f32>,
-
-    /// Local rotation for the first body.
-    #[inspect(description = "Local rotation for the first body.")]
-    pub local_anchor1_rotation: UnitQuaternion<f32>,
-
-    /// Local translation for the second body.
-    #[inspect(description = "Local translation for the second body.")]
-    pub local_anchor2_translation: Vector3<f32>,
-
-    /// Local rotation for the second body.
-    #[inspect(description = "Local rotation for the second body.")]
-    pub local_anchor2_rotation: UnitQuaternion<f32>,
-}
+pub struct FixedJoint;
 
 /// Prismatic joint prevents any relative movement between two rigid-bodies, except for relative
 /// translations along one axis. The real world example is a sliders that used to support drawers.
 #[derive(Clone, Debug, Visit, PartialEq, Inspect)]
 pub struct PrismaticJoint {
-    /// Where the prismatic joint is attached on the first body, expressed in the local space of the
-    /// first attached body.
-    #[inspect(
-        description = "Where the prismatic joint is attached on the first body, expressed in the local space of the first attached body"
-    )]
-    pub local_anchor1: Vector3<f32>,
-
-    /// The rotation axis of this revolute joint expressed in the local space of the first attached
-    /// body.
-    #[inspect(
-        description = "The rotation axis of this revolute joint expressed in the local space of the first attached body."
-    )]
-    pub local_axis1: Vector3<f32>,
-
-    /// Where the prismatic joint is attached on the second body, expressed in the local space of the
-    /// second attached body.
-    #[inspect(
-        description = "Where the prismatic joint is attached on the second body, expressed in the local space of the second attached body."
-    )]
-    pub local_anchor2: Vector3<f32>,
-
-    /// The rotation axis of this revolute joint expressed in the local space of the second attached
-    /// body.
-    #[inspect(
-        description = "The rotation axis of this revolute joint expressed in the local space of the second attached body."
-    )]
-    pub local_axis2: Vector3<f32>,
-
     /// The min an max relative position of the attached bodies along this joint's axis.
     #[inspect(
         description = "The min an max relative position of the attached bodies along this joint's axis."
     )]
-    pub limits: [f32; 2],
+    #[visit(optional)] // Backward compatibility
+    pub limits: Range<f32>,
 }
 
 impl Default for PrismaticJoint {
     fn default() -> Self {
         Self {
-            local_anchor1: Default::default(),
-            local_axis1: Vector3::y(),
-            local_anchor2: Default::default(),
-            local_axis2: Vector3::x(),
-            limits: [f32::MIN, f32::MAX],
+            limits: -std::f32::consts::PI..std::f32::consts::PI,
         }
     }
 }
@@ -140,49 +78,18 @@ impl Default for PrismaticJoint {
 /// hinge.
 #[derive(Clone, Debug, Visit, PartialEq, Inspect)]
 pub struct RevoluteJoint {
-    /// Where the revolute joint is attached on the first body, expressed in the local space of the
-    /// first attached body.
-    #[inspect(
-        description = "Where the revolute joint is attached on the first body, expressed in the local space of the first attached body"
-    )]
-    pub local_anchor1: Vector3<f32>,
-
-    /// The rotation axis of this revolute joint expressed in the local space of the first attached
-    /// body.
-    #[inspect(
-        description = "The rotation axis of this revolute joint expressed in the local space of the first attached body."
-    )]
-    pub local_axis1: Vector3<f32>,
-
-    /// Where the revolute joint is attached on the second body, expressed in the local space of the
-    /// second attached body.
-    #[inspect(
-        description = "Where the revolute joint is attached on the second body, expressed in the local space of the second attached body."
-    )]
-    pub local_anchor2: Vector3<f32>,
-
-    /// The rotation axis of this revolute joint expressed in the local space of the second attached
-    /// body.
-    #[inspect(
-        description = "The rotation axis of this revolute joint expressed in the local space of the second attached body."
-    )]
-    pub local_axis2: Vector3<f32>,
-
     /// The min and max relative position of the attached bodies along this joint's axis.
     #[inspect(
         description = "The min and max relative position of the attached bodies along this joint's axis."
     )]
-    pub limits: [f32; 2],
+    #[visit(optional)] // Backward compatibility
+    pub limits: Range<f32>,
 }
 
 impl Default for RevoluteJoint {
     fn default() -> Self {
         Self {
-            local_anchor1: Default::default(),
-            local_axis1: Vector3::y(),
-            local_anchor2: Default::default(),
-            local_axis2: Vector3::x(),
-            limits: [f32::MIN, f32::MAX],
+            limits: -std::f32::consts::PI..std::f32::consts::PI,
         }
     }
 }
@@ -452,22 +359,17 @@ impl JointBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        core::algebra::Vector3,
-        scene::{
-            base::{test::check_inheritable_properties_equality, BaseBuilder},
-            joint::{BallJoint, Joint, JointBuilder, JointParams},
-            node::NodeTrait,
-        },
+    use crate::scene::{
+        base::{test::check_inheritable_properties_equality, BaseBuilder},
+        joint::{BallJoint, Joint, JointBuilder, JointParams},
+        node::NodeTrait,
     };
 
     #[test]
     fn test_joint_inheritance() {
         let parent = JointBuilder::new(BaseBuilder::new())
             .with_params(JointParams::BallJoint(BallJoint {
-                local_anchor1: Vector3::new(1.0, 0.0, 0.0),
-                local_anchor2: Vector3::new(1.0, 1.0, 0.0),
-                limits_angles: [-1.57, 1.57],
+                limits_angles: -1.57..1.57,
             }))
             .build_node();
 

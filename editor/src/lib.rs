@@ -1677,9 +1677,7 @@ impl Editor {
         self.handle_resize();
 
         if let Some(editor_scene) = self.scene.as_mut() {
-            if self.mode.is_edit() {
-                editor_scene.draw_debug(&mut self.engine, &self.settings.debugging);
-            }
+            editor_scene.draw_debug(&mut self.engine, &self.settings.debugging);
 
             let scene = &mut self.engine.scenes[editor_scene.scene];
 

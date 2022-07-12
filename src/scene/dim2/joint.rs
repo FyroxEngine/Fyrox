@@ -1,20 +1,19 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
-        algebra::{UnitComplex, Vector2},
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         uuid::{uuid, Uuid},
+        variable::{InheritError, TemplateVariable},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
+        graph::map::NodeHandleMap,
         graph::Graph,
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
         DirectlyInheritableEntity,
@@ -24,7 +23,7 @@ use crate::{
 use rapier2d::dynamics::ImpulseJointHandle;
 use std::{
     cell::Cell,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut, Range},
 };
 
 /// Ball joint locks any translational moves between two objects on the axis between objects, but
@@ -32,82 +31,37 @@ use std::{
 /// pendulum, etc.
 #[derive(Clone, Debug, Visit, PartialEq, Inspect)]
 pub struct BallJoint {
-    /// Where the prismatic joint is attached on the first body, expressed in the local space of the
-    /// first attached body.
-    pub local_anchor1: Vector2<f32>,
-    /// Where the prismatic joint is attached on the second body, expressed in the local space of the
-    /// second attached body.
-    pub local_anchor2: Vector2<f32>,
     /// The maximum angle allowed between the two limit axes in world-space.
-    pub limits_angles: [f32; 2],
+    #[visit(optional)] // Backward compatibility
+    pub limits_angles: Range<f32>,
 }
 
 impl Default for BallJoint {
     fn default() -> Self {
         Self {
-            local_anchor1: Default::default(),
-            local_anchor2: Default::default(),
-            limits_angles: [f32::MIN, f32::MAX],
+            limits_angles: -std::f32::consts::PI..std::f32::consts::PI,
         }
     }
 }
 
 /// A fixed joint ensures that two rigid bodies does not move relative to each other. There is no
 /// straightforward real-world example, but it can be thought as two bodies were "welded" together.
-#[derive(Clone, Debug, Visit, PartialEq, Inspect)]
-pub struct FixedJoint {
-    /// Local translation for the first body.
-    pub local_anchor1_translation: Vector2<f32>,
-    /// Local rotation for the first body.
-    pub local_anchor1_rotation: UnitComplex<f32>,
-    /// Local translation for the second body.
-    pub local_anchor2_translation: Vector2<f32>,
-    /// Local rotation for the second body.
-    pub local_anchor2_rotation: UnitComplex<f32>,
-}
-
-impl Default for FixedJoint {
-    fn default() -> Self {
-        Self {
-            local_anchor1_translation: Default::default(),
-            local_anchor1_rotation: UnitComplex::new(0.0),
-            local_anchor2_translation: Default::default(),
-            local_anchor2_rotation: UnitComplex::new(0.0),
-        }
-    }
-}
+#[derive(Clone, Debug, Default, Visit, PartialEq, Inspect)]
+pub struct FixedJoint;
 
 /// Prismatic joint prevents any relative movement between two rigid-bodies, except for relative
 /// translations along one axis. The real world example is a sliders that used to support drawers.
 #[derive(Clone, Debug, Visit, PartialEq, Inspect)]
 pub struct PrismaticJoint {
-    /// Where the prismatic joint is attached on the first body, expressed in the local space of the
-    /// first attached body.
-    pub local_anchor1: Vector2<f32>,
-    /// The rotation axis of this revolute joint expressed in the local space of the first attached
-    /// body.
-    pub local_axis1: Vector2<f32>,
-    /// Where the prismatic joint is attached on the second body, expressed in the local space of the
-    /// second attached body.
-    pub local_anchor2: Vector2<f32>,
-    /// The rotation axis of this revolute joint expressed in the local space of the second attached
-    /// body.
-    pub local_axis2: Vector2<f32>,
-    /// Whether or not this joint should enforce translational limits along its axis.
-    pub limits_enabled: bool,
     /// The min an max relative position of the attached bodies along this joint's axis.
-    pub limits: [f32; 2],
+    #[visit(optional)] // Backward compatibility
+    pub limits: Range<f32>,
 }
 
 impl Default for PrismaticJoint {
     fn default() -> Self {
         Self {
-            local_anchor1: Default::default(),
-            local_axis1: Vector2::y(),
-            local_anchor2: Default::default(),
-            local_axis2: Vector2::x(),
-            limits_enabled: false,
-            limits: [f32::MIN, f32::MAX],
+            limits: -std::f32::consts::PI..std::f32::consts::PI,
         }
     }
 }
@@ -376,22 +330,17 @@ impl JointBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        core::algebra::Vector2,
-        scene::{
-            base::{test::check_inheritable_properties_equality, BaseBuilder},
-            dim2::joint::{BallJoint, Joint, JointBuilder, JointParams},
-            node::NodeTrait,
-        },
+    use crate::scene::{
+        base::{test::check_inheritable_properties_equality, BaseBuilder},
+        dim2::joint::{BallJoint, Joint, JointBuilder, JointParams},
+        node::NodeTrait,
     };
 
     #[test]
     fn test_joint_2d_inheritance() {
         let parent = JointBuilder::new(BaseBuilder::new())
             .with_params(JointParams::BallJoint(BallJoint {
-                local_anchor1: Vector2::new(1.0, 0.0),
-                local_anchor2: Vector2::new(1.0, 1.0),
-                limits_angles: [-1.57, 1.57],
+                limits_angles: -1.57..1.57,
             }))
             .build_node();
 

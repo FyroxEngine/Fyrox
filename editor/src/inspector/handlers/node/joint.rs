@@ -45,17 +45,13 @@ pub fn handle_joint_property_changed(
 
 pub fn handle_ball_joint(args: &PropertyChanged, handle: Handle<Node>) -> Option<SceneCommand> {
     handle_property_changed!(args, handle,
-        BallJoint::LOCAL_ANCHOR_1 => SetBallJointAnchor1Command,
-        BallJoint::LOCAL_ANCHOR_2 => SetBallJointAnchor2Command
+        BallJoint::LIMITS_ANGLES => SetBallJointLimitsCommand
     )
 }
 
 pub fn handle_revolute_joint(args: &PropertyChanged, handle: Handle<Node>) -> Option<SceneCommand> {
     handle_property_changed!(args, handle,
-        RevoluteJoint::LOCAL_ANCHOR_1 => SetRevoluteJointAnchor1Command,
-        RevoluteJoint::LOCAL_ANCHOR_2 => SetRevoluteJointAnchor2Command,
-        RevoluteJoint::LOCAL_AXIS_1 => SetRevoluteJointAxis1Command,
-        RevoluteJoint::LOCAL_AXIS_2 => SetRevoluteJointAxis2Command
+        RevoluteJoint::LIMITS => SetRevoluteJointLimitsCommand
     )
 }
 
@@ -64,18 +60,11 @@ pub fn handle_prismatic_joint(
     handle: Handle<Node>,
 ) -> Option<SceneCommand> {
     handle_property_changed!(args, handle,
-        PrismaticJoint::LOCAL_ANCHOR_1 => SetPrismaticJointAnchor1Command,
-        PrismaticJoint::LOCAL_ANCHOR_2 => SetPrismaticJointAnchor2Command,
-        PrismaticJoint::LOCAL_AXIS_1 => SetPrismaticJointAxis1Command,
-        PrismaticJoint::LOCAL_AXIS_2 => SetPrismaticJointAxis2Command
+        PrismaticJoint::LIMITS => SetPrismaticJointLimitsCommand
     )
 }
 
-pub fn handle_fixed_joint(args: &PropertyChanged, handle: Handle<Node>) -> Option<SceneCommand> {
-    handle_property_changed!(args, handle,
-         FixedJoint::LOCAL_ANCHOR_1_TRANSLATION => SetFixedJointAnchor1TranslationCommand,
-         FixedJoint::LOCAL_ANCHOR_2_TRANSLATION => SetFixedJointAnchor2TranslationCommand,
-         FixedJoint::LOCAL_ANCHOR_1_ROTATION => SetFixedJointAnchor1RotationCommand,
-         FixedJoint::LOCAL_ANCHOR_2_ROTATION => SetFixedJointAnchor2RotationCommand
-    )
+pub fn handle_fixed_joint(_args: &PropertyChanged, _handle: Handle<Node>) -> Option<SceneCommand> {
+    // There are no properties.
+    None
 }

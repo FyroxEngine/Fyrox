@@ -1,5 +1,6 @@
 //! Scene physics module.
 
+use crate::scene::dim2::joint::JointParams;
 use crate::{
     core::algebra::Vector2,
     core::variable::VariableFlags,
@@ -32,14 +33,13 @@ use rapier2d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
         IslandManager, JointAxesMask, JointAxis, MultibodyJointHandle, MultibodyJointSet,
-        RevoluteJointBuilder, RigidBody, RigidBodyActivation, RigidBodyBuilder, RigidBodyHandle,
-        RigidBodySet, RigidBodyType,
+        RigidBody, RigidBodyActivation, RigidBodyBuilder, RigidBodyHandle, RigidBodySet,
+        RigidBodyType,
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
         InteractionGroups, NarrowPhase, Ray, SharedShape, TriMesh,
     },
-    math::UnitVector,
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
 use std::{
@@ -198,39 +198,32 @@ where
     map: BiDirHashMap<A, Handle<Node>>,
 }
 
-fn convert_joint_params(params: scene::dim2::joint::JointParams) -> GenericJoint {
+fn convert_joint_params(
+    params: scene::dim2::joint::JointParams,
+    local_frame1: Isometry2<f32>,
+    local_frame2: Isometry2<f32>,
+) -> GenericJoint {
+    let locked_axis = match params {
+        JointParams::BallJoint(_) => JointAxesMask::LOCKED_REVOLUTE_AXES,
+        JointParams::FixedJoint(_) => JointAxesMask::LOCKED_FIXED_AXES,
+        JointParams::PrismaticJoint(_) => JointAxesMask::LOCKED_PRISMATIC_AXES,
+    };
+
+    let builder = GenericJointBuilder::new(locked_axis)
+        .local_frame1(local_frame1)
+        .local_frame2(local_frame2);
+
     match params {
-        scene::dim2::joint::JointParams::BallJoint(v) => RevoluteJointBuilder::new()
-            .local_anchor1(Point2::from(v.local_anchor1))
-            .local_anchor2(Point2::from(v.local_anchor2))
-            .limits(v.limits_angles)
-            .build()
-            .into(),
-        scene::dim2::joint::JointParams::FixedJoint(v) => {
-            GenericJointBuilder::new(JointAxesMask::LOCKED_FIXED_AXES)
-                .local_frame1(Isometry2 {
-                    translation: Translation2 {
-                        vector: v.local_anchor1_translation,
-                    },
-                    rotation: v.local_anchor1_rotation,
-                })
-                .local_frame2(Isometry2 {
-                    translation: Translation2 {
-                        vector: v.local_anchor2_translation,
-                    },
-                    rotation: v.local_anchor2_rotation,
-                })
-                .build()
-        }
-        scene::dim2::joint::JointParams::PrismaticJoint(v) => {
-            GenericJointBuilder::new(JointAxesMask::LOCKED_PRISMATIC_AXES)
-                .local_anchor1(Point2::from(v.local_anchor1))
-                .local_axis1(UnitVector::new_normalize(v.local_axis1))
-                .local_anchor2(Point2::from(v.local_anchor2))
-                .local_axis2(UnitVector::new_normalize(v.local_axis2))
-                .limits(JointAxis::X, v.limits)
-                .build()
-        }
+        scene::dim2::joint::JointParams::BallJoint(v) => builder
+            .limits(
+                JointAxis::AngX,
+                [v.limits_angles.start, v.limits_angles.end],
+            )
+            .build(),
+        scene::dim2::joint::JointParams::FixedJoint(_) => builder.build(),
+        scene::dim2::joint::JointParams::PrismaticJoint(v) => builder
+            .limits(JointAxis::X, [v.limits.start, v.limits.end])
+            .build(),
     }
 }
 
@@ -911,9 +904,6 @@ impl PhysicsWorld {
         joint: &scene::dim2::joint::Joint,
     ) {
         if let Some(native) = self.joints.set.get_mut(joint.native.get()) {
-            joint
-                .params
-                .try_sync_model(|v| native.data = convert_joint_params(v));
             joint.body1.try_sync_model(|v| {
                 if let Some(rigid_body_node) = nodes
                     .try_borrow(v)
@@ -930,6 +920,11 @@ impl PhysicsWorld {
                     native.body2 = rigid_body_node.native.get();
                 }
             });
+            joint.params.try_sync_model(|v| {
+                native.data =
+                    // Preserve local frames.
+                    convert_joint_params(v, native.data.local_frame1, native.data.local_frame2)
+            });
         } else {
             let body1_handle = joint.body1();
             let body2_handle = joint.body2();
@@ -944,6 +939,15 @@ impl PhysicsWorld {
                     .try_borrow(body2_handle)
                     .and_then(|n| n.cast::<dim2::rigidbody::RigidBody>()),
             ) {
+                // Calculate local frames first.
+                let self_isometry =
+                    isometry_from_global_transform(&nodes[handle].global_transform());
+
+                let local_frame1 = self_isometry
+                    * isometry_from_global_transform(&body1.global_transform()).inverse();
+                let local_frame2 = self_isometry
+                    * isometry_from_global_transform(&body2.global_transform()).inverse();
+
                 let native_body1 = body1.native.get();
                 let native_body2 = body2.native.get();
 
@@ -951,7 +955,7 @@ impl PhysicsWorld {
                     handle,
                     native_body1,
                     native_body2,
-                    convert_joint_params(params),
+                    convert_joint_params(params, local_frame1, local_frame2),
                 );
 
                 joint.native.set(native);
