@@ -35,6 +35,7 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
+use rapier3d::pipeline::QueryFilter;
 use rapier3d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -1169,12 +1170,15 @@ impl PhysicsWorld {
                 .unwrap_or_default(),
         );
         query.intersections_with_ray(
+            &self.bodies.set,
             &self.colliders.set,
             &ray,
             opts.max_len,
             true,
-            InteractionGroups::new(opts.groups.memberships, opts.groups.filter),
-            None, // TODO
+            QueryFilter::new().groups(InteractionGroups::new(
+                opts.groups.memberships,
+                opts.groups.filter,
+            )),
             |handle, intersection| {
                 query_buffer.push(Intersection {
                     collider: self.colliders.map.value_of(&handle).cloned().unwrap(),
@@ -1308,7 +1312,7 @@ impl PhysicsWorld {
                         .translation_locked
                         .try_sync_model(|v| native.lock_translations(v, false));
                     rigid_body_node.x_rotation_locked.try_sync_model(|v| {
-                        native.restrict_rotations(
+                        native.set_enabled_rotations(
                             !v,
                             !native.is_rotation_locked()[1],
                             !native.is_rotation_locked()[2],
@@ -1316,7 +1320,7 @@ impl PhysicsWorld {
                         );
                     });
                     rigid_body_node.y_rotation_locked.try_sync_model(|v| {
-                        native.restrict_rotations(
+                        native.set_enabled_rotations(
                             !native.is_rotation_locked()[0],
                             !v,
                             !native.is_rotation_locked()[2],
@@ -1324,7 +1328,7 @@ impl PhysicsWorld {
                         );
                     });
                     rigid_body_node.z_rotation_locked.try_sync_model(|v| {
-                        native.restrict_rotations(
+                        native.set_enabled_rotations(
                             !native.is_rotation_locked()[0],
                             !native.is_rotation_locked()[1],
                             !v,
@@ -1372,7 +1376,7 @@ impl PhysicsWorld {
                 .sleeping(rigid_body_node.is_sleeping())
                 .dominance_group(rigid_body_node.dominance())
                 .gravity_scale(rigid_body_node.gravity_scale())
-                .restrict_rotations(
+                .enabled_rotations(
                     !rigid_body_node.is_x_rotation_locked(),
                     !rigid_body_node.is_y_rotation_locked(),
                     !rigid_body_node.is_z_rotation_locked(),

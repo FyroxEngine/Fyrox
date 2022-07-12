@@ -29,6 +29,7 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
+use rapier2d::pipeline::QueryFilter;
 use rapier2d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -591,12 +592,15 @@ impl PhysicsWorld {
                 .unwrap_or_default(),
         );
         query.intersections_with_ray(
+            &self.bodies.set,
             &self.colliders.set,
             &ray,
             opts.max_len,
             true,
-            InteractionGroups::new(opts.groups.memberships, opts.groups.filter),
-            None, // TODO
+            QueryFilter::new().groups(InteractionGroups::new(
+                opts.groups.memberships,
+                opts.groups.filter,
+            )),
             |handle, intersection| {
                 query_buffer.push(Intersection {
                     collider: self.colliders.map.value_of(&handle).cloned().unwrap(),
@@ -728,7 +732,7 @@ impl PhysicsWorld {
                         .translation_locked
                         .try_sync_model(|v| native.lock_translations(v, false));
                     rigid_body_node.rotation_locked.try_sync_model(|v| {
-                        native.restrict_rotations(!v, !v, !v, false);
+                        native.set_enabled_rotations(!v, !v, !v, false);
                     });
                     rigid_body_node
                         .dominance
@@ -778,7 +782,7 @@ impl PhysicsWorld {
 
             let mut body = builder.build();
 
-            body.restrict_rotations(
+            body.set_enabled_rotations(
                 !rigid_body_node.is_rotation_locked(),
                 !rigid_body_node.is_rotation_locked(),
                 !rigid_body_node.is_rotation_locked(),
