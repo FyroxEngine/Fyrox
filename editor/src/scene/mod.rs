@@ -64,9 +64,9 @@ impl EditorScene {
         let root = PivotBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
         let camera_controller = CameraController::new(&mut scene.graph, root);
 
-        // Prevent physics simulation in while editing scene.
-        scene.graph.physics.enabled = false;
-        scene.graph.physics2d.enabled = false;
+        // Freeze physics simulation in while editing scene by setting time step to zero.
+        scene.graph.physics.integration_parameters.dt = 0.0;
+        scene.graph.physics2d.integration_parameters.dt = 0.0;
 
         let mut navmeshes = Pool::new();
 
