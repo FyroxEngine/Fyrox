@@ -8,6 +8,7 @@ use crate::core::{
     math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
 };
 use fyrox_core::algebra::Vector2;
+use rapier3d::na::Vector4;
 use std::ops::Range;
 
 /// Colored line between two points.
@@ -69,6 +70,38 @@ pub struct Line {
 pub struct SceneDrawingContext {
     /// List of lines to draw.
     pub lines: Vec<Line>,
+}
+
+impl rapier2d::pipeline::DebugRenderBackend for SceneDrawingContext {
+    fn draw_line(
+        &mut self,
+        _object: rapier2d::pipeline::DebugRenderObject,
+        a: rapier2d::math::Point<rapier2d::math::Real>,
+        b: rapier2d::math::Point<rapier2d::math::Real>,
+        color: [f32; 4],
+    ) {
+        self.add_line(Line {
+            begin: Vector3::new(a.x, a.y, 0.0),
+            end: Vector3::new(b.x, b.y, 0.0),
+            color: Color::from(Vector4::new(color[0], color[1], color[2], color[3])),
+        })
+    }
+}
+
+impl rapier3d::pipeline::DebugRenderBackend for SceneDrawingContext {
+    fn draw_line(
+        &mut self,
+        _object: rapier3d::pipeline::DebugRenderObject,
+        a: rapier3d::math::Point<rapier3d::math::Real>,
+        b: rapier3d::math::Point<rapier3d::math::Real>,
+        color: [f32; 4],
+    ) {
+        self.add_line(Line {
+            begin: a.coords,
+            end: b.coords,
+            color: Color::from(Vector4::new(color[0], color[1], color[2], color[3])),
+        })
+    }
 }
 
 impl SceneDrawingContext {

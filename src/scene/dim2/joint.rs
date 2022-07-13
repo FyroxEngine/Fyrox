@@ -20,6 +20,8 @@ use crate::{
     },
     utils::log::Log,
 };
+use fyrox_core::algebra::Matrix4;
+use fyrox_core::math::m4x4_approx_eq;
 use rapier2d::dynamics::ImpulseJointHandle;
 use std::{
     cell::Cell,
@@ -127,6 +129,10 @@ pub struct Joint {
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) native: Cell<ImpulseJointHandle>,
+
+    #[visit(skip)]
+    #[inspect(skip)]
+    pub(crate) need_rebind: Cell<bool>,
 }
 
 impl_directly_inheritable_entity_trait!(Joint;
@@ -143,6 +149,7 @@ impl Default for Joint {
             body1: Default::default(),
             body2: Default::default(),
             native: Cell::new(ImpulseJointHandle::invalid()),
+            need_rebind: Cell::new(true),
         }
     }
 }
@@ -169,6 +176,7 @@ impl Clone for Joint {
             body1: self.body1.clone(),
             body2: self.body2.clone(),
             native: Cell::new(ImpulseJointHandle::invalid()),
+            need_rebind: Cell::new(true),
         }
     }
 }
@@ -281,6 +289,12 @@ impl NodeTrait for Joint {
             .physics2d
             .sync_to_joint_node(context.nodes, self_handle, self);
     }
+
+    fn sync_transform(&self, new_global_transform: &Matrix4<f32>, _context: &mut SyncContext) {
+        if !m4x4_approx_eq(new_global_transform, &self.global_transform()) {
+            self.need_rebind.set(true);
+        }
+    }
 }
 
 /// Joint builder allows you to build Joint node in a declarative manner.
@@ -330,6 +344,7 @@ impl JointBuilder {
             body1: self.body1.into(),
             body2: self.body2.into(),
             native: Cell::new(ImpulseJointHandle::invalid()),
+            need_rebind: Cell::new(true),
         }
     }
 

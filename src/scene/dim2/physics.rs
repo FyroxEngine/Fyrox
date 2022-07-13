@@ -3,14 +3,14 @@
 use crate::{
     core::{
         algebra::{
-            Isometry2, Isometry3, Matrix4, Point2, Point3, Rotation3, Translation2, Translation3,
+            Isometry2, Isometry3, Matrix4, Point2, Rotation3, Translation2, Translation3,
             UnitComplex, UnitQuaternion, Vector2, Vector3,
         },
         arrayvec::ArrayVec,
-        color::Color,
         inspect::{Inspect, PropertyInfo},
         instant,
         math::Matrix4Ext,
+        parking_lot::Mutex,
         pool::Handle,
         variable::VariableFlags,
         visitor::prelude::*,
@@ -19,17 +19,16 @@ use crate::{
     scene::{
         self,
         collider::{self},
-        debug::{Line, SceneDrawingContext},
+        debug::SceneDrawingContext,
         dim2::{self, collider::ColliderShape, joint::JointParams, rigidbody::ApplyAction},
         graph::{
             physics::{FeatureId, IntegrationParameters, PhysicsPerformanceStatistics},
             NodePool,
         },
-        node::Node,
+        node::{Node, NodeTrait},
     },
     utils::log::{Log, MessageKind},
 };
-use rapier2d::pipeline::QueryFilter;
 use rapier2d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -39,9 +38,9 @@ use rapier2d::{
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
-        InteractionGroups, NarrowPhase, Ray, SharedShape, TriMesh,
+        InteractionGroups, NarrowPhase, Ray, SharedShape,
     },
-    pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
+    pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryFilter, QueryPipeline},
 };
 use std::{
     cell::RefCell,
@@ -338,6 +337,9 @@ pub struct PhysicsWorld {
     #[visit(skip)]
     #[inspect(skip)]
     query: RefCell<QueryPipeline>,
+    #[visit(skip)]
+    #[inspect(skip)]
+    debug_render_pipeline: Mutex<DebugRenderPipeline>,
 }
 
 fn isometry_from_global_transform(transform: &Matrix4<f32>) -> Isometry2<f32> {
@@ -347,6 +349,19 @@ fn isometry_from_global_transform(transform: &Matrix4<f32>) -> Isometry2<f32> {
             Rotation3::from_matrix(&transform.basis()).euler_angles().2,
         ),
     }
+}
+
+fn calculate_local_frames(
+    joint: &dyn NodeTrait,
+    body1: &dyn NodeTrait,
+    body2: &dyn NodeTrait,
+) -> (Isometry2<f32>, Isometry2<f32>) {
+    let joint_isometry = isometry_from_global_transform(&joint.global_transform());
+
+    (
+        joint_isometry * isometry_from_global_transform(&body1.global_transform()).inverse(),
+        joint_isometry * isometry_from_global_transform(&body2.global_transform()).inverse(),
+    )
 }
 
 impl PhysicsWorld {
@@ -380,6 +395,7 @@ impl PhysicsWorld {
             event_handler: Box::new(()),
             query: RefCell::new(Default::default()),
             performance_statistics: Default::default(),
+            debug_render_pipeline: Default::default(),
         }
     }
 
@@ -499,76 +515,14 @@ impl PhysicsWorld {
     /// Draws physics world. Very useful for debugging, it allows you to see where are
     /// rigid bodies, which colliders they have and so on.
     pub fn draw(&self, context: &mut SceneDrawingContext) {
-        for (_, body) in self.bodies.set.iter() {
-            context.draw_transform(isometry2_to_mat4(body.position()));
-        }
-
-        for (_, collider) in self.colliders.set.iter() {
-            let body = self.bodies.set.get(collider.parent().unwrap()).unwrap();
-            let collider_local_transform =
-                isometry2_to_mat4(collider.position_wrt_parent().unwrap());
-            let transform = isometry2_to_mat4(body.position()) * collider_local_transform;
-            if let Some(trimesh) = collider.shape().as_trimesh() {
-                let trimesh: &TriMesh = trimesh;
-                for triangle in trimesh.triangles() {
-                    let a = transform
-                        .transform_point(&Point3::from(triangle.a.to_homogeneous()))
-                        .coords;
-                    let b = transform
-                        .transform_point(&Point3::from(triangle.b.to_homogeneous()))
-                        .coords;
-                    let c = transform
-                        .transform_point(&Point3::from(triangle.c.to_homogeneous()))
-                        .coords;
-                    context.draw_triangle(a, b, c, Color::opaque(200, 200, 200));
-                }
-            } else if let Some(cuboid) = collider.shape().as_cuboid() {
-                context.draw_rectangle(
-                    cuboid.half_extents.x,
-                    cuboid.half_extents.y,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(ball) = collider.shape().as_ball() {
-                context.draw_circle(
-                    body.position().translation.vector.to_homogeneous(),
-                    ball.radius,
-                    10,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(triangle) = collider.shape().as_triangle() {
-                context.draw_triangle(
-                    triangle.a.to_homogeneous(),
-                    triangle.b.to_homogeneous(),
-                    triangle.c.to_homogeneous(),
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(capsule) = collider.shape().as_capsule() {
-                context.draw_segment_flat_capsule(
-                    capsule.segment.a.coords,
-                    capsule.segment.b.coords,
-                    capsule.radius,
-                    10,
-                    transform,
-                    Color::opaque(200, 200, 200),
-                );
-            } else if let Some(heightfield) = collider.shape().as_heightfield() {
-                for segment in heightfield.segments() {
-                    let a = transform
-                        .transform_point(&Point3::from(segment.a.to_homogeneous()))
-                        .coords;
-                    let b = transform
-                        .transform_point(&Point3::from(segment.b.to_homogeneous()))
-                        .coords;
-                    context.add_line(Line {
-                        begin: a,
-                        end: b,
-                        color: Color::opaque(200, 200, 200),
-                    });
-                }
-            }
-        }
+        self.debug_render_pipeline.lock().render(
+            context,
+            &self.bodies.set,
+            &self.colliders.set,
+            &self.joints.set,
+            &self.multibody_joints.set,
+            &self.narrow_phase,
+        );
     }
 
     /// Casts a ray with given options.
@@ -936,6 +890,21 @@ impl PhysicsWorld {
                     // Preserve local frames.
                     convert_joint_params(v, native.data.local_frame1, native.data.local_frame2)
             });
+            if joint.need_rebind.get() {
+                if let (Some(body1), Some(body2)) = (
+                    nodes
+                        .try_borrow(joint.body1())
+                        .and_then(|n| n.cast::<scene::rigidbody::RigidBody>()),
+                    nodes
+                        .try_borrow(joint.body2())
+                        .and_then(|n| n.cast::<scene::rigidbody::RigidBody>()),
+                ) {
+                    let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
+                    native.data =
+                        convert_joint_params((*joint.params).clone(), local_frame1, local_frame2);
+                    joint.need_rebind.set(false);
+                }
+            }
         } else {
             let body1_handle = joint.body1();
             let body2_handle = joint.body2();
@@ -951,13 +920,7 @@ impl PhysicsWorld {
                     .and_then(|n| n.cast::<dim2::rigidbody::RigidBody>()),
             ) {
                 // Calculate local frames first.
-                let self_isometry =
-                    isometry_from_global_transform(&nodes[handle].global_transform());
-
-                let local_frame1 = self_isometry
-                    * isometry_from_global_transform(&body1.global_transform()).inverse();
-                let local_frame2 = self_isometry
-                    * isometry_from_global_transform(&body2.global_transform()).inverse();
+                let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
 
                 let native_body1 = body1.native.get();
                 let native_body2 = body2.native.get();

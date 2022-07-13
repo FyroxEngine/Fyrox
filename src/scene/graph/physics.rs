@@ -1,5 +1,6 @@
 //! Scene physics module.
 
+use crate::scene::node::NodeTrait;
 use crate::{
     core::{
         algebra::{
@@ -7,10 +8,9 @@ use crate::{
             Vector2, Vector3,
         },
         arrayvec::ArrayVec,
-        color::Color,
         inspect::{Inspect, PropertyInfo},
         instant,
-        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
+        math::Matrix4Ext,
         pool::Handle,
         variable::VariableFlags,
         visitor::prelude::*,
@@ -19,7 +19,7 @@ use crate::{
     scene::{
         self,
         collider::{self, ColliderShape, GeometrySource},
-        debug::{Line, SceneDrawingContext},
+        debug::SceneDrawingContext,
         graph::{isometric_global_transform, NodePool},
         joint::JointParams,
         mesh::{
@@ -35,7 +35,8 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use rapier3d::pipeline::QueryFilter;
+use fyrox_core::parking_lot::Mutex;
+use rapier3d::pipeline::{DebugRenderPipeline, QueryFilter};
 use rapier3d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -44,7 +45,7 @@ use rapier3d::{
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
-        InteractionGroups, NarrowPhase, Ray, Shape, SharedShape, TriMesh,
+        InteractionGroups, NarrowPhase, Ray, SharedShape,
     },
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
     prelude::JointAxis,
@@ -881,103 +882,9 @@ pub struct PhysicsWorld {
     #[visit(skip)]
     #[inspect(skip)]
     query: RefCell<QueryPipeline>,
-}
-
-fn draw_shape(shape: &dyn Shape, transform: Matrix4<f32>, context: &mut SceneDrawingContext) {
-    if let Some(trimesh) = shape.as_trimesh() {
-        let trimesh: &TriMesh = trimesh;
-        for triangle in trimesh.triangles() {
-            let a = transform.transform_point(&triangle.a);
-            let b = transform.transform_point(&triangle.b);
-            let c = transform.transform_point(&triangle.c);
-            context.draw_triangle(a.coords, b.coords, c.coords, Color::opaque(200, 200, 200));
-        }
-    } else if let Some(cuboid) = shape.as_cuboid() {
-        let min = -cuboid.half_extents;
-        let max = cuboid.half_extents;
-        context.draw_oob(
-            &AxisAlignedBoundingBox::from_min_max(min, max),
-            transform,
-            Color::opaque(200, 200, 200),
-        );
-    } else if let Some(ball) = shape.as_ball() {
-        context.draw_sphere(
-            Vector3::new(transform[12], transform[13], transform[14]),
-            10,
-            10,
-            ball.radius,
-            Color::opaque(200, 200, 200),
-        );
-    } else if let Some(cone) = shape.as_cone() {
-        context.draw_cone(
-            10,
-            cone.radius,
-            cone.half_height * 2.0,
-            transform,
-            Color::opaque(200, 200, 200),
-        );
-    } else if let Some(cylinder) = shape.as_cylinder() {
-        context.draw_cylinder(
-            10,
-            cylinder.radius,
-            cylinder.half_height * 2.0,
-            true,
-            transform,
-            Color::opaque(200, 200, 200),
-        );
-    } else if let Some(round_cylinder) = shape.as_round_cylinder() {
-        context.draw_cylinder(
-            10,
-            round_cylinder.inner_shape.radius,
-            round_cylinder.inner_shape.half_height * 2.0,
-            false,
-            transform,
-            Color::opaque(200, 200, 200),
-        );
-    } else if let Some(triangle) = shape.as_triangle() {
-        context.draw_triangle(
-            triangle.a.coords,
-            triangle.b.coords,
-            triangle.c.coords,
-            Color::opaque(200, 200, 200),
-        );
-    } else if let Some(capsule) = shape.as_capsule() {
-        context.draw_segment_capsule(
-            capsule.segment.a.coords,
-            capsule.segment.b.coords,
-            capsule.radius,
-            10,
-            10,
-            transform,
-            Color::opaque(200, 200, 200),
-        );
-    } else if let Some(heightfield) = shape.as_heightfield() {
-        for triangle in heightfield.triangles() {
-            let a = transform.transform_point(&triangle.a);
-            let b = transform.transform_point(&triangle.b);
-            let c = transform.transform_point(&triangle.c);
-            context.draw_triangle(a.coords, b.coords, c.coords, Color::opaque(200, 200, 200));
-        }
-    } else if let Some(polyhedron) = shape.as_convex_polyhedron() {
-        for edge in polyhedron.edges() {
-            let ia = edge.vertices.x as usize;
-            let ib = edge.vertices.y as usize;
-
-            let pa = transform.transform_point(&polyhedron.points()[ia]).coords;
-            let pb = transform.transform_point(&polyhedron.points()[ib]).coords;
-
-            context.add_line(Line {
-                begin: pa,
-                end: pb,
-                color: Color::opaque(200, 200, 200),
-            })
-        }
-    } else if let Some(compound) = shape.as_compound() {
-        for (isometry, shape) in compound.shapes() {
-            let child_transform = isometry.to_homogeneous() * transform;
-            draw_shape(&**shape, child_transform, context);
-        }
-    }
+    #[visit(skip)]
+    #[inspect(skip)]
+    debug_render_pipeline: Mutex<DebugRenderPipeline>,
 }
 
 fn isometry_from_global_transform(transform: &Matrix4<f32>) -> Isometry3<f32> {
@@ -985,6 +892,19 @@ fn isometry_from_global_transform(transform: &Matrix4<f32>) -> Isometry3<f32> {
         translation: Translation3::new(transform[12], transform[13], transform[14]),
         rotation: UnitQuaternion::from_matrix(&transform.basis()),
     }
+}
+
+fn calculate_local_frames(
+    joint: &dyn NodeTrait,
+    body1: &dyn NodeTrait,
+    body2: &dyn NodeTrait,
+) -> (Isometry3<f32>, Isometry3<f32>) {
+    let joint_isometry = isometry_from_global_transform(&joint.global_transform());
+
+    (
+        joint_isometry * isometry_from_global_transform(&body1.global_transform()).inverse(),
+        joint_isometry * isometry_from_global_transform(&body2.global_transform()).inverse(),
+    )
 }
 
 impl PhysicsWorld {
@@ -1018,6 +938,7 @@ impl PhysicsWorld {
             event_handler: Box::new(()),
             query: RefCell::new(Default::default()),
             performance_statistics: Default::default(),
+            debug_render_pipeline: Default::default(),
         }
     }
 
@@ -1137,16 +1058,14 @@ impl PhysicsWorld {
     /// Draws physics world. Very useful for debugging, it allows you to see where are
     /// rigid bodies, which colliders they have and so on.
     pub fn draw(&self, context: &mut SceneDrawingContext) {
-        for (_, body) in self.bodies.set.iter() {
-            context.draw_transform(body.position().to_homogeneous());
-        }
-
-        for (_, collider) in self.colliders.set.iter() {
-            let body = self.bodies.set.get(collider.parent().unwrap()).unwrap();
-            let collider_local_transform = collider.position_wrt_parent().unwrap().to_homogeneous();
-            let transform = body.position().to_homogeneous() * collider_local_transform;
-            draw_shape(collider.shape(), transform, context);
-        }
+        self.debug_render_pipeline.lock().render(
+            context,
+            &self.bodies.set,
+            &self.colliders.set,
+            &self.joints.set,
+            &self.multibody_joints.set,
+            &self.narrow_phase,
+        );
     }
 
     /// Casts a ray with given options.
@@ -1547,6 +1466,21 @@ impl PhysicsWorld {
                     // Preserve local frames.
                     convert_joint_params(v, native.data.local_frame1, native.data.local_frame2)
             });
+            if joint.need_rebind.get() {
+                if let (Some(body1), Some(body2)) = (
+                    nodes
+                        .try_borrow(joint.body1())
+                        .and_then(|n| n.cast::<scene::rigidbody::RigidBody>()),
+                    nodes
+                        .try_borrow(joint.body2())
+                        .and_then(|n| n.cast::<scene::rigidbody::RigidBody>()),
+                ) {
+                    let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
+                    native.data =
+                        convert_joint_params((*joint.params).clone(), local_frame1, local_frame2);
+                    joint.need_rebind.set(false);
+                }
+            }
         } else {
             let body1_handle = joint.body1();
             let body2_handle = joint.body2();
@@ -1562,13 +1496,7 @@ impl PhysicsWorld {
                     .and_then(|n| n.cast::<scene::rigidbody::RigidBody>()),
             ) {
                 // Calculate local frames first.
-                let self_isometry =
-                    isometry_from_global_transform(&nodes[handle].global_transform());
-
-                let local_frame1 = self_isometry
-                    * isometry_from_global_transform(&body1.global_transform()).inverse();
-                let local_frame2 = self_isometry
-                    * isometry_from_global_transform(&body2.global_transform()).inverse();
+                let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
 
                 let native_body1 = body1.native.get();
                 let native_body2 = body2.native.get();
