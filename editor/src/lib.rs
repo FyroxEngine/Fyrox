@@ -33,11 +33,11 @@ mod settings;
 mod utils;
 mod world;
 
-use crate::build::BuildWindow;
 use crate::{
     absm::AbsmEditor,
     asset::{item::AssetItem, item::AssetKind, AssetBrowser},
     audio::AudioPanel,
+    build::BuildWindow,
     command::{panel::CommandStackViewer, Command, CommandStack},
     configurator::Configurator,
     curve_editor::CurveEditorWindow,
@@ -69,11 +69,9 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::core::algebra::Matrix3;
-use fyrox::scene::camera::Camera;
 use fyrox::{
     core::{
-        algebra::Vector2,
+        algebra::{Matrix3, Vector2},
         color::Color,
         futures::executor::block_on,
         parking_lot::Mutex,
@@ -104,7 +102,7 @@ use fyrox::{
     plugin::PluginConstructor,
     resource::texture::{CompressionOptions, Texture, TextureKind},
     scene::{
-        camera::Projection,
+        camera::{Camera, Projection},
         mesh::Mesh,
         node::{Node, TypeUuidProvider},
         Scene, SceneLoader,
@@ -1225,6 +1223,7 @@ impl Editor {
             .sync_to_model(self.scene.as_ref(), &mut engine.user_interface);
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.scene_viewer.sync_to_model(editor_scene, engine);
             self.inspector.sync_to_model(editor_scene, engine);
             self.navmesh_panel.sync_to_model(editor_scene, engine);
             self.world_viewer.sync_to_model(editor_scene, engine);

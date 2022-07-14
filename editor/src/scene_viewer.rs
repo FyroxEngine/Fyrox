@@ -5,9 +5,15 @@ use crate::{
     GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand, Selection,
     SetMeshTextureCommand, SetParticleSystemTextureCommand, SetSpriteTextureCommand, Settings,
 };
+use fyrox::gui::utils::make_simple_tooltip;
 use fyrox::{
-    core::algebra::Vector3,
-    core::{algebra::Vector2, color::Color, make_relative_path, math::Rect, pool::Handle},
+    core::{
+        algebra::{Vector2, Vector3},
+        color::Color,
+        make_relative_path,
+        math::Rect,
+        pool::Handle,
+    },
     engine::Engine,
     gui::{
         border::BorderBuilder,
@@ -21,6 +27,7 @@ use fyrox::{
         message::{KeyCode, MessageDirection, MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
+        vec::vec3::{Vec3EditorBuilder, Vec3EditorMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
@@ -49,6 +56,7 @@ pub struct SceneViewer {
     sender: Sender<Message>,
     interaction_mode_panel: Handle<UiNode>,
     contextual_actions: Handle<UiNode>,
+    global_position_display: Handle<UiNode>,
 }
 
 fn make_interaction_mode_button(
@@ -229,6 +237,29 @@ impl SceneViewer {
         .add_row(Row::stretch())
         .build(ctx);
 
+        let global_position_display;
+        let bottom_toolbar = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .with_horizontal_alignment(HorizontalAlignment::Right)
+                .with_margin(Thickness::uniform(1.0))
+                .with_child({
+                    global_position_display = Vec3EditorBuilder::<f32>::new(
+                        WidgetBuilder::new()
+                            .with_tooltip(make_simple_tooltip(
+                                ctx,
+                                "Global Coordinates of the Current Selection",
+                            ))
+                            .with_width(200.0),
+                    )
+                    .with_editable(false)
+                    .build(ctx);
+                    global_position_display
+                })
+                .on_row(2),
+        )
+        .with_orientation(Orientation::Horizontal)
+        .build(ctx);
+
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
             .can_minimize(false)
@@ -278,10 +309,12 @@ impl SceneViewer {
                             .add_column(Column::auto())
                             .add_column(Column::stretch())
                             .build(ctx),
-                        ),
+                        )
+                        .with_child(bottom_toolbar),
                 )
                 .add_row(Row::strict(25.0))
                 .add_row(Row::stretch())
+                .add_row(Row::strict(25.0))
                 .add_column(Column::stretch())
                 .build(ctx),
             )
@@ -305,6 +338,7 @@ impl SceneViewer {
             switch_mode,
             interaction_mode_panel,
             contextual_actions,
+            global_position_display,
         }
     }
 }
@@ -433,6 +467,19 @@ impl SceneViewer {
                     }
                     _ => {}
                 }
+            }
+        }
+    }
+
+    pub fn sync_to_model(&self, editor_scene: &EditorScene, engine: &Engine) {
+        if let Selection::Graph(ref selection) = editor_scene.selection {
+            let scene = &engine.scenes[editor_scene.scene];
+            if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {
+                engine.user_interface.send_message(Vec3EditorMessage::value(
+                    self.global_position_display,
+                    MessageDirection::ToWidget,
+                    position,
+                ));
             }
         }
     }
