@@ -236,9 +236,15 @@ pub struct NumericUpDownBuilder<T: NumericType> {
     editable: bool,
 }
 
-pub fn make_button(ctx: &mut BuildContext, arrow: ArrowDirection, row: usize) -> Handle<UiNode> {
+pub fn make_button(
+    ctx: &mut BuildContext,
+    arrow: ArrowDirection,
+    row: usize,
+    editable: bool,
+) -> Handle<UiNode> {
     ButtonBuilder::new(
         WidgetBuilder::new()
+            .with_enabled(editable)
             .with_margin(Thickness::right(1.0))
             .on_row(row),
     )
@@ -336,11 +342,12 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
                         WidgetBuilder::new()
                             .on_column(1)
                             .with_child({
-                                increase = make_button(ctx, ArrowDirection::Top, 0);
+                                increase = make_button(ctx, ArrowDirection::Top, 0, self.editable);
                                 increase
                             })
                             .with_child({
-                                decrease = make_button(ctx, ArrowDirection::Bottom, 1);
+                                decrease =
+                                    make_button(ctx, ArrowDirection::Bottom, 1, self.editable);
                                 decrease
                             }),
                     )
