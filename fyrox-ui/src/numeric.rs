@@ -233,6 +233,7 @@ pub struct NumericUpDownBuilder<T: NumericType> {
     min_value: T,
     max_value: T,
     precision: usize,
+    editable: bool,
 }
 
 pub fn make_button(ctx: &mut BuildContext, arrow: ArrowDirection, row: usize) -> Handle<UiNode> {
@@ -263,6 +264,7 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
             min_value: T::min_value(),
             max_value: T::max_value(),
             precision: 3,
+            editable: true,
         }
     }
 
@@ -300,6 +302,11 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
         self
     }
 
+    pub fn with_editable(mut self, editable: bool) -> Self {
+        self.editable = editable;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let increase;
         let decrease;
@@ -320,6 +327,7 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
                         .with_horizontal_text_alignment(HorizontalAlignment::Left)
                         .with_wrap(WrapMode::Letter)
                         .with_text(format!("{:.1$}", self.value, self.precision))
+                        .with_editable(self.editable)
                         .build(ctx);
                     field
                 })
