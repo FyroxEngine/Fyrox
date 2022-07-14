@@ -111,6 +111,7 @@ impl<T: NumericType> Control for Vec2Editor<T> {
 pub struct Vec2EditorBuilder<T: NumericType> {
     widget_builder: WidgetBuilder,
     value: Vector2<T>,
+    editable: bool,
 }
 
 impl<T: NumericType> Vec2EditorBuilder<T> {
@@ -118,11 +119,17 @@ impl<T: NumericType> Vec2EditorBuilder<T> {
         Self {
             widget_builder,
             value: Vector2::new(T::zero(), T::zero()),
+            editable: true,
         }
     }
 
     pub fn with_value(mut self, value: Vector2<T>) -> Self {
         self.value = value;
+        self
+    }
+
+    pub fn with_editable(mut self, editable: bool) -> Self {
+        self.editable = editable;
         self
     }
 
@@ -133,12 +140,12 @@ impl<T: NumericType> Vec2EditorBuilder<T> {
             WidgetBuilder::new()
                 .with_child(make_mark(ctx, "X", 0, Color::opaque(120, 0, 0)))
                 .with_child({
-                    x_field = make_numeric_input(ctx, 1, self.value.x);
+                    x_field = make_numeric_input(ctx, 1, self.value.x, self.editable);
                     x_field
                 })
                 .with_child(make_mark(ctx, "Y", 2, Color::opaque(0, 120, 0)))
                 .with_child({
-                    y_field = make_numeric_input(ctx, 3, self.value.y);
+                    y_field = make_numeric_input(ctx, 3, self.value.y, self.editable);
                     y_field
                 }),
         )

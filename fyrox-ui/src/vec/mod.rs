@@ -13,6 +13,7 @@ pub fn make_numeric_input<T: NumericType>(
     ctx: &mut BuildContext,
     column: usize,
     value: T,
+    editable: bool,
 ) -> Handle<UiNode> {
     NumericUpDownBuilder::new(
         WidgetBuilder::new()
@@ -27,6 +28,7 @@ pub fn make_numeric_input<T: NumericType>(
     )
     .with_precision(3)
     .with_value(value)
+    .with_editable(editable)
     .build(ctx)
 }
 
