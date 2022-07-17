@@ -141,10 +141,9 @@ where
         } else if let Some(BitFieldMessage::Value(value)) = message.data() {
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
+                && self.set_value(*value, ui)
             {
-                if self.set_value(*value, ui) {
-                    self.sync_switches(ui);
-                }
+                self.sync_switches(ui);
             }
         }
     }
