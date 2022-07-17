@@ -11,6 +11,7 @@
 
 pub use fyrox_core as core;
 
+pub mod bit;
 pub mod border;
 pub mod brush;
 pub mod button;
