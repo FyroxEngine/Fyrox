@@ -136,15 +136,23 @@ where
                     } else {
                         reset_bit(self.value, bit_index)
                     };
-                    self.set_value(new_value, ui);
+
+                    ui.send_message(BitFieldMessage::value(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        new_value,
+                    ));
                 }
             }
         } else if let Some(BitFieldMessage::Value(value)) = message.data() {
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
-                && self.set_value(*value, ui)
             {
-                self.sync_switches(ui);
+                if *value != self.value {
+                    self.value = *value;
+                    self.sync_switches(ui);
+                    ui.send_message(message.reverse());
+                }
             }
         }
     }
@@ -154,22 +162,6 @@ impl<T> BitField<T>
 where
     T: BitContainer,
 {
-    fn set_value(&mut self, value: T, ui: &UserInterface) -> bool {
-        if self.value != value {
-            self.value = value;
-
-            ui.send_message(BitFieldMessage::value(
-                self.handle,
-                MessageDirection::FromWidget,
-                self.value,
-            ));
-
-            true
-        } else {
-            false
-        }
-    }
-
     fn sync_switches(&self, ui: &UserInterface) {
         for (i, handle) in self.bit_switches.iter().cloned().enumerate() {
             ui.send_message(CheckBoxMessage::checked(
