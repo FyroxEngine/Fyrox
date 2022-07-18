@@ -18,7 +18,7 @@ pub enum AssetItemMessage {
 
 pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
     DecoratorBuilder::new(BorderBuilder::new(
-        WidgetBuilder::new().with_height(26.0).with_child(
+        WidgetBuilder::new().with_child(
             TextBuilder::new(WidgetBuilder::new())
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
