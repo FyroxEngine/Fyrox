@@ -6,6 +6,8 @@ use crate::{
     },
     Message,
 };
+use fyrox::gui::inspector::editors::bit::BitFieldPropertyEditorDefinition;
+use fyrox::scene::collider::BitMask;
 use fyrox::{
     animation::machine::MachineInstantiationError,
     core::{futures::executor::block_on, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
@@ -174,6 +176,7 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<DistanceModel>::new());
     container.insert(EnumPropertyEditorDefinition::<sound::Renderer>::new());
     container.insert(ScriptPropertyEditorDefinition {});
+    container.insert(BitFieldPropertyEditorDefinition::<BitMask>::new());
 
     container
 }

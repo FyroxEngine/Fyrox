@@ -1095,8 +1095,8 @@ impl PhysicsWorld {
             opts.max_len,
             true,
             QueryFilter::new().groups(InteractionGroups::new(
-                opts.groups.memberships,
-                opts.groups.filter,
+                opts.groups.memberships.0,
+                opts.groups.filter.0,
             )),
             |handle, intersection| {
                 query_buffer.push(Intersection {
@@ -1362,10 +1362,14 @@ impl PhysicsWorld {
                         .restitution
                         .try_sync_model(|v| native.set_restitution(v));
                     collider_node.collision_groups.try_sync_model(|v| {
-                        native.set_collision_groups(InteractionGroups::new(v.memberships, v.filter))
+                        native.set_collision_groups(InteractionGroups::new(
+                            v.memberships.0,
+                            v.filter.0,
+                        ))
                     });
                     collider_node.solver_groups.try_sync_model(|v| {
-                        native.set_solver_groups(InteractionGroups::new(v.memberships, v.filter))
+                        native
+                            .set_solver_groups(InteractionGroups::new(v.memberships.0, v.filter.0))
                     });
                     collider_node
                         .friction
@@ -1406,14 +1410,14 @@ impl PhysicsWorld {
                         .friction(collider_node.friction())
                         .restitution(collider_node.restitution())
                         .collision_groups(InteractionGroups::new(
-                            collider_node.collision_groups().memberships,
-                            collider_node.collision_groups().filter,
+                            collider_node.collision_groups().memberships.0,
+                            collider_node.collision_groups().filter.0,
                         ))
                         .friction_combine_rule(collider_node.friction_combine_rule().into())
                         .restitution_combine_rule(collider_node.restitution_combine_rule().into())
                         .solver_groups(InteractionGroups::new(
-                            collider_node.solver_groups().memberships,
-                            collider_node.solver_groups().filter,
+                            collider_node.solver_groups().memberships.0,
+                            collider_node.solver_groups().filter.0,
                         ))
                         .sensor(collider_node.is_sensor());
 

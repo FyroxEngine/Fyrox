@@ -12,11 +12,28 @@ use crate::{
 use std::{any::TypeId, marker::PhantomData};
 
 #[derive(Debug)]
-pub struct BitFieldPropertyEditorDefinition<T: BitContainer> {
+pub struct BitFieldPropertyEditorDefinition<T>
+where
+    T: BitContainer,
+{
     phantom: PhantomData<T>,
 }
 
-impl<T: BitContainer> PropertyEditorDefinition for BitFieldPropertyEditorDefinition<T> {
+impl<T> BitFieldPropertyEditorDefinition<T>
+where
+    T: BitContainer,
+{
+    pub fn new() -> Self {
+        Self {
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<T> PropertyEditorDefinition for BitFieldPropertyEditorDefinition<T>
+where
+    T: BitContainer,
+{
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<T>()
     }

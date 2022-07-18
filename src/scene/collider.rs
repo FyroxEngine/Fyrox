@@ -25,7 +25,9 @@ use crate::{
     },
     utils::log::Log,
 };
+use fyrox_core::num_traits::{NumCast, One, ToPrimitive, Zero};
 use rapier3d::geometry::{self, ColliderHandle};
+use std::ops::{Add, BitAnd, BitOr, Mul, Not, Shl};
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -193,6 +195,102 @@ pub struct ConvexPolyhedronShape {
     pub geometry_source: GeometrySource,
 }
 
+/// A set of bits used for pairwise collision filtering.
+#[derive(Clone, Copy, Default, PartialEq, Debug)]
+pub struct BitMask(pub u32);
+
+impl Inspect for BitMask {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        self.0.properties()
+    }
+}
+
+impl Visit for BitMask {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
+impl BitOr for BitMask {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl BitAnd for BitMask {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl Mul for BitMask {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self(self.0 * rhs.0)
+    }
+}
+
+impl One for BitMask {
+    fn one() -> Self {
+        Self(1)
+    }
+}
+
+impl Add for BitMask {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl Zero for BitMask {
+    fn zero() -> Self {
+        Self(0)
+    }
+
+    fn is_zero(&self) -> bool {
+        self.0 == 0
+    }
+}
+
+impl Shl for BitMask {
+    type Output = Self;
+
+    fn shl(self, rhs: Self) -> Self::Output {
+        Self(self.0 << rhs.0)
+    }
+}
+
+impl Not for BitMask {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        Self(!self.0)
+    }
+}
+
+impl ToPrimitive for BitMask {
+    fn to_i64(&self) -> Option<i64> {
+        Some(self.0 as i64)
+    }
+
+    fn to_u64(&self) -> Option<u64> {
+        Some(self.0 as u64)
+    }
+}
+
+impl NumCast for BitMask {
+    fn from<T: ToPrimitive>(n: T) -> Option<Self> {
+        n.to_u32().map(|v| Self(v))
+    }
+}
+
 /// Pairwise filtering using bit masks.
 ///
 /// This filtering method is based on two 32-bit values:
@@ -211,14 +309,14 @@ pub struct ConvexPolyhedronShape {
 #[derive(Visit, Debug, Clone, Copy, PartialEq, Inspect)]
 pub struct InteractionGroups {
     /// Groups memberships.
-    pub memberships: u32,
+    pub memberships: BitMask,
     /// Groups filter.
-    pub filter: u32,
+    pub filter: BitMask,
 }
 
 impl InteractionGroups {
     /// Creates new interaction group using given values.
-    pub fn new(memberships: u32, filter: u32) -> Self {
+    pub fn new(memberships: BitMask, filter: BitMask) -> Self {
         Self {
             memberships,
             filter,
@@ -229,8 +327,8 @@ impl InteractionGroups {
 impl Default for InteractionGroups {
     fn default() -> Self {
         Self {
-            memberships: u32::MAX,
-            filter: u32::MAX,
+            memberships: BitMask(u32::MAX),
+            filter: BitMask(u32::MAX),
         }
     }
 }
@@ -238,8 +336,8 @@ impl Default for InteractionGroups {
 impl From<geometry::InteractionGroups> for InteractionGroups {
     fn from(g: geometry::InteractionGroups) -> Self {
         Self {
-            memberships: g.memberships,
-            filter: g.filter,
+            memberships: BitMask(g.memberships),
+            filter: BitMask(g.filter),
         }
     }
 }
