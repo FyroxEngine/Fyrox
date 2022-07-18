@@ -287,7 +287,7 @@ impl ToPrimitive for BitMask {
 
 impl NumCast for BitMask {
     fn from<T: ToPrimitive>(n: T) -> Option<Self> {
-        n.to_u32().map(|v| Self(v))
+        n.to_u32().map(Self)
     }
 }
 
@@ -961,6 +961,7 @@ impl ColliderBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::collider::BitMask;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         collider::{Collider, ColliderBuilder, ColliderShape, InteractionGroups},
@@ -978,8 +979,8 @@ mod test {
             .with_sensor(true)
             .with_restitution_combine_rule(CoefficientCombineRule::Max)
             .with_friction_combine_rule(CoefficientCombineRule::Max)
-            .with_collision_groups(InteractionGroups::new(1, 2))
-            .with_solver_groups(InteractionGroups::new(1, 2))
+            .with_collision_groups(InteractionGroups::new(BitMask(1), BitMask(2)))
+            .with_solver_groups(InteractionGroups::new(BitMask(1), BitMask(2)))
             .build_node();
 
         let mut child = ColliderBuilder::new(BaseBuilder::new()).build_collider();
