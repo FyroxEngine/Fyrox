@@ -28,6 +28,7 @@ use std::{
 };
 
 pub mod array;
+pub mod bit;
 pub mod bool;
 pub mod collection;
 pub mod color;
