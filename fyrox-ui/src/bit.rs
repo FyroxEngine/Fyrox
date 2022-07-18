@@ -7,7 +7,8 @@ use crate::{
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     wrap_panel::WrapPanelBuilder,
-    BuildContext, Control, MessageDirection, NodeHandleMapping, Thickness, UiNode, UserInterface,
+    BuildContext, Control, MessageDirection, NodeHandleMapping, Orientation, Thickness, UiNode,
+    UserInterface,
 };
 use fyrox_core::num_traits::{NumCast, One, Zero};
 use std::{
@@ -205,7 +206,7 @@ where
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let bit_switches = (0..mem::size_of::<T>())
+        let bit_switches = (0..(mem::size_of::<T>() * 8))
             .map(|i| {
                 CheckBoxBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                     .checked(Some(is_bit_set(self.value, i)))
@@ -215,6 +216,7 @@ where
 
         let panel =
             WrapPanelBuilder::new(WidgetBuilder::new().with_children(bit_switches.iter().cloned()))
+                .with_orientation(Orientation::Horizontal)
                 .build(ctx);
 
         let canvas = BitField {
