@@ -337,7 +337,7 @@ fn make_simple_property_container(
     ctx[title].set_tooltip(tooltip);
 
     GridBuilder::new(WidgetBuilder::new().with_child(title).with_child(editor))
-        .add_rows(vec![Row::strict(26.0)])
+        .add_row(Row::auto())
         .add_columns(vec![Column::strict(NAME_COLUMN_WIDTH), Column::stretch()])
         .build(ctx)
 }
