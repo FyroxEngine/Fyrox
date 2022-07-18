@@ -54,14 +54,14 @@ pub fn handle_collider_property_changed(
             Collider::SOLVER_GROUPS => match inner_property.value {
                 FieldKind::Object(ref value) => match inner_property.name.as_ref() {
                     InteractionGroups::MEMBERSHIPS => {
-                        let mut new_value = collider.collision_groups();
+                        let mut new_value = collider.solver_groups();
                         new_value.memberships = value.cast_clone()?;
                         Some(SceneCommand::new(SetColliderSolverGroupsCommand::new(
                             handle, new_value,
                         )))
                     }
                     InteractionGroups::FILTER => {
-                        let mut new_value = collider.collision_groups();
+                        let mut new_value = collider.solver_groups();
                         new_value.filter = value.cast_clone()?;
                         Some(SceneCommand::new(SetColliderSolverGroupsCommand::new(
                             handle, new_value,
