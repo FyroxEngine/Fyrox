@@ -2,15 +2,17 @@
 
 use crate::{
     check_box::{CheckBoxBuilder, CheckBoxMessage},
-    core::pool::Handle,
+    core::{
+        num_traits::{NumCast, One, Zero},
+        pool::Handle,
+    },
     define_constructor,
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     wrap_panel::WrapPanelBuilder,
-    BuildContext, Control, MessageDirection, NodeHandleMapping, Orientation, Thickness, UiNode,
-    UserInterface,
+    BuildContext, Control, MessageDirection, MouseButton, NodeHandleMapping, Orientation,
+    Thickness, UiNode, UserInterface, WidgetMessage,
 };
-use fyrox_core::num_traits::{NumCast, One, Zero};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -152,6 +154,24 @@ where
                 self.value = *value;
                 self.sync_switches(ui);
                 ui.send_message(message.reverse());
+            }
+        } else if let Some(WidgetMessage::MouseDown { button, .. }) = message.data() {
+            if *button == MouseButton::Right {
+                for (index, bit) in self.bit_switches.iter().cloned().enumerate() {
+                    if ui.node(bit).has_descendant(message.destination(), ui) {
+                        let new_value = if is_bit_set(self.value, index) {
+                            !(T::one() << T::from(index).unwrap_or_default())
+                        } else {
+                            T::one() << T::from(index).unwrap_or_default()
+                        };
+
+                        ui.send_message(BitFieldMessage::value(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            new_value,
+                        ));
+                    }
+                }
             }
         }
     }
