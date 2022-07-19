@@ -1505,6 +1505,9 @@ impl PhysicsWorld {
                 let native_body1 = body1.native.get();
                 let native_body2 = body2.native.get();
 
+                assert!(self.bodies.set.get(native_body1).is_some());
+                assert!(self.bodies.set.get(native_body2).is_some());
+
                 let native = self.add_joint(
                     handle,
                     native_body1,
@@ -1513,6 +1516,7 @@ impl PhysicsWorld {
                 );
 
                 joint.native.set(native);
+                joint.need_rebind.set(false);
 
                 Log::writeln(
                     MessageKind::Information,
