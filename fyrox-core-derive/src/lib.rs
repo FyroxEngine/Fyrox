@@ -1,4 +1,5 @@
 mod inspect;
+mod reflect;
 mod visit;
 
 use proc_macro::TokenStream;
@@ -20,4 +21,11 @@ pub fn visit(input: TokenStream) -> TokenStream {
 pub fn inspect(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
     TokenStream::from(inspect::impl_inspect(ast))
+}
+
+/// Implements `Reflect` trait
+#[proc_macro_derive(Reflect, attributes(reflect))]
+pub fn reflect(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as DeriveInput);
+    TokenStream::from(reflect::impl_reflect(ast))
 }

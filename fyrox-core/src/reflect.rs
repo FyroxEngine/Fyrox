@@ -1,5 +1,7 @@
 //! Runtime reflection
 
+pub use fyrox_core_derive::Reflect;
+
 use std::any::Any;
 
 pub trait Reflect: Any {
