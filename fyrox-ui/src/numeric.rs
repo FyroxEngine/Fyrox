@@ -11,7 +11,6 @@ use crate::{
     },
     decorator::DecoratorBuilder,
     define_constructor,
-    formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     message::{KeyCode, MessageDirection, UiMessage},
     text_box::{TextBox, TextBoxBuilder, TextBoxMessage},
