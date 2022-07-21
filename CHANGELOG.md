@@ -59,6 +59,13 @@ visual clutter.
   - Rebinding happens when a joint changes its position
   - Joints editing in the editor is now much more intuitive
 - Improved debug visualization for physics.
+- Read-only mode for NumericUpDown and Vec2/Vec3/Vec4 widgets
+- Show global coordinates of current selection in the scene previewer
+- BitField widget - it helps you to edit numbers as bit containers, allowing you to switch separate bits
+- More compact editors for properties in Inspector
+- NumericUpDown widget does not use word wrapping by default anymore
+- CheckBox widget can now be switched only by left mouse button
+- Ability to disable contacts between connected bodies of a joint
 
 # 0.26
 
