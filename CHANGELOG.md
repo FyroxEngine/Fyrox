@@ -66,6 +66,8 @@ visual clutter.
 - NumericUpDown widget does not use word wrapping by default anymore
 - CheckBox widget can now be switched only by left mouse button
 - Ability to disable contacts between connected bodies of a joint
+- `style` parameter for project template generator - it defines which scene will be used by default - either `2d` 
+or `3d`
 
 # 0.26
 
