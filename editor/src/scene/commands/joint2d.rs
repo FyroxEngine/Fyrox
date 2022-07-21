@@ -34,4 +34,5 @@ define_swap_command! {
     Node::as_joint2d_mut,
     SetJointBody1Command(Handle<Node>): body1, set_body1, "Set 2D Joint Body 1";
     SetJointBody2Command(Handle<Node>): body2, set_body2, "Set 2D Joint Body 2";
+        SetJointContactsEnabledCommand(bool): is_contacts_enabled, set_contacts_enabled, "Set Joint Contacts Enabled";
 }

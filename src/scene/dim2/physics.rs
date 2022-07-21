@@ -894,6 +894,9 @@ impl PhysicsWorld {
                     // Preserve local frames.
                     convert_joint_params(v, native.data.local_frame1, native.data.local_frame2)
             });
+            joint.contacts_enabled.try_sync_model(|v| {
+                native.data.set_contacts_enabled(v);
+            });
             if joint.need_rebind.get() {
                 if let (Some(body1), Some(body2)) = (
                     nodes
@@ -932,14 +935,12 @@ impl PhysicsWorld {
                 assert!(self.bodies.set.get(native_body1).is_some());
                 assert!(self.bodies.set.get(native_body2).is_some());
 
-                let native = self.add_joint(
-                    handle,
-                    native_body1,
-                    native_body2,
-                    convert_joint_params(params, local_frame1, local_frame2),
-                );
+                let mut native_joint = convert_joint_params(params, local_frame1, local_frame2);
+                native_joint.contacts_enabled = joint.is_contacts_enabled();
+                let native_handle =
+                    self.add_joint(handle, native_body1, native_body2, native_joint);
 
-                joint.native.set(native);
+                joint.native.set(native_handle);
                 joint.need_rebind.set(false);
 
                 Log::writeln(

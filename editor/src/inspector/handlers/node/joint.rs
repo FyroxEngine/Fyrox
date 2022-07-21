@@ -19,7 +19,8 @@ pub fn handle_joint_property_changed(
         FieldKind::Object(ref value) => {
             handle_properties!(args.name.as_ref(), handle, value,
                 Joint::BODY_1 => SetJointBody1Command,
-                Joint::BODY_2 => SetJointBody2Command
+                Joint::BODY_2 => SetJointBody2Command,
+                Joint::CONTACTS_ENABLED => SetJointContactsEnabledCommand
             )
         }
         FieldKind::Inspectable(ref inner) => match args.name.as_ref() {

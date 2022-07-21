@@ -178,6 +178,10 @@ pub struct Joint {
     #[inspect(getter = "Deref::deref")]
     pub(crate) body2: TemplateVariable<Handle<Node>>,
 
+    #[inspect(getter = "Deref::deref")]
+    #[visit(optional)] // Backward compatibility
+    pub(crate) contacts_enabled: TemplateVariable<bool>,
+
     #[visit(skip)]
     #[inspect(skip)]
     pub(crate) native: Cell<ImpulseJointHandle>,
@@ -190,7 +194,8 @@ pub struct Joint {
 impl_directly_inheritable_entity_trait!(Joint;
     params,
     body1,
-    body2
+    body2,
+    contacts_enabled
 );
 
 impl Default for Joint {
@@ -200,6 +205,7 @@ impl Default for Joint {
             params: Default::default(),
             body1: Default::default(),
             body2: Default::default(),
+            contacts_enabled: TemplateVariable::new(true),
             native: Cell::new(ImpulseJointHandle::invalid()),
             need_rebind: Cell::new(true),
         }
@@ -227,6 +233,7 @@ impl Clone for Joint {
             params: self.params.clone(),
             body1: self.body1.clone(),
             body2: self.body2.clone(),
+            contacts_enabled: self.contacts_enabled.clone(),
             native: Cell::new(ImpulseJointHandle::invalid()),
             need_rebind: Cell::new(true),
         }
@@ -271,6 +278,16 @@ impl Joint {
     /// Returns current second body of the joint.
     pub fn body2(&self) -> Handle<Node> {
         *self.body2
+    }
+
+    /// Sets whether the connected bodies should ignore collisions with each other or not.  
+    pub fn set_contacts_enabled(&mut self, enabled: bool) {
+        self.contacts_enabled.set(enabled);
+    }
+
+    /// Returns true if contacts between connected bodies is enabled, false - otherwise.
+    pub fn is_contacts_enabled(&self) -> bool {
+        *self.contacts_enabled
     }
 }
 
@@ -353,6 +370,7 @@ pub struct JointBuilder {
     params: JointParams,
     body1: Handle<Node>,
     body2: Handle<Node>,
+    contacts_enabled: bool,
 }
 
 impl JointBuilder {
@@ -363,6 +381,7 @@ impl JointBuilder {
             params: Default::default(),
             body1: Default::default(),
             body2: Default::default(),
+            contacts_enabled: true,
         }
     }
 
@@ -386,6 +405,12 @@ impl JointBuilder {
         self
     }
 
+    /// Sets whether the connected bodies should ignore collisions with each other or not.  
+    pub fn with_contacts_enabled(mut self, enabled: bool) -> Self {
+        self.contacts_enabled = enabled;
+        self
+    }
+
     /// Creates new Joint node, but does not add it to the graph.
     pub fn build_joint(self) -> Joint {
         Joint {
@@ -393,6 +418,7 @@ impl JointBuilder {
             params: self.params.into(),
             body1: self.body1.into(),
             body2: self.body2.into(),
+            contacts_enabled: self.contacts_enabled.into(),
             native: Cell::new(ImpulseJointHandle::invalid()),
             need_rebind: Cell::new(true),
         }
