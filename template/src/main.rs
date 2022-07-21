@@ -1,6 +1,7 @@
 //! Fyrox Project Template Generator.
 
 use clap::Parser;
+use std::fs::create_dir_all;
 use std::{
     fs::{remove_dir_all, File},
     io::Write,
@@ -13,11 +14,19 @@ use std::{
 struct Args {
     #[clap(short, long, default_value = "my_game")]
     name: String,
+
+    #[clap(short, long, default_value = "3d")]
+    style: String,
 }
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) {
     let mut file = File::create(path).unwrap();
     file.write_all(content.as_ref().as_bytes()).unwrap();
+}
+
+fn write_file_binary<P: AsRef<Path>>(path: P, content: &[u8]) {
+    let mut file = File::create(path).unwrap();
+    file.write_all(content).unwrap();
 }
 
 fn init_game(base_path: &Path, args: &Args) {
@@ -38,7 +47,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "0.26""#,
+fyrox = "0.27""#,
             args.name,
         ),
     );
@@ -49,72 +58,94 @@ fyrox = "0.26""#,
         r#"//! Game project.
 use fyrox::{
     core::{
+        futures::executor::block_on,
         pool::Handle,
         uuid::{uuid, Uuid},
     },
     event::Event,
-    plugin::{Plugin, PluginContext, PluginRegistrationContext},
-    scene::{Scene, node::TypeUuidProvider},
+    event_loop::ControlFlow,
+    gui::message::UiMessage,
+    plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
+    scene::{node::TypeUuidProvider, Scene, SceneLoader},
 };
+
+pub struct GameConstructor;
+
+impl TypeUuidProvider for GameConstructor {
+    fn type_uuid() -> Uuid {
+        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
+    }
+}
+
+impl PluginConstructor for GameConstructor {
+    fn register(&self, _context: PluginRegistrationContext) {
+        // Register your scripts here.
+    }
+
+    fn create_instance(
+        &self,
+        override_scene: Handle<Scene>,
+        context: PluginContext,
+    ) -> Box<dyn Plugin> {
+        Box::new(Game::new(override_scene, context))
+    }
+}
 
 pub struct Game {
     scene: Handle<Scene>,
 }
 
-impl TypeUuidProvider for Game {
-    // Returns unique plugin id for serialization needs.
-    fn type_uuid() -> Uuid {
-        // Ideally this should be unique per-project.
-        uuid!("cb358b1c-fc23-4c44-9e59-0a9671324196")
-    }
-}
-
 impl Game {
-    pub fn new() -> Self {
-        Self {
-            scene: Default::default(),
-        }
-    }
+    pub fn new(override_scene: Handle<Scene>, context: PluginContext) -> Self {
+        let scene = if override_scene.is_some() {
+            override_scene
+        } else {
+            // Load a scene from file if there is no override scene specified.
+            let scene = block_on(
+                block_on(SceneLoader::from_file(
+                    "data/scene.rgs",
+                    context.serialization_context.clone(),
+                ))
+                .unwrap()
+                .finish(context.resource_manager.clone()),
+            );
 
-    fn set_scene(&mut self, scene: Handle<Scene>, _context: PluginContext) {
-        self.scene = scene;
+            context.scenes.add(scene)
+        };
 
-        // Do additional actions with scene here.
+        Self { scene }
     }
 }
 
 impl Plugin for Game {
-    fn on_register(&mut self, _context: PluginRegistrationContext) {
-        // Register your scripts here.
+    fn on_deinit(&mut self, _context: PluginContext) {
+        // Do a cleanup here.
     }
 
-    fn on_standalone_init(&mut self, context: PluginContext) {
-        self.set_scene(context.scenes.add(Scene::new()), context);
-    }
-
-    fn on_enter_play_mode(&mut self, scene: Handle<Scene>, context: PluginContext) {
-        // Obtain scene from the editor.
-        self.set_scene(scene, context);
-    }
-
-    fn on_leave_play_mode(&mut self, context: PluginContext) {
-        self.set_scene(Handle::NONE, context)
-    }
-
-    fn update(&mut self, _context: &mut PluginContext) {
+    fn update(&mut self, _context: &mut PluginContext, _control_flow: &mut ControlFlow) {
         // Add your global update code here.
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        GameConstructor::type_uuid()
     }
 
-    fn on_os_event(&mut self, _event: &Event<()>, _context: PluginContext) {
+    fn on_os_event(
+        &mut self,
+        _event: &Event<()>,
+        _context: PluginContext,
+        _control_flow: &mut ControlFlow,
+    ) {
         // Do something on OS event here.
     }
 
-    fn on_unload(&mut self, _context: &mut PluginContext) {
-        // Do a cleanup here.
+    fn on_ui_message(
+        &mut self,
+        _context: &mut PluginContext,
+        _message: &UiMessage,
+        _control_flow: &mut ControlFlow,
+    ) {
+        // Handle UI events here.
     }
 }
 "#,
@@ -139,7 +170,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "0.26"
+fyrox = "0.27"
 {} = {{ path = "../game" }}"#,
             args.name,
         ),
@@ -151,11 +182,11 @@ fyrox = "0.26"
         format!(
             r#"//! Executor with your game connected to it as a plugin.
 use fyrox::engine::executor::Executor;
-use {}::Game;
+use {}::GameConstructor;
 
 fn main() {{
     let mut executor = Executor::new();
-    executor.add_plugin(Game::new());
+    executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }}"#,
             args.name
@@ -181,8 +212,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "0.26"
-fyroxed_base = "0.13"
+fyrox = "0.27"
+fyroxed_base = "0.14"
 {} = {{ path = "../game" }}"#,
             args.name,
         ),
@@ -194,7 +225,7 @@ fyroxed_base = "0.13"
             r#"//! Editor with your game connected to it as a plugin.
 use fyrox::event_loop::EventLoop;
 use fyroxed_base::{{Editor, StartupData}};
-use {}::Game;
+use {}::GameConstructor;
 
 fn main() {{
     let event_loop = EventLoop::new();
@@ -202,11 +233,10 @@ fn main() {{
         &event_loop,
         Some(StartupData {{
             working_directory: Default::default(),
-            // Set this to `"path/to/your/scene.rgs".into()` to force the editor to load the scene on startup.
-            scene: Default::default(),
+            scene: "data/scene.rgs".into(),
         }}),
     );
-    editor.add_game_plugin(Game::new());
+    editor.add_game_plugin(GameConstructor);
     editor.run(event_loop)
 }}
 "#,
@@ -236,6 +266,18 @@ members = ["editor", "executor", "game"]"#,
     );
 }
 
+fn init_data(base_path: &Path, style: &str) {
+    let data_path = base_path.join("data");
+    create_dir_all(&data_path).unwrap();
+
+    let scene_path = data_path.join("scene.rgs");
+    match style {
+        "2d" => write_file_binary(scene_path, include_bytes!("../2d.rgs")),
+        "3d" => write_file_binary(scene_path, include_bytes!("../3d.rgs")),
+        _ => println!("Unknown style: {}. Use either `2d` or `3d`", style),
+    }
+}
+
 fn main() {
     let args = Args::parse();
 
@@ -246,6 +288,7 @@ fn main() {
     let base_path = Path::new(&args.name);
 
     init_workspace(base_path);
+    init_data(base_path, &args.style);
     init_game(base_path, &args);
     init_editor(base_path, &args);
     init_executor(base_path, &args);
