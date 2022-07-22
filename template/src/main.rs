@@ -1,22 +1,39 @@
 //! Fyrox Project Template Generator.
 
-use clap::Parser;
-use std::fs::create_dir_all;
+use clap::{Parser, Subcommand};
+use convert_case::{Case, Casing};
 use std::{
-    fs::{remove_dir_all, File},
+    fs::{create_dir_all, remove_dir_all, File},
     io::Write,
     path::Path,
     process::Command,
 };
+use uuid::Uuid;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    #[clap(short, long, default_value = "my_game")]
-    name: String,
+    #[clap(subcommand)]
+    command: Commands,
+}
 
-    #[clap(short, long, default_value = "3d")]
-    style: String,
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Initializes a new game project of given name and style.
+    #[clap(arg_required_else_help = true)]
+    Init {
+        #[clap(short, long, default_value = "my_game")]
+        name: String,
+
+        #[clap(short, long, default_value = "3d")]
+        style: String,
+    },
+    /// Adds a script with given name. The name will be capitalized.
+    #[clap(arg_required_else_help = true)]
+    Script {
+        #[clap(short, long, default_value = "MyScript")]
+        name: String,
+    },
 }
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) {
@@ -29,7 +46,7 @@ fn write_file_binary<P: AsRef<Path>>(path: P, content: &[u8]) {
     file.write_all(content).unwrap();
 }
 
-fn init_game(base_path: &Path, args: &Args) {
+fn init_game(base_path: &Path, name: &str) {
     Command::new("cargo")
         .args(&["init", "--lib", "--vcs", "none"])
         .arg(base_path.join("game"))
@@ -48,7 +65,7 @@ edition = "2021"
 
 [dependencies]
 fyrox = "0.27""#,
-            args.name,
+            name,
         ),
     );
 
@@ -152,7 +169,7 @@ impl Plugin for Game {
     );
 }
 
-fn init_executor(base_path: &Path, args: &Args) {
+fn init_executor(base_path: &Path, name: &str) {
     Command::new("cargo")
         .args(&["init", "--bin", "--vcs", "none"])
         .arg(base_path.join("executor"))
@@ -172,7 +189,7 @@ edition = "2021"
 [dependencies]
 fyrox = "0.27"
 {} = {{ path = "../game" }}"#,
-            args.name,
+            name,
         ),
     );
 
@@ -189,12 +206,12 @@ fn main() {{
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }}"#,
-            args.name
+            name
         ),
     );
 }
 
-fn init_editor(base_path: &Path, args: &Args) {
+fn init_editor(base_path: &Path, name: &str) {
     Command::new("cargo")
         .args(&["init", "--bin", "--vcs", "none"])
         .arg(base_path.join("editor"))
@@ -215,7 +232,7 @@ edition = "2021"
 fyrox = "0.27"
 fyroxed_base = "0.14"
 {} = {{ path = "../game" }}"#,
-            args.name,
+            name,
         ),
     );
 
@@ -240,7 +257,7 @@ fn main() {{
     editor.run(event_loop)
 }}
 "#,
-            args.name
+            name
         ),
     );
 }
@@ -278,26 +295,128 @@ fn init_data(base_path: &Path, style: &str) {
     }
 }
 
-fn main() {
-    let args = Args::parse();
-
-    if args.name.contains('-') {
-        panic!("The project name cannot contain `-`.")
+fn init_script(raw_name: &str) {
+    let base_path = Path::new("game/src/");
+    if !base_path.exists() {
+        panic!("game/src directory does not exists!")
     }
 
-    let base_path = Path::new(&args.name);
+    let script_file_stem = raw_name.to_case(Case::Snake);
+    let script_name = raw_name.to_case(Case::UpperCamel);
+    let file_name = base_path.join(script_file_stem + ".rs");
 
-    init_workspace(base_path);
-    init_data(base_path, &args.style);
-    init_game(base_path, &args);
-    init_editor(base_path, &args);
-    init_executor(base_path, &args);
+    if file_name.exists() {
+        panic!("Script {} already exists!", script_name);
+    }
 
-    println!("Project {} was generated successfully!", args.name);
-    println!(
-        "Navigate to {} directory and use one of the following commands:",
-        args.name
+    let script_uuid = Uuid::new_v4().to_string();
+
+    write_file(
+        file_name,
+        format!(
+            r#"
+use crate::GameConstructor;
+use fyrox::{{
+    core::{{inspect::prelude::*, uuid::{{Uuid, uuid}}, visitor::prelude::*}},
+    engine::resource_manager::ResourceManager,
+    event::Event,
+    gui::inspector::PropertyChanged,
+    handle_object_property_changed, impl_component_provider,
+    scene::{{graph::map::NodeHandleMap, node::TypeUuidProvider}},
+    script::{{ScriptContext, ScriptDeinitContext, ScriptTrait}},
+}};
+
+#[derive(Visit, Inspect, Default, Debug, Clone)]
+struct {name} {{
+    // Add fields here.
+}}
+
+impl_component_provider!({name});
+
+impl TypeUuidProvider for {name} {{
+    fn type_uuid() -> Uuid {{
+        uuid!("{id}")
+    }}
+}}
+
+impl ScriptTrait for {name} {{
+    fn on_property_changed(&mut self, args: &PropertyChanged) -> bool {{
+        // Use `handle_object_property_changed!(self, args, Self::FOO => foo)` here to handle
+        // changing of object properties.
+        false
+    }}
+
+    fn on_init(&mut self, context: ScriptContext) {{
+        // Put initialization logic here.
+    }}
+
+    fn on_deinit(&mut self, context: ScriptDeinitContext) {{
+        // Put de-initialization logic here.
+    }}
+
+    fn on_os_event(&mut self, event: &Event<()>, context: ScriptContext) {{
+        // Respond to OS events here.
+    }}
+
+    fn on_update(&mut self, context: ScriptContext) {{
+        // Put object logic here.
+    }}
+
+    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {{
+        // Remap handles to other scene nodes here.
+    }}
+
+    fn restore_resources(&mut self, resource_manager: ResourceManager) {{
+        // Restore resource handles here.
+    }}
+
+    fn id(&self) -> Uuid {{
+        Self::type_uuid()
+    }}
+
+    fn plugin_uuid(&self) -> Uuid {{
+        GameConstructor::type_uuid()
+    }}
+}}
+    "#,
+            name = script_name,
+            id = script_uuid
+        ),
     );
-    println!("\tRun the Editor: cargo run --package editor --release");
-    println!("\tRun the Executor: cargo run --package executor --release");
+
+    println!(
+        "Script {} was added successfully! Do not forget to add it to your module tree!",
+        script_name
+    );
+}
+
+fn main() {
+    let args: Args = Args::parse();
+
+    match args.command {
+        Commands::Init { name, style } => {
+            if name.contains('-') {
+                panic!("The project name cannot contain `-`.")
+            }
+
+            let base_path = Path::new(&name);
+
+            init_workspace(base_path);
+            init_data(base_path, &style);
+            init_game(base_path, &name);
+            init_editor(base_path, &name);
+            init_executor(base_path, &name);
+
+            println!("Project {} was generated successfully!", name);
+            println!(
+                "Navigate to {} directory and use one of the following commands:",
+                name
+            );
+            println!("\tRun the Editor: cargo run --package editor --release");
+            println!("\tRun the Executor: cargo run --package executor --release");
+        }
+        Commands::Script { name } => {
+            init_script(&name);
+        }
+    }
 }

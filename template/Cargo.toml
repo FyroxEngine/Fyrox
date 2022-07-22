@@ -15,3 +15,5 @@ rust-version = "1.56"
 
 [dependencies]
 clap = { version = "3", features = ["derive"] }
+uuid = { version = "1", features = ["v4"] }
+convert_case = "0.5.0"
