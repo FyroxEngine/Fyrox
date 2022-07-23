@@ -22,6 +22,9 @@ pub fn handle_rectangle_property_changed(
                 Rectangle::COLOR => {
                     make_command!(SetRectangleColorCommand, handle, value)
                 }
+                Rectangle::UV_RECT => {
+                    make_command!(SetRectangleUvRectCommand, handle, value)
+                }
                 _ => None,
             },
             FieldKind::Inspectable(ref inner) => match args.name.as_ref() {

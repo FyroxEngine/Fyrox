@@ -15,7 +15,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use fyrox_core::algebra::Vector3;
+use fyrox_core::algebra::{Vector3, Vector4};
 
 #[repr(C)]
 pub struct Vertex {
@@ -67,6 +67,12 @@ pub(in crate) struct GeometryCache {
 #[repr(C)]
 pub(in crate) struct InstanceData {
     pub color: Color,
+    /// UV Transform of the instance, where:
+    /// - `x` - UV rect X offset
+    /// - `y` - UV rect Y offset
+    /// - `z` - UV rect X scale
+    /// - `w` - UV rect Y scale
+    pub uv_transform: Vector4<f32>,
     pub world_matrix: Matrix4<f32>,
 }
 
@@ -106,13 +112,14 @@ impl GeometryCache {
                             normalized: true,
                             divisor: 1,
                         })
-                        // World Matrix
+                        // Transform
                         .with_attribute(AttributeDefinition {
                             location: 3,
                             kind: AttributeKind::Float4,
                             normalized: false,
                             divisor: 1,
                         })
+                        // World Matrix
                         .with_attribute(AttributeDefinition {
                             location: 4,
                             kind: AttributeKind::Float4,
@@ -127,6 +134,12 @@ impl GeometryCache {
                         })
                         .with_attribute(AttributeDefinition {
                             location: 6,
+                            kind: AttributeKind::Float4,
+                            normalized: false,
+                            divisor: 1,
+                        })
+                        .with_attribute(AttributeDefinition {
+                            location: 7,
                             kind: AttributeKind::Float4,
                             normalized: false,
                             divisor: 1,

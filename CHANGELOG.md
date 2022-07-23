@@ -68,6 +68,7 @@ visual clutter.
 - Ability to disable contacts between connected bodies of a joint
 - `style` parameter for project template generator - it defines which scene will be used by default - either `2d` 
 or `3d`
+- Ability to select portion of the texture to render in `Rectangle` nodes.
 
 # 0.26
 

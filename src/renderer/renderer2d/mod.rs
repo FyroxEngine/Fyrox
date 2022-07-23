@@ -1,9 +1,5 @@
 //! A renderer responsible for drawing 2D scenes.
 
-use crate::scene::dim2::rectangle::Rectangle;
-use crate::scene::light::directional::DirectionalLight;
-use crate::scene::light::point::PointLight;
-use crate::scene::light::spot::SpotLight;
 use crate::{
     core::{
         algebra::{Vector2, Vector3, Vector4},
@@ -22,7 +18,12 @@ use crate::{
         renderer2d::cache::{GeometryCache, InstanceData, Mesh},
         RenderPassStatistics, TextureCache,
     },
-    scene::{camera::Camera, graph::Graph},
+    scene::{
+        camera::Camera,
+        dim2::rectangle::Rectangle,
+        graph::Graph,
+        light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
+    },
     utils::value_as_u8_slice,
 };
 use fxhash::{FxHashMap, FxHasher};
@@ -141,9 +142,13 @@ impl SpriteBatchStorage {
                     self.batches.last_mut().unwrap()
                 };
 
+                let uv_rect = rectangle.uv_rect();
+                let uv_transform = Vector4::new(uv_rect.x(), uv_rect.y(), uv_rect.w(), uv_rect.h());
+
                 batch.instances.push(Instance {
                     gpu_data: InstanceData {
                         color: rectangle.color().srgb_to_linear(),
+                        uv_transform,
                         world_matrix: rectangle.global_transform(),
                     },
                     aabb: rectangle.world_bounding_box(),

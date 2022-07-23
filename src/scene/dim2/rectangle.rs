@@ -3,15 +3,14 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
-        math::aabb::AxisAlignedBoundingBox,
+        math::{aabb::AxisAlignedBoundingBox, Rect},
         pool::Handle,
         uuid::{uuid, Uuid},
+        variable::{InheritError, TemplateVariable},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -19,7 +18,7 @@ use crate::{
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
-        graph::Graph,
+        graph::{map::NodeHandleMap, Graph},
         node::{Node, NodeTrait, TypeUuidProvider},
         DirectlyInheritableEntity,
     },
@@ -92,7 +91,15 @@ use std::ops::{Deref, DerefMut};
 /// scene lights, but it will be a very simple diffuse lighting without any "physically correct"
 /// lighting. This is perfectly ok for 95% of 2D games, if you want to add custom lighting then
 /// you should use custom shader.
-#[derive(Visit, Inspect, Debug, Clone, Default)]
+///
+/// # Specifying region for rendering
+///
+/// You can specify a portion of the texture that will be used for rendering using [`Self::set_uv_rect`]
+/// method. This is especially useful if you need to create sprite sheet animation, you use the single
+/// image, but just changing portion for rendering. Keep in mind that the coordinates are normalized
+/// which means `[0; 0]` corresponds to top-left corner of the texture and `[1; 1]` corresponds to
+/// right-bottom corner.
+#[derive(Visit, Inspect, Debug, Clone)]
 pub struct Rectangle {
     base: Base,
 
@@ -101,6 +108,20 @@ pub struct Rectangle {
 
     #[inspect(getter = "Deref::deref")]
     color: TemplateVariable<Color>,
+
+    #[inspect(getter = "Deref::deref")]
+    uv_rect: TemplateVariable<Rect<f32>>,
+}
+
+impl Default for Rectangle {
+    fn default() -> Self {
+        Self {
+            base: Default::default(),
+            texture: Default::default(),
+            color: Default::default(),
+            uv_rect: TemplateVariable::new(Rect::new(0.0, 0.0, 1.0, 1.0)),
+        }
+    }
 }
 
 impl_directly_inheritable_entity_trait!(Rectangle;
@@ -152,6 +173,25 @@ impl Rectangle {
     /// Sets color of the rectangle.
     pub fn set_color(&mut self, color: Color) {
         self.color.set(color);
+    }
+
+    /// Returns a rectangle that defines the region in texture which will be rendered. The coordinates are normalized
+    /// which means `[0; 0]` corresponds to top-left corner of the texture and `[1; 1]` corresponds to right-bottom
+    /// corner.
+    pub fn uv_rect(&self) -> Rect<f32> {
+        *self.uv_rect
+    }
+
+    /// Sets a rectangle that defines the region in texture which will be rendered. The coordinates are normalized
+    /// which means `[0; 0]` corresponds to top-left corner of the texture and `[1; 1]` corresponds to right-bottom
+    /// corner.
+    ///
+    /// The coordinates can exceed `[1; 1]` boundary to create tiling effect (keep in mind that tiling should be
+    /// enabled in texture options).
+    ///
+    /// The default value is `(0, 0, 1, 1)` rectangle which corresponds to entire texture.
+    pub fn set_uv_rect(&mut self, uv_rect: Rect<f32>) {
+        self.uv_rect.set(uv_rect);
     }
 }
 
@@ -205,6 +245,7 @@ pub struct RectangleBuilder {
     base_builder: BaseBuilder,
     texture: Option<Texture>,
     color: Color,
+    uv_rect: Rect<f32>,
 }
 
 impl RectangleBuilder {
@@ -214,6 +255,7 @@ impl RectangleBuilder {
             base_builder,
             texture: None,
             color: Color::WHITE,
+            uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
         }
     }
 
@@ -229,12 +271,20 @@ impl RectangleBuilder {
         self
     }
 
+    /// Sets desired portion of the texture for the rectangle. See [`Rectangle::set_uv_rect`]
+    /// for more info.
+    pub fn with_uv_rect(mut self, uv_rect: Rect<f32>) -> Self {
+        self.uv_rect = uv_rect;
+        self
+    }
+
     /// Creates new [`Rectangle`] instance.
     pub fn build_rectangle(self) -> Rectangle {
         Rectangle {
             base: self.base_builder.build_base(),
             texture: self.texture.into(),
             color: self.color.into(),
+            uv_rect: self.uv_rect.into(),
         }
     }
 
