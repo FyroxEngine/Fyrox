@@ -1,31 +1,37 @@
 //! Implements `Reflect` trait
 
-mod args;
+pub mod args;
 mod prop;
 mod syntax;
 
-use darling::{ast, FromDeriveInput};
+use darling::ast;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::*;
 
-pub fn impl_reflect(ast: DeriveInput) -> TokenStream2 {
-    let ty_args = args::TypeArgs::from_derive_input(&ast).unwrap();
+pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
     match &ty_args.data {
-        ast::Data::Struct(ref field_args) => self::impl_reflect_struct(&ty_args, field_args),
-        ast::Data::Enum(ref variant_args) => self::impl_reflect_enum(&ty_args, variant_args),
+        ast::Data::Struct(ref field_args) => self::impl_reflect_struct(ty_args, field_args),
+        ast::Data::Enum(ref variant_args) => self::impl_reflect_enum(ty_args, variant_args),
     }
+}
+
+pub fn impl_prop_keys(ty_args: &args::TypeArgs) -> TokenStream2 {
+    let prop_keys = prop::props(ty_args);
+    let generics = ty_args.impl_generics();
+    prop::impl_prop_keys(prop_keys.iter(), &ty_args.ident, &generics)
 }
 
 fn impl_reflect_struct(ty_args: &args::TypeArgs, _field_args: &args::Fields) -> TokenStream2 {
     let prop_keys = prop::props(ty_args);
-    let prop_idents = prop_keys.iter().map(|p| &p.ident).collect::<Vec<_>>();
+    // REMARK: We're using not the property key constant, but the property key literal.
+    // This is for `crate::impl_reflect!`, which is for external types.
+    let prop_values = prop_keys.iter().map(|p| &p.value).collect::<Vec<_>>();
     let field_idents = prop_keys.iter().map(|p| &p.field_ident).collect::<Vec<_>>();
 
     let field = quote! {
         match name {
             #(
-                Self::#prop_idents => Some(&self.#field_idents),
+                #prop_values => Some(&self.#field_idents),
             )*
             _ => None,
         }
@@ -34,7 +40,7 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, _field_args: &args::Fields) -> 
     let field_mut = quote! {
         match name {
             #(
-                Self::#prop_idents => Some(&mut self.#field_idents),
+                #prop_values => Some(&mut self.#field_idents),
             )*
             _ => None,
         }
@@ -54,9 +60,9 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                 .filter(|(_, f)| !f.hidden)
                 .collect::<Vec<_>>();
 
-            let props = fields.iter().map(|(i, f)| {
+            let prop_values = fields.iter().map(|(i, f)| {
                 let prop = prop::enum_prop(v, *i, f);
-                prop.ident
+                prop.value
             });
 
             let syntax = syntax::VariantSyntax::new(ty_args.ident.clone(), v);
@@ -72,7 +78,7 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
 
             quote! {
                 #(
-                    Self::#props => match self {
+                    #prop_values => match self {
                         #matcher => #field_idents,
                         _ => return None,
                     },
@@ -111,12 +117,7 @@ fn gen_impl(
     let generics = ty_args.impl_generics();
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    let prop_keys = prop::props(ty_args);
-    let prop_key_impl = prop::impl_prop_keys(prop_keys.iter(), &ty_args.ident, &generics);
-
     quote! {
-        #prop_key_impl
-
         #[allow(warnings)]
         impl #impl_generics Reflect for #ty_ident #ty_generics #where_clause {
             fn into_any(self: Box<Self>) -> Box<dyn ::core::any::Any> {

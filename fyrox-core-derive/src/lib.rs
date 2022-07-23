@@ -2,6 +2,7 @@ mod inspect;
 mod reflect;
 mod visit;
 
+use darling::FromDeriveInput;
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
 
@@ -27,5 +28,26 @@ pub fn inspect(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Reflect, attributes(reflect))]
 pub fn reflect(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
-    TokenStream::from(reflect::impl_reflect(ast))
+    let ty_args = reflect::args::TypeArgs::from_derive_input(&ast).unwrap();
+
+    let reflect_impl = reflect::impl_reflect(&ty_args);
+    let prop_key_impl = reflect::impl_prop_keys(&ty_args);
+
+    TokenStream::from(quote::quote! {
+        #reflect_impl
+        #prop_key_impl
+    })
+}
+
+/// Implements `Reflect` by analyzing derive input, without adding property constants
+///
+/// This is used to implement the `Reflect` trait for external types.
+#[proc_macro]
+pub fn impl_reflect(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as DeriveInput);
+    let ty_args = reflect::args::TypeArgs::from_derive_input(&ast).unwrap();
+
+    let reflect_impl = reflect::impl_reflect(&ty_args);
+
+    TokenStream::from(reflect_impl)
 }
