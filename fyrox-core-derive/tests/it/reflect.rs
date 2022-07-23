@@ -2,49 +2,43 @@
 
 use fyrox_core::reflect::*;
 
+#[allow(dead_code)]
+#[derive(Reflect)]
+pub struct Struct {
+    field: usize,
+    #[reflect(hidden)]
+    hidden: usize,
+}
+
+#[allow(dead_code)]
+#[derive(Reflect)]
+pub struct Tuple(usize, usize);
+
+#[allow(dead_code)]
+#[derive(Reflect)]
+pub enum Enum {
+    Named { field: usize },
+    Tuple(usize),
+    Unit,
+}
+
 #[test]
 fn property_values() {
-    #[allow(dead_code)]
-    #[derive(Reflect)]
-    pub struct SStruct {
-        field: usize,
-        #[reflect(hidden)]
-        hidden: usize,
-    }
-
     // NOTE: property names are in snake_case
-    assert_eq!(SStruct::FIELD, "field");
+    assert_eq!(Struct::FIELD, "field");
 
     // hidden fields don't expose their keys
     // assert_eq!(SStruct::HIDDEN, "hidden");
 
-    #[derive(Reflect)]
-    pub struct STuple(usize);
+    assert_eq!(Tuple::F_0, "0");
+    assert_eq!(Tuple::F_1, "1");
 
-    assert_eq!(STuple::F_0, "0");
-
-    #[derive(Reflect)]
-    #[allow(unused)]
-    pub enum E {
-        Tuple(usize),
-        Struct { field: usize },
-        Unit,
-    }
-
-    assert_eq!(E::TUPLE_F_0, "Tuple@0");
-    assert_eq!(E::STRUCT_FIELD, "Struct@field");
+    assert_eq!(Enum::NAMED_FIELD, "Named@field");
+    assert_eq!(Enum::TUPLE_F_0, "Tuple@0");
 }
 
 #[test]
 fn field_accessors() {
-    #[allow(dead_code)]
-    #[derive(Reflect)]
-    pub struct Struct {
-        field: usize,
-        #[reflect(hidden)]
-        hidden: usize,
-    }
-
     let mut s = Struct {
         field: 10,
         hidden: 10,
@@ -57,10 +51,6 @@ fn field_accessors() {
 
     assert!(s.get_field::<usize>("HIDDEN").is_none());
 
-    #[allow(dead_code)]
-    #[derive(Reflect)]
-    pub struct Tuple(usize, usize);
-
     let mut t = Tuple(0, 1);
 
     assert_eq!(t.get_field::<usize>(Tuple::F_0), Some(&0));
@@ -71,14 +61,6 @@ fn field_accessors() {
 
     assert_eq!(t.get_field::<usize>(Tuple::F_0), Some(&10));
     assert_eq!(t.get_field::<usize>(Tuple::F_1), Some(&11));
-
-    #[allow(dead_code)]
-    #[derive(Reflect)]
-    pub enum Enum {
-        Named { field: usize },
-        Tuple(usize),
-        Unit,
-    }
 
     let mut e_named = Enum::Named { field: 10 };
 
@@ -93,4 +75,27 @@ fn field_accessors() {
     assert_eq!(e_tuple.get_field::<usize>(Enum::TUPLE_F_0), Some(&30));
     *e_tuple.get_field_mut::<usize>(Enum::TUPLE_F_0).unwrap() = 40usize;
     assert_eq!(e_tuple.get_field::<usize>(Enum::TUPLE_F_0), Some(&40));
+}
+
+#[test]
+fn reflect_path() {
+    #[derive(Reflect)]
+    struct Hierarchy {
+        s: Struct,
+        e: Enum,
+    }
+
+    let mut hie = Hierarchy {
+        s: Struct {
+            field: 1,
+            hidden: 2,
+        },
+        e: Enum::Tuple(10),
+    };
+
+    assert_eq!(hie.cast_resolve_path::<usize>("s.field"), Ok(&1));
+    assert_eq!(hie.cast_resolve_path::<usize>("e.Tuple@0"), Ok(&10));
+
+    assert_eq!(hie.cast_resolve_path_mut::<usize>("s.field"), Ok(&mut 1));
+    assert_eq!(hie.cast_resolve_path_mut::<usize>("e.Tuple@0"), Ok(&mut 10));
 }
