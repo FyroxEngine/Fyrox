@@ -2,6 +2,7 @@ use crate::{
     algebra::{Vector3, Vector4},
     visitor::{Visit, VisitResult, Visitor},
 };
+use num_traits::Zero;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Visit)]
@@ -157,6 +158,128 @@ impl From<Hsv> for Color {
             }
             .scale(1.0 / 100.0),
         )
+    }
+}
+
+#[derive(PartialEq, Debug, Copy, Clone)]
+pub struct Hsl {
+    /// [0; 360] range
+    hue: f32,
+    /// [0; 1] range
+    saturation: f32,
+    /// [0; 1] range
+    lightness: f32,
+}
+
+impl Hsl {
+    /// Hue: [0; 360] range
+    /// Saturation: [0; 1] range
+    /// Lightness: [0; 1] range
+    pub fn new(hue: f32, saturation: f32, lightness: f32) -> Self {
+        Self {
+            hue: hue.abs() % 360.0,
+            saturation: saturation.clamp(0.0, 1.0),
+            lightness: lightness.clamp(0.0, 1.0),
+        }
+    }
+
+    pub fn hue(&self) -> f32 {
+        self.hue
+    }
+
+    pub fn set_hue(&mut self, hue: f32) {
+        self.hue = hue.abs() % 360.0;
+    }
+
+    pub fn saturation(&self) -> f32 {
+        self.saturation
+    }
+
+    pub fn set_saturation(&mut self, saturation: f32) {
+        self.saturation = saturation.clamp(0.0, 1.0)
+    }
+
+    pub fn lightness(&self) -> f32 {
+        self.lightness
+    }
+
+    pub fn set_lightness(&mut self, lightness: f32) {
+        self.lightness = lightness.clamp(0.0, 1.0)
+    }
+}
+
+impl From<Hsl> for Color {
+    fn from(v: Hsl) -> Self {
+        let h = v.hue;
+        let s = v.saturation;
+        let l = v.lightness;
+
+        let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+        let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
+        let m = l - c / 2.0;
+
+        let (r, g, b) = if h >= 0.0 && h < 60.0 {
+            (c, x, 0.0)
+        } else if h >= 60.0 && h < 120.0 {
+            (x, c, 0.0)
+        } else if h >= 120.0 && h < 180.0 {
+            (0.0, c, x)
+        } else if h >= 180.0 && h < 240.0 {
+            (0.0, x, c)
+        } else if h >= 240.0 && h < 300.0 {
+            (x, 0.0, c)
+        } else if h >= 300.0 && h < 360.0 {
+            (c, 0.0, x)
+        } else {
+            (0.0, 0.0, 0.0)
+        };
+
+        Color::from(Vector4::new(r + m, g + m, b + m, 1.0))
+    }
+}
+
+impl From<Color> for Hsl {
+    fn from(v: Color) -> Self {
+        let f = v.as_frgb();
+        let r = f.x;
+        let g = f.y;
+        let b = f.z;
+
+        let cmax = r.max(g).max(b);
+        let cmin = r.min(g).min(b);
+
+        let d = cmax - cmin;
+
+        let h = if d.is_zero() {
+            0.0
+        } else if cmax.eq(&r) {
+            let k = 60.0 * (((g - b) / d) % 6.0);
+            if g >= b {
+                k
+            } else {
+                k + 360.0
+            }
+        } else if cmax.eq(&g) {
+            60.0 * ((b - r) / d + 2.0)
+        } else if cmax.eq(&b) {
+            60.0 * ((r - g) / d + 4.0)
+        } else {
+            0.0
+        };
+
+        let l = (cmax + cmin) / 2.0;
+
+        let s = if d.is_zero() {
+            0.0
+        } else {
+            d / (1.0 - (2.0 * l - 1.0).abs())
+        };
+
+        Hsl {
+            hue: h,
+            saturation: s,
+            lightness: l,
+        }
     }
 }
 
@@ -336,5 +459,80 @@ impl Sub for Color {
 impl SubAssign for Color {
     fn sub_assign(&mut self, rhs: Self) {
         *self = *self - rhs;
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::color::{Color, Hsl};
+
+    #[test]
+    fn test_hsl() {
+        // Hsl -> Rgb
+        assert_eq!(Color::from(Hsl::new(0.0, 0.0, 0.0)), Color::opaque(0, 0, 0));
+        assert_eq!(
+            Color::from(Hsl::new(0.0, 0.0, 1.0)),
+            Color::opaque(255, 255, 255)
+        );
+        assert_eq!(
+            Color::from(Hsl::new(0.0, 1.0, 0.5)),
+            Color::opaque(255, 0, 0)
+        );
+        assert_eq!(
+            Color::from(Hsl::new(120.0, 1.0, 0.5)),
+            Color::opaque(0, 255, 0)
+        );
+        assert_eq!(
+            Color::from(Hsl::new(240.0, 1.0, 0.5)),
+            Color::opaque(0, 0, 255)
+        );
+        assert_eq!(
+            Color::from(Hsl::new(60.0, 1.0, 0.5)),
+            Color::opaque(255, 255, 0)
+        );
+        assert_eq!(
+            Color::from(Hsl::new(180.0, 1.0, 0.5)),
+            Color::opaque(0, 255, 255)
+        );
+        assert_eq!(
+            Color::from(Hsl::new(300.0, 1.0, 0.5)),
+            Color::opaque(255, 0, 255)
+        );
+        assert_eq!(
+            Color::from(Hsl::new(0.0, 0.0, 0.75)),
+            Color::opaque(191, 191, 191)
+        );
+
+        // Rgb -> Hsl
+        assert_eq!(Hsl::from(Color::opaque(0, 0, 0)), Hsl::new(0.0, 0.0, 0.0));
+        assert_eq!(
+            Hsl::from(Color::opaque(255, 255, 255)),
+            Hsl::new(0.0, 0.0, 1.0)
+        );
+        assert_eq!(Hsl::from(Color::opaque(255, 0, 0)), Hsl::new(0.0, 1.0, 0.5));
+        assert_eq!(
+            Hsl::from(Color::opaque(0, 255, 0)),
+            Hsl::new(120.0, 1.0, 0.5)
+        );
+        assert_eq!(
+            Hsl::from(Color::opaque(0, 0, 255)),
+            Hsl::new(240.0, 1.0, 0.5)
+        );
+        assert_eq!(
+            Hsl::from(Color::opaque(255, 255, 0)),
+            Hsl::new(60.0, 1.0, 0.5)
+        );
+        assert_eq!(
+            Hsl::from(Color::opaque(0, 255, 255)),
+            Hsl::new(180.0, 1.0, 0.5)
+        );
+        assert_eq!(
+            Hsl::from(Color::opaque(255, 0, 255)),
+            Hsl::new(300.0, 1.0, 0.5)
+        );
+        assert_eq!(
+            Hsl::from(Color::opaque(191, 191, 191)),
+            Hsl::new(0.0, 0.0, 0.7490196)
+        );
     }
 }
