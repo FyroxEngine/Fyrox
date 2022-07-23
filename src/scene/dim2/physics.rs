@@ -7,7 +7,7 @@ use crate::{
             UnitComplex, UnitQuaternion, Vector2, Vector3,
         },
         arrayvec::ArrayVec,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         instant,
         math::Matrix4Ext,
         parking_lot::Mutex,
@@ -277,7 +277,7 @@ fn isometry2_to_mat4(isometry: &Isometry2<f32>) -> Matrix4<f32> {
 /// Physics world is responsible for physics simulation in the engine. There is a very few public
 /// methods, mostly for ray casting. You should add physical entities using scene graph nodes, such
 /// as RigidBody, Collider, Joint.
-#[derive(Visit, Inspect)]
+#[derive(Visit, Inspect, Reflect)]
 pub struct PhysicsWorld {
     /// A flag that defines whether physics simulation is enabled or not.
     pub enabled: bool,

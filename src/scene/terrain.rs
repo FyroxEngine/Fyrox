@@ -6,7 +6,7 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         arrayvec::ArrayVec,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         math::{
             aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect, TriangleDefinition,
         },
@@ -42,7 +42,7 @@ use std::{
 /// rendering. Terrain can have as many layers as you want, but each layer slightly decreases
 /// performance, so keep amount of layers on reasonable level (1 - 5 should be enough for most
 /// cases).
-#[derive(Default, Debug, Clone, Visit, Inspect)]
+#[derive(Default, Debug, Clone, Visit, Inspect, Reflect)]
 pub struct Layer {
     /// Material of the layer.
     pub material: Arc<Mutex<Material>>,
@@ -252,7 +252,7 @@ pub struct TerrainRayCastResult {
 /// are inheritable. You cannot inherit width, height, chunks and other things because these cannot
 /// be modified at runtime because changing width (for example) will invalidate the entire height
 /// map which makes runtime modification useless.  
-#[derive(Visit, Debug, Default, Inspect, Clone)]
+#[derive(Visit, Debug, Default, Inspect, Reflect, Clone)]
 pub struct Terrain {
     base: Base,
 
@@ -682,7 +682,7 @@ impl NodeTrait for Terrain {
 }
 
 /// Shape of a brush.
-#[derive(Copy, Clone, Inspect, Debug)]
+#[derive(Copy, Clone, Inspect, Reflect, Debug)]
 pub enum BrushShape {
     /// Circle with given radius.
     Circle {
@@ -714,7 +714,7 @@ impl BrushShape {
 }
 
 /// Paint mode of a brush. It defines operation that will be performed on the terrain.
-#[derive(Clone, PartialEq, PartialOrd, Inspect, Debug)]
+#[derive(Clone, PartialEq, PartialOrd, Inspect, Reflect, Debug)]
 pub enum BrushMode {
     /// Modifies height map.
     ModifyHeightMap {
@@ -732,7 +732,7 @@ pub enum BrushMode {
 }
 
 /// Brush is used to modify terrain. It supports multiple shapes and modes.
-#[derive(Clone, Inspect, Debug)]
+#[derive(Clone, Inspect, Reflect, Debug)]
 pub struct Brush {
     /// Center of the brush.
     #[inspect(skip)]

@@ -130,8 +130,8 @@ impl<'a> PropertyInfo<'a> {
 /// A trait that allows you to "look inside" an object that implements it. It is used for lightweight
 /// runtime read-only reflection. The most common use case for it is various editors.
 ///
-/// It is not advised to manually implement this trait. You should use `#[derive(Inspect)]` whenever
-/// possible.
+/// It is not advised to manually implement this trait. You should use `#[derive(Inspect, Reflect)]`
+/// whenever possible.
 ///
 /// ## `#[derive(Inspect)]`
 ///

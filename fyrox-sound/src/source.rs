@@ -38,13 +38,14 @@ use crate::{
 use fyrox_core::{
     algebra::Vector3,
     inspect::{Inspect, PropertyInfo},
+    reflect::Reflect,
     visitor::{Visit, VisitResult, Visitor},
 };
 use fyrox_resource::ResourceState;
 use std::time::Duration;
 
 /// Status (state) of sound source.
-#[derive(Eq, PartialEq, Copy, Clone, Debug, Inspect, Visit)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Inspect, Reflect, Visit)]
 #[repr(u32)]
 pub enum Status {
     /// Sound is stopped - it won't produces any sample and won't load mixer. This is default
@@ -60,7 +61,7 @@ pub enum Status {
 }
 
 /// See module info.
-#[derive(Debug, Clone, Inspect, Visit)]
+#[derive(Debug, Clone, Inspect, Reflect, Visit)]
 pub struct SoundSource {
     name: String,
     buffer: Option<SoundBufferResource>,

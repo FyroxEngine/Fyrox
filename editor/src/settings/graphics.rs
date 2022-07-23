@@ -1,12 +1,15 @@
 use fyrox::renderer::CsmSettings;
 use fyrox::{
-    core::inspect::{Inspect, PropertyInfo},
+    core::{
+        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect,
+    },
     gui::inspector::{FieldKind, PropertyChanged},
     renderer::QualitySettings,
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Inspect)]
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Inspect, Reflect)]
 pub struct GraphicsSettings {
     pub quality: QualitySettings,
     pub z_near: f32,

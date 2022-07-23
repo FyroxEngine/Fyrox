@@ -24,6 +24,7 @@
 
 use crate::{
     inspect::{Inspect, PropertyInfo},
+    reflect::Reflect,
     visitor::{Visit, VisitResult, Visitor},
 };
 use std::{
@@ -164,7 +165,7 @@ impl<T> Display for Handle<T> {
 }
 
 /// Type-erased handle.
-#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Inspect, Visit)]
+#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Inspect, Reflect, Visit)]
 pub struct ErasedHandle {
     /// Index of object in pool.
     #[inspect(read_only)]

@@ -9,6 +9,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -35,7 +36,7 @@ use std::{
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Ball is an idea sphere shape defined by a single parameters - its radius.
-#[derive(Clone, Debug, PartialEq, Visit, Inspect)]
+#[derive(Clone, Debug, PartialEq, Visit, Inspect, Reflect)]
 pub struct BallShape {
     /// Radius of the sphere.
     #[inspect(min_value = 0.0, step = 0.05)]
@@ -49,7 +50,7 @@ impl Default for BallShape {
 }
 
 /// Cylinder shape aligned in Y axis.
-#[derive(Clone, Debug, Visit, Inspect, PartialEq)]
+#[derive(Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
 pub struct CylinderShape {
     /// Half height of the cylinder, actual height will be 2 times bigger.
     #[inspect(min_value = 0.0, step = 0.05)]
@@ -69,7 +70,7 @@ impl Default for CylinderShape {
 }
 
 /// Cone shape aligned in Y axis.
-#[derive(Clone, Debug, Visit, Inspect, PartialEq)]
+#[derive(Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
 pub struct ConeShape {
     /// Half height of the cone, actual height will be 2 times bigger.
     #[inspect(min_value = 0.0, step = 0.05)]
@@ -89,7 +90,7 @@ impl Default for ConeShape {
 }
 
 /// Cuboid shape (box).
-#[derive(Clone, Debug, Visit, Inspect, PartialEq)]
+#[derive(Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
 pub struct CuboidShape {
     /// Half extents of the box. X - half width, Y - half height, Z - half depth.
     /// Actual _size_ will be 2 times bigger.
@@ -105,7 +106,7 @@ impl Default for CuboidShape {
 }
 
 /// Arbitrary capsule shape defined by 2 points (which forms axis) and a radius.
-#[derive(Clone, Debug, Visit, Inspect, PartialEq)]
+#[derive(Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
 pub struct CapsuleShape {
     /// Begin point of the capsule.
     pub begin: Vector3<f32>,
@@ -128,7 +129,7 @@ impl Default for CapsuleShape {
 }
 
 /// Arbitrary segment shape defined by two points.
-#[derive(Clone, Debug, Visit, Inspect, PartialEq)]
+#[derive(Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
 pub struct SegmentShape {
     /// Begin point of the capsule.
     pub begin: Vector3<f32>,
@@ -146,7 +147,7 @@ impl Default for SegmentShape {
 }
 
 /// Arbitrary triangle shape.
-#[derive(Clone, Debug, Visit, Inspect, PartialEq)]
+#[derive(Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
 pub struct TriangleShape {
     /// First point of the triangle shape.
     pub a: Vector3<f32>,
@@ -171,25 +172,25 @@ impl Default for TriangleShape {
 /// # Notes
 ///
 /// Currently there is only one way to set geometry - using a scene node as a source of data.
-#[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Inspect)]
+#[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Inspect, Reflect)]
 pub struct GeometrySource(pub Handle<Node>);
 
 /// Arbitrary triangle mesh shape.
-#[derive(Default, Clone, Debug, Visit, Inspect, PartialEq)]
+#[derive(Default, Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
 pub struct TrimeshShape {
     /// Geometry sources for the shape.
     pub sources: Vec<GeometrySource>,
 }
 
 /// Arbitrary height field shape.
-#[derive(Default, Clone, Debug, Visit, Inspect, PartialEq)]
+#[derive(Default, Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
 pub struct HeightfieldShape {
     /// A handle to terrain scene node.
     pub geometry_source: GeometrySource,
 }
 
 /// Arbitrary convex polyhedron shape.
-#[derive(Default, Clone, Debug, Visit, Inspect, PartialEq)]
+#[derive(Default, Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
 pub struct ConvexPolyhedronShape {
     /// A handle to a mesh node.
     pub geometry_source: GeometrySource,
@@ -306,7 +307,7 @@ impl NumCast for BitMask {
 /// ```ignore
 /// (self.memberships & rhs.filter) != 0 && (rhs.memberships & self.filter) != 0
 /// ```
-#[derive(Visit, Debug, Clone, Copy, PartialEq, Inspect)]
+#[derive(Visit, Debug, Clone, Copy, PartialEq, Inspect, Reflect)]
 pub struct InteractionGroups {
     /// Groups memberships.
     pub memberships: BitMask,
@@ -470,7 +471,7 @@ impl ColliderShape {
 
 /// Collider is a geometric entity that can be attached to a rigid body to allow participate it
 /// participate in contact generation, collision response and proximity queries.
-#[derive(Inspect, Visit, Debug)]
+#[derive(Inspect, Reflect, Visit, Debug)]
 pub struct Collider {
     base: Base,
 

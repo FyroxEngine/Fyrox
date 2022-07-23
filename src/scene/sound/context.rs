@@ -2,7 +2,7 @@
 
 use crate::{
     core::{
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         pool::{Handle, Pool, Ticket},
         visitor::prelude::*,
     },
@@ -22,7 +22,7 @@ use fyrox_sound::{
 use std::time::Duration;
 
 /// Sound context.
-#[derive(Debug, Visit, Inspect)]
+#[derive(Debug, Visit, Inspect, Reflect)]
 pub struct SoundContext {
     master_gain: f32,
     renderer: Renderer,

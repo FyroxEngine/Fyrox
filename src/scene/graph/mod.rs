@@ -26,7 +26,7 @@ use crate::{
     asset::ResourceState,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         instant,
         math::Matrix4Ext,
         pool::{Handle, Pool, Ticket},
@@ -100,7 +100,7 @@ impl GraphPerformanceStatistics {
 pub type NodePool = Pool<Node, NodeContainer>;
 
 /// See module docs.
-#[derive(Debug, Inspect)]
+#[derive(Debug, Inspect, Reflect)]
 pub struct Graph {
     #[inspect(skip)]
     root: Handle<Node>,

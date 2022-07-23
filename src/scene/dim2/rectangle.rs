@@ -6,7 +6,7 @@
 use crate::{
     core::{
         color::Color,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect,inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, Rect},
         pool::Handle,
         uuid::{uuid, Uuid},
@@ -99,7 +99,7 @@ use std::ops::{Deref, DerefMut};
 /// image, but just changing portion for rendering. Keep in mind that the coordinates are normalized
 /// which means `[0; 0]` corresponds to top-left corner of the texture and `[1; 1]` corresponds to
 /// right-bottom corner.
-#[derive(Visit, Inspect, Debug, Clone)]
+#[derive(Visit, Inspect, Reflect, Debug, Clone)]
 pub struct Rectangle {
     base: Base,
 

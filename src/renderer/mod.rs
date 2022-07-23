@@ -37,7 +37,7 @@ use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         instant,
         math::Rect,
         pool::Handle,
@@ -188,6 +188,7 @@ impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
     Serialize,
     Deserialize,
     Inspect,
+    Reflect,
     AsRefStr,
     EnumString,
     EnumVariantNames,
@@ -202,7 +203,7 @@ pub enum ShadowMapPrecision {
 }
 
 /// Cascaded-shadow maps settings.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Inspect)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Inspect, Reflect)]
 pub struct CsmSettings {
     /// Whether cascaded shadow maps enabled or not.
     pub enabled: bool,
@@ -231,7 +232,7 @@ impl Default for CsmSettings {
 
 /// Quality settings allows you to find optimal balance between performance and
 /// graphics quality.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Inspect)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Inspect, Reflect)]
 pub struct QualitySettings {
     /// Point shadows
     /// Size of cube map face of shadow map texture in pixels.

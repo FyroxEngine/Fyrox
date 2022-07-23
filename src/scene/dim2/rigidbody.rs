@@ -13,7 +13,7 @@ use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Matrix4, Vector2},
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         parking_lot::Mutex,
         pool::Handle,
@@ -63,7 +63,7 @@ pub(crate) enum ApplyAction {
 ///
 /// Rigid body that does not move for some time will go asleep. This means that the body will not
 /// move unless it is woken up by some other moving body. This feature allows to save CPU resources.
-#[derive(Visit, Inspect)]
+#[derive(Visit, Inspect, Reflect)]
 pub struct RigidBody {
     base: Base,
 

@@ -5,7 +5,7 @@ use crate::{
     core::{
         algebra::Vector3,
         color::Color,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         visitor::prelude::*,
     },
     scene::particle_system::{Particle, ParticleLimit},
@@ -13,7 +13,7 @@ use crate::{
 use std::ops::Range;
 
 /// See module docs.
-#[derive(Debug, Visit, PartialEq, Inspect)]
+#[derive(Debug, Visit, PartialEq, Inspect, Reflect)]
 pub struct BaseEmitter {
     /// Offset from center of particle system.
     position: Vector3<f32>,

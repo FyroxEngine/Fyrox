@@ -7,7 +7,7 @@ use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
         color::Color,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         uuid::{uuid, Uuid},
@@ -85,7 +85,7 @@ use std::ops::{Deref, DerefMut};
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Visit, Default, Clone, Inspect)]
+#[derive(Debug, Visit, Default, Clone, Inspect, Reflect)]
 pub struct Decal {
     base: Base,
 

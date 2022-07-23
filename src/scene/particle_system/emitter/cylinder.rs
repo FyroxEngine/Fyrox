@@ -4,7 +4,7 @@ use crate::core::numeric_range::RangeExt;
 use crate::{
     core::{
         algebra::Vector3,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         visitor::prelude::*,
     },
     scene::particle_system::{
@@ -18,7 +18,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Clone, Debug, Visit, PartialEq, Inspect)]
+#[derive(Clone, Debug, Visit, PartialEq, Inspect, Reflect)]
 pub struct CylinderEmitter {
     emitter: BaseEmitter,
     #[inspect(min_value = 0.0, step = 0.1)]

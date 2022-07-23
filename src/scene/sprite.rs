@@ -5,7 +5,7 @@
 use crate::{
     core::{
         color::Color,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         uuid::{uuid, Uuid},
@@ -63,7 +63,7 @@ use std::ops::{Deref, DerefMut};
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Inspect, Clone, Visit)]
+#[derive(Debug, Inspect, Reflect, Clone, Visit)]
 pub struct Sprite {
     base: Base,
     #[inspect(getter = "Deref::deref")]

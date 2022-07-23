@@ -3,7 +3,7 @@ use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::InheritError,
     core::{
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         uuid::{uuid, Uuid},
@@ -19,7 +19,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// A simplest possible node which represents point in space.
-#[derive(Clone, Inspect, Default, Debug)]
+#[derive(Clone, Inspect, Reflect, Default, Debug)]
 pub struct Pivot {
     base: Base,
 }

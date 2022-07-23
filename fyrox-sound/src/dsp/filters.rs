@@ -9,6 +9,7 @@
 use crate::dsp::DelayLine;
 use fyrox_core::{
     inspect::{Inspect, PropertyInfo},
+    reflect::Reflect,
     visitor::{Visit, VisitResult, Visitor},
 };
 
@@ -196,7 +197,7 @@ pub enum BiquadKind {
 
 /// Generic second order digital filter.
 /// More info here: <https://ccrma.stanford.edu/~jos/filters/BiQuad_Section.html>
-#[derive(Clone, Debug, Inspect, Visit)]
+#[derive(Clone, Debug, Inspect, Reflect, Visit)]
 pub struct Biquad {
     /// B0 Coefficient of the equation.
     pub b0: f32,

@@ -2,7 +2,10 @@
 
 use std::any::TypeId;
 
-use fyrox_core::inspect::{Inspect, PropertyInfo};
+use fyrox_core::{
+    inspect::{Inspect, PropertyInfo},
+    reflect::Reflect,
+};
 
 fn default_prop() -> PropertyInfo<'static> {
     PropertyInfo {
@@ -22,7 +25,7 @@ fn default_prop() -> PropertyInfo<'static> {
 
 #[test]
 fn inspect_default() {
-    #[derive(Debug, Default, Inspect)]
+    #[derive(Debug, Default, Inspect, Reflect)]
     pub struct Data {
         the_field: String,
         another_field: f32,
@@ -52,13 +55,13 @@ fn inspect_default() {
 
 #[test]
 fn inspect_attributes() {
-    #[derive(Debug, Default, Inspect)]
+    #[derive(Debug, Default, Inspect, Reflect)]
     pub struct AarGee {
         aar: u32,
         gee: u32,
     }
 
-    #[derive(Debug, Default, Inspect)]
+    #[derive(Debug, Default, Inspect, Reflect)]
     pub struct Data {
         // NOTE: Even though this field is skipped, the next field is given index `1` for simplicity
         #[inspect(skip)]
@@ -106,7 +109,7 @@ fn inspect_attributes() {
 
 #[test]
 fn inspect_struct() {
-    #[derive(Debug, Default, Inspect)]
+    #[derive(Debug, Default, Inspect, Reflect)]
     struct Tuple(f32, f32);
 
     let x = Tuple::default();
@@ -130,7 +133,7 @@ fn inspect_struct() {
         ]
     );
 
-    #[derive(Debug, Default, Inspect)]
+    #[derive(Debug, Default, Inspect, Reflect)]
     struct Unit;
 
     let x = Unit::default();
@@ -139,12 +142,12 @@ fn inspect_struct() {
 
 #[test]
 fn inspect_enum() {
-    #[derive(Debug, Inspect)]
+    #[derive(Debug, Inspect, Reflect)]
     pub struct NonCopy {
         inner: u32,
     }
 
-    #[derive(Debug, Inspect)]
+    #[derive(Debug, Inspect, Reflect)]
     pub enum Data {
         Named { x: u32, y: u32, z: NonCopy },
         Tuple(f32, f32),
@@ -229,7 +232,7 @@ fn inspect_enum() {
 #[test]
 fn inspect_prop_key_constants() {
     #[allow(dead_code)]
-    #[derive(Inspect)]
+    #[derive(Inspect, Reflect)]
     pub struct SStruct {
         field: usize,
         #[inspect(skip)]
@@ -242,11 +245,11 @@ fn inspect_prop_key_constants() {
     // hidden properties
     // assert_eq!(SStruct::HIDDEN, "hidden");
 
-    #[derive(Inspect)]
+    #[derive(Inspect, Reflect)]
     pub struct STuple(usize);
     assert_eq!(STuple::F_0, "0");
 
-    #[derive(Inspect)]
+    #[derive(Inspect, Reflect)]
     #[allow(unused)]
     pub enum E {
         Tuple(usize),
@@ -265,6 +268,7 @@ fn inspect_prop_key_constants() {
 fn inspect_with_custom_getter() {
     use std::ops::Deref;
 
+    #[derive(Reflect)]
     struct D<T>(T);
 
     impl<T> Deref for D<T> {
@@ -274,7 +278,7 @@ fn inspect_with_custom_getter() {
         }
     }
 
-    #[derive(Inspect)]
+    #[derive(Inspect, Reflect)]
     struct A(#[inspect(getter = "Deref::deref")] D<u32>);
 
     let a = A(D(10));
@@ -293,7 +297,7 @@ fn inspect_with_custom_getter() {
 
 #[test]
 fn inspect_modified() {
-    #[derive(Inspect)]
+    #[derive(Inspect, Reflect)]
     struct S(#[inspect(is_modified = "clone")] bool);
 
     let s = S(true);

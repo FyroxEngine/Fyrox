@@ -14,7 +14,7 @@ use crate::{
     },
     core::{
         algebra::Vector2,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         pool::{Handle, Pool},
         visitor::prelude::*,
     },
@@ -123,7 +123,7 @@ impl EvaluatePose for PoseNode {
     }
 }
 
-#[derive(Default, Debug, Visit, Clone, Inspect)]
+#[derive(Default, Debug, Visit, Clone, Inspect, Reflect)]
 pub struct BasePoseNodeDefinition {
     pub position: Vector2<f32>,
     #[inspect(skip)]

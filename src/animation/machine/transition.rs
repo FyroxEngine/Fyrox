@@ -1,7 +1,7 @@
 use crate::{
     animation::machine::{state::StateDefinition, State},
     core::{
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::prelude::*,
     },
@@ -28,7 +28,7 @@ pub struct Transition {
     pub(crate) blend_factor: f32,
 }
 
-#[derive(Default, Debug, Visit, Clone, Inspect)]
+#[derive(Default, Debug, Visit, Clone, Inspect, Reflect)]
 pub struct TransitionDefinition {
     #[inspect(description = "The name of the transition, it is used for debug output.")]
     pub name: String,

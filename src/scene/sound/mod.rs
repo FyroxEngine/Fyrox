@@ -4,7 +4,7 @@ use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::Matrix4,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
         uuid::{uuid, Uuid},
@@ -47,7 +47,7 @@ pub mod effect;
 pub mod listener;
 
 /// Sound source.
-#[derive(Visit, Inspect, Debug)]
+#[derive(Visit, Inspect, Reflect, Debug)]
 pub struct Sound {
     base: Base,
     #[inspect(getter = "Deref::deref")]

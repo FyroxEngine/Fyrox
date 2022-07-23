@@ -24,7 +24,7 @@ use crate::{
     asset::{define_new_resource, Resource, ResourceData, ResourceState},
     core::{
         futures::io::Error,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         io::{self, FileLoadError},
         visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
     },
@@ -288,7 +288,7 @@ impl Default for TextureData {
 ///     compression: NoCompression,    
 /// )
 /// ```
-#[derive(Clone, Deserialize, Serialize, Inspect)]
+#[derive(Clone, Deserialize, Serialize, Inspect, Reflect)]
 pub struct TextureImportOptions {
     #[serde(default)]
     pub(crate) minification_filter: TextureMinificationFilter,
@@ -487,6 +487,7 @@ impl Texture {
     Deserialize,
     Serialize,
     Inspect,
+    Reflect,
     EnumVariantNames,
     EnumString,
     AsRefStr,
@@ -521,6 +522,7 @@ impl Default for TextureMagnificationFilter {
     Deserialize,
     Serialize,
     Inspect,
+    Reflect,
     EnumVariantNames,
     EnumString,
     AsRefStr,
@@ -589,6 +591,7 @@ impl Default for TextureMinificationFilter {
     Deserialize,
     Serialize,
     Inspect,
+    Reflect,
     EnumVariantNames,
     EnumString,
     AsRefStr,
@@ -769,6 +772,7 @@ fn ceil_div_4(x: u32) -> u32 {
     Eq,
     Debug,
     Inspect,
+    Reflect,
     EnumVariantNames,
     EnumString,
     AsRefStr,

@@ -36,7 +36,7 @@ use crate::{
         algebra::Vector2,
         color::Color,
         futures::future::join_all,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         instant,
         pool::{Handle, Pool, Ticket},
         sstorage::ImmutableString,
@@ -222,7 +222,7 @@ impl IndexMut<Handle<Navmesh>> for NavMeshContainer {
 }
 
 /// See module docs.
-#[derive(Debug, Inspect)]
+#[derive(Debug, Inspect, Reflect)]
 pub struct Scene {
     /// Graph is main container for all scene nodes. It calculates global transforms for nodes,
     /// updates them and performs all other important work. See `graph` module docs for more

@@ -77,7 +77,7 @@ use crate::{
         algebra::{Vector2, Vector3},
         color::Color,
         color_gradient::ColorGradient,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
         uuid::{uuid, Uuid},
@@ -143,7 +143,7 @@ impl Visit for ParticleLimit {
 }
 
 /// See module docs.
-#[derive(Debug, Visit, Clone, Inspect)]
+#[derive(Debug, Visit, Clone, Inspect, Reflect)]
 pub struct ParticleSystem {
     base: Base,
 

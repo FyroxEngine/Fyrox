@@ -1,5 +1,6 @@
 use crate::core::{
     inspect::{Inspect, PropertyInfo},
+    reflect::Reflect,
     visitor::prelude::*,
 };
 use fxhash::FxHashMap;
@@ -8,7 +9,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 /// Machine parameter.  Machine uses various parameters for specific actions. For example
 /// Rule parameter is used to check where transition from a state to state is possible.
 /// See module docs for example.
-#[derive(Copy, Clone, Debug, Inspect, Visit, EnumVariantNames, EnumString, AsRefStr)]
+#[derive(Copy, Clone, Debug, Inspect, Reflect, Visit, EnumVariantNames, EnumString, AsRefStr)]
 pub enum Parameter {
     /// Weight parameter is used to control blend weight in BlendAnimation node.
     Weight(f32),
@@ -27,7 +28,7 @@ impl Default for Parameter {
 }
 
 /// Specific animation pose weight.
-#[derive(Debug, Visit, Clone, Inspect, EnumVariantNames, EnumString, AsRefStr)]
+#[derive(Debug, Visit, Clone, Inspect, Reflect, EnumVariantNames, EnumString, AsRefStr)]
 pub enum PoseWeight {
     /// Fixed scalar value. Should not be negative (can't even realize what will happen
     /// with negative weight here)
@@ -45,13 +46,13 @@ impl Default for PoseWeight {
 
 pub type ParameterContainer = FxHashMap<String, Parameter>;
 
-#[derive(Debug, Default, Visit, Clone, Inspect)]
+#[derive(Debug, Default, Visit, Clone, Inspect, Reflect)]
 pub struct ParameterDefinition {
     pub name: String,
     pub value: Parameter,
 }
 
-#[derive(Debug, Default, Visit, Clone, Inspect)]
+#[derive(Debug, Default, Visit, Clone, Inspect, Reflect)]
 pub struct ParameterContainerDefinition {
     pub container: Vec<ParameterDefinition>,
 }

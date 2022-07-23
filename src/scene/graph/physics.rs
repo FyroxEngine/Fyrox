@@ -8,7 +8,7 @@ use crate::{
             Vector2, Vector3,
         },
         arrayvec::ArrayVec,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         instant,
         math::Matrix4Ext,
         pool::Handle,
@@ -102,7 +102,7 @@ impl From<rapier2d::geometry::FeatureId> for FeatureId {
 /// between two colliders. Each collider has its combination rule of type `CoefficientCombineRule`,
 /// the rule actually used is given by `max(first_combine_rule, second_combine_rule)`.
 #[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Visit, Inspect, EnumVariantNames, EnumString, AsRefStr,
+    Copy, Clone, Debug, PartialEq, Eq, Visit, Inspect, Reflect, EnumVariantNames, EnumString, AsRefStr,
 )]
 #[repr(u32)]
 pub enum CoefficientCombineRule {
@@ -665,7 +665,7 @@ fn collider_shape_into_native_shape(
 ///
 /// This is almost one-to-one copy of Rapier's integration parameters with custom attributes for
 /// each parameter.
-#[derive(Copy, Clone, Visit, Inspect, Debug)]
+#[derive(Copy, Clone, Visit, Inspect, Reflect, Debug)]
 pub struct IntegrationParameters {
     /// The timestep length (default: `1.0 / 60.0`)
     #[inspect(
@@ -822,7 +822,7 @@ impl Default for IntegrationParameters {
 /// Physics world is responsible for physics simulation in the engine. There is a very few public
 /// methods, mostly for ray casting. You should add physical entities using scene graph nodes, such
 /// as RigidBody, Collider, Joint.
-#[derive(Visit, Inspect)]
+#[derive(Visit, Inspect, Reflect)]
 pub struct PhysicsWorld {
     /// A flag that defines whether physics simulation is enabled or not.
     pub enabled: bool,

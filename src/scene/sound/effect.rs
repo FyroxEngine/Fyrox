@@ -3,7 +3,7 @@
 use crate::{
     core::variable::TemplateVariable,
     core::{
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::prelude::*,
     },
@@ -20,7 +20,7 @@ use std::{
 const DEFAULT_FC: f32 = 0.25615; // 11296 Hz at 44100 Hz sample rate
 
 /// Effect input allows you to setup a source of samples for an effect with an optional filtering.
-#[derive(Visit, Inspect, Debug, Default, Clone)]
+#[derive(Visit, Inspect, Reflect, Debug, Default, Clone)]
 pub struct EffectInput {
     /// A sound node that will be the source of samples for the effect.
     pub sound: Handle<Node>,
@@ -29,7 +29,7 @@ pub struct EffectInput {
 }
 
 /// Base effect contains common properties for every effect (gain, inputs, etc.)
-#[derive(Visit, Inspect, Debug)]
+#[derive(Visit, Inspect, Reflect, Debug)]
 pub struct BaseEffect {
     #[inspect(getter = "Deref::deref")]
     pub(crate) name: TemplateVariable<String>,
@@ -183,7 +183,7 @@ impl BaseEffectBuilder {
 }
 
 /// Reverb effect gives you multiple echoes.
-#[derive(Visit, Inspect, Debug)]
+#[derive(Visit, Inspect, Reflect, Debug)]
 pub struct ReverbEffect {
     pub(crate) base: BaseEffect,
     #[inspect(getter = "Deref::deref")]

@@ -47,7 +47,7 @@
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, UnitQuaternion, Vector3},
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -58,7 +58,7 @@ use crate::{
 use std::{cell::Cell, ops::Deref};
 
 /// See module docs.
-#[derive(Clone, Debug, Inspect)]
+#[derive(Clone, Debug, Inspect, Reflect)]
 pub struct Transform {
     // Indicates that some property has changed and matrix must be
     // recalculated before use. This is some sort of lazy evaluation.

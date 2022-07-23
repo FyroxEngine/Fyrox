@@ -5,7 +5,7 @@
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{ErasedHandle, Handle},
         uuid::Uuid,
@@ -30,7 +30,7 @@ use std::{
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// A handle to scene node that will be controlled by LOD system.
-#[derive(Inspect, Default, Debug, Clone, Copy, PartialEq, Hash)]
+#[derive(Inspect, Reflect, Default, Debug, Clone, Copy, PartialEq, Hash)]
 pub struct LodControlledObject(pub Handle<Node>);
 
 impl Deref for LodControlledObject {
@@ -58,7 +58,7 @@ impl Visit for LodControlledObject {
 /// Normalized distance is a distance in (0; 1) range where 0 - closest to camera,
 /// 1 - farthest. Real distance can be obtained by multiplying normalized distance
 /// with z_far of current projection matrix.
-#[derive(Debug, Default, Clone, Visit, Inspect, PartialEq)]
+#[derive(Debug, Default, Clone, Visit, Inspect, Reflect, PartialEq)]
 pub struct LevelOfDetail {
     begin: f32,
     end: f32,
@@ -122,7 +122,7 @@ impl LevelOfDetail {
 /// Lod group must contain non-overlapping cascades, each cascade with its own set of objects
 /// that belongs to level of detail. Engine does not care if you create overlapping cascades,
 /// it is your responsibility to create non-overlapping cascades.
-#[derive(Debug, Default, Clone, Visit, Inspect, PartialEq)]
+#[derive(Debug, Default, Clone, Visit, Inspect, Reflect, PartialEq)]
 pub struct LodGroup {
     /// Set of cascades.
     pub levels: Vec<LevelOfDetail>,
@@ -139,6 +139,7 @@ pub struct LodGroup {
     Eq,
     Debug,
     Inspect,
+    Reflect,
     AsRefStr,
     EnumString,
     EnumVariantNames,
@@ -205,7 +206,7 @@ impl Visit for Mobility {
 }
 
 /// A property value.
-#[derive(Debug, Visit, Inspect, PartialEq, Clone, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Debug, Visit, Inspect, Reflect, PartialEq, Clone, AsRefStr, EnumString, EnumVariantNames)]
 pub enum PropertyValue {
     /// A node handle.
     ///
@@ -252,7 +253,7 @@ impl Default for PropertyValue {
 }
 
 /// A custom property.
-#[derive(Debug, Visit, Inspect, Default, Clone, PartialEq)]
+#[derive(Debug, Visit, Inspect, Reflect, Default, Clone, PartialEq)]
 pub struct Property {
     /// Name of the property.
     pub name: String,
@@ -297,7 +298,7 @@ pub enum ScriptMessage {
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Inspect)]
+#[derive(Debug, Inspect, Reflect)]
 pub struct Base {
     #[inspect(skip)]
     pub(crate) self_handle: Handle<Node>,

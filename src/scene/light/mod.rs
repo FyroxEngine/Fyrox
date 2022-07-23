@@ -22,7 +22,7 @@ use crate::{
     core::{
         algebra::Vector3,
         color::Color,
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -53,7 +53,7 @@ pub const DEFAULT_SCATTER_B: f32 = 0.03;
 /// Light scene node. It contains common properties of light such as color,
 /// scattering factor (per color channel) and other useful properties. Exact
 /// behavior defined by specific light kind.
-#[derive(Debug, Inspect, Clone, Visit)]
+#[derive(Debug, Inspect, Reflect, Clone, Visit)]
 pub struct BaseLight {
     base: Base,
 

@@ -1,11 +1,12 @@
 use fyrox::{
-    core::inspect::{Inspect, PropertyInfo},
+    core::reflect::Reflect,
     gui::inspector::PropertyChanged,
     handle_object_property_changed,
+    inspect::{Inspect, PropertyInfo},
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default, Inspect)]
+#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default, Inspect, Reflect)]
 pub struct SelectionSettings {
     pub ignore_back_faces: bool,
 }

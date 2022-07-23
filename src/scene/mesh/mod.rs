@@ -13,7 +13,7 @@ use crate::{
     core::variable::{InheritError, TemplateVariable, VariableFlags},
     core::{
         algebra::{Matrix4, Point3, Vector3},
-        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect, inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         uuid::{uuid, Uuid},
@@ -53,7 +53,7 @@ pub mod vertex;
     Hash,
     Debug,
     Visit,
-    Inspect,
+    Inspect, Reflect,
     AsRefStr,
     EnumString,
     EnumVariantNames,
@@ -87,7 +87,7 @@ impl RenderPath {
 }
 
 /// See module docs.
-#[derive(Debug, Inspect, Clone, Visit)]
+#[derive(Debug, Inspect, Reflect, Clone, Visit)]
 pub struct Mesh {
     #[visit(rename = "Common")]
     base: Base,
