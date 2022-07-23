@@ -1,7 +1,5 @@
 // NOTE: The `properties` impl does NOT use Self::PROP_KEY constants, but it's always safe
 
-mod prop_keys;
-
 use convert_case::*;
 use darling::ast;
 use proc_macro2::TokenStream as TokenStream2;
@@ -97,6 +95,7 @@ impl FieldPrefix {
         }
     }
 
+    // FIXME: Use shared function between `Inspect` and `Reflect`
     fn property_key_name(
         &self,
         name: Option<String>,
@@ -116,7 +115,7 @@ impl FieldPrefix {
         });
 
         if let Some(variant) = &self.variant {
-            format!("{}.{}", variant.ident, name)
+            format!("{}@{}", variant.ident, name)
         } else {
             name
         }
@@ -129,11 +128,9 @@ pub fn create_inspect_impl<'f>(
     field_args: impl Iterator<Item = &'f args::FieldArgs>,
     impl_body: TokenStream2,
 ) -> TokenStream2 {
-    let prop_keys_impl = prop_keys::prop_keys_impl(ty_args);
     let trait_impl = self::inspect_trait_impl(ty_args, field_args, impl_body);
 
     quote! {
-        #prop_keys_impl
         #trait_impl
     }
 }

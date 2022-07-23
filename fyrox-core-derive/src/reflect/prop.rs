@@ -46,6 +46,7 @@ pub fn impl_prop_keys<'a>(
     let props = props.map(|p| p.quote());
 
     quote! {
+        #[allow(missing_docs)]
         impl #impl_generics #ty_ident #ty_generics #where_clause {
             #( #props )*
         }

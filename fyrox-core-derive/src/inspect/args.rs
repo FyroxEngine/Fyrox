@@ -35,6 +35,7 @@ pub struct FieldArgs {
     /// #[inspect(name = "<name>")]
     ///
     /// Name override for a field (default: Title Case)
+    // FIXME: Share property key name between Inspect and Reflect
     #[darling(default)]
     pub name: Option<String>,
 
