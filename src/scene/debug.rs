@@ -3,12 +3,10 @@
 //! For more info see [`SceneDrawingContext`]
 
 use crate::core::{
-    algebra::{Matrix4, Point3, Vector3},
-    color::Color,
+    algebra::{Matrix4, Point3, Vector2, Vector3},
+    color::{Color, Hsl},
     math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
 };
-use fyrox_core::algebra::Vector2;
-use rapier3d::na::Vector4;
 use std::ops::Range;
 
 /// Colored line between two points.
@@ -83,7 +81,7 @@ impl rapier2d::pipeline::DebugRenderBackend for SceneDrawingContext {
         self.add_line(Line {
             begin: Vector3::new(a.x, a.y, 0.0),
             end: Vector3::new(b.x, b.y, 0.0),
-            color: Color::from(Vector4::new(color[0], color[1], color[2], color[3])),
+            color: Color::from(Hsl::new(color[0], color[1], color[2])),
         })
     }
 }
@@ -99,7 +97,7 @@ impl rapier3d::pipeline::DebugRenderBackend for SceneDrawingContext {
         self.add_line(Line {
             begin: a.coords,
             end: b.coords,
-            color: Color::from(Vector4::new(color[0], color[1], color[2], color[3])),
+            color: Color::from(Hsl::new(color[0], color[1], color[2])),
         })
     }
 }
