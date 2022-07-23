@@ -16,8 +16,8 @@ use crate::reflect::args;
 /// |----------------|---------------------------|--------------------------|
 /// | Struct         | `FIELD_NAME`              | `field_name`             |
 /// | Struct (tuple) | `F_<number>`              | `<number>`               |
-/// | Enum (struct)  | `VARIANT_NAME_FIELD_NAME  | `VariantName.field_name` |
-/// | Enum (tuple)   | `VARIANT_NAME_F_<number>` | `VariantName.<number>`   |
+/// | Enum (struct)  | `VARIANT_NAME_FIELD_NAME  | `VariantName@field_name` |
+/// | Enum (tuple)   | `VARIANT_NAME_F_<number>` | `VariantName@<number>`   |
 pub struct Property {
     /// Property constant identifier
     pub ident: Ident,
@@ -176,6 +176,6 @@ pub fn enum_prop_value(v: &args::VariantArgs, nth: usize, field: &args::FieldArg
             }
         };
 
-        format!("{}.{}", v.ident, field_ident)
+        format!("{}@{}", v.ident, field_ident)
     })
 }

@@ -31,8 +31,8 @@ fn property_values() {
         Unit,
     }
 
-    assert_eq!(E::TUPLE_F_0, "Tuple.0");
-    assert_eq!(E::STRUCT_FIELD, "Struct.field");
+    assert_eq!(E::TUPLE_F_0, "Tuple@0");
+    assert_eq!(E::STRUCT_FIELD, "Struct@field");
 }
 
 #[test]
