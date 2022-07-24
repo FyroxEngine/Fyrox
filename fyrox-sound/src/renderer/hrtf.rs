@@ -70,6 +70,7 @@ use std::{fmt::Debug, path::PathBuf};
 pub struct HrtfRenderer {
     hrir_path: PathBuf,
     #[inspect(skip)]
+    #[reflect(hidden)]
     processor: Option<hrtf::HrtfProcessor>,
 }
 

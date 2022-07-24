@@ -1,5 +1,8 @@
 //! Runtime reflection
 
+mod external_impls;
+mod std_impls;
+
 pub use fyrox_core_derive::Reflect;
 
 use thiserror::Error;
@@ -196,41 +199,34 @@ impl fmt::Debug for dyn Reflect + 'static + Send {
     }
 }
 
-macro_rules! impl_reflect {
-    ( $($ty:ty),* $(,)? ) => {
-        $(
-            impl Reflect for $ty {
-                fn into_any(self: Box<Self>) -> Box<dyn Any> {
-                    self
-                }
+#[macro_export]
+macro_rules! _blank_reflect {
+    () => {
+        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+            self
+        }
 
-                fn set(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>> {
-                    *self = value.take()?;
-                    Ok(())
-                }
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
 
-                fn as_any(&self) -> &dyn Any {
-                    self
-                }
+        fn as_any_mut(&mut self) -> &mut dyn Any {
+            self
+        }
 
-                fn as_any_mut(&mut self) -> &mut dyn Any {
-                    self
-                }
+        fn as_reflect(&self) -> &dyn Reflect {
+            self
+        }
 
-                fn as_reflect(&self) -> &dyn Reflect {
-                    self
-                }
+        fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
+            self
+        }
 
-                fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
-                    self
-                }
-            }
-        )*
-    }
+        fn set(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>> {
+            *self = value.take()?;
+            Ok(())
+        }
+    };
 }
 
-impl_reflect! {
-    f32, f64,
-    usize, u8, u16, u32, u64,
-    isize, i8, i16, i32, i64,
-}
+pub use _blank_reflect as blank_reflect;

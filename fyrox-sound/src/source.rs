@@ -64,6 +64,7 @@ pub enum Status {
 #[derive(Debug, Clone, Inspect, Reflect, Visit)]
 pub struct SoundSource {
     name: String,
+    #[reflect(hidden)]
     buffer: Option<SoundBufferResource>,
     // Read position in the buffer in samples. Differs from `playback_pos` if buffer is streaming.
     // In case of streaming buffer its maximum value will be some fixed value which is

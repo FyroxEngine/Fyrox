@@ -2,7 +2,7 @@
 //!
 //! For more info see [`TemplateVariable`]
 
-use crate::visitor::prelude::*;
+use crate::{reflect::Reflect, visitor::prelude::*};
 use bitflags::bitflags;
 use std::fmt::Debug;
 use std::{
@@ -13,6 +13,7 @@ use std::{
 
 bitflags! {
     /// A set of possible variable flags.
+    #[derive(Reflect)]
     pub struct VariableFlags: u8 {
         /// Nothing.
         const NONE = 0;
@@ -120,7 +121,7 @@ where
 /// if it hasn't been modified, then just take the new position from the 3D model. This is where template
 /// variable comes into play. If you've change the value of such variable, it will remember changes and the object
 /// will stay on its new position instead of changed.
-#[derive(Debug)]
+#[derive(Debug, Reflect)]
 pub struct TemplateVariable<T> {
     value: T,
     flags: Cell<VariableFlags>,

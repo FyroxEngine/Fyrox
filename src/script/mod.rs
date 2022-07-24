@@ -6,6 +6,7 @@ use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
+        reflect::{blank_reflect, Reflect},
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -283,6 +284,10 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
 /// A wrapper for actual script instance internals, it used by the engine.
 #[derive(Debug)]
 pub struct Script(pub Box<dyn ScriptTrait>);
+
+impl Reflect for Script {
+    blank_reflect!();
+}
 
 impl Deref for Script {
     type Target = dyn ScriptTrait;
