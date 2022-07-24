@@ -53,7 +53,7 @@ impl FbxAnimationCurve {
         if self.keys.is_empty() {
             Log::writeln(
                 MessageKind::Warning,
-                "FBX: Trying to evaluate curve with no keys!".to_owned(),
+                "FBX: Trying to evaluate curve with no keys!",
             );
 
             return 0.0;

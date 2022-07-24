@@ -494,7 +494,7 @@ impl Scene {
 
     /// Synchronizes the state of the scene with external resources.
     pub async fn resolve(&mut self, resource_manager: ResourceManager) {
-        Log::writeln(MessageKind::Information, "Starting resolve...".to_owned());
+        Log::writeln(MessageKind::Information, "Starting resolve...");
 
         self.graph.resolve();
         self.animations.resolve(&self.graph);
@@ -565,8 +565,7 @@ impl Scene {
                     Log::writeln(
                         MessageKind::Warning,
                         "Failed to get surface data patch while resolving lightmap!\
-                    This means that surface has changed and lightmap must be regenerated!"
-                            .to_owned(),
+                    This means that surface has changed and lightmap must be regenerated!",
                     );
                 }
             }
@@ -595,7 +594,7 @@ impl Scene {
             }
         }
 
-        Log::writeln(MessageKind::Information, "Resolve succeeded!".to_owned());
+        Log::writeln(MessageKind::Information, "Resolve succeeded!");
     }
 
     /// Tries to set new lightmap to scene.

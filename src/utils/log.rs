@@ -75,7 +75,11 @@ pub struct Log {
 }
 
 impl Log {
-    fn write_internal(&mut self, kind: MessageKind, mut msg: String) {
+    fn write_internal<S>(&mut self, kind: MessageKind, message: S)
+    where
+        S: AsRef<str>,
+    {
+        let mut msg = message.as_ref().to_owned();
         if kind as u32 >= self.verbosity as u32 {
             for listener in self.listeners.iter() {
                 let _ = listener.send(LogMessage {
@@ -100,33 +104,52 @@ impl Log {
         }
     }
 
-    fn writeln_internal(&mut self, kind: MessageKind, mut msg: String) {
+    fn writeln_internal<S>(&mut self, kind: MessageKind, message: S)
+    where
+        S: AsRef<str>,
+    {
+        let mut msg = message.as_ref().to_owned();
         msg.push('\n');
         self.write_internal(kind, msg)
     }
 
     /// Writes string into console and into file.
-    pub fn write(kind: MessageKind, msg: String) {
+    pub fn write<S>(kind: MessageKind, msg: S)
+    where
+        S: AsRef<str>,
+    {
         LOG.lock().write_internal(kind, msg);
     }
 
     /// Writes line into console and into file.
-    pub fn writeln(kind: MessageKind, msg: String) {
+    pub fn writeln<S>(kind: MessageKind, msg: S)
+    where
+        S: AsRef<str>,
+    {
         LOG.lock().writeln_internal(kind, msg);
     }
 
     /// Writes information message.
-    pub fn info(msg: String) {
+    pub fn info<S>(msg: S)
+    where
+        S: AsRef<str>,
+    {
         Self::writeln(MessageKind::Information, msg)
     }
 
     /// Writes warning message.
-    pub fn warn(msg: String) {
+    pub fn warn<S>(msg: S)
+    where
+        S: AsRef<str>,
+    {
         Self::writeln(MessageKind::Warning, msg)
     }
 
     /// Writes error message.
-    pub fn err(msg: String) {
+    pub fn err<S>(msg: S)
+    where
+        S: AsRef<str>,
+    {
         Self::writeln(MessageKind::Error, msg)
     }
 

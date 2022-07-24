@@ -1149,10 +1149,10 @@ impl Editor {
                     Err(e) => Log::err(format!("Failed to enter play mode: {:?}", e)),
                 }
             } else {
-                Log::err("Save you scene first!".to_owned());
+                Log::err("Save you scene first!");
             }
         } else {
-            Log::err("Cannot enter build mode when there is no scene!".to_owned());
+            Log::err("Cannot enter build mode when there is no scene!");
         }
     }
 
@@ -1181,13 +1181,13 @@ impl Editor {
                         Err(e) => Log::err(format!("Failed to enter build mode: {:?}", e)),
                     }
                 } else {
-                    Log::err("Save you scene first!".to_owned());
+                    Log::err("Save you scene first!");
                 }
             } else {
-                Log::err("Cannot enter build mode when there is no scene!".to_owned());
+                Log::err("Cannot enter build mode when there is no scene!");
             }
         } else {
-            Log::err("Cannot enter build mode when from non-Edit mode!".to_owned());
+            Log::err("Cannot enter build mode when from non-Edit mode!");
         }
     }
 
@@ -1550,7 +1550,7 @@ impl Editor {
                             let err_code = 101;
                             let code = status.code().unwrap_or(err_code);
                             if code == err_code {
-                                Log::info("Failed to build the game!".to_owned());
+                                Log::info("Failed to build the game!");
                                 self.mode = Mode::Edit;
                                 self.on_mode_changed();
                             } else {

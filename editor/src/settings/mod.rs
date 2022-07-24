@@ -279,14 +279,14 @@ impl SettingsWindow {
                         e
                     ));
                 } else {
-                    Log::info("New graphics quality settings were successfully set!".to_owned());
+                    Log::info("New graphics quality settings were successfully set!");
                 }
             }
 
             // Save config
             match settings.save() {
                 Ok(_) => {
-                    Log::info("Settings were successfully saved!".to_owned());
+                    Log::info("Settings were successfully saved!");
                 }
                 Err(e) => {
                     Log::err(format!("Unable to save settings! Reason: {:?}!", e));

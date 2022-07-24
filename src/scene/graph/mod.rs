@@ -633,10 +633,7 @@ impl Graph {
             }
         }
 
-        Log::writeln(
-            MessageKind::Information,
-            "Original handles resolved!".to_owned(),
-        );
+        Log::writeln(MessageKind::Information, "Original handles resolved!");
     }
 
     fn remap_handles(&mut self, instances: &[(Handle<Node>, Model)]) {
@@ -676,7 +673,7 @@ impl Graph {
     }
 
     fn restore_integrity(&mut self) -> Vec<(Handle<Node>, Model)> {
-        Log::writeln(MessageKind::Information, "Checking integrity...".to_owned());
+        Log::writeln(MessageKind::Information, "Checking integrity...");
 
         // Check integrity - if a node was added in resource, it must be also added in the graph.
         // However if a node was deleted in resource, we must leave it the graph because there
@@ -791,7 +788,7 @@ impl Graph {
     }
 
     pub(in crate) fn resolve(&mut self) {
-        Log::writeln(MessageKind::Information, "Resolving graph...".to_owned());
+        Log::writeln(MessageKind::Information, "Resolving graph...");
 
         self.restore_dynamic_node_data();
         self.update_hierarchical_data();
@@ -808,10 +805,7 @@ impl Graph {
             }
         }
 
-        Log::writeln(
-            MessageKind::Information,
-            "Graph resolved successfully!".to_owned(),
-        );
+        Log::writeln(MessageKind::Information, "Graph resolved successfully!");
     }
 
     /// Calculates local and global transform, global visibility for each node in graph.

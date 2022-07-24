@@ -732,7 +732,7 @@ impl Engine {
                 // Build resource dependency graph and resolve it first.
                 ResourceDependencyGraph::new(model, self.resource_manager.clone()).resolve();
 
-                Log::info("Propagating changes to active scenes...".to_string());
+                Log::info("Propagating changes to active scenes...");
 
                 // Resolve all scenes.
                 // TODO: This might be inefficient if there is bunch of scenes loaded,

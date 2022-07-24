@@ -187,7 +187,7 @@ fn build_post_rotation_matrix(post_rotation: UnitQuaternion<f32>) -> Matrix3<f32
         .unwrap_or_else(|| {
             Log::writeln(
                 MessageKind::Warning,
-                "Unable to inverse post rotation matrix! Fallback to identity matrix.".to_owned(),
+                "Unable to inverse post rotation matrix! Fallback to identity matrix.",
             );
             Matrix3::identity()
         })

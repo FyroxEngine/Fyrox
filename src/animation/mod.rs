@@ -372,7 +372,7 @@ impl AnimationPose {
     pub fn apply(&self, graph: &mut Graph) {
         for (node, local_pose) in self.local_poses.iter() {
             if node.is_none() {
-                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!".to_owned());
+                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
             } else {
                 graph[*node]
                     .local_transform_mut()
@@ -391,7 +391,7 @@ impl AnimationPose {
     {
         for (node, local_pose) in self.local_poses.iter() {
             if node.is_none() {
-                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!".to_owned());
+                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
             } else {
                 callback(&mut graph[*node], *node, local_pose);
             }
@@ -824,16 +824,13 @@ impl AnimationContainer {
     }
 
     pub fn resolve(&mut self, graph: &Graph) {
-        Log::writeln(
-            MessageKind::Information,
-            "Resolving animations...".to_owned(),
-        );
+        Log::writeln(MessageKind::Information, "Resolving animations...");
         for animation in self.pool.iter_mut() {
             animation.resolve(graph)
         }
         Log::writeln(
             MessageKind::Information,
-            "Animations resolved successfully!".to_owned(),
+            "Animations resolved successfully!",
         );
     }
 
