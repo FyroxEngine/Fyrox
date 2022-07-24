@@ -9,6 +9,7 @@
 #![allow(clippy::from_over_into)]
 #![allow(clippy::new_without_default)]
 
+pub use copypasta;
 pub use fyrox_core as core;
 
 pub mod bit;

@@ -4,14 +4,17 @@ use fyrox::{
     gui::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
+        copypasta::ClipboardProvider,
         dropdown_list::DropdownListMessage,
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         list_view::{ListView, ListViewBuilder, ListViewMessage},
+        menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
         message::{MessageDirection, UiMessage},
+        popup::{Placement, PopupBuilder, PopupMessage},
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
+        text::{Text, TextBuilder},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode,
@@ -20,6 +23,56 @@ use fyrox::{
 };
 use std::sync::mpsc::Receiver;
 
+struct ContextMenu {
+    menu: Handle<UiNode>,
+    copy: Handle<UiNode>,
+    placement_target: Handle<UiNode>,
+}
+
+impl ContextMenu {
+    pub fn new(ctx: &mut BuildContext) -> Self {
+        let copy;
+        let menu = PopupBuilder::new(WidgetBuilder::new())
+            .with_content(
+                StackPanelBuilder::new(WidgetBuilder::new().with_child({
+                    copy = MenuItemBuilder::new(WidgetBuilder::new())
+                        .with_content(MenuItemContent::text("Copy"))
+                        .build(ctx);
+                    copy
+                }))
+                .build(ctx),
+            )
+            .build(ctx);
+
+        Self {
+            menu,
+            copy,
+            placement_target: Default::default(),
+        }
+    }
+
+    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+        if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
+            if message.destination() == self.menu {
+                self.placement_target = *target;
+            }
+        } else if let Some(MenuItemMessage::Click) = message.data() {
+            if message.destination() == self.copy {
+                if let Some(field) = engine
+                    .user_interface
+                    .try_get_node(self.placement_target)
+                    .and_then(|n| n.query_component::<Text>())
+                {
+                    let text = field.text();
+                    if let Some(clipboard) = engine.user_interface.clipboard_mut() {
+                        let _ = clipboard.set_contents(text);
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub struct LogPanel {
     pub window: Handle<UiNode>,
     messages: Handle<UiNode>,
@@ -27,6 +80,7 @@ pub struct LogPanel {
     receiver: Receiver<LogMessage>,
     severity: MessageKind,
     severity_list: Handle<UiNode>,
+    context_menu: ContextMenu,
 }
 
 impl LogPanel {
@@ -102,6 +156,8 @@ impl LogPanel {
             )
             .build(ctx);
 
+        let context_menu = ContextMenu::new(ctx);
+
         Self {
             window,
             messages,
@@ -109,6 +165,7 @@ impl LogPanel {
             receiver: message_receiver,
             severity: MessageKind::Warning,
             severity_list,
+            context_menu,
         }
     }
 
@@ -137,6 +194,8 @@ impl LogPanel {
                 };
             }
         }
+
+        self.context_menu.handle_ui_message(message, engine);
     }
 
     pub fn update(&mut self, engine: &mut GameEngine) {
@@ -167,6 +226,7 @@ impl LogPanel {
                     .with_child(
                         TextBuilder::new(
                             WidgetBuilder::new()
+                                .with_context_menu(self.context_menu.menu)
                                 .with_margin(Thickness::uniform(1.0))
                                 .with_foreground(Brush::Solid(match msg.kind {
                                     MessageKind::Information => Color::opaque(210, 210, 210),
