@@ -1,5 +1,7 @@
 //! Test cases for `fyrox_core::reflect::Reflect`
 
+use std::ops::{Deref, DerefMut};
+
 use fyrox_core::reflect::*;
 
 #[allow(dead_code)]
@@ -23,8 +25,7 @@ pub enum Enum {
 }
 
 #[test]
-fn property_values() {
-    // NOTE: property names are in snake_case
+fn property_constants() {
     assert_eq!(Struct::FIELD, "field");
 
     // hidden fields don't expose their keys
@@ -38,7 +39,7 @@ fn property_values() {
 }
 
 #[test]
-fn field_accessors() {
+fn reflect_field_accessors() {
     let mut s = Struct {
         field: 10,
         hidden: 10,
@@ -75,6 +76,64 @@ fn field_accessors() {
     assert_eq!(e_tuple.get_field::<usize>(Enum::TUPLE_F_0), Some(&30));
     *e_tuple.get_field_mut::<usize>(Enum::TUPLE_F_0).unwrap() = 40usize;
     assert_eq!(e_tuple.get_field::<usize>(Enum::TUPLE_F_0), Some(&40));
+}
+
+#[test]
+fn reflect_containers() {
+    struct DerefContainer<T> {
+        data: T,
+    }
+
+    impl<T> Deref for DerefContainer<T> {
+        type Target = T;
+        fn deref(&self) -> &Self::Target {
+            &self.data
+        }
+    }
+
+    impl<T> DerefMut for DerefContainer<T> {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.data
+        }
+    }
+
+    #[derive(Reflect)]
+    struct X {
+        #[reflect(deref)]
+        container: DerefContainer<Struct>,
+    }
+
+    let x = X {
+        container: DerefContainer {
+            data: Struct {
+                field: 0,
+                hidden: 1,
+            },
+        },
+    };
+
+    assert!(x
+        .cast_resolve_path::<usize>("container.data.field")
+        .is_err());
+
+    assert_eq!(x.cast_resolve_path::<usize>("container.field"), Ok(&0));
+
+    #[derive(Reflect)]
+    #[reflect(bounds = "T: Reflect")]
+    struct B<T> {
+        #[reflect(deref)]
+        data: Box<T>,
+    }
+
+    let b = B {
+        data: Box::new(Struct {
+            field: 10,
+            hidden: 11,
+        }),
+    };
+
+    assert_eq!(b.cast_resolve_path::<usize>("data.field"), Ok(&10));
+    assert!(x.cast_resolve_path::<usize>("data.hidden").is_err());
 }
 
 #[test]

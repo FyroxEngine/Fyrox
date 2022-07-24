@@ -18,16 +18,18 @@ use crate::reflect::args;
 /// | Struct (tuple) | `F_<number>`              | `<number>`               |
 /// | Enum (struct)  | `VARIANT_NAME_FIELD_NAME  | `VariantName@field_name` |
 /// | Enum (tuple)   | `VARIANT_NAME_F_<number>` | `VariantName@<number>`   |
-pub struct Property {
+pub struct Property<'a> {
     /// Property constant identifier
     pub ident: Ident,
     /// Property constant value
     pub value: String,
     /// Identifier or the index of the field the property refers to
-    pub field_ident: TokenStream2,
+    pub field_quote: TokenStream2,
+    /// Original field
+    pub field: &'a args::FieldArgs,
 }
 
-impl Property {
+impl<'a> Property<'a> {
     pub fn quote(&self) -> TokenStream2 {
         let Property { ident, value, .. } = self;
 
@@ -37,8 +39,8 @@ impl Property {
     }
 }
 
-pub fn impl_prop_keys<'a>(
-    props: impl Iterator<Item = &'a Property>,
+pub fn impl_prop_constants<'a, 'b: 'a>(
+    props: impl Iterator<Item = &'a Property<'b>>,
     ty_ident: &Ident,
     generics: &Generics,
 ) -> TokenStream2 {
@@ -63,29 +65,39 @@ fn field_ident(nth: usize, field: &args::FieldArgs) -> TokenStream2 {
     }
 }
 
-pub fn enum_prop(variant: &args::VariantArgs, nth: usize, field: &args::FieldArgs) -> Property {
+pub fn enum_prop<'a>(
+    variant: &args::VariantArgs,
+    nth: usize,
+    field: &'a args::FieldArgs,
+) -> Property<'a> {
     let ident = self::enum_prop_ident(variant, nth, field);
     let value = self::enum_prop_value(variant, nth, field);
 
     Property {
         ident,
         value,
-        field_ident: self::field_ident(nth, field),
+        field_quote: self::field_ident(nth, field),
+        field,
     }
 }
 
-pub fn struct_prop(ty_args: &args::TypeArgs, nth: usize, field: &args::FieldArgs) -> Property {
+pub fn struct_prop<'a>(
+    ty_args: &args::TypeArgs,
+    nth: usize,
+    field: &'a args::FieldArgs,
+) -> Property<'a> {
     let ident = self::struct_prop_ident(ty_args, nth, field);
     let value = self::struct_prop_value(nth, field);
 
     Property {
         ident,
         value,
-        field_ident: self::field_ident(nth, field),
+        field_quote: self::field_ident(nth, field),
+        field,
     }
 }
 
-pub fn props(ty_args: &args::TypeArgs) -> Vec<Property> {
+pub fn props(ty_args: &args::TypeArgs) -> Vec<Property<'_>> {
     match &ty_args.data {
         ast::Data::Struct(field_args) => field_args
             .fields

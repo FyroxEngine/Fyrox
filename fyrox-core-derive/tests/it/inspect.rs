@@ -146,14 +146,7 @@ fn inspect_enum() {
 
     #[derive(Debug, Inspect)]
     pub enum Data {
-        Named {
-            #[allow(unused)]
-            x: u32,
-            #[allow(unused)]
-            y: u32,
-            #[allow(unused)]
-            z: NonCopy,
-        },
+        Named { x: u32, y: u32, z: NonCopy },
         Tuple(f32, f32),
         Unit,
     }
