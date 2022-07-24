@@ -13,10 +13,11 @@ use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Matrix4, Vector2},
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         parking_lot::Mutex,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -68,51 +69,66 @@ pub struct RigidBody {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) lin_vel: TemplateVariable<Vector2<f32>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) ang_vel: TemplateVariable<f32>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) lin_damping: TemplateVariable<f32>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) ang_damping: TemplateVariable<f32>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) body_type: TemplateVariable<RigidBodyType>,
 
     #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) mass: TemplateVariable<f32>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) rotation_locked: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) translation_locked: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) ccd_enabled: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) can_sleep: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) dominance: TemplateVariable<i8>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) gravity_scale: TemplateVariable<f32>,
 
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) sleeping: bool,
 
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) native: Cell<RigidBodyHandle>,
 
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) actions: Mutex<VecDeque<ApplyAction>>,
 }
 

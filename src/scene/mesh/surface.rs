@@ -8,10 +8,11 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         hash_combine,
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         math::TriangleDefinition,
         parking_lot::Mutex,
         pool::{ErasedHandle, Handle},
+        reflect::Reflect,
         sparse::AtomicIndex,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -44,7 +45,7 @@ pub struct SurfaceData {
     // If true - indicates that surface was generated and does not have reference
     // resource. Procedural data will be serialized.
     is_procedural: bool,
-    pub(in crate) cache_entry: AtomicIndex<CacheEntry<framework::geometry_buffer::GeometryBuffer>>,
+    pub(crate) cache_entry: AtomicIndex<CacheEntry<framework::geometry_buffer::GeometryBuffer>>,
 }
 
 impl SurfaceData {
@@ -943,7 +944,9 @@ impl VertexWeightSet {
 pub struct Surface {
     // Wrapped into option to be able to implement Default for serialization.
     // In normal conditions it must never be None!
+    #[reflect(hidden)]
     data: Option<Arc<Mutex<SurfaceData>>>,
+    #[reflect(hidden)]
     material: Arc<Mutex<Material>>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be
@@ -953,6 +956,7 @@ pub struct Surface {
     /// associated with vertex in `bones` array and store it as bone index in vertex.
     #[inspect(skip)]
     #[visit(skip)]
+    #[reflect(hidden)]
     pub vertex_weights: Vec<VertexWeightSet>,
     /// Array of handle to scene nodes which are used as bones.
     pub bones: Vec<Handle<Node>>,

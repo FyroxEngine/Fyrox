@@ -14,6 +14,7 @@ use crate::{
 use fyrox_core::math::lerpf;
 use fyrox_core::{
     inspect::{Inspect, PropertyInfo},
+    reflect::Reflect,
     visitor::{Visit, VisitResult, Visitor},
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
@@ -24,7 +25,7 @@ pub mod hrtf;
 // This "large size difference" is not a problem because renderer
 // can be only one at a time on context.
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, AsRefStr, EnumString, EnumVariantNames, Visit)]
+#[derive(Debug, Clone, AsRefStr, EnumString, EnumVariantNames, Visit, Reflect)]
 pub enum Renderer {
     /// Stateless default renderer.
     Default,
@@ -84,7 +85,7 @@ fn render_with_params(
     }
 }
 
-pub(in crate) fn render_source_default(
+pub(crate) fn render_source_default(
     source: &mut SoundSource,
     listener: &Listener,
     distance_model: DistanceModel,
@@ -108,7 +109,7 @@ pub(in crate) fn render_source_default(
     source.last_right_gain = Some(right_gain);
 }
 
-pub(in crate) fn render_source_2d_only(source: &mut SoundSource, mix_buffer: &mut [(f32, f32)]) {
+pub(crate) fn render_source_2d_only(source: &mut SoundSource, mix_buffer: &mut [(f32, f32)]) {
     let gain = (1.0 - source.spatial_blend()) * source.gain();
     let left_gain = gain * (1.0 + source.panning());
     let right_gain = gain * (1.0 - source.panning());

@@ -7,9 +7,10 @@ use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
         color::Color,
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -90,15 +91,19 @@ pub struct Decal {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     diffuse_texture: TemplateVariable<Option<Texture>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     normal_texture: TemplateVariable<Option<Texture>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     color: TemplateVariable<Color>,
 
     #[inspect(min_value = 0.0, getter = "Deref::deref")]
+    #[reflect(deref)]
     layer: TemplateVariable<u8>,
 }
 

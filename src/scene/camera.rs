@@ -19,9 +19,10 @@ use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, ray::Ray, Rect},
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -131,7 +132,9 @@ impl OrthographicProjection {
 /// objects will look smaller with increasing distance.
 /// 2) Orthographic projection most useful for 2D games, objects won't look smaller with increasing
 /// distance.  
-#[derive(Inspect, Reflect, Clone, Debug, PartialEq, Visit, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(
+    Inspect, Reflect, Clone, Debug, PartialEq, Visit, AsRefStr, EnumString, EnumVariantNames,
+)]
 pub enum Projection {
     /// See [`PerspectiveProjection`] docs.
     Perspective(PerspectiveProjection),
@@ -216,7 +219,9 @@ impl Default for Projection {
 
 /// Exposure is a parameter that describes how many light should be collected for one
 /// frame. The higher the value, the more brighter the final frame will be and vice versa.
-#[derive(Visit, Copy, Clone, PartialEq, Debug, Inspect, Reflect, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(
+    Visit, Copy, Clone, PartialEq, Debug, Inspect, Reflect, AsRefStr, EnumString, EnumVariantNames,
+)]
 pub enum Exposure {
     /// Automatic exposure based on the frame luminance. High luminance values will result
     /// in lower exposure levels and vice versa. This is default option.
@@ -256,40 +261,51 @@ pub struct Camera {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     projection: TemplateVariable<Projection>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     viewport: TemplateVariable<Rect<f32>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     enabled: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(field = "as_ref()?.deref()", field_mut = "as_mut()?.deref_mut()")]
     sky_box: TemplateVariable<Option<Box<SkyBox>>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     environment: TemplateVariable<Option<Texture>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     exposure: TemplateVariable<Exposure>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     color_grading_lut: TemplateVariable<Option<ColorGradingLut>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     color_grading_enabled: TemplateVariable<bool>,
 
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     view_matrix: Matrix4<f32>,
 
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     projection_matrix: Matrix4<f32>,
 
     /// Visibility cache allows you to quickly check if object is visible from the camera or not.
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub visibility_cache: VisibilityCache,
 }
 
@@ -668,7 +684,6 @@ pub enum ColorGradingLutCreationError {
 pub struct ColorGradingLut {
     #[visit(skip)]
     lut: Option<Texture>,
-    #[inspect(skip)]
     unwrapped_lut: Option<Texture>,
 }
 
@@ -1011,21 +1026,21 @@ impl SkyBoxBuilder {
 #[derive(Debug, Clone, Default, PartialEq, Inspect, Reflect, Visit)]
 pub struct SkyBox {
     /// Texture for front face.
-    pub(in crate) front: Option<Texture>,
+    pub(crate) front: Option<Texture>,
     /// Texture for back face.
-    pub(in crate) back: Option<Texture>,
+    pub(crate) back: Option<Texture>,
     /// Texture for left face.
-    pub(in crate) left: Option<Texture>,
+    pub(crate) left: Option<Texture>,
     /// Texture for right face.
-    pub(in crate) right: Option<Texture>,
+    pub(crate) right: Option<Texture>,
     /// Texture for top face.
-    pub(in crate) top: Option<Texture>,
+    pub(crate) top: Option<Texture>,
     /// Texture for bottom face.
-    pub(in crate) bottom: Option<Texture>,
+    pub(crate) bottom: Option<Texture>,
     /// Cubemap texture
     #[inspect(skip)]
     #[visit(skip)]
-    pub(in crate) cubemap: Option<Texture>,
+    pub(crate) cubemap: Option<Texture>,
 }
 
 /// An error that may occur during skybox creation.

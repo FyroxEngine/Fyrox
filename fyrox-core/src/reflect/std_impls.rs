@@ -1,6 +1,11 @@
 //! `Reflect` implementations for `std` types
 
-use std::{any::Any, cell::Cell};
+use std::{
+    any::Any,
+    cell::Cell,
+    ops::Range,
+    time::{Duration, Instant},
+};
 
 use fyrox_core_derive::impl_reflect;
 
@@ -23,6 +28,7 @@ impl_blank_reflect! {
     bool,
     String,
     std::path::PathBuf,
+    Duration, Instant,
 }
 
 macro_rules! impl_reflect_tuple {
@@ -52,16 +58,23 @@ impl<const N: usize, T: Reflect> Reflect for [T; N] {
 }
 
 impl_reflect! {
-    pub struct Vec<T: 'static>;
+    pub struct Vec<T>;
 }
 
 impl_reflect! {
-    pub struct Cell<T: 'static>;
+    pub struct Cell<T>;
 }
 
 impl_reflect! {
-    pub enum Option<T: 'static> {
+    pub enum Option<T> {
         Some(T),
         None
+    }
+}
+
+impl_reflect! {
+    pub struct Range<Idx> {
+        pub start: Idx,
+        pub end: Idx,
     }
 }

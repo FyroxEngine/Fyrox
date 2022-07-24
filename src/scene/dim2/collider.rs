@@ -6,9 +6,10 @@ use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::Vector2,
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -160,7 +161,7 @@ impl Inspect for ColliderShape {
 }
 
 /// Possible collider shapes.
-#[derive(Clone, Debug, Visit, AsRefStr, PartialEq, EnumString, EnumVariantNames)]
+#[derive(Clone, Debug, Visit, Reflect, AsRefStr, PartialEq, EnumString, EnumVariantNames)]
 pub enum ColliderShape {
     /// See [`BallShape`] docs.
     Ball(BallShape),
@@ -245,35 +246,45 @@ pub struct Collider {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) shape: TemplateVariable<ColliderShape>,
 
     #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) friction: TemplateVariable<f32>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) density: TemplateVariable<Option<f32>>,
 
     #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) restitution: TemplateVariable<f32>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) is_sensor: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) collision_groups: TemplateVariable<InteractionGroups>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) solver_groups: TemplateVariable<InteractionGroups>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) friction_combine_rule: TemplateVariable<CoefficientCombineRule>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) restitution_combine_rule: TemplateVariable<CoefficientCombineRule>,
 
     #[visit(skip)]
     #[inspect(skip)]
-    pub(in crate) native: Cell<ColliderHandle>,
+    #[reflect(hidden)]
+    pub(crate) native: Cell<ColliderHandle>,
 }
 
 impl_directly_inheritable_entity_trait!(Collider;

@@ -405,6 +405,8 @@ impl TextureImportOptions {
 
 define_new_resource!(
     /// See module docs.
+    #[derive(Reflect)]
+    #[reflect(hide_all)]
     Texture<TextureData, TextureError>
 );
 

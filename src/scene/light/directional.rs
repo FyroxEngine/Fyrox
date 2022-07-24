@@ -11,9 +11,10 @@ use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -34,7 +35,9 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub const CSM_NUM_CASCADES: usize = 3;
 
 /// Frustum split options defines how to split camera's frustum to generate cascades.
-#[derive(Inspect, Reflect, Clone, Visit, Debug, PartialEq, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(
+    Inspect, Reflect, Clone, Visit, Debug, PartialEq, AsRefStr, EnumString, EnumVariantNames,
+)]
 pub enum FrustumSplitOptions {
     /// Camera frustum will be split into a [`CSM_NUM_CASCADES`] splits where each sub-frustum
     /// will have fixed far plane location.
@@ -107,6 +110,7 @@ pub struct DirectionalLight {
     base_light: BaseLight,
     /// See [`CsmOptions`].
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub csm_options: TemplateVariable<CsmOptions>,
 }
 

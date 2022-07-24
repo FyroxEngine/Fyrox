@@ -6,9 +6,10 @@
 use crate::{
     core::{
         color::Color,
-        reflect::Reflect,inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, Rect},
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         variable::{InheritError, TemplateVariable},
         visitor::prelude::*,
@@ -104,12 +105,15 @@ pub struct Rectangle {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     texture: TemplateVariable<Option<Texture>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     color: TemplateVariable<Color>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     uv_rect: TemplateVariable<Rect<f32>>,
 }
 

@@ -64,6 +64,8 @@ pub struct ModelData {
 
 define_new_resource!(
     /// See module docs.
+    #[derive(Reflect)]
+    #[reflect(hide_all)]
     Model<ModelData, ModelLoadError>
 );
 

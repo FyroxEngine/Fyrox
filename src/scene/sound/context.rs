@@ -2,8 +2,9 @@
 
 use crate::{
     core::{
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         pool::{Handle, Pool, Ticket},
+        reflect::Reflect,
         visitor::prelude::*,
     },
     resource::model::Model,
@@ -29,12 +30,14 @@ pub struct SoundContext {
     distance_model: DistanceModel,
     paused: bool,
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) effects: Pool<Effect>,
     #[inspect(read_only)]
     // A model resource from which this context was instantiated from.
     pub(crate) resource: Option<Model>,
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) native: fyrox_sound::context::SoundContext,
 }
 

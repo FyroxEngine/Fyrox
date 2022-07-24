@@ -8,7 +8,7 @@ use std::fmt::Debug;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
-    ops::Deref,
+    ops::{Deref, DerefMut},
 };
 
 bitflags! {
@@ -121,7 +121,7 @@ where
 /// if it hasn't been modified, then just take the new position from the 3D model. This is where template
 /// variable comes into play. If you've change the value of such variable, it will remember changes and the object
 /// will stay on its new position instead of changed.
-#[derive(Debug, Reflect)]
+#[derive(Debug)]
 pub struct TemplateVariable<T> {
     value: T,
     flags: Cell<VariableFlags>,
@@ -268,6 +268,12 @@ impl<T> Deref for TemplateVariable<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.value
+    }
+}
+
+impl<T> DerefMut for TemplateVariable<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.value
     }
 }
 

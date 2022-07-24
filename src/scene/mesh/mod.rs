@@ -13,9 +13,10 @@ use crate::{
     core::variable::{InheritError, TemplateVariable, VariableFlags},
     core::{
         algebra::{Matrix4, Point3, Vector3},
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -53,7 +54,8 @@ pub mod vertex;
     Hash,
     Debug,
     Visit,
-    Inspect, Reflect,
+    Inspect,
+    Reflect,
     AsRefStr,
     EnumString,
     EnumVariantNames,
@@ -93,24 +95,30 @@ pub struct Mesh {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     surfaces: TemplateVariable<Vec<Surface>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     render_path: TemplateVariable<RenderPath>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     decal_layer_index: TemplateVariable<u8>,
 
     #[inspect(skip)]
     #[visit(skip)]
+    #[reflect(hidden)]
     local_bounding_box: Cell<AxisAlignedBoundingBox>,
 
     #[inspect(skip)]
     #[visit(skip)]
+    #[reflect(hidden)]
     local_bounding_box_dirty: Cell<bool>,
 
     #[inspect(skip)]
     #[visit(skip)]
+    #[reflect(hidden)]
     world_bounding_box: Cell<AxisAlignedBoundingBox>,
 }
 

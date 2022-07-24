@@ -12,11 +12,12 @@ use crate::{
     algebra::{Matrix3, Matrix4, Scalar, UnitQuaternion, Vector2, Vector3},
     math::ray::IntersectionResult,
     num_traits::{NumAssign, Zero},
+    reflect::Reflect,
     visitor::{Visit, VisitResult, Visitor},
 };
 use std::ops::{Index, IndexMut};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Reflect)]
 pub struct Rect<T>
 where
     T: NumAssign + Scalar + PartialOrd + Copy,

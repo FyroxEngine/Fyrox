@@ -26,10 +26,11 @@ use crate::{
     asset::ResourceState,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         instant,
         math::Matrix4Ext,
         pool::{Handle, Pool, Ticket},
+        reflect::Reflect,
         visitor::{Visit, VisitResult, Visitor},
     },
     resource::model::{Model, NodeMapping},
@@ -103,12 +104,15 @@ pub type NodePool = Pool<Node, NodeContainer>;
 #[derive(Debug, Inspect, Reflect)]
 pub struct Graph {
     #[inspect(skip)]
+    #[reflect(hidden)]
     root: Handle<Node>,
 
     #[inspect(skip)]
+    #[reflect(hidden)]
     pool: NodePool,
 
     #[inspect(skip)]
+    #[reflect(hidden)]
     stack: Vec<Handle<Node>>,
 
     /// Backing physics "world". It is responsible for the physics simulation.
@@ -122,12 +126,16 @@ pub struct Graph {
 
     /// Performance statistics of a last [`Graph::update`] call.
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub performance_statistics: GraphPerformanceStatistics,
 
     /// Allows you to "subscribe" for graph events.
+    #[reflect(hidden)]
     pub event_broadcaster: GraphEventBroadcaster,
 
+    #[reflect(hidden)]
     pub(crate) script_message_sender: Sender<ScriptMessage>,
+    #[reflect(hidden)]
     pub(crate) script_message_receiver: Receiver<ScriptMessage>,
 }
 

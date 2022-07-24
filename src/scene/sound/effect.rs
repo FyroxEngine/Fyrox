@@ -3,8 +3,9 @@
 use crate::{
     core::variable::TemplateVariable,
     core::{
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         pool::Handle,
+        reflect::Reflect,
         visitor::prelude::*,
     },
     define_with,
@@ -32,13 +33,17 @@ pub struct EffectInput {
 #[derive(Visit, Inspect, Reflect, Debug)]
 pub struct BaseEffect {
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) name: TemplateVariable<String>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) gain: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) inputs: TemplateVariable<Vec<EffectInput>>,
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) native: Cell<Handle<fyrox_sound::effects::Effect>>,
 }
 
@@ -187,12 +192,16 @@ impl BaseEffectBuilder {
 pub struct ReverbEffect {
     pub(crate) base: BaseEffect,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) dry: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) wet: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) fc: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) decay_time: TemplateVariable<f32>,
 }
 

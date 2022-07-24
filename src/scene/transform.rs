@@ -47,7 +47,8 @@
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, UnitQuaternion, Vector3},
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect,
         variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -55,7 +56,10 @@ use crate::{
     scene::DirectlyInheritableEntity,
     utils::log::{Log, MessageKind},
 };
-use std::{cell::Cell, ops::Deref};
+use std::{
+    cell::Cell,
+    ops::{Deref, DerefMut},
+};
 
 /// See module docs.
 #[derive(Clone, Debug, Inspect, Reflect)]
@@ -63,6 +67,7 @@ pub struct Transform {
     // Indicates that some property has changed and matrix must be
     // recalculated before use. This is some sort of lazy evaluation.
     #[inspect(skip)]
+    #[reflect(hidden)]
     dirty: Cell<bool>,
 
     #[inspect(
@@ -70,6 +75,7 @@ pub struct Transform {
         description = "Local scale of the transform",
         is_modified = "is_modified"
     )]
+    #[reflect(deref)]
     local_scale: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
@@ -77,6 +83,7 @@ pub struct Transform {
         description = "Local position of the transform",
         is_modified = "is_modified"
     )]
+    #[reflect(deref)]
     local_position: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
@@ -84,6 +91,7 @@ pub struct Transform {
         description = "Local rotation of the transform",
         is_modified = "is_modified"
     )]
+    #[reflect(deref)]
     local_rotation: TemplateVariable<UnitQuaternion<f32>>,
 
     #[inspect(
@@ -91,6 +99,7 @@ pub struct Transform {
         description = "Pre rotation of the transform. Applied before local rotation.",
         is_modified = "is_modified"
     )]
+    #[reflect(deref)]
     pre_rotation: TemplateVariable<UnitQuaternion<f32>>,
 
     #[inspect(
@@ -98,6 +107,7 @@ pub struct Transform {
         description = "Post rotation of the transform. Applied after local rotation.",
         is_modified = "is_modified"
     )]
+    #[reflect(deref)]
     post_rotation: TemplateVariable<UnitQuaternion<f32>>,
 
     #[inspect(
@@ -105,6 +115,7 @@ pub struct Transform {
         description = "Rotation offset of the transform.",
         is_modified = "is_modified"
     )]
+    #[reflect(deref)]
     rotation_offset: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
@@ -112,6 +123,7 @@ pub struct Transform {
         description = "Rotation pivot of the transform.",
         is_modified = "is_modified"
     )]
+    #[reflect(deref)]
     rotation_pivot: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
@@ -119,6 +131,7 @@ pub struct Transform {
         description = "Scale offset of the transform.",
         is_modified = "is_modified"
     )]
+    #[reflect(deref)]
     scaling_offset: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
@@ -126,13 +139,16 @@ pub struct Transform {
         description = "Scale pivot of the transform.",
         is_modified = "is_modified"
     )]
+    #[reflect(deref)]
     scaling_pivot: TemplateVariable<Vector3<f32>>,
 
     // Combined transform. Final result of combination of other properties.
     #[inspect(skip)]
+    #[reflect(hidden)]
     matrix: Cell<Matrix4<f32>>,
 
     #[inspect(skip)]
+    #[reflect(hidden)]
     post_rotation_matrix: Matrix3<f32>,
 }
 

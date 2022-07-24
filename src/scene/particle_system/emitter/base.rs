@@ -5,7 +5,8 @@ use crate::{
     core::{
         algebra::Vector3,
         color::Color,
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect,
         visitor::prelude::*,
     },
     scene::particle_system::{Particle, ParticleLimit},
@@ -44,12 +45,15 @@ pub struct BaseEmitter {
     pub(crate) alive_particles: u32,
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     time: f32,
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) particles_to_spawn: u32,
     resurrect_particles: bool,
     #[inspect(skip)]
+    #[reflect(hidden)]
     spawned_particles: u64,
 }
 

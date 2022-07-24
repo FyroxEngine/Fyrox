@@ -21,9 +21,10 @@ use crate::scene::graph::map::NodeHandleMap;
 use crate::{
     core::variable::{InheritError, TemplateVariable},
     core::{
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -45,9 +46,11 @@ pub struct PointLight {
     base_light: BaseLight,
 
     #[inspect(min_value = 0.0, step = 0.001, getter = "Deref::deref")]
+    #[reflect(deref)]
     shadow_bias: TemplateVariable<f32>,
 
     #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    #[reflect(deref)]
     radius: TemplateVariable<f32>,
 }
 

@@ -22,7 +22,8 @@ use crate::{
     core::{
         algebra::Vector3,
         color::Color,
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -58,19 +59,24 @@ pub struct BaseLight {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     color: TemplateVariable<Color>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     cast_shadows: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
     #[visit(rename = "ScatterFactor")]
+    #[reflect(deref)]
     scatter: TemplateVariable<Vector3<f32>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     scatter_enabled: TemplateVariable<bool>,
 
     #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    #[reflect(deref)]
     intensity: TemplateVariable<f32>,
 }
 

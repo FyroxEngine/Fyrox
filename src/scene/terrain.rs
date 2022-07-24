@@ -6,12 +6,13 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         arrayvec::ArrayVec,
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         math::{
             aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect, TriangleDefinition,
         },
         parking_lot::Mutex,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::{prelude::*, PodVecView},
     },
@@ -45,6 +46,7 @@ use std::{
 #[derive(Default, Debug, Clone, Visit, Inspect, Reflect)]
 pub struct Layer {
     /// Material of the layer.
+    #[reflect(hidden)]
     pub material: Arc<Mutex<Material>>,
 
     /// Name of the mask sampler in the material.
@@ -55,7 +57,8 @@ pub struct Layer {
     pub mask_property_name: String,
 
     #[inspect(skip)]
-    pub(in crate) chunk_masks: Vec<Texture>,
+    #[reflect(hidden)]
+    pub(crate) chunk_masks: Vec<Texture>,
 }
 
 impl PartialEq for Layer {
@@ -257,9 +260,11 @@ pub struct Terrain {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     layers: TemplateVariable<Vec<Layer>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     decal_layer_index: TemplateVariable<u8>,
 
     #[inspect(read_only)]
@@ -271,14 +276,17 @@ pub struct Terrain {
     #[inspect(read_only)]
     height_map_resolution: f32,
     #[inspect(skip)]
+    #[reflect(hidden)]
     chunks: Vec<Chunk>,
     #[inspect(read_only)]
     width_chunks: u32,
     #[inspect(read_only)]
     length_chunks: u32,
     #[inspect(skip)]
+    #[reflect(hidden)]
     bounding_box_dirty: Cell<bool>,
     #[inspect(skip)]
+    #[reflect(hidden)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
 }
 

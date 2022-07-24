@@ -2,9 +2,10 @@
 
 use crate::{
     core::{
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         variable::{InheritError, TemplateVariable},
         visitor::prelude::*,
@@ -85,7 +86,7 @@ impl Default for PrismaticJoint {
 }
 
 /// The exact kind of the joint.
-#[derive(Clone, Debug, PartialEq, Visit)]
+#[derive(Clone, Debug, PartialEq, Visit, Reflect)]
 pub enum JointParams {
     /// See [`BallJoint`] for more info.
     BallJoint(BallJoint),
@@ -118,24 +119,30 @@ pub struct Joint {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) params: TemplateVariable<JointParams>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) body1: TemplateVariable<Handle<Node>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) body2: TemplateVariable<Handle<Node>>,
 
     #[inspect(getter = "Deref::deref")]
     #[visit(optional)] // Backward compatibility
+    #[reflect(deref)]
     pub(crate) contacts_enabled: TemplateVariable<bool>,
 
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) native: Cell<ImpulseJointHandle>,
 
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) need_rebind: Cell<bool>,
 }
 

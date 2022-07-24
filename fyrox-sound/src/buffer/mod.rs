@@ -10,7 +10,7 @@
 
 use crate::buffer::{generic::GenericBuffer, streaming::StreamingBuffer};
 use crate::error::SoundError;
-use fyrox_core::{io::FileLoadError, visitor::prelude::*};
+use fyrox_core::{io::FileLoadError, reflect::Reflect, visitor::prelude::*};
 use fyrox_resource::{define_new_resource, Resource, ResourceData, ResourceState};
 use std::fmt::Debug;
 use std::time::Duration;
@@ -161,6 +161,8 @@ pub enum SoundBufferResourceLoadError {
 
 define_new_resource!(
     /// A shared sound buffer resource.
+    #[derive(Reflect)]
+    #[reflect(hide_all)]
     SoundBufferResource<SoundBufferState, SoundBufferResourceLoadError>
 );
 

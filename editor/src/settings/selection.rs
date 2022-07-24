@@ -1,8 +1,7 @@
 use fyrox::{
-    core::reflect::Reflect,
+    core::{inspect::prelude::*, reflect::Reflect},
     gui::inspector::PropertyChanged,
     handle_object_property_changed,
-    inspect::{Inspect, PropertyInfo},
 };
 use serde::{Deserialize, Serialize};
 

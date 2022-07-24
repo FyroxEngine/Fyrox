@@ -36,9 +36,10 @@ use crate::{
         algebra::Vector2,
         color::Color,
         futures::future::join_all,
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         instant,
         pool::{Handle, Pool, Ticket},
+        reflect::Reflect,
         sstorage::ImmutableString,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
@@ -232,6 +233,7 @@ pub struct Scene {
     /// Animations container controls all animation on scene. Each animation can have tracks which
     /// has handles to graph nodes. See `animation` module docs for more info.
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub animations: AnimationContainer,
 
     /// Texture to draw scene to. If empty, scene will be drawn on screen directly.
@@ -242,22 +244,27 @@ pub struct Scene {
     /// monitor. Other usage could be previewer of models, like pictogram of character
     /// in real-time strategies, in other words there are plenty of possible uses.
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub render_target: Option<Texture>,
 
     /// Drawing context for simple graphics.
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub drawing_context: SceneDrawingContext,
 
     /// A container for navigational meshes.
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub navmeshes: NavMeshContainer,
 
     /// Current lightmap.
     #[inspect(skip)]
+    #[reflect(hidden)]
     lightmap: Option<Lightmap>,
 
     /// Performance statistics from last `update` call.
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub performance_statistics: PerformanceStatistics,
 
     /// Color of ambient lighting.
@@ -274,6 +281,7 @@ pub struct Scene {
 
     /// A container for animation blending state machines.
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub animation_machines: AnimationMachineContainer,
 }
 
@@ -783,7 +791,7 @@ pub struct SceneContainer {
 }
 
 impl SceneContainer {
-    pub(in crate) fn new(sound_engine: Arc<Mutex<SoundEngine>>) -> Self {
+    pub(crate) fn new(sound_engine: Arc<Mutex<SoundEngine>>) -> Self {
         Self {
             pool: Pool::new(),
             sound_engine,
