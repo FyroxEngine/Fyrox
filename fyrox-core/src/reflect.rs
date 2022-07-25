@@ -144,7 +144,7 @@ fn resolve_stem<'r, 'p>(
 ) -> Result<&'r dyn Reflect, ReflectPathError<'p>> {
     reflect
         .field(path)
-        .ok_or_else(|| ReflectPathError::InvalidComponent { s: path })
+        .ok_or(ReflectPathError::InvalidComponent { s: path })
 }
 
 fn resolve_stem_mut<'r, 'p>(
@@ -153,7 +153,7 @@ fn resolve_stem_mut<'r, 'p>(
 ) -> Result<&'r mut dyn Reflect, ReflectPathError<'p>> {
     reflect
         .field_mut(path)
-        .ok_or_else(|| ReflectPathError::InvalidComponent { s: path })
+        .ok_or(ReflectPathError::InvalidComponent { s: path })
 }
 
 /// Type-erased API

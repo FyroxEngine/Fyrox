@@ -37,10 +37,11 @@ use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         instant,
         math::Rect,
         pool::Handle,
+        reflect::Reflect,
         scope_profile,
     },
     engine::resource_manager::{container::event::ResourceEvent, ResourceManager},

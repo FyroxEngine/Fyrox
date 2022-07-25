@@ -5,7 +5,8 @@ use crate::core::numeric_range::RangeExt;
 use crate::{
     core::{
         algebra::Vector3,
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect,
         visitor::prelude::*,
     },
     scene::particle_system::{

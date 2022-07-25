@@ -5,8 +5,9 @@ use crate::{
     },
     core::{
         algebra::Vector2,
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         pool::{Handle, Pool},
+        reflect::Reflect,
         visitor::prelude::*,
     },
 };

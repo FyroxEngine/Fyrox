@@ -1,8 +1,9 @@
 use crate::{
     animation::machine::{state::StateDefinition, State},
     core::{
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         pool::Handle,
+        reflect::Reflect,
         visitor::prelude::*,
     },
 };

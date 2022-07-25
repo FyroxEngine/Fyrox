@@ -67,7 +67,7 @@ impl TypeArgs {
     }
 }
 
-#[derive(FromField, Clone, PartialEq)]
+#[derive(FromField, Clone, PartialEq, Eq)]
 #[darling(attributes(reflect))]
 pub struct FieldArgs {
     pub ident: Option<Ident>,

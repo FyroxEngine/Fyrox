@@ -21,8 +21,9 @@ use crate::{
     animation::{Animation, AnimationContainer},
     asset::{define_new_resource, Resource, ResourceData},
     core::{
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         pool::Handle,
+        reflect::Reflect,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::{

@@ -24,8 +24,9 @@ use crate::{
     asset::{define_new_resource, Resource, ResourceData, ResourceState},
     core::{
         futures::io::Error,
-        reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         io::{self, FileLoadError},
+        reflect::Reflect,
         visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
     },
     engine::resource_manager::options::ImportOptions,
