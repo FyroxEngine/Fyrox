@@ -1,43 +1,175 @@
-use crate::asset::inspector::handlers::sound::SoundBufferImportOptionsHandler;
-use crate::utils::window_content;
 use crate::{
     asset::{
         inspector::{
-            handlers::{model::ModelImportOptionsHandler, texture::TextureImportOptionsHandler},
+            handlers::{
+                model::ModelImportOptionsHandler, sound::SoundBufferImportOptionsHandler,
+                texture::TextureImportOptionsHandler,
+            },
             AssetInspector,
         },
         item::AssetItemBuilder,
     },
     gui::AssetItemMessage,
     preview::PreviewPanel,
+    utils::window_content,
     AssetItem, AssetKind, GameEngine, Message, Mode,
 };
 use fyrox::{
     core::{
         color::Color, futures::executor::block_on, make_relative_path, pool::Handle, scope_profile,
     },
+    engine::Engine,
     gui::{
         border::BorderBuilder,
         brush::Brush,
+        copypasta::ClipboardProvider,
         file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
         grid::{Column, GridBuilder, Row},
+        menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
         message::{MessageDirection, UiMessage},
+        popup::{Placement, PopupBuilder, PopupMessage},
         scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
+        stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
         wrap_panel::WrapPanelBuilder,
-        HorizontalAlignment, Orientation, UiNode, UserInterface, VerticalAlignment, BRUSH_DARK,
+        BuildContext, HorizontalAlignment, Orientation, UiNode, UserInterface, VerticalAlignment,
+        BRUSH_DARK,
     },
+    utils::log::Log,
 };
 use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
+    process::Command,
     sync::mpsc::Sender,
 };
 
 mod inspector;
 pub mod item;
+
+struct ContextMenu {
+    menu: Handle<UiNode>,
+    open: Handle<UiNode>,
+    copy_path: Handle<UiNode>,
+    copy_file_name: Handle<UiNode>,
+    show_in_explorer: Handle<UiNode>,
+    delete: Handle<UiNode>,
+    placement_target: Handle<UiNode>,
+}
+
+fn execute_command(command: &mut Command) {
+    match command.spawn() {
+        Ok(mut process) => Log::verify(process.wait()),
+        Err(err) => Log::err(format!(
+            "Failed to show asset item in explorer. Reason: {:?}",
+            err
+        )),
+    }
+}
+
+fn show_in_explorer<P: AsRef<OsStr>>(path: P) {
+    execute_command(Command::new("explorer").arg("/select,").arg(path))
+}
+
+fn open_in_explorer<P: AsRef<OsStr>>(path: P) {
+    execute_command(Command::new("explorer").arg(path))
+}
+
+fn put_path_to_clipboard(engine: &mut Engine, path: &OsStr) {
+    if let Some(clipboard) = engine.user_interface.clipboard_mut() {
+        Log::verify(clipboard.set_contents(path.to_string_lossy().to_string()));
+    }
+}
+
+impl ContextMenu {
+    pub fn new(ctx: &mut BuildContext) -> Self {
+        let delete;
+        let show_in_explorer;
+        let open;
+        let copy_path;
+        let copy_file_name;
+        let menu = PopupBuilder::new(WidgetBuilder::new())
+            .with_content(
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            open = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Open"))
+                                .build(ctx);
+                            open
+                        })
+                        .with_child({
+                            copy_path = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Copy Full Path"))
+                                .build(ctx);
+                            copy_path
+                        })
+                        .with_child({
+                            copy_file_name = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Copy File Name"))
+                                .build(ctx);
+                            copy_file_name
+                        })
+                        .with_child({
+                            delete = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Delete"))
+                                .build(ctx);
+                            delete
+                        })
+                        .with_child({
+                            show_in_explorer = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Show In Explorer"))
+                                .build(ctx);
+                            show_in_explorer
+                        }),
+                )
+                .build(ctx),
+            )
+            .build(ctx);
+
+        Self {
+            menu,
+            open,
+            copy_path,
+            delete,
+            show_in_explorer,
+            placement_target: Default::default(),
+            copy_file_name,
+        }
+    }
+
+    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+        if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
+            if message.destination() == self.menu {
+                self.placement_target = *target;
+            }
+        } else if let Some(MenuItemMessage::Click) = message.data() {
+            if let Some(item) = engine
+                .user_interface
+                .try_get_node(self.placement_target)
+                .and_then(|n| n.cast::<AssetItem>())
+            {
+                if message.destination() == self.delete {
+                    Log::verify(std::fs::remove_file(&item.path))
+                } else if message.destination() == self.show_in_explorer {
+                    show_in_explorer(&item.path)
+                } else if message.destination() == self.open {
+                    open_in_explorer(&item.path)
+                } else if message.destination() == self.copy_path {
+                    if let Ok(canonical_path) = item.path.canonicalize() {
+                        put_path_to_clipboard(engine, canonical_path.as_os_str())
+                    }
+                } else if message.destination() == self.copy_file_name {
+                    if let Some(file_name) = item.path.clone().file_name() {
+                        put_path_to_clipboard(engine, file_name)
+                    }
+                }
+            }
+        }
+    }
+}
 
 pub struct AssetBrowser {
     pub window: Handle<UiNode>,
@@ -49,6 +181,7 @@ pub struct AssetBrowser {
     items: Vec<Handle<UiNode>>,
     item_to_select: Option<PathBuf>,
     inspector: AssetInspector,
+    context_menu: ContextMenu,
 }
 
 impl AssetBrowser {
@@ -62,7 +195,6 @@ impl AssetBrowser {
         let folder_browser;
         let selected_properties;
         let scroll_panel;
-
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
             .with_title(WindowTitle::text("Asset Browser"))
@@ -149,6 +281,8 @@ impl AssetBrowser {
             )
             .build(ctx);
 
+        let context_menu = ContextMenu::new(ctx);
+
         Self {
             window,
             content_panel,
@@ -159,6 +293,7 @@ impl AssetBrowser {
             items: Default::default(),
             item_to_select: None,
             inspector,
+            context_menu,
         }
     }
 
@@ -186,6 +321,7 @@ impl AssetBrowser {
 
         self.inspector.handle_ui_message(message, engine);
         self.preview.handle_message(message, engine);
+        self.context_menu.handle_ui_message(message, engine);
 
         let ui = &mut engine.user_interface;
 
@@ -231,8 +367,12 @@ impl AssetBrowser {
                     &mut engine.user_interface,
                     sender,
                 ),
-                AssetKind::Shader => {}
-                AssetKind::Absm => {}
+                AssetKind::Shader => {
+                    Log::warn("Implement me!");
+                }
+                AssetKind::Absm => {
+                    Log::warn("Implement me!");
+                }
             }
         } else if let Some(FileBrowserMessage::Path(path)) = message.data::<FileBrowserMessage>() {
             if message.destination() == self.folder_browser
@@ -268,9 +408,11 @@ impl AssetBrowser {
 
                         let entry_path = make_relative_path(entry.path());
                         if !entry_path.is_dir() && entry_path.extension().map_or(false, check_ext) {
-                            let asset_item = AssetItemBuilder::new(WidgetBuilder::new())
-                                .with_path(entry_path.clone())
-                                .build(&mut ui.build_ctx(), engine.resource_manager.clone());
+                            let asset_item = AssetItemBuilder::new(
+                                WidgetBuilder::new().with_context_menu(self.context_menu.menu),
+                            )
+                            .with_path(entry_path.clone())
+                            .build(&mut ui.build_ctx(), engine.resource_manager.clone());
 
                             self.items.push(asset_item);
 
