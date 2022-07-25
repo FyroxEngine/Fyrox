@@ -10,6 +10,8 @@ use crate::{
     world::graph::selection::GraphSelection,
     GameEngine,
 };
+use fyrox::core::math::frustum::Frustum;
+use fyrox::scene::camera::Camera;
 use fyrox::{
     core::{
         algebra::Point3,
@@ -277,6 +279,11 @@ impl EditorScene {
                         }
                     }
                 }
+            } else if let Some(camera) = node.query_component_ref::<Camera>() {
+                ctx.draw_frustum(
+                    &Frustum::from(camera.view_projection_matrix()).unwrap_or_default(),
+                    Color::ORANGE,
+                );
             }
 
             for &child in node.children() {
