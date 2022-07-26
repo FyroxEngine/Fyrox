@@ -7,6 +7,7 @@ use crate::core::{
     color::{Color, Hsl},
     math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
 };
+use fyrox_core::algebra::UnitQuaternion;
 use std::ops::Range;
 
 /// Colored line between two points.
@@ -409,6 +410,33 @@ impl SceneDrawingContext {
         });
     }
 
+    /// Draws a sphere as a set of three circles around each axes.
+    pub fn draw_wire_sphere(
+        &mut self,
+        position: Vector3<f32>,
+        radius: f32,
+        segments: usize,
+        color: Color,
+    ) {
+        self.draw_circle(position, radius, segments, Matrix4::identity(), color);
+        self.draw_circle(
+            position,
+            radius,
+            segments,
+            UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
+                .to_homogeneous(),
+            color,
+        );
+        self.draw_circle(
+            position,
+            radius,
+            segments,
+            UnitQuaternion::from_axis_angle(&Vector3::y_axis(), 90.0f32.to_radians())
+                .to_homogeneous(),
+            color,
+        );
+    }
+
     /// Draws a circle at given world-space position with given radius. `segments` could be used
     /// to control quality of the circle.
     pub fn draw_circle(
@@ -620,7 +648,7 @@ impl SceneDrawingContext {
         }
     }
 
-    /// Draws a wire cone with given parameters.
+    /// Draws a wire Y oriented cone where the tip is on +Y with given parameters.
     pub fn draw_cone(
         &mut self,
         sides: usize,
@@ -628,6 +656,7 @@ impl SceneDrawingContext {
         h: f32,
         transform: Matrix4<f32>,
         color: Color,
+        cap: bool,
     ) {
         let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
 
@@ -645,18 +674,20 @@ impl SceneDrawingContext {
             let z1 = r * ny1;
 
             // back cap
-            self.draw_triangle(
-                transform
-                    .transform_point(&Point3::new(0.0, -half_height, 0.0))
-                    .coords,
-                transform
-                    .transform_point(&Point3::new(x0, -half_height, z0))
-                    .coords,
-                transform
-                    .transform_point(&Point3::new(x1, -half_height, z1))
-                    .coords,
-                color,
-            );
+            if cap {
+                self.draw_triangle(
+                    transform
+                        .transform_point(&Point3::new(0.0, -half_height, 0.0))
+                        .coords,
+                    transform
+                        .transform_point(&Point3::new(x0, -half_height, z0))
+                        .coords,
+                    transform
+                        .transform_point(&Point3::new(x1, -half_height, z1))
+                        .coords,
+                    color,
+                );
+            }
 
             // sides
             self.draw_triangle(
