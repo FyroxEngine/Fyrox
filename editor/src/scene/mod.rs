@@ -10,21 +10,21 @@ use crate::{
     world::graph::selection::GraphSelection,
     GameEngine,
 };
-use fyrox::core::math::frustum::Frustum;
-use fyrox::scene::camera::Camera;
 use fyrox::{
     core::{
-        algebra::Point3,
+        algebra::{Matrix4, Point3, UnitQuaternion, Vector3},
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext, TriangleDefinition},
         pool::{Handle, Pool},
         visitor::Visitor,
     },
     engine::Engine,
     scene::{
         base::BaseBuilder,
+        camera::Camera,
         debug::{Line, SceneDrawingContext},
         graph::Graph,
+        light::{point::PointLight, spot::SpotLight},
         mesh::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
             Mesh,
@@ -283,6 +283,24 @@ impl EditorScene {
                 ctx.draw_frustum(
                     &Frustum::from(camera.view_projection_matrix()).unwrap_or_default(),
                     Color::ORANGE,
+                );
+            } else if let Some(light) = node.query_component_ref::<PointLight>() {
+                ctx.draw_wire_sphere(light.global_position(), light.radius(), 30, Color::GREEN);
+            } else if let Some(light) = node.query_component_ref::<SpotLight>() {
+                ctx.draw_cone(
+                    16,
+                    (light.full_cone_angle() * 0.5).tan() * light.distance(),
+                    light.distance(),
+                    Matrix4::new_translation(&light.global_position())
+                        * UnitQuaternion::from_matrix(&light.global_transform().basis())
+                            .to_homogeneous()
+                        * Matrix4::new_translation(&Vector3::new(
+                            0.0,
+                            -light.distance() * 0.5,
+                            0.0,
+                        )),
+                    Color::GREEN,
+                    false,
                 );
             }
 
