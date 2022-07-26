@@ -69,6 +69,13 @@ visual clutter.
 - `style` parameter for project template generator - it defines which scene will be used by default - either `2d` 
 or `3d`
 - Ability to select portion of the texture to render in `Rectangle` nodes.
+- Ability to generate script skeleton for template generator
+- HSL color model
+- Ability to copy log enties to the clipboard
+- `Log` API improvements
+- Visualize cameras in the editor
+- Context menu for asset items, it is now possible to open, delete, show-in-explorer items and also
+to copy file name and full file path to the clipboard.
 
 # 0.26
 
