@@ -50,7 +50,7 @@ pub struct Line {
 ///     ctx.clear_lines();
 ///
 ///     // Draw something.
-///     ctx.draw_cone(20, 1.0, 2.0, Matrix4::identity(), Color::WHITE);
+///     ctx.draw_cone(20, 1.0, 2.0, Matrix4::identity(), Color::WHITE, true);
 /// }
 ///
 /// ```
