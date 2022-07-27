@@ -32,12 +32,6 @@ pub struct FieldArgs {
     #[darling(default)]
     pub skip: bool,
 
-    /// #[inspect(name = "<name>")]
-    ///
-    /// Name override for a field (default: Title Case)
-    #[darling(default)]
-    pub name: Option<String>,
-
     /// #[inspect(display_name = "<name>")]
     ///
     /// A human-readable name.

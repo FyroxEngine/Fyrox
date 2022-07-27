@@ -11,6 +11,7 @@ use fyrox::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
+        reflect::Reflect,
         scope_profile,
     },
     gui::{
@@ -52,7 +53,7 @@ pub struct SettingsWindow {
     inspector: Handle<UiNode>,
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Default, Debug, Inspect)]
+#[derive(Deserialize, Serialize, PartialEq, Clone, Default, Debug, Inspect, Reflect)]
 pub struct Settings {
     pub selection: SelectionSettings,
     pub graphics: GraphicsSettings,

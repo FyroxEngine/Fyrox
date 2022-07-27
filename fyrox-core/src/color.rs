@@ -1,11 +1,12 @@
 use crate::{
     algebra::{Vector3, Vector4},
+    reflect::Reflect,
     visitor::{Visit, VisitResult, Visitor},
 };
 use num_traits::Zero;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-#[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Visit)]
+#[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Visit, Reflect)]
 #[repr(C)]
 pub struct Color {
     // Do not change order! OpenGL requires this order!

@@ -8,6 +8,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         variable::{InheritError, TemplateVariable},
         visitor::{Visit, VisitResult, Visitor},
@@ -63,16 +64,20 @@ use std::ops::{Deref, DerefMut};
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Inspect, Clone, Visit)]
+#[derive(Debug, Inspect, Reflect, Clone, Visit)]
 pub struct Sprite {
     base: Base,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     texture: TemplateVariable<Option<Texture>>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     color: TemplateVariable<Color>,
     #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    #[reflect(deref)]
     size: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     rotation: TemplateVariable<f32>,
 }
 

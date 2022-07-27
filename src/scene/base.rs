@@ -8,6 +8,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{ErasedHandle, Handle},
+        reflect::Reflect,
         uuid::Uuid,
         variable::{InheritError, TemplateVariable},
         visitor::{Visit, VisitError, VisitResult, Visitor},
@@ -30,7 +31,7 @@ use std::{
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// A handle to scene node that will be controlled by LOD system.
-#[derive(Inspect, Default, Debug, Clone, Copy, PartialEq, Hash)]
+#[derive(Inspect, Reflect, Default, Debug, Clone, Copy, PartialEq, Hash)]
 pub struct LodControlledObject(pub Handle<Node>);
 
 impl Deref for LodControlledObject {
@@ -58,7 +59,7 @@ impl Visit for LodControlledObject {
 /// Normalized distance is a distance in (0; 1) range where 0 - closest to camera,
 /// 1 - farthest. Real distance can be obtained by multiplying normalized distance
 /// with z_far of current projection matrix.
-#[derive(Debug, Default, Clone, Visit, Inspect, PartialEq)]
+#[derive(Debug, Default, Clone, Visit, Inspect, Reflect, PartialEq)]
 pub struct LevelOfDetail {
     begin: f32,
     end: f32,
@@ -122,7 +123,7 @@ impl LevelOfDetail {
 /// Lod group must contain non-overlapping cascades, each cascade with its own set of objects
 /// that belongs to level of detail. Engine does not care if you create overlapping cascades,
 /// it is your responsibility to create non-overlapping cascades.
-#[derive(Debug, Default, Clone, Visit, Inspect, PartialEq)]
+#[derive(Debug, Default, Clone, Visit, Inspect, Reflect, PartialEq)]
 pub struct LodGroup {
     /// Set of cascades.
     pub levels: Vec<LevelOfDetail>,
@@ -139,6 +140,7 @@ pub struct LodGroup {
     Eq,
     Debug,
     Inspect,
+    Reflect,
     AsRefStr,
     EnumString,
     EnumVariantNames,
@@ -205,7 +207,9 @@ impl Visit for Mobility {
 }
 
 /// A property value.
-#[derive(Debug, Visit, Inspect, PartialEq, Clone, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(
+    Debug, Visit, Inspect, Reflect, PartialEq, Clone, AsRefStr, EnumString, EnumVariantNames,
+)]
 pub enum PropertyValue {
     /// A node handle.
     ///
@@ -252,7 +256,7 @@ impl Default for PropertyValue {
 }
 
 /// A custom property.
-#[derive(Debug, Visit, Inspect, Default, Clone, PartialEq)]
+#[derive(Debug, Visit, Inspect, Reflect, Default, Clone, PartialEq)]
 pub struct Property {
     /// Name of the property.
     pub name: String,
@@ -297,84 +301,102 @@ pub enum ScriptMessage {
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Inspect)]
+#[derive(Debug, Inspect, Reflect)]
 pub struct Base {
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) self_handle: Handle<Node>,
 
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) script_message_sender: Option<Sender<ScriptMessage>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) name: TemplateVariable<String>,
 
     pub(crate) local_transform: Transform,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     visibility: TemplateVariable<bool>,
 
     // Maximum amount of Some(time) that node will "live" or None
     // if node has undefined lifetime.
     #[inspect(skip)] // TEMPORARILY HIDDEN. It causes crashes when set from the editor.
-    pub(in crate) lifetime: TemplateVariable<Option<f32>>,
+    #[reflect(hidden)]
+    pub(crate) lifetime: TemplateVariable<Option<f32>>,
 
     #[inspect(min_value = 0.0, max_value = 1.0, step = 0.1, getter = "Deref::deref")]
+    #[reflect(deref)]
     depth_offset: TemplateVariable<f32>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     lod_group: TemplateVariable<Option<LodGroup>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     mobility: TemplateVariable<Mobility>,
 
+    #[reflect(deref)]
     #[inspect(getter = "Deref::deref")]
     tag: TemplateVariable<String>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     cast_shadows: TemplateVariable<bool>,
 
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub properties: TemplateVariable<Vec<Property>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     frustum_culling: TemplateVariable<bool>,
 
     #[inspect(skip)]
-    pub(in crate) transform_modified: Cell<bool>,
+    #[reflect(hidden)]
+    pub(crate) transform_modified: Cell<bool>,
 
     // When `true` it means that this node is instance of `resource`.
     // More precisely - this node is root of whole descendant nodes
     // hierarchy which was instantiated from resource.
     #[inspect(read_only)]
-    pub(in crate) is_resource_instance_root: bool,
+    pub(crate) is_resource_instance_root: bool,
 
     #[inspect(skip)]
-    pub(in crate) global_visibility: Cell<bool>,
+    #[reflect(hidden)]
+    pub(crate) global_visibility: Cell<bool>,
 
     #[inspect(skip)]
-    pub(in crate) parent: Handle<Node>,
+    #[reflect(hidden)]
+    pub(crate) parent: Handle<Node>,
 
     #[inspect(skip)]
-    pub(in crate) children: Vec<Handle<Node>>,
+    #[reflect(hidden)]
+    pub(crate) children: Vec<Handle<Node>>,
 
     #[inspect(skip)]
-    pub(in crate) global_transform: Cell<Matrix4<f32>>,
+    #[reflect(hidden)]
+    pub(crate) global_transform: Cell<Matrix4<f32>>,
 
     // Bone-specific matrix. Non-serializable.
     #[inspect(skip)]
-    pub(in crate) inv_bind_pose_transform: Matrix4<f32>,
+    #[reflect(hidden)]
+    pub(crate) inv_bind_pose_transform: Matrix4<f32>,
 
     // A resource from which this node was instantiated from, can work in pair
     // with `original` handle to get corresponding node from resource.
     #[inspect(read_only)]
-    pub(in crate) resource: Option<Model>,
+    pub(crate) resource: Option<Model>,
 
     // Handle to node in scene of model resource from which this node
     // was instantiated from.
     #[inspect(read_only)]
-    pub(in crate) original_handle_in_resource: Handle<Node>,
+    pub(crate) original_handle_in_resource: Handle<Node>,
 
     // Current script of the scene node.
     pub(crate) script: Option<Script>,

@@ -10,6 +10,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -85,20 +86,24 @@ use std::ops::{Deref, DerefMut};
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Visit, Default, Clone, Inspect)]
+#[derive(Debug, Visit, Default, Clone, Inspect, Reflect)]
 pub struct Decal {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     diffuse_texture: TemplateVariable<Option<Texture>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     normal_texture: TemplateVariable<Option<Texture>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     color: TemplateVariable<Color>,
 
     #[inspect(min_value = 0.0, getter = "Deref::deref")]
+    #[reflect(deref)]
     layer: TemplateVariable<u8>,
 }
 

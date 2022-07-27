@@ -5,6 +5,7 @@ use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
+        reflect::Reflect,
         visitor::prelude::*,
     },
     define_with,
@@ -20,7 +21,7 @@ use std::{
 const DEFAULT_FC: f32 = 0.25615; // 11296 Hz at 44100 Hz sample rate
 
 /// Effect input allows you to setup a source of samples for an effect with an optional filtering.
-#[derive(Visit, Inspect, Debug, Default, Clone)]
+#[derive(Visit, Inspect, Reflect, Debug, Default, Clone)]
 pub struct EffectInput {
     /// A sound node that will be the source of samples for the effect.
     pub sound: Handle<Node>,
@@ -29,16 +30,20 @@ pub struct EffectInput {
 }
 
 /// Base effect contains common properties for every effect (gain, inputs, etc.)
-#[derive(Visit, Inspect, Debug)]
+#[derive(Visit, Inspect, Reflect, Debug)]
 pub struct BaseEffect {
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) name: TemplateVariable<String>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) gain: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) inputs: TemplateVariable<Vec<EffectInput>>,
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) native: Cell<Handle<fyrox_sound::effects::Effect>>,
 }
 
@@ -183,16 +188,20 @@ impl BaseEffectBuilder {
 }
 
 /// Reverb effect gives you multiple echoes.
-#[derive(Visit, Inspect, Debug)]
+#[derive(Visit, Inspect, Reflect, Debug)]
 pub struct ReverbEffect {
     pub(crate) base: BaseEffect,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) dry: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) wet: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) fc: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) decay_time: TemplateVariable<f32>,
 }
 

@@ -9,6 +9,7 @@ use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::{Handle, Pool},
+        reflect::Reflect,
         visitor::prelude::*,
     },
 };
@@ -41,10 +42,10 @@ impl DerefMut for PlayAnimation {
     }
 }
 
-#[derive(Default, Debug, Visit, Clone, Inspect)]
+#[derive(Default, Debug, Visit, Clone, Inspect, Reflect)]
 pub struct TimeSlice(pub Range<f32>);
 
-#[derive(Debug, Visit, Clone, Inspect)]
+#[derive(Debug, Visit, Clone, Inspect, Reflect)]
 pub struct PlayAnimationDefinition {
     pub base: BasePoseNodeDefinition,
     pub animation: String,

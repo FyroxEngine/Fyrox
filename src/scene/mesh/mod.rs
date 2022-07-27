@@ -16,6 +16,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -54,6 +55,7 @@ pub mod vertex;
     Debug,
     Visit,
     Inspect,
+    Reflect,
     AsRefStr,
     EnumString,
     EnumVariantNames,
@@ -87,30 +89,36 @@ impl RenderPath {
 }
 
 /// See module docs.
-#[derive(Debug, Inspect, Clone, Visit)]
+#[derive(Debug, Inspect, Reflect, Clone, Visit)]
 pub struct Mesh {
     #[visit(rename = "Common")]
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     surfaces: TemplateVariable<Vec<Surface>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     render_path: TemplateVariable<RenderPath>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     decal_layer_index: TemplateVariable<u8>,
 
     #[inspect(skip)]
     #[visit(skip)]
+    #[reflect(hidden)]
     local_bounding_box: Cell<AxisAlignedBoundingBox>,
 
     #[inspect(skip)]
     #[visit(skip)]
+    #[reflect(hidden)]
     local_bounding_box_dirty: Cell<bool>,
 
     #[inspect(skip)]
     #[visit(skip)]
+    #[reflect(hidden)]
     world_bounding_box: Cell<AxisAlignedBoundingBox>,
 }
 

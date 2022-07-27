@@ -3,6 +3,7 @@ use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
+        reflect::Reflect,
         visitor::prelude::*,
     },
 };
@@ -28,7 +29,7 @@ pub struct Transition {
     pub(crate) blend_factor: f32,
 }
 
-#[derive(Default, Debug, Visit, Clone, Inspect)]
+#[derive(Default, Debug, Visit, Clone, Inspect, Reflect)]
 pub struct TransitionDefinition {
     #[inspect(description = "The name of the transition, it is used for debug output.")]
     pub name: String,

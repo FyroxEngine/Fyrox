@@ -12,6 +12,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        reflect::Reflect,
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -52,12 +53,6 @@ pub trait BaseNodeTrait: Any + Debug + Deref<Target = Base> + DerefMut + Send {
     /// because internally nodes may (and most likely will) contain handles to other nodes. To
     /// correctly clone a node you have to use [copy_node](struct.Graph.html#method.copy_node).
     fn clone_box(&self) -> Node;
-
-    /// Returns self as shared reference to [`Any`].
-    fn as_any(&self) -> &dyn Any;
-
-    /// Returns self as mutable reference to [`Any`].
-    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl<T> BaseNodeTrait for T
@@ -66,14 +61,6 @@ where
 {
     fn clone_box(&self) -> Node {
         Node(Box::new(self.clone()))
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
 
@@ -144,7 +131,7 @@ macro_rules! impl_query_component {
 }
 
 /// A main trait for any scene graph node.
-pub trait NodeTrait: BaseNodeTrait + Inspect + Visit {
+pub trait NodeTrait: BaseNodeTrait + Reflect + Inspect + Visit {
     /// Allows a node to provide access to inner components.
     fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any>;
 

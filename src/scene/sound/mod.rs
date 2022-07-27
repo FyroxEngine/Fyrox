@@ -7,6 +7,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -47,35 +48,48 @@ pub mod effect;
 pub mod listener;
 
 /// Sound source.
-#[derive(Visit, Inspect, Debug)]
+#[derive(Visit, Inspect, Reflect, Debug)]
 pub struct Sound {
     base: Base,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     buffer: TemplateVariable<Option<SoundBufferResource>>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     play_once: TemplateVariable<bool>,
     #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[reflect(deref)]
     gain: TemplateVariable<f32>,
     #[inspect(min_value = -1.0, max_value = 1.0, step = 0.05, getter = "Deref::deref")]
+    #[reflect(deref)]
     panning: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) status: TemplateVariable<Status>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     looping: TemplateVariable<bool>,
     #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[reflect(deref)]
     pitch: TemplateVariable<f64>,
     #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[reflect(deref)]
     radius: TemplateVariable<f32>,
     #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[reflect(deref)]
     max_distance: TemplateVariable<f32>,
     #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[reflect(deref)]
     rolloff_factor: TemplateVariable<f32>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     playback_time: TemplateVariable<Duration>,
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     spatial_blend: TemplateVariable<f32>,
     #[inspect(skip)]
     #[visit(skip)]
+    #[reflect(hidden)]
     pub(crate) native: Cell<Handle<SoundSource>>,
 }
 

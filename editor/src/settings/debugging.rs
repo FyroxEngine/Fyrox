@@ -1,11 +1,14 @@
 use fyrox::{
-    core::inspect::{Inspect, PropertyInfo},
+    core::{
+        inspect::{Inspect, PropertyInfo},
+        reflect::Reflect,
+    },
     gui::inspector::PropertyChanged,
     handle_object_property_changed,
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Inspect)]
+#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Inspect, Reflect)]
 pub struct DebuggingSettings {
     pub show_physics: bool,
     pub show_bounds: bool,

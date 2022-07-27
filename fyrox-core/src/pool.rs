@@ -24,6 +24,7 @@
 
 use crate::{
     inspect::{Inspect, PropertyInfo},
+    reflect::Reflect,
     visitor::{Visit, VisitResult, Visitor},
 };
 use std::{
@@ -111,6 +112,7 @@ impl<T: PartialEq> PartialEq for Pool<T> {
 /// Handle is some sort of non-owning reference to content in a pool. It stores
 /// index of object and additional information that allows to ensure that handle
 /// is still valid (points to the same object as when handle was created).
+#[derive(Reflect)]
 pub struct Handle<T> {
     /// Index of object in pool.
     index: u32,
@@ -118,6 +120,7 @@ pub struct Handle<T> {
     /// index of handle then this is valid handle.
     generation: u32,
     /// Type holder.
+    #[reflect(hidden)]
     type_marker: PhantomData<T>,
 }
 
@@ -164,7 +167,7 @@ impl<T> Display for Handle<T> {
 }
 
 /// Type-erased handle.
-#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Inspect, Visit)]
+#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Inspect, Reflect, Visit)]
 pub struct ErasedHandle {
     /// Index of object in pool.
     #[inspect(read_only)]

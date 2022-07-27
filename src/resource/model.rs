@@ -23,6 +23,7 @@ use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
+        reflect::Reflect,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::{
@@ -64,6 +65,8 @@ pub struct ModelData {
 
 define_new_resource!(
     /// See module docs.
+    #[derive(Reflect)]
+    #[reflect(hide_all)]
     Model<ModelData, ModelLoadError>
 );
 
@@ -252,6 +255,7 @@ impl Default for ModelData {
     Deserialize,
     Serialize,
     Inspect,
+    Reflect,
     AsRefStr,
     EnumString,
     EnumVariantNames,
@@ -320,7 +324,7 @@ impl MaterialSearchOptions {
 /// ```
 ///
 /// Check documentation of the field of the structure for more info about each parameter.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, Inspect)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, Inspect, Reflect)]
 pub struct ModelImportOptions {
     /// See [`MaterialSearchOptions`] docs for more info.
     #[serde(default)]

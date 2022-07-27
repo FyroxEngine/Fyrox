@@ -29,6 +29,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -46,7 +47,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug, Inspect, Clone, Visit)]
+#[derive(Debug, Inspect, Reflect, Clone, Visit)]
 pub struct SpotLight {
     base_light: BaseLight,
 
@@ -56,18 +57,23 @@ pub struct SpotLight {
         step = 0.1,
         getter = "Deref::deref"
     )]
+    #[reflect(deref)]
     hotspot_cone_angle: TemplateVariable<f32>,
 
     #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    #[reflect(deref)]
     falloff_angle_delta: TemplateVariable<f32>,
 
     #[inspect(min_value = 0.0, step = 0.001, getter = "Deref::deref")]
+    #[reflect(deref)]
     shadow_bias: TemplateVariable<f32>,
 
     #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    #[reflect(deref)]
     distance: TemplateVariable<f32>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     cookie_texture: TemplateVariable<Option<Texture>>,
 }
 

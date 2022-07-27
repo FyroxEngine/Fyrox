@@ -17,6 +17,7 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         parking_lot::Mutex,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -41,7 +42,18 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// A set of possible types of rigid body.
 #[derive(
-    Copy, Clone, Debug, Inspect, Visit, PartialEq, Eq, Hash, AsRefStr, EnumString, EnumVariantNames,
+    Copy,
+    Clone,
+    Debug,
+    Inspect,
+    Reflect,
+    Visit,
+    PartialEq,
+    Eq,
+    Hash,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
 )]
 #[repr(u32)]
 pub enum RigidBodyType {
@@ -128,60 +140,77 @@ pub(crate) enum ApplyAction {
 ///
 /// Rigid body that does not move for some time will go asleep. This means that the body will not
 /// move unless it is woken up by some other moving body. This feature allows to save CPU resources.
-#[derive(Visit, Inspect)]
+#[derive(Visit, Inspect, Reflect)]
 pub struct RigidBody {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) lin_vel: TemplateVariable<Vector3<f32>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) ang_vel: TemplateVariable<Vector3<f32>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) lin_damping: TemplateVariable<f32>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) ang_damping: TemplateVariable<f32>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) body_type: TemplateVariable<RigidBodyType>,
 
     #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) mass: TemplateVariable<f32>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) x_rotation_locked: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) y_rotation_locked: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) z_rotation_locked: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) translation_locked: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) ccd_enabled: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) can_sleep: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) dominance: TemplateVariable<i8>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) gravity_scale: TemplateVariable<f32>,
 
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) sleeping: bool,
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) native: Cell<RigidBodyHandle>,
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) actions: Mutex<VecDeque<ApplyAction>>,
 }
 

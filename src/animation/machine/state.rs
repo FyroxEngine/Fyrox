@@ -7,6 +7,7 @@ use crate::{
         algebra::Vector2,
         inspect::{Inspect, PropertyInfo},
         pool::{Handle, Pool},
+        reflect::Reflect,
         visitor::prelude::*,
     },
 };
@@ -21,7 +22,7 @@ pub struct State {
     pub(crate) root: Handle<PoseNode>,
 }
 
-#[derive(Default, Debug, Visit, Clone, Inspect)]
+#[derive(Default, Debug, Visit, Clone, Inspect, Reflect)]
 pub struct StateDefinition {
     pub position: Vector2<f32>,
     pub name: String,

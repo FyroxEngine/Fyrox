@@ -23,6 +23,7 @@ use crate::{
         algebra::Vector3,
         color::Color,
         inspect::{Inspect, PropertyInfo},
+        reflect::Reflect,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -53,24 +54,29 @@ pub const DEFAULT_SCATTER_B: f32 = 0.03;
 /// Light scene node. It contains common properties of light such as color,
 /// scattering factor (per color channel) and other useful properties. Exact
 /// behavior defined by specific light kind.
-#[derive(Debug, Inspect, Clone, Visit)]
+#[derive(Debug, Inspect, Reflect, Clone, Visit)]
 pub struct BaseLight {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     color: TemplateVariable<Color>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     cast_shadows: TemplateVariable<bool>,
 
     #[inspect(getter = "Deref::deref")]
     #[visit(rename = "ScatterFactor")]
+    #[reflect(deref)]
     scatter: TemplateVariable<Vector3<f32>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     scatter_enabled: TemplateVariable<bool>,
 
     #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    #[reflect(deref)]
     intensity: TemplateVariable<f32>,
 }
 

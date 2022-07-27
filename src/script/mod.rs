@@ -6,6 +6,7 @@ use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
+        reflect::{blank_reflect, Reflect},
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -130,11 +131,11 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// use fyrox::gui::inspector::{PropertyChanged, FieldKind};
     /// use fyrox::script::ScriptTrait;
     /// use fyrox::core::uuid::Uuid;
-    /// use fyrox::core::inspect::{Inspect, PropertyInfo};
+    /// use fyrox::core::{inspect::{Inspect, PropertyInfo}, reflect::Reflect};
     /// use fyrox::core::visitor::prelude::*;
     /// use fyrox::{handle_object_property_changed, impl_component_provider};
     ///
-    /// #[derive(Inspect, Visit, Debug, Clone)]
+    /// #[derive(Inspect, Reflect, Visit, Debug, Clone)]
     /// struct MyScript {
     ///     foo: f32,
     ///     bar: String,
@@ -241,13 +242,14 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     ///     scene::node::TypeUuidProvider,
     ///     core::visitor::prelude::*,
     ///     core::inspect::{Inspect, PropertyInfo},
+    ///     core::reflect::Reflect,
     ///     core::uuid::Uuid,
     ///     script::ScriptTrait,
     ///     core::uuid::uuid,
     ///     impl_component_provider,
     /// };
     ///
-    /// #[derive(Inspect, Visit, Debug, Clone)]
+    /// #[derive(Inspect, Reflect, Visit, Debug, Clone)]
     /// struct MyScript { }
     ///
     /// // Implement TypeUuidProvider trait that will return type uuid of the type.
@@ -283,6 +285,10 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
 /// A wrapper for actual script instance internals, it used by the engine.
 #[derive(Debug)]
 pub struct Script(pub Box<dyn ScriptTrait>);
+
+impl Reflect for Script {
+    blank_reflect!();
+}
 
 impl Deref for Script {
     type Target = dyn ScriptTrait;
@@ -356,8 +362,9 @@ impl Script {
 /// use fyrox::handle_object_property_changed;
 /// use fyrox::gui::inspector::{PropertyChanged, FieldKind};
 /// use fyrox::core::inspect::{Inspect, PropertyInfo};
+/// use fyrox::core::reflect::Reflect;
 ///
-/// #[derive(Inspect)]
+/// #[derive(Inspect, Reflect)]
 /// struct Foo {
 ///     bar: String,
 ///     baz: u32
@@ -403,9 +410,10 @@ macro_rules! handle_object_property_changed {
 /// use fyrox::{handle_collection_property_changed, handle_object_property_changed};
 /// use fyrox::gui::inspector::{PropertyChanged, CollectionChanged, FieldKind};
 /// use fyrox::core::inspect::{Inspect, PropertyInfo};
+/// use fyrox::core::reflect::Reflect;
 ///
 /// // Wrap parameter in a newtype to implement `on_property_changed` method.
-/// #[derive(Inspect, Debug, Default)]
+/// #[derive(Inspect, Reflect, Debug, Default)]
 /// struct Name(String);
 ///
 /// impl Name {
@@ -414,7 +422,7 @@ macro_rules! handle_object_property_changed {
 ///     }
 /// }
 ///
-/// #[derive(Inspect)]
+/// #[derive(Inspect, Reflect)]
 /// struct Foo {
 ///     // Collections could be any type that has `push`, `remove(index)`, `impl IndexMut`
 ///     names: Vec<Name>,

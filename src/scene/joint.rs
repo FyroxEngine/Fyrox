@@ -6,6 +6,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         variable::{InheritError, TemplateVariable},
         visitor::prelude::*,
@@ -29,7 +30,7 @@ use std::{
 /// Ball joint locks any translational moves between two objects on the axis between objects, but
 /// allows rigid bodies to perform relative rotations. The real world example is a human shoulder,
 /// pendulum, etc.
-#[derive(Clone, Debug, Visit, PartialEq, Inspect)]
+#[derive(Clone, Debug, Visit, PartialEq, Inspect, Reflect)]
 pub struct BallJoint {
     /// Whether X angular limits are enabled or not. Default is `false`
     #[inspect(description = "Whether X angular limits are enabled or not.")]
@@ -77,12 +78,12 @@ impl Default for BallJoint {
 
 /// A fixed joint ensures that two rigid bodies does not move relative to each other. There is no
 /// straightforward real-world example, but it can be thought as two bodies were "welded" together.
-#[derive(Clone, Debug, Visit, PartialEq, Inspect, Default)]
+#[derive(Clone, Debug, Visit, PartialEq, Inspect, Reflect, Default)]
 pub struct FixedJoint;
 
 /// Prismatic joint prevents any relative movement between two rigid-bodies, except for relative
 /// translations along one axis. The real world example is a sliders that used to support drawers.
-#[derive(Clone, Debug, Visit, PartialEq, Inspect)]
+#[derive(Clone, Debug, Visit, PartialEq, Inspect, Reflect)]
 pub struct PrismaticJoint {
     /// Whether linear limits along local joint X axis are enabled or not. Default is `false`
     #[inspect(description = "Whether linear limits along local joint X axis are enabled or not.")]
@@ -109,7 +110,7 @@ impl Default for PrismaticJoint {
 /// Revolute joint prevents any relative movement between two rigid bodies, except relative rotation
 /// along one axis. The real world example is wheels, fans, etc. It can also be used to simulate door
 /// hinge.
-#[derive(Clone, Debug, Visit, PartialEq, Inspect)]
+#[derive(Clone, Debug, Visit, PartialEq, Inspect, Reflect)]
 pub struct RevoluteJoint {
     /// Whether angular limits around local X axis of the joint are enabled or not. Default is `false`
     #[inspect(
@@ -134,7 +135,7 @@ impl Default for RevoluteJoint {
 }
 
 /// The exact kind of the joint.
-#[derive(Clone, Debug, PartialEq, Visit)]
+#[derive(Clone, Debug, PartialEq, Visit, Reflect)]
 pub enum JointParams {
     /// See [`BallJoint`] for more info.
     BallJoint(BallJoint),
@@ -165,29 +166,35 @@ impl Default for JointParams {
 
 /// Joint is used to restrict motion of two rigid bodies. There are numerous examples of joints in
 /// real life: door hinge, ball joints in human arms, etc.
-#[derive(Visit, Inspect, Debug)]
+#[derive(Visit, Inspect, Reflect, Debug)]
 pub struct Joint {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) params: TemplateVariable<JointParams>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) body1: TemplateVariable<Handle<Node>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub(crate) body2: TemplateVariable<Handle<Node>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     #[visit(optional)] // Backward compatibility
     pub(crate) contacts_enabled: TemplateVariable<bool>,
 
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) native: Cell<ImpulseJointHandle>,
 
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) need_rebind: Cell<bool>,
 }
 

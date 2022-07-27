@@ -80,6 +80,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -109,7 +110,7 @@ pub mod emitter;
 pub mod particle;
 
 /// Particle limit for emitter.
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug, Reflect)]
 pub enum ParticleLimit {
     /// No limit in amount of particles.
     Unlimited,
@@ -143,33 +144,42 @@ impl Visit for ParticleLimit {
 }
 
 /// See module docs.
-#[derive(Debug, Visit, Clone, Inspect)]
+#[derive(Debug, Visit, Clone, Inspect, Reflect)]
 pub struct ParticleSystem {
     base: Base,
 
     /// List of emitters of the particle system.
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     pub emitters: TemplateVariable<Vec<Emitter>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     texture: TemplateVariable<Option<Texture>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     acceleration: TemplateVariable<Vector3<f32>>,
 
     #[visit(rename = "ColorGradient")]
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     color_over_lifetime: TemplateVariable<Option<ColorGradient>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     soft_boundary_sharpness_factor: TemplateVariable<f32>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     enabled: TemplateVariable<bool>,
 
     #[inspect(skip)]
+    #[reflect(hidden)]
     particles: Vec<Particle>,
+
     #[inspect(skip)]
+    #[reflect(hidden)]
     free_particles: Vec<u32>,
 }
 

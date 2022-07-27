@@ -9,6 +9,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -35,7 +36,7 @@ use std::ops::{Deref, DerefMut};
 ///
 /// 2D sound sources (with spatial blend == 0.0) are not influenced by listener's position and
 /// orientation.
-#[derive(Visit, Inspect, Default, Clone, Debug)]
+#[derive(Visit, Inspect, Reflect, Default, Clone, Debug)]
 pub struct Listener {
     base: Base,
 }

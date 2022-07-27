@@ -24,6 +24,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -40,14 +41,16 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug, Inspect, Clone, Visit)]
+#[derive(Debug, Inspect, Reflect, Clone, Visit)]
 pub struct PointLight {
     base_light: BaseLight,
 
     #[inspect(min_value = 0.0, step = 0.001, getter = "Deref::deref")]
+    #[reflect(deref)]
     shadow_bias: TemplateVariable<f32>,
 
     #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    #[reflect(deref)]
     radius: TemplateVariable<f32>,
 }
 

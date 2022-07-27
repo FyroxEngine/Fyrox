@@ -2,17 +2,18 @@
 //!
 //! For more info see [`TemplateVariable`]
 
-use crate::visitor::prelude::*;
+use crate::{reflect::Reflect, visitor::prelude::*};
 use bitflags::bitflags;
 use std::fmt::Debug;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
-    ops::Deref,
+    ops::{Deref, DerefMut},
 };
 
 bitflags! {
     /// A set of possible variable flags.
+    #[derive(Reflect)]
     pub struct VariableFlags: u8 {
         /// Nothing.
         const NONE = 0;
@@ -267,6 +268,12 @@ impl<T> Deref for TemplateVariable<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.value
+    }
+}
+
+impl<T> DerefMut for TemplateVariable<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.value
     }
 }
 

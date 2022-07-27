@@ -12,6 +12,7 @@ use crate::{
         },
         parking_lot::Mutex,
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::{prelude::*, PodVecView},
     },
@@ -42,9 +43,10 @@ use std::{
 /// rendering. Terrain can have as many layers as you want, but each layer slightly decreases
 /// performance, so keep amount of layers on reasonable level (1 - 5 should be enough for most
 /// cases).
-#[derive(Default, Debug, Clone, Visit, Inspect)]
+#[derive(Default, Debug, Clone, Visit, Inspect, Reflect)]
 pub struct Layer {
     /// Material of the layer.
+    #[reflect(hidden)]
     pub material: Arc<Mutex<Material>>,
 
     /// Name of the mask sampler in the material.
@@ -55,7 +57,8 @@ pub struct Layer {
     pub mask_property_name: String,
 
     #[inspect(skip)]
-    pub(in crate) chunk_masks: Vec<Texture>,
+    #[reflect(hidden)]
+    pub(crate) chunk_masks: Vec<Texture>,
 }
 
 impl PartialEq for Layer {
@@ -252,14 +255,16 @@ pub struct TerrainRayCastResult {
 /// are inheritable. You cannot inherit width, height, chunks and other things because these cannot
 /// be modified at runtime because changing width (for example) will invalidate the entire height
 /// map which makes runtime modification useless.  
-#[derive(Visit, Debug, Default, Inspect, Clone)]
+#[derive(Visit, Debug, Default, Inspect, Reflect, Clone)]
 pub struct Terrain {
     base: Base,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     layers: TemplateVariable<Vec<Layer>>,
 
     #[inspect(getter = "Deref::deref")]
+    #[reflect(deref)]
     decal_layer_index: TemplateVariable<u8>,
 
     #[inspect(read_only)]
@@ -271,14 +276,17 @@ pub struct Terrain {
     #[inspect(read_only)]
     height_map_resolution: f32,
     #[inspect(skip)]
+    #[reflect(hidden)]
     chunks: Vec<Chunk>,
     #[inspect(read_only)]
     width_chunks: u32,
     #[inspect(read_only)]
     length_chunks: u32,
     #[inspect(skip)]
+    #[reflect(hidden)]
     bounding_box_dirty: Cell<bool>,
     #[inspect(skip)]
+    #[reflect(hidden)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
 }
 
@@ -682,7 +690,7 @@ impl NodeTrait for Terrain {
 }
 
 /// Shape of a brush.
-#[derive(Copy, Clone, Inspect, Debug)]
+#[derive(Copy, Clone, Inspect, Reflect, Debug)]
 pub enum BrushShape {
     /// Circle with given radius.
     Circle {
@@ -714,7 +722,7 @@ impl BrushShape {
 }
 
 /// Paint mode of a brush. It defines operation that will be performed on the terrain.
-#[derive(Clone, PartialEq, PartialOrd, Inspect, Debug)]
+#[derive(Clone, PartialEq, PartialOrd, Inspect, Reflect, Debug)]
 pub enum BrushMode {
     /// Modifies height map.
     ModifyHeightMap {
@@ -732,7 +740,7 @@ pub enum BrushMode {
 }
 
 /// Brush is used to modify terrain. It supports multiple shapes and modes.
-#[derive(Clone, Inspect, Debug)]
+#[derive(Clone, Inspect, Reflect, Debug)]
 pub struct Brush {
     /// Center of the brush.
     #[inspect(skip)]
