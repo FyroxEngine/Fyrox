@@ -113,10 +113,10 @@ fn reflect_containers() {
     };
 
     assert!(x
-        .cast_resolve_path::<usize>("container.data.field")
+        .get_resolve_path::<usize>("container.data.field")
         .is_err());
 
-    assert_eq!(x.cast_resolve_path::<usize>("container.field"), Ok(&0));
+    assert_eq!(x.get_resolve_path::<usize>("container.field"), Ok(&0));
 
     #[derive(Reflect)]
     #[reflect(bounds = "T: Reflect")]
@@ -132,8 +132,8 @@ fn reflect_containers() {
         }),
     };
 
-    assert_eq!(b.cast_resolve_path::<usize>("data.field"), Ok(&10));
-    assert!(x.cast_resolve_path::<usize>("data.hidden").is_err());
+    assert_eq!(b.get_resolve_path::<usize>("data.field"), Ok(&10));
+    assert!(x.get_resolve_path::<usize>("data.hidden").is_err());
 }
 
 #[test]
@@ -152,11 +152,11 @@ fn reflect_path() {
         e: Enum::Tuple(10),
     };
 
-    assert_eq!(hie.cast_resolve_path::<usize>("s.field"), Ok(&1));
-    assert_eq!(hie.cast_resolve_path::<usize>("e.Tuple@0"), Ok(&10));
+    assert_eq!(hie.get_resolve_path::<usize>("s.field"), Ok(&1));
+    assert_eq!(hie.get_resolve_path::<usize>("e.Tuple@0"), Ok(&10));
 
-    assert_eq!(hie.cast_resolve_path_mut::<usize>("s.field"), Ok(&mut 1));
-    assert_eq!(hie.cast_resolve_path_mut::<usize>("e.Tuple@0"), Ok(&mut 10));
+    assert_eq!(hie.get_resolve_path_mut::<usize>("s.field"), Ok(&mut 1));
+    assert_eq!(hie.get_resolve_path_mut::<usize>("e.Tuple@0"), Ok(&mut 10));
 }
 
 #[test]

@@ -71,7 +71,7 @@ pub trait ResolvePath {
         path: &'p str,
     ) -> Result<&'r mut dyn Reflect, ReflectPathError<'p>>;
 
-    fn cast_resolve_path<'r, 'p, T: Reflect>(
+    fn get_resolve_path<'r, 'p, T: Reflect>(
         &'r self,
         path: &'p str,
     ) -> Result<&'r T, ReflectPathError<'p>> {
@@ -79,7 +79,7 @@ pub trait ResolvePath {
             .and_then(|r| r.downcast_ref().ok_or(ReflectPathError::InvalidDowncast))
     }
 
-    fn cast_resolve_path_mut<'r, 'p, T: Reflect>(
+    fn get_resolve_path_mut<'r, 'p, T: Reflect>(
         &'r mut self,
         path: &'p str,
     ) -> Result<&'r mut T, ReflectPathError<'p>> {
