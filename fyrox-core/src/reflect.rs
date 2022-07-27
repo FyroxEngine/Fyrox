@@ -54,10 +54,23 @@ pub trait ReflectList: Reflect {
 /// An error returned from a failed path string query.
 #[derive(Debug, PartialEq, Eq, Error)]
 pub enum ReflectPathError<'a> {
-    #[error("given invalid path component: `{s}`")]
-    InvalidComponent { s: &'a str },
-    #[error("failed to downcast to the path result to the given type")]
+    // syntax errors
+    #[error("unclosed brackets: `{s}`")]
+    UnclosedBrackets { s: &'a str },
+    #[error("not index syntax: `{s}`")]
+    InvalidIndexSyntax { s: &'a str },
+
+    // access errors
+    #[error("given unknwon field: `{s}`")]
+    UnknownField { s: &'a str },
+    #[error("no item for index: `{s}`")]
+    NoItemForIndex { s: &'a str },
+
+    // type cast errors
+    #[error("failed to downcast to the target type after path resolution")]
     InvalidDowncast,
+    #[error("tried to resolve index access, but the reflect type does not implement list API")]
+    NotAList,
 }
 
 pub trait ResolvePath {
@@ -123,19 +136,102 @@ impl<R: Reflect> GetField for R {
     }
 }
 
+// --------------------------------------------------------------------------------
+// impl dyn Trait
+// --------------------------------------------------------------------------------
+
+/// Simple path parser / reflect path component
+enum Component<'p> {
+    Field(&'p str),
+    Index(&'p str),
+}
+
+impl<'p> Component<'p> {
+    fn next(mut path: &'p str) -> Result<(Self, &'p str), ReflectPathError<'p>> {
+        // Discard the first comma:
+        if path.bytes().next() == Some(b'.') {
+            path = &path[1..];
+        }
+
+        let mut bytes = path.bytes().enumerate();
+        while let Some((i, b)) = bytes.next() {
+            if b == b'.' {
+                let (l, r) = path.split_at(i);
+                return Ok((Self::Field(l), &r[1..]));
+            }
+
+            if b == b'[' {
+                if i != 0 {
+                    // delimit the field access
+                    let (l, r) = path.split_at(i);
+                    return Ok((Self::Field(l), r));
+                }
+
+                // find ']'
+                if let Some((end, _)) = bytes.find(|(_, b)| *b == b']') {
+                    let l = &path[1..end];
+                    let r = &path[end + 1..];
+                    return Ok((Self::Index(l), r));
+                } else {
+                    return Err(ReflectPathError::UnclosedBrackets { s: path });
+                }
+            }
+        }
+
+        // NOTE: the `path` can be empty
+        Ok((Self::Field(path), ""))
+    }
+
+    fn resolve<'r>(
+        &self,
+        reflect: &'r dyn Reflect,
+    ) -> Result<&'r dyn Reflect, ReflectPathError<'p>> {
+        match self {
+            Self::Field(path) => reflect
+                .field(path)
+                .ok_or_else(|| ReflectPathError::UnknownField { s: path }),
+            Self::Index(path) => {
+                let list = reflect.as_list().ok_or(ReflectPathError::NotAList)?;
+                let index = path
+                    .parse::<usize>()
+                    .map_err(|_| ReflectPathError::InvalidIndexSyntax { s: path })?;
+                list.reflect_index(index)
+                    .ok_or_else(|| ReflectPathError::NoItemForIndex { s: path })
+            }
+        }
+    }
+
+    fn resolve_mut<'r>(
+        &self,
+        reflect: &'r mut dyn Reflect,
+    ) -> Result<&'r mut dyn Reflect, ReflectPathError<'p>> {
+        match self {
+            Self::Field(path) => reflect
+                .field_mut(path)
+                .ok_or_else(|| ReflectPathError::UnknownField { s: path }),
+            Self::Index(path) => {
+                let list = reflect.as_list_mut().ok_or(ReflectPathError::NotAList)?;
+                let index = path
+                    .parse::<usize>()
+                    .map_err(|_| ReflectPathError::InvalidIndexSyntax { s: path })?;
+                list.reflect_index_mut(index)
+                    .ok_or_else(|| ReflectPathError::NoItemForIndex { s: path })
+            }
+        }
+    }
+}
+
 impl ResolvePath for dyn Reflect {
     fn resolve_path<'r, 'p>(
         &'r self,
         path: &'p str,
     ) -> Result<&'r dyn Reflect, ReflectPathError<'p>> {
-        if let Some(comma) = path.find('.') {
-            let (l, r) = path.split_at(comma);
-            let child = self::resolve_stem(self, l)?;
-
-            // discard comma
-            child.resolve_path(&r[1..])
+        let (component, r) = Component::next(path)?;
+        let child = component.resolve(self)?;
+        if r.is_empty() {
+            Ok(child)
         } else {
-            self::resolve_stem(self, path)
+            child.resolve_path(r)
         }
     }
 
@@ -143,34 +239,14 @@ impl ResolvePath for dyn Reflect {
         &'r mut self,
         path: &'p str,
     ) -> Result<&'r mut dyn Reflect, ReflectPathError<'p>> {
-        if let Some(comma) = path.find('.') {
-            let (l, r) = path.split_at(comma);
-            let child = self::resolve_stem_mut(self, l)?;
-
-            // discard comma
-            child.resolve_path_mut(&r[1..])
+        let (component, r) = Component::next(path)?;
+        let child = component.resolve_mut(self)?;
+        if r.is_empty() {
+            Ok(child)
         } else {
-            self::resolve_stem_mut(self, path)
+            child.resolve_path_mut(r)
         }
     }
-}
-
-fn resolve_stem<'r, 'p>(
-    reflect: &'r dyn Reflect,
-    path: &'p str,
-) -> Result<&'r dyn Reflect, ReflectPathError<'p>> {
-    reflect
-        .field(path)
-        .ok_or(ReflectPathError::InvalidComponent { s: path })
-}
-
-fn resolve_stem_mut<'r, 'p>(
-    reflect: &'r mut dyn Reflect,
-    path: &'p str,
-) -> Result<&'r mut dyn Reflect, ReflectPathError<'p>> {
-    reflect
-        .field_mut(path)
-        .ok_or(ReflectPathError::InvalidComponent { s: path })
 }
 
 /// Type-erased API
@@ -203,6 +279,7 @@ impl dyn Reflect {
     }
 }
 
+// Make it a trait?
 impl dyn ReflectList {
     pub fn get_reflect_index<T: Reflect + 'static>(&self, index: usize) -> Option<&T> {
         self.reflect_index(index)

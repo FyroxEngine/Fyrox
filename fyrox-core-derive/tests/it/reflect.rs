@@ -112,9 +112,7 @@ fn reflect_containers() {
         },
     };
 
-    assert!(x
-        .get_resolve_path::<usize>("container.data.field")
-        .is_err());
+    assert!(x.get_resolve_path::<usize>("container.data.field").is_err());
 
     assert_eq!(x.get_resolve_path::<usize>("container.field"), Ok(&0));
 
@@ -171,4 +169,31 @@ fn reflect_list() {
 
     data.reflect_push(Box::new(12usize));
     assert_eq!(data.get_reflect_index(2), Some(&12usize));
+}
+
+#[test]
+fn reflect_list_path() {
+    let data = vec![vec![0usize, 1], vec![2, 3, 4]];
+    assert_eq!(data.get_resolve_path("[0][1]"), Ok(&1usize));
+
+    #[derive(Reflect)]
+    struct X {
+        data: Vec<usize>,
+    }
+
+    #[derive(Reflect)]
+    struct A {
+        xs: Vec<X>,
+    }
+
+    let a = A {
+        xs: vec![
+            X { data: vec![0, 1] },
+            X {
+                data: vec![2, 3, 4],
+            },
+        ],
+    };
+
+    assert_eq!(a.get_resolve_path("xs[0].data[1]"), Ok(&1usize));
 }
