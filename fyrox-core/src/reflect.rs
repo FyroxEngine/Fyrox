@@ -12,6 +12,18 @@ use std::{
     fmt,
 };
 
+/// Trait for runtime reflection
+///
+/// Derive macro is available.
+///
+/// # Type attributes
+/// - `#[reflect(hide_all)]`: Hide all fields, just like `Any`
+/// - `#[reflect(bounds)]`: Add type boundary for `Reflect` impl
+///
+/// # Field attributes
+/// - `#[reflect(deref)]`: Delegate the field access with deref
+/// - `#[reflect(field = <method call>)]
+/// - `#[reflect(field_mut = <method call>)]
 pub trait Reflect: Any {
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
@@ -189,14 +201,14 @@ impl<'p> Component<'p> {
         match self {
             Self::Field(path) => reflect
                 .field(path)
-                .ok_or_else(|| ReflectPathError::UnknownField { s: path }),
+                .ok_or(ReflectPathError::UnknownField { s: path }),
             Self::Index(path) => {
                 let list = reflect.as_list().ok_or(ReflectPathError::NotAList)?;
                 let index = path
                     .parse::<usize>()
                     .map_err(|_| ReflectPathError::InvalidIndexSyntax { s: path })?;
                 list.reflect_index(index)
-                    .ok_or_else(|| ReflectPathError::NoItemForIndex { s: path })
+                    .ok_or(ReflectPathError::NoItemForIndex { s: path })
             }
         }
     }
@@ -208,14 +220,14 @@ impl<'p> Component<'p> {
         match self {
             Self::Field(path) => reflect
                 .field_mut(path)
-                .ok_or_else(|| ReflectPathError::UnknownField { s: path }),
+                .ok_or(ReflectPathError::UnknownField { s: path }),
             Self::Index(path) => {
                 let list = reflect.as_list_mut().ok_or(ReflectPathError::NotAList)?;
                 let index = path
                     .parse::<usize>()
                     .map_err(|_| ReflectPathError::InvalidIndexSyntax { s: path })?;
                 list.reflect_index_mut(index)
-                    .ok_or_else(|| ReflectPathError::NoItemForIndex { s: path })
+                    .ok_or(ReflectPathError::NoItemForIndex { s: path })
             }
         }
     }
@@ -306,7 +318,7 @@ impl fmt::Debug for dyn Reflect + 'static + Send {
 }
 
 #[macro_export]
-macro_rules! _blank_reflect {
+macro_rules! blank_reflect {
     () => {
         fn into_any(self: Box<Self>) -> Box<dyn Any> {
             self
@@ -335,4 +347,4 @@ macro_rules! _blank_reflect {
     };
 }
 
-pub use _blank_reflect as blank_reflect;
+pub use blank_reflect;

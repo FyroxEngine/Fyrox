@@ -106,18 +106,20 @@ pub struct FieldArgs {
     #[darling(default)]
     pub hidden: bool,
 
-    /// `#[inspect(deref)]`
+    /// `#[reflect(deref)]`
     ///
     /// Delegates most of the `Reflect` implementations to the deref type.
     #[darling(default)]
     pub deref: bool,
 
-    /// `#[inspect(
+    /// `#[reflect(field = <method call>)]
     ///
     /// Implement `Reflect` by delegating the impl to an internal field
     #[darling(default)]
     pub field: Option<Expr>,
 
+    /// `#[reflect(field_mut = <method call>)]
+    ///
     /// Implement `Reflect` by delegating the impl to an internal field
     #[darling(default)]
     pub field_mut: Option<Expr>,
