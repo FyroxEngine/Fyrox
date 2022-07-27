@@ -140,7 +140,6 @@ impl<'a> PropertyInfo<'a> {
 ///
 /// ### Supported attributes
 ///
-/// - `#[inspect(name = "new_field_name")]` - override field name.
 /// - `#[inspect(display_name = "Human-readable Name")]` - override display name.
 /// - `#[inspect(group = "Group Name")]` - override group name.
 /// - `#[inspect(expand)]` - extends the list of properties in case of composition, in other words it

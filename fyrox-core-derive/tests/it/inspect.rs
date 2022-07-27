@@ -66,7 +66,7 @@ fn inspect_attributes() {
         // NOTE: Even though this field is skipped, the next field is given index `1` for simplicity
         #[inspect(skip)]
         _skipped: u32,
-        #[inspect(name = "the_x", display_name = "Super X")]
+        #[inspect(display_name = "Super X")]
         x: f32,
         #[inspect(
             read_only,
@@ -84,7 +84,7 @@ fn inspect_attributes() {
     let expected = vec![
         PropertyInfo {
             owner_type_id: TypeId::of::<Data>(),
-            name: "the_x",
+            name: "x",
             display_name: "Super X",
             value: &data.x,
             ..default_prop()

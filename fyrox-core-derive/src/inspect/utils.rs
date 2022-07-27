@@ -96,13 +96,8 @@ impl FieldPrefix {
     }
 
     // FIXME: Use shared function between `Inspect` and `Reflect`
-    fn property_key_name(
-        &self,
-        name: Option<String>,
-        nth_field: usize,
-        field: &args::FieldArgs,
-    ) -> String {
-        let name = name.unwrap_or_else(|| match self.style {
+    fn property_key_name(&self, nth_field: usize, field: &args::FieldArgs) -> String {
+        let name = match self.style {
             ast::Style::Struct => {
                 format!("{}", field.ident.as_ref().unwrap())
             }
@@ -112,7 +107,7 @@ impl FieldPrefix {
             ast::Style::Unit => {
                 unreachable!()
             }
-        });
+        };
 
         if let Some(variant) = &self.variant {
             format!("{}@{}", variant.ident, name)
@@ -218,7 +213,7 @@ fn quote_field_prop(
         None => field_ref.clone(),
     };
 
-    let prop_key_name = field_prefix.property_key_name(field.name.clone(), nth_field, field);
+    let prop_key_name = field_prefix.property_key_name(nth_field, field);
 
     // consider #[inspect(display_name = ..)]
     let display_name = field
