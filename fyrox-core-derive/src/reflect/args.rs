@@ -1,6 +1,8 @@
 //! Derive input types defined with `darling`.
 
 use darling::*;
+use proc_macro2::TokenStream as TokenStream2;
+use quote::quote;
 use syn::*;
 
 pub type Fields = ast::Fields<FieldArgs>;
@@ -20,6 +22,9 @@ pub struct TypeArgs {
     /// `hidden` but the type needs to be `Refelct` to implement `Reflect`.
     #[darling(default)]
     pub bounds: Option<Vec<WherePredicate>>,
+
+    #[darling(default, rename = "ReflectList")]
+    pub impl_as_list: bool,
 }
 
 impl TypeArgs {
@@ -64,6 +69,22 @@ impl TypeArgs {
         );
 
         generics
+    }
+
+    pub fn as_list_impl(&self) -> TokenStream2 {
+        if !self.impl_as_list {
+            return quote!();
+        }
+
+        quote! {
+            fn as_list(&self) -> Option<&dyn ReflectList> {
+                Some(self)
+            }
+
+            fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
+                Some(self)
+            }
+        }
     }
 }
 

@@ -4,7 +4,7 @@
 use crate::asset::core::inspect::PropertyInfo;
 use crate::core::inspect::Inspect;
 use crate::{
-    core::visitor::prelude::*,
+    core::{reflect::Reflect, visitor::prelude::*},
     scene::particle_system::{
         emitter::{
             base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
@@ -27,7 +27,7 @@ pub trait Emit {
 }
 
 /// See module docs.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Reflect)]
 pub enum Emitter {
     /// Unknown kind here is just to have ability to implement Default trait,
     /// must not be used at runtime!

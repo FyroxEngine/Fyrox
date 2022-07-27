@@ -32,6 +32,23 @@ pub trait Reflect: Any {
     fn field_mut(&mut self, _name: &str) -> Option<&mut dyn Reflect> {
         None
     }
+
+    fn as_list(&self) -> Option<&dyn ReflectList> {
+        None
+    }
+
+    fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
+        None
+    }
+}
+
+/// [`Reflect`] sub trait for working with `Vec`-like types
+// add `ReflectArray` sub trait?
+pub trait ReflectList: Reflect {
+    fn reflect_index(&self, index: usize) -> Option<&dyn Reflect>;
+    fn reflect_index_mut(&mut self, index: usize) -> Option<&mut dyn Reflect>;
+    fn reflect_push(&mut self, value: Box<dyn Reflect>);
+    fn reflect_len(&self) -> usize;
 }
 
 /// An error returned from a failed path string query.
@@ -183,6 +200,18 @@ impl dyn Reflect {
     #[inline]
     pub fn downcast_mut<T: Reflect>(&mut self) -> Option<&mut T> {
         self.as_any_mut().downcast_mut::<T>()
+    }
+}
+
+impl dyn ReflectList {
+    pub fn get_reflect_index<T: Reflect + 'static>(&self, index: usize) -> Option<&T> {
+        self.reflect_index(index)
+            .and_then(|reflect| reflect.downcast_ref())
+    }
+
+    pub fn get_reflect_index_mut<T: Reflect + 'static>(&mut self, index: usize) -> Option<&mut T> {
+        self.reflect_index_mut(index)
+            .and_then(|reflect| reflect.downcast_mut())
     }
 }
 

@@ -9,7 +9,7 @@ use std::{
 
 use fyrox_core_derive::impl_reflect;
 
-use crate::reflect::{blank_reflect, Reflect};
+use crate::reflect::{blank_reflect, Reflect, ReflectList};
 
 macro_rules! impl_blank_reflect {
     ( $( $ty:ty ),* $(,)? ) => {
@@ -58,7 +58,31 @@ impl<const N: usize, T: Reflect> Reflect for [T; N] {
 }
 
 impl_reflect! {
-    pub struct Vec<T>;
+    #[reflect(ReflectList)]
+    pub struct Vec<T: Reflect + 'static>;
+}
+
+/// REMARK: `Reflect` is implemented for `Vec<T>` where `T: Reflect` only.
+impl<T: Reflect + 'static> ReflectList for Vec<T> {
+    fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
+        self.get(index).map(|x| x as &dyn Reflect)
+    }
+
+    fn reflect_index_mut(&mut self, index: usize) -> Option<&mut dyn Reflect> {
+        self.get_mut(index).map(|x| x as &mut dyn Reflect)
+    }
+
+    fn reflect_push(&mut self, value: Box<dyn Reflect>) {
+        if let Ok(value) = value.downcast::<T>() {
+            self.push(*value);
+        } else {
+            // log?
+        }
+    }
+
+    fn reflect_len(&self) -> usize {
+        self.len()
+    }
 }
 
 impl_reflect! {

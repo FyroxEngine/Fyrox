@@ -158,3 +158,17 @@ fn reflect_path() {
     assert_eq!(hie.cast_resolve_path_mut::<usize>("s.field"), Ok(&mut 1));
     assert_eq!(hie.cast_resolve_path_mut::<usize>("e.Tuple@0"), Ok(&mut 10));
 }
+
+#[test]
+fn reflect_list() {
+    let mut data = vec![10usize, 11usize];
+
+    let data = &mut data as &mut dyn Reflect;
+    let data = data.as_list_mut().unwrap();
+
+    assert_eq!(data.get_reflect_index(0), Some(&10usize));
+    assert_eq!(data.get_reflect_index::<usize>(2), None);
+
+    data.reflect_push(Box::new(12usize));
+    assert_eq!(data.get_reflect_index(2), Some(&12usize));
+}

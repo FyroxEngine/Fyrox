@@ -148,6 +148,7 @@ fn gen_impl(
     let ty_ident = &ty_args.ident;
     let generics = ty_args.impl_generics();
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let as_list_impl = ty_args.as_list_impl();
 
     quote! {
         #[allow(warnings)]
@@ -184,6 +185,8 @@ fn gen_impl(
             fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
                 #field_mut
             }
+
+            #as_list_impl
         }
     }
 }
