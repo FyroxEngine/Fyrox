@@ -7,6 +7,7 @@ use crate::{
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         io::{self, FileLoadError},
+        reflect::Reflect,
         sparse::AtomicIndex,
         visitor::prelude::*,
     },
@@ -508,6 +509,8 @@ define_new_resource!(
     ///
     /// Usually you don't need to get this shader manually, using of [Material::standard](super::Material::standard)
     /// is enough.
+    #[derive(Reflect)]
+    #[reflect(hide_all)]
     Shader<ShaderState, ShaderError>
 );
 

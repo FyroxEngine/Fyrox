@@ -1,7 +1,6 @@
 use crate::{
-    handle_properties,
     inspector::handlers::node::transform::handle_transform_property_changed,
-    scene::commands::{graph::*, lod::*},
+    scene::commands::{graph::*, lod::*, SetNodePropertyCommand},
     SceneCommand,
 };
 use fyrox::{
@@ -22,20 +21,11 @@ pub fn handle_base_property_changed(
     base: &mut Base,
 ) -> Option<SceneCommand> {
     match args.value {
-        FieldKind::Object(ref value) => {
-            handle_properties!(args.name.as_ref(), handle, value,
-                Base::NAME => SetNameCommand,
-                Base::TAG => SetTagCommand,
-                Base::FRUSTUM_CULLING => SetFrustumCullingCommand,
-                Base::VISIBILITY => SetVisibleCommand,
-                Base::MOBILITY => SetMobilityCommand,
-                //Base::LIFETIME => SetLifetimeCommand,
-                Base::DEPTH_OFFSET => SetDepthOffsetCommand,
-                Base::LOD_GROUP => SetLodGroupCommand,
-                Base::CAST_SHADOWS => SetCastShadowsCommand,
-                Base::SCRIPT => SetScriptCommand
-            )
-        }
+        FieldKind::Object(ref value) => Some(SceneCommand::new(SetNodePropertyCommand::new(
+            handle,
+            args.path(),
+            value.clone().into_box_reflect(),
+        ))),
         FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
             Base::PROPERTIES => match **collection_changed {
                 CollectionChanged::Add => Some(SceneCommand::new(AddPropertyCommand {

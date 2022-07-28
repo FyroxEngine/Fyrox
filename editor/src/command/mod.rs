@@ -6,7 +6,7 @@ pub mod panel;
 #[macro_export]
 macro_rules! define_command_stack {
     ($command_trait:ident, $command_stack:ident, $context:ty) => {
-        pub trait $command_trait: Debug + Send + 'static {
+        pub trait $command_trait: Debug + 'static {
             fn name(&mut self, context: &$context) -> String;
             fn execute(&mut self, context: &mut $context);
             fn revert(&mut self, context: &mut $context);

@@ -6,15 +6,19 @@ use crate::{
     },
     GameEngine, Message,
 };
-use fyrox::engine::SerializationContext;
 use fyrox::{
-    engine::resource_manager::ResourceManager,
-    scene::{graph::SubGraph, Scene},
+    core::{
+        pool::Handle,
+        reflect::{Reflect, ResolvePath},
+    },
+    engine::{resource_manager::ResourceManager, SerializationContext},
+    scene::{graph::SubGraph, node::Node, Scene},
+    utils::log::Log,
 };
-use std::sync::Arc;
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
+    sync::Arc,
 };
 
 pub mod camera;
@@ -439,4 +443,52 @@ macro_rules! define_swap_command {
             }
         )+
     };
+}
+
+#[derive(Debug)]
+pub struct SetNodePropertyCommand {
+    node: Handle<Node>,
+    value: Option<Box<dyn Reflect>>,
+    path: String,
+}
+
+impl SetNodePropertyCommand {
+    pub fn new(node: Handle<Node>, path: String, value: Box<dyn Reflect>) -> Self {
+        Self {
+            node,
+            value: Some(value),
+            path,
+        }
+    }
+
+    fn swap(&mut self, context: &mut SceneContext) {
+        if let Ok(property) = context.scene.graph[self.node].resolve_path_mut(&self.path) {
+            match property.set(self.value.take().unwrap()) {
+                Ok(old_value) => {
+                    self.value = Some(old_value);
+                }
+                Err(current_value) => {
+                    self.value = Some(current_value);
+                    Log::err(format!(
+                        "Failed to set property {}! Incompatible types!",
+                        self.path
+                    ))
+                }
+            }
+        }
+    }
+}
+
+impl Command for SetNodePropertyCommand {
+    fn name(&mut self, _: &SceneContext) -> String {
+        format!("Set node {} property", self.path)
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context);
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context);
+    }
 }

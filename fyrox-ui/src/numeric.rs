@@ -19,6 +19,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
 };
+use fyrox_core::reflect::Reflect;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Display},
@@ -40,6 +41,7 @@ pub trait NumericType:
     + Sync
     + NumCast
     + Default
+    + Reflect
     + 'static
 {
 }
@@ -58,6 +60,7 @@ impl<T> NumericType for T where
         + Sync
         + NumCast
         + Default
+        + Reflect
         + 'static
 {
 }

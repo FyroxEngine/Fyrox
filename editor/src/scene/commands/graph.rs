@@ -1,5 +1,5 @@
 use crate::{
-    command::Command, define_node_command, define_swap_command, define_vec_add_remove_commands,
+    command::Command, define_node_command, define_vec_add_remove_commands,
     scene::commands::SceneContext,
 };
 use fyrox::{
@@ -7,16 +7,13 @@ use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         pool::{Handle, Ticket},
-        visitor::Visitor,
     },
     scene::{
-        base::{deserialize_script, visit_opt_script, Mobility, Property, PropertyValue},
+        base::{deserialize_script, Property, PropertyValue},
         graph::{Graph, SubGraph},
         node::Node,
     },
-    script::Script,
 };
-use std::io::Cursor;
 
 #[derive(Debug)]
 pub struct MoveNodeCommand {
@@ -458,22 +455,6 @@ impl Command for SetPropertyNameCommand {
     }
 }
 
-fn node_mut(node: &mut Node) -> &mut Node {
-    node
-}
-
-define_swap_command! {
-    node_mut,
-    SetNameCommand(String): name_owned, set_name, "Set Name";
-    SetTagCommand(String): tag_owned, set_tag, "Set Tag";
-    SetFrustumCullingCommand(bool): frustum_culling, set_frustum_culling, "Set Frustum Culling";
-    SetVisibleCommand(bool): visibility, set_visibility, "Set Visible";
-    //SetLifetimeCommand(Option<f32>): lifetime, set_lifetime, "Set Lifetime";
-    SetMobilityCommand(Mobility): mobility, set_mobility, "Set Mobility";
-    SetDepthOffsetCommand(f32): depth_offset_factor, set_depth_offset_factor, "Set Depth Offset";
-    SetCastShadowsCommand(bool): cast_shadows, set_cast_shadows, "Set Cast Shadows";
-}
-
 define_node_command! {
     SetPostRotationCommand("Set Post Rotation", UnitQuaternion<f32>) where fn swap(self, node) {
         let temp = **node.local_transform().post_rotation();
@@ -509,69 +490,6 @@ define_node_command! {
         let temp = **node.local_transform().scaling_pivot();
         node.local_transform_mut().set_scaling_pivot(self.value);
         self.value = temp;
-    }
-}
-
-#[derive(Debug)]
-pub enum SetScriptCommandState {
-    Undefined,
-    NonExecuted { script: Option<Script> },
-    Executed,
-    Reverted { data: Vec<u8> },
-}
-
-#[derive(Debug)]
-pub struct SetScriptCommand {
-    handle: Handle<Node>,
-    state: SetScriptCommandState,
-}
-
-impl SetScriptCommand {
-    pub fn new(handle: Handle<Node>, script: Option<Script>) -> Self {
-        Self {
-            handle,
-            state: SetScriptCommandState::NonExecuted { script },
-        }
-    }
-}
-
-impl Command for SetScriptCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
-        "Set Script Command".to_string()
-    }
-
-    fn execute(&mut self, context: &mut SceneContext) {
-        let node = &mut context.scene.graph[self.handle];
-
-        match std::mem::replace(&mut self.state, SetScriptCommandState::Executed) {
-            SetScriptCommandState::NonExecuted { script } => {
-                node.set_script(script);
-            }
-            SetScriptCommandState::Reverted { data } => {
-                let mut visitor = Visitor::load_from_memory(data).unwrap();
-                visitor.environment = Some(context.serialization_context.clone());
-                visit_opt_script("Script", node.script_inner(), &mut visitor).unwrap();
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    fn revert(&mut self, context: &mut SceneContext) {
-        let node = &mut context.scene.graph[self.handle];
-        match std::mem::replace(&mut self.state, SetScriptCommandState::Undefined) {
-            SetScriptCommandState::Executed => {
-                let mut script = node.script_inner().take();
-                let mut visitor = Visitor::new();
-                visitor.environment = Some(context.serialization_context.clone());
-                visit_opt_script("Script", &mut script, &mut visitor).unwrap();
-                let mut data = Cursor::new(Vec::<u8>::new());
-                visitor.save_binary_to_memory(&mut data).unwrap();
-                self.state = SetScriptCommandState::Reverted {
-                    data: data.into_inner(),
-                }
-            }
-            _ => unreachable!(),
-        }
     }
 }
 

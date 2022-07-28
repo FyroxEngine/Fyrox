@@ -1,8 +1,8 @@
-use crate::{command::Command, define_swap_command, scene::commands::SceneContext};
+use crate::{command::Command, scene::commands::SceneContext};
 use fyrox::{
     core::pool::Handle,
     scene::{
-        base::{LevelOfDetail, LodControlledObject, LodGroup},
+        base::{LevelOfDetail, LodControlledObject},
         node::Node,
     },
 };
@@ -291,13 +291,4 @@ impl Command for SetLodGroupLodObjectValue {
     fn revert(&mut self, context: &mut SceneContext) {
         self.swap(context)
     }
-}
-
-fn node_mut(node: &mut Node) -> &mut Node {
-    node
-}
-
-define_swap_command! {
-    node_mut,
-    SetLodGroupCommand(Option<LodGroup>): take_lod_group, set_lod_group, "Set Lod Group";
 }
