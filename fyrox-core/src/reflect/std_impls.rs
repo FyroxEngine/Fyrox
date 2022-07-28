@@ -102,3 +102,7 @@ impl_reflect! {
         pub end: Idx,
     }
 }
+
+impl_reflect! {
+    pub struct Box<T>;
+}

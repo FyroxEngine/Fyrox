@@ -5,12 +5,11 @@ mod std_impls;
 
 pub use fyrox_core_derive::Reflect;
 
-use thiserror::Error;
-
 use std::{
     any::{Any, TypeId},
     fmt,
 };
+use thiserror::Error;
 
 /// Trait for runtime reflection
 ///
@@ -35,7 +34,7 @@ pub trait Reflect: Any {
 
     fn as_reflect_mut(&mut self) -> &mut dyn Reflect;
 
-    fn set(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>>;
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>>;
 
     fn field(&self, _name: &str) -> Option<&dyn Reflect> {
         None
@@ -340,9 +339,9 @@ macro_rules! blank_reflect {
             self
         }
 
-        fn set(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>> {
-            *self = value.take()?;
-            Ok(())
+        fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+            let this = std::mem::replace(self, value.take()?);
+            Ok(Box::new(this))
         }
     };
 }

@@ -157,9 +157,9 @@ fn gen_impl(
                 self
             }
 
-            fn set(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>> {
-                *self = value.take()?;
-                Ok(())
+            fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+                let this = std::mem::replace(self, value.take()?);
+                Ok(Box::new(this))
             }
 
             fn as_any(&self) -> &dyn ::core::any::Any {
