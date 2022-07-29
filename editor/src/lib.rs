@@ -59,8 +59,8 @@ use crate::{
     scene::{
         commands::{
             graph::AddModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
-            particle_system::SetParticleSystemTextureCommand, sprite::SetSpriteTextureCommand,
-            ChangeSelectionCommand, CommandGroup, PasteCommand, SceneCommand, SceneContext,
+            particle_system::SetParticleSystemTextureCommand, ChangeSelectionCommand, CommandGroup,
+            PasteCommand, SceneCommand, SceneContext,
         },
         is_scene_needs_to_be_saved, EditorScene, Selection,
     },

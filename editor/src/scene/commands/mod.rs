@@ -25,7 +25,6 @@ use std::{
 pub mod camera;
 pub mod collider;
 pub mod collider2d;
-pub mod decal;
 pub mod effect;
 pub mod graph;
 pub mod joint;
@@ -36,12 +35,9 @@ pub mod material;
 pub mod mesh;
 pub mod navmesh;
 pub mod particle_system;
-pub mod rectangle;
 pub mod rigidbody;
 pub mod rigidbody2d;
-pub mod sound;
 pub mod sound_context;
-pub mod sprite;
 pub mod terrain;
 
 #[macro_export]

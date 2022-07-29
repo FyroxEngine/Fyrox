@@ -3,7 +3,7 @@ use crate::{
     scene::commands::graph::ScaleNodeCommand, utils::enable_widget, AddModelCommand, AssetItem,
     AssetKind, ChangeSelectionCommand, CommandGroup, DropdownListBuilder, EditorScene, GameEngine,
     GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand, Selection,
-    SetMeshTextureCommand, SetParticleSystemTextureCommand, SetSpriteTextureCommand, Settings,
+    SetMeshTextureCommand, SetParticleSystemTextureCommand, Settings,
 };
 use fyrox::gui::utils::make_simple_tooltip;
 use fyrox::{
@@ -748,13 +748,6 @@ impl SceneViewer {
                                     .send(Message::do_scene_command(SetMeshTextureCommand::new(
                                         result.node,
                                         tex,
-                                    )))
-                                    .unwrap();
-                            } else if node.is_sprite() {
-                                self.sender
-                                    .send(Message::do_scene_command(SetSpriteTextureCommand::new(
-                                        result.node,
-                                        Some(tex),
                                     )))
                                     .unwrap();
                             } else if node.is_particle_system() {
