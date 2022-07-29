@@ -6,6 +6,7 @@ use crate::{
     },
     GameEngine, Message,
 };
+use fyrox::gui::inspector::{CollectionChanged, FieldKind, PropertyChanged};
 use fyrox::{
     core::{
         pool::Handle,
@@ -452,7 +453,35 @@ pub struct SetNodePropertyCommand {
     path: String,
 }
 
+fn extract_value(property_changed: &PropertyChanged) -> Option<Box<dyn Reflect>> {
+    match property_changed.value {
+        FieldKind::Object(ref value) => Some(value.clone().into_box_reflect()),
+        FieldKind::Collection(ref collection_changed) => {
+            match **collection_changed {
+                CollectionChanged::Add => {
+                    // TODO
+                    None
+                }
+                CollectionChanged::Remove(_) => {
+                    // TODO
+                    None
+                }
+                CollectionChanged::ItemChanged { ref property, .. } => extract_value(property),
+            }
+        }
+        FieldKind::Inspectable(ref inspectable) => extract_value(inspectable),
+    }
+}
+
 impl SetNodePropertyCommand {
+    pub fn from_property_changed(node: Handle<Node>, property_changed: &PropertyChanged) -> Self {
+        Self {
+            node,
+            value: extract_value(property_changed),
+            path: property_changed.path(),
+        }
+    }
+
     pub fn new(node: Handle<Node>, path: String, value: Box<dyn Reflect>) -> Self {
         Self {
             node,
@@ -462,8 +491,11 @@ impl SetNodePropertyCommand {
     }
 
     fn swap(&mut self, context: &mut SceneContext) {
-        if let Ok(property) = context.scene.graph[self.node].resolve_path_mut(&self.path) {
-            match property.set(self.value.take().unwrap()) {
+        match context.scene.graph[self.node]
+            .as_reflect_mut()
+            .resolve_path_mut(&self.path)
+        {
+            Ok(property) => match property.set(self.value.take().unwrap()) {
                 Ok(old_value) => {
                     self.value = Some(old_value);
                 }
@@ -474,7 +506,11 @@ impl SetNodePropertyCommand {
                         self.path
                     ))
                 }
-            }
+            },
+            Err(e) => Log::err(format!(
+                "There is no such property {}! Reason: {:?}",
+                self.path, e
+            )),
         }
     }
 }

@@ -73,7 +73,7 @@ impl SceneNodePropertyChangedHandler {
         if args.owner_type_id == TypeId::of::<Base>() {
             handle_base_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<Pivot>() {
-            handle_pivot_property_changed(args, handle, node)
+            handle_pivot_property_changed(args, handle)
         } else if args.owner_type_id == TypeId::of::<Camera>() {
             handle_camera_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<Sprite>() {
@@ -87,7 +87,7 @@ impl SceneNodePropertyChangedHandler {
         } else if args.owner_type_id == TypeId::of::<ParticleSystem>() {
             self.particle_system_handler.handle(args, handle, node, ui)
         } else if args.owner_type_id == TypeId::of::<Decal>() {
-            handle_decal_property_changed(args, handle, node)
+            handle_decal_property_changed(args, handle)
         } else if args.owner_type_id == TypeId::of::<Terrain>() {
             handle_terrain_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<Mesh>() {
@@ -105,7 +105,7 @@ impl SceneNodePropertyChangedHandler {
         } else if args.owner_type_id == TypeId::of::<dim2::joint::Joint>() {
             handle_joint2d_property_changed(args, handle, node.as_joint2d_mut())
         } else if args.owner_type_id == TypeId::of::<dim2::rectangle::Rectangle>() {
-            handle_rectangle_property_changed(args, handle, node)
+            handle_rectangle_property_changed(args, handle)
         } else if args.owner_type_id == TypeId::of::<Sound>() {
             handle_sound_property_changed(args, handle)
         } else if args.owner_type_id == TypeId::of::<Listener>() {

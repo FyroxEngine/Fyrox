@@ -191,7 +191,7 @@ pub fn handle_base_property_changed(
                 _ => None,
             },
             Base::SCRIPT => handle_script_property_changed(inner_value, handle, base),
-            Base::LOCAL_TRANSFORM => handle_transform_property_changed(inner_value, handle, base),
+            Base::LOCAL_TRANSFORM => handle_transform_property_changed(args, handle),
             _ => None,
         },
     }

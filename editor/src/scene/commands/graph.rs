@@ -1,7 +1,4 @@
-use crate::{
-    command::Command, define_node_command, define_vec_add_remove_commands,
-    scene::commands::SceneContext,
-};
+use crate::{command::Command, define_vec_add_remove_commands, scene::commands::SceneContext};
 use fyrox::{
     animation::Animation,
     core::{
@@ -452,44 +449,6 @@ impl Command for SetPropertyNameCommand {
 
     fn revert(&mut self, context: &mut SceneContext) {
         self.swap(context)
-    }
-}
-
-define_node_command! {
-    SetPostRotationCommand("Set Post Rotation", UnitQuaternion<f32>) where fn swap(self, node) {
-        let temp = **node.local_transform().post_rotation();
-        node.local_transform_mut().set_post_rotation(self.value);
-        self.value = temp;
-    }
-
-    SetPreRotationCommand("Set Pre Rotation", UnitQuaternion<f32>) where fn swap(self, node) {
-        let temp = **node.local_transform().pre_rotation();
-        node.local_transform_mut().set_pre_rotation(self.value);
-        self.value = temp;
-    }
-
-    SetRotationOffsetCommand("Set Rotation Offset", Vector3<f32>) where fn swap(self, node) {
-        let temp = **node.local_transform().rotation_offset();
-        node.local_transform_mut().set_rotation_offset(self.value);
-        self.value = temp;
-    }
-
-    SetRotationPivotCommand("Set Rotation Pivot", Vector3<f32>) where fn swap(self, node) {
-        let temp = **node.local_transform().rotation_pivot();
-        node.local_transform_mut().set_rotation_pivot(self.value);
-        self.value = temp;
-    }
-
-    SetScaleOffsetCommand("Set Scaling Offset", Vector3<f32>) where fn swap(self, node) {
-        let temp = **node.local_transform().scaling_offset();
-        node.local_transform_mut().set_scaling_offset(self.value);
-        self.value = temp;
-    }
-
-    SetScalePivotCommand("Set Scaling Pivot", Vector3<f32>) where fn swap(self, node) {
-        let temp = **node.local_transform().scaling_pivot();
-        node.local_transform_mut().set_scaling_pivot(self.value);
-        self.value = temp;
     }
 }
 
