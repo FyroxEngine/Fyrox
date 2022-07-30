@@ -92,7 +92,7 @@ impl<T: Reflect + 'static> ReflectList for Vec<T> {
     }
 
     fn reflect_remove(&mut self, index: usize) -> Option<Box<dyn Reflect>> {
-        if self.len() < index {
+        if index < self.len() {
             Some(Box::new(self.remove(index)))
         } else {
             None
