@@ -341,6 +341,7 @@ fn handle_blend_animations_by_index_node_property_changed(
                 CollectionChanged::ItemChanged {
                     index,
                     ref property,
+                    ..
                 } => match property.value {
                     FieldKind::Object(ref value) => match property.name.as_ref() {
                         IndexedBlendInputDefinition::BLEND_TIME => Some(AbsmCommand::new(
@@ -385,6 +386,7 @@ fn handle_blend_animations_node_property_changed(
                 CollectionChanged::ItemChanged {
                     index,
                     ref property,
+                    ..
                 } => match property.value {
                     FieldKind::Object(ref value) => match property.name.as_ref() {
                         BlendPoseDefinition::WEIGHT => {

@@ -40,6 +40,7 @@ pub fn handle_base_property_changed(
                 CollectionChanged::ItemChanged {
                     index,
                     ref property,
+                    ..
                 } => match property.value {
                     FieldKind::Object(ref value) => match property.name.as_ref() {
                         Property::VALUE => Some(SceneCommand::new(SetPropertyValueCommand {
@@ -123,6 +124,7 @@ pub fn handle_base_property_changed(
                         CollectionChanged::ItemChanged {
                             index: lod_index,
                             ref property,
+                            ..
                         } => match property.value {
                             FieldKind::Object(ref value) => match property.name.as_ref() {
                                 LevelOfDetail::BEGIN => {
@@ -161,6 +163,7 @@ pub fn handle_base_property_changed(
                                         CollectionChanged::ItemChanged {
                                             index,
                                             ref property,
+                                            ..
                                         } => match property.name.as_ref() {
                                             LodControlledObject::F_0 => {
                                                 if let FieldKind::Object(ref value) = property.value

@@ -29,14 +29,11 @@ pub mod effect;
 pub mod graph;
 pub mod joint;
 pub mod joint2d;
-pub mod light;
 pub mod lod;
 pub mod material;
 pub mod mesh;
 pub mod navmesh;
 pub mod particle_system;
-pub mod rigidbody;
-pub mod rigidbody2d;
 pub mod sound_context;
 pub mod terrain;
 

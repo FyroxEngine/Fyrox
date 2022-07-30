@@ -33,6 +33,7 @@ pub fn handle_base_effect_property_changed(
                 CollectionChanged::ItemChanged {
                     index,
                     ref property,
+                    ..
                 } => handle_effect_input_property_changed(property, handle, index),
             },
             _ => None,

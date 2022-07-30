@@ -1,14 +1,9 @@
-use crate::{command::Command, define_swap_command, scene::commands::SceneContext};
-use fyrox::core::sstorage::ImmutableString;
-use fyrox::material::shader::SamplerFallback;
-use fyrox::material::PropertyValue;
+use crate::{command::Command, scene::commands::SceneContext};
 use fyrox::{
-    core::pool::Handle,
+    core::{pool::Handle, sstorage::ImmutableString},
+    material::{shader::SamplerFallback, PropertyValue},
     resource::texture::Texture,
-    scene::{
-        mesh::{Mesh, RenderPath},
-        node::Node,
-    },
+    scene::{mesh::Mesh, node::Node},
 };
 
 #[derive(Debug)]
@@ -109,10 +104,4 @@ impl Command for SetMeshTextureCommand {
             unreachable!()
         }
     }
-}
-
-define_swap_command! {
-    Node::as_mesh_mut,
-    SetMeshRenderPathCommand(RenderPath): render_path, set_render_path, "Set Mesh Render Path";
-    SetMeshDecalLayerIndexCommand(u8): decal_layer_index, set_decal_layer_index, "Set Mesh Decal Layer Index";
 }

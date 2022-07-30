@@ -169,6 +169,7 @@ fn handle_trimesh(
                 CollectionChanged::ItemChanged {
                     index,
                     ref property,
+                    ..
                 } => {
                     if let FieldKind::Object(ref value) = property.value {
                         Some(SceneCommand::new(

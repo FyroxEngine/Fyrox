@@ -105,6 +105,7 @@ pub fn make_property_editors_container(
     container.insert(make_status_enum_editor_definition());
     container.insert(EnumPropertyEditorDefinition::<f32>::new_optional());
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
+    container.insert(InspectablePropertyEditorDefinition::<LodGroup>::new());
     container.insert(ResourceFieldPropertyEditorDefinition::<
         Model,
         ModelData,

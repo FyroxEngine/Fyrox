@@ -129,6 +129,7 @@ impl ParameterPanel {
                                 CollectionChanged::ItemChanged {
                                     index,
                                     ref property,
+                                    ..
                                 } => handle_parameter_property_change(index, property),
                             }
                         } else {
