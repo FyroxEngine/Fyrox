@@ -90,19 +90,19 @@ use std::ops::{Deref, DerefMut};
 pub struct Decal {
     base: Base,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     diffuse_texture: TemplateVariable<Option<Texture>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     normal_texture: TemplateVariable<Option<Texture>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     color: TemplateVariable<Color>,
 
-    #[inspect(min_value = 0.0, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, deref)]
     #[reflect(deref)]
     layer: TemplateVariable<u8>,
 }

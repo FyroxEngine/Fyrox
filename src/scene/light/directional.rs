@@ -109,7 +109,7 @@ impl CsmOptions {
 pub struct DirectionalLight {
     base_light: BaseLight,
     /// See [`CsmOptions`].
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub csm_options: TemplateVariable<CsmOptions>,
 }

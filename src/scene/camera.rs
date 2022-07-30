@@ -260,35 +260,35 @@ impl Default for Exposure {
 pub struct Camera {
     base: Base,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     projection: TemplateVariable<Projection>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     viewport: TemplateVariable<Rect<f32>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     enabled: TemplateVariable<bool>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(field = "as_ref()?.deref()", field_mut = "as_mut()?.deref_mut()")]
     sky_box: TemplateVariable<Option<Box<SkyBox>>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     environment: TemplateVariable<Option<Texture>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     exposure: TemplateVariable<Exposure>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     color_grading_lut: TemplateVariable<Option<ColorGradingLut>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     color_grading_enabled: TemplateVariable<bool>,
 
