@@ -1,4 +1,5 @@
 use crate::inspector::editors::PropertyEditorTranslationContext;
+use crate::inspector::ObjectValue;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{inspect::Inspect, pool::Handle},
@@ -18,6 +19,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::reflect::Reflect;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -32,16 +34,46 @@ pub struct Item {
     remove: Handle<UiNode>,
 }
 
-#[derive(Clone, Debug)]
-pub struct CollectionEditor {
+pub trait CollectionItem: Inspect + Clone + Reflect + Debug + Default + 'static {}
+
+impl<T: Inspect + Clone + Reflect + Debug + Default + 'static> CollectionItem for T {}
+
+#[derive(Debug)]
+pub struct CollectionEditor<T: CollectionItem> {
     widget: Widget,
     add: Handle<UiNode>,
     items: Vec<Item>,
     panel: Handle<UiNode>,
     layer_index: usize,
+    phantom: PhantomData<T>,
 }
 
-crate::define_widget_deref!(CollectionEditor);
+impl<T: CollectionItem> Clone for CollectionEditor<T> {
+    fn clone(&self) -> Self {
+        Self {
+            widget: self.widget.clone(),
+            add: self.add,
+            items: self.items.clone(),
+            panel: self.panel.clone(),
+            layer_index: self.layer_index,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<T: CollectionItem> Deref for CollectionEditor<T> {
+    type Target = Widget;
+
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl<T: CollectionItem> DerefMut for CollectionEditor<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum CollectionEditorMessage {
@@ -52,7 +84,7 @@ impl CollectionEditorMessage {
     define_constructor!(CollectionEditorMessage:Items => fn items(Vec<Item>), layout: false);
 }
 
-impl Control for CollectionEditor {
+impl<T: CollectionItem> Control for CollectionEditor<T> {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
             Some(self)
@@ -123,6 +155,9 @@ impl Control for CollectionEditor {
                 ui.send_message(CollectionChanged::add(
                     self.handle,
                     MessageDirection::FromWidget,
+                    ObjectValue {
+                        value: Box::new(T::default()),
+                    },
                 ))
             }
         }
@@ -131,7 +166,7 @@ impl Control for CollectionEditor {
 
 pub struct CollectionEditorBuilder<'a, T, I>
 where
-    T: Inspect + 'static,
+    T: CollectionItem,
     I: IntoIterator<Item = &'a T>,
 {
     widget_builder: WidgetBuilder,
@@ -171,7 +206,7 @@ fn create_items<'a, T, I>(
     layer_index: usize,
 ) -> Vec<Item>
 where
-    T: Inspect + 'static,
+    T: CollectionItem,
     I: IntoIterator<Item = &'a T>,
 {
     iter.into_iter()
@@ -208,7 +243,7 @@ where
 
 impl<'a, T, I> CollectionEditorBuilder<'a, T, I>
 where
-    T: Inspect + 'static,
+    T: CollectionItem,
     I: IntoIterator<Item = &'a T>,
 {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
@@ -277,7 +312,7 @@ where
         )))
         .build(ctx);
 
-        let ce = CollectionEditor {
+        let ce = CollectionEditor::<T> {
             widget: self
                 .widget_builder
                 .with_preview_messages(true)
@@ -287,6 +322,7 @@ where
             items,
             panel,
             layer_index: self.layer_index,
+            phantom: PhantomData,
         };
 
         ctx.add_node(UiNode::new(ce))
@@ -296,14 +332,14 @@ where
 #[derive(Debug)]
 pub struct VecCollectionPropertyEditorDefinition<T>
 where
-    T: Inspect + Debug + 'static,
+    T: CollectionItem,
 {
     phantom: PhantomData<T>,
 }
 
 impl<T> VecCollectionPropertyEditorDefinition<T>
 where
-    T: Inspect + Debug + 'static,
+    T: CollectionItem,
 {
     pub fn new() -> Self {
         Self::default()
@@ -312,7 +348,7 @@ where
 
 impl<T> Default for VecCollectionPropertyEditorDefinition<T>
 where
-    T: Inspect + Debug + 'static,
+    T: CollectionItem,
 {
     fn default() -> Self {
         Self {
@@ -323,7 +359,7 @@ where
 
 impl<T> PropertyEditorDefinition for VecCollectionPropertyEditorDefinition<T>
 where
-    T: Inspect + Debug + 'static,
+    T: CollectionItem,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<Vec<T>>()
@@ -383,7 +419,7 @@ where
             environment,
         } = ctx;
 
-        let instance_ref = if let Some(instance) = ui.node(instance).cast::<CollectionEditor>() {
+        let instance_ref = if let Some(instance) = ui.node(instance).cast::<CollectionEditor<T>>() {
             instance
         } else {
             return Err(InspectorError::Custom(

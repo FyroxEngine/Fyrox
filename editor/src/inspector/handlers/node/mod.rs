@@ -1,5 +1,6 @@
 use std::any::TypeId;
 
+use crate::scene::commands::make_set_node_property_command;
 use crate::{
     inspector::handlers::node::{
         camera::handle_camera_property_changed, collider::handle_collider_property_changed,
@@ -9,7 +10,6 @@ use crate::{
         rigid_body2d::handle_rigid_body2d_property_changed,
         terrain::handle_terrain_property_changed,
     },
-    scene::commands::SetNodePropertyCommand,
     SceneCommand,
 };
 use fyrox::{
@@ -82,9 +82,7 @@ impl SceneNodePropertyChangedHandler {
         } else if args.owner_type_id == TypeId::of::<dim2::joint::Joint>() {
             handle_joint2d_property_changed(args, handle, node.as_joint2d_mut())
         } else {
-            Some(SceneCommand::new(
-                SetNodePropertyCommand::from_property_changed(handle, args),
-            ))
+            Some(make_set_node_property_command(handle, args))
         }
     }
 }

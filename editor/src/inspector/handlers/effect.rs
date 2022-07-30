@@ -21,7 +21,7 @@ pub fn handle_base_effect_property_changed(
         }
         FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
             BaseEffect::INPUTS => match **collection_changed {
-                CollectionChanged::Add => Some(SceneCommand::new(AddInputCommand {
+                CollectionChanged::Add(_) => Some(SceneCommand::new(AddInputCommand {
                     handle,
                     value: Default::default(),
                 })),

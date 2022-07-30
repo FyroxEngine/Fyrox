@@ -18,9 +18,9 @@ pub fn handle_terrain_property_changed(
         match args.value {
             FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
                 Terrain::LAYERS => match &**collection_changed {
-                    CollectionChanged::Add => Some(SceneCommand::new(AddTerrainLayerCommand::new(
-                        handle, terrain,
-                    ))),
+                    CollectionChanged::Add(_) => Some(SceneCommand::new(
+                        AddTerrainLayerCommand::new(handle, terrain),
+                    )),
                     CollectionChanged::Remove(index) => Some(SceneCommand::new(
                         DeleteTerrainLayerCommand::new(handle, *index),
                     )),

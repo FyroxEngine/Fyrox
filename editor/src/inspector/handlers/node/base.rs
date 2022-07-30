@@ -28,7 +28,7 @@ pub fn handle_base_property_changed(
         ))),
         FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
             Base::PROPERTIES => match **collection_changed {
-                CollectionChanged::Add => Some(SceneCommand::new(AddPropertyCommand {
+                CollectionChanged::Add(_) => Some(SceneCommand::new(AddPropertyCommand {
                     handle,
                     value: Default::default(),
                 })),
@@ -114,7 +114,7 @@ pub fn handle_base_property_changed(
             Base::LOD_GROUP => match inner_value.name.as_ref() {
                 LodGroup::LEVELS => match inner_value.value {
                     FieldKind::Collection(ref collection_changed) => match **collection_changed {
-                        CollectionChanged::Add => Some(SceneCommand::new(
+                        CollectionChanged::Add(_) => Some(SceneCommand::new(
                             AddLodGroupLevelCommand::new(handle, Default::default()),
                         )),
                         CollectionChanged::Remove(i) => Some(SceneCommand::new(
@@ -144,7 +144,7 @@ pub fn handle_base_property_changed(
                             FieldKind::Collection(ref collection_changed) => {
                                 match property.name.as_ref() {
                                     LevelOfDetail::OBJECTS => match **collection_changed {
-                                        CollectionChanged::Add => {
+                                        CollectionChanged::Add(_) => {
                                             Some(SceneCommand::new(AddLodObjectCommand::new(
                                                 handle,
                                                 lod_index,

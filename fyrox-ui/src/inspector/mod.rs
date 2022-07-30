@@ -35,7 +35,7 @@ pub mod editors;
 #[derive(Debug, Clone, PartialEq)]
 pub enum CollectionChanged {
     /// An item should be added in the collection.
-    Add,
+    Add(ObjectValue),
     /// An item in the collection should be removed.
     Remove(usize),
     /// An item in the collection has changed one of its properties.
@@ -47,7 +47,7 @@ pub enum CollectionChanged {
 }
 
 impl CollectionChanged {
-    define_constructor!(CollectionChanged:Add => fn add(), layout: false);
+    define_constructor!(CollectionChanged:Add => fn add(ObjectValue), layout: false);
     define_constructor!(CollectionChanged:Remove => fn remove(usize), layout: false);
     define_constructor!(CollectionChanged:ItemChanged => fn item_changed(index: usize, property: PropertyChanged), layout: false);
 }

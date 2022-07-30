@@ -159,7 +159,7 @@ fn handle_trimesh(
     match property_changed.name.as_ref() {
         TrimeshShape::SOURCES => match property_changed.value {
             FieldKind::Collection(ref collection_changed) => match **collection_changed {
-                CollectionChanged::Add => {
+                CollectionChanged::Add(_) => {
                     Some(SceneCommand::new(AddTrimeshGeometrySourceCommand {
                         node: handle,
                         source: Default::default(),

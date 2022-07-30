@@ -138,7 +138,7 @@ impl ParticleSystemHandler {
                 }
                 FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
                     ParticleSystem::EMITTERS => match &**collection_changed {
-                        CollectionChanged::Add => {
+                        CollectionChanged::Add(_) => {
                             ui.send_message(WindowMessage::open_modal(
                                 self.selector_window,
                                 MessageDirection::ToWidget,

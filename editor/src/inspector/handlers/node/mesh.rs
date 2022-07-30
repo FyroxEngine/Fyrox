@@ -22,7 +22,7 @@ pub fn handle_mesh_property_changed(
                 )
             }
             FieldKind::Collection(ref args) => match **args {
-                CollectionChanged::Add => {
+                CollectionChanged::Add(_) => {
                     // TODO
                     None
                 }
