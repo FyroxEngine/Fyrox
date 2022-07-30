@@ -144,59 +144,59 @@ pub(crate) enum ApplyAction {
 pub struct RigidBody {
     base: Base,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) lin_vel: TemplateVariable<Vector3<f32>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) ang_vel: TemplateVariable<Vector3<f32>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) lin_damping: TemplateVariable<f32>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) ang_damping: TemplateVariable<f32>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) body_type: TemplateVariable<RigidBodyType>,
 
-    #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(deref)]
     pub(crate) mass: TemplateVariable<f32>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) x_rotation_locked: TemplateVariable<bool>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) y_rotation_locked: TemplateVariable<bool>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) z_rotation_locked: TemplateVariable<bool>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) translation_locked: TemplateVariable<bool>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) ccd_enabled: TemplateVariable<bool>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) can_sleep: TemplateVariable<bool>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) dominance: TemplateVariable<i8>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) gravity_scale: TemplateVariable<f32>,
 

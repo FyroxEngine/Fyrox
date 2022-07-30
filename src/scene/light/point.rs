@@ -45,11 +45,11 @@ use std::ops::{Deref, DerefMut};
 pub struct PointLight {
     base_light: BaseLight,
 
-    #[inspect(min_value = 0.0, step = 0.001, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.001, deref)]
     #[reflect(deref)]
     shadow_bias: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.1, deref)]
     #[reflect(deref)]
     radius: TemplateVariable<f32>,
 }

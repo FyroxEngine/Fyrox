@@ -9,7 +9,9 @@ use quote::quote;
 use syn::*;
 
 pub fn impl_inspect(ast: DeriveInput) -> TokenStream2 {
-    let ty_args = args::TypeArgs::from_derive_input(&ast).unwrap();
+    let mut ty_args = args::TypeArgs::from_derive_input(&ast).unwrap();
+    ty_args.validate();
+
     match &ty_args.data {
         ast::Data::Struct(ref field_args) => self::impl_inspect_struct(&ty_args, field_args),
         ast::Data::Enum(ref variant_args) => self::impl_inspect_enum(&ty_args, variant_args),

@@ -51,28 +51,23 @@ use std::ops::{Deref, DerefMut};
 pub struct SpotLight {
     base_light: BaseLight,
 
-    #[inspect(
-        min_value = 0.0,
-        max_value = 3.14159,
-        step = 0.1,
-        getter = "Deref::deref"
-    )]
+    #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1, deref)]
     #[reflect(deref)]
     hotspot_cone_angle: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.1, deref)]
     #[reflect(deref)]
     falloff_angle_delta: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.001, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.001, deref)]
     #[reflect(deref)]
     shadow_bias: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.1, deref)]
     #[reflect(deref)]
     distance: TemplateVariable<f32>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     cookie_texture: TemplateVariable<Option<Texture>>,
 }

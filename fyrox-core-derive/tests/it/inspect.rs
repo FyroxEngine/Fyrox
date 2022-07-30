@@ -279,19 +279,31 @@ fn inspect_with_custom_getter() {
     }
 
     #[derive(Inspect, Reflect)]
-    struct A(#[inspect(getter = "Deref::deref")] D<u32>);
+    struct A(
+        #[inspect(getter = "deref()")] D<u32>,
+        #[inspect(deref)] D<u32>,
+    );
 
-    let a = A(D(10));
+    let a = A(D(10), D(11));
 
     assert_eq!(
         a.properties(),
-        vec![PropertyInfo {
-            owner_type_id: TypeId::of::<A>(),
-            name: "0",
-            display_name: "0",
-            value: &*a.0,
-            ..default_prop()
-        }]
+        vec![
+            PropertyInfo {
+                owner_type_id: TypeId::of::<A>(),
+                name: "0",
+                display_name: "0",
+                value: &*a.0,
+                ..default_prop()
+            },
+            PropertyInfo {
+                owner_type_id: TypeId::of::<A>(),
+                name: "1",
+                display_name: "1",
+                value: &*a.1,
+                ..default_prop()
+            }
+        ]
     );
 }
 

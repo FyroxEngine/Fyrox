@@ -58,24 +58,24 @@ pub const DEFAULT_SCATTER_B: f32 = 0.03;
 pub struct BaseLight {
     base: Base,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     color: TemplateVariable<Color>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     cast_shadows: TemplateVariable<bool>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[visit(rename = "ScatterFactor")]
     #[reflect(deref)]
     scatter: TemplateVariable<Vector3<f32>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     scatter_enabled: TemplateVariable<bool>,
 
-    #[inspect(min_value = 0.0, step = 0.1, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.1, deref)]
     #[reflect(deref)]
     intensity: TemplateVariable<f32>,
 }

@@ -16,6 +16,20 @@ pub struct TypeArgs {
     pub data: ast::Data<VariantArgs, FieldArgs>,
 }
 
+impl TypeArgs {
+    pub fn validate(&mut self) {
+        match &mut self.data {
+            ast::Data::Enum(vs) => {
+                vs.iter_mut()
+                    .for_each(|v| v.fields.fields.iter_mut().for_each(|f| f.validate()));
+            }
+            ast::Data::Struct(s) => {
+                s.fields.iter_mut().for_each(|f| f.validate());
+            }
+        }
+    }
+}
+
 /// Parsed from struct's or enum variant's field
 ///
 /// NOTE: `#[derive(Inspect)]` is non-recursive by default.
@@ -38,11 +52,17 @@ pub struct FieldArgs {
     #[darling(default)]
     pub display_name: Option<String>,
 
-    /// `#[inspect(getter = "<path>")]`
+    /// `#[inspect(getter = "<expr>")]`
     ///
-    /// Convert the field reference to another reference
+    /// Method call syntax for converting the field reference to another reference
     #[darling(default)]
-    pub getter: Option<String>,
+    pub getter: Option<Expr>,
+
+    /// `#[inspect(deref)]`
+    ///
+    /// Sets `getter` field with `deref()`
+    #[darling(default)]
+    pub deref: bool,
 
     /// `#[inspect(read_only)]`
     ///
@@ -85,6 +105,18 @@ pub struct FieldArgs {
     /// True if the value has been modified.
     #[darling(default)]
     pub is_modified: Option<String>,
+}
+
+impl FieldArgs {
+    pub fn validate(&mut self) {
+        if self.deref {
+            assert!(self.getter.is_none(), "can't use both `deref` and `getter`");
+
+            if self.deref {
+                self.getter = Some(parse_quote!(deref()));
+            }
+        }
+    }
 }
 
 #[derive(FromVariant, Clone)]

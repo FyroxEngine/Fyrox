@@ -108,7 +108,7 @@ pub struct FieldArgs {
 
     /// `#[reflect(deref)]`
     ///
-    /// Delegates most of the `Reflect` implementations to the deref type.
+    /// Sets `field` and `field_mut` attributes with `deref()` and `deref_mut()`
     #[darling(default)]
     pub deref: bool,
 
@@ -130,7 +130,7 @@ impl FieldArgs {
         if self.deref {
             assert!(
                 self.field.is_none() || self.field_mut.is_none(),
-                "use either `deref` or `field` + `field_mut`"
+                "can't use both `deref` and `field` + `field_mut`"
             );
         }
 

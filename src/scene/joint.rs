@@ -170,19 +170,19 @@ impl Default for JointParams {
 pub struct Joint {
     base: Base,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) params: TemplateVariable<JointParams>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) body1: TemplateVariable<Handle<Node>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) body2: TemplateVariable<Handle<Node>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     #[visit(optional)] // Backward compatibility
     pub(crate) contacts_enabled: TemplateVariable<bool>,

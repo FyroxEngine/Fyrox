@@ -311,13 +311,13 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) script_message_sender: Option<Sender<ScriptMessage>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) name: TemplateVariable<String>,
 
     pub(crate) local_transform: Transform,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     visibility: TemplateVariable<bool>,
 
@@ -327,33 +327,33 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) lifetime: TemplateVariable<Option<f32>>,
 
-    #[inspect(min_value = 0.0, max_value = 1.0, step = 0.1, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, max_value = 1.0, step = 0.1, deref)]
     #[reflect(deref)]
     depth_offset: TemplateVariable<f32>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     lod_group: TemplateVariable<Option<LodGroup>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     mobility: TemplateVariable<Mobility>,
 
     #[reflect(deref)]
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     tag: TemplateVariable<String>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     cast_shadows: TemplateVariable<bool>,
 
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub properties: TemplateVariable<Vec<Property>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     frustum_culling: TemplateVariable<bool>,
 
