@@ -310,7 +310,7 @@ fn inspect_with_custom_getter() {
 #[test]
 fn inspect_modified() {
     #[derive(Inspect, Reflect)]
-    struct S(#[inspect(is_modified = "clone")] bool);
+    struct S(#[inspect(is_modified = "clone()")] bool);
 
     let s = S(true);
     assert_eq!(

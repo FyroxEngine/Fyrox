@@ -206,7 +206,7 @@ fn quote_field_prop(
     let getter = match &field.getter {
         // use custom getter function to retrieve the target reference
         Some(getter) => {
-            quote! { (#field_ref).#getter }
+            quote! { #field_ref.#getter }
         }
         // default: get reference of the field
         None => field_ref.clone(),
@@ -247,8 +247,7 @@ fn quote_field_prop(
 
     let is_modified = match field.is_modified.as_ref() {
         Some(getter) => {
-            let getter: Path = parse_str(getter).expect("can't parse `is_modified` as a path");
-            quote! { #field_ref.#getter() }
+            quote! { #field_ref.#getter }
         }
         None => quote! { false },
     };

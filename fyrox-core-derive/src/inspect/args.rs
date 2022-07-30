@@ -100,11 +100,11 @@ pub struct FieldArgs {
     #[darling(default)]
     pub description: Option<String>,
 
-    /// `#[inspect(getter = "<method_name>")]`
+    /// `#[inspect(is_modified = <expr>)]`
     ///
-    /// True if the value has been modified.
+    /// Method call syntax. It returns true if the value has been modified.
     #[darling(default)]
-    pub is_modified: Option<String>,
+    pub is_modified: Option<Expr>,
 }
 
 impl FieldArgs {
