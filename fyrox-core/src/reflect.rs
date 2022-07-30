@@ -44,6 +44,14 @@ pub trait Reflect: Any {
         None
     }
 
+    fn as_array(&self) -> Option<&dyn ReflectArray> {
+        None
+    }
+
+    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
+        None
+    }
+
     fn as_list(&self) -> Option<&dyn ReflectList> {
         None
     }
@@ -91,7 +99,7 @@ pub enum ReflectPathError<'a> {
     #[error("failed to downcast to the target type after path resolution")]
     InvalidDowncast,
     #[error("tried to resolve index access, but the reflect type does not implement list API")]
-    NotAList,
+    NotAnArray,
 }
 
 pub trait ResolvePath {
@@ -212,7 +220,7 @@ impl<'p> Component<'p> {
                 .field(path)
                 .ok_or(ReflectPathError::UnknownField { s: path }),
             Self::Index(path) => {
-                let list = reflect.as_list().ok_or(ReflectPathError::NotAList)?;
+                let list = reflect.as_array().ok_or(ReflectPathError::NotAnArray)?;
                 let index = path
                     .parse::<usize>()
                     .map_err(|_| ReflectPathError::InvalidIndexSyntax { s: path })?;
@@ -231,7 +239,7 @@ impl<'p> Component<'p> {
                 .field_mut(path)
                 .ok_or(ReflectPathError::UnknownField { s: path }),
             Self::Index(path) => {
-                let list = reflect.as_list_mut().ok_or(ReflectPathError::NotAList)?;
+                let list = reflect.as_array_mut().ok_or(ReflectPathError::NotAnArray)?;
                 let index = path
                     .parse::<usize>()
                     .map_err(|_| ReflectPathError::InvalidIndexSyntax { s: path })?;
@@ -347,6 +355,22 @@ macro_rules! blank_reflect {
 
         fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
             self
+        }
+
+        fn field(&self, name: &str) -> Option<&dyn Reflect> {
+            if name == "self" {
+                Some(self)
+            } else {
+                None
+            }
+        }
+
+        fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
+            if name == "self" {
+                Some(self)
+            } else {
+                None
+            }
         }
 
         fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {

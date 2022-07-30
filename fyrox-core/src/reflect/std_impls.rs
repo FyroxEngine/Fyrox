@@ -55,10 +55,40 @@ impl_reflect_tuple! {
 
 impl<const N: usize, T: Reflect> Reflect for [T; N] {
     blank_reflect!();
+
+    fn as_array(&self) -> Option<&dyn ReflectArray> {
+        Some(self)
+    }
+
+    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
+        Some(self)
+    }
+}
+
+impl<const N: usize, T: Reflect> ReflectArray for [T; N] {
+    fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
+        if let Some(item) = self.get(index) {
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    fn reflect_index_mut(&mut self, index: usize) -> Option<&mut dyn Reflect> {
+        if let Some(item) = self.get_mut(index) {
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    fn reflect_len(&self) -> usize {
+        self.len()
+    }
 }
 
 impl_reflect! {
-    #[reflect(ReflectList)]
+    #[reflect(ReflectList, ReflectArray)]
     pub struct Vec<T: Reflect + 'static>;
 }
 

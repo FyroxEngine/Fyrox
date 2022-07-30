@@ -19,9 +19,12 @@ pub struct TypeArgs {
     pub hide_all: bool,
 
     /// Custom `Reflect` impl type boundary. It's useful if you mark some field as `deref` or
-    /// `hidden` but the type needs to be `Refelct` to implement `Reflect`.
+    /// `hidden` but the type needs to be `Reflect` to implement `Reflect`.
     #[darling(default)]
     pub bounds: Option<Vec<WherePredicate>>,
+
+    #[darling(default, rename = "ReflectArray")]
+    pub impl_as_array: bool,
 
     #[darling(default, rename = "ReflectList")]
     pub impl_as_list: bool,
@@ -82,6 +85,22 @@ impl TypeArgs {
             }
 
             fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
+                Some(self)
+            }
+        }
+    }
+
+    pub fn as_array_impl(&self) -> TokenStream2 {
+        if !self.impl_as_array {
+            return quote!();
+        }
+
+        quote! {
+            fn as_array(&self) -> Option<&dyn ReflectArray> {
+                Some(self)
+            }
+
+            fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
                 Some(self)
             }
         }
