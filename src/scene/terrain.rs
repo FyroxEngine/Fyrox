@@ -259,11 +259,11 @@ pub struct TerrainRayCastResult {
 pub struct Terrain {
     base: Base,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     layers: TemplateVariable<Vec<Layer>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     decal_layer_index: TemplateVariable<u8>,
 

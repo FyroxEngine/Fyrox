@@ -149,28 +149,28 @@ pub struct ParticleSystem {
     base: Base,
 
     /// List of emitters of the particle system.
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub emitters: TemplateVariable<Vec<Emitter>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     texture: TemplateVariable<Option<Texture>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     acceleration: TemplateVariable<Vector3<f32>>,
 
     #[visit(rename = "ColorGradient")]
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     color_over_lifetime: TemplateVariable<Option<ColorGradient>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     soft_boundary_sharpness_factor: TemplateVariable<f32>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     enabled: TemplateVariable<bool>,
 

@@ -51,40 +51,40 @@ pub mod listener;
 #[derive(Visit, Inspect, Reflect, Debug)]
 pub struct Sound {
     base: Base,
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     buffer: TemplateVariable<Option<SoundBufferResource>>,
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     play_once: TemplateVariable<bool>,
-    #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(deref)]
     gain: TemplateVariable<f32>,
-    #[inspect(min_value = -1.0, max_value = 1.0, step = 0.05, getter = "Deref::deref")]
+    #[inspect(min_value = -1.0, max_value = 1.0, step = 0.05, deref)]
     #[reflect(deref)]
     panning: TemplateVariable<f32>,
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) status: TemplateVariable<Status>,
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     looping: TemplateVariable<bool>,
-    #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(deref)]
     pitch: TemplateVariable<f64>,
-    #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(deref)]
     radius: TemplateVariable<f32>,
-    #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(deref)]
     max_distance: TemplateVariable<f32>,
-    #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(deref)]
     rolloff_factor: TemplateVariable<f32>,
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     playback_time: TemplateVariable<Duration>,
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     spatial_blend: TemplateVariable<f32>,
     #[inspect(skip)]

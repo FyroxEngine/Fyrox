@@ -32,13 +32,13 @@ pub struct EffectInput {
 /// Base effect contains common properties for every effect (gain, inputs, etc.)
 #[derive(Visit, Inspect, Reflect, Debug)]
 pub struct BaseEffect {
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) name: TemplateVariable<String>,
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) gain: TemplateVariable<f32>,
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) inputs: TemplateVariable<Vec<EffectInput>>,
     #[visit(skip)]
@@ -191,16 +191,16 @@ impl BaseEffectBuilder {
 #[derive(Visit, Inspect, Reflect, Debug)]
 pub struct ReverbEffect {
     pub(crate) base: BaseEffect,
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) dry: TemplateVariable<f32>,
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) wet: TemplateVariable<f32>,
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) fc: TemplateVariable<f32>,
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) decay_time: TemplateVariable<f32>,
 }

@@ -1,3 +1,7 @@
 # fyrox-core-derive
 
-Provides the `#[derive(Visit)]` macro, which implements `fyrox::core::visitor::Visit`.
+This crate provides with some derive macros:
+
+- `#[derive(Visit)]`
+- `#[derive(Inspect)]`
+- `#[derive(Reflect)]`

@@ -475,39 +475,39 @@ impl ColliderShape {
 pub struct Collider {
     base: Base,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) shape: TemplateVariable<ColliderShape>,
 
-    #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(deref)]
     pub(crate) friction: TemplateVariable<f32>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) density: TemplateVariable<Option<f32>>,
 
-    #[inspect(min_value = 0.0, step = 0.05, getter = "Deref::deref")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(deref)]
     pub(crate) restitution: TemplateVariable<f32>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) is_sensor: TemplateVariable<bool>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) collision_groups: TemplateVariable<InteractionGroups>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) solver_groups: TemplateVariable<InteractionGroups>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) friction_combine_rule: TemplateVariable<CoefficientCombineRule>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     pub(crate) restitution_combine_rule: TemplateVariable<CoefficientCombineRule>,
 

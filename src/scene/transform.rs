@@ -71,73 +71,73 @@ pub struct Transform {
     dirty: Cell<bool>,
 
     #[inspect(
-        getter = "Deref::deref",
+        deref,
         description = "Local scale of the transform",
-        is_modified = "is_modified"
+        is_modified = "is_modified()"
     )]
     #[reflect(deref)]
     local_scale: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
-        getter = "Deref::deref",
+        deref,
         description = "Local position of the transform",
-        is_modified = "is_modified"
+        is_modified = "is_modified()"
     )]
     #[reflect(deref)]
     local_position: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
-        getter = "Deref::deref",
+        deref,
         description = "Local rotation of the transform",
-        is_modified = "is_modified"
+        is_modified = "is_modified()"
     )]
     #[reflect(deref)]
     local_rotation: TemplateVariable<UnitQuaternion<f32>>,
 
     #[inspect(
-        getter = "Deref::deref",
+        deref,
         description = "Pre rotation of the transform. Applied before local rotation.",
-        is_modified = "is_modified"
+        is_modified = "is_modified()"
     )]
     #[reflect(deref)]
     pre_rotation: TemplateVariable<UnitQuaternion<f32>>,
 
     #[inspect(
-        getter = "Deref::deref",
+        deref,
         description = "Post rotation of the transform. Applied after local rotation.",
-        is_modified = "is_modified"
+        is_modified = "is_modified()"
     )]
     #[reflect(deref)]
     post_rotation: TemplateVariable<UnitQuaternion<f32>>,
 
     #[inspect(
-        getter = "Deref::deref",
+        deref,
         description = "Rotation offset of the transform.",
-        is_modified = "is_modified"
+        is_modified = "is_modified()"
     )]
     #[reflect(deref)]
     rotation_offset: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
-        getter = "Deref::deref",
+        deref,
         description = "Rotation pivot of the transform.",
-        is_modified = "is_modified"
+        is_modified = "is_modified()"
     )]
     #[reflect(deref)]
     rotation_pivot: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
-        getter = "Deref::deref",
+        deref,
         description = "Scale offset of the transform.",
-        is_modified = "is_modified"
+        is_modified = "is_modified()"
     )]
     #[reflect(deref)]
     scaling_offset: TemplateVariable<Vector3<f32>>,
 
     #[inspect(
-        getter = "Deref::deref",
+        deref,
         description = "Scale pivot of the transform.",
-        is_modified = "is_modified"
+        is_modified = "is_modified()"
     )]
     #[reflect(deref)]
     scaling_pivot: TemplateVariable<Vector3<f32>>,

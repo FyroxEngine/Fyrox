@@ -94,15 +94,15 @@ pub struct Mesh {
     #[visit(rename = "Common")]
     base: Base,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     surfaces: TemplateVariable<Vec<Surface>>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     render_path: TemplateVariable<RenderPath>,
 
-    #[inspect(getter = "Deref::deref")]
+    #[inspect(deref)]
     #[reflect(deref)]
     decal_layer_index: TemplateVariable<u8>,
 
