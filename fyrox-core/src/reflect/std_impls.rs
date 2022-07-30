@@ -9,7 +9,7 @@ use std::{
 
 use fyrox_core_derive::impl_reflect;
 
-use crate::reflect::{blank_reflect, Reflect, ReflectList};
+use crate::reflect::{blank_reflect, Reflect, ReflectArray, ReflectList};
 
 macro_rules! impl_blank_reflect {
     ( $( $ty:ty ),* $(,)? ) => {
@@ -62,8 +62,7 @@ impl_reflect! {
     pub struct Vec<T: Reflect + 'static>;
 }
 
-/// REMARK: `Reflect` is implemented for `Vec<T>` where `T: Reflect` only.
-impl<T: Reflect + 'static> ReflectList for Vec<T> {
+impl<T: Reflect + 'static> ReflectArray for Vec<T> {
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
         self.get(index).map(|x| x as &dyn Reflect)
     }
@@ -72,16 +71,41 @@ impl<T: Reflect + 'static> ReflectList for Vec<T> {
         self.get_mut(index).map(|x| x as &mut dyn Reflect)
     }
 
-    fn reflect_push(&mut self, value: Box<dyn Reflect>) {
-        if let Ok(value) = value.downcast::<T>() {
-            self.push(*value);
+    fn reflect_len(&self) -> usize {
+        self.len()
+    }
+}
+
+/// REMARK: `Reflect` is implemented for `Vec<T>` where `T: Reflect` only.
+impl<T: Reflect + 'static> ReflectList for Vec<T> {
+    fn reflect_push(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>> {
+        self.push(*value.downcast::<T>()?);
+        Ok(())
+    }
+
+    fn reflect_pop(&mut self) -> Option<Box<dyn Reflect>> {
+        if let Some(item) = self.pop() {
+            Some(Box::new(item))
         } else {
-            // log?
+            None
         }
     }
 
-    fn reflect_len(&self) -> usize {
-        self.len()
+    fn reflect_remove(&mut self, index: usize) -> Option<Box<dyn Reflect>> {
+        if self.len() < index {
+            Some(Box::new(self.remove(index)))
+        } else {
+            None
+        }
+    }
+
+    fn reflect_insert(
+        &mut self,
+        index: usize,
+        value: Box<dyn Reflect>,
+    ) -> Result<(), Box<dyn Reflect>> {
+        self.insert(index, *value.downcast::<T>()?);
+        Ok(())
     }
 }
 

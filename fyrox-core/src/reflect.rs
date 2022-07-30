@@ -53,13 +53,23 @@ pub trait Reflect: Any {
     }
 }
 
-/// [`Reflect`] sub trait for working with `Vec`-like types
-// add `ReflectArray` sub trait?
-pub trait ReflectList: Reflect {
+/// [`Reflect`] sub trait for working with slices.
+pub trait ReflectArray: Reflect {
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect>;
     fn reflect_index_mut(&mut self, index: usize) -> Option<&mut dyn Reflect>;
-    fn reflect_push(&mut self, value: Box<dyn Reflect>);
     fn reflect_len(&self) -> usize;
+}
+
+/// [`Reflect`] sub trait for working with `Vec`-like types
+pub trait ReflectList: ReflectArray {
+    fn reflect_push(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>>;
+    fn reflect_pop(&mut self) -> Option<Box<dyn Reflect>>;
+    fn reflect_remove(&mut self, index: usize) -> Option<Box<dyn Reflect>>;
+    fn reflect_insert(
+        &mut self,
+        index: usize,
+        value: Box<dyn Reflect>,
+    ) -> Result<(), Box<dyn Reflect>>;
 }
 
 /// An error returned from a failed path string query.
@@ -72,7 +82,7 @@ pub enum ReflectPathError<'a> {
     InvalidIndexSyntax { s: &'a str },
 
     // access errors
-    #[error("given unknwon field: `{s}`")]
+    #[error("given unknown field: `{s}`")]
     UnknownField { s: &'a str },
     #[error("no item for index: `{s}`")]
     NoItemForIndex { s: &'a str },
