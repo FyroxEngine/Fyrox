@@ -167,7 +167,7 @@ fn reflect_list() {
     assert_eq!(data.get_reflect_index(0), Some(&10usize));
     assert_eq!(data.get_reflect_index::<usize>(2), None);
 
-    data.reflect_push(Box::new(12usize));
+    data.reflect_push(Box::new(12usize)).unwrap();
     assert_eq!(data.get_reflect_index(2), Some(&12usize));
 }
 

@@ -54,7 +54,7 @@ impl<T: CollectionItem> Clone for CollectionEditor<T> {
             widget: self.widget.clone(),
             add: self.add,
             items: self.items.clone(),
-            panel: self.panel.clone(),
+            panel: self.panel,
             layer_index: self.layer_index,
             phantom: PhantomData,
         }
