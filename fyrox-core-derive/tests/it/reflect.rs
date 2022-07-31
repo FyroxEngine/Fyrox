@@ -206,9 +206,9 @@ fn reflect_custom_setter() {
     }
 
     impl<T> Wrapper<T> {
-        pub fn set_value(&mut self, value: T) {
-            self.value = value;
+        pub fn set_value(&mut self, value: T) -> T {
             self.is_dirty = true;
+            std::mem::replace(&mut self.value, value)
         }
     }
 
