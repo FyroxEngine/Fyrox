@@ -23,8 +23,6 @@ use std::{
 };
 
 pub mod camera;
-pub mod collider;
-pub mod collider2d;
 pub mod effect;
 pub mod graph;
 pub mod lod;

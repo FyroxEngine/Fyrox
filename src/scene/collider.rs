@@ -343,25 +343,10 @@ impl From<geometry::InteractionGroups> for InteractionGroups {
     }
 }
 
-impl Inspect for ColliderShape {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        match self {
-            ColliderShape::Ball(v) => v.properties(),
-            ColliderShape::Cylinder(v) => v.properties(),
-            ColliderShape::Cone(v) => v.properties(),
-            ColliderShape::Cuboid(v) => v.properties(),
-            ColliderShape::Capsule(v) => v.properties(),
-            ColliderShape::Segment(v) => v.properties(),
-            ColliderShape::Triangle(v) => v.properties(),
-            ColliderShape::Trimesh(v) => v.properties(),
-            ColliderShape::Heightfield(v) => v.properties(),
-            ColliderShape::Polyhedron(v) => v.properties(),
-        }
-    }
-}
-
 /// Possible collider shapes.
-#[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(
+    Clone, Debug, PartialEq, Visit, Inspect, Reflect, AsRefStr, EnumString, EnumVariantNames,
+)]
 pub enum ColliderShape {
     /// See [`BallShape`] docs.
     Ball(BallShape),

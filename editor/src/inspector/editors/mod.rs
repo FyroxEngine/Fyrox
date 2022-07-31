@@ -33,7 +33,11 @@ use fyrox::{
             ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection, Projection,
             SkyBox,
         },
-        collider::{BitMask, ColliderShape, GeometrySource, InteractionGroups},
+        collider::{
+            BallShape, BitMask, CapsuleShape, ColliderShape, ConeShape, ConvexPolyhedronShape,
+            CuboidShape, CylinderShape, GeometrySource, HeightfieldShape, InteractionGroups,
+            SegmentShape, TriangleShape, TrimeshShape,
+        },
         dim2,
         graph::physics::CoefficientCombineRule,
         joint::*,
@@ -186,6 +190,47 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<sound::Renderer>::new());
     container.insert(ScriptPropertyEditorDefinition {});
     container.insert(BitFieldPropertyEditorDefinition::<BitMask>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<BallShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::BallShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<CylinderShape>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<ConeShape>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<CuboidShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::CuboidShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<CapsuleShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::CapsuleShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<SegmentShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::SegmentShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<TriangleShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::TriangleShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<TrimeshShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::TrimeshShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<HeightfieldShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::HeightfieldShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<ConvexPolyhedronShape>::new());
 
     container
 }
