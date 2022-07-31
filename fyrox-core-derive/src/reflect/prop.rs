@@ -97,25 +97,23 @@ pub fn struct_prop<'a>(
     }
 }
 
-pub fn props(ty_args: &args::TypeArgs) -> Vec<Property<'_>> {
+pub fn props(ty_args: &args::TypeArgs) -> Box<dyn Iterator<Item = Property<'_>> + '_> {
     match &ty_args.data {
-        ast::Data::Struct(field_args) => field_args
-            .fields
-            .iter()
-            .enumerate()
-            .filter(|(_, f)| !f.hidden)
-            .map(|(nth, field)| self::struct_prop(ty_args, nth, field))
-            .collect::<Vec<_>>(),
-        ast::Data::Enum(variants) => variants
-            .iter()
-            .flat_map(|v| {
-                v.fields
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, f)| !f.hidden)
-                    .map(|(nth, field)| self::enum_prop(v, nth, field))
-            })
-            .collect::<Vec<_>>(),
+        ast::Data::Struct(field_args) => Box::new(
+            field_args
+                .fields
+                .iter()
+                .enumerate()
+                .filter(|(_, f)| !f.hidden)
+                .map(|(nth, field)| self::struct_prop(ty_args, nth, field)),
+        ),
+        ast::Data::Enum(variants) => Box::new(variants.iter().flat_map(|v| {
+            v.fields
+                .iter()
+                .enumerate()
+                .filter(|(_, f)| !f.hidden)
+                .map(|(nth, field)| self::enum_prop(v, nth, field))
+        })),
     }
 }
 

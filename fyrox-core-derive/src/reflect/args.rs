@@ -14,7 +14,7 @@ pub struct TypeArgs {
     pub generics: Generics,
     pub data: ast::Data<VariantArgs, FieldArgs>,
 
-    /// Hides all fields
+    /// Hides all fields and creates an empty impl
     #[darling(default)]
     pub hide_all: bool,
 
@@ -131,17 +131,26 @@ pub struct FieldArgs {
     #[darling(default)]
     pub deref: bool,
 
-    /// `#[reflect(field = <method call>)]
+    /// `#[reflect(field = "<method call>")]
     ///
-    /// Implement `Reflect` by delegating the impl to an internal field
+    /// Implement `Reflect::field` with the method call
     #[darling(default)]
     pub field: Option<Expr>,
 
-    /// `#[reflect(field_mut = <method call>)]
+    /// `#[reflect(field_mut = "<method call>")]
     ///
-    /// Implement `Reflect` by delegating the impl to an internal field
+    /// Implement `Reflect::field_mut` with the method call
     #[darling(default)]
     pub field_mut: Option<Expr>,
+
+    /// `#[reflect(setter = "<method name>")]
+    ///
+    /// **STRUCT-ONLY (for now)**
+    ///
+    /// Setter method name used in `Reflect::set_field`.
+    /// Expected signature: `fn(&mut self, value: T)`
+    #[darling(default)]
+    pub setter: Option<Path>,
 }
 
 impl FieldArgs {
