@@ -6,7 +6,7 @@ use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
-        reflect::{blank_reflect, Reflect},
+        reflect::{Reflect, ReflectArray, ReflectList},
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -26,15 +26,9 @@ use std::{
 pub mod constructor;
 
 /// Base script trait is used to automatically implement some trait to reduce amount of boilerplate code.
-pub trait BaseScript: Visit + Inspect + Send + Debug + 'static {
+pub trait BaseScript: Visit + Inspect + Reflect + Send + Debug + 'static {
     /// Creates exact copy of the script.
     fn clone_box(&self) -> Box<dyn ScriptTrait>;
-
-    /// Returns a reference to `self` as a reference to Any trait. It is used for dynamic type casting.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Returns a reference to `self` as a reference to Any trait. It is used for dynamic type casting.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl<T> BaseScript for T
@@ -43,14 +37,6 @@ where
 {
     fn clone_box(&self) -> Box<dyn ScriptTrait> {
         Box::new(self.clone())
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
 
@@ -287,7 +273,53 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
 pub struct Script(pub Box<dyn ScriptTrait>);
 
 impl Reflect for Script {
-    blank_reflect!();
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self.0.into_any()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self.0.deref().as_any()
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self.0.deref_mut().as_any_mut()
+    }
+
+    fn as_reflect(&self) -> &dyn Reflect {
+        self.0.deref().as_reflect()
+    }
+
+    fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
+        self.0.deref_mut().as_reflect_mut()
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        self.0.deref_mut().set(value)
+    }
+
+    fn field(&self, name: &str) -> Option<&dyn Reflect> {
+        self.0.deref().field(name)
+    }
+
+    fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
+        self.0.deref_mut().field_mut(name)
+    }
+
+    fn as_array(&self) -> Option<&dyn ReflectArray> {
+        self.0.deref().as_array()
+    }
+
+    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
+        self.0.deref_mut().as_array_mut()
+    }
+
+    fn as_list(&self) -> Option<&dyn ReflectList> {
+        self.0.deref().as_list()
+    }
+
+    fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
+        self.0.deref_mut().as_list_mut()
+    }
 }
 
 impl Deref for Script {
