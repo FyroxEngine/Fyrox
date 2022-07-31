@@ -158,5 +158,5 @@ impl_reflect! {
 }
 
 impl_reflect! {
-    pub struct Box<T>;
+    pub struct Box<T: ?Sized>;
 }
