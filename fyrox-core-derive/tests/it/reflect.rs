@@ -218,9 +218,11 @@ fn reflect_custom_setter() {
     };
 
     let value = 10.0f32;
-    assert!(wrapper.set_field(Wrapper::<()>::VALUE, Box::new(value)).is_ok());
+    assert!(wrapper
+        .set_field(Wrapper::<()>::VALUE, Box::new(value))
+        .is_ok());
     assert!(wrapper.is_dirty);
 
-    // raw field access is allowed, but should be forbidden
-    assert!(wrapper.field_mut(Wrapper::<()>::VALUE).is_some())
+    // raw field access to the `#[reflect(setter = ..)]` field is forbidden
+    assert!(wrapper.field_mut(Wrapper::<()>::VALUE).is_none());
 }

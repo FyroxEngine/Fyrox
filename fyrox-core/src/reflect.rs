@@ -38,11 +38,7 @@ pub trait Reflect: Any {
 
     /// Calls user method specified with `#[reflect(setter = ..)]` or falls back to
     /// [`Reflect::field_mut`]
-    fn set_field(
-        &mut self,
-        field: &str,
-        value: Box<dyn Reflect>,
-    ) -> Result<(), Box<dyn Reflect>> {
+    fn set_field(&mut self, field: &str, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>> {
         let field = match self.field_mut(field) {
             Some(f) => f,
             None => return Err(value),

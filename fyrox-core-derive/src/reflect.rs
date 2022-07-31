@@ -22,32 +22,20 @@ pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
 }
 
 pub fn impl_prop_constants(ty_args: &args::TypeArgs) -> TokenStream2 {
-    let prop_keys = prop::props(ty_args);
+    let prop_keys = prop::props(ty_args).collect::<Vec<_>>();
     prop::impl_prop_constants(prop_keys.iter(), &ty_args.ident, &ty_args.generics)
 }
 
 fn impl_reflect_struct(ty_args: &args::TypeArgs, _field_args: &args::Fields) -> TokenStream2 {
-    let props = prop::props(ty_args);
-
-    // REMARK: We're using not the property key constant, but the property key literal.
-    // This is for `crate::impl_reflect!`, which is for external types.
+    // Property keys for `Reflect::{field, field_mut, set_field}` impls:
+    let props = prop::props(ty_args)
+        .filter(self::filter_prop)
+        .collect::<Vec<_>>();
     let prop_values = props.iter().map(|p| &p.value).collect::<Vec<_>>();
-
-    let mut set_fields = Vec::new();
 
     let (fields, field_muts): (Vec<_>, Vec<_>) = props
         .iter()
         .map(|p| {
-            // setters
-            if let Some(setter) = &p.field.setter {
-                set_fields.push(quote!{{
-                    if let Ok(value) = value.take() {
-                        self.#setter(value);
-                    }
-                }});
-            }
-
-            // references
             let quote = &p.field_quote;
             (quote!(&self.#quote), quote!(&mut self.#quote))
         })
@@ -72,23 +60,39 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, _field_args: &args::Fields) -> 
         }
     };
 
-    let set_field_body = if !set_fields.is_empty() {
-        Some(quote! {
-            match name {
-                #(
-                    #prop_values => #set_fields,
-                )*
-                _ => {
-                    self.set(value)?;
-                },
-            }
-            Ok(())
-        })
-    } else {
-        None
-    };
-
+    let set_field_body = self::struct_set_field_body(ty_args);
     self::gen_impl(ty_args, field_body, field_mut_body, set_field_body)
+}
+
+fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
+    let props = prop::props(ty_args).filter(|p| p.field.setter.is_some()).collect::<Vec<_>>();
+
+    if props.is_empty() {
+        return None;
+    }
+
+    let prop_values = props.iter().map(|p| &p.value);
+
+    let set_fields = props.iter().map(|p| {
+        let setter = p.field.setter.as_ref().unwrap();
+        quote! {{
+            if let Ok(value) = value.take() {
+                self.#setter(value);
+            }
+        }}
+    });
+
+    Some(quote! {
+        match name {
+            #(
+                #prop_values => #set_fields,
+            )*
+            _ => {
+                self.set(value)?;
+            },
+        }
+        Ok(())
+    })
 }
 
 fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
@@ -180,13 +184,11 @@ fn gen_impl(
 
     let as_list_impl = ty_args.as_list_impl();
 
-    let set_field = set_field.map(|set_field| quote! {
-        fn set_field(
-            &mut self,
-            name: &str,
-            value: Box<dyn Reflect>,
-        ) -> Result<(), Box<dyn Reflect>> {
-            #set_field
+    let set_field = set_field.map(|set_field| {
+        quote! {
+            fn set_field(&mut self, name: &str, value: Box<dyn Reflect>,) -> Result<(), Box<dyn Reflect>> {
+                #set_field
+            }
         }
     });
 
@@ -233,6 +235,7 @@ fn gen_impl(
     }
 }
 
+/// Collects field references for match RHS, excluding `#[reflect(setter = ..)]` fields
 fn collect_field_refs<'a, 'b: 'a>(
     props: &'b [Property<'a>],
     fields: &'b [TokenStream2],
@@ -263,4 +266,12 @@ fn collect_field_refs<'a, 'b: 'a>(
     });
 
     (fields, field_muts)
+}
+
+/// Hides `#[reflect(setter = ..)]` fields with:
+/// - `Reflect::field`
+/// - `Reflect::field_mut`
+/// - `Reflect::set_field`
+fn filter_prop(prop: &Property<'_>) -> bool {
+    prop.field.setter.is_none()
 }
