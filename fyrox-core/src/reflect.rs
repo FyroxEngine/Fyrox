@@ -393,4 +393,58 @@ macro_rules! blank_reflect {
     };
 }
 
+#[macro_export]
+macro_rules! delegate_reflect {
+    () => {
+        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+            (*self).into_any()
+        }
+
+        fn as_any(&self) -> &dyn Any {
+            self.deref().as_any()
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn Any {
+            self.deref_mut().as_any_mut()
+        }
+
+        fn as_reflect(&self) -> &dyn Reflect {
+            self.deref().as_reflect()
+        }
+
+        fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
+            self.deref_mut().as_reflect_mut()
+        }
+
+        fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+            self.deref_mut().set(value)
+        }
+
+        fn field(&self, name: &str) -> Option<&dyn Reflect> {
+            self.deref().field(name)
+        }
+
+        fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
+            self.deref_mut().field_mut(name)
+        }
+
+        fn as_array(&self) -> Option<&dyn ReflectArray> {
+            self.deref().as_array()
+        }
+
+        fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
+            self.deref_mut().as_array_mut()
+        }
+
+        fn as_list(&self) -> Option<&dyn ReflectList> {
+            self.deref().as_list()
+        }
+
+        fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
+            self.deref_mut().as_list_mut()
+        }
+    };
+}
+
 pub use blank_reflect;
+pub use delegate_reflect;

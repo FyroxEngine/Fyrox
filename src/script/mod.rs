@@ -448,7 +448,7 @@ macro_rules! handle_collection_property_changed {
             FieldKind::Collection(ref collection) => match $args.name.as_ref() {
                  $($prop => {
                      match **collection {
-                        $crate::gui::inspector::CollectionChanged::Add => {
+                        $crate::gui::inspector::CollectionChanged::Add(_) => {
                             $self.$field.push(Default::default());
                             true
                         }

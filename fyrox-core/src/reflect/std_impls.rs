@@ -7,7 +7,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::delegate_reflect;
 use fyrox_core_derive::impl_reflect;
+use std::ops::{Deref, DerefMut};
 
 use crate::reflect::{blank_reflect, Reflect, ReflectArray, ReflectList};
 
@@ -157,6 +159,6 @@ impl_reflect! {
     }
 }
 
-impl_reflect! {
-    pub struct Box<T: ?Sized>;
+impl<T: ?Sized + Reflect> Reflect for Box<T> {
+    delegate_reflect!();
 }
