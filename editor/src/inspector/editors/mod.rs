@@ -6,13 +6,12 @@ use crate::{
     },
     Message,
 };
-use fyrox::gui::inspector::editors::bit::BitFieldPropertyEditorDefinition;
-use fyrox::scene::collider::BitMask;
 use fyrox::{
     animation::machine::MachineInstantiationError,
     core::{futures::executor::block_on, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
     gui::inspector::editors::{
-        array::ArrayPropertyEditorDefinition, collection::VecCollectionPropertyEditorDefinition,
+        array::ArrayPropertyEditorDefinition, bit::BitFieldPropertyEditorDefinition,
+        collection::VecCollectionPropertyEditorDefinition,
         enumeration::EnumPropertyEditorDefinition,
         inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
@@ -34,7 +33,7 @@ use fyrox::{
             ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection, Projection,
             SkyBox,
         },
-        collider::{ColliderShape, GeometrySource, InteractionGroups},
+        collider::{BitMask, ColliderShape, GeometrySource, InteractionGroups},
         dim2,
         graph::physics::CoefficientCombineRule,
         joint::*,
@@ -144,7 +143,16 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<InteractionGroups>::new());
     container.insert(InspectablePropertyEditorDefinition::<ColliderShape>::new());
     container.insert(InspectablePropertyEditorDefinition::<GeometrySource>::new());
-    container.insert(InspectablePropertyEditorDefinition::<JointParams>::new());
+    container.insert(EnumPropertyEditorDefinition::<JointParams>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BallJoint>::new());
+    container.insert(InspectablePropertyEditorDefinition::<dim2::joint::BallJoint>::new());
+    container.insert(InspectablePropertyEditorDefinition::<FixedJoint>::new());
+    container.insert(InspectablePropertyEditorDefinition::<dim2::joint::FixedJoint>::new());
+    container.insert(InspectablePropertyEditorDefinition::<RevoluteJoint>::new());
+    container.insert(InspectablePropertyEditorDefinition::<PrismaticJoint>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::joint::PrismaticJoint,
+    >::new());
     container.insert(InspectablePropertyEditorDefinition::<Base>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseEffect>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseLight>::new());

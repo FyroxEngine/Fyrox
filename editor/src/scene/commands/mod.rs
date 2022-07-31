@@ -27,8 +27,6 @@ pub mod collider;
 pub mod collider2d;
 pub mod effect;
 pub mod graph;
-pub mod joint;
-pub mod joint2d;
 pub mod lod;
 pub mod material;
 pub mod mesh;

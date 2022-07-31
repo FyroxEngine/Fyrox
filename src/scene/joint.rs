@@ -26,6 +26,7 @@ use std::{
     cell::Cell,
     ops::{Deref, DerefMut, Range},
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Ball joint locks any translational moves between two objects on the axis between objects, but
 /// allows rigid bodies to perform relative rotations. The real world example is a human shoulder,
@@ -135,7 +136,9 @@ impl Default for RevoluteJoint {
 }
 
 /// The exact kind of the joint.
-#[derive(Clone, Debug, PartialEq, Visit, Reflect)]
+#[derive(
+    Clone, Debug, PartialEq, Visit, Inspect, Reflect, AsRefStr, EnumString, EnumVariantNames,
+)]
 pub enum JointParams {
     /// See [`BallJoint`] for more info.
     BallJoint(BallJoint),
@@ -145,17 +148,6 @@ pub enum JointParams {
     PrismaticJoint(PrismaticJoint),
     /// See [`RevoluteJoint`] for more info.
     RevoluteJoint(RevoluteJoint),
-}
-
-impl Inspect for JointParams {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        match self {
-            JointParams::BallJoint(v) => v.properties(),
-            JointParams::FixedJoint(v) => v.properties(),
-            JointParams::PrismaticJoint(v) => v.properties(),
-            JointParams::RevoluteJoint(v) => v.properties(),
-        }
-    }
 }
 
 impl Default for JointParams {

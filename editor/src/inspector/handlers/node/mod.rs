@@ -4,8 +4,7 @@ use crate::scene::commands::make_set_node_property_command;
 use crate::{
     inspector::handlers::node::{
         camera::handle_camera_property_changed, collider::handle_collider_property_changed,
-        collider2d::handle_collider2d_property_changed, joint::handle_joint_property_changed,
-        joint2d::handle_joint2d_property_changed, particle_system::ParticleSystemHandler,
+        collider2d::handle_collider2d_property_changed, particle_system::ParticleSystemHandler,
         terrain::handle_terrain_property_changed,
     },
     SceneCommand,
@@ -14,8 +13,8 @@ use fyrox::{
     core::pool::Handle,
     gui::{inspector::PropertyChanged, UserInterface},
     scene::{
-        camera::Camera, collider::Collider, dim2, joint::Joint, node::Node,
-        particle_system::ParticleSystem, terrain::Terrain,
+        camera::Camera, collider::Collider, dim2, node::Node, particle_system::ParticleSystem,
+        terrain::Terrain,
     },
 };
 
@@ -23,8 +22,6 @@ pub mod base;
 pub mod camera;
 pub mod collider;
 pub mod collider2d;
-pub mod joint;
-pub mod joint2d;
 pub mod particle_system;
 pub mod terrain;
 pub mod transform;
@@ -51,10 +48,6 @@ impl SceneNodePropertyChangedHandler {
             handle_collider_property_changed(args, handle, node.as_collider_mut())
         } else if args.owner_type_id == TypeId::of::<dim2::collider::Collider>() {
             handle_collider2d_property_changed(args, handle, node.as_collider2d_mut())
-        } else if args.owner_type_id == TypeId::of::<Joint>() {
-            handle_joint_property_changed(args, handle, node.as_joint_mut())
-        } else if args.owner_type_id == TypeId::of::<dim2::joint::Joint>() {
-            handle_joint2d_property_changed(args, handle, node.as_joint2d_mut())
         } else {
             Some(make_set_node_property_command(handle, args))
         }
