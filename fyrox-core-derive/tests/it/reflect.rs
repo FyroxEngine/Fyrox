@@ -12,11 +12,9 @@ pub struct Struct {
     hidden: usize,
 }
 
-#[allow(dead_code)]
 #[derive(Reflect)]
 pub struct Tuple(usize, usize);
 
-#[allow(dead_code)]
 #[derive(Reflect)]
 pub enum Enum {
     Named { field: usize },
@@ -196,4 +194,33 @@ fn reflect_list_path() {
     };
 
     assert_eq!(a.get_resolve_path("xs[0].data[1]"), Ok(&1usize));
+}
+
+#[test]
+fn reflect_custom_setter() {
+    #[derive(Reflect)]
+    pub struct Wrapper<T> {
+        #[reflect(setter = "set_value")]
+        value: T,
+        is_dirty: bool,
+    }
+
+    impl<T> Wrapper<T> {
+        pub fn set_value(&mut self, value: T) {
+            self.value = value;
+            self.is_dirty = true;
+        }
+    }
+
+    let mut wrapper = Wrapper {
+        value: 0.0f32,
+        is_dirty: false,
+    };
+
+    let value = 10.0f32;
+    assert!(wrapper.set_field(Wrapper::<()>::VALUE, Box::new(value)).is_ok());
+    assert!(wrapper.is_dirty);
+
+    // raw field access is allowed, but should be forbidden
+    assert!(wrapper.field_mut(Wrapper::<()>::VALUE).is_some())
 }
