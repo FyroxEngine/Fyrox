@@ -28,9 +28,7 @@ pub fn impl_prop_constants(ty_args: &args::TypeArgs) -> TokenStream2 {
 
 fn impl_reflect_struct(ty_args: &args::TypeArgs, _field_args: &args::Fields) -> TokenStream2 {
     // Property keys for `Reflect::{field, field_mut, set_field}` impls:
-    let props = prop::props(ty_args)
-        .filter(self::filter_prop)
-        .collect::<Vec<_>>();
+    let props = prop::props(ty_args).collect::<Vec<_>>();
     let prop_values = props.iter().map(|p| &p.value).collect::<Vec<_>>();
 
     let (fields, field_muts): (Vec<_>, Vec<_>) = props
@@ -276,12 +274,4 @@ fn collect_field_refs<'a, 'b: 'a>(
     });
 
     (fields, field_muts)
-}
-
-/// Hides `#[reflect(setter = ..)]` fields with:
-/// - `Reflect::field`
-/// - `Reflect::field_mut`
-/// - `Reflect::set_field`
-fn filter_prop(prop: &Property<'_>) -> bool {
-    prop.field.setter.is_none()
 }

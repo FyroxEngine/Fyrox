@@ -222,7 +222,4 @@ fn reflect_custom_setter() {
         .set_field(Wrapper::<()>::VALUE, Box::new(value))
         .is_ok());
     assert!(wrapper.is_dirty);
-
-    // raw field access to the `#[reflect(setter = ..)]` field is forbidden
-    assert!(wrapper.field_mut(Wrapper::<()>::VALUE).is_none());
 }
