@@ -8,7 +8,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, TemplateVariable},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -162,20 +162,20 @@ impl Default for JointParams {
 pub struct Joint {
     base: Base,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_params")]
     pub(crate) params: TemplateVariable<JointParams>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_body1")]
     pub(crate) body1: TemplateVariable<Handle<Node>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_body2")]
     pub(crate) body2: TemplateVariable<Handle<Node>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_contacts_enabled")]
     #[visit(optional)] // Backward compatibility
     pub(crate) contacts_enabled: TemplateVariable<bool>,
 
@@ -257,10 +257,15 @@ impl Joint {
         self.params.get_mut()
     }
 
+    /// Sets new joint parameters.
+    pub fn set_params(&mut self, params: JointParams) -> JointParams {
+        self.params.set(params)
+    }
+
     /// Sets the first body of the joint. The handle should point to the RigidBody node, otherwise
     /// the joint will have no effect!
-    pub fn set_body1(&mut self, handle: Handle<Node>) {
-        self.body1.set(handle);
+    pub fn set_body1(&mut self, handle: Handle<Node>) -> Handle<Node> {
+        self.body1.set(handle)
     }
 
     /// Returns current first body of the joint.
@@ -270,8 +275,8 @@ impl Joint {
 
     /// Sets the second body of the joint. The handle should point to the RigidBody node, otherwise
     /// the joint will have no effect!
-    pub fn set_body2(&mut self, handle: Handle<Node>) {
-        self.body2.set(handle);
+    pub fn set_body2(&mut self, handle: Handle<Node>) -> Handle<Node> {
+        self.body2.set(handle)
     }
 
     /// Returns current second body of the joint.
@@ -280,8 +285,8 @@ impl Joint {
     }
 
     /// Sets whether the connected bodies should ignore collisions with each other or not.  
-    pub fn set_contacts_enabled(&mut self, enabled: bool) {
-        self.contacts_enabled.set(enabled);
+    pub fn set_contacts_enabled(&mut self, enabled: bool) -> bool {
+        self.contacts_enabled.set(enabled)
     }
 
     /// Returns true if contacts between connected bodies is enabled, false - otherwise.
