@@ -1,8 +1,6 @@
 //! Everything related to terrains.
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         arrayvec::ArrayVec,
@@ -14,6 +12,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::{prelude::*, PodVecView},
     },
     engine::resource_manager::ResourceManager,
@@ -22,7 +21,7 @@ use crate::{
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
-        graph::Graph,
+        graph::{map::NodeHandleMap, Graph},
         mesh::{
             buffer::{TriangleBuffer, VertexBuffer},
             surface::SurfaceData,
@@ -259,32 +258,46 @@ pub struct TerrainRayCastResult {
 pub struct Terrain {
     base: Base,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_layers")]
     layers: TemplateVariable<Vec<Layer>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_decal_layer_index")]
     decal_layer_index: TemplateVariable<u8>,
 
     #[inspect(read_only)]
+    #[reflect(hidden)]
     width: f32,
+
     #[inspect(read_only)]
+    #[reflect(hidden)]
     length: f32,
+
     #[inspect(read_only)]
+    #[reflect(hidden)]
     mask_resolution: f32,
+
     #[inspect(read_only)]
+    #[reflect(hidden)]
     height_map_resolution: f32,
+
     #[inspect(skip)]
     #[reflect(hidden)]
     chunks: Vec<Chunk>,
+
     #[inspect(read_only)]
+    #[reflect(hidden)]
     width_chunks: u32,
+
     #[inspect(read_only)]
+    #[reflect(hidden)]
     length_chunks: u32,
+
     #[inspect(skip)]
     #[reflect(hidden)]
     bounding_box_dirty: Cell<bool>,
+
     #[inspect(skip)]
     #[reflect(hidden)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
@@ -361,8 +374,8 @@ impl Terrain {
     /// Sets new decal layer index. It defines which decals will be applies to the mesh,
     /// for example iff a decal has index == 0 and a mesh has index == 0, then decals will
     /// be applied. This allows you to apply decals only on needed surfaces.
-    pub fn set_decal_layer_index(&mut self, index: u8) {
-        self.decal_layer_index.set(index);
+    pub fn set_decal_layer_index(&mut self, index: u8) -> u8 {
+        self.decal_layer_index.set(index)
     }
 
     /// Returns current decal index.
@@ -556,6 +569,11 @@ impl Terrain {
         }
 
         !results.is_empty()
+    }
+
+    /// Sets new terrain layers.
+    pub fn set_layers(&mut self, layers: Vec<Layer>) -> Vec<Layer> {
+        self.layers.set(layers)
     }
 
     /// Returns a reference to a slice with layers of the terrain.
