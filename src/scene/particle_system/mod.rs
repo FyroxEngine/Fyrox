@@ -70,9 +70,7 @@
 //! }
 //! ```
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Vector2, Vector3},
         color::Color,
@@ -82,6 +80,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -89,7 +88,7 @@ use crate::{
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
-        graph::Graph,
+        graph::{map::NodeHandleMap, Graph},
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
         particle_system::{
             draw::{DrawData, Vertex},
@@ -139,29 +138,29 @@ pub struct ParticleSystem {
     base: Base,
 
     /// List of emitters of the particle system.
-    #[inspect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
     #[reflect(deref)]
     pub emitters: TemplateVariable<Vec<EmitterWrapper>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_texture")]
     texture: TemplateVariable<Option<Texture>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_acceleration")]
     acceleration: TemplateVariable<Vector3<f32>>,
 
     #[visit(rename = "ColorGradient")]
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_color_over_lifetime_gradient")]
     color_over_lifetime: TemplateVariable<Option<ColorGradient>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_soft_boundary_sharpness_factor")]
     soft_boundary_sharpness_factor: TemplateVariable<f32>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_enabled")]
     enabled: TemplateVariable<bool>,
 
     #[inspect(skip)]
@@ -210,13 +209,16 @@ impl ParticleSystem {
 
     /// Set new acceleration that will be applied to all particles,
     /// can be used to change "gravity" vector of particles.
-    pub fn set_acceleration(&mut self, accel: Vector3<f32>) {
-        self.acceleration.set(accel);
+    pub fn set_acceleration(&mut self, accel: Vector3<f32>) -> Vector3<f32> {
+        self.acceleration.set(accel)
     }
 
     /// Sets new "color curve" that will evaluate color over lifetime.
-    pub fn set_color_over_lifetime_gradient(&mut self, gradient: ColorGradient) {
-        self.color_over_lifetime.set(Some(gradient));
+    pub fn set_color_over_lifetime_gradient(
+        &mut self,
+        gradient: Option<ColorGradient>,
+    ) -> Option<ColorGradient> {
+        self.color_over_lifetime.set(gradient)
     }
 
     /// Return current soft boundary sharpness factor.
@@ -226,8 +228,8 @@ impl ParticleSystem {
 
     /// Enables or disables particle system. Disabled particle system remains in "frozen" state
     /// until enabled again.
-    pub fn set_enabled(&mut self, enabled: bool) {
-        self.enabled.set(enabled);
+    pub fn set_enabled(&mut self, enabled: bool) -> bool {
+        self.enabled.set(enabled)
     }
 
     /// Returns current particle system status.
@@ -239,8 +241,8 @@ impl ParticleSystem {
     /// The greater the factor is the more thin the boundary will be, and vice versa. This
     /// parameter allows you to manipulate particle "softness" - the engine automatically adds
     /// fading to those pixels of a particle which is close enough to other geometry in a scene.
-    pub fn set_soft_boundary_sharpness_factor(&mut self, factor: f32) {
-        self.soft_boundary_sharpness_factor.set(factor);
+    pub fn set_soft_boundary_sharpness_factor(&mut self, factor: f32) -> f32 {
+        self.soft_boundary_sharpness_factor.set(factor)
     }
 
     /// Removes all generated particles.
@@ -342,8 +344,8 @@ impl ParticleSystem {
     }
 
     /// Sets new texture for particle system.
-    pub fn set_texture(&mut self, texture: Option<Texture>) {
-        self.texture.set(texture);
+    pub fn set_texture(&mut self, texture: Option<Texture>) -> Option<Texture> {
+        self.texture.set(texture)
     }
 
     /// Returns current texture used by particle system.
