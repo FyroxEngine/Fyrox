@@ -130,7 +130,7 @@ impl CameraController {
     pub fn set_projection(&self, graph: &mut Graph, projection: Projection) {
         graph[self.camera]
             .as_camera_mut()
-            .set_projection(projection)
+            .set_projection(projection);
     }
 
     pub fn on_mouse_move(&mut self, delta: Vector2<f32>) {

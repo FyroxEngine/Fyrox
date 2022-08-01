@@ -2,8 +2,7 @@ use std::any::TypeId;
 
 use crate::{
     inspector::handlers::node::{
-        camera::handle_camera_property_changed, particle_system::ParticleSystemHandler,
-        terrain::handle_terrain_property_changed,
+        particle_system::ParticleSystemHandler, terrain::handle_terrain_property_changed,
     },
     scene::commands::make_set_node_property_command,
     SceneCommand,
@@ -11,11 +10,10 @@ use crate::{
 use fyrox::{
     core::pool::Handle,
     gui::{inspector::PropertyChanged, UserInterface},
-    scene::{camera::Camera, node::Node, particle_system::ParticleSystem, terrain::Terrain},
+    scene::{node::Node, particle_system::ParticleSystem, terrain::Terrain},
 };
 
 pub mod base;
-pub mod camera;
 pub mod particle_system;
 pub mod terrain;
 pub mod transform;
@@ -32,9 +30,7 @@ impl SceneNodePropertyChangedHandler {
         node: &mut Node,
         ui: &UserInterface,
     ) -> Option<SceneCommand> {
-        if args.owner_type_id == TypeId::of::<Camera>() {
-            handle_camera_property_changed(args, handle, node)
-        } else if args.owner_type_id == TypeId::of::<ParticleSystem>() {
+        if args.owner_type_id == TypeId::of::<ParticleSystem>() {
             self.particle_system_handler.handle(args, handle, node, ui)
         } else if args.owner_type_id == TypeId::of::<Terrain>() {
             handle_terrain_property_changed(args, handle, node)

@@ -169,7 +169,8 @@ pub fn make_property_editors_container(
     container.insert(ArrayPropertyEditorDefinition::<f32, 2>::new());
     container.insert(EnumPropertyEditorDefinition::<ColorGradingLut>::new_optional());
     container.insert(EnumPropertyEditorDefinition::<Biquad>::new_optional());
-    container.insert(EnumPropertyEditorDefinition::<Box<SkyBox>>::new_optional());
+    container.insert(EnumPropertyEditorDefinition::<SkyBox>::new_optional());
+    container.insert(InspectablePropertyEditorDefinition::<SkyBox>::new());
     container.insert(HandlePropertyEditorDefinition::<Node>::new(sender));
     container.insert(EnumPropertyEditorDefinition::<dim2::collider::ColliderShape>::new());
     container.insert(EnumPropertyEditorDefinition::<CoefficientCombineRule>::new());

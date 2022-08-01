@@ -21,7 +21,6 @@ use std::{
     sync::{mpsc::Sender, Arc},
 };
 
-pub mod camera;
 pub mod effect;
 pub mod graph;
 pub mod lod;
