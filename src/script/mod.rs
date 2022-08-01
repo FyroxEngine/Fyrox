@@ -12,7 +12,6 @@ use crate::{
     },
     engine::resource_manager::ResourceManager,
     event::Event,
-    gui::inspector::PropertyChanged,
     plugin::Plugin,
     scene::{graph::map::NodeHandleMap, node::Node, Scene},
     utils::component::ComponentProvider,
@@ -90,66 +89,6 @@ pub struct ScriptDeinitContext<'a, 'b> {
 /// Script is a set predefined methods that are called on various stages by the engine. It is used to add
 /// custom behaviour to game entities.
 pub trait ScriptTrait: BaseScript + ComponentProvider {
-    /// Mutates the state of the script according to the [`PropertyChanged`] info. It is invoked
-    /// from the editor when user changes property of the script from the inspector.
-    ///
-    /// # Motivation
-    ///
-    /// Why the editor cannot mutate variable for me so I don't need to do it by hand? The answer
-    /// is pretty simple - UI system does not know anything about your object, it uses its own data
-    /// model, the only thing it could do is to indicate that some value was changed so you can
-    /// react to it.
-    ///
-    /// # Return value
-    ///
-    /// The return value of the method indicates whether the change was applied to the script data
-    /// or not. If nothing changed (the return value was `false`)  the editor will give you a
-    /// diagnostic message that the change in Inspector had no effect and probably a property handler
-    /// is missing.
-    ///
-    /// # Important notes
-    ///
-    /// Works only in **editor mode**.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use fyrox::gui::inspector::{PropertyChanged, FieldKind};
-    /// use fyrox::script::ScriptTrait;
-    /// use fyrox::core::uuid::Uuid;
-    /// use fyrox::core::{inspect::{Inspect, PropertyInfo}, reflect::Reflect};
-    /// use fyrox::core::visitor::prelude::*;
-    /// use fyrox::{handle_object_property_changed, impl_component_provider};
-    ///
-    /// #[derive(Inspect, Reflect, Visit, Debug, Clone)]
-    /// struct MyScript {
-    ///     foo: f32,
-    ///     bar: String,
-    /// }
-    ///
-    /// impl_component_provider!(MyScript);
-    ///
-    /// // Some functions are intentionally omitted.
-    ///
-    /// impl ScriptTrait for MyScript {
-    ///     fn on_property_changed(&mut self, args: &PropertyChanged) -> bool {
-    ///         handle_object_property_changed!(self, args, Self::FOO => foo, Self::BAR => bar)
-    ///     }
-    ///
-    ///     // ...
-    ///    # fn id(&self) -> Uuid {
-    ///    #     todo!()
-    ///    # }
-    ///
-    ///    # fn plugin_uuid(&self) -> Uuid {
-    ///    #     todo!()
-    ///    # }
-    /// }
-    /// ```
-    fn on_property_changed(&mut self, #[allow(unused_variables)] args: &PropertyChanged) -> bool {
-        false
-    }
-
     /// The method is called when the script wasn't initialized yet. It is guaranteed to be called once,
     /// and before any other methods of the script.
     ///
