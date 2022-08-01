@@ -159,6 +159,26 @@ impl<T: Reflect> ResolvePath for T {
     }
 }
 
+/// Splits property path into individual components.
+pub fn path_to_components(path: &str) -> Vec<Component> {
+    let mut components = Vec::new();
+    let mut current_path = path;
+    loop {
+        if let Ok((component, sub_path)) = Component::next(current_path) {
+            if let Component::Field(field) = component {
+                if field.is_empty() {
+                    break;
+                }
+            }
+            current_path = sub_path;
+            components.push(component);
+        } else {
+            break;
+        }
+    }
+    components
+}
+
 /// Helper methods over [`Reflect`] types
 pub trait GetField {
     fn get_field<T: 'static>(&self, name: &str) -> Option<&T>;
@@ -183,7 +203,7 @@ impl<R: Reflect> GetField for R {
 // --------------------------------------------------------------------------------
 
 /// Simple path parser / reflect path component
-enum Component<'p> {
+pub enum Component<'p> {
     Field(&'p str),
     Index(&'p str),
 }
