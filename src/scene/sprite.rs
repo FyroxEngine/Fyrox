@@ -10,7 +10,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, TemplateVariable},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -67,17 +67,21 @@ use std::ops::{Deref, DerefMut};
 #[derive(Debug, Inspect, Reflect, Clone, Visit)]
 pub struct Sprite {
     base: Base,
-    #[inspect(deref)]
-    #[reflect(deref)]
+
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_texture")]
     texture: TemplateVariable<Option<Texture>>,
-    #[inspect(deref)]
-    #[reflect(deref)]
+
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_color")]
     color: TemplateVariable<Color>,
-    #[inspect(min_value = 0.0, step = 0.1, deref)]
-    #[reflect(deref)]
+
+    #[inspect(min_value = 0.0, step = 0.1, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_size")]
     size: TemplateVariable<f32>,
-    #[inspect(deref)]
-    #[reflect(deref)]
+
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_rotation")]
     rotation: TemplateVariable<f32>,
 }
 
@@ -119,8 +123,8 @@ impl Sprite {
     /// will be doubled. Default value is 0.2.    
     ///
     /// Negative values could be used to "inverse" the image on the sprite.
-    pub fn set_size(&mut self, size: f32) {
-        self.size.set(size);
+    pub fn set_size(&mut self, size: f32) -> f32 {
+        self.size.set(size)
     }
 
     /// Returns current size of sprite.
@@ -129,8 +133,8 @@ impl Sprite {
     }
 
     /// Sets new color of sprite. Default is White.
-    pub fn set_color(&mut self, color: Color) {
-        self.color.set(color);
+    pub fn set_color(&mut self, color: Color) -> Color {
+        self.color.set(color)
     }
 
     /// Returns current color of sprite.
@@ -139,8 +143,8 @@ impl Sprite {
     }
 
     /// Sets rotation around "look" axis in radians. Default is 0.0.
-    pub fn set_rotation(&mut self, rotation: f32) {
-        self.rotation.set(rotation);
+    pub fn set_rotation(&mut self, rotation: f32) -> f32 {
+        self.rotation.set(rotation)
     }
 
     /// Returns rotation in radians.
@@ -149,8 +153,8 @@ impl Sprite {
     }
 
     /// Sets new texture for sprite. Default is None.
-    pub fn set_texture(&mut self, texture: Option<Texture>) {
-        self.texture.set(texture);
+    pub fn set_texture(&mut self, texture: Option<Texture>) -> Option<Texture> {
+        self.texture.set(texture)
     }
 
     /// Returns current texture of sprite. Can be None if sprite has no texture.
