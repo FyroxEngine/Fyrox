@@ -11,7 +11,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, TemplateVariable},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -104,16 +104,16 @@ use std::ops::{Deref, DerefMut};
 pub struct Rectangle {
     base: Base,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_texture")]
     texture: TemplateVariable<Option<Texture>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_color")]
     color: TemplateVariable<Color>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_uv_rect")]
     uv_rect: TemplateVariable<Rect<f32>>,
 }
 
@@ -165,8 +165,8 @@ impl Rectangle {
     }
 
     /// Sets new texture for the rectangle.
-    pub fn set_texture(&mut self, texture: Option<Texture>) {
-        self.texture.set(texture);
+    pub fn set_texture(&mut self, texture: Option<Texture>) -> Option<Texture> {
+        self.texture.set(texture)
     }
 
     /// Returns current color of the rectangle.
@@ -175,8 +175,8 @@ impl Rectangle {
     }
 
     /// Sets color of the rectangle.
-    pub fn set_color(&mut self, color: Color) {
-        self.color.set(color);
+    pub fn set_color(&mut self, color: Color) -> Color {
+        self.color.set(color)
     }
 
     /// Returns a rectangle that defines the region in texture which will be rendered. The coordinates are normalized
@@ -194,8 +194,8 @@ impl Rectangle {
     /// enabled in texture options).
     ///
     /// The default value is `(0, 0, 1, 1)` rectangle which corresponds to entire texture.
-    pub fn set_uv_rect(&mut self, uv_rect: Rect<f32>) {
-        self.uv_rect.set(uv_rect);
+    pub fn set_uv_rect(&mut self, uv_rect: Rect<f32>) -> Rect<f32> {
+        self.uv_rect.set(uv_rect)
     }
 }
 
