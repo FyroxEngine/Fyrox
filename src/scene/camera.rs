@@ -273,8 +273,8 @@ pub struct Camera {
     enabled: TemplateVariable<bool>,
 
     #[inspect(deref)]
-    #[reflect(field = "as_ref()?.deref()", field_mut = "as_mut()?.deref_mut()")]
-    sky_box: TemplateVariable<Option<Box<SkyBox>>>,
+    #[reflect(deref)]
+    sky_box: TemplateVariable<Option<SkyBox>>,
 
     #[inspect(deref)]
     #[reflect(deref)]
@@ -463,23 +463,22 @@ impl Camera {
     }
 
     /// Sets new skybox. Could be None if no skybox needed.
-    pub fn set_skybox(&mut self, skybox: Option<SkyBox>) -> &mut Self {
-        self.sky_box.set(skybox.map(Box::new));
-        self
+    pub fn set_skybox(&mut self, skybox: Option<SkyBox>) -> Option<SkyBox> {
+        self.sky_box.set(skybox)
     }
 
     /// Return optional mutable reference to current skybox.
     pub fn skybox_mut(&mut self) -> Option<&mut SkyBox> {
-        self.sky_box.get_mut().as_deref_mut()
+        self.sky_box.get_mut().as_mut()
     }
 
     /// Return optional shared reference to current skybox.
     pub fn skybox_ref(&self) -> Option<&SkyBox> {
-        self.sky_box.as_deref()
+        self.sky_box.as_ref()
     }
 
     /// Replaces the skybox.
-    pub fn replace_skybox(&mut self, new: Option<Box<SkyBox>>) -> Option<Box<SkyBox>> {
+    pub fn replace_skybox(&mut self, new: Option<SkyBox>) -> Option<SkyBox> {
         std::mem::replace(self.sky_box.get_mut(), new)
     }
 
@@ -928,7 +927,7 @@ impl CameraBuilder {
             view_matrix: Matrix4::identity(),
             projection_matrix: Matrix4::identity(),
             visibility_cache: Default::default(),
-            sky_box: self.skybox.map(Box::new).into(),
+            sky_box: self.skybox.into(),
             environment: self.environment.into(),
             exposure: self.exposure.into(),
             color_grading_lut: self.color_grading_lut.into(),

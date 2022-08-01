@@ -28,11 +28,7 @@ enum SkyBoxFace {
     Back,
 }
 
-fn modify_skybox(
-    camera: &Camera,
-    texture: Option<Texture>,
-    face: SkyBoxFace,
-) -> Option<Box<SkyBox>> {
+fn modify_skybox(camera: &Camera, texture: Option<Texture>, face: SkyBoxFace) -> Option<SkyBox> {
     if let Some(skybox) = camera.skybox_ref() {
         if let Some(texture) = texture.clone() {
             block_on(texture).ok()?;
@@ -81,7 +77,7 @@ fn modify_skybox(
             data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
         }
 
-        Some(Box::new(skybox))
+        Some(skybox)
     } else {
         None
     }

@@ -163,18 +163,14 @@ impl<T: Reflect> ResolvePath for T {
 pub fn path_to_components(path: &str) -> Vec<Component> {
     let mut components = Vec::new();
     let mut current_path = path;
-    loop {
-        if let Ok((component, sub_path)) = Component::next(current_path) {
-            if let Component::Field(field) = component {
-                if field.is_empty() {
-                    break;
-                }
+    while let Ok((component, sub_path)) = Component::next(current_path) {
+        if let Component::Field(field) = component {
+            if field.is_empty() {
+                break;
             }
-            current_path = sub_path;
-            components.push(component);
-        } else {
-            break;
         }
+        current_path = sub_path;
+        components.push(component);
     }
     components
 }

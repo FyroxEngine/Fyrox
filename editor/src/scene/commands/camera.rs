@@ -28,7 +28,7 @@ define_swap_command! {
 }
 
 define_node_command! {
-    SetSkyBoxCommand("Set Sky Box Command", Option<Box<SkyBox>>) where fn swap(self, node) {
+    SetSkyBoxCommand("Set Sky Box Command", Option<SkyBox>) where fn swap(self, node) {
         let camera = node.as_camera_mut();
         let temp = camera.replace_skybox(self.value.take());
         self.value = temp;
