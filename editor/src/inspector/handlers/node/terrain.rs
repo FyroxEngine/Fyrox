@@ -50,7 +50,7 @@ pub fn handle_terrain_property_changed(
                 _ => None,
             },
             FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
-                Terrain::BASE => handle_base_property_changed(inner, handle, node),
+                Terrain::BASE => handle_base_property_changed(inner, handle),
                 _ => None,
             },
         }

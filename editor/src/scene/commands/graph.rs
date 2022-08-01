@@ -6,7 +6,7 @@ use fyrox::{
         pool::{Handle, Ticket},
     },
     scene::{
-        base::{deserialize_script, Property, PropertyValue},
+        base::{Property, PropertyValue},
         graph::{Graph, SubGraph},
         node::Node,
     },
@@ -449,39 +449,5 @@ impl Command for SetPropertyNameCommand {
 
     fn revert(&mut self, context: &mut SceneContext) {
         self.swap(context)
-    }
-}
-
-#[derive(Debug)]
-pub struct ScriptDataBlobCommand {
-    pub handle: Handle<Node>,
-    pub old_value: Vec<u8>,
-    pub new_value: Vec<u8>,
-}
-
-impl ScriptDataBlobCommand {
-    fn swap(&mut self, context: &mut SceneContext) {
-        let data = self.new_value.clone();
-        std::mem::swap(&mut self.old_value, &mut self.new_value);
-        if let Some(script) = context.scene.graph[self.handle].script_mut() {
-            *script = deserialize_script(data, &context.serialization_context).unwrap();
-            script.restore_resources(context.resource_manager.clone());
-        } else {
-            unreachable!()
-        }
-    }
-}
-
-impl Command for ScriptDataBlobCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
-        "Change Script Property".to_string()
-    }
-
-    fn execute(&mut self, context: &mut SceneContext) {
-        self.swap(context);
-    }
-
-    fn revert(&mut self, context: &mut SceneContext) {
-        self.swap(context);
     }
 }

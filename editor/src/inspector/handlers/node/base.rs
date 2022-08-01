@@ -7,10 +7,7 @@ use fyrox::{
     core::pool::Handle,
     gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
     scene::{
-        base::{
-            serialize_script, Base, LevelOfDetail, LodControlledObject, LodGroup, Property,
-            PropertyValue,
-        },
+        base::{Base, LevelOfDetail, LodControlledObject, LodGroup, Property, PropertyValue},
         node::Node,
     },
 };
@@ -18,7 +15,6 @@ use fyrox::{
 pub fn handle_base_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
-    base: &mut Base,
 ) -> Option<SceneCommand> {
     match args.value {
         FieldKind::Object(ref value) => Some(SceneCommand::new(SetNodePropertyCommand::new(
@@ -193,30 +189,8 @@ pub fn handle_base_property_changed(
                 },
                 _ => None,
             },
-            Base::SCRIPT => handle_script_property_changed(inner_value, handle, base),
             Base::LOCAL_TRANSFORM => handle_transform_property_changed(args, handle),
             _ => None,
         },
     }
-}
-
-fn handle_script_property_changed(
-    args: &PropertyChanged,
-    node_handle: Handle<Node>,
-    base: &mut Base,
-) -> Option<SceneCommand> {
-    if let Some(script) = base.script_mut() {
-        let old_data = serialize_script(script).expect("Script must be serializable!");
-
-        if script.on_property_changed(args) {
-            let new_data = serialize_script(script).expect("Script must be serializable!");
-
-            return Some(SceneCommand::new(ScriptDataBlobCommand {
-                handle: node_handle,
-                old_value: old_data,
-                new_value: new_data,
-            }));
-        }
-    }
-    None
 }

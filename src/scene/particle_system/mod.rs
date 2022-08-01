@@ -109,6 +109,7 @@ pub(crate) mod draw;
 pub mod emitter;
 pub mod particle;
 
+#[doc(hidden)]
 #[derive(PartialEq, Debug, Clone, Default, Inspect, Reflect)]
 pub struct EmitterWrapper(#[inspect(display_name = "Emitter Type")] pub Emitter);
 
@@ -497,7 +498,7 @@ impl ParticleSystemBuilder {
 
     /// Sets desired emitters for particle system.
     pub fn with_emitters(mut self, emitters: Vec<Emitter>) -> Self {
-        self.emitters = emitters.into_iter().map(|e| EmitterWrapper(e)).collect();
+        self.emitters = emitters.into_iter().map(EmitterWrapper).collect();
         self
     }
 
