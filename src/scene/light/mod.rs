@@ -16,20 +16,20 @@
 //! these are common effects for modern games but still can significantly impact
 //! performance.
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::Vector3,
         color::Color,
         inspect::{Inspect, PropertyInfo},
         reflect::Reflect,
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
+        graph::map::NodeHandleMap,
         DirectlyInheritableEntity,
     },
 };
@@ -58,25 +58,25 @@ pub const DEFAULT_SCATTER_B: f32 = 0.03;
 pub struct BaseLight {
     base: Base,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_color")]
     color: TemplateVariable<Color>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_cast_shadows")]
     cast_shadows: TemplateVariable<bool>,
 
-    #[inspect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
     #[visit(rename = "ScatterFactor")]
-    #[reflect(deref)]
+    #[reflect(deref, setter = "set_scatter")]
     scatter: TemplateVariable<Vector3<f32>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "enable_scatter")]
     scatter_enabled: TemplateVariable<bool>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref)]
-    #[reflect(deref)]
+    #[inspect(min_value = 0.0, step = 0.1, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_intensity")]
     intensity: TemplateVariable<f32>,
 }
 
@@ -122,8 +122,8 @@ impl Default for BaseLight {
 impl BaseLight {
     /// Sets color of light, alpha component of color is ignored.
     #[inline]
-    pub fn set_color(&mut self, color: Color) {
-        self.color.set(color);
+    pub fn set_color(&mut self, color: Color) -> Color {
+        self.color.set(color)
     }
 
     /// Returns current color of light source.
@@ -134,8 +134,8 @@ impl BaseLight {
 
     /// Enables or disables shadows for light source.
     #[inline]
-    pub fn set_cast_shadows(&mut self, value: bool) {
-        self.cast_shadows.set(value);
+    pub fn set_cast_shadows(&mut self, value: bool) -> bool {
+        self.cast_shadows.set(value)
     }
 
     /// Returns true if light is able to cast shadows, false - otherwise.
@@ -153,8 +153,8 @@ impl BaseLight {
     /// per color channel, higher values will cause too "heavy" light scattering
     /// as if you light source would be in fog.
     #[inline]
-    pub fn set_scatter(&mut self, f: Vector3<f32>) {
-        self.scatter.set(f);
+    pub fn set_scatter(&mut self, f: Vector3<f32>) -> Vector3<f32> {
+        self.scatter.set(f)
     }
 
     /// Returns current scatter factor.
@@ -168,8 +168,8 @@ impl BaseLight {
     /// Intensity is used for very bright light sources in HDR. For examples, sun
     /// can be represented as directional light source with very high intensity.
     /// Other lights, however, will remain relatively dim.
-    pub fn set_intensity(&mut self, intensity: f32) {
-        self.intensity.set(intensity);
+    pub fn set_intensity(&mut self, intensity: f32) -> f32 {
+        self.intensity.set(intensity)
     }
 
     /// Returns current intensity of the light.
@@ -185,8 +185,8 @@ impl BaseLight {
 
     /// Enables or disables light scattering.
     #[inline]
-    pub fn enable_scatter(&mut self, state: bool) {
-        self.scatter_enabled.set(state);
+    pub fn enable_scatter(&mut self, state: bool) -> bool {
+        self.scatter_enabled.set(state)
     }
 
     /// Returns true if light scattering is enabled, false - otherwise.
