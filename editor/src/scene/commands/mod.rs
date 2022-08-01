@@ -523,7 +523,9 @@ impl SetNodePropertyCommand {
             for component in components.into_iter() {
                 match component {
                     Component::Field(s) => {
-                        parent_path.push('.');
+                        if !parent_path.is_empty() {
+                            parent_path.push('.');
+                        }
                         parent_path += s;
                     }
                     Component::Index(s) => {
@@ -541,7 +543,7 @@ impl SetNodePropertyCommand {
                 match node.as_reflect_mut().resolve_path_mut(&parent_path) {
                     Err(e) => {
                         Log::err(format!(
-                            "There is no such property {}! Reason: {:?}",
+                            "There is no such parent property {}! Reason: {:?}",
                             parent_path, e
                         ));
 
