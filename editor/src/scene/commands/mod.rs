@@ -23,7 +23,6 @@ use std::{
 
 pub mod effect;
 pub mod graph;
-pub mod lod;
 pub mod material;
 pub mod mesh;
 pub mod navmesh;

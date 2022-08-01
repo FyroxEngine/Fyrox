@@ -1,6 +1,6 @@
 use crate::{
-    command::Command, create_terrain_layer_material, define_swap_command,
-    scene::commands::SceneContext,
+    command::Command, create_terrain_layer_material, inspector::handlers::node::CommandConstructor,
+    scene::commands::SceneContext, SceneCommand,
 };
 use fyrox::{
     core::pool::Handle,
@@ -11,6 +11,14 @@ use fyrox::{
 pub struct AddTerrainLayerCommand {
     terrain: Handle<Node>,
     layer: Option<Layer>,
+}
+
+pub struct AddTerrainLayerCommandConstructor;
+
+impl CommandConstructor for AddTerrainLayerCommandConstructor {
+    fn make_command(&self, handle: Handle<Node>, node: &mut Node) -> SceneCommand {
+        SceneCommand::new(AddTerrainLayerCommand::new(handle, node.as_terrain()))
+    }
 }
 
 impl AddTerrainLayerCommand {
@@ -39,42 +47,6 @@ impl Command for AddTerrainLayerCommand {
     fn revert(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         self.layer = terrain.pop_layer();
-    }
-}
-
-#[derive(Debug)]
-pub struct DeleteTerrainLayerCommand {
-    terrain: Handle<Node>,
-    layer: Option<Layer>,
-    index: usize,
-}
-
-impl DeleteTerrainLayerCommand {
-    pub fn new(terrain: Handle<Node>, index: usize) -> Self {
-        Self {
-            terrain,
-            layer: Default::default(),
-            index,
-        }
-    }
-}
-
-impl Command for DeleteTerrainLayerCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
-        "Delete Terrain Layer".to_owned()
-    }
-
-    fn execute(&mut self, context: &mut SceneContext) {
-        self.layer = Some(
-            context.scene.graph[self.terrain]
-                .as_terrain_mut()
-                .remove_layer(self.index),
-        );
-    }
-
-    fn revert(&mut self, context: &mut SceneContext) {
-        let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        terrain.insert_layer(self.layer.take().unwrap(), self.index);
     }
 }
 
@@ -177,43 +149,6 @@ impl ModifyTerrainLayerMaskCommand {
 impl Command for ModifyTerrainLayerMaskCommand {
     fn name(&mut self, _context: &SceneContext) -> String {
         "Modify Terrain Layer Mask".to_owned()
-    }
-
-    fn execute(&mut self, context: &mut SceneContext) {
-        self.swap(context);
-    }
-
-    fn revert(&mut self, context: &mut SceneContext) {
-        self.swap(context);
-    }
-}
-
-define_swap_command! {
-    Node::as_terrain_mut,
-    SetTerrainDecalLayerIndexCommand(u8): decal_layer_index, set_decal_layer_index, "Set Terrain Decal Layer Index";
-}
-
-#[derive(Debug)]
-pub struct SetTerrainLayerMaskPropertyNameCommand {
-    pub handle: Handle<Node>,
-    pub layer_index: usize,
-    pub value: String,
-}
-
-impl SetTerrainLayerMaskPropertyNameCommand {
-    fn swap(&mut self, context: &mut SceneContext) {
-        let layer = context.scene.graph[self.handle]
-            .as_terrain_mut()
-            .layers_mut()
-            .get_mut(self.layer_index)
-            .expect("Layer must be presented!");
-        std::mem::swap(&mut layer.mask_property_name, &mut self.value);
-    }
-}
-
-impl Command for SetTerrainLayerMaskPropertyNameCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
-        "Set Terrain Layer Mask Property Name".to_string()
     }
 
     fn execute(&mut self, context: &mut SceneContext) {

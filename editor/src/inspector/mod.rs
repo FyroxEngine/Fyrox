@@ -152,7 +152,7 @@ impl Inspector {
             inspector,
             property_editors,
             needs_sync: true,
-            node_property_changed_handler: SceneNodePropertyChangedHandler,
+            node_property_changed_handler: SceneNodePropertyChangedHandler::new(),
             warning_text,
         }
     }
