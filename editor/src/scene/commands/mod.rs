@@ -9,7 +9,7 @@ use crate::{
 use fyrox::{
     core::{
         pool::Handle,
-        reflect::{Reflect, ResolvePath},
+        reflect::{self, Component, Reflect, ResolvePath},
     },
     engine::{resource_manager::ResourceManager, SerializationContext},
     gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
@@ -18,8 +18,7 @@ use fyrox::{
 };
 use std::{
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
-    sync::Arc,
+    sync::{mpsc::Sender, Arc},
 };
 
 pub mod camera;
@@ -519,8 +518,41 @@ impl SetNodePropertyCommand {
     }
 
     fn swap(&mut self, context: &mut SceneContext) {
-        try_modify_property(self.node, context, &self.path, |property| {
-            match property.set(self.value.take().unwrap()) {
+        let mut components = reflect::path_to_components(&self.path);
+        if let Some(Component::Field(field)) = components.pop() {
+            let mut parent_path = String::new();
+            for component in components.into_iter() {
+                match component {
+                    Component::Field(s) => {
+                        parent_path.push('.');
+                        parent_path += s;
+                    }
+                    Component::Index(s) => {
+                        parent_path.push('[');
+                        parent_path += s;
+                        parent_path.push(']');
+                    }
+                }
+            }
+
+            let node = &mut context.scene.graph[self.node];
+            let parent_entity = if parent_path.is_empty() {
+                node.as_reflect_mut()
+            } else {
+                match node.as_reflect_mut().resolve_path_mut(&parent_path) {
+                    Err(e) => {
+                        Log::err(format!(
+                            "There is no such property {}! Reason: {:?}",
+                            parent_path, e
+                        ));
+
+                        return;
+                    }
+                    Ok(property) => property,
+                }
+            };
+
+            match parent_entity.set_field(field, self.value.take().unwrap()) {
                 Ok(old_value) => {
                     self.value = Some(old_value);
                 }
@@ -532,7 +564,12 @@ impl SetNodePropertyCommand {
                     ))
                 }
             }
-        })
+        } else {
+            Log::err(format!(
+                "Failed to set property {}! Invalid path!",
+                self.path
+            ))
+        }
     }
 }
 
