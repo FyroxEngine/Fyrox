@@ -6,6 +6,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::scene::particle_system::EmitterWrapper;
 use fyrox::{
     animation::machine::MachineInstantiationError,
     core::{futures::executor::block_on, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
@@ -47,7 +48,10 @@ use fyrox::{
         },
         mesh::{surface::Surface, RenderPath},
         node::Node,
-        particle_system::emitter::{base::BaseEmitter, Emitter},
+        particle_system::emitter::{
+            base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
+            sphere::SphereEmitter, Emitter,
+        },
         rigidbody::RigidBodyType,
         sound::{
             self,
@@ -97,7 +101,7 @@ pub fn make_property_editors_container(
     });
     container.insert(VecCollectionPropertyEditorDefinition::<Surface>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<Layer>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<Emitter>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<EmitterWrapper>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<LevelOfDetail>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<ErasedHandle>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<Handle<Node>>::new());
@@ -107,6 +111,7 @@ pub fn make_property_editors_container(
     container.insert(VecCollectionPropertyEditorDefinition::<EffectInput>::new());
     container.insert(make_status_enum_editor_definition());
     container.insert(EnumPropertyEditorDefinition::<f32>::new_optional());
+    container.insert(EnumPropertyEditorDefinition::<u32>::new_optional());
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
     container.insert(InspectablePropertyEditorDefinition::<LodGroup>::new());
     container.insert(ResourceFieldPropertyEditorDefinition::<
@@ -160,7 +165,11 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<Base>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseEffect>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseLight>::new());
+    container.insert(EnumPropertyEditorDefinition::<Emitter>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseEmitter>::new());
+    container.insert(InspectablePropertyEditorDefinition::<SphereEmitter>::new());
+    container.insert(InspectablePropertyEditorDefinition::<CylinderEmitter>::new());
+    container.insert(InspectablePropertyEditorDefinition::<CuboidEmitter>::new());
     container.insert(InspectablePropertyEditorDefinition::<PerspectiveProjection>::new());
     container.insert(InspectablePropertyEditorDefinition::<OrthographicProjection>::new());
     container.insert(InspectablePropertyEditorDefinition::<Transform>::new());

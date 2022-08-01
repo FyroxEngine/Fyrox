@@ -1,15 +1,15 @@
 //! Base emitter contains properties for all other "derived" emitters.
 
-use crate::core::numeric_range::RangeExt;
 use crate::{
     core::{
         algebra::Vector3,
         color::Color,
         inspect::{Inspect, PropertyInfo},
+        numeric_range::RangeExt,
         reflect::Reflect,
         visitor::prelude::*,
     },
-    scene::particle_system::{Particle, ParticleLimit},
+    scene::particle_system::Particle,
 };
 use std::ops::Range;
 
@@ -23,7 +23,8 @@ pub struct BaseEmitter {
     #[visit(rename = "SpawnRate")]
     particle_spawn_rate: u32,
     /// Maximum amount of particles emitter can emit. Unlimited if < 0
-    max_particles: ParticleLimit,
+    #[visit(optional)] // Backward compatibility
+    max_particles: Option<u32>,
     /// Range of initial lifetime of a particle
     #[visit(rename = "LifeTime")]
     lifetime: Range<f32>,
@@ -176,9 +177,7 @@ impl BaseEmitterBuilder {
         BaseEmitter {
             position: self.position.unwrap_or_default(),
             particle_spawn_rate: self.particle_spawn_rate.unwrap_or(25),
-            max_particles: self
-                .max_particles
-                .map_or(ParticleLimit::Unlimited, ParticleLimit::Strict),
+            max_particles: self.max_particles,
             lifetime: self.lifetime,
             size: self.size,
             size_modifier: self.size_modifier,
@@ -204,7 +203,7 @@ impl BaseEmitter {
         let time_amount_per_particle = 1.0 / self.particle_spawn_rate as f32;
         let mut particle_count = (self.time / time_amount_per_particle) as u32;
         self.time -= time_amount_per_particle * particle_count as f32;
-        if let ParticleLimit::Strict(max_particles) = self.max_particles {
+        if let Some(max_particles) = self.max_particles {
             let alive_particles = self.alive_particles;
             if alive_particles < max_particles && alive_particles + particle_count > max_particles {
                 particle_count = max_particles - particle_count;
@@ -258,13 +257,13 @@ impl BaseEmitter {
     }
 
     /// Sets maximum amount of particles.
-    pub fn set_max_particles(&mut self, max: ParticleLimit) -> &mut Self {
+    pub fn set_max_particles(&mut self, max: Option<u32>) -> &mut Self {
         self.max_particles = max;
         self
     }
 
     /// Returns maximum amount of particles.
-    pub fn max_particles(&self) -> ParticleLimit {
+    pub fn max_particles(&self) -> Option<u32> {
         self.max_particles
     }
 
@@ -415,7 +414,7 @@ impl Default for BaseEmitter {
         Self {
             position: Vector3::default(),
             particle_spawn_rate: 100,
-            max_particles: ParticleLimit::Unlimited,
+            max_particles: None,
             lifetime: 5.0..10.0,
             size: 0.125..0.250,
             size_modifier: 0.0005..0.0010,

@@ -27,7 +27,6 @@ pub mod lod;
 pub mod material;
 pub mod mesh;
 pub mod navmesh;
-pub mod particle_system;
 pub mod sound_context;
 pub mod terrain;
 

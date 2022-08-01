@@ -109,37 +109,26 @@ pub(crate) mod draw;
 pub mod emitter;
 pub mod particle;
 
-/// Particle limit for emitter.
-#[derive(Copy, Clone, PartialEq, Debug, Reflect)]
-pub enum ParticleLimit {
-    /// No limit in amount of particles.
-    Unlimited,
-    /// Strict limit in amount of particles.
-    Strict(u32),
+#[derive(PartialEq, Debug, Clone, Default, Inspect, Reflect)]
+pub struct EmitterWrapper(#[inspect(display_name = "Emitter Type")] pub Emitter);
+
+impl Deref for EmitterWrapper {
+    type Target = Emitter;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-impl Visit for ParticleLimit {
+impl DerefMut for EmitterWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Visit for EmitterWrapper {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
-
-        let mut amount = match self {
-            Self::Unlimited => -1,
-            Self::Strict(value) => *value as i32,
-        };
-
-        amount.visit("Amount", &mut region)?;
-
-        drop(region);
-
-        if visitor.is_reading() {
-            *self = if amount < 0 {
-                Self::Unlimited
-            } else {
-                Self::Strict(amount as u32)
-            };
-        }
-
-        Ok(())
+        self.0.visit(name, visitor)
     }
 }
 
@@ -151,7 +140,7 @@ pub struct ParticleSystem {
     /// List of emitters of the particle system.
     #[inspect(deref)]
     #[reflect(deref)]
-    pub emitters: TemplateVariable<Vec<Emitter>>,
+    pub emitters: TemplateVariable<Vec<EmitterWrapper>>,
 
     #[inspect(deref)]
     #[reflect(deref)]
@@ -482,7 +471,7 @@ impl NodeTrait for ParticleSystem {
 /// This is typical implementation of Builder pattern.
 pub struct ParticleSystemBuilder {
     base_builder: BaseBuilder,
-    emitters: Vec<Emitter>,
+    emitters: Vec<EmitterWrapper>,
     texture: Option<Texture>,
     acceleration: Vector3<f32>,
     particles: Vec<Particle>,
@@ -508,7 +497,7 @@ impl ParticleSystemBuilder {
 
     /// Sets desired emitters for particle system.
     pub fn with_emitters(mut self, emitters: Vec<Emitter>) -> Self {
-        self.emitters = emitters;
+        self.emitters = emitters.into_iter().map(|e| EmitterWrapper(e)).collect();
         self
     }
 
