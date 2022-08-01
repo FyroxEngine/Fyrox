@@ -10,7 +10,7 @@ use crate::{
         pool::{ErasedHandle, Handle},
         reflect::Reflect,
         uuid::Uuid,
-        variable::{InheritError, TemplateVariable},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::{Visit, VisitError, VisitResult, Visitor},
         VecExtensions,
     },
@@ -311,14 +311,14 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) script_message_sender: Option<Sender<ScriptMessage>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_name_internal")]
     pub(crate) name: TemplateVariable<String>,
 
     pub(crate) local_transform: Transform,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_visibility")]
     visibility: TemplateVariable<bool>,
 
     // Maximum amount of Some(time) that node will "live" or None
@@ -327,34 +327,40 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) lifetime: TemplateVariable<Option<f32>>,
 
-    #[inspect(min_value = 0.0, max_value = 1.0, step = 0.1, deref)]
-    #[reflect(deref)]
+    #[inspect(
+        min_value = 0.0,
+        max_value = 1.0,
+        step = 0.1,
+        deref,
+        is_modified = "is_modified()"
+    )]
+    #[reflect(deref, setter = "set_depth_offset_factor")]
     depth_offset: TemplateVariable<f32>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_lod_group")]
     lod_group: TemplateVariable<Option<LodGroup>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_mobility")]
     mobility: TemplateVariable<Mobility>,
 
-    #[reflect(deref)]
-    #[inspect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_tag")]
     tag: TemplateVariable<String>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_cast_shadows")]
     cast_shadows: TemplateVariable<bool>,
 
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_properties")]
     pub properties: TemplateVariable<Vec<Property>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_frustum_culling")]
     frustum_culling: TemplateVariable<bool>,
 
     #[inspect(skip)]
@@ -391,11 +397,13 @@ pub struct Base {
     // A resource from which this node was instantiated from, can work in pair
     // with `original` handle to get corresponding node from resource.
     #[inspect(read_only)]
+    #[reflect(hidden)]
     pub(crate) resource: Option<Model>,
 
     // Handle to node in scene of model resource from which this node
     // was instantiated from.
     #[inspect(read_only)]
+    #[reflect(hidden)]
     pub(crate) original_handle_in_resource: Handle<Node>,
 
     // Current script of the scene node.
@@ -454,9 +462,12 @@ impl Clone for Base {
 
 impl Base {
     /// Sets name of node. Can be useful to mark a node to be able to find it later on.
-    pub fn set_name<N: AsRef<str>>(&mut self, name: N) -> &mut Self {
-        self.name.set(name.as_ref().to_owned());
-        self
+    pub fn set_name<N: AsRef<str>>(&mut self, name: N) {
+        self.set_name_internal(name.as_ref().to_owned());
+    }
+
+    fn set_name_internal(&mut self, name: String) -> String {
+        self.name.set(name)
     }
 
     /// Returns name of node.
@@ -483,9 +494,8 @@ impl Base {
     }
 
     /// Sets new local transform of a node.
-    pub fn set_local_transform(&mut self, transform: Transform) -> &mut Self {
+    pub fn set_local_transform(&mut self, transform: Transform) {
         self.local_transform = transform;
-        self
     }
 
     /// Tries to find properties by the name. The method returns an iterator because it possible
@@ -497,6 +507,11 @@ impl Base {
     /// Tries to find a first property with the given name.
     pub fn find_first_property_ref(&self, name: &str) -> Option<&Property> {
         self.properties.iter().find(|p| p.name == name)
+    }
+
+    /// Sets a new set of properties of the node.
+    pub fn set_properties(&mut self, properties: Vec<Property>) -> Vec<Property> {
+        std::mem::replace(self.properties.get_mut(), properties)
     }
 
     /// Sets lifetime of node in seconds, lifetime is useful for temporary objects.
@@ -555,9 +570,8 @@ impl Base {
     }
 
     /// Sets local visibility of a node.
-    pub fn set_visibility(&mut self, visibility: bool) -> &mut Self {
-        self.visibility.set(visibility);
-        self
+    pub fn set_visibility(&mut self, visibility: bool) -> bool {
+        self.visibility.set(visibility)
     }
 
     /// Returns local visibility of a node.
@@ -582,9 +596,8 @@ impl Base {
     ///
     /// TODO. Mobility still has no effect, it was designed to be used in combined
     /// rendering (dynamic + static lights (lightmaps))
-    pub fn set_mobility(&mut self, mobility: Mobility) -> &mut Self {
-        self.mobility.set(mobility);
-        self
+    pub fn set_mobility(&mut self, mobility: Mobility) -> Mobility {
+        self.mobility.set(mobility)
     }
 
     /// Return current mobility of the node.
@@ -639,8 +652,8 @@ impl Base {
     /// This value is used to modify projection matrix before render node. Element m\[4\]\[3\] of projection
     /// matrix usually set to -1 to which makes w coordinate of in homogeneous space to be -z_fragment for
     /// further perspective divide. We can abuse this to shift z of fragment by some value.
-    pub fn set_depth_offset_factor(&mut self, factor: f32) {
-        self.depth_offset.set(factor.abs().min(1.0).max(0.0));
+    pub fn set_depth_offset_factor(&mut self, factor: f32) -> f32 {
+        self.depth_offset.set(factor.abs().min(1.0).max(0.0))
     }
 
     /// Returns depth offset factor.
@@ -679,8 +692,8 @@ impl Base {
     }
 
     /// Sets new tag.
-    pub fn set_tag(&mut self, tag: String) {
-        self.tag.set(tag);
+    pub fn set_tag(&mut self, tag: String) -> String {
+        self.tag.set(tag)
     }
 
     /// Return the frustum_culling flag
@@ -689,8 +702,8 @@ impl Base {
     }
 
     /// Sets whether to use frustum culling or not
-    pub fn set_frustum_culling(&mut self, frustum_culling: bool) {
-        self.frustum_culling.set(frustum_culling);
+    pub fn set_frustum_culling(&mut self, frustum_culling: bool) -> bool {
+        self.frustum_culling.set(frustum_culling)
     }
 
     /// Returns true if the node should cast shadows, false - otherwise.
@@ -701,8 +714,8 @@ impl Base {
 
     /// Sets whether the mesh should cast shadows or not.
     #[inline]
-    pub fn set_cast_shadows(&mut self, cast_shadows: bool) {
-        self.cast_shadows.set(cast_shadows);
+    pub fn set_cast_shadows(&mut self, cast_shadows: bool) -> bool {
+        self.cast_shadows.set(cast_shadows)
     }
 
     fn remove_script(&mut self) {

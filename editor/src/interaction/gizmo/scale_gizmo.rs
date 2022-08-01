@@ -281,9 +281,9 @@ impl ScaleGizmo {
         scale: Vector3<f32>,
     ) {
         if let Some((rotation, position)) = selection.global_rotation_position(graph) {
-            graph[self.origin]
-                .set_visibility(true)
-                .local_transform_mut()
+            let node = &mut graph[self.origin];
+            node.set_visibility(true);
+            node.local_transform_mut()
                 .set_rotation(rotation)
                 .set_position(position)
                 .set_scale(scale);
