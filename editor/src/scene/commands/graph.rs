@@ -1,4 +1,4 @@
-use crate::{command::Command, define_vec_add_remove_commands, scene::commands::SceneContext};
+use crate::{command::Command, scene::commands::SceneContext};
 use fyrox::{
     animation::Animation,
     core::{
@@ -6,7 +6,6 @@ use fyrox::{
         pool::{Handle, Ticket},
     },
     scene::{
-        base::{Property, PropertyValue},
         graph::{Graph, SubGraph},
         node::Node,
     },
@@ -384,70 +383,5 @@ impl Command for AddNodeCommand {
                 .graph
                 .forget_ticket(ticket, self.node.take().unwrap());
         }
-    }
-}
-
-define_vec_add_remove_commands!(
-    struct AddPropertyCommand, RemovePropertyCommand<Node, Property>
-    (self, context) { context.scene.graph[self.handle].properties.get_mut() }
-);
-
-#[derive(Debug)]
-pub struct SetPropertyValueCommand {
-    pub handle: Handle<Node>,
-    pub index: usize,
-    pub value: PropertyValue,
-}
-
-impl SetPropertyValueCommand {
-    fn swap(&mut self, context: &mut SceneContext) {
-        std::mem::swap(
-            &mut context.scene.graph[self.handle].properties.get_mut()[self.index].value,
-            &mut self.value,
-        );
-    }
-}
-
-impl Command for SetPropertyValueCommand {
-    fn name(&mut self, _: &SceneContext) -> String {
-        "Set Property Value".to_owned()
-    }
-
-    fn execute(&mut self, context: &mut SceneContext) {
-        self.swap(context)
-    }
-
-    fn revert(&mut self, context: &mut SceneContext) {
-        self.swap(context)
-    }
-}
-
-#[derive(Debug)]
-pub struct SetPropertyNameCommand {
-    pub handle: Handle<Node>,
-    pub index: usize,
-    pub name: String,
-}
-
-impl SetPropertyNameCommand {
-    fn swap(&mut self, context: &mut SceneContext) {
-        std::mem::swap(
-            &mut context.scene.graph[self.handle].properties.get_mut()[self.index].name,
-            &mut self.name,
-        );
-    }
-}
-
-impl Command for SetPropertyNameCommand {
-    fn name(&mut self, _: &SceneContext) -> String {
-        "Set Property Name".to_owned()
-    }
-
-    fn execute(&mut self, context: &mut SceneContext) {
-        self.swap(context)
-    }
-
-    fn revert(&mut self, context: &mut SceneContext) {
-        self.swap(context)
     }
 }
