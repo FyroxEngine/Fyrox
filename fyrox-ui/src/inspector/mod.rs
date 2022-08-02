@@ -130,7 +130,7 @@ impl PropertyAction {
                     }
                 }
 
-                return Err(Self::AddItem { value });
+                Err(Self::AddItem { value })
             }
             PropertyAction::RemoveItem { index } => {
                 if let Ok(field) = target.resolve_path_mut(path) {
@@ -141,7 +141,7 @@ impl PropertyAction {
                     }
                 }
 
-                return Err(Self::RemoveItem { index });
+                Err(Self::RemoveItem { index })
             }
         }
     }
