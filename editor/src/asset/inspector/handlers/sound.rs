@@ -6,7 +6,8 @@ use fyrox::{
         options::{try_get_import_settings, ImportOptions},
         ResourceManager,
     },
-    gui::inspector::{FieldKind, PropertyChanged},
+    gui::inspector::{PropertyAction, PropertyChanged},
+    utils::log::Log,
 };
 use std::path::{Path, PathBuf};
 
@@ -46,10 +47,9 @@ impl ImportOptionsHandler for SoundBufferImportOptionsHandler {
     }
 
     fn handle_property_changed(&mut self, property_changed: &PropertyChanged) {
-        if let FieldKind::Object(ref args) = property_changed.value {
-            if let SoundBufferImportOptions::STREAM = property_changed.name.as_ref() {
-                self.options.stream = args.cast_clone().unwrap();
-            }
-        }
+        Log::verify(
+            PropertyAction::from_field_kind(&property_changed.value)
+                .apply(&property_changed.path(), &mut self.options),
+        )
     }
 }
