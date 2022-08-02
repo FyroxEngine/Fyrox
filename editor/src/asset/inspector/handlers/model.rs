@@ -5,8 +5,9 @@ use fyrox::{
         options::{try_get_import_settings, ImportOptions},
         ResourceManager,
     },
-    gui::inspector::{FieldKind, PropertyChanged},
+    gui::inspector::{PropertyAction, PropertyChanged},
     resource::model::ModelImportOptions,
+    utils::log::Log,
 };
 use std::path::{Path, PathBuf};
 
@@ -41,10 +42,9 @@ impl ImportOptionsHandler for ModelImportOptionsHandler {
     }
 
     fn handle_property_changed(&mut self, property_changed: &PropertyChanged) {
-        if let FieldKind::Object(ref args) = property_changed.value {
-            if let ModelImportOptions::MATERIAL_SEARCH_OPTIONS = property_changed.name.as_ref() {
-                self.options.material_search_options = args.cast_clone().unwrap()
-            }
-        }
+        Log::verify(
+            PropertyAction::from_field_kind(&property_changed.value)
+                .apply(&property_changed.path(), &mut self.options),
+        )
     }
 }
