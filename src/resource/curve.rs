@@ -2,6 +2,7 @@
 
 use crate::{
     asset::{define_new_resource, Resource, ResourceData},
+    core::reflect::Reflect,
     core::{curve::Curve, io::FileLoadError, visitor::prelude::*},
     engine::resource_manager::options::ImportOptions,
 };
@@ -68,6 +69,8 @@ impl CurveResourceState {
 
 define_new_resource!(
     /// See module docs.
+    #[derive(Reflect)]
+    #[reflect(hide_all)]
     CurveResource<CurveResourceState, CurveResourceError>
 );
 

@@ -4,7 +4,7 @@ use crate::{
     check_box::CheckBoxBuilder,
     core::{
         algebra::Vector2,
-        inspect::{CastError, Inspect, PropertyValue},
+        inspect::{CastError, Inspect},
         pool::Handle,
     },
     define_constructor,
@@ -22,6 +22,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::reflect::Reflect;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -34,7 +35,7 @@ pub mod editors;
 #[derive(Debug, Clone, PartialEq)]
 pub enum CollectionChanged {
     /// An item should be added in the collection.
-    Add,
+    Add(ObjectValue),
     /// An item in the collection should be removed.
     Remove(usize),
     /// An item in the collection has changed one of its properties.
@@ -46,7 +47,7 @@ pub enum CollectionChanged {
 }
 
 impl CollectionChanged {
-    define_constructor!(CollectionChanged:Add => fn add(), layout: false);
+    define_constructor!(CollectionChanged:Add => fn add(ObjectValue), layout: false);
     define_constructor!(CollectionChanged:Remove => fn remove(usize), layout: false);
     define_constructor!(CollectionChanged:ItemChanged => fn item_changed(index: usize, property: PropertyChanged), layout: false);
 }
@@ -58,9 +59,33 @@ pub enum FieldKind {
     Object(ObjectValue),
 }
 
-#[derive(Debug, Clone)]
+pub trait Value: Reflect + Debug {
+    fn clone_box(&self) -> Box<dyn Value>;
+
+    fn into_box_reflect(self: Box<Self>) -> Box<dyn Reflect>;
+}
+
+impl<T: Reflect + Clone + Debug> Value for T {
+    fn clone_box(&self) -> Box<dyn Value> {
+        Box::new(self.clone())
+    }
+
+    fn into_box_reflect(self: Box<Self>) -> Box<dyn Reflect> {
+        Box::new(*self.into_any().downcast::<T>().unwrap())
+    }
+}
+
+#[derive(Debug)]
 pub struct ObjectValue {
-    value: Rc<dyn PropertyValue>,
+    pub value: Box<dyn Value>,
+}
+
+impl Clone for ObjectValue {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value.clone_box(),
+        }
+    }
 }
 
 impl PartialEq for ObjectValue {
@@ -91,6 +116,10 @@ impl ObjectValue {
                 true
             })
     }
+
+    pub fn into_box_reflect(self) -> Box<dyn Reflect> {
+        self.value.into_box_reflect()
+    }
 }
 
 impl PartialEq for FieldKind {
@@ -105,9 +134,9 @@ impl PartialEq for FieldKind {
 }
 
 impl FieldKind {
-    pub fn object<T: PropertyValue>(value: T) -> Self {
+    pub fn object<T: Value>(value: T) -> Self {
         Self::Object(ObjectValue {
-            value: Rc::new(value),
+            value: Box::new(value),
         })
     }
 }

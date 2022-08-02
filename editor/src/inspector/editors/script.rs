@@ -416,10 +416,12 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                     }
                     ScriptPropertyEditorMessage::PropertyChanged(property_changed) => {
                         return Some(PropertyChanged {
-                            name: ctx.name.to_string(),
+                            // Mimic Option<Script> path by adding `.Some@0` suffix to property path.
+                            // It is needed because we're editing compound type in this editor.
+                            name: ctx.name.to_string() + ".Some@0",
                             owner_type_id: ctx.owner_type_id,
                             value: FieldKind::Inspectable(Box::new(property_changed.clone())),
-                        })
+                        });
                     }
                 }
             }

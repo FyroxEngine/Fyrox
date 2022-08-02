@@ -24,6 +24,15 @@ pub fn inspect(input: TokenStream) -> TokenStream {
     TokenStream::from(inspect::impl_inspect(ast))
 }
 
+/// Implements `Inspect` trait
+///
+/// User has to import `Inspect` and `PropertyInfo` to use this macro.
+#[proc_macro]
+pub fn impl_inspect(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as DeriveInput);
+    TokenStream::from(inspect::impl_inspect(ast))
+}
+
 /// Implements `Reflect` trait
 #[proc_macro_derive(Reflect, attributes(reflect))]
 pub fn reflect(input: TokenStream) -> TokenStream {

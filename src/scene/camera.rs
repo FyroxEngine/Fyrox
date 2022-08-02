@@ -14,9 +14,7 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         inspect::{Inspect, PropertyInfo},
@@ -24,6 +22,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -31,11 +30,12 @@ use crate::{
     resource::texture::{Texture, TextureError, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
-        graph::Graph,
+        graph::{map::NodeHandleMap, Graph},
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
         visibility::VisibilityCache,
         DirectlyInheritableEntity,
     },
+    utils::log::Log,
 };
 use fyrox_resource::ResourceState;
 use std::{
@@ -260,36 +260,36 @@ impl Default for Exposure {
 pub struct Camera {
     base: Base,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_projection")]
     projection: TemplateVariable<Projection>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_viewport")]
     viewport: TemplateVariable<Rect<f32>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_enabled")]
     enabled: TemplateVariable<bool>,
 
-    #[inspect(deref)]
-    #[reflect(field = "as_ref()?.deref()", field_mut = "as_mut()?.deref_mut()")]
-    sky_box: TemplateVariable<Option<Box<SkyBox>>>,
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_skybox")]
+    sky_box: TemplateVariable<Option<SkyBox>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_environment")]
     environment: TemplateVariable<Option<Texture>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_exposure")]
     exposure: TemplateVariable<Exposure>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_color_grading_lut")]
     color_grading_lut: TemplateVariable<Option<ColorGradingLut>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_color_grading_enabled")]
     color_grading_enabled: TemplateVariable<bool>,
 
     #[visit(skip)]
@@ -366,13 +366,12 @@ impl Camera {
     /// Why not just use pixels directly? Because you can change resolution while
     /// your application is running and you'd be force to manually recalculate
     /// pixel values everytime when resolution changes.
-    pub fn set_viewport(&mut self, mut viewport: Rect<f32>) -> &mut Self {
+    pub fn set_viewport(&mut self, mut viewport: Rect<f32>) -> Rect<f32> {
         viewport.position.x = viewport.position.x.clamp(0.0, 1.0);
         viewport.position.y = viewport.position.y.clamp(0.0, 1.0);
         viewport.size.x = viewport.size.x.clamp(0.0, 1.0);
         viewport.size.y = viewport.size.y.clamp(0.0, 1.0);
-        self.viewport.set(viewport);
-        self
+        self.viewport.set(viewport)
     }
 
     /// Returns current viewport.
@@ -443,8 +442,8 @@ impl Camera {
 
     /// Sets current projection mode.
     #[inline]
-    pub fn set_projection(&mut self, projection: Projection) {
-        self.projection.set(projection);
+    pub fn set_projection(&mut self, projection: Projection) -> Projection {
+        self.projection.set(projection)
     }
 
     /// Returns state of camera: enabled or not.
@@ -457,36 +456,33 @@ impl Camera {
     /// rendering. This allows you to exclude views from specific cameras from
     /// final picture.
     #[inline]
-    pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {
-        self.enabled.set(enabled);
-        self
+    pub fn set_enabled(&mut self, enabled: bool) -> bool {
+        self.enabled.set(enabled)
     }
 
     /// Sets new skybox. Could be None if no skybox needed.
-    pub fn set_skybox(&mut self, skybox: Option<SkyBox>) -> &mut Self {
-        self.sky_box.set(skybox.map(Box::new));
-        self
+    pub fn set_skybox(&mut self, skybox: Option<SkyBox>) -> Option<SkyBox> {
+        self.sky_box.set(skybox)
     }
 
     /// Return optional mutable reference to current skybox.
     pub fn skybox_mut(&mut self) -> Option<&mut SkyBox> {
-        self.sky_box.get_mut().as_deref_mut()
+        self.sky_box.get_mut().as_mut()
     }
 
     /// Return optional shared reference to current skybox.
     pub fn skybox_ref(&self) -> Option<&SkyBox> {
-        self.sky_box.as_deref()
+        self.sky_box.as_ref()
     }
 
     /// Replaces the skybox.
-    pub fn replace_skybox(&mut self, new: Option<Box<SkyBox>>) -> Option<Box<SkyBox>> {
+    pub fn replace_skybox(&mut self, new: Option<SkyBox>) -> Option<SkyBox> {
         std::mem::replace(self.sky_box.get_mut(), new)
     }
 
     /// Sets new environment.
-    pub fn set_environment(&mut self, environment: Option<Texture>) -> &mut Self {
-        self.environment.set(environment);
-        self
+    pub fn set_environment(&mut self, environment: Option<Texture>) -> Option<Texture> {
+        self.environment.set(environment)
     }
 
     /// Return optional mutable reference to current environment.
@@ -544,8 +540,11 @@ impl Camera {
     }
 
     /// Sets new color grading LUT.
-    pub fn set_color_grading_map(&mut self, lut: Option<ColorGradingLut>) {
-        self.color_grading_lut.set(lut);
+    pub fn set_color_grading_lut(
+        &mut self,
+        lut: Option<ColorGradingLut>,
+    ) -> Option<ColorGradingLut> {
+        self.color_grading_lut.set(lut)
     }
 
     /// Returns current color grading map.
@@ -559,8 +558,8 @@ impl Camera {
     }
 
     /// Enables or disables color grading.
-    pub fn set_color_grading_enabled(&mut self, enable: bool) {
-        self.color_grading_enabled.set(enable);
+    pub fn set_color_grading_enabled(&mut self, enable: bool) -> bool {
+        self.color_grading_enabled.set(enable)
     }
 
     /// Whether color grading enabled or not.
@@ -569,8 +568,8 @@ impl Camera {
     }
 
     /// Sets new exposure. See `Exposure` struct docs for more info.
-    pub fn set_exposure(&mut self, exposure: Exposure) {
-        self.exposure.set(exposure);
+    pub fn set_exposure(&mut self, exposure: Exposure) -> Exposure {
+        self.exposure.set(exposure)
     }
 
     /// Returns current exposure value.
@@ -928,7 +927,7 @@ impl CameraBuilder {
             view_matrix: Matrix4::identity(),
             projection_matrix: Matrix4::identity(),
             visibility_cache: Default::default(),
-            sky_box: self.skybox.map(Box::new).into(),
+            sky_box: self.skybox.into(),
             environment: self.environment.into(),
             exposure: self.exposure.into(),
             color_grading_lut: self.color_grading_lut.into(),
@@ -1026,20 +1025,33 @@ impl SkyBoxBuilder {
 #[derive(Debug, Clone, Default, PartialEq, Inspect, Reflect, Visit)]
 pub struct SkyBox {
     /// Texture for front face.
+    #[reflect(setter = "set_front")]
     pub(crate) front: Option<Texture>,
+
     /// Texture for back face.
+    #[reflect(setter = "set_back")]
     pub(crate) back: Option<Texture>,
+
     /// Texture for left face.
+    #[reflect(setter = "set_left")]
     pub(crate) left: Option<Texture>,
+
     /// Texture for right face.
+    #[reflect(setter = "set_right")]
     pub(crate) right: Option<Texture>,
+
     /// Texture for top face.
+    #[reflect(setter = "set_top")]
     pub(crate) top: Option<Texture>,
+
     /// Texture for bottom face.
+    #[reflect(setter = "set_bottom")]
     pub(crate) bottom: Option<Texture>,
+
     /// Cubemap texture
     #[inspect(skip)]
     #[visit(skip)]
+    #[reflect(hidden)]
     pub(crate) cubemap: Option<Texture>,
 }
 
@@ -1223,6 +1235,13 @@ impl SkyBox {
         ]
     }
 
+    /// Set new texture for the left side of the skybox.
+    pub fn set_left(&mut self, texture: Option<Texture>) -> Option<Texture> {
+        let prev = std::mem::replace(&mut self.left, texture);
+        Log::verify(self.create_cubemap());
+        prev
+    }
+
     /// Returns a texture that is used for left face of the cube map.
     ///
     /// # Important notes.
@@ -1230,6 +1249,13 @@ impl SkyBox {
     /// This textures is not used for rendering! The renderer uses cube map made of face textures.
     pub fn left(&self) -> Option<Texture> {
         self.left.clone()
+    }
+
+    /// Set new texture for the right side of the skybox.
+    pub fn set_right(&mut self, texture: Option<Texture>) -> Option<Texture> {
+        let prev = std::mem::replace(&mut self.right, texture);
+        Log::verify(self.create_cubemap());
+        prev
     }
 
     /// Returns a texture that is used for right face of the cube map.
@@ -1241,6 +1267,13 @@ impl SkyBox {
         self.right.clone()
     }
 
+    /// Set new texture for the top side of the skybox.
+    pub fn set_top(&mut self, texture: Option<Texture>) -> Option<Texture> {
+        let prev = std::mem::replace(&mut self.top, texture);
+        Log::verify(self.create_cubemap());
+        prev
+    }
+
     /// Returns a texture that is used for top face of the cube map.
     ///
     /// # Important notes.
@@ -1248,6 +1281,13 @@ impl SkyBox {
     /// This textures is not used for rendering! The renderer uses cube map made of face textures.
     pub fn top(&self) -> Option<Texture> {
         self.top.clone()
+    }
+
+    /// Set new texture for the bottom side of the skybox.
+    pub fn set_bottom(&mut self, texture: Option<Texture>) -> Option<Texture> {
+        let prev = std::mem::replace(&mut self.bottom, texture);
+        Log::verify(self.create_cubemap());
+        prev
     }
 
     /// Returns a texture that is used for bottom face of the cube map.
@@ -1259,6 +1299,13 @@ impl SkyBox {
         self.bottom.clone()
     }
 
+    /// Set new texture for the front side of the skybox.
+    pub fn set_front(&mut self, texture: Option<Texture>) -> Option<Texture> {
+        let prev = std::mem::replace(&mut self.front, texture);
+        Log::verify(self.create_cubemap());
+        prev
+    }
+
     /// Returns a texture that is used for front face of the cube map.
     ///
     /// # Important notes.
@@ -1266,6 +1313,13 @@ impl SkyBox {
     /// This textures is not used for rendering! The renderer uses cube map made of face textures.
     pub fn front(&self) -> Option<Texture> {
         self.front.clone()
+    }
+
+    /// Set new texture for the back side of the skybox.
+    pub fn set_back(&mut self, texture: Option<Texture>) -> Option<Texture> {
+        let prev = std::mem::replace(&mut self.back, texture);
+        Log::verify(self.create_cubemap());
+        prev
     }
 
     /// Returns a texture that is used for back face of the cube map.

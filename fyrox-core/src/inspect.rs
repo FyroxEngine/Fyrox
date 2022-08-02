@@ -4,6 +4,7 @@
 
 #![warn(missing_docs)]
 
+use fyrox_core_derive::impl_inspect;
 use std::{
     any::{Any, TypeId},
     fmt::{self, Debug},
@@ -150,19 +151,15 @@ pub trait Inspect {
     fn properties(&self) -> Vec<PropertyInfo<'_>>;
 }
 
-impl<T: Inspect> Inspect for Option<T> {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        match self {
-            Some(v) => v.properties(),
-            None => vec![],
-        }
+impl_inspect! {
+    pub enum Option<T: Inspect + Debug + 'static> {
+        Some(T),
+        None
     }
 }
 
-impl<T: Inspect> Inspect for Box<T> {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        (**self).properties()
-    }
+impl_inspect! {
+    pub struct Box<T: Inspect + Debug + 'static>;
 }
 
 macro_rules! impl_self_inspect {
@@ -171,8 +168,8 @@ macro_rules! impl_self_inspect {
             fn properties(&self) -> Vec<PropertyInfo<'_>> {
                 vec![PropertyInfo {
                     owner_type_id: TypeId::of::<Self>(),
-                    name: "Value",
-                    display_name: "Value",
+                    name: "self",
+                    display_name: "self",
                     value: self,
                     read_only: false,
                     min_value: Some($min),

@@ -1,16 +1,16 @@
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::Vector3,
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
+        num_traits::{NumCast, One, ToPrimitive, Zero},
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -18,6 +18,7 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::{
+            map::NodeHandleMap,
             physics::{CoefficientCombineRule, ContactPair, PhysicsWorld},
             Graph,
         },
@@ -26,12 +27,10 @@ use crate::{
     },
     utils::log::Log,
 };
-use fyrox_core::num_traits::{NumCast, One, ToPrimitive, Zero};
 use rapier3d::geometry::{self, ColliderHandle};
-use std::ops::{Add, BitAnd, BitOr, Mul, Not, Shl};
 use std::{
     cell::Cell,
-    ops::{Deref, DerefMut},
+    ops::{Add, BitAnd, BitOr, Deref, DerefMut, Mul, Not, Shl},
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -343,25 +342,10 @@ impl From<geometry::InteractionGroups> for InteractionGroups {
     }
 }
 
-impl Inspect for ColliderShape {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        match self {
-            ColliderShape::Ball(v) => v.properties(),
-            ColliderShape::Cylinder(v) => v.properties(),
-            ColliderShape::Cone(v) => v.properties(),
-            ColliderShape::Cuboid(v) => v.properties(),
-            ColliderShape::Capsule(v) => v.properties(),
-            ColliderShape::Segment(v) => v.properties(),
-            ColliderShape::Triangle(v) => v.properties(),
-            ColliderShape::Trimesh(v) => v.properties(),
-            ColliderShape::Heightfield(v) => v.properties(),
-            ColliderShape::Polyhedron(v) => v.properties(),
-        }
-    }
-}
-
 /// Possible collider shapes.
-#[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(
+    Clone, Debug, PartialEq, Visit, Inspect, Reflect, AsRefStr, EnumString, EnumVariantNames,
+)]
 pub enum ColliderShape {
     /// See [`BallShape`] docs.
     Ball(BallShape),
@@ -475,40 +459,40 @@ impl ColliderShape {
 pub struct Collider {
     base: Base,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_shape")]
     pub(crate) shape: TemplateVariable<ColliderShape>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
-    #[reflect(deref)]
+    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_friction")]
     pub(crate) friction: TemplateVariable<f32>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_density")]
     pub(crate) density: TemplateVariable<Option<f32>>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
-    #[reflect(deref)]
+    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_restitution")]
     pub(crate) restitution: TemplateVariable<f32>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_is_sensor")]
     pub(crate) is_sensor: TemplateVariable<bool>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_collision_groups")]
     pub(crate) collision_groups: TemplateVariable<InteractionGroups>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_solver_groups")]
     pub(crate) solver_groups: TemplateVariable<InteractionGroups>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_friction_combine_rule")]
     pub(crate) friction_combine_rule: TemplateVariable<CoefficientCombineRule>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_restitution_combine_rule")]
     pub(crate) restitution_combine_rule: TemplateVariable<CoefficientCombineRule>,
 
     #[visit(skip)]
@@ -594,8 +578,8 @@ impl Collider {
     /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
-    pub fn set_shape(&mut self, shape: ColliderShape) {
-        self.shape.set(shape);
+    pub fn set_shape(&mut self, shape: ColliderShape) -> ColliderShape {
+        self.shape.set(shape)
     }
 
     /// Returns shared reference to the collider shape.
@@ -628,8 +612,8 @@ impl Collider {
     /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
-    pub fn set_restitution(&mut self, restitution: f32) {
-        self.restitution.set(restitution);
+    pub fn set_restitution(&mut self, restitution: f32) -> f32 {
+        self.restitution.set(restitution)
     }
 
     /// Returns current restitution value of the collider.
@@ -651,8 +635,8 @@ impl Collider {
     /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
-    pub fn set_density(&mut self, density: Option<f32>) {
-        self.density.set(density);
+    pub fn set_density(&mut self, density: Option<f32>) -> Option<f32> {
+        self.density.set(density)
     }
 
     /// Returns current density of the collider.
@@ -669,8 +653,8 @@ impl Collider {
     /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
-    pub fn set_friction(&mut self, friction: f32) {
-        self.friction.set(friction);
+    pub fn set_friction(&mut self, friction: f32) -> f32 {
+        self.friction.set(friction)
     }
 
     /// Return current friction of the collider.
@@ -685,8 +669,8 @@ impl Collider {
     /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
-    pub fn set_collision_groups(&mut self, groups: InteractionGroups) {
-        self.collision_groups.set(groups);
+    pub fn set_collision_groups(&mut self, groups: InteractionGroups) -> InteractionGroups {
+        self.collision_groups.set(groups)
     }
 
     /// Returns current collision filtering options.
@@ -701,8 +685,8 @@ impl Collider {
     /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
-    pub fn set_solver_groups(&mut self, groups: InteractionGroups) {
-        self.solver_groups.set(groups);
+    pub fn set_solver_groups(&mut self, groups: InteractionGroups) -> InteractionGroups {
+        self.solver_groups.set(groups)
     }
 
     /// Returns current solver groups.
@@ -718,8 +702,8 @@ impl Collider {
     /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
-    pub fn set_is_sensor(&mut self, is_sensor: bool) {
-        self.is_sensor.set(is_sensor);
+    pub fn set_is_sensor(&mut self, is_sensor: bool) -> bool {
+        self.is_sensor.set(is_sensor)
     }
 
     /// Returns true if the collider is sensor, false - otherwise.
@@ -734,8 +718,11 @@ impl Collider {
     /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
-    pub fn set_friction_combine_rule(&mut self, rule: CoefficientCombineRule) {
-        self.friction_combine_rule.set(rule);
+    pub fn set_friction_combine_rule(
+        &mut self,
+        rule: CoefficientCombineRule,
+    ) -> CoefficientCombineRule {
+        self.friction_combine_rule.set(rule)
     }
 
     /// Returns current friction combine rule of the collider.
@@ -750,8 +737,11 @@ impl Collider {
     /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
-    pub fn set_restitution_combine_rule(&mut self, rule: CoefficientCombineRule) {
-        self.restitution_combine_rule.set(rule);
+    pub fn set_restitution_combine_rule(
+        &mut self,
+        rule: CoefficientCombineRule,
+    ) -> CoefficientCombineRule {
+        self.restitution_combine_rule.set(rule)
     }
 
     /// Returns current restitution combine rule of the collider.

@@ -13,6 +13,7 @@ use crate::{
     BuildContext, Control, MessageDirection, MouseButton, NodeHandleMapping, Orientation,
     Thickness, UiNode, UserInterface, WidgetMessage,
 };
+use fyrox_core::reflect::Reflect;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -33,6 +34,7 @@ pub trait BitContainer:
     + Zero
     + PartialEq
     + Debug
+    + Reflect
     + 'static
 {
 }
@@ -50,6 +52,7 @@ impl<T> BitContainer for T where
         + Zero
         + PartialEq
         + Debug
+        + Reflect
         + 'static
 {
 }

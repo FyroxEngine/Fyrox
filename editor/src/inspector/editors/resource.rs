@@ -1,4 +1,5 @@
 use crate::{asset::item::AssetItem, inspector::EditorEnvironment, load_image};
+use fyrox::core::reflect::Reflect;
 use fyrox::{
     asset::{Resource, ResourceData, ResourceLoadError},
     core::{make_relative_path, pool::Handle},
@@ -308,7 +309,7 @@ where
 
 impl<T, S, E> PropertyEditorDefinition for ResourceFieldPropertyEditorDefinition<T, S, E>
 where
-    T: Deref<Target = Resource<S, E>> + Clone + PartialEq + Debug + 'static,
+    T: Deref<Target = Resource<S, E>> + Clone + PartialEq + Debug + Reflect + 'static,
     S: ResourceData,
     E: ResourceLoadError,
 {

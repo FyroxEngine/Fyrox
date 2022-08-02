@@ -120,7 +120,7 @@ impl ParameterPanel {
                     ParameterContainerDefinition::CONTAINER => {
                         if let FieldKind::Collection(ref collection_args) = args.value {
                             match **collection_args {
-                                CollectionChanged::Add => Some(AbsmCommand::new(
+                                CollectionChanged::Add(_) => Some(AbsmCommand::new(
                                     AddParameterCommand::new((), Default::default()),
                                 )),
                                 CollectionChanged::Remove(i) => {
@@ -129,6 +129,7 @@ impl ParameterPanel {
                                 CollectionChanged::ItemChanged {
                                     index,
                                     ref property,
+                                    ..
                                 } => handle_parameter_property_change(index, property),
                             }
                         } else {

@@ -8,9 +8,7 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::{Matrix4, Vector2},
         inspect::{Inspect, PropertyInfo},
@@ -19,13 +17,14 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
-        graph::Graph,
+        graph::{map::NodeHandleMap, Graph},
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider, UpdateContext},
         rigidbody::RigidBodyType,
         DirectlyInheritableEntity,
@@ -68,52 +67,52 @@ pub(crate) enum ApplyAction {
 pub struct RigidBody {
     base: Base,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_lin_vel")]
     pub(crate) lin_vel: TemplateVariable<Vector2<f32>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_ang_vel")]
     pub(crate) ang_vel: TemplateVariable<f32>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_lin_damping")]
     pub(crate) lin_damping: TemplateVariable<f32>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_ang_damping")]
     pub(crate) ang_damping: TemplateVariable<f32>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_body_type")]
     pub(crate) body_type: TemplateVariable<RigidBodyType>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
-    #[reflect(deref)]
+    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_mass")]
     pub(crate) mass: TemplateVariable<f32>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "lock_rotations")]
     pub(crate) rotation_locked: TemplateVariable<bool>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "lock_translation")]
     pub(crate) translation_locked: TemplateVariable<bool>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "enable_ccd")]
     pub(crate) ccd_enabled: TemplateVariable<bool>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_can_sleep")]
     pub(crate) can_sleep: TemplateVariable<bool>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_dominance")]
     pub(crate) dominance: TemplateVariable<i8>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_gravity_scale")]
     pub(crate) gravity_scale: TemplateVariable<f32>,
 
     #[visit(skip)]
@@ -223,8 +222,8 @@ impl TypeUuidProvider for RigidBody {
 impl RigidBody {
     /// Sets new linear velocity of the rigid body. Changing this parameter will wake up the rigid
     /// body!
-    pub fn set_lin_vel(&mut self, lin_vel: Vector2<f32>) {
-        self.lin_vel.set(lin_vel);
+    pub fn set_lin_vel(&mut self, lin_vel: Vector2<f32>) -> Vector2<f32> {
+        self.lin_vel.set(lin_vel)
     }
 
     /// Returns current linear velocity of the rigid body.
@@ -234,8 +233,8 @@ impl RigidBody {
 
     /// Sets new angular velocity of the rigid body. Changing this parameter will wake up the rigid
     /// body!
-    pub fn set_ang_vel(&mut self, ang_vel: f32) {
-        self.ang_vel.set(ang_vel);
+    pub fn set_ang_vel(&mut self, ang_vel: f32) -> f32 {
+        self.ang_vel.set(ang_vel)
     }
 
     /// Returns current angular velocity of the rigid body.
@@ -245,8 +244,8 @@ impl RigidBody {
 
     /// Sets _additional_ mass of the rigid body. It is called additional because real mass is defined
     /// by colliders attached to the body and their density and volume.
-    pub fn set_mass(&mut self, mass: f32) {
-        self.mass.set(mass);
+    pub fn set_mass(&mut self, mass: f32) -> f32 {
+        self.mass.set(mass)
     }
 
     /// Returns _additional_ mass of the rigid body.
@@ -256,8 +255,8 @@ impl RigidBody {
 
     /// Sets angular damping of the rigid body. Angular damping will decrease angular velocity over
     /// time. Default is zero.
-    pub fn set_ang_damping(&mut self, damping: f32) {
-        self.ang_damping.set(damping);
+    pub fn set_ang_damping(&mut self, damping: f32) -> f32 {
+        self.ang_damping.set(damping)
     }
 
     /// Returns current angular damping.
@@ -267,8 +266,8 @@ impl RigidBody {
 
     /// Sets linear damping of the rigid body. Linear damping will decrease linear velocity over
     /// time. Default is zero.
-    pub fn set_lin_damping(&mut self, damping: f32) {
-        self.lin_damping.set(damping);
+    pub fn set_lin_damping(&mut self, damping: f32) -> f32 {
+        self.lin_damping.set(damping)
     }
 
     /// Returns current linear damping.
@@ -277,8 +276,8 @@ impl RigidBody {
     }
 
     /// Locks rotations
-    pub fn lock_rotations(&mut self, state: bool) {
-        self.rotation_locked.set(state);
+    pub fn lock_rotations(&mut self, state: bool) -> bool {
+        self.rotation_locked.set(state)
     }
 
     /// Returns true if rotation is locked, false - otherwise.
@@ -287,8 +286,8 @@ impl RigidBody {
     }
 
     /// Locks translation in world coordinates.
-    pub fn lock_translation(&mut self, state: bool) {
-        self.translation_locked.set(state);
+    pub fn lock_translation(&mut self, state: bool) -> bool {
+        self.translation_locked.set(state)
     }
 
     /// Returns true if translation is locked, false - otherwise.    
@@ -297,8 +296,8 @@ impl RigidBody {
     }
 
     /// Sets new body type. See [`RigidBodyType`] for more info.
-    pub fn set_body_type(&mut self, body_type: RigidBodyType) {
-        self.body_type.set(body_type);
+    pub fn set_body_type(&mut self, body_type: RigidBodyType) -> RigidBodyType {
+        self.body_type.set(body_type)
     }
 
     /// Returns current body type.
@@ -319,13 +318,13 @@ impl RigidBody {
 
     /// Enables or disables continuous collision detection. CCD is very useful for fast moving objects
     /// to prevent accidental penetrations on high velocities.
-    pub fn enable_ccd(&mut self, enable: bool) {
-        self.ccd_enabled.set(enable);
+    pub fn enable_ccd(&mut self, enable: bool) -> bool {
+        self.ccd_enabled.set(enable)
     }
 
     /// Sets a gravity scale coefficient. Zero can be used to disable gravity.
-    pub fn set_gravity_scale(&mut self, scale: f32) {
-        self.gravity_scale.set(scale);
+    pub fn set_gravity_scale(&mut self, scale: f32) -> f32 {
+        self.gravity_scale.set(scale)
     }
 
     /// Returns current gravity scale coefficient.
@@ -337,8 +336,8 @@ impl RigidBody {
     /// be affected by an object with lower dominance group (it will behave like it has an infinite
     /// mass). This is very importance feature for character physics in games, you can set highest
     /// dominance group to the player, and it won't be affected by any external forces.
-    pub fn set_dominance(&mut self, dominance: i8) {
-        self.dominance.set(dominance);
+    pub fn set_dominance(&mut self, dominance: i8) -> i8 {
+        self.dominance.set(dominance)
     }
 
     /// Returns current dominance group.
@@ -395,8 +394,8 @@ impl RigidBody {
 
     /// Sets whether the rigid body can sleep or not. If `false` is passed, it _automatically_ wake
     /// up rigid body.
-    pub fn set_can_sleep(&mut self, can_sleep: bool) {
-        self.can_sleep.set(can_sleep);
+    pub fn set_can_sleep(&mut self, can_sleep: bool) -> bool {
+        self.can_sleep.set(can_sleep)
     }
 
     /// Returns true if the rigid body can sleep, false - otherwise.

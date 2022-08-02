@@ -28,9 +28,7 @@ pub fn impl_prop_constants(ty_args: &args::TypeArgs) -> TokenStream2 {
 
 fn impl_reflect_struct(ty_args: &args::TypeArgs, _field_args: &args::Fields) -> TokenStream2 {
     // Property keys for `Reflect::{field, field_mut, set_field}` impls:
-    let props = prop::props(ty_args)
-        .filter(self::filter_prop)
-        .collect::<Vec<_>>();
+    let props = prop::props(ty_args).collect::<Vec<_>>();
     let prop_values = props.iter().map(|p| &p.value).collect::<Vec<_>>();
 
     let (fields, field_muts): (Vec<_>, Vec<_>) = props
@@ -65,7 +63,9 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, _field_args: &args::Fields) -> 
 }
 
 fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
-    let props = prop::props(ty_args).filter(|p| p.field.setter.is_some()).collect::<Vec<_>>();
+    let props = prop::props(ty_args)
+        .filter(|p| p.field.setter.is_some())
+        .collect::<Vec<_>>();
 
     if props.is_empty() {
         return None;
@@ -76,8 +76,14 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
     let set_fields = props.iter().map(|p| {
         let setter = p.field.setter.as_ref().unwrap();
         quote! {{
-            if let Ok(value) = value.take() {
-                self.#setter(value);
+            match value.take() {
+                Ok(value) => {
+                    let prev = self.#setter(value);
+                    Ok(Box::new(prev))
+                }
+                Err(current) => {
+                    Err(current)
+                }
             }
         }}
     });
@@ -88,10 +94,9 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
                 #prop_values => #set_fields,
             )*
             _ => {
-                self.set(value)?;
+                self.set(value)
             },
         }
-        Ok(())
     })
 }
 
@@ -183,10 +188,11 @@ fn gen_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let as_list_impl = ty_args.as_list_impl();
+    let as_array_impl = ty_args.as_array_impl();
 
     let set_field = set_field.map(|set_field| {
         quote! {
-            fn set_field(&mut self, name: &str, value: Box<dyn Reflect>,) -> Result<(), Box<dyn Reflect>> {
+            fn set_field(&mut self, name: &str, value: Box<dyn Reflect>,) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
                 #set_field
             }
         }
@@ -230,6 +236,8 @@ fn gen_impl(
                 #field_mut
             }
 
+            #as_array_impl
+
             #as_list_impl
         }
     }
@@ -266,12 +274,4 @@ fn collect_field_refs<'a, 'b: 'a>(
     });
 
     (fields, field_muts)
-}
-
-/// Hides `#[reflect(setter = ..)]` fields with:
-/// - `Reflect::field`
-/// - `Reflect::field_mut`
-/// - `Reflect::set_field`
-fn filter_prop(prop: &Property<'_>) -> bool {
-    prop.field.setter.is_none()
 }

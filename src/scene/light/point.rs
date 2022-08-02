@@ -17,22 +17,21 @@
 //! can easily ruin performance of your game, especially on low-end hardware. Light
 //! scattering is relatively heavy too.
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     scene::{
         base::Base,
-        graph::Graph,
+        graph::{map::NodeHandleMap, Graph},
         light::{BaseLight, BaseLightBuilder},
         node::{Node, NodeTrait, TypeUuidProvider},
         DirectlyInheritableEntity,
@@ -45,12 +44,12 @@ use std::ops::{Deref, DerefMut};
 pub struct PointLight {
     base_light: BaseLight,
 
-    #[inspect(min_value = 0.0, step = 0.001, deref)]
-    #[reflect(deref)]
+    #[inspect(min_value = 0.0, step = 0.001, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_shadow_bias")]
     shadow_bias: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref)]
-    #[reflect(deref)]
+    #[inspect(min_value = 0.0, step = 0.1, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_radius")]
     radius: TemplateVariable<f32>,
 }
 
@@ -93,8 +92,8 @@ impl PointLight {
     /// Sets radius of point light. This parameter also affects radius of spherical
     /// light volume that is used in light scattering.
     #[inline]
-    pub fn set_radius(&mut self, radius: f32) {
-        self.radius.set(radius.abs());
+    pub fn set_radius(&mut self, radius: f32) -> f32 {
+        self.radius.set(radius.abs())
     }
 
     /// Returns radius of point light.
@@ -105,8 +104,8 @@ impl PointLight {
 
     /// Sets new shadow bias value. Bias will be used to offset fragment's depth before
     /// compare it with shadow map value, it is used to remove "shadow acne".
-    pub fn set_shadow_bias(&mut self, bias: f32) {
-        self.shadow_bias.set(bias);
+    pub fn set_shadow_bias(&mut self, bias: f32) -> f32 {
+        self.shadow_bias.set(bias)
     }
 
     /// Returns current value of shadow bias.

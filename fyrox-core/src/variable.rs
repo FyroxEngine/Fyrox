@@ -121,6 +121,11 @@ where
 /// if it hasn't been modified, then just take the new position from the 3D model. This is where template
 /// variable comes into play. If you've change the value of such variable, it will remember changes and the object
 /// will stay on its new position instead of changed.
+///
+/// # Deref and DerefMut
+///
+/// Access via Deref provides access to inner variable. **DerefMut marks variable as modified** and returns a
+/// mutable reference to inner variable.
 #[derive(Debug)]
 pub struct TemplateVariable<T> {
     value: T,
@@ -273,6 +278,7 @@ impl<T> Deref for TemplateVariable<T> {
 
 impl<T> DerefMut for TemplateVariable<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
+        self.mark_modified();
         &mut self.value
     }
 }

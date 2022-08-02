@@ -8,9 +8,7 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::{InheritError, TemplateVariable, VariableFlags},
     core::{
         algebra::{Matrix4, Point3, Vector3},
         inspect::{Inspect, PropertyInfo},
@@ -18,13 +16,14 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
+        variable::{InheritError, InheritableVariable, TemplateVariable, VariableFlags},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
-        graph::Graph,
+        graph::{map::NodeHandleMap, Graph},
         mesh::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
             surface::Surface,
@@ -94,16 +93,16 @@ pub struct Mesh {
     #[visit(rename = "Common")]
     base: Base,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_surfaces")]
     surfaces: TemplateVariable<Vec<Surface>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_render_path")]
     render_path: TemplateVariable<RenderPath>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_decal_layer_index")]
     decal_layer_index: TemplateVariable<u8>,
 
     #[inspect(skip)]
@@ -166,6 +165,11 @@ impl TypeUuidProvider for Mesh {
 }
 
 impl Mesh {
+    /// Sets surfaces for the mesh.
+    pub fn set_surfaces(&mut self, surfaces: Vec<Surface>) -> Vec<Surface> {
+        self.surfaces.set(surfaces)
+    }
+
     /// Returns shared reference to array of surfaces.
     #[inline]
     pub fn surfaces(&self) -> &[Surface] {
@@ -175,6 +179,7 @@ impl Mesh {
     /// Returns mutable reference to array of surfaces.
     #[inline]
     pub fn surfaces_mut(&mut self) -> &mut [Surface] {
+        self.local_bounding_box_dirty.set(true);
         self.surfaces.get_mut_silent()
     }
 
@@ -193,8 +198,8 @@ impl Mesh {
     }
 
     /// Sets new render path for the mesh.
-    pub fn set_render_path(&mut self, render_path: RenderPath) {
-        self.render_path.set(render_path);
+    pub fn set_render_path(&mut self, render_path: RenderPath) -> RenderPath {
+        self.render_path.set(render_path)
     }
 
     /// Returns current render path of the mesh.
@@ -263,8 +268,8 @@ impl Mesh {
     /// Sets new decal layer index. It defines which decals will be applies to the mesh,
     /// for example iff a decal has index == 0 and a mesh has index == 0, then decals will
     /// be applied. This allows you to apply decals only on needed surfaces.
-    pub fn set_decal_layer_index(&mut self, index: u8) {
-        self.decal_layer_index.set(index);
+    pub fn set_decal_layer_index(&mut self, index: u8) -> u8 {
+        self.decal_layer_index.set(index)
     }
 
     /// Returns current decal index.

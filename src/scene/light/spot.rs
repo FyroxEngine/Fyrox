@@ -22,15 +22,14 @@
 //! Light scattering feature may significantly impact performance on low-end
 //! hardware!
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -38,7 +37,7 @@ use crate::{
     resource::texture::Texture,
     scene::{
         base::Base,
-        graph::Graph,
+        graph::{map::NodeHandleMap, Graph},
         light::{BaseLight, BaseLightBuilder},
         node::{Node, NodeTrait, TypeUuidProvider},
         DirectlyInheritableEntity,
@@ -51,24 +50,30 @@ use std::ops::{Deref, DerefMut};
 pub struct SpotLight {
     base_light: BaseLight,
 
-    #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1, deref)]
-    #[reflect(deref)]
+    #[inspect(
+        min_value = 0.0,
+        max_value = 3.14159,
+        step = 0.1,
+        deref,
+        is_modified = "is_modified()"
+    )]
+    #[reflect(deref, setter = "set_hotspot_cone_angle")]
     hotspot_cone_angle: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref)]
-    #[reflect(deref)]
+    #[inspect(min_value = 0.0, step = 0.1, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_falloff_angle_delta")]
     falloff_angle_delta: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.001, deref)]
-    #[reflect(deref)]
+    #[inspect(min_value = 0.0, step = 0.001, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_shadow_bias")]
     shadow_bias: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref)]
-    #[reflect(deref)]
+    #[inspect(min_value = 0.0, step = 0.1, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_distance")]
     distance: TemplateVariable<f32>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_cookie_texture")]
     cookie_texture: TemplateVariable<Option<Texture>>,
 }
 
@@ -132,16 +137,14 @@ impl SpotLight {
 
     /// Sets new value of hotspot angle of light.
     #[inline]
-    pub fn set_hotspot_cone_angle(&mut self, cone_angle: f32) -> &mut Self {
-        self.hotspot_cone_angle.set(cone_angle.abs());
-        self
+    pub fn set_hotspot_cone_angle(&mut self, cone_angle: f32) -> f32 {
+        self.hotspot_cone_angle.set(cone_angle.abs())
     }
 
     /// Sets new falloff angle range for spot light.
     #[inline]
-    pub fn set_falloff_angle_delta(&mut self, delta: f32) -> &mut Self {
-        self.falloff_angle_delta.set(delta);
-        self
+    pub fn set_falloff_angle_delta(&mut self, delta: f32) -> f32 {
+        self.falloff_angle_delta.set(delta)
     }
 
     /// Returns falloff angle range of light.
@@ -158,8 +161,8 @@ impl SpotLight {
 
     /// Sets new shadow bias value. Bias will be used to offset fragment's depth before
     /// compare it with shadow map value, it is used to remove "shadow acne".
-    pub fn set_shadow_bias(&mut self, bias: f32) {
-        self.shadow_bias.set(bias);
+    pub fn set_shadow_bias(&mut self, bias: f32) -> f32 {
+        self.shadow_bias.set(bias)
     }
 
     /// Returns current value of shadow bias.
@@ -170,9 +173,8 @@ impl SpotLight {
     /// Sets maximum distance at which light intensity will be zero. Intensity
     /// of light will be calculated using inverse square root law.
     #[inline]
-    pub fn set_distance(&mut self, distance: f32) -> &mut Self {
-        self.distance.set(distance.abs());
-        self
+    pub fn set_distance(&mut self, distance: f32) -> f32 {
+        self.distance.set(distance.abs())
     }
 
     /// Returns maximum distance of light.
@@ -184,9 +186,8 @@ impl SpotLight {
     /// Set cookie texture. Also called gobo this texture gets projected
     /// by the spot light.
     #[inline]
-    pub fn set_cookie_texture(&mut self, texture: Option<Texture>) -> &mut Self {
-        self.cookie_texture.set(texture);
-        self
+    pub fn set_cookie_texture(&mut self, texture: Option<Texture>) -> Option<Texture> {
+        self.cookie_texture.set(texture)
     }
 
     /// Get cookie texture. Also called gobo this texture gets projected

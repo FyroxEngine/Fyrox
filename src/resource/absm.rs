@@ -3,6 +3,7 @@
 use crate::{
     animation::machine::{AnimationsPack, Machine, MachineDefinition, MachineInstantiationError},
     asset::{define_new_resource, Resource, ResourceData},
+    core::reflect::Reflect,
     core::{pool::Handle, visitor::prelude::*},
     engine::resource_manager::{options::ImportOptions, ResourceManager},
     scene::{node::Node, Scene},
@@ -47,6 +48,8 @@ impl AbsmResourceState {
 
 define_new_resource!(
     /// See module docs.
+    #[derive(Reflect)]
+    #[reflect(hide_all)]
     AbsmResource<AbsmResourceState, MachineInstantiationError>
 );
 

@@ -1,42 +1,28 @@
 use crate::{
     command::Command,
+    define_universal_commands,
     scene::{
         clipboard::DeepCloneResult, commands::graph::DeleteSubGraphCommand, EditorScene,
         GraphSelection, Selection,
     },
     GameEngine, Message,
 };
-use fyrox::engine::SerializationContext;
 use fyrox::{
-    engine::resource_manager::ResourceManager,
-    scene::{graph::SubGraph, Scene},
+    core::{pool::Handle, reflect::ResolvePath},
+    engine::{resource_manager::ResourceManager, SerializationContext},
+    scene::{graph::SubGraph, node::Node, Scene},
 };
-use std::sync::Arc;
 use std::{
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
+    sync::{mpsc::Sender, Arc},
 };
 
-pub mod camera;
-pub mod collider;
-pub mod collider2d;
-pub mod decal;
 pub mod effect;
 pub mod graph;
-pub mod joint;
-pub mod joint2d;
-pub mod light;
-pub mod lod;
 pub mod material;
 pub mod mesh;
 pub mod navmesh;
-pub mod particle_system;
-pub mod rectangle;
-pub mod rigidbody;
-pub mod rigidbody2d;
-pub mod sound;
 pub mod sound_context;
-pub mod sprite;
 pub mod terrain;
 
 #[macro_export]
@@ -346,97 +332,14 @@ impl Command for PasteCommand {
     }
 }
 
-#[macro_export]
-macro_rules! define_node_command {
-    ($($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $node:ident) $apply_method:block )*) => {
-        $(
-            #[derive(Debug)]
-            pub struct $name {
-                handle: Handle<Node>,
-                value: $value_type,
-            }
-
-            impl $name {
-                pub fn new(handle: Handle<Node>, value: $value_type) -> Self {
-                    Self { handle, value }
-                }
-
-                fn swap(&mut $self, graph: &mut Graph) {
-                    let $node = &mut graph[$self.handle];
-                    $apply_method
-                }
-            }
-
-            impl Command for $name {
-                fn name(&mut self, _context: &SceneContext) -> String {
-                    $human_readable_name.to_owned()
-                }
-
-                fn execute(&mut self, context: &mut SceneContext) {
-                    self.swap(&mut context.scene.graph);
-                }
-
-                fn revert(&mut self, context: &mut SceneContext) {
-                    self.swap(&mut context.scene.graph);
-                }
-            }
-        )*
-    };
-}
-
-#[macro_export]
-macro_rules! define_swap_command {
-    // core impl
-    ($(#[$meta:meta])* $type:ident($value_type:ty): $name:expr, $swap:expr) => {
-        $(#[$meta])*
-        #[derive(Debug)]
-        pub struct $type {
-            handle: fyrox::core::pool::Handle<Node>,
-            value: $value_type,
-        }
-
-        impl $type {
-            pub fn new(handle: fyrox::core::pool::Handle<Node>, value: $value_type) -> Self {
-                Self { handle, value }
-            }
-
-            fn swap(&mut self, graph: &mut fyrox::scene::graph::Graph) {
-                #[allow(clippy::redundant_closure_call)]
-                ($swap)(self, graph)
-            }
-        }
-
-        impl Command for $type {
-            fn name(&mut self, _context: &SceneContext) -> String {
-                $name.to_owned()
-            }
-
-            fn execute(&mut self, context: &mut SceneContext) {
-                self.swap(&mut context.scene.graph);
-            }
-
-            fn revert(&mut self, context: &mut SceneContext) {
-                self.swap(&mut context.scene.graph);
-            }
-        }
-    };
-
-    // cast `&mut Node` and use their setter/getter methods for swapping them
-    ($cast_node:expr, $(
-        $(#[$meta:meta])* $type:ident($value_type:ty): $get:ident, $set:ident, $name:expr;
-     )*) => {
-        $(
-            $crate::define_swap_command! {
-                $(#[$meta:meta])*
-                $type($value_type):
-                $name, |me: &mut $type, graph: &mut fyrox::scene::graph::Graph| {
-                    let mut node = &mut graph[me.handle];
-                    let host = ($cast_node)(&mut node);
-                    let old = host.$get();
-                    let _ = host.$set(me.value.clone());
-                    me.value = old;
-                }
-            }
-        )+
-    };
-}
+define_universal_commands!(
+    make_set_node_property_command,
+    Command,
+    SceneCommand,
+    SceneContext,
+    Handle<Node>,
+    ctx,
+    handle,
+    self,
+    { ctx.scene.graph[self.handle].as_reflect_mut() }
+);

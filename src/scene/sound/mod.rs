@@ -1,7 +1,6 @@
 //! Everything related to sound in the engine.
 
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         algebra::Matrix4,
         inspect::{Inspect, PropertyInfo},
@@ -9,6 +8,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::prelude::*,
     },
     define_with,
@@ -51,42 +51,55 @@ pub mod listener;
 #[derive(Visit, Inspect, Reflect, Debug)]
 pub struct Sound {
     base: Base,
-    #[inspect(deref)]
-    #[reflect(deref)]
+
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_buffer")]
     buffer: TemplateVariable<Option<SoundBufferResource>>,
-    #[inspect(deref)]
-    #[reflect(deref)]
+
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_play_once")]
     play_once: TemplateVariable<bool>,
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
-    #[reflect(deref)]
+
+    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_gain")]
     gain: TemplateVariable<f32>,
-    #[inspect(min_value = -1.0, max_value = 1.0, step = 0.05, deref)]
-    #[reflect(deref)]
+
+    #[inspect(min_value = -1.0, max_value = 1.0, step = 0.05, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_panning")]
     panning: TemplateVariable<f32>,
-    #[inspect(deref)]
-    #[reflect(deref)]
+
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_status")]
     pub(crate) status: TemplateVariable<Status>,
-    #[inspect(deref)]
-    #[reflect(deref)]
+
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_looping")]
     looping: TemplateVariable<bool>,
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
-    #[reflect(deref)]
+
+    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_pitch")]
     pitch: TemplateVariable<f64>,
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
-    #[reflect(deref)]
+
+    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_radius")]
     radius: TemplateVariable<f32>,
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
-    #[reflect(deref)]
+
+    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_max_distance")]
     max_distance: TemplateVariable<f32>,
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
-    #[reflect(deref)]
+
+    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_rolloff_factor")]
     rolloff_factor: TemplateVariable<f32>,
-    #[inspect(deref)]
-    #[reflect(deref)]
+
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_playback_time")]
     playback_time: TemplateVariable<Duration>,
-    #[inspect(deref)]
-    #[reflect(deref)]
+
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_spatial_blend")]
     spatial_blend: TemplateVariable<f32>,
+
     #[inspect(skip)]
     #[visit(skip)]
     #[reflect(hidden)]
@@ -173,8 +186,11 @@ impl TypeUuidProvider for Sound {
 impl Sound {
     /// Changes buffer of source. Source will continue playing from beginning, old
     /// position will be discarded.
-    pub fn set_buffer(&mut self, buffer: Option<SoundBufferResource>) {
-        self.buffer.set(buffer);
+    pub fn set_buffer(
+        &mut self,
+        buffer: Option<SoundBufferResource>,
+    ) -> Option<SoundBufferResource> {
+        self.buffer.set(buffer)
     }
 
     /// Returns current buffer if any.
@@ -189,8 +205,8 @@ impl Sound {
     /// Make sure you not using handles to "play once" sounds, attempt to get reference of "play once" sound
     /// may result in panic if source already deleted. Looping sources will never be automatically deleted
     /// because their playback never stops.
-    pub fn set_play_once(&mut self, play_once: bool) {
-        self.play_once.set(play_once);
+    pub fn set_play_once(&mut self, play_once: bool) -> bool {
+        self.play_once.set(play_once)
     }
 
     /// Returns true if this source is marked for single play, false - otherwise.
@@ -201,8 +217,8 @@ impl Sound {
     /// Sets spatial blend factor. It defines how much the source will be 2D and 3D sound at the same
     /// time. Set it to 0.0 to make the sound fully 2D and 1.0 to make it fully 3D. Middle values
     /// will make sound proportionally 2D and 3D at the same time.
-    pub fn set_spatial_blend(&mut self, k: f32) {
-        self.spatial_blend.set(k.clamp(0.0, 1.0));
+    pub fn set_spatial_blend(&mut self, k: f32) -> f32 {
+        self.spatial_blend.set(k.clamp(0.0, 1.0))
     }
 
     /// Returns spatial blend factor.
@@ -217,8 +233,8 @@ impl Sound {
     ///
     /// Physical volume has non-linear scale (logarithmic) so perception of sound at 0.25 gain
     /// will be different if logarithmic scale was used.
-    pub fn set_gain(&mut self, gain: f32) {
-        self.gain.set(gain);
+    pub fn set_gain(&mut self, gain: f32) -> f32 {
+        self.gain.set(gain)
     }
 
     /// Returns current gain (volume) of sound. Value is in 0..1 range.
@@ -228,8 +244,8 @@ impl Sound {
 
     /// Sets panning coefficient. Value must be in -1..+1 range. Where -1 - only left channel will be audible,
     /// 0 - both, +1 - only right.
-    pub fn set_panning(&mut self, panning: f32) {
-        self.panning.set(panning.max(-1.0).min(1.0));
+    pub fn set_panning(&mut self, panning: f32) -> f32 {
+        self.panning.set(panning.max(-1.0).min(1.0))
     }
 
     /// Returns current panning coefficient in -1..+1 range. For more info see `set_panning`. Default value is 0.
@@ -238,12 +254,14 @@ impl Sound {
     }
 
     /// Sets playback status.    
-    pub fn set_status(&mut self, status: Status) {
+    pub fn set_status(&mut self, status: Status) -> Status {
+        let prev = self.status();
         match status {
             Status::Stopped => self.stop(),
             Status::Playing => self.play(),
             Status::Paused => self.pause(),
         }
+        prev
     }
 
     /// Returns status of sound source.
@@ -263,8 +281,8 @@ impl Sound {
 
     /// Enabled or disables sound looping. Looping sound will never stop by itself, but can be stopped or paused
     /// by calling `stop` or `pause` methods. Useful for music, ambient sounds, etc.
-    pub fn set_looping(&mut self, looping: bool) {
-        self.looping.set(looping);
+    pub fn set_looping(&mut self, looping: bool) -> bool {
+        self.looping.set(looping)
     }
 
     /// Returns looping status.
@@ -273,8 +291,8 @@ impl Sound {
     }
 
     /// Sets sound pitch. Defines "tone" of sounds. Default value is 1.0
-    pub fn set_pitch(&mut self, pitch: f64) {
-        self.pitch.set(pitch.abs());
+    pub fn set_pitch(&mut self, pitch: f64) -> f64 {
+        self.pitch.set(pitch.abs())
     }
 
     /// Returns pitch of sound source.
@@ -293,13 +311,13 @@ impl Sound {
     }
 
     /// Sets playback duration.
-    pub fn set_playback_time(&mut self, time: Duration) {
-        self.playback_time.set(time);
+    pub fn set_playback_time(&mut self, time: Duration) -> Duration {
+        self.playback_time.set(time)
     }
 
     /// Sets radius of imaginable sphere around source in which no distance attenuation is applied.
-    pub fn set_radius(&mut self, radius: f32) {
-        self.radius.set(radius);
+    pub fn set_radius(&mut self, radius: f32) -> f32 {
+        self.radius.set(radius)
     }
 
     /// Returns radius of source.
@@ -310,8 +328,8 @@ impl Sound {
     /// Sets rolloff factor. Rolloff factor is used in distance attenuation and has different meaning
     /// in various distance models. It is applicable only for InverseDistance and ExponentDistance
     /// distance models. See DistanceModel docs for formulae.
-    pub fn set_rolloff_factor(&mut self, rolloff_factor: f32) {
-        self.rolloff_factor.set(rolloff_factor);
+    pub fn set_rolloff_factor(&mut self, rolloff_factor: f32) -> f32 {
+        self.rolloff_factor.set(rolloff_factor)
     }
 
     /// Returns rolloff factor.
@@ -323,8 +341,8 @@ impl Sound {
     /// min(max(distance, radius), max_distance) which clamps distance in radius..max_distance range.
     /// From listener's perspective this will sound like source has stopped decreasing its volume even
     /// if distance continue to grow.
-    pub fn set_max_distance(&mut self, max_distance: f32) {
-        self.max_distance.set(max_distance);
+    pub fn set_max_distance(&mut self, max_distance: f32) -> f32 {
+        self.max_distance.set(max_distance)
     }
 
     /// Returns max distance.

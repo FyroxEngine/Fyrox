@@ -331,7 +331,7 @@ fn handle_blend_animations_by_index_node_property_changed(
         },
         FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
             BlendAnimationsByIndexDefinition::INPUTS => match **collection_changed {
-                CollectionChanged::Add => Some(AbsmCommand::new(AddInputCommand {
+                CollectionChanged::Add(_) => Some(AbsmCommand::new(AddInputCommand {
                     handle,
                     value: Some(Default::default()),
                 })),
@@ -341,6 +341,7 @@ fn handle_blend_animations_by_index_node_property_changed(
                 CollectionChanged::ItemChanged {
                     index,
                     ref property,
+                    ..
                 } => match property.value {
                     FieldKind::Object(ref value) => match property.name.as_ref() {
                         IndexedBlendInputDefinition::BLEND_TIME => Some(AbsmCommand::new(
@@ -375,7 +376,7 @@ fn handle_blend_animations_node_property_changed(
         },
         FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
             BlendAnimationsDefinition::POSE_SOURCES => match **collection_changed {
-                CollectionChanged::Add => Some(AbsmCommand::new(AddPoseSourceCommand {
+                CollectionChanged::Add(_) => Some(AbsmCommand::new(AddPoseSourceCommand {
                     handle,
                     value: Some(Default::default()),
                 })),
@@ -385,6 +386,7 @@ fn handle_blend_animations_node_property_changed(
                 CollectionChanged::ItemChanged {
                     index,
                     ref property,
+                    ..
                 } => match property.value {
                     FieldKind::Object(ref value) => match property.name.as_ref() {
                         BlendPoseDefinition::WEIGHT => {

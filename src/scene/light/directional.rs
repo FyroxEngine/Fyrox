@@ -7,22 +7,21 @@
 //! Current directional light does *not* support shadows, it is still
 //! on list of features that should be implemented.
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::{InheritError, TemplateVariable},
     core::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
     impl_directly_inheritable_entity_trait,
     scene::{
         base::Base,
-        graph::Graph,
+        graph::{map::NodeHandleMap, Graph},
         light::{BaseLight, BaseLightBuilder},
         node::{Node, NodeTrait, TypeUuidProvider},
         DirectlyInheritableEntity,
@@ -109,7 +108,7 @@ impl CsmOptions {
 pub struct DirectionalLight {
     base_light: BaseLight,
     /// See [`CsmOptions`].
-    #[inspect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
     #[reflect(deref)]
     pub csm_options: TemplateVariable<CsmOptions>,
 }

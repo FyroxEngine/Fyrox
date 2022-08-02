@@ -165,7 +165,7 @@ fn reflect_list() {
     assert_eq!(data.get_reflect_index(0), Some(&10usize));
     assert_eq!(data.get_reflect_index::<usize>(2), None);
 
-    data.reflect_push(Box::new(12usize));
+    data.reflect_push(Box::new(12usize)).unwrap();
     assert_eq!(data.get_reflect_index(2), Some(&12usize));
 }
 
@@ -206,9 +206,9 @@ fn reflect_custom_setter() {
     }
 
     impl<T> Wrapper<T> {
-        pub fn set_value(&mut self, value: T) {
-            self.value = value;
+        pub fn set_value(&mut self, value: T) -> T {
             self.is_dirty = true;
+            std::mem::replace(&mut self.value, value)
         }
     }
 
@@ -222,7 +222,4 @@ fn reflect_custom_setter() {
         .set_field(Wrapper::<()>::VALUE, Box::new(value))
         .is_ok());
     assert!(wrapper.is_dirty);
-
-    // raw field access to the `#[reflect(setter = ..)]` field is forbidden
-    assert!(wrapper.field_mut(Wrapper::<()>::VALUE).is_none());
 }

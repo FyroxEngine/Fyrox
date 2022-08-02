@@ -6,13 +6,14 @@ use crate::{
     },
     Message,
 };
-use fyrox::gui::inspector::editors::bit::BitFieldPropertyEditorDefinition;
-use fyrox::scene::collider::BitMask;
+use fyrox::scene::particle_system::EmitterWrapper;
+use fyrox::scene::sound::effect::{Effect, ReverbEffect};
 use fyrox::{
     animation::machine::MachineInstantiationError,
     core::{futures::executor::block_on, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
     gui::inspector::editors::{
-        array::ArrayPropertyEditorDefinition, collection::VecCollectionPropertyEditorDefinition,
+        array::ArrayPropertyEditorDefinition, bit::BitFieldPropertyEditorDefinition,
+        collection::VecCollectionPropertyEditorDefinition,
         enumeration::EnumPropertyEditorDefinition,
         inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
@@ -34,7 +35,11 @@ use fyrox::{
             ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection, Projection,
             SkyBox,
         },
-        collider::{ColliderShape, GeometrySource, InteractionGroups},
+        collider::{
+            BallShape, BitMask, CapsuleShape, ColliderShape, ConeShape, ConvexPolyhedronShape,
+            CuboidShape, CylinderShape, GeometrySource, HeightfieldShape, InteractionGroups,
+            SegmentShape, TriangleShape, TrimeshShape,
+        },
         dim2,
         graph::physics::CoefficientCombineRule,
         joint::*,
@@ -44,7 +49,10 @@ use fyrox::{
         },
         mesh::{surface::Surface, RenderPath},
         node::Node,
-        particle_system::emitter::{base::BaseEmitter, Emitter},
+        particle_system::emitter::{
+            base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
+            sphere::SphereEmitter, Emitter,
+        },
         rigidbody::RigidBodyType,
         sound::{
             self,
@@ -94,7 +102,7 @@ pub fn make_property_editors_container(
     });
     container.insert(VecCollectionPropertyEditorDefinition::<Surface>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<Layer>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<Emitter>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<EmitterWrapper>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<LevelOfDetail>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<ErasedHandle>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<Handle<Node>>::new());
@@ -104,7 +112,9 @@ pub fn make_property_editors_container(
     container.insert(VecCollectionPropertyEditorDefinition::<EffectInput>::new());
     container.insert(make_status_enum_editor_definition());
     container.insert(EnumPropertyEditorDefinition::<f32>::new_optional());
+    container.insert(EnumPropertyEditorDefinition::<u32>::new_optional());
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
+    container.insert(InspectablePropertyEditorDefinition::<LodGroup>::new());
     container.insert(ResourceFieldPropertyEditorDefinition::<
         Model,
         ModelData,
@@ -143,11 +153,27 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<InteractionGroups>::new());
     container.insert(InspectablePropertyEditorDefinition::<ColliderShape>::new());
     container.insert(InspectablePropertyEditorDefinition::<GeometrySource>::new());
-    container.insert(InspectablePropertyEditorDefinition::<JointParams>::new());
+    container.insert(EnumPropertyEditorDefinition::<JointParams>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BallJoint>::new());
+    container.insert(InspectablePropertyEditorDefinition::<dim2::joint::BallJoint>::new());
+    container.insert(InspectablePropertyEditorDefinition::<FixedJoint>::new());
+    container.insert(InspectablePropertyEditorDefinition::<dim2::joint::FixedJoint>::new());
+    container.insert(InspectablePropertyEditorDefinition::<RevoluteJoint>::new());
+    container.insert(InspectablePropertyEditorDefinition::<PrismaticJoint>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::joint::PrismaticJoint,
+    >::new());
     container.insert(InspectablePropertyEditorDefinition::<Base>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseEffect>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseLight>::new());
+    container.insert(EnumPropertyEditorDefinition::<Effect>::new());
+    container.insert(EnumPropertyEditorDefinition::<Emitter>::new());
+    container.insert(InspectablePropertyEditorDefinition::<ReverbEffect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<Biquad>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseEmitter>::new());
+    container.insert(InspectablePropertyEditorDefinition::<SphereEmitter>::new());
+    container.insert(InspectablePropertyEditorDefinition::<CylinderEmitter>::new());
+    container.insert(InspectablePropertyEditorDefinition::<CuboidEmitter>::new());
     container.insert(InspectablePropertyEditorDefinition::<PerspectiveProjection>::new());
     container.insert(InspectablePropertyEditorDefinition::<OrthographicProjection>::new());
     container.insert(InspectablePropertyEditorDefinition::<Transform>::new());
@@ -156,7 +182,8 @@ pub fn make_property_editors_container(
     container.insert(ArrayPropertyEditorDefinition::<f32, 2>::new());
     container.insert(EnumPropertyEditorDefinition::<ColorGradingLut>::new_optional());
     container.insert(EnumPropertyEditorDefinition::<Biquad>::new_optional());
-    container.insert(EnumPropertyEditorDefinition::<Box<SkyBox>>::new_optional());
+    container.insert(EnumPropertyEditorDefinition::<SkyBox>::new_optional());
+    container.insert(InspectablePropertyEditorDefinition::<SkyBox>::new());
     container.insert(HandlePropertyEditorDefinition::<Node>::new(sender));
     container.insert(EnumPropertyEditorDefinition::<dim2::collider::ColliderShape>::new());
     container.insert(EnumPropertyEditorDefinition::<CoefficientCombineRule>::new());
@@ -177,6 +204,47 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<sound::Renderer>::new());
     container.insert(ScriptPropertyEditorDefinition {});
     container.insert(BitFieldPropertyEditorDefinition::<BitMask>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<BallShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::BallShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<CylinderShape>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<ConeShape>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<CuboidShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::CuboidShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<CapsuleShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::CapsuleShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<SegmentShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::SegmentShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<TriangleShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::TriangleShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<TrimeshShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::TrimeshShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<HeightfieldShape>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::collider::HeightfieldShape,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<ConvexPolyhedronShape>::new());
 
     container
 }

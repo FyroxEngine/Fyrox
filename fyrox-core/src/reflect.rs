@@ -38,14 +38,15 @@ pub trait Reflect: Any {
 
     /// Calls user method specified with `#[reflect(setter = ..)]` or falls back to
     /// [`Reflect::field_mut`]
-    fn set_field(&mut self, field: &str, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>> {
-        let field = match self.field_mut(field) {
-            Some(f) => f,
-            None => return Err(value),
-        };
-
-        field.set(value)?;
-        Ok(())
+    fn set_field(
+        &mut self,
+        field: &str,
+        value: Box<dyn Reflect>,
+    ) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        match self.field_mut(field) {
+            Some(f) => f.set(value),
+            None => Err(value),
+        }
     }
 
     fn field(&self, _name: &str) -> Option<&dyn Reflect> {
@@ -53,6 +54,14 @@ pub trait Reflect: Any {
     }
 
     fn field_mut(&mut self, _name: &str) -> Option<&mut dyn Reflect> {
+        None
+    }
+
+    fn as_array(&self) -> Option<&dyn ReflectArray> {
+        None
+    }
+
+    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
         None
     }
 
@@ -65,13 +74,23 @@ pub trait Reflect: Any {
     }
 }
 
-/// [`Reflect`] sub trait for working with `Vec`-like types
-// add `ReflectArray` sub trait?
-pub trait ReflectList: Reflect {
+/// [`Reflect`] sub trait for working with slices.
+pub trait ReflectArray: Reflect {
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect>;
     fn reflect_index_mut(&mut self, index: usize) -> Option<&mut dyn Reflect>;
-    fn reflect_push(&mut self, value: Box<dyn Reflect>);
     fn reflect_len(&self) -> usize;
+}
+
+/// [`Reflect`] sub trait for working with `Vec`-like types
+pub trait ReflectList: ReflectArray {
+    fn reflect_push(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>>;
+    fn reflect_pop(&mut self) -> Option<Box<dyn Reflect>>;
+    fn reflect_remove(&mut self, index: usize) -> Option<Box<dyn Reflect>>;
+    fn reflect_insert(
+        &mut self,
+        index: usize,
+        value: Box<dyn Reflect>,
+    ) -> Result<(), Box<dyn Reflect>>;
 }
 
 /// An error returned from a failed path string query.
@@ -84,7 +103,7 @@ pub enum ReflectPathError<'a> {
     InvalidIndexSyntax { s: &'a str },
 
     // access errors
-    #[error("given unknwon field: `{s}`")]
+    #[error("given unknown field: `{s}`")]
     UnknownField { s: &'a str },
     #[error("no item for index: `{s}`")]
     NoItemForIndex { s: &'a str },
@@ -93,7 +112,7 @@ pub enum ReflectPathError<'a> {
     #[error("failed to downcast to the target type after path resolution")]
     InvalidDowncast,
     #[error("tried to resolve index access, but the reflect type does not implement list API")]
-    NotAList,
+    NotAnArray,
 }
 
 pub trait ResolvePath {
@@ -140,6 +159,22 @@ impl<T: Reflect> ResolvePath for T {
     }
 }
 
+/// Splits property path into individual components.
+pub fn path_to_components(path: &str) -> Vec<Component> {
+    let mut components = Vec::new();
+    let mut current_path = path;
+    while let Ok((component, sub_path)) = Component::next(current_path) {
+        if let Component::Field(field) = component {
+            if field.is_empty() {
+                break;
+            }
+        }
+        current_path = sub_path;
+        components.push(component);
+    }
+    components
+}
+
 /// Helper methods over [`Reflect`] types
 pub trait GetField {
     fn get_field<T: 'static>(&self, name: &str) -> Option<&T>;
@@ -164,7 +199,7 @@ impl<R: Reflect> GetField for R {
 // --------------------------------------------------------------------------------
 
 /// Simple path parser / reflect path component
-enum Component<'p> {
+pub enum Component<'p> {
     Field(&'p str),
     Index(&'p str),
 }
@@ -214,7 +249,7 @@ impl<'p> Component<'p> {
                 .field(path)
                 .ok_or(ReflectPathError::UnknownField { s: path }),
             Self::Index(path) => {
-                let list = reflect.as_list().ok_or(ReflectPathError::NotAList)?;
+                let list = reflect.as_array().ok_or(ReflectPathError::NotAnArray)?;
                 let index = path
                     .parse::<usize>()
                     .map_err(|_| ReflectPathError::InvalidIndexSyntax { s: path })?;
@@ -233,7 +268,7 @@ impl<'p> Component<'p> {
                 .field_mut(path)
                 .ok_or(ReflectPathError::UnknownField { s: path }),
             Self::Index(path) => {
-                let list = reflect.as_list_mut().ok_or(ReflectPathError::NotAList)?;
+                let list = reflect.as_array_mut().ok_or(ReflectPathError::NotAnArray)?;
                 let index = path
                     .parse::<usize>()
                     .map_err(|_| ReflectPathError::InvalidIndexSyntax { s: path })?;
@@ -351,6 +386,22 @@ macro_rules! blank_reflect {
             self
         }
 
+        fn field(&self, name: &str) -> Option<&dyn Reflect> {
+            if name == "self" {
+                Some(self)
+            } else {
+                None
+            }
+        }
+
+        fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
+            if name == "self" {
+                Some(self)
+            } else {
+                None
+            }
+        }
+
         fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
             let this = std::mem::replace(self, value.take()?);
             Ok(Box::new(this))
@@ -358,4 +409,58 @@ macro_rules! blank_reflect {
     };
 }
 
+#[macro_export]
+macro_rules! delegate_reflect {
+    () => {
+        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+            (*self).into_any()
+        }
+
+        fn as_any(&self) -> &dyn Any {
+            self.deref().as_any()
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn Any {
+            self.deref_mut().as_any_mut()
+        }
+
+        fn as_reflect(&self) -> &dyn Reflect {
+            self.deref().as_reflect()
+        }
+
+        fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
+            self.deref_mut().as_reflect_mut()
+        }
+
+        fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+            self.deref_mut().set(value)
+        }
+
+        fn field(&self, name: &str) -> Option<&dyn Reflect> {
+            self.deref().field(name)
+        }
+
+        fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
+            self.deref_mut().field_mut(name)
+        }
+
+        fn as_array(&self) -> Option<&dyn ReflectArray> {
+            self.deref().as_array()
+        }
+
+        fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
+            self.deref_mut().as_array_mut()
+        }
+
+        fn as_list(&self) -> Option<&dyn ReflectList> {
+            self.deref().as_list()
+        }
+
+        fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
+            self.deref_mut().as_list_mut()
+        }
+    };
+}
+
 pub use blank_reflect;
+pub use delegate_reflect;

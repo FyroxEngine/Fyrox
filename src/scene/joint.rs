@@ -8,7 +8,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, TemplateVariable},
+        variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -26,6 +26,7 @@ use std::{
     cell::Cell,
     ops::{Deref, DerefMut, Range},
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Ball joint locks any translational moves between two objects on the axis between objects, but
 /// allows rigid bodies to perform relative rotations. The real world example is a human shoulder,
@@ -135,7 +136,9 @@ impl Default for RevoluteJoint {
 }
 
 /// The exact kind of the joint.
-#[derive(Clone, Debug, PartialEq, Visit, Reflect)]
+#[derive(
+    Clone, Debug, PartialEq, Visit, Inspect, Reflect, AsRefStr, EnumString, EnumVariantNames,
+)]
 pub enum JointParams {
     /// See [`BallJoint`] for more info.
     BallJoint(BallJoint),
@@ -145,17 +148,6 @@ pub enum JointParams {
     PrismaticJoint(PrismaticJoint),
     /// See [`RevoluteJoint`] for more info.
     RevoluteJoint(RevoluteJoint),
-}
-
-impl Inspect for JointParams {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        match self {
-            JointParams::BallJoint(v) => v.properties(),
-            JointParams::FixedJoint(v) => v.properties(),
-            JointParams::PrismaticJoint(v) => v.properties(),
-            JointParams::RevoluteJoint(v) => v.properties(),
-        }
-    }
 }
 
 impl Default for JointParams {
@@ -170,20 +162,20 @@ impl Default for JointParams {
 pub struct Joint {
     base: Base,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_params")]
     pub(crate) params: TemplateVariable<JointParams>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_body1")]
     pub(crate) body1: TemplateVariable<Handle<Node>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_body2")]
     pub(crate) body2: TemplateVariable<Handle<Node>>,
 
-    #[inspect(deref)]
-    #[reflect(deref)]
+    #[inspect(deref, is_modified = "is_modified()")]
+    #[reflect(deref, setter = "set_contacts_enabled")]
     #[visit(optional)] // Backward compatibility
     pub(crate) contacts_enabled: TemplateVariable<bool>,
 
@@ -265,10 +257,15 @@ impl Joint {
         self.params.get_mut()
     }
 
+    /// Sets new joint parameters.
+    pub fn set_params(&mut self, params: JointParams) -> JointParams {
+        self.params.set(params)
+    }
+
     /// Sets the first body of the joint. The handle should point to the RigidBody node, otherwise
     /// the joint will have no effect!
-    pub fn set_body1(&mut self, handle: Handle<Node>) {
-        self.body1.set(handle);
+    pub fn set_body1(&mut self, handle: Handle<Node>) -> Handle<Node> {
+        self.body1.set(handle)
     }
 
     /// Returns current first body of the joint.
@@ -278,8 +275,8 @@ impl Joint {
 
     /// Sets the second body of the joint. The handle should point to the RigidBody node, otherwise
     /// the joint will have no effect!
-    pub fn set_body2(&mut self, handle: Handle<Node>) {
-        self.body2.set(handle);
+    pub fn set_body2(&mut self, handle: Handle<Node>) -> Handle<Node> {
+        self.body2.set(handle)
     }
 
     /// Returns current second body of the joint.
@@ -288,8 +285,8 @@ impl Joint {
     }
 
     /// Sets whether the connected bodies should ignore collisions with each other or not.  
-    pub fn set_contacts_enabled(&mut self, enabled: bool) {
-        self.contacts_enabled.set(enabled);
+    pub fn set_contacts_enabled(&mut self, enabled: bool) -> bool {
+        self.contacts_enabled.set(enabled)
     }
 
     /// Returns true if contacts between connected bodies is enabled, false - otherwise.
