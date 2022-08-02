@@ -22,7 +22,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::reflect::Reflect;
+use fyrox_core::reflect::{Reflect, ResolvePath};
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -57,6 +57,94 @@ pub enum FieldKind {
     Collection(Box<CollectionChanged>),
     Inspectable(Box<PropertyChanged>),
     Object(ObjectValue),
+}
+
+/// An action for some property.
+#[derive(Debug)]
+pub enum PropertyAction {
+    /// A property needs to be modified with given value.
+    Modify {
+        /// New value for a property.
+        value: Box<dyn Reflect>,
+    },
+    /// An item needs to be added to a collection property.
+    AddItem {
+        /// New collection item.
+        value: Box<dyn Reflect>,
+    },
+    /// An item needs to be removed from a collection property.
+    RemoveItem {
+        /// Index of an item.
+        index: usize,
+    },
+}
+
+impl PropertyAction {
+    /// Creates action from a field definition. It is recursive action, it traverses the tree
+    /// until there is either FieldKind::Object or FieldKind::Collection. FieldKind::Inspectable
+    /// forces new iteration.
+    pub fn from_field_kind(field_kind: &FieldKind) -> Self {
+        match field_kind {
+            FieldKind::Object(ref value) => Self::Modify {
+                value: value.clone().into_box_reflect(),
+            },
+            FieldKind::Collection(ref collection_changed) => match **collection_changed {
+                CollectionChanged::Add(ref value) => Self::AddItem {
+                    value: value.clone().into_box_reflect(),
+                },
+                CollectionChanged::Remove(index) => Self::RemoveItem { index },
+                CollectionChanged::ItemChanged { ref property, .. } => {
+                    Self::from_field_kind(&property.value)
+                }
+            },
+            FieldKind::Inspectable(ref inspectable) => Self::from_field_kind(&inspectable.value),
+        }
+    }
+
+    /// Tries to apply the action to a given target.
+    pub fn apply(
+        self,
+        path: &str,
+        target: &mut dyn Reflect,
+    ) -> Result<Option<Box<dyn Reflect>>, Self> {
+        match self {
+            PropertyAction::Modify { value } => {
+                if let Ok(field) = target.resolve_path_mut(path) {
+                    if let Err(value) = field.set(value) {
+                        Err(Self::Modify { value })
+                    } else {
+                        Ok(None)
+                    }
+                } else {
+                    Err(Self::Modify { value })
+                }
+            }
+            PropertyAction::AddItem { value } => {
+                if let Ok(field) = target.resolve_path_mut(path) {
+                    if let Some(list) = field.as_list_mut() {
+                        return if let Err(value) = list.reflect_push(value) {
+                            Err(Self::AddItem { value })
+                        } else {
+                            Ok(None)
+                        };
+                    }
+                }
+
+                return Err(Self::AddItem { value });
+            }
+            PropertyAction::RemoveItem { index } => {
+                if let Ok(field) = target.resolve_path_mut(path) {
+                    if let Some(list) = field.as_list_mut() {
+                        if let Some(value) = list.reflect_remove(index) {
+                            return Ok(Some(value));
+                        }
+                    }
+                }
+
+                return Err(Self::RemoveItem { index });
+            }
+        }
+    }
 }
 
 pub trait Value: Reflect + Debug {
