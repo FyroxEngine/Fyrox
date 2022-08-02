@@ -1,45 +1,17 @@
 #[macro_export]
 macro_rules! define_universal_commands {
     ($name:ident, $command:ident, $command_wrapper:ty, $ctx:ty, $handle:ty, $ctx_ident:ident, $handle_ident:ident, $self:ident, $entity_getter:block) => {
-        enum Action {
-            Modify { value: Box<dyn fyrox::core::reflect::Reflect> },
-            AddItem { value: Box<dyn fyrox::core::reflect::Reflect> },
-            RemoveItem { index: usize },
-        }
-
-        impl Action {
-            fn from_field_kind(field_kind: &fyrox::gui::inspector::FieldKind) -> Self {
-                match field_kind {
-                    fyrox::gui::inspector::FieldKind::Object(ref value) => Self::Modify {
-                        value: value.clone().into_box_reflect(),
-                    },
-                    fyrox::gui::inspector::FieldKind::Collection(ref collection_changed) => match **collection_changed {
-                        fyrox::gui::inspector::CollectionChanged::Add(ref value) => Self::AddItem {
-                            value: value.clone().into_box_reflect(),
-                        },
-                        fyrox::gui::inspector::CollectionChanged::Remove(index) => Self::RemoveItem { index },
-                        fyrox::gui::inspector::CollectionChanged::ItemChanged { ref property, .. } => {
-                            Self::from_field_kind(&property.value)
-                        }
-                    },
-                    fyrox::gui::inspector::FieldKind::Inspectable(ref inspectable) => {
-                        Self::from_field_kind(&inspectable.value)
-                    }
-                }
-            }
-        }
-
         pub fn $name($handle_ident: $handle, property_changed: &fyrox::gui::inspector::PropertyChanged) -> $command_wrapper {
-            match Action::from_field_kind(&property_changed.value) {
-                Action::Modify { value } => <$command_wrapper>::new(SetPropertyCommand::new(
+            match fyrox::gui::inspector::PropertyAction::from_field_kind(&property_changed.value) {
+                fyrox::gui::inspector::PropertyAction::Modify { value } => <$command_wrapper>::new(SetPropertyCommand::new(
                     $handle_ident,
                     property_changed.path(),
                     value,
                 )),
-                Action::AddItem { value } => <$command_wrapper>::new(
+                fyrox::gui::inspector::PropertyAction::AddItem { value } => <$command_wrapper>::new(
                     AddCollectionItemCommand::new($handle_ident, property_changed.path(), value),
                 ),
-                Action::RemoveItem { index } => <$command_wrapper>::new(
+                fyrox::gui::inspector::PropertyAction::RemoveItem { index } => <$command_wrapper>::new(
                     RemoveCollectionItemCommand::new($handle_ident, property_changed.path(), index),
                 ),
             }
