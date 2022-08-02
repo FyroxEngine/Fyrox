@@ -2,6 +2,7 @@ use crate::scene::commands::SceneContext;
 use std::fmt::Debug;
 
 pub mod panel;
+pub mod universal;
 
 #[macro_export]
 macro_rules! define_command_stack {

@@ -1,5 +1,6 @@
 use crate::{
     command::Command,
+    define_universal_commands,
     scene::{
         clipboard::DeepCloneResult, commands::graph::DeleteSubGraphCommand, EditorScene,
         GraphSelection, Selection,
@@ -7,14 +8,9 @@ use crate::{
     GameEngine, Message,
 };
 use fyrox::{
-    core::{
-        pool::Handle,
-        reflect::{self, Component, Reflect, ResolvePath},
-    },
+    core::{pool::Handle, reflect::ResolvePath},
     engine::{resource_manager::ResourceManager, SerializationContext},
-    gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
     scene::{graph::SubGraph, node::Node, Scene},
-    utils::log::Log,
 };
 use std::{
     ops::{Deref, DerefMut},
@@ -431,262 +427,14 @@ macro_rules! define_swap_command {
     };
 }
 
-enum Action {
-    Modify { value: Box<dyn Reflect> },
-    AddItem { value: Box<dyn Reflect> },
-    RemoveItem { index: usize },
-}
-
-impl Action {
-    fn from_field_kind(field_kind: &FieldKind) -> Self {
-        match field_kind {
-            FieldKind::Object(ref value) => Self::Modify {
-                value: value.clone().into_box_reflect(),
-            },
-            FieldKind::Collection(ref collection_changed) => match **collection_changed {
-                CollectionChanged::Add(ref value) => Self::AddItem {
-                    value: value.clone().into_box_reflect(),
-                },
-                CollectionChanged::Remove(index) => Self::RemoveItem { index },
-                CollectionChanged::ItemChanged { ref property, .. } => {
-                    Self::from_field_kind(&property.value)
-                }
-            },
-            FieldKind::Inspectable(ref inspectable) => Self::from_field_kind(&inspectable.value),
-        }
-    }
-}
-
-pub fn make_set_node_property_command(
-    node: Handle<Node>,
-    property_changed: &PropertyChanged,
-) -> SceneCommand {
-    match Action::from_field_kind(&property_changed.value) {
-        Action::Modify { value } => SceneCommand::new(SetNodePropertyCommand::new(
-            node,
-            property_changed.path(),
-            value,
-        )),
-        Action::AddItem { value } => SceneCommand::new(AddNodeCollectionItemCommand::new(
-            node,
-            property_changed.path(),
-            value,
-        )),
-        Action::RemoveItem { index } => SceneCommand::new(RemoveNodeCollectionItemCommand::new(
-            node,
-            property_changed.path(),
-            index,
-        )),
-    }
-}
-
-fn try_modify_property<F: FnOnce(&mut dyn Reflect)>(
-    handle: Handle<Node>,
-    context: &mut SceneContext,
-    path: &str,
-    func: F,
-) {
-    match context.scene.graph[handle]
-        .as_reflect_mut()
-        .resolve_path_mut(path)
-    {
-        Ok(field) => func(field),
-        Err(e) => Log::err(format!(
-            "There is no such property {}! Reason: {:?}",
-            path, e
-        )),
-    }
-}
-
-#[derive(Debug)]
-pub struct SetNodePropertyCommand {
-    node: Handle<Node>,
-    value: Option<Box<dyn Reflect>>,
-    path: String,
-}
-
-impl SetNodePropertyCommand {
-    pub fn new(node: Handle<Node>, path: String, value: Box<dyn Reflect>) -> Self {
-        Self {
-            node,
-            value: Some(value),
-            path,
-        }
-    }
-
-    fn swap(&mut self, context: &mut SceneContext) {
-        let mut components = reflect::path_to_components(&self.path);
-        if let Some(Component::Field(field)) = components.pop() {
-            let mut parent_path = String::new();
-            for component in components.into_iter() {
-                match component {
-                    Component::Field(s) => {
-                        if !parent_path.is_empty() {
-                            parent_path.push('.');
-                        }
-                        parent_path += s;
-                    }
-                    Component::Index(s) => {
-                        parent_path.push('[');
-                        parent_path += s;
-                        parent_path.push(']');
-                    }
-                }
-            }
-
-            let node = &mut context.scene.graph[self.node];
-            let parent_entity = if parent_path.is_empty() {
-                node.as_reflect_mut()
-            } else {
-                match node.as_reflect_mut().resolve_path_mut(&parent_path) {
-                    Err(e) => {
-                        Log::err(format!(
-                            "There is no such parent property {}! Reason: {:?}",
-                            parent_path, e
-                        ));
-
-                        return;
-                    }
-                    Ok(property) => property,
-                }
-            };
-
-            match parent_entity.set_field(field, self.value.take().unwrap()) {
-                Ok(old_value) => {
-                    self.value = Some(old_value);
-                }
-                Err(current_value) => {
-                    self.value = Some(current_value);
-                    Log::err(format!(
-                        "Failed to set property {}! Incompatible types!",
-                        self.path
-                    ))
-                }
-            }
-        } else {
-            Log::err(format!(
-                "Failed to set property {}! Invalid path!",
-                self.path
-            ))
-        }
-    }
-}
-
-impl Command for SetNodePropertyCommand {
-    fn name(&mut self, _: &SceneContext) -> String {
-        format!("Set node {} property", self.path)
-    }
-
-    fn execute(&mut self, context: &mut SceneContext) {
-        self.swap(context);
-    }
-
-    fn revert(&mut self, context: &mut SceneContext) {
-        self.swap(context);
-    }
-}
-
-#[derive(Debug)]
-pub struct AddNodeCollectionItemCommand {
-    node: Handle<Node>,
-    path: String,
-    item: Option<Box<dyn Reflect>>,
-}
-
-impl AddNodeCollectionItemCommand {
-    pub fn new(node: Handle<Node>, path: String, item: Box<dyn Reflect>) -> Self {
-        Self {
-            node,
-            path,
-            item: Some(item),
-        }
-    }
-}
-
-impl Command for AddNodeCollectionItemCommand {
-    fn name(&mut self, _: &SceneContext) -> String {
-        format!("Add item to {} collection", self.path)
-    }
-
-    fn execute(&mut self, context: &mut SceneContext) {
-        try_modify_property(self.node, context, &self.path, |field| {
-            if let Some(list) = field.as_list_mut() {
-                if let Err(item) = list.reflect_push(self.item.take().unwrap()) {
-                    self.item = Some(item);
-                    Log::err(format!(
-                        "Failed to push item to {} collection. Type mismatch!",
-                        self.path
-                    ))
-                }
-            } else {
-                Log::err(format!("Property {} is not a collection!", self.path))
-            }
-        })
-    }
-
-    fn revert(&mut self, context: &mut SceneContext) {
-        try_modify_property(self.node, context, &self.path, |field| {
-            if let Some(list) = field.as_list_mut() {
-                if let Some(item) = list.reflect_pop() {
-                    self.item = Some(item);
-                } else {
-                    Log::err(format!("Failed to pop item from {} collection!", self.path))
-                }
-            } else {
-                Log::err(format!("Property {} is not a collection!", self.path))
-            }
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct RemoveNodeCollectionItemCommand {
-    node: Handle<Node>,
-    path: String,
-    index: usize,
-    value: Option<Box<dyn Reflect>>,
-}
-
-impl RemoveNodeCollectionItemCommand {
-    pub fn new(node: Handle<Node>, path: String, index: usize) -> Self {
-        Self {
-            node,
-            path,
-            index,
-            value: None,
-        }
-    }
-}
-
-impl Command for RemoveNodeCollectionItemCommand {
-    fn name(&mut self, _: &SceneContext) -> String {
-        format!("Remove node collection {} item {}", self.path, self.index)
-    }
-
-    fn execute(&mut self, context: &mut SceneContext) {
-        try_modify_property(self.node, context, &self.path, |field| {
-            if let Some(list) = field.as_list_mut() {
-                self.value = list.reflect_remove(self.index);
-            } else {
-                Log::err(format!("Property {} is not a collection!", self.path))
-            }
-        })
-    }
-
-    fn revert(&mut self, context: &mut SceneContext) {
-        try_modify_property(self.node, context, &self.path, |field| {
-            if let Some(list) = field.as_list_mut() {
-                if let Err(item) = list.reflect_insert(self.index, self.value.take().unwrap()) {
-                    self.value = Some(item);
-                } else {
-                    Log::err(format!(
-                        "Failed to insert item to {} collection. Type mismatch!",
-                        self.path
-                    ))
-                }
-            } else {
-                Log::err(format!("Property {} is not a collection!", self.path))
-            }
-        })
-    }
-}
+define_universal_commands!(
+    make_set_node_property_command,
+    Command,
+    SceneCommand,
+    SceneContext,
+    Handle<Node>,
+    ctx,
+    handle,
+    self,
+    { ctx.scene.graph[self.handle].as_reflect_mut() }
+);

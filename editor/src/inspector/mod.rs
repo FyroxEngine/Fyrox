@@ -1,9 +1,10 @@
+use crate::scene::commands::effect::make_set_effect_property_command;
 use crate::utils::window_content;
 use crate::{
     inspector::{
         editors::make_property_editors_container,
         handlers::{
-            effect::handle_reverb_effect_property_changed, node::SceneNodePropertyChangedHandler,
+            node::SceneNodePropertyChangedHandler,
             sound_context::handle_sound_context_property_changed,
         },
     },
@@ -332,7 +333,7 @@ impl Inspector {
                     Selection::Effect(selection) => selection
                         .effects
                         .iter()
-                        .filter_map(|&handle| handle_reverb_effect_property_changed(args, handle))
+                        .map(|&handle| make_set_effect_property_command(handle, args))
                         .collect::<Vec<_>>(),
                     _ => vec![],
                 };

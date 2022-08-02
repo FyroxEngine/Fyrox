@@ -1,15 +1,32 @@
-use crate::{define_vec_add_remove_commands, get_set_swap, Command, SceneContext};
+use crate::{define_universal_commands, define_vec_add_remove_commands, Command, SceneContext};
 use fyrox::{
-    core::pool::{Handle, Ticket},
-    scene::{
-        node::Node,
-        sound::{
-            context::SoundContext,
-            effect::{Effect, EffectInput},
-            Biquad,
-        },
+    core::reflect::Reflect,
+    core::{
+        pool::{Handle, Ticket},
+        reflect::ResolvePath,
     },
+    scene::sound::effect::{Effect, EffectInput},
 };
+
+use crate::scene::commands::SceneCommand;
+
+define_universal_commands!(
+    make_set_effect_property_command,
+    Command,
+    SceneCommand,
+    SceneContext,
+    Handle<Effect>,
+    ctx,
+    handle,
+    self,
+    {
+        ctx.scene
+            .graph
+            .sound_context
+            .effect_mut(self.handle)
+            .as_reflect_mut()
+    }
+);
 
 #[derive(Debug)]
 pub struct AddEffectCommand {
@@ -141,32 +158,6 @@ macro_rules! define_effect_command {
     };
 }
 
-define_effect_command! {
-    SetNameCommand("Set Effect Name", String) where fn swap(self, effect) {
-        get_set_swap!(self, effect, name_owned, set_name);
-    }
-
-    SetGainCommand("Set Effect Gain", f32) where fn swap(self, effect) {
-        get_set_swap!(self, effect, gain, set_gain);
-    }
-
-    SetReverbDryCommand("Set Reverb Dry", f32) where fn swap(self, effect) {
-        get_set_swap!(self, effect.as_reverb_mut(), dry, set_dry);
-    }
-
-    SetReverbWetCommand("Set Reverb Wet", f32) where fn swap(self, effect) {
-        get_set_swap!(self, effect.as_reverb_mut(), wet, set_wet);
-    }
-
-    SetReverbFcCommand("Set Reverb Fc", f32) where fn swap(self, effect) {
-        get_set_swap!(self, effect.as_reverb_mut(), fc, set_fc);
-    }
-}
-
-define_effect_command!(SetReverbDecayTimeCommand("Set Reverb Decay Time", f32) where fn swap(self, effect) {
-    get_set_swap!(self, effect.as_reverb_mut(), decay_time, set_decay_time);
-});
-
 define_vec_add_remove_commands!(struct AddInputCommand, RemoveInputCommand<Effect, EffectInput> 
 (self, context) { context.scene.graph.sound_context.effect_mut(self.handle).inputs_mut() });
 
@@ -207,34 +198,4 @@ macro_rules! define_effect_input_command {
             }
         )*
     };
-}
-
-define_effect_input_command! {
-    SetEffectInputSound("Set Effect Input Sound", Handle<Node>) where fn swap(self, input) {
-        std::mem::swap(&mut input.sound, &mut self.value)
-    }
-
-    SetEffectInputFilter("Set Effect Input Filter", Option<Biquad>) where fn swap(self, input) {
-        std::mem::swap(&mut input.filter, &mut self.value)
-    }
-
-    SetEffectInputFilterB0("Set Effect Input Filter B0", f32) where fn swap(self, input) {
-        std::mem::swap(&mut input.filter.as_mut().unwrap().b0, &mut self.value)
-    }
-
-    SetEffectInputFilterB1("Set Effect Input Filter B1", f32) where fn swap(self, input) {
-        std::mem::swap(&mut input.filter.as_mut().unwrap().b1, &mut self.value)
-    }
-
-    SetEffectInputFilterB2("Set Effect Input Filter B2", f32) where fn swap(self, input) {
-        std::mem::swap(&mut input.filter.as_mut().unwrap().b2, &mut self.value)
-    }
-
-    SetEffectInputFilterA1("Set Effect Input Filter A1", f32) where fn swap(self, input) {
-        std::mem::swap(&mut input.filter.as_mut().unwrap().a1, &mut self.value)
-    }
-
-    SetEffectInputFilterA2("Set Effect Input Filter A2", f32) where fn swap(self, input) {
-        std::mem::swap(&mut input.filter.as_mut().unwrap().a2, &mut self.value)
-    }
 }

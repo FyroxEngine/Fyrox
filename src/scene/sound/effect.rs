@@ -17,6 +17,7 @@ use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 const DEFAULT_FC: f32 = 0.25615; // 11296 Hz at 44100 Hz sample rate
 
@@ -30,7 +31,7 @@ pub struct EffectInput {
 }
 
 /// Base effect contains common properties for every effect (gain, inputs, etc.)
-#[derive(Visit, Inspect, Reflect, Debug)]
+#[derive(Visit, Inspect, Reflect, Debug, Clone)]
 pub struct BaseEffect {
     #[inspect(deref, is_modified = "is_modified()")]
     #[reflect(deref, setter = "set_name_internal")]
@@ -108,18 +109,10 @@ impl Default for BaseEffect {
 }
 
 /// All possible effects in the engine.
-#[derive(Visit, Debug)]
+#[derive(Visit, Reflect, Inspect, Debug, AsRefStr, EnumString, EnumVariantNames, Clone)]
 pub enum Effect {
     /// See [`ReverbEffect`] docs.
     Reverb(ReverbEffect),
-}
-
-impl Inspect for Effect {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        match self {
-            Effect::Reverb(v) => v.properties(),
-        }
-    }
 }
 
 impl Deref for Effect {
@@ -200,7 +193,7 @@ impl BaseEffectBuilder {
 }
 
 /// Reverb effect gives you multiple echoes.
-#[derive(Visit, Inspect, Reflect, Debug)]
+#[derive(Visit, Inspect, Reflect, Debug, Clone)]
 pub struct ReverbEffect {
     pub(crate) base: BaseEffect,
 

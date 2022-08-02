@@ -7,6 +7,7 @@ use crate::{
     Message,
 };
 use fyrox::scene::particle_system::EmitterWrapper;
+use fyrox::scene::sound::effect::{Effect, ReverbEffect};
 use fyrox::{
     animation::machine::MachineInstantiationError,
     core::{futures::executor::block_on, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
@@ -165,7 +166,10 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<Base>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseEffect>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseLight>::new());
+    container.insert(EnumPropertyEditorDefinition::<Effect>::new());
     container.insert(EnumPropertyEditorDefinition::<Emitter>::new());
+    container.insert(InspectablePropertyEditorDefinition::<ReverbEffect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<Biquad>::new());
     container.insert(InspectablePropertyEditorDefinition::<BaseEmitter>::new());
     container.insert(InspectablePropertyEditorDefinition::<SphereEmitter>::new());
     container.insert(InspectablePropertyEditorDefinition::<CylinderEmitter>::new());
