@@ -9,7 +9,6 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{ErasedHandle, Handle},
         reflect::Reflect,
-        uuid::Uuid,
         variable::{InheritError, InheritableVariable, TemplateVariable},
         visitor::{Visit, VisitError, VisitResult, Visitor},
         VecExtensions,
@@ -842,59 +841,8 @@ impl Default for Base {
     }
 }
 
-/// Serializes script in a data blob.
-#[allow(clippy::cast_ref_to_mut)] // See SAFETY block below
-pub fn serialize_script(script: &Script) -> Result<Vec<u8>, VisitError> {
-    let mut visitor = Visitor::new();
-
-    let mut script_type_uuid = script.id();
-    script_type_uuid.visit("TypeUuid", &mut visitor)?;
-
-    // SAFETY: It is guaranteed that visitor will **not** modify internal state of the object
-    // if it is in "write" mode (serialization mode).
-    let script = unsafe { &mut *(script as *const _ as *mut Script) };
-    script.visit("ScriptData", &mut visitor)?;
-
-    visitor.save_binary_to_vec()
-}
-
-/// Deserializes script from the data blob.
-pub fn deserialize_script(
-    data: Vec<u8>,
-    serialization_context: &SerializationContext,
-) -> Result<Script, VisitError> {
-    let mut visitor = Visitor::load_from_memory(data)?;
-
-    let mut script_type_uuid = Uuid::default();
-    script_type_uuid.visit("TypeUuid", &mut visitor)?;
-
-    if script_type_uuid.is_nil() {
-        Err(VisitError::User(
-            "Unable to deserialize script with zero UUID!".to_string(),
-        ))
-    } else {
-        let mut script = serialization_context
-            .script_constructors
-            .try_create(&script_type_uuid)
-            .ok_or_else(|| {
-                VisitError::User(format!(
-                    "There is no corresponding script constructor for {} type!",
-                    script_type_uuid
-                ))
-            })?;
-
-        script.visit("ScriptData", &mut visitor)?;
-
-        Ok(script)
-    }
-}
-
-/// Serializes Option<Script> using given serializer.
-pub fn visit_opt_script(
-    name: &str,
-    script: &mut Option<Script>,
-    visitor: &mut Visitor,
-) -> VisitResult {
+// Serializes Option<Script> using given serializer.
+fn visit_opt_script(name: &str, script: &mut Option<Script>, visitor: &mut Visitor) -> VisitResult {
     let mut region = visitor.enter_region(name)?;
 
     let mut script_type_uuid = script.as_ref().map(|s| s.id()).unwrap_or_default();
