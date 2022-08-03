@@ -12,7 +12,6 @@ use fyrox::{
     event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
     gui::{
         button::ButtonBuilder,
-        inspector::{FieldKind, PropertyChanged},
         widget::WidgetBuilder,
     },
     impl_component_provider,
@@ -42,9 +41,9 @@ impl PluginConstructor for GameConstructor {
         let scripts = &context.serialization_context.script_constructors;
 
         scripts
-            .add::<GameConstructor, Player, _>("Player")
-            .add::<GameConstructor, Jumper, _>("Jumper")
-            .add::<GameConstructor, Bot, _>("Bot");
+            .add::<Player>("Player")
+            .add::<Jumper>("Jumper")
+            .add::<Bot>("Bot");
     }
 
     fn create_instance(
@@ -130,6 +129,7 @@ struct Player {
 
     #[visit(skip)]
     #[inspect(skip)]
+    #[reflect(hidden)]
     controller: InputController,
 }
 
@@ -154,18 +154,7 @@ impl TypeUuidProvider for Player {
 }
 
 impl ScriptTrait for Player {
-    fn on_property_changed(&mut self, args: &PropertyChanged) -> bool {
-        if let FieldKind::Object(ref value) = args.value {
-            return match args.name.as_ref() {
-                Self::SPEED => value.try_override(&mut self.speed),
-                Self::YAW => value.try_override(&mut self.yaw),
-                Self::PITCH => value.try_override(&mut self.pitch),
-                Self::CAMERA => value.try_override(&mut self.camera),
-                _ => false,
-            };
-        }
-        false
-    }
+
 
     fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         old_new_mapping.map(&mut self.camera);
@@ -306,16 +295,6 @@ impl TypeUuidProvider for Jumper {
 }
 
 impl ScriptTrait for Jumper {
-    fn on_property_changed(&mut self, args: &PropertyChanged) -> bool {
-        if let FieldKind::Object(ref value) = args.value {
-            return match args.name.as_ref() {
-                Self::TIMER => value.try_override(&mut self.timer),
-                Self::PERIOD => value.try_override(&mut self.period),
-                _ => false,
-            };
-        }
-        false
-    }
 
     fn on_init(&mut self, _context: ScriptContext) {}
 

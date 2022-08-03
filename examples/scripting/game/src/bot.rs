@@ -29,6 +29,7 @@ pub struct Bot {
     target: Vector3<f32>,
 
     #[inspect(skip)]
+    #[reflect(hidden)]
     machine: Option<BotAnimationMachine>,
 }
 
