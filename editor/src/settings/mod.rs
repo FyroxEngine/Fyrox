@@ -7,6 +7,7 @@ use crate::{
     },
     GameEngine, Message, MSG_SYNC_FLAG,
 };
+use fyrox::gui::inspector::PropertyAction;
 use fyrox::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -23,7 +24,7 @@ use fyrox::{
                 inspectable::InspectablePropertyEditorDefinition,
                 PropertyEditorDefinitionContainer,
             },
-            FieldKind, InspectorBuilder, InspectorContext, InspectorMessage, PropertyChanged,
+            InspectorBuilder, InspectorContext, InspectorMessage, PropertyChanged,
         },
         message::{MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
@@ -121,23 +122,11 @@ impl Settings {
         Rc::new(container)
     }
 
-    fn handle_property_changed(&mut self, property_changed: &PropertyChanged) -> bool {
-        if let FieldKind::Inspectable(ref inner) = property_changed.value {
-            return match property_changed.name.as_ref() {
-                Self::SELECTION => self.selection.handle_property_changed(&**inner),
-                Self::GRAPHICS => self.graphics.handle_property_changed(&**inner),
-                Self::DEBUGGING => self.debugging.handle_property_changed(&**inner),
-                Self::MOVE_MODE_SETTINGS => {
-                    self.move_mode_settings.handle_property_changed(&**inner)
-                }
-                Self::ROTATE_MODE_SETTINGS => {
-                    self.rotate_mode_settings.handle_property_changed(&**inner)
-                }
-                Self::MODEL => self.model.handle_property_changed(&**inner),
-                _ => false,
-            };
-        }
-        false
+    fn handle_property_changed(&mut self, property_changed: &PropertyChanged) {
+        Log::verify(
+            PropertyAction::from_field_kind(&property_changed.value)
+                .apply(&property_changed.path(), self),
+        );
     }
 }
 
@@ -258,13 +247,8 @@ impl SettingsWindow {
                 self.sync_to_model(&mut engine.user_interface, settings, sender);
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data() {
-            if message.destination() == self.inspector
-                && !settings.handle_property_changed(property_changed)
-            {
-                Log::err(format!(
-                    "Unhandled property change: {}",
-                    property_changed.path()
-                ))
+            if message.destination() == self.inspector {
+                settings.handle_property_changed(property_changed);
             }
         }
 

@@ -1,10 +1,6 @@
-use fyrox::{
-    core::{
-        inspect::{Inspect, PropertyInfo},
-        reflect::Reflect,
-    },
-    gui::inspector::PropertyChanged,
-    handle_object_property_changed,
+use fyrox::core::{
+    inspect::{Inspect, PropertyInfo},
+    reflect::Reflect,
 };
 use serde::{Deserialize, Serialize};
 
@@ -22,15 +18,5 @@ impl Default for DebuggingSettings {
             show_bounds: true,
             show_tbn: false,
         }
-    }
-}
-
-impl DebuggingSettings {
-    pub fn handle_property_changed(&mut self, property_changed: &PropertyChanged) -> bool {
-        handle_object_property_changed!(self, property_changed,
-            Self::SHOW_PHYSICS => show_physics,
-            Self::SHOW_BOUNDS => show_bounds,
-            Self::SHOW_TBN => show_tbn
-        )
     }
 }
