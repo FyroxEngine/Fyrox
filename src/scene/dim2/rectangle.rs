@@ -114,6 +114,7 @@ pub struct Rectangle {
 
     #[inspect(deref, is_modified = "is_modified()")]
     #[reflect(deref, setter = "set_uv_rect")]
+    #[visit(optional)] // Backward compatibility
     uv_rect: TemplateVariable<Rect<f32>>,
 }
 
