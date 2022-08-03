@@ -1,8 +1,8 @@
 //! 3D and 2D Game Engine.
 
 #![doc(
-    html_logo_url = "https://rg3d.rs/assets/logos/logo2.png",
-    html_favicon_url = "https://rg3d.rs/assets/logos/logo2.png"
+    html_logo_url = "https://fyrox.rs/assets/logos/logo.png",
+    html_favicon_url = "https://fyrox.rs/assets/logos/logo.png"
 )]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::upper_case_acronyms)]

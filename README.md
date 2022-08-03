@@ -1,5 +1,5 @@
 <div align="center">
-  <a href="https://rg3d.rs/">
+  <a href="https://fyrox.rs/">
     <img src="pics/logo.png" width="128" height="128" alt="Fyrox" />
   </a>
   <h1>Fyrox - a modern Rust game engine</h1>
@@ -41,7 +41,7 @@ first game.
 ### General
 
 - Exceptional safety, reliability, and speed.
-- PC (Windows, Linux, macOS) and [Web (WebAssembly) support](https://rg3d.rs/assets/webexample/index.html).
+- PC (Windows, Linux, macOS) and [Web (WebAssembly) support](https://fyrox.rs/assets/webexample/index.html).
 - Modern 3D rendering pipeline.
 - Comprehensive [documentation](https://docs.rs/Fyrox).
 - [Guide book](https://fyrox-book.github.io)
