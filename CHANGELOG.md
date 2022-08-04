@@ -1,5 +1,7 @@
 # 0.27 (WIP)
 
+- Added compile-time reflection (huge thanks to [@toyboot4e](https://github.com/toyboot4e))
+- Most editor commands were removed and replaced by universal command based on reflection. 
 - Backward compatibility for native engine data formats was dropped - use FyroxEd 0.13 to convert your scenes to newer
 version.
 - Fixed panic when loading an FBX model with malformed animation curves (when there is only 1 or 2 components animated
@@ -76,6 +78,7 @@ or `3d`
 - Visualize cameras in the editor
 - Context menu for asset items, it is now possible to open, delete, show-in-explorer items and also
 to copy file name and full file path to the clipboard.
+- Visualize point and spot lights in the editor.
 
 # 0.26
 
