@@ -418,21 +418,24 @@ impl SceneDrawingContext {
         segments: usize,
         color: Color,
     ) {
-        self.draw_circle(position, radius, segments, Matrix4::identity(), color);
+        let translation = Matrix4::new_translation(&position);
+        self.draw_circle(Default::default(), radius, segments, translation, color);
         self.draw_circle(
-            position,
+            Default::default(),
             radius,
             segments,
-            UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
-                .to_homogeneous(),
+            translation
+                * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
+                    .to_homogeneous(),
             color,
         );
         self.draw_circle(
-            position,
+            Default::default(),
             radius,
             segments,
-            UnitQuaternion::from_axis_angle(&Vector3::y_axis(), 90.0f32.to_radians())
-                .to_homogeneous(),
+            translation
+                * UnitQuaternion::from_axis_angle(&Vector3::y_axis(), 90.0f32.to_radians())
+                    .to_homogeneous(),
             color,
         );
     }
