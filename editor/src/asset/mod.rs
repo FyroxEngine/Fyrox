@@ -154,7 +154,9 @@ impl ContextMenu {
                 if message.destination() == self.delete {
                     Log::verify(std::fs::remove_file(&item.path))
                 } else if message.destination() == self.show_in_explorer {
-                    show_in_explorer(&item.path)
+                    if let Ok(canonical_path) = item.path.canonicalize() {
+                        show_in_explorer(&canonical_path)
+                    }
                 } else if message.destination() == self.open {
                     open_in_explorer(&item.path)
                 } else if message.destination() == self.copy_path {
