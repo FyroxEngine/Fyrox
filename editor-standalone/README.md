@@ -1,5 +1,9 @@
 # FyroxEd (standalone)
 
+**WARNING:** Standalone version of the editor is not supported, use 
+[project template generator](https://fyrox-book.github.io/fyrox/beginning/scripting.html) to utilize the full power
+of the editor. Standalone version does not support plugins and scripts, it won't be update in next releases!
+
 A standalone version of FyroxEd - native editor of [Fyrox engine](https://github.com/FyroxEngine/Fyrox). The standalone
 version allows you only to create and edit scenes, but **not run your game in the editor**. Please see
 [the book](https://fyrox-book.github.io/) to learn how to use the editor in different ways.
