@@ -289,8 +289,8 @@ fn init_data(base_path: &Path, style: &str) {
 
     let scene_path = data_path.join("scene.rgs");
     match style {
-        "2d" => write_file_binary(scene_path, include_bytes!("../2d.rgs")),
-        "3d" => write_file_binary(scene_path, include_bytes!("../3d.rgs")),
+        "2d" => write_file_binary(scene_path, include_bytes!("2d.rgs")),
+        "3d" => write_file_binary(scene_path, include_bytes!("3d.rgs")),
         _ => println!("Unknown style: {}. Use either `2d` or `3d`", style),
     }
 }
