@@ -945,6 +945,7 @@ pub struct Surface {
     // Wrapped into option to be able to implement Default for serialization.
     // In normal conditions it must never be None!
     #[reflect(hidden)]
+    #[inspect(skip)]
     data: Option<Arc<Mutex<SurfaceData>>>,
     #[reflect(hidden)]
     material: Arc<Mutex<Material>>,
