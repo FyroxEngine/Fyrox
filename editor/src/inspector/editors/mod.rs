@@ -150,6 +150,7 @@ pub fn make_property_editors_container(
     >::new(Rc::new(|resource_manager, path| {
         block_on(resource_manager.request_shader(path))
     })));
+    container.insert(InspectablePropertyEditorDefinition::<ColorGradingLut>::new());
     container.insert(InspectablePropertyEditorDefinition::<InteractionGroups>::new());
     container.insert(InspectablePropertyEditorDefinition::<ColliderShape>::new());
     container.insert(InspectablePropertyEditorDefinition::<GeometrySource>::new());

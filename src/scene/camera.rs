@@ -681,9 +681,12 @@ pub enum ColorGradingLutCreationError {
 /// See [more info in Unreal engine docs](https://docs.unrealengine.com/4.26/en-US/RenderingAndGraphics/PostProcessEffects/UsingLUTs/)
 #[derive(Visit, Clone, Default, PartialEq, Debug, Inspect, Reflect)]
 pub struct ColorGradingLut {
-    #[visit(skip)]
-    lut: Option<Texture>,
     unwrapped_lut: Option<Texture>,
+
+    #[visit(skip)]
+    #[inspect(skip)]
+    #[reflect(hidden)]
+    lut: Option<Texture>,
 }
 
 impl ColorGradingLut {
