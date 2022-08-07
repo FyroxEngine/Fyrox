@@ -1,33 +1,43 @@
 use crate::{
-    scene::commands::{make_set_node_property_command, terrain::AddTerrainLayerCommandConstructor},
+    scene::commands::{
+        make_set_node_property_command,
+        terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
+    },
     SceneCommand,
 };
 use fyrox::{
     core::pool::Handle,
-    fxhash::FxHashMap,
-    gui::inspector::PropertyChanged,
+    gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
     scene::{node::Node, terrain::Terrain},
 };
+use std::any::TypeId;
 
-/// A set of constructors for special cases, when simple reflection is not enough.
-pub trait CommandConstructor {
-    fn make_command(&self, handle: Handle<Node>, node: &mut Node) -> SceneCommand;
-}
-
-pub struct SceneNodePropertyChangedHandler {
-    unique_handlers: FxHashMap<String, Box<dyn CommandConstructor>>,
-}
+pub struct SceneNodePropertyChangedHandler;
 
 impl SceneNodePropertyChangedHandler {
-    pub fn new() -> Self {
-        let mut unique_handlers = FxHashMap::<String, Box<dyn CommandConstructor>>::default();
-
-        unique_handlers.insert(
-            Terrain::LAYERS.to_string(),
-            Box::new(AddTerrainLayerCommandConstructor),
-        );
-
-        Self { unique_handlers }
+    fn try_get_command(
+        &self,
+        args: &PropertyChanged,
+        handle: Handle<Node>,
+        node: &mut Node,
+    ) -> Option<SceneCommand> {
+        // Terrain is special and have its own commands for specific properties.
+        if args.path() == Terrain::LAYERS && args.owner_type_id == TypeId::of::<Terrain>() {
+            match args.value {
+                FieldKind::Collection(ref collection_changed) => match **collection_changed {
+                    CollectionChanged::Add(_) => Some(SceneCommand::new(
+                        AddTerrainLayerCommand::new(handle, node.as_terrain()),
+                    )),
+                    CollectionChanged::Remove(index) => Some(SceneCommand::new(
+                        DeleteTerrainLayerCommand::new(handle, index),
+                    )),
+                    CollectionChanged::ItemChanged { .. } => None,
+                },
+                _ => None,
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -37,11 +47,8 @@ impl SceneNodePropertyChangedHandler {
         args: &PropertyChanged,
         handle: Handle<Node>,
         node: &mut Node,
-    ) -> Option<SceneCommand> {
-        if let Some(constructor) = self.unique_handlers.get(&args.path()) {
-            Some(constructor.make_command(handle, node))
-        } else {
-            Some(make_set_node_property_command(handle, args))
-        }
+    ) -> SceneCommand {
+        self.try_get_command(args, handle, node)
+            .unwrap_or_else(|| make_set_node_property_command(handle, args))
     }
 }

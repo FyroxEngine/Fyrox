@@ -1,7 +1,4 @@
-use crate::{
-    command::Command, create_terrain_layer_material, inspector::handlers::node::CommandConstructor,
-    scene::commands::SceneContext, SceneCommand,
-};
+use crate::{command::Command, create_terrain_layer_material, scene::commands::SceneContext};
 use fyrox::{
     core::pool::Handle,
     scene::{node::Node, terrain::Layer, terrain::Terrain},
@@ -11,14 +8,6 @@ use fyrox::{
 pub struct AddTerrainLayerCommand {
     terrain: Handle<Node>,
     layer: Option<Layer>,
-}
-
-pub struct AddTerrainLayerCommandConstructor;
-
-impl CommandConstructor for AddTerrainLayerCommandConstructor {
-    fn make_command(&self, handle: Handle<Node>, node: &mut Node) -> SceneCommand {
-        SceneCommand::new(AddTerrainLayerCommand::new(handle, node.as_terrain()))
-    }
 }
 
 impl AddTerrainLayerCommand {
@@ -47,6 +36,42 @@ impl Command for AddTerrainLayerCommand {
     fn revert(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         self.layer = terrain.pop_layer();
+    }
+}
+
+#[derive(Debug)]
+pub struct DeleteTerrainLayerCommand {
+    terrain: Handle<Node>,
+    layer: Option<Layer>,
+    index: usize,
+}
+
+impl DeleteTerrainLayerCommand {
+    pub fn new(terrain: Handle<Node>, index: usize) -> Self {
+        Self {
+            terrain,
+            layer: Default::default(),
+            index,
+        }
+    }
+}
+
+impl Command for DeleteTerrainLayerCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Delete Terrain Layer".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.layer = Some(
+            context.scene.graph[self.terrain]
+                .as_terrain_mut()
+                .remove_layer(self.index),
+        );
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        let terrain = context.scene.graph[self.terrain].as_terrain_mut();
+        terrain.insert_layer(self.layer.take().unwrap(), self.index);
     }
 }
 

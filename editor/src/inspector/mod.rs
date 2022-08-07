@@ -153,7 +153,7 @@ impl Inspector {
             inspector,
             property_editors,
             needs_sync: true,
-            node_property_changed_handler: SceneNodePropertyChangedHandler::new(),
+            node_property_changed_handler: SceneNodePropertyChangedHandler,
             warning_text,
         }
     }
@@ -317,11 +317,11 @@ impl Inspector {
                         .iter()
                         .filter_map(|&node_handle| {
                             if scene.graph.is_valid_handle(node_handle) {
-                                self.node_property_changed_handler.handle(
+                                Some(self.node_property_changed_handler.handle(
                                     args,
                                     node_handle,
                                     &mut scene.graph[node_handle],
-                                )
+                                ))
                             } else {
                                 None
                             }
