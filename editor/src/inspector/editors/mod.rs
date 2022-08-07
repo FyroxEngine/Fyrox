@@ -154,6 +154,7 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<ColliderShape>::new());
     container.insert(InspectablePropertyEditorDefinition::<GeometrySource>::new());
     container.insert(EnumPropertyEditorDefinition::<JointParams>::new());
+    container.insert(EnumPropertyEditorDefinition::<dim2::joint::JointParams>::new());
     container.insert(InspectablePropertyEditorDefinition::<BallJoint>::new());
     container.insert(InspectablePropertyEditorDefinition::<dim2::joint::BallJoint>::new());
     container.insert(InspectablePropertyEditorDefinition::<FixedJoint>::new());
