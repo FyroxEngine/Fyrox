@@ -176,8 +176,12 @@ impl BatchStorage {
                             .bones
                             .iter()
                             .map(|&bone_handle| {
-                                let bone_node = &graph[bone_handle];
-                                bone_node.global_transform() * bone_node.inv_bind_pose_transform()
+                                if let Some(bone_node) = graph.try_get(bone_handle) {
+                                    bone_node.global_transform()
+                                        * bone_node.inv_bind_pose_transform()
+                                } else {
+                                    Matrix4::identity()
+                                }
                             })
                             .collect(),
                         owner: handle,
