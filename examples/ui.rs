@@ -226,7 +226,7 @@ fn create_ui(engine: &mut Engine) -> Interface {
                                 let mut items = Vec::new();
                                 for video_mode in video_modes.iter() {
                                     let size = video_mode.size();
-                                    let rate = video_mode.refresh_rate();
+                                    let rate = video_mode.refresh_rate_millihertz() / 1000;
                                     let item = DecoratorBuilder::new(BorderBuilder::new(
                                         WidgetBuilder::new().with_height(28.0).with_child(
                                             TextBuilder::new(
