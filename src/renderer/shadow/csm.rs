@@ -191,7 +191,11 @@ impl CsmRenderer {
 
         for i in 0..CSM_NUM_CASCADES {
             let znear = z_values[i];
-            let zfar = z_values[i + 1];
+            let mut zfar = z_values[i + 1];
+
+            if zfar.eq(&znear) {
+                zfar += 10.0 * f32::EPSILON;
+            }
 
             let projection_matrix = camera
                 .projection()
