@@ -136,7 +136,9 @@ impl AssetInspector {
                 }
             } else if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data()
             {
-                handler.handle_property_changed(property_changed)
+                if message.destination == self.inspector {
+                    handler.handle_property_changed(property_changed)
+                }
             }
         }
     }
