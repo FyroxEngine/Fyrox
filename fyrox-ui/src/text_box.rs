@@ -597,157 +597,152 @@ impl Control for TextBox {
                             self.insert_char(symbol, ui);
                         }
                     }
-                    WidgetMessage::KeyDown(code) => match code {
-                        KeyCode::Up => {
-                            self.move_caret_y(
-                                1,
-                                VerticalDirection::Up,
-                                ui.keyboard_modifiers().shift,
-                            );
-                            message.set_handled(true);
-                        }
-                        KeyCode::Down => {
-                            self.move_caret_y(
-                                1,
-                                VerticalDirection::Down,
-                                ui.keyboard_modifiers().shift,
-                            );
-                            message.set_handled(true);
-                        }
-                        KeyCode::Right => {
-                            self.move_caret_x(
-                                1,
-                                HorizontalDirection::Right,
-                                ui.keyboard_modifiers().shift,
-                            );
-                            message.set_handled(true);
-                        }
-                        KeyCode::Left => {
-                            self.move_caret_x(
-                                1,
-                                HorizontalDirection::Left,
-                                ui.keyboard_modifiers().shift,
-                            );
-                            message.set_handled(true);
-                        }
-                        KeyCode::Delete if !message.handled() && self.editable => {
-                            if let Some(range) = self.selection_range {
-                                self.remove_range(ui, range);
-                                self.selection_range = None;
-                            } else {
-                                self.remove_char(HorizontalDirection::Right, ui);
-                            }
-                            message.set_handled(true);
-                        }
-                        KeyCode::NumpadEnter | KeyCode::Return if self.editable => {
-                            if self.multiline {
-                                self.insert_char('\n', ui);
-                            } else if self.commit_mode == TextCommitMode::LostFocusPlusEnter {
-                                ui.send_message(TextBoxMessage::text(
-                                    self.handle,
-                                    MessageDirection::FromWidget,
-                                    self.text(),
-                                ));
-                                self.has_focus = false;
-                            }
-                            message.set_handled(true);
-                        }
-                        KeyCode::Backspace if self.editable => {
-                            if let Some(range) = self.selection_range {
-                                self.remove_range(ui, range);
-                                self.selection_range = None;
-                            } else {
-                                self.remove_char(HorizontalDirection::Left, ui);
-                            }
-                            message.set_handled(true);
-                        }
-                        KeyCode::End => {
-                            let text = self.formatted_text.borrow();
-                            let line = &text.get_lines()[self.caret_position.line];
-                            if ui.keyboard_modifiers().control {
-                                self.caret_position.line = text.get_lines().len() - 1;
-                                self.caret_position.offset = line.end - line.begin;
-                                self.selection_range = None;
-                            } else if ui.keyboard_modifiers().shift {
-                                let prev_position = self.caret_position;
-                                self.caret_position.offset = line.end - line.begin;
-                                self.selection_range = Some(SelectionRange {
-                                    begin: prev_position,
-                                    end: Position {
-                                        line: self.caret_position.line,
-                                        offset: self.caret_position.offset - 1,
-                                    },
-                                });
-                            } else {
-                                self.caret_position.offset = line.end - line.begin;
-                                self.selection_range = None;
-                            }
-                            message.set_handled(true);
-                        }
-                        KeyCode::Home => {
-                            if ui.keyboard_modifiers().control {
-                                self.caret_position.line = 0;
-                                self.caret_position.offset = 0;
-                                self.selection_range = None;
-                            } else if ui.keyboard_modifiers().shift {
-                                let prev_position = self.caret_position;
-                                self.caret_position.line = 0;
-                                self.caret_position.offset = 0;
-                                self.selection_range = Some(SelectionRange {
-                                    begin: self.caret_position,
-                                    end: Position {
-                                        line: prev_position.line,
-                                        offset: prev_position.offset.saturating_sub(1),
-                                    },
-                                });
-                            } else {
-                                self.caret_position.offset = 0;
-                                self.selection_range = None;
-                            }
-                            message.set_handled(true);
-                        }
-                        KeyCode::A if ui.keyboard_modifiers().control => {
-                            let text = self.formatted_text.borrow();
-                            if let Some(last_line) = &text.get_lines().last() {
-                                self.selection_range = Some(SelectionRange {
-                                    begin: Position { line: 0, offset: 0 },
-                                    end: Position {
-                                        line: text.get_lines().len() - 1,
-                                        offset: last_line.end - last_line.begin,
-                                    },
-                                });
-                            }
-                            message.set_handled(true);
-                        }
-                        KeyCode::C if ui.keyboard_modifiers().control => {
-                            if let Some(clipboard) = ui.clipboard_mut() {
-                                if let Some(selection_range) = self.selection_range.as_ref() {
-                                    if let (Some(begin), Some(end)) = (
-                                        self.get_absolute_position(selection_range.begin),
-                                        self.get_absolute_position(selection_range.end),
-                                    ) {
-                                        let _ = clipboard
-                                            .set_contents(String::from(&self.text()[begin..end]));
-                                    }
-                                }
-                            }
-                            message.set_handled(true);
-                        }
-                        KeyCode::V if ui.keyboard_modifiers().control => {
-                            if let Some(clipboard) = ui.clipboard_mut() {
-                                if let Ok(content) = clipboard.get_contents() {
-                                    if let Some(selection_range) = self.selection_range {
-                                        self.remove_range(ui, selection_range);
-                                        self.selection_range = None;
-                                    }
+                    WidgetMessage::KeyDown(code) => {
+                        // TextBox "eats" all input by default, some of the keys are used for input control while
+                        // others are used directly to enter text.
+                        message.set_handled(true);
 
-                                    self.insert_str(&content, ui);
+                        match code {
+                            KeyCode::Up => {
+                                self.move_caret_y(
+                                    1,
+                                    VerticalDirection::Up,
+                                    ui.keyboard_modifiers().shift,
+                                );
+                            }
+                            KeyCode::Down => {
+                                self.move_caret_y(
+                                    1,
+                                    VerticalDirection::Down,
+                                    ui.keyboard_modifiers().shift,
+                                );
+                            }
+                            KeyCode::Right => {
+                                self.move_caret_x(
+                                    1,
+                                    HorizontalDirection::Right,
+                                    ui.keyboard_modifiers().shift,
+                                );
+                            }
+                            KeyCode::Left => {
+                                self.move_caret_x(
+                                    1,
+                                    HorizontalDirection::Left,
+                                    ui.keyboard_modifiers().shift,
+                                );
+                            }
+                            KeyCode::Delete if !message.handled() && self.editable => {
+                                if let Some(range) = self.selection_range {
+                                    self.remove_range(ui, range);
+                                    self.selection_range = None;
+                                } else {
+                                    self.remove_char(HorizontalDirection::Right, ui);
                                 }
                             }
-                            message.set_handled(true);
+                            KeyCode::NumpadEnter | KeyCode::Return if self.editable => {
+                                if self.multiline {
+                                    self.insert_char('\n', ui);
+                                } else if self.commit_mode == TextCommitMode::LostFocusPlusEnter {
+                                    ui.send_message(TextBoxMessage::text(
+                                        self.handle,
+                                        MessageDirection::FromWidget,
+                                        self.text(),
+                                    ));
+                                    self.has_focus = false;
+                                }
+                            }
+                            KeyCode::Backspace if self.editable => {
+                                if let Some(range) = self.selection_range {
+                                    self.remove_range(ui, range);
+                                    self.selection_range = None;
+                                } else {
+                                    self.remove_char(HorizontalDirection::Left, ui);
+                                }
+                            }
+                            KeyCode::End => {
+                                let text = self.formatted_text.borrow();
+                                let line = &text.get_lines()[self.caret_position.line];
+                                if ui.keyboard_modifiers().control {
+                                    self.caret_position.line = text.get_lines().len() - 1;
+                                    self.caret_position.offset = line.end - line.begin;
+                                    self.selection_range = None;
+                                } else if ui.keyboard_modifiers().shift {
+                                    let prev_position = self.caret_position;
+                                    self.caret_position.offset = line.end - line.begin;
+                                    self.selection_range = Some(SelectionRange {
+                                        begin: prev_position,
+                                        end: Position {
+                                            line: self.caret_position.line,
+                                            offset: self.caret_position.offset - 1,
+                                        },
+                                    });
+                                } else {
+                                    self.caret_position.offset = line.end - line.begin;
+                                    self.selection_range = None;
+                                }
+                            }
+                            KeyCode::Home => {
+                                if ui.keyboard_modifiers().control {
+                                    self.caret_position.line = 0;
+                                    self.caret_position.offset = 0;
+                                    self.selection_range = None;
+                                } else if ui.keyboard_modifiers().shift {
+                                    let prev_position = self.caret_position;
+                                    self.caret_position.line = 0;
+                                    self.caret_position.offset = 0;
+                                    self.selection_range = Some(SelectionRange {
+                                        begin: self.caret_position,
+                                        end: Position {
+                                            line: prev_position.line,
+                                            offset: prev_position.offset.saturating_sub(1),
+                                        },
+                                    });
+                                } else {
+                                    self.caret_position.offset = 0;
+                                    self.selection_range = None;
+                                }
+                            }
+                            KeyCode::A if ui.keyboard_modifiers().control => {
+                                let text = self.formatted_text.borrow();
+                                if let Some(last_line) = &text.get_lines().last() {
+                                    self.selection_range = Some(SelectionRange {
+                                        begin: Position { line: 0, offset: 0 },
+                                        end: Position {
+                                            line: text.get_lines().len() - 1,
+                                            offset: last_line.end - last_line.begin,
+                                        },
+                                    });
+                                }
+                            }
+                            KeyCode::C if ui.keyboard_modifiers().control => {
+                                if let Some(clipboard) = ui.clipboard_mut() {
+                                    if let Some(selection_range) = self.selection_range.as_ref() {
+                                        if let (Some(begin), Some(end)) = (
+                                            self.get_absolute_position(selection_range.begin),
+                                            self.get_absolute_position(selection_range.end),
+                                        ) {
+                                            let _ = clipboard.set_contents(String::from(
+                                                &self.text()[begin..end],
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
+                            KeyCode::V if ui.keyboard_modifiers().control => {
+                                if let Some(clipboard) = ui.clipboard_mut() {
+                                    if let Ok(content) = clipboard.get_contents() {
+                                        if let Some(selection_range) = self.selection_range {
+                                            self.remove_range(ui, selection_range);
+                                            self.selection_range = None;
+                                        }
+
+                                        self.insert_str(&content, ui);
+                                    }
+                                }
+                            }
+                            _ => (),
                         }
-                        _ => (),
-                    },
+                    }
                     WidgetMessage::GotFocus => {
                         self.reset_blink();
                         self.selection_range = None;
