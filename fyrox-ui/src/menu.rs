@@ -16,11 +16,11 @@ use crate::{
     Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE,
     BRUSH_PRIMARY,
 };
-use std::sync::mpsc::Sender;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
     rc::Rc,
+    sync::mpsc::Sender,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -192,6 +192,22 @@ fn find_menu(from: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
     Default::default()
 }
 
+fn is_any_menu_item_contains_point(ui: &UserInterface, pt: Vector2<f32>) -> bool {
+    for (handle, menu) in ui
+        .nodes()
+        .pair_iter()
+        .filter_map(|(h, n)| n.query_component::<MenuItem>().map(|menu| (h, menu)))
+    {
+        if ui.try_borrow_by_type_up::<Menu>(handle).is_none()
+            && menu.is_globally_visible()
+            && menu.screen_bounds().contains(pt)
+        {
+            return true;
+        }
+    }
+    false
+}
+
 fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
     let mut handle = from;
     while handle.is_some() {
@@ -354,6 +370,35 @@ impl Control for MenuItem {
                         self.handle(),
                         MessageDirection::ToWidget,
                     ));
+                }
+            }
+        }
+    }
+
+    fn handle_os_event(
+        &mut self,
+        _self_handle: Handle<UiNode>,
+        ui: &mut UserInterface,
+        event: &OsEvent,
+    ) {
+        // Allow closing "orphaned" menus by clicking outside of them.
+        if let OsEvent::MouseInput { state, .. } = event {
+            if *state == ButtonState::Pressed {
+                if let Some(popup) = ui.node(self.popup).query_component::<Popup>() {
+                    if popup.is_open {
+                        // Ensure that cursor is outside of any menus.
+                        if !is_any_menu_item_contains_point(ui, ui.cursor_position()) {
+                            if find_menu(self.parent(), ui).is_none() {
+                                ui.send_message(PopupMessage::close(
+                                    self.popup,
+                                    MessageDirection::ToWidget,
+                                ));
+
+                                // Close all other popups.
+                                close_menu_chain(self.parent(), ui);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -579,6 +624,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
         let menu = MenuItem {
             widget: self
                 .widget_builder
+                .with_handle_os_events(true)
                 .with_preview_messages(true)
                 .with_child(back)
                 .build(),
