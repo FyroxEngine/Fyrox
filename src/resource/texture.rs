@@ -688,6 +688,18 @@ pub enum TexturePixelKind {
 
     /// Floating-point RGBA texture with 32bit depth.
     RGBA32F = 17,
+
+    /// 1 byte luminance texture where pixels will have (L, L, L, 1.0) value on fetching.
+    Luminance8 = 18,
+
+    /// 1 byte for luminance and 1 for alpha, where all pixels will have (L, L, L, A) value on fetching.
+    LuminanceAlpha8 = 19,
+
+    /// 2 byte luminance texture where pixels will have (L, L, L, 1.0) value on fetching.
+    Luminance16 = 20,
+
+    /// 2 byte for luminance and 2 for alpha, where all pixels will have (L, L, L, A) value on fetching.
+    LuminanceAlpha16 = 21,
 }
 
 impl TexturePixelKind {
@@ -711,6 +723,10 @@ impl TexturePixelKind {
             15 => Ok(Self::RG8RGTC),
             16 => Ok(Self::RGB32F),
             17 => Ok(Self::RGBA32F),
+            18 => Ok(Self::Luminance8),
+            19 => Ok(Self::LuminanceAlpha8),
+            20 => Ok(Self::Luminance16),
+            21 => Ok(Self::LuminanceAlpha16),
             _ => Err(format!("Invalid texture kind {}!", id)),
         }
     }
@@ -894,12 +910,16 @@ fn bytes_in_first_mip(kind: TextureKind, pixel_kind: TexturePixelKind) -> u32 {
     };
     match pixel_kind {
         // Uncompressed formats.
-        TexturePixelKind::R8 => pixel_count,
-        TexturePixelKind::R16 | TexturePixelKind::RG8 => 2 * pixel_count,
+        TexturePixelKind::R8 | TexturePixelKind::Luminance8 => pixel_count,
+        TexturePixelKind::R16
+        | TexturePixelKind::LuminanceAlpha8
+        | TexturePixelKind::Luminance16
+        | TexturePixelKind::RG8 => 2 * pixel_count,
         TexturePixelKind::RGB8 | TexturePixelKind::BGR8 => 3 * pixel_count,
-        TexturePixelKind::RGBA8 | TexturePixelKind::BGRA8 | TexturePixelKind::RG16 => {
-            4 * pixel_count
-        }
+        TexturePixelKind::RGBA8
+        | TexturePixelKind::BGRA8
+        | TexturePixelKind::RG16
+        | TexturePixelKind::LuminanceAlpha16 => 4 * pixel_count,
         TexturePixelKind::RGB16 => 6 * pixel_count,
         TexturePixelKind::RGBA16 => 8 * pixel_count,
         TexturePixelKind::RGB32F => 12 * pixel_count,
@@ -1062,12 +1082,12 @@ impl TextureData {
             let height = dyn_img.height();
 
             let mut pixel_kind = match dyn_img {
-                DynamicImage::ImageLuma8(_) => TexturePixelKind::R8,
-                DynamicImage::ImageLumaA8(_) => TexturePixelKind::RG8,
+                DynamicImage::ImageLuma8(_) => TexturePixelKind::Luminance8,
+                DynamicImage::ImageLumaA8(_) => TexturePixelKind::LuminanceAlpha8,
                 DynamicImage::ImageRgb8(_) => TexturePixelKind::RGB8,
                 DynamicImage::ImageRgba8(_) => TexturePixelKind::RGBA8,
-                DynamicImage::ImageLuma16(_) => TexturePixelKind::R16,
-                DynamicImage::ImageLumaA16(_) => TexturePixelKind::RG16,
+                DynamicImage::ImageLuma16(_) => TexturePixelKind::Luminance16,
+                DynamicImage::ImageLumaA16(_) => TexturePixelKind::LuminanceAlpha16,
                 DynamicImage::ImageRgb16(_) => TexturePixelKind::RGB16,
                 DynamicImage::ImageRgba16(_) => TexturePixelKind::RGBA16,
                 DynamicImage::ImageRgb32F(_) => TexturePixelKind::RGB32F,
@@ -1288,11 +1308,15 @@ impl TextureData {
     pub fn save(&self) -> Result<(), TextureError> {
         let color_type = match self.pixel_kind {
             TexturePixelKind::R8 => ColorType::L8,
+            TexturePixelKind::Luminance8 => ColorType::L8,
             TexturePixelKind::RGB8 => ColorType::Rgb8,
             TexturePixelKind::RGBA8 => ColorType::Rgba8,
             TexturePixelKind::RG8 => ColorType::La8,
+            TexturePixelKind::LuminanceAlpha8 => ColorType::La8,
             TexturePixelKind::R16 => ColorType::L16,
+            TexturePixelKind::Luminance16 => ColorType::L16,
             TexturePixelKind::RG16 => ColorType::La16,
+            TexturePixelKind::LuminanceAlpha16 => ColorType::La16,
             TexturePixelKind::RGB16 => ColorType::Rgb16,
             TexturePixelKind::RGBA16 => ColorType::Rgba16,
             TexturePixelKind::RGB32F => ColorType::Rgb32F,

@@ -81,8 +81,12 @@ pub enum PixelKind {
     BGRA8,
     BGR8,
     RG8,
+    LA8,
+    LA16,
     RG16,
     R8,
+    L8,
+    L16,
     R8UI,
     R16,
     RGB16,
@@ -121,6 +125,10 @@ impl From<TexturePixelKind> for PixelKind {
             TexturePixelKind::RG8RGTC => Self::RG8RGTC,
             TexturePixelKind::RGB32F => Self::RGB32F,
             TexturePixelKind::RGBA32F => Self::RGBA32F,
+            TexturePixelKind::Luminance8 => Self::L8,
+            TexturePixelKind::LuminanceAlpha8 => Self::LA8,
+            TexturePixelKind::Luminance16 => Self::L16,
+            TexturePixelKind::LuminanceAlpha16 => Self::LA16,
         }
     }
 }
@@ -143,14 +151,15 @@ impl PixelKind {
             | Self::BGRA8
             | Self::BGR8
             | Self::RG16
+            | Self::LA16
             | Self::R16
             | Self::D24S8
             | Self::D32F
             | Self::F32
             | Self::R11G11B10F
             | Self::RGB10A2 => Some(4),
-            Self::RG8 | Self::D16 | Self::F16 => Some(2),
-            Self::R8 | Self::R8UI => Some(1),
+            Self::RG8 | Self::LA8 | Self::D16 | Self::F16 | Self::L16 => Some(2),
+            Self::R8 | Self::L8 | Self::R8UI => Some(1),
             Self::DXT1RGB
             | Self::DXT1RGBA
             | Self::DXT3RGBA
@@ -192,7 +201,11 @@ impl PixelKind {
             | Self::RGB32F
             | Self::RGBA32F
             | Self::R11G11B10F
-            | Self::RGB10A2 => false,
+            | Self::RGB10A2
+            | Self::L8
+            | Self::LA8
+            | Self::L16
+            | Self::LA16 => false,
         }
     }
 
@@ -225,7 +238,11 @@ impl PixelKind {
             | Self::DXT5RGBA
             | Self::R8RGTC
             | Self::RG8RGTC
-            | Self::RGB10A2 => PixelElementKind::NormalizedUnsignedInteger,
+            | Self::RGB10A2
+            | Self::LA8
+            | Self::L8
+            | Self::LA16
+            | Self::L16 => PixelElementKind::NormalizedUnsignedInteger,
             Self::R8UI => PixelElementKind::UnsignedInteger,
         }
     }
@@ -261,14 +278,20 @@ fn image_3d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize, depth
         | PixelKind::SRGBA8
         | PixelKind::BGRA8
         | PixelKind::RG16
+        | PixelKind::LA16
         | PixelKind::D24S8
         | PixelKind::D32F
         | PixelKind::F32
         | PixelKind::R11G11B10F
         | PixelKind::RGB10A2 => 4 * pixel_count,
         PixelKind::RGB8 | PixelKind::SRGB8 | PixelKind::BGR8 => 3 * pixel_count,
-        PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * pixel_count,
-        PixelKind::R8 | PixelKind::R8UI => pixel_count,
+        PixelKind::RG8
+        | PixelKind::LA8
+        | PixelKind::R16
+        | PixelKind::L16
+        | PixelKind::D16
+        | PixelKind::F16 => 2 * pixel_count,
+        PixelKind::R8 | PixelKind::L8 | PixelKind::R8UI => pixel_count,
         PixelKind::DXT1RGB | PixelKind::DXT1RGBA | PixelKind::R8RGTC => {
             let block_size = 8;
             ceil_div_4(width) * ceil_div_4(height) * ceil_div_4(depth) * block_size
@@ -291,14 +314,20 @@ fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> us
         | PixelKind::SRGBA8
         | PixelKind::BGRA8
         | PixelKind::RG16
+        | PixelKind::LA16
         | PixelKind::D24S8
         | PixelKind::D32F
         | PixelKind::F32
         | PixelKind::R11G11B10F
         | PixelKind::RGB10A2 => 4 * pixel_count,
         PixelKind::RGB8 | PixelKind::SRGB8 | PixelKind::BGR8 => 3 * pixel_count,
-        PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * pixel_count,
-        PixelKind::R8 | PixelKind::R8UI => pixel_count,
+        PixelKind::RG8
+        | PixelKind::LA8
+        | PixelKind::R16
+        | PixelKind::L16
+        | PixelKind::D16
+        | PixelKind::F16 => 2 * pixel_count,
+        PixelKind::R8 | PixelKind::L8 | PixelKind::R8UI => pixel_count,
         PixelKind::DXT1RGB | PixelKind::DXT1RGBA | PixelKind::R8RGTC => {
             let block_size = 8;
             ceil_div_4(width) * ceil_div_4(height) * block_size
@@ -320,14 +349,20 @@ fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
         | PixelKind::SRGBA8
         | PixelKind::BGRA8
         | PixelKind::RG16
+        | PixelKind::LA16
         | PixelKind::D24S8
         | PixelKind::D32F
         | PixelKind::F32
         | PixelKind::R11G11B10F
         | PixelKind::RGB10A2 => 4 * length,
         PixelKind::RGB8 | PixelKind::SRGB8 | PixelKind::BGR8 => 3 * length,
-        PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * length,
-        PixelKind::R8 | PixelKind::R8UI => length,
+        PixelKind::RG8
+        | PixelKind::LA8
+        | PixelKind::L16
+        | PixelKind::R16
+        | PixelKind::D16
+        | PixelKind::F16 => 2 * length,
+        PixelKind::R8 | PixelKind::L8 | PixelKind::R8UI => length,
         PixelKind::DXT1RGB | PixelKind::DXT1RGBA | PixelKind::R8RGTC => {
             let block_size = 8;
             ceil_div_4(length) * block_size
@@ -620,48 +655,100 @@ impl<'a> TextureBinding<'a> {
             self.state
                 .set_texture(0, target, Some(self.texture.texture));
 
-            let (type_, format, internal_format) = match pixel_kind {
-                PixelKind::F32 => (glow::FLOAT, glow::RED, glow::R32F),
-                PixelKind::F16 => (glow::FLOAT, glow::RED, glow::R16F),
-                PixelKind::D32F => (glow::FLOAT, glow::DEPTH_COMPONENT, glow::DEPTH_COMPONENT32F),
+            let (type_, format, internal_format, swizzle_mask) = match pixel_kind {
+                PixelKind::F32 => (glow::FLOAT, glow::RED, glow::R32F, None),
+                PixelKind::F16 => (glow::FLOAT, glow::RED, glow::R16F, None),
+                PixelKind::D32F => (
+                    glow::FLOAT,
+                    glow::DEPTH_COMPONENT,
+                    glow::DEPTH_COMPONENT32F,
+                    None,
+                ),
                 PixelKind::D16 => (
                     glow::UNSIGNED_SHORT,
                     glow::DEPTH_COMPONENT,
                     glow::DEPTH_COMPONENT16,
+                    None,
                 ),
                 PixelKind::D24S8 => (
                     glow::UNSIGNED_INT_24_8,
                     glow::DEPTH_STENCIL,
                     glow::DEPTH24_STENCIL8,
+                    None,
                 ),
-                PixelKind::RGBA8 => (glow::UNSIGNED_BYTE, glow::RGBA, glow::RGBA8),
-                PixelKind::SRGBA8 => (glow::UNSIGNED_BYTE, glow::RGBA, glow::SRGB8_ALPHA8),
-                PixelKind::RGB8 => (glow::UNSIGNED_BYTE, glow::RGB, glow::RGB8),
-                PixelKind::SRGB8 => (glow::UNSIGNED_BYTE, glow::RGB, glow::SRGB8),
-                PixelKind::RG8 => (glow::UNSIGNED_BYTE, glow::RG, glow::RG8),
-                PixelKind::R8 => (glow::UNSIGNED_BYTE, glow::RED, glow::R8),
-                PixelKind::R8UI => (glow::UNSIGNED_BYTE, glow::RED_INTEGER, glow::R8UI),
-                PixelKind::BGRA8 => (glow::UNSIGNED_BYTE, glow::BGRA, glow::RGBA8),
-                PixelKind::BGR8 => (glow::UNSIGNED_BYTE, glow::BGR, glow::RGB8),
-                PixelKind::RG16 => (glow::UNSIGNED_SHORT, glow::RG, glow::RG16),
-                PixelKind::R16 => (glow::UNSIGNED_SHORT, glow::RED, glow::R16),
-                PixelKind::RGB16 => (glow::UNSIGNED_SHORT, glow::RGB, glow::RGB16),
-                PixelKind::RGBA16 => (glow::UNSIGNED_SHORT, glow::RGBA, glow::RGBA16),
+                PixelKind::RGBA8 => (glow::UNSIGNED_BYTE, glow::RGBA, glow::RGBA8, None),
+                PixelKind::SRGBA8 => (glow::UNSIGNED_BYTE, glow::RGBA, glow::SRGB8_ALPHA8, None),
+                PixelKind::RGB8 => (glow::UNSIGNED_BYTE, glow::RGB, glow::RGB8, None),
+                PixelKind::SRGB8 => (glow::UNSIGNED_BYTE, glow::RGB, glow::SRGB8, None),
+                PixelKind::RG8 => (glow::UNSIGNED_BYTE, glow::RG, glow::RG8, None),
+                PixelKind::R8 => (glow::UNSIGNED_BYTE, glow::RED, glow::R8, None),
+                PixelKind::R8UI => (glow::UNSIGNED_BYTE, glow::RED_INTEGER, glow::R8UI, None),
+                PixelKind::BGRA8 => (glow::UNSIGNED_BYTE, glow::BGRA, glow::RGBA8, None),
+                PixelKind::BGR8 => (glow::UNSIGNED_BYTE, glow::BGR, glow::RGB8, None),
+                PixelKind::RG16 => (glow::UNSIGNED_SHORT, glow::RG, glow::RG16, None),
+                PixelKind::R16 => (glow::UNSIGNED_SHORT, glow::RED, glow::R16, None),
+                PixelKind::RGB16 => (glow::UNSIGNED_SHORT, glow::RGB, glow::RGB16, None),
+                PixelKind::RGBA16 => (glow::UNSIGNED_SHORT, glow::RGBA, glow::RGBA16, None),
                 PixelKind::RGB10A2 => (
                     glow::UNSIGNED_INT_2_10_10_10_REV,
                     glow::RGBA,
                     glow::RGB10_A2,
+                    None,
                 ),
-                PixelKind::DXT1RGB => (0, 0, GL_COMPRESSED_RGB_S3TC_DXT1_EXT),
-                PixelKind::DXT1RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT),
-                PixelKind::DXT3RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT),
-                PixelKind::DXT5RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT),
-                PixelKind::R8RGTC => (0, 0, COMPRESSED_RED_RGTC1),
-                PixelKind::RG8RGTC => (0, 0, COMPRESSED_RG_RGTC2),
-                PixelKind::RGB32F => (glow::FLOAT, glow::RGB, glow::RGB32F),
-                PixelKind::RGBA32F => (glow::FLOAT, glow::RGBA, glow::RGBA32F),
-                PixelKind::RGBA16F => (glow::FLOAT, glow::RGBA, glow::RGBA16F),
-                PixelKind::R11G11B10F => (glow::FLOAT, glow::RGB, glow::R11F_G11F_B10F),
+                PixelKind::DXT1RGB => (0, 0, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, None),
+                PixelKind::DXT1RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, None),
+                PixelKind::DXT3RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, None),
+                PixelKind::DXT5RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, None),
+                PixelKind::R8RGTC => (0, 0, COMPRESSED_RED_RGTC1, None),
+                PixelKind::RG8RGTC => (0, 0, COMPRESSED_RG_RGTC2, None),
+                PixelKind::RGB32F => (glow::FLOAT, glow::RGB, glow::RGB32F, None),
+                PixelKind::RGBA32F => (glow::FLOAT, glow::RGBA, glow::RGBA32F, None),
+                PixelKind::RGBA16F => (glow::FLOAT, glow::RGBA, glow::RGBA16F, None),
+                PixelKind::R11G11B10F => (glow::FLOAT, glow::RGB, glow::R11F_G11F_B10F, None),
+                PixelKind::L8 => (
+                    glow::UNSIGNED_BYTE,
+                    glow::RED,
+                    glow::R8,
+                    Some([
+                        glow::RED as i32,
+                        glow::RED as i32,
+                        glow::RED as i32,
+                        glow::ONE as i32,
+                    ]),
+                ),
+                PixelKind::LA8 => (
+                    glow::UNSIGNED_BYTE,
+                    glow::RG,
+                    glow::RG8,
+                    Some([
+                        glow::RED as i32,
+                        glow::RED as i32,
+                        glow::RED as i32,
+                        glow::GREEN as i32,
+                    ]),
+                ),
+                PixelKind::LA16 => (
+                    glow::UNSIGNED_SHORT,
+                    glow::RG,
+                    glow::RG16,
+                    Some([
+                        glow::RED as i32,
+                        glow::RED as i32,
+                        glow::RED as i32,
+                        glow::GREEN as i32,
+                    ]),
+                ),
+                PixelKind::L16 => (
+                    glow::UNSIGNED_SHORT,
+                    glow::RED,
+                    glow::R16,
+                    Some([
+                        glow::RED as i32,
+                        glow::RED as i32,
+                        glow::RED as i32,
+                        glow::ONE as i32,
+                    ]),
+                ),
             };
 
             let is_compressed = pixel_kind.is_compressed();
@@ -670,6 +757,14 @@ impl<'a> TextureBinding<'a> {
                 self.state
                     .gl
                     .pixel_store_i32(glow::UNPACK_ALIGNMENT, alignment);
+            }
+
+            if let Some(swizzle_mask) = swizzle_mask {
+                self.state.gl.tex_parameter_i32_slice(
+                    target,
+                    glow::TEXTURE_SWIZZLE_RGBA,
+                    &swizzle_mask,
+                );
             }
 
             let mut mip_byte_offset = 0;
