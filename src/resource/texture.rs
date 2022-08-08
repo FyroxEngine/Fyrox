@@ -690,15 +690,35 @@ pub enum TexturePixelKind {
     RGBA32F = 17,
 
     /// 1 byte luminance texture where pixels will have (L, L, L, 1.0) value on fetching.
+    ///
+    /// # Platform-specific
+    ///
+    /// - WebAssembly - not supported, the image will act like [`Self::R8`] format, which
+    ///   will have (R, 0.0, 0.0, 1.0) pixels.
     Luminance8 = 18,
 
     /// 1 byte for luminance and 1 for alpha, where all pixels will have (L, L, L, A) value on fetching.
+    ///
+    /// # Platform-specific
+    ///
+    /// - WebAssembly - not supported, the image will act like [`Self::RG8`] format, which
+    ///   will have (R, G, R, G) pixels.
     LuminanceAlpha8 = 19,
 
     /// 2 byte luminance texture where pixels will have (L, L, L, 1.0) value on fetching.
+    ///
+    /// # Platform-specific
+    ///
+    /// - WebAssembly - not supported, the image will act like [`Self::R8`] format, which
+    ///   will have (R, 0.0, 0.0, 1.0) pixels.
     Luminance16 = 20,
 
     /// 2 byte for luminance and 2 for alpha, where all pixels will have (L, L, L, A) value on fetching.
+    ///
+    /// # Platform-specific
+    ///
+    /// - WebAssembly - not supported, the image will act like [`Self::RG16`] format, which
+    ///   will have (R, G, R, G) pixels.
     LuminanceAlpha16 = 21,
 }
 

@@ -760,11 +760,18 @@ impl<'a> TextureBinding<'a> {
             }
 
             if let Some(swizzle_mask) = swizzle_mask {
-                self.state.gl.tex_parameter_i32_slice(
-                    target,
-                    glow::TEXTURE_SWIZZLE_RGBA,
-                    &swizzle_mask,
-                );
+                if self
+                    .state
+                    .gl
+                    .supported_extensions()
+                    .contains("GL_ARB_texture_swizzle")
+                {
+                    self.state.gl.tex_parameter_i32_slice(
+                        target,
+                        glow::TEXTURE_SWIZZLE_RGBA,
+                        &swizzle_mask,
+                    );
+                }
             }
 
             let mut mip_byte_offset = 0;
