@@ -387,16 +387,16 @@ impl Control for MenuItem {
                 if let Some(popup) = ui.node(self.popup).query_component::<Popup>() {
                     if popup.is_open {
                         // Ensure that cursor is outside of any menus.
-                        if !is_any_menu_item_contains_point(ui, ui.cursor_position()) {
-                            if find_menu(self.parent(), ui).is_none() {
-                                ui.send_message(PopupMessage::close(
-                                    self.popup,
-                                    MessageDirection::ToWidget,
-                                ));
+                        if !is_any_menu_item_contains_point(ui, ui.cursor_position())
+                            && find_menu(self.parent(), ui).is_none()
+                        {
+                            ui.send_message(PopupMessage::close(
+                                self.popup,
+                                MessageDirection::ToWidget,
+                            ));
 
-                                // Close all other popups.
-                                close_menu_chain(self.parent(), ui);
-                            }
+                            // Close all other popups.
+                            close_menu_chain(self.parent(), ui);
                         }
                     }
                 }
