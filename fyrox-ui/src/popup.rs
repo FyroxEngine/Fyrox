@@ -68,13 +68,13 @@ pub enum Placement {
 
 #[derive(Clone)]
 pub struct Popup {
-    widget: Widget,
-    placement: Placement,
-    stays_open: bool,
-    is_open: bool,
-    content: Handle<UiNode>,
-    body: Handle<UiNode>,
-    smart_placement: bool,
+    pub widget: Widget,
+    pub placement: Placement,
+    pub stays_open: bool,
+    pub is_open: bool,
+    pub content: Handle<UiNode>,
+    pub body: Handle<UiNode>,
+    pub smart_placement: bool,
 }
 
 crate::define_widget_deref!(Popup);
