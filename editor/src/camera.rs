@@ -1,5 +1,4 @@
-use crate::settings::camera::CameraSettings;
-use crate::utils::built_in_skybox;
+use crate::{settings::camera::CameraSettings, utils::built_in_skybox};
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -271,7 +270,7 @@ impl CameraController {
         }
     }
 
-    pub fn update(&mut self, graph: &mut Graph, dt: f32) {
+    pub fn update(&mut self, graph: &mut Graph, settings: &CameraSettings, dt: f32) {
         let camera = graph[self.camera].as_camera_mut();
 
         match camera.projection_value() {
@@ -348,7 +347,7 @@ impl CameraController {
                 move_vec.y += self.drag_up;
 
                 if let Some(v) = move_vec.try_normalize(f32::EPSILON) {
-                    move_vec = v.scale(self.speed_factor * 10.0 * dt);
+                    move_vec = v.scale(self.speed_factor * settings.speed * dt);
                 }
 
                 camera

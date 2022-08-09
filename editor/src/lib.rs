@@ -1690,7 +1690,9 @@ impl Editor {
 
             let graph = &mut scene.graph;
 
-            editor_scene.camera_controller.update(graph, dt);
+            editor_scene
+                .camera_controller
+                .update(graph, &self.settings.camera, dt);
 
             if let Some(mode) = self.current_interaction_mode {
                 self.interaction_modes[mode as usize].update(
