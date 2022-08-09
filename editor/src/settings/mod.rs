@@ -1,3 +1,4 @@
+use crate::settings::camera::CameraSettings;
 use crate::{
     inspector::editors::make_property_editors_container,
     settings::{
@@ -40,6 +41,7 @@ use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use std::{fs::File, path::PathBuf, rc::Rc, sync::mpsc::Sender};
 
+pub mod camera;
 pub mod debugging;
 pub mod graphics;
 pub mod model;
@@ -62,6 +64,7 @@ pub struct Settings {
     pub move_mode_settings: MoveInteractionModeSettings,
     pub rotate_mode_settings: RotateInteractionModeSettings,
     pub model: ModelSettings,
+    pub camera: CameraSettings,
 }
 
 #[derive(Debug)]
@@ -111,6 +114,7 @@ impl Settings {
         container.insert(InspectablePropertyEditorDefinition::<DebuggingSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<CsmSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<QualitySettings>::new());
+        container.insert(InspectablePropertyEditorDefinition::<CameraSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<
             MoveInteractionModeSettings,
         >::new());

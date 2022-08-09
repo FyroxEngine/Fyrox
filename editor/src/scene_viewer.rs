@@ -579,7 +579,9 @@ impl SceneViewer {
 
         let last_pos = *self.last_mouse_pos.get_or_insert(pos);
         let mouse_offset = pos - last_pos;
-        editor_scene.camera_controller.on_mouse_move(mouse_offset);
+        editor_scene
+            .camera_controller
+            .on_mouse_move(mouse_offset, &settings.camera);
         let rel_pos = pos - screen_bounds.position;
 
         if let Some(interaction_mode) = active_interaction_mode {

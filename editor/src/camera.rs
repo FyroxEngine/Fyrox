@@ -1,3 +1,4 @@
+use crate::settings::camera::CameraSettings;
 use crate::utils::built_in_skybox;
 use fyrox::{
     core::{
@@ -133,7 +134,7 @@ impl CameraController {
             .set_projection(projection);
     }
 
-    pub fn on_mouse_move(&mut self, delta: Vector2<f32>) {
+    pub fn on_mouse_move(&mut self, delta: Vector2<f32>, settings: &CameraSettings) {
         if self.rotate {
             self.yaw -= delta.x as f32 * 0.01;
             self.pitch += delta.y as f32 * 0.01;
@@ -146,8 +147,9 @@ impl CameraController {
         }
 
         if self.drag {
-            self.drag_side -= delta.x * 0.01;
-            self.drag_up -= delta.y * 0.01;
+            let sign = if settings.invert_dragging { 1.0 } else { -1.0 };
+            self.drag_side += sign * delta.x * settings.drag_speed;
+            self.drag_up += sign * delta.y * settings.drag_speed;
         }
     }
 
@@ -302,12 +304,12 @@ impl CameraController {
                     }
                 }
 
-                move_vec += side * self.drag_side;
-                move_vec.y += self.drag_up;
-
                 if let Some(v) = move_vec.try_normalize(std::f32::EPSILON) {
                     move_vec = v.scale(self.speed_factor * 10.0 * dt);
                 }
+
+                move_vec += side * self.drag_side;
+                move_vec.y += self.drag_up;
 
                 camera
                     .local_transform_mut()
