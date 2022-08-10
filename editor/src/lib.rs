@@ -1590,6 +1590,8 @@ impl Editor {
                     .handle_message(&message, editor_scene, &mut self.engine);
             }
 
+            self.scene_viewer.handle_message(&message, &mut self.engine);
+
             match message {
                 Message::DoSceneCommand(command) => {
                     needs_sync |= self.do_scene_command(command);

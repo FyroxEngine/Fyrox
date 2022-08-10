@@ -5,7 +5,6 @@ use crate::{
     GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand, Selection,
     SetMeshTextureCommand, Settings,
 };
-use fyrox::gui::utils::make_simple_tooltip;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -17,9 +16,10 @@ use fyrox::{
     engine::Engine,
     gui::{
         border::BorderBuilder,
-        brush::Brush,
-        button::{ButtonBuilder, ButtonContent, ButtonMessage},
+        brush::{Brush, GradientPoint},
+        button::{Button, ButtonBuilder, ButtonContent, ButtonMessage},
         canvas::CanvasBuilder,
+        decorator::{DecoratorBuilder, DecoratorMessage},
         dropdown_list::DropdownListMessage,
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
@@ -27,10 +27,13 @@ use fyrox::{
         message::{KeyCode, MessageDirection, MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
+        utils::make_simple_tooltip,
         vec::vec3::{Vec3EditorBuilder, Vec3EditorMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        BRUSH_BRIGHT_BLUE, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST,
+        COLOR_LIGHTEST,
     },
     resource::texture::{Texture, TextureState},
     scene::camera::Projection,
@@ -63,6 +66,7 @@ fn make_interaction_mode_button(
     ctx: &mut BuildContext,
     image: &[u8],
     tooltip: &str,
+    selected: bool,
 ) -> Handle<UiNode> {
     ButtonBuilder::new(
         WidgetBuilder::new()
@@ -82,6 +86,35 @@ fn make_interaction_mode_button(
                 .build(ctx),
             )
             .with_margin(Thickness::uniform(1.0)),
+    )
+    .with_back(
+        DecoratorBuilder::new(
+            BorderBuilder::new(WidgetBuilder::new().with_foreground(Brush::LinearGradient {
+                from: Vector2::new(0.5, 0.0),
+                to: Vector2::new(0.5, 1.0),
+                stops: vec![
+                    GradientPoint {
+                        stop: 0.0,
+                        color: COLOR_LIGHTEST,
+                    },
+                    GradientPoint {
+                        stop: 0.25,
+                        color: COLOR_LIGHTEST,
+                    },
+                    GradientPoint {
+                        stop: 1.0,
+                        color: COLOR_DARKEST,
+                    },
+                ],
+            }))
+            .with_stroke_thickness(Thickness::uniform(1.0)),
+        )
+        .with_normal_brush(BRUSH_LIGHT)
+        .with_hover_brush(BRUSH_LIGHTER)
+        .with_pressed_brush(BRUSH_LIGHTEST)
+        .with_selected_brush(BRUSH_BRIGHT_BLUE)
+        .with_selected(selected)
+        .build(ctx),
     )
     .with_content(
         ImageBuilder::new(
@@ -148,6 +181,7 @@ impl SceneViewer {
                         ctx,
                         include_bytes!("../resources/embed/select.png"),
                         select_mode_tooltip,
+                        true,
                     );
                     select_mode
                 })
@@ -156,6 +190,7 @@ impl SceneViewer {
                         ctx,
                         include_bytes!("../resources/embed/move_arrow.png"),
                         move_mode_tooltip,
+                        false,
                     );
                     move_mode
                 })
@@ -164,6 +199,7 @@ impl SceneViewer {
                         ctx,
                         include_bytes!("../resources/embed/rotate_arrow.png"),
                         rotate_mode_tooltip,
+                        false,
                     );
                     rotate_mode
                 })
@@ -172,6 +208,7 @@ impl SceneViewer {
                         ctx,
                         include_bytes!("../resources/embed/scale_arrow.png"),
                         scale_mode_tooltip,
+                        false,
                     );
                     scale_mode
                 })
@@ -180,6 +217,7 @@ impl SceneViewer {
                         ctx,
                         include_bytes!("../resources/embed/navmesh.png"),
                         navmesh_mode_tooltip,
+                        false,
                     );
                     navmesh_mode
                 })
@@ -188,6 +226,7 @@ impl SceneViewer {
                         ctx,
                         include_bytes!("../resources/embed/terrain.png"),
                         terrain_mode_tooltip,
+                        false,
                     );
                     terrain_mode
                 }),
@@ -354,6 +393,41 @@ impl SceneViewer {
 
     pub fn selection_frame(&self) -> Handle<UiNode> {
         self.selection_frame
+    }
+
+    pub fn handle_message(&mut self, message: &Message, engine: &mut Engine) {
+        if let Message::SetInteractionMode(mode) = message {
+            let active_button = match mode {
+                InteractionModeKind::Select => self.select_mode,
+                InteractionModeKind::Move => self.move_mode,
+                InteractionModeKind::Scale => self.scale_mode,
+                InteractionModeKind::Rotate => self.rotate_mode,
+                InteractionModeKind::Navmesh => self.navmesh_mode,
+                InteractionModeKind::Terrain => self.terrain_mode,
+            };
+
+            for mode_button in [
+                self.select_mode,
+                self.move_mode,
+                self.scale_mode,
+                self.rotate_mode,
+                self.navmesh_mode,
+                self.terrain_mode,
+            ] {
+                let decorator = engine
+                    .user_interface
+                    .node(mode_button)
+                    .query_component::<Button>()
+                    .unwrap()
+                    .decorator;
+
+                engine.user_interface.send_message(DecoratorMessage::select(
+                    decorator,
+                    MessageDirection::ToWidget,
+                    mode_button == active_button,
+                ));
+            }
+        }
     }
 
     pub fn handle_ui_message(
