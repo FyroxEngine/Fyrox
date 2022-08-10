@@ -30,9 +30,9 @@ impl ButtonMessage {
 
 #[derive(Clone)]
 pub struct Button {
-    widget: Widget,
-    decorator: Handle<UiNode>,
-    content: Handle<UiNode>,
+    pub widget: Widget,
+    pub decorator: Handle<UiNode>,
+    pub content: Handle<UiNode>,
 }
 
 crate::define_widget_deref!(Button);
