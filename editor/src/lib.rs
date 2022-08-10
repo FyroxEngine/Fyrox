@@ -897,6 +897,16 @@ impl Editor {
                         .send(Message::SetInteractionMode(InteractionModeKind::Scale))
                         .unwrap();
                 }
+                KeyCode::Key5 => {
+                    sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
+                        .unwrap();
+                }
+                KeyCode::Key6 => {
+                    sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
+                        .unwrap();
+                }
                 KeyCode::L if modifiers.control => {
                     sender.send(Message::OpenLoadSceneDialog).unwrap();
                 }
