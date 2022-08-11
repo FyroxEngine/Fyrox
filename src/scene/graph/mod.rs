@@ -795,7 +795,7 @@ impl Graph {
         }
     }
 
-    pub(in crate) fn resolve(&mut self) {
+    pub(crate) fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Resolving graph...");
 
         self.restore_dynamic_node_data();

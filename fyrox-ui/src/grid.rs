@@ -11,7 +11,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SizeMode {
     Strict,
     Auto,

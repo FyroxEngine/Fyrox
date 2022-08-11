@@ -99,7 +99,7 @@ impl Default for DistanceModel {
 /// See module docs.
 #[derive(Clone, Default, Debug, Visit)]
 pub struct SoundContext {
-    pub(in crate) state: Option<Arc<Mutex<State>>>,
+    pub(crate) state: Option<Arc<Mutex<State>>>,
 }
 
 impl PartialEq for SoundContext {
@@ -326,9 +326,9 @@ impl SoundContext {
     ///       HRTF length for faster FFT calculations. Find a better way of selecting this.
     pub const HRTF_BLOCK_LEN: usize = 513;
 
-    pub(in crate) const HRTF_INTERPOLATION_STEPS: usize = 8;
+    pub(crate) const HRTF_INTERPOLATION_STEPS: usize = 8;
 
-    pub(in crate) const SAMPLES_PER_CHANNEL: usize =
+    pub(crate) const SAMPLES_PER_CHANNEL: usize =
         Self::HRTF_BLOCK_LEN * Self::HRTF_INTERPOLATION_STEPS;
 
     /// Creates new instance of context. Internally context starts new thread which will call render all

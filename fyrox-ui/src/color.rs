@@ -88,7 +88,7 @@ impl ColorPickerMessage {
     define_constructor!(ColorPickerMessage:Hsv => fn hsv(Hsv), layout: false);
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ColorFieldMessage {
     Color(Color),
 }

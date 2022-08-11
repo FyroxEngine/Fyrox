@@ -27,8 +27,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct SelectionState(pub(in crate) bool);
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SelectionState(pub(crate) bool);
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
 pub enum TreeExpansionStrategy {
@@ -40,7 +40,7 @@ pub enum TreeExpansionStrategy {
     RecursiveAncestors,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TreeMessage {
     Expand {
         expand: bool,
@@ -63,7 +63,7 @@ impl TreeMessage {
     define_constructor!(TreeMessage:Select => fn select(SelectionState), layout: false);
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TreeRootMessage {
     AddItem(Handle<UiNode>),
     RemoveItem(Handle<UiNode>),

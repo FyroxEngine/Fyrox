@@ -495,6 +495,7 @@ impl Texture {
     EnumString,
     AsRefStr,
     Visit,
+    Eq,
 )]
 #[repr(u32)]
 pub enum TextureMagnificationFilter {
@@ -530,6 +531,7 @@ impl Default for TextureMagnificationFilter {
     EnumString,
     AsRefStr,
     Visit,
+    Eq,
 )]
 #[repr(u32)]
 pub enum TextureMinificationFilter {
@@ -599,6 +601,7 @@ impl Default for TextureMinificationFilter {
     EnumString,
     AsRefStr,
     Visit,
+    Eq,
 )]
 #[repr(u32)]
 pub enum TextureWrapMode {
@@ -1183,7 +1186,7 @@ impl TextureData {
     ///
     /// It is **not** public because you must use resource manager to load textures from external
     /// resources.
-    pub(in crate) async fn load_from_file<P: AsRef<Path>>(
+    pub(crate) async fn load_from_file<P: AsRef<Path>>(
         path: P,
         compression: CompressionOptions,
         gen_mip_maps: bool,

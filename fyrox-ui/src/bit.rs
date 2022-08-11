@@ -57,7 +57,7 @@ impl<T> BitContainer for T where
 {
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BitFieldMessage<T: BitContainer> {
     Value(T),
 }

@@ -9,7 +9,7 @@ mod vorbis;
 mod wav;
 
 #[derive(Debug)]
-pub(in crate) enum Decoder {
+pub(crate) enum Decoder {
     Wav(WavDecoder),
     Ogg(OggDecoder),
 }

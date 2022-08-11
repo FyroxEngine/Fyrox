@@ -493,7 +493,7 @@ impl Material {
         }
     }
 
-    pub(in crate) fn resolve(&mut self, resource_manager: ResourceManager) {
+    pub(crate) fn resolve(&mut self, resource_manager: ResourceManager) {
         for value in self.properties.values_mut() {
             if let PropertyValue::Sampler {
                 value: Some(texture),

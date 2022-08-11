@@ -17,7 +17,7 @@ use std::{cell::RefCell, collections::hash_map::Entry, ops::Deref, rc::Rc};
 
 #[derive(Default)]
 pub struct TextureCache {
-    pub(in crate) map: FxHashMap<usize, CacheEntry<Rc<RefCell<GpuTexture>>>>,
+    pub(crate) map: FxHashMap<usize, CacheEntry<Rc<RefCell<GpuTexture>>>>,
 }
 
 impl TextureCache {

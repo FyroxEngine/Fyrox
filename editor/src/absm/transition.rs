@@ -31,7 +31,7 @@ const PICKED_BRUSH: Brush = Brush::Solid(PICKED_COLOR);
 const NORMAL_BRUSH: Brush = Brush::Solid(NORMAL_COLOR);
 const SELECTED_BRUSH: Brush = Brush::Solid(SELECTED_COLOR);
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransitionMessage {
     Activate,
 }

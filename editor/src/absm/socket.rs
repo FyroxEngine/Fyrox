@@ -19,7 +19,7 @@ use std::{
 const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(170, 170, 170));
 const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(120, 120, 120));
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SocketMessage {
     // Occurs when user clicks on socket and starts dragging it.
     StartDragging,
@@ -29,7 +29,7 @@ impl SocketMessage {
     define_constructor!(SocketMessage:StartDragging => fn start_dragging(), layout: false);
 }
 
-#[derive(Copy, Clone, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Hash, Debug, Eq)]
 pub enum SocketDirection {
     Input,
     Output,

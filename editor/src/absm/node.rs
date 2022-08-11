@@ -104,7 +104,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AbsmNodeMessage {
     Name(String),
     Enter,

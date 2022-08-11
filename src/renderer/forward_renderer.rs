@@ -20,11 +20,11 @@ use crate::{
 };
 use std::{cell::RefCell, rc::Rc};
 
-pub(in crate) struct ForwardRenderer {
+pub(crate) struct ForwardRenderer {
     render_pass_name: ImmutableString,
 }
 
-pub(in crate) struct ForwardRenderContext<'a, 'b> {
+pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub state: &'a mut PipelineState,
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,
@@ -40,13 +40,13 @@ pub(in crate) struct ForwardRenderContext<'a, 'b> {
 }
 
 impl ForwardRenderer {
-    pub(in crate) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             render_pass_name: ImmutableString::new("Forward"),
         }
     }
 
-    pub(in crate) fn render(&self, args: ForwardRenderContext) -> RenderPassStatistics {
+    pub(crate) fn render(&self, args: ForwardRenderContext) -> RenderPassStatistics {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();

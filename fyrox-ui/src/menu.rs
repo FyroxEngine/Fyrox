@@ -23,7 +23,7 @@ use std::{
     sync::mpsc::Sender,
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuMessage {
     Activate,
     Deactivate,
@@ -34,7 +34,7 @@ impl MenuMessage {
     define_constructor!(MenuMessage:Deactivate => fn deactivate(), layout: false);
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuItemMessage {
     Open,
     Close,

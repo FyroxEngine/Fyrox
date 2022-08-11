@@ -116,7 +116,7 @@ pub struct BatchStorage {
 }
 
 impl BatchStorage {
-    pub(in crate) fn generate_batches(&mut self, graph: &Graph) {
+    pub(crate) fn generate_batches(&mut self, graph: &Graph) {
         scope_profile!();
 
         for batch in self.batches.iter_mut() {

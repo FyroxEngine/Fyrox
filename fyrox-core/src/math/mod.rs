@@ -17,7 +17,7 @@ use crate::{
 };
 use std::ops::{Index, IndexMut};
 
-#[derive(Copy, Clone, Debug, PartialEq, Reflect)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Reflect)]
 pub struct Rect<T>
 where
     T: NumAssign + Scalar + PartialOrd + Copy,

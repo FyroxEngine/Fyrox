@@ -39,12 +39,12 @@ use std::time::Duration;
 /// Streaming buffer for long sounds. Does not support random access.
 #[derive(Debug, Default, Visit)]
 pub struct StreamingBuffer {
-    pub(in crate) generic: GenericBuffer,
+    pub(crate) generic: GenericBuffer,
     /// Count of sources that share this buffer, it is important to keep only one
     /// user of streaming buffer, because streaming buffer does not allow random
     /// access.
     #[visit(skip)]
-    pub(in crate) use_count: usize,
+    pub(crate) use_count: usize,
     #[visit(skip)]
     streaming_source: StreamingSource,
 }
@@ -191,18 +191,18 @@ impl StreamingBuffer {
     }
 
     #[inline]
-    pub(in crate) fn read_next_block(&mut self) {
+    pub(crate) fn read_next_block(&mut self) {
         self.streaming_source
             .read_next_samples_block_into(&mut self.generic.samples);
     }
 
     #[inline]
-    pub(in crate) fn rewind(&mut self) -> Result<(), SoundError> {
+    pub(crate) fn rewind(&mut self) -> Result<(), SoundError> {
         self.streaming_source.rewind()
     }
 
     #[inline]
-    pub(in crate) fn time_seek(&mut self, location: Duration) {
+    pub(crate) fn time_seek(&mut self, location: Duration) {
         self.streaming_source.time_seek(location);
     }
 }

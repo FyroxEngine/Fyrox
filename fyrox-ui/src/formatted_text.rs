@@ -60,7 +60,7 @@ impl TextLine {
 }
 
 /// Wrapping mode for formatted text.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Eq)]
 pub enum WrapMode {
     /// No wrapping needed.
     NoWrap,

@@ -168,7 +168,7 @@ impl Default for TextureUnit {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq)]
 pub struct ColorMask {
     pub red: bool,
     pub green: bool,
@@ -198,7 +198,7 @@ impl ColorMask {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq)]
 pub struct StencilFunc {
     pub func: CompareFunc,
     pub ref_value: u32,
@@ -215,7 +215,7 @@ impl Default for StencilFunc {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq)]
 #[repr(u32)]
 pub enum StencilAction {
     /// Keeps the current value.
@@ -255,7 +255,7 @@ impl Default for StencilAction {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq)]
 pub struct StencilOp {
     pub fail: StencilAction,
     pub zfail: StencilAction,

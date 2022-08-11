@@ -17,7 +17,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ButtonMessage {
     Click,
     Content(ButtonContent),
@@ -117,7 +117,7 @@ impl Control for Button {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ButtonContent {
     Text(String),
     Node(Handle<UiNode>),

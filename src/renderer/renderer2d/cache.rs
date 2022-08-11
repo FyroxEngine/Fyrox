@@ -59,13 +59,13 @@ impl Mesh {
 }
 
 #[derive(Default)]
-pub(in crate) struct GeometryCache {
+pub(crate) struct GeometryCache {
     map: FxHashMap<usize, TimedEntry<GeometryBuffer>>,
 }
 
 #[derive(Clone)]
 #[repr(C)]
-pub(in crate) struct InstanceData {
+pub(crate) struct InstanceData {
     pub color: Color,
     /// UV Transform of the instance, where:
     /// - `x` - UV rect X offset

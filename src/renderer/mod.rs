@@ -204,7 +204,7 @@ pub enum ShadowMapPrecision {
 }
 
 /// Cascaded-shadow maps settings.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Inspect, Reflect)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Inspect, Reflect, Eq)]
 pub struct CsmSettings {
     /// Whether cascaded shadow maps enabled or not.
     pub enabled: bool,
@@ -648,7 +648,7 @@ impl AssociatedSceneData {
     }
 }
 
-pub(in crate) fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
+pub(crate) fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
     Matrix4::new_orthographic(
         0.0,
         viewport.w() as f32,
@@ -901,7 +901,7 @@ fn blit_pixels(
     )
 }
 
-pub(in crate) struct MaterialContext<'a, 'b, 'c> {
+pub(crate) struct MaterialContext<'a, 'b, 'c> {
     pub material: &'a Material,
     pub program_binding: &'a mut GpuProgramBinding<'b, 'c>,
     pub texture_cache: &'a mut TextureCache,
@@ -921,7 +921,7 @@ pub(in crate) struct MaterialContext<'a, 'b, 'c> {
     pub black_dummy: Rc<RefCell<GpuTexture>>,
 }
 
-pub(in crate) fn apply_material(ctx: MaterialContext) {
+pub(crate) fn apply_material(ctx: MaterialContext) {
     let built_in_uniforms = &ctx.program_binding.program.built_in_uniform_locations;
 
     // Apply values for built-in uniforms.
@@ -1033,7 +1033,7 @@ pub(in crate) fn apply_material(ctx: MaterialContext) {
 }
 
 impl Renderer {
-    pub(in crate) fn new(
+    pub(crate) fn new(
         context: glow::Context,
         frame_size: (u32, u32),
         resource_manager: &ResourceManager,
@@ -1222,7 +1222,7 @@ impl Renderer {
     ///
     /// Input values will be set to 1 pixel if new size is 0. Rendering cannot
     /// be performed into 0x0 texture.
-    pub(in crate) fn set_frame_size(&mut self, new_size: (u32, u32)) -> Result<(), FrameworkError> {
+    pub(crate) fn set_frame_size(&mut self, new_size: (u32, u32)) -> Result<(), FrameworkError> {
         self.frame_size.0 = new_size.0.max(1);
         self.frame_size.1 = new_size.1.max(1);
 
@@ -1745,7 +1745,7 @@ impl Renderer {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(in crate) fn render_and_swap_buffers(
+    pub(crate) fn render_and_swap_buffers(
         &mut self,
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,
@@ -1761,7 +1761,7 @@ impl Renderer {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub(in crate) fn render_and_swap_buffers(
+    pub(crate) fn render_and_swap_buffers(
         &mut self,
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,

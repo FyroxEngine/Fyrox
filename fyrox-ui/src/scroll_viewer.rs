@@ -13,7 +13,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScrollViewerMessage {
     Content(Handle<UiNode>),
     /// Adjusts vertical and horizontal scroll values so given node will be in "view box"

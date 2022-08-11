@@ -112,7 +112,7 @@ pub const BRUSH_BRIGHT_BLUE: Brush = Brush::Solid(COLOR_BRIGHT_BLUE);
 pub const BRUSH_TEXT: Brush = Brush::Solid(COLOR_TEXT);
 pub const BRUSH_FOREGROUND: Brush = Brush::Solid(COLOR_FOREGROUND);
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug, Eq)]
 pub enum HorizontalAlignment {
     Stretch,
     Left,
@@ -120,7 +120,7 @@ pub enum HorizontalAlignment {
     Right,
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug, Eq)]
 pub enum VerticalAlignment {
     Stretch,
     Top,
@@ -142,7 +142,7 @@ impl Default for Thickness {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Orientation {
     Vertical,
     Horizontal,

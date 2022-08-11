@@ -79,7 +79,7 @@ macro_rules! define_constructor {
 /// direction, widget catches it and checks if changes are needed and if so, it
 /// "rethrows" message with direction FromWidget. Listeners are "subscribed" to
 /// FromWidget messages only and won't respond to ToWidget messages.
-#[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Hash, Eq)]
 pub enum MessageDirection {
     /// Used to indicate a request for changes in a widget.
     ToWidget,

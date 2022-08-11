@@ -679,7 +679,7 @@ pub enum ColorGradingLutCreationError {
 /// games - this is achieved by color grading.
 ///
 /// See [more info in Unreal engine docs](https://docs.unrealengine.com/4.26/en-US/RenderingAndGraphics/PostProcessEffects/UsingLUTs/)
-#[derive(Visit, Clone, Default, PartialEq, Debug, Inspect, Reflect)]
+#[derive(Visit, Clone, Default, PartialEq, Debug, Inspect, Reflect, Eq)]
 pub struct ColorGradingLut {
     unwrapped_lut: Option<Texture>,
 
@@ -1025,7 +1025,7 @@ impl SkyBoxBuilder {
 /// skies and/or some other objects (mountains, buildings, etc.). Usually skyboxes used
 /// in outdoor scenes, however real use of it limited only by your imagination. Skybox
 /// will be drawn first, none of objects could be drawn before skybox.
-#[derive(Debug, Clone, Default, PartialEq, Inspect, Reflect, Visit)]
+#[derive(Debug, Clone, Default, PartialEq, Inspect, Reflect, Visit, Eq)]
 pub struct SkyBox {
     /// Texture for front face.
     #[reflect(setter = "set_front")]

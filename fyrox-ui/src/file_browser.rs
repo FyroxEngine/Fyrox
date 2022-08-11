@@ -77,6 +77,7 @@ impl FileBrowserMessage {
 }
 
 #[derive(Clone)]
+#[allow(clippy::type_complexity)]
 pub struct Filter(pub Arc<Mutex<dyn FnMut(&Path) -> bool + Send>>);
 
 impl Filter {
@@ -267,7 +268,7 @@ impl Control for FileBrowser {
                     }
                     FileBrowserMessage::Filter(filter) => {
                         let equal = match (&self.filter, filter) {
-                            (Some(current), Some(new)) => std::ptr::eq(&*new, &*current),
+                            (Some(current), Some(new)) => std::ptr::eq(new, current),
                             _ => false,
                         };
                         if !equal {

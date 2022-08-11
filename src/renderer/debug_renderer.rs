@@ -34,7 +34,7 @@ pub struct DebugRenderer {
     shader: DebugShader,
 }
 
-pub(in crate) struct DebugShader {
+pub(crate) struct DebugShader {
     program: GpuProgram,
     wvp_matrix: UniformLocation,
 }
@@ -54,7 +54,7 @@ impl DebugShader {
 }
 
 impl DebugRenderer {
-    pub(in crate) fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub(crate) fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let geometry = GeometryBufferBuilder::new(ElementKind::Line)
             .with_buffer_builder(
                 BufferBuilder::new::<Vertex>(GeometryBufferKind::DynamicDraw, None)
@@ -81,7 +81,7 @@ impl DebugRenderer {
         })
     }
 
-    pub(in crate) fn render(
+    pub(crate) fn render(
         &mut self,
         state: &mut PipelineState,
         viewport: Rect<i32>,

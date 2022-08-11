@@ -6,7 +6,7 @@ use crate::{
 use num_traits::Zero;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-#[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Visit, Reflect)]
+#[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Eq, Visit, Reflect)]
 #[repr(C)]
 pub struct Color {
     // Do not change order! OpenGL requires this order!

@@ -7,7 +7,7 @@ use fyrox::{
     gui::{define_constructor, UiNode, UserInterface},
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SelectableMessage {
     Select(bool),
 }
@@ -16,7 +16,7 @@ impl SelectableMessage {
     define_constructor!(SelectableMessage:Select => fn select(bool), layout: false);
 }
 
-#[derive(Default, Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
 pub struct Selectable {
     pub selected: bool,
 }

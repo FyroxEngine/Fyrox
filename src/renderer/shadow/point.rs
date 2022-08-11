@@ -39,7 +39,7 @@ struct PointShadowCubeMapFace {
     up: Vector3<f32>,
 }
 
-pub(in crate) struct PointShadowMapRenderContext<'a> {
+pub(crate) struct PointShadowMapRenderContext<'a> {
     pub state: &'a mut PipelineState,
     pub light_pos: Vector3<f32>,
     pub light_radius: f32,
@@ -183,7 +183,7 @@ impl PointShadowMapRenderer {
             .clone()
     }
 
-    pub(in crate) fn render(&mut self, args: PointShadowMapRenderContext) -> RenderPassStatistics {
+    pub(crate) fn render(&mut self, args: PointShadowMapRenderContext) -> RenderPassStatistics {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();

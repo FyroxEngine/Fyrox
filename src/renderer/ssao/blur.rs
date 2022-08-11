@@ -96,7 +96,7 @@ impl Blur {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub(in crate) fn render(&mut self, state: &mut PipelineState, input: Rc<RefCell<GpuTexture>>) {
+    pub(crate) fn render(&mut self, state: &mut PipelineState, input: Rc<RefCell<GpuTexture>>) {
         scope_profile!();
 
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);

@@ -23,7 +23,7 @@ impl Default for Listener {
 }
 
 impl Listener {
-    pub(in crate) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             basis: Matrix3::identity(),
             position: Vector3::new(0.0, 0.0, 0.0),

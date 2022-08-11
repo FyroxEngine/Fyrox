@@ -128,18 +128,18 @@ impl Default for TriangleShape {
 /// # Notes
 ///
 /// Currently there is only one way to set geometry - using a scene node as a source of data.
-#[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Inspect, Reflect)]
+#[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Inspect, Reflect, Eq)]
 pub struct GeometrySource(pub Handle<Node>);
 
 /// Arbitrary triangle mesh shape.
-#[derive(Default, Clone, Debug, PartialEq, Visit, Inspect, Reflect)]
+#[derive(Default, Clone, Debug, PartialEq, Visit, Inspect, Reflect, Eq)]
 pub struct TrimeshShape {
     /// Geometry sources for the shape.
     pub sources: Vec<GeometrySource>,
 }
 
 /// Arbitrary height field shape.
-#[derive(Default, Clone, Debug, PartialEq, Visit, Inspect, Reflect)]
+#[derive(Default, Clone, Debug, PartialEq, Visit, Inspect, Reflect, Eq)]
 pub struct HeightfieldShape {
     /// A handle to terrain scene node.
     pub geometry_source: GeometrySource,

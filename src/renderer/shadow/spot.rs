@@ -115,7 +115,7 @@ impl SpotShadowMapRenderer {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(in crate) fn render(
+    pub(crate) fn render(
         &mut self,
         state: &mut PipelineState,
         light_view_projection: &Matrix4<f32>,

@@ -8,7 +8,7 @@ use crate::{
 use std::cell::RefCell;
 
 /// See module docs.
-#[derive(Debug, PartialEq, Visit)]
+#[derive(Debug, PartialEq, Visit, Eq)]
 pub struct LeafNode<B> {
     /// User-defined behavior.
     pub behavior: Option<RefCell<B>>,

@@ -120,7 +120,7 @@ pub struct DeferredLightRenderer {
     light_volume: LightVolumeRenderer,
 }
 
-pub(in crate) struct DeferredRendererContext<'a> {
+pub(crate) struct DeferredRendererContext<'a> {
     pub state: &'a mut PipelineState,
     pub scene: &'a Scene,
     pub camera: &'a Camera,
@@ -291,7 +291,7 @@ impl DeferredLightRenderer {
     }
 
     #[must_use]
-    pub(in crate) fn render(
+    pub(crate) fn render(
         &mut self,
         args: DeferredRendererContext,
     ) -> (RenderPassStatistics, LightingStatistics) {

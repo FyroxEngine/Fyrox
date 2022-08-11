@@ -11,7 +11,7 @@ use fyrox::{
     },
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AssetItemMessage {
     Select(bool),
 }

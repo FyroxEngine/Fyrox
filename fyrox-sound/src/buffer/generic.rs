@@ -34,13 +34,13 @@ pub struct GenericBuffer {
     /// For streaming buffers it contains only small part of decoded data
     /// (usually something around 1 sec).
     #[visit(skip)]
-    pub(in crate) samples: Vec<f32>,
+    pub(crate) samples: Vec<f32>,
     #[visit(skip)]
-    pub(in crate) channel_count: usize,
+    pub(crate) channel_count: usize,
     #[visit(skip)]
-    pub(in crate) sample_rate: usize,
+    pub(crate) sample_rate: usize,
     #[visit(rename = "Path")]
-    pub(in crate) external_source_path: PathBuf,
+    pub(crate) external_source_path: PathBuf,
 }
 
 impl GenericBuffer {

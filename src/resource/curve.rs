@@ -39,7 +39,7 @@ impl From<VisitError> for CurveResourceError {
 /// State of the [`CurveResource`]
 #[derive(Debug, Visit, Default)]
 pub struct CurveResourceState {
-    pub(in crate) path: PathBuf,
+    pub(crate) path: PathBuf,
     /// Actual curve.
     pub curve: Curve,
 }

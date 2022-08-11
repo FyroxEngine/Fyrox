@@ -4,7 +4,7 @@ use fyrox::core::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Inspect, Reflect)]
+#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Inspect, Reflect, Eq)]
 pub struct DebuggingSettings {
     pub show_physics: bool,
     pub show_bounds: bool,

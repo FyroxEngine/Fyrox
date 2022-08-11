@@ -13,7 +13,7 @@ use std::{
     ops::{Deref, DerefMut, Range},
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum RangeEditorMessage<T>
 where
     T: NumericType,

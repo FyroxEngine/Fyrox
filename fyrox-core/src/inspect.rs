@@ -81,8 +81,8 @@ pub struct PropertyInfo<'a> {
 
 impl<'a> PartialEq<Self> for PropertyInfo<'a> {
     fn eq(&self, other: &Self) -> bool {
-        let value_ptr_a = &*self.value as *const _ as *const ();
-        let value_ptr_b = &*other.value as *const _ as *const ();
+        let value_ptr_a = self.value as *const _ as *const ();
+        let value_ptr_b = other.value as *const _ as *const ();
 
         self.owner_type_id == other.owner_type_id
             && self.name == other.name

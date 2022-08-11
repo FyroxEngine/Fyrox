@@ -48,7 +48,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(u32)]
-pub(in crate) enum NodeMapping {
+pub(crate) enum NodeMapping {
     UseNames = 0,
     UseHandles = 1,
 }
@@ -56,9 +56,9 @@ pub(in crate) enum NodeMapping {
 /// See module docs.
 #[derive(Debug, Visit)]
 pub struct ModelData {
-    pub(in crate) path: PathBuf,
+    pub(crate) path: PathBuf,
     #[visit(skip)]
-    pub(in crate) mapping: NodeMapping,
+    pub(crate) mapping: NodeMapping,
     #[visit(skip)]
     scene: Scene,
 }
@@ -252,6 +252,7 @@ impl Default for ModelData {
     Debug,
     Visit,
     PartialEq,
+    Eq,
     Deserialize,
     Serialize,
     Inspect,
@@ -324,7 +325,7 @@ impl MaterialSearchOptions {
 /// ```
 ///
 /// Check documentation of the field of the structure for more info about each parameter.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, Inspect, Reflect)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, Inspect, Reflect, Eq)]
 pub struct ModelImportOptions {
     /// See [`MaterialSearchOptions`] docs for more info.
     #[serde(default)]
@@ -373,7 +374,7 @@ impl From<VisitError> for ModelLoadError {
 }
 
 impl ModelData {
-    pub(in crate) async fn load<P: AsRef<Path>>(
+    pub(crate) async fn load<P: AsRef<Path>>(
         path: P,
         serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,

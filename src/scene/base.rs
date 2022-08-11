@@ -30,7 +30,7 @@ use std::{
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// A handle to scene node that will be controlled by LOD system.
-#[derive(Inspect, Reflect, Default, Debug, Clone, Copy, PartialEq, Hash)]
+#[derive(Inspect, Reflect, Default, Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub struct LodControlledObject(pub Handle<Node>);
 
 impl Deref for LodControlledObject {

@@ -99,7 +99,7 @@ impl BloomRenderer {
         self.blur.result()
     }
 
-    pub(in crate) fn render(
+    pub(crate) fn render(
         &mut self,
         state: &mut PipelineState,
         quad: &GeometryBuffer,

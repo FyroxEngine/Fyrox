@@ -104,13 +104,13 @@ pub struct SoundSource {
     // will start interpolation of gain.
     #[inspect(skip)]
     #[visit(skip)]
-    pub(in crate) last_left_gain: Option<f32>,
+    pub(crate) last_left_gain: Option<f32>,
     #[inspect(skip)]
     #[visit(skip)]
-    pub(in crate) last_right_gain: Option<f32>,
+    pub(crate) last_right_gain: Option<f32>,
     #[inspect(skip)]
     #[visit(skip)]
-    pub(in crate) frame_samples: Vec<(f32, f32)>,
+    pub(crate) frame_samples: Vec<(f32, f32)>,
     // This sample is used when doing linear interpolation between two blocks of streaming buffer.
     #[inspect(skip)]
     #[visit(skip)]
@@ -125,16 +125,16 @@ pub struct SoundSource {
     // Some data that needed for iterative overlap-save convolution.
     #[inspect(skip)]
     #[visit(skip)]
-    pub(in crate) prev_left_samples: Vec<f32>,
+    pub(crate) prev_left_samples: Vec<f32>,
     #[inspect(skip)]
     #[visit(skip)]
-    pub(in crate) prev_right_samples: Vec<f32>,
+    pub(crate) prev_right_samples: Vec<f32>,
     #[inspect(skip)]
     #[visit(skip)]
-    pub(in crate) prev_sampling_vector: Vector3<f32>,
+    pub(crate) prev_sampling_vector: Vector3<f32>,
     #[inspect(skip)]
     #[visit(skip)]
-    pub(in crate) prev_distance_gain: Option<f32>,
+    pub(crate) prev_distance_gain: Option<f32>,
 }
 
 impl Default for SoundSource {
@@ -395,7 +395,7 @@ impl SoundSource {
     // Distance models were taken from OpenAL Specification because it looks like they're
     // standard in industry and there is no need to reinvent it.
     // https://www.openal.org/documentation/openal-1.1-specification.pdf
-    pub(in crate) fn calculate_distance_gain(
+    pub(crate) fn calculate_distance_gain(
         &self,
         listener: &Listener,
         distance_model: DistanceModel,
@@ -417,7 +417,7 @@ impl SoundSource {
         }
     }
 
-    pub(in crate) fn calculate_panning(&self, listener: &Listener) -> f32 {
+    pub(crate) fn calculate_panning(&self, listener: &Listener) -> f32 {
         (self.position - listener.position())
             .try_normalize(f32::EPSILON)
             // Fallback to look axis will give zero panning which will result in even
@@ -426,7 +426,7 @@ impl SoundSource {
             .dot(&listener.ear_axis())
     }
 
-    pub(in crate) fn calculate_sampling_vector(&self, listener: &Listener) -> Vector3<f32> {
+    pub(crate) fn calculate_sampling_vector(&self, listener: &Listener) -> Vector3<f32> {
         let to_self = self.position - listener.position();
 
         (listener.basis() * to_self)
@@ -473,7 +473,7 @@ impl SoundSource {
         }
     }
 
-    pub(in crate) fn render(&mut self, amount: usize) {
+    pub(crate) fn render(&mut self, amount: usize) {
         if self.frame_samples.capacity() < amount {
             self.frame_samples = Vec::with_capacity(amount);
         }
@@ -640,7 +640,7 @@ impl SoundSource {
         rendered
     }
 
-    pub(in crate) fn frame_samples(&self) -> &[(f32, f32)] {
+    pub(crate) fn frame_samples(&self) -> &[(f32, f32)] {
         &self.frame_samples
     }
 }

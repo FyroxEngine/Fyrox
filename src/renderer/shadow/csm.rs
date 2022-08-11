@@ -95,7 +95,7 @@ pub struct CsmRenderer {
     render_pass_name: ImmutableString,
 }
 
-pub(in crate) struct CsmRenderContext<'a, 'c> {
+pub(crate) struct CsmRenderContext<'a, 'c> {
     pub frame_size: Vector2<f32>,
     pub state: &'a mut PipelineState,
     pub graph: &'c Graph,
@@ -140,7 +140,7 @@ impl CsmRenderer {
         &self.cascades
     }
 
-    pub(in crate) fn render(&mut self, ctx: CsmRenderContext) -> RenderPassStatistics {
+    pub(crate) fn render(&mut self, ctx: CsmRenderContext) -> RenderPassStatistics {
         let mut stats = RenderPassStatistics::default();
 
         let CsmRenderContext {

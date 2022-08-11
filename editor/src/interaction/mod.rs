@@ -133,7 +133,7 @@ fn distance_scale_factor(fov: f32) -> f32 {
 }
 
 /// Helper enum to be able to access interaction modes in array directly.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Eq)]
 #[repr(usize)]
 pub enum InteractionModeKind {
     Select = 0,

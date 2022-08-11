@@ -88,7 +88,7 @@ impl FbxAnimationCurve {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum FbxAnimationCurveNodeType {
     Unknown,
     Translation,

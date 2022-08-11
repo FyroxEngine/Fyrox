@@ -61,7 +61,7 @@ impl FxaaRenderer {
         })
     }
 
-    pub(in crate) fn render(
+    pub(crate) fn render(
         &self,
         state: &mut PipelineState,
         viewport: Rect<i32>,

@@ -51,7 +51,7 @@ pub trait Behavior<'a>: Visit + Default + PartialEq + Debug {
 }
 
 /// Root node of the tree.
-#[derive(Debug, PartialEq, Visit)]
+#[derive(Debug, PartialEq, Visit, Eq)]
 pub struct RootNode<B> {
     child: Handle<BehaviorNode<B>>,
 }
@@ -65,7 +65,7 @@ impl<B> Default for RootNode<B> {
 }
 
 /// Possible variations of behavior nodes.
-#[derive(Debug, PartialEq, Visit)]
+#[derive(Debug, PartialEq, Visit, Eq)]
 pub enum BehaviorNode<B> {
     #[doc(hidden)]
     Unknown,

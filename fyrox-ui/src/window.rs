@@ -578,7 +578,7 @@ pub struct WindowBuilder {
 ///
 /// If you need more flexibility (i.e. put a picture near text) then `Node` option is for you:
 /// it allows to put any UI node hierarchy you want to.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WindowTitle {
     Text(String),
     Node(Handle<UiNode>),

@@ -55,7 +55,7 @@ impl Default for BallJoint {
 
 /// A fixed joint ensures that two rigid bodies does not move relative to each other. There is no
 /// straightforward real-world example, but it can be thought as two bodies were "welded" together.
-#[derive(Clone, Debug, Default, Visit, PartialEq, Inspect, Reflect)]
+#[derive(Clone, Debug, Default, Visit, PartialEq, Inspect, Reflect, Eq)]
 pub struct FixedJoint;
 
 /// Prismatic joint prevents any relative movement between two rigid-bodies, except for relative

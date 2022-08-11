@@ -110,7 +110,7 @@ impl GaussianBlur {
         self.v_framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub(in crate) fn render(
+    pub(crate) fn render(
         &mut self,
         state: &mut PipelineState,
         quad: &GeometryBuffer,

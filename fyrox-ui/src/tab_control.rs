@@ -13,7 +13,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Tab {
     header_button: Handle<UiNode>,
     content: Handle<UiNode>,

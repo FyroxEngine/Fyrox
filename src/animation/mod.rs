@@ -279,7 +279,7 @@ pub struct Animation {
     speed: f32,
     looped: bool,
     enabled: bool,
-    pub(in crate) resource: Option<Model>,
+    pub(crate) resource: Option<Model>,
     #[visit(skip)]
     pose: AnimationPose,
     signals: Vec<AnimationSignal>,
@@ -612,14 +612,14 @@ impl Animation {
         None
     }
 
-    pub(in crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
+    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
         if let Some(resource) = self.resource.as_mut() {
             let new_resource = resource_manager.request_model(resource.state().path());
             *resource = new_resource;
         }
     }
 
-    pub(in crate) fn resolve(&mut self, graph: &Graph) {
+    pub(crate) fn resolve(&mut self, graph: &Graph) {
         // Copy key frames from resource for each animation. This is needed because we
         // do not store key frames in save file, but just keep reference to resource
         // from which key frames should be taken on load.
@@ -731,7 +731,7 @@ impl Default for AnimationContainer {
 }
 
 impl AnimationContainer {
-    pub(in crate) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self { pool: Pool::new() }
     }
 

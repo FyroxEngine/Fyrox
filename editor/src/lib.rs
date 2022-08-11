@@ -2,7 +2,7 @@
 #![allow(irrefutable_let_patterns)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::large_enum_variant)]
-#![allow(clippy::eval_order_dependence)]
+#![allow(clippy::mixed_read_write_in_expression)]
 // These are useless.
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::inconsistent_struct_constructor)]

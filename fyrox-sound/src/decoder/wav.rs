@@ -8,7 +8,7 @@ use std::{
 };
 
 /// Wav decoder
-pub(in crate) struct WavDecoder {
+pub(crate) struct WavDecoder {
     reader: WavReader<DataSource>,
 }
 

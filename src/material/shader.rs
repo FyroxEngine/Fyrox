@@ -45,7 +45,7 @@ pub struct ShaderState {
     /// Shader definition contains description of properties and render passes.
     pub definition: ShaderDefinition,
 
-    pub(in crate) cache_index: AtomicIndex<CacheEntry<ShaderSet>>,
+    pub(crate) cache_index: AtomicIndex<CacheEntry<ShaderSet>>,
 }
 
 impl Visit for ShaderState {
@@ -83,7 +83,7 @@ impl Visit for ShaderState {
 ///
 /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
 /// missing by very specific value in the fallback texture.
-#[derive(Deserialize, Debug, PartialEq, Clone, Copy, Visit)]
+#[derive(Deserialize, Debug, PartialEq, Clone, Copy, Visit, Eq)]
 pub enum SamplerFallback {
     /// A 1x1px white texture.
     White,
@@ -207,7 +207,7 @@ pub struct PropertyDefinition {
 }
 
 /// A render pass definition. See [`Shader`] docs for more info about render passes.
-#[derive(Default, Deserialize, Debug, PartialEq)]
+#[derive(Default, Deserialize, Debug, PartialEq, Eq)]
 pub struct RenderPassDefinition {
     /// A name of render pass.
     pub name: String,
@@ -241,7 +241,7 @@ impl ShaderDefinition {
 }
 
 impl ShaderState {
-    pub(in crate) async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ShaderError> {
+    pub(crate) async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ShaderError> {
         let content = io::load_file(path.as_ref()).await?;
         Ok(Self {
             path: path.as_ref().to_owned(),
@@ -250,7 +250,7 @@ impl ShaderState {
         })
     }
 
-    pub(in crate) fn from_str<P: AsRef<Path>>(str: &str, path: P) -> Result<Self, ShaderError> {
+    pub(crate) fn from_str<P: AsRef<Path>>(str: &str, path: P) -> Result<Self, ShaderError> {
         Ok(Self {
             path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_str(str)?,

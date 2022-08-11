@@ -16,7 +16,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CheckBoxMessage {
     Check(Option<bool>),
 }

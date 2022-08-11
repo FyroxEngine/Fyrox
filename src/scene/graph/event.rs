@@ -11,7 +11,7 @@ use std::{
 };
 
 /// An event that happened in a graph.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Eq)]
 pub enum GraphEvent {
     /// A node was added.
     Added(Handle<Node>),

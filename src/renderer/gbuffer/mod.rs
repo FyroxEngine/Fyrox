@@ -52,7 +52,7 @@ pub struct GBuffer {
     render_pass_name: ImmutableString,
 }
 
-pub(in crate) struct GBufferRenderContext<'a, 'b> {
+pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub state: &'a mut PipelineState,
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,
@@ -253,7 +253,7 @@ impl GBuffer {
     }
 
     #[must_use]
-    pub(in crate) fn fill(&mut self, args: GBufferRenderContext) -> RenderPassStatistics {
+    pub(crate) fn fill(&mut self, args: GBufferRenderContext) -> RenderPassStatistics {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();

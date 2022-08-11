@@ -26,7 +26,7 @@ use std::{
     rc::Rc,
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Item {
     inspector: Handle<UiNode>,
 }

@@ -337,7 +337,7 @@ impl FbxDeformer {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug, Eq)]
 pub enum FbxMapping {
     ByPolygon,
     ByPolygonVertex,
@@ -359,7 +359,7 @@ impl FbxMapping {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug, Eq)]
 pub enum FbxReference {
     Direct,
     IndexToDirect,

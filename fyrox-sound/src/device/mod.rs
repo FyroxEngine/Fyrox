@@ -87,7 +87,7 @@ trait Device {
 
 /// Transfer ownership of device to separate mixer thread. It will
 /// call the callback with a specified rate to get data to send to a physical device.
-pub(in crate) fn run_device<F: FnMut(&mut [(f32, f32)]) + Send + 'static>(
+pub(crate) fn run_device<F: FnMut(&mut [(f32, f32)]) + Send + 'static>(
     #[allow(unused_variables)] buffer_len_bytes: u32,
     #[allow(unused_variables)] callback: F,
 ) {

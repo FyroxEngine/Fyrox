@@ -28,7 +28,7 @@ use std::{
     rc::Rc,
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Item {
     inspector: Handle<UiNode>,
     remove: Handle<UiNode>,
@@ -75,7 +75,7 @@ impl<T: CollectionItem> DerefMut for CollectionEditor<T> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub enum CollectionEditorMessage {
     Items(Vec<Item>),
 }
