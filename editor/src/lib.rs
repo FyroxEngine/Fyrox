@@ -456,7 +456,6 @@ pub struct Editor {
     pub inspector: Inspector,
     curve_editor: CurveEditorWindow,
     audio_panel: AudioPanel,
-    #[allow(dead_code)] // TODO
     absm_editor: AbsmEditor,
     mode: Mode,
     build_window: BuildWindow,
@@ -777,6 +776,38 @@ impl Editor {
         }
 
         editor
+    }
+
+    fn reload_settings(&mut self) {
+        match Settings::load() {
+            Ok(settings) => {
+                self.settings = settings;
+
+                Log::info("Editor settings were reloaded successfully!");
+
+                self.menu
+                    .file_menu
+                    .update_recent_files_list(&mut self.engine.user_interface, &self.settings);
+
+                match self
+                    .engine
+                    .renderer
+                    .set_quality_settings(&self.settings.graphics.quality)
+                {
+                    Ok(_) => {
+                        Log::info("Graphics settings were applied successfully!");
+                    }
+                    Err(e) => Log::info(format!(
+                        "Failed to apply graphics settings! Reason: {:?}",
+                        e
+                    )),
+                }
+            }
+            Err(e) => Log::info(format!(
+                "Failed to load settings, fallback to default. Reason: {:?}",
+                e
+            )),
+        }
     }
 
     fn set_scene(&mut self, mut scene: Scene, path: Option<PathBuf>) {
@@ -1472,13 +1503,16 @@ impl Editor {
     }
 
     fn configure(&mut self, working_directory: PathBuf) {
-        let engine = &mut self.engine;
-
         assert!(self.scene.is_none());
 
-        self.asset_browser.clear_preview(engine);
+        self.asset_browser.clear_preview(&mut self.engine);
 
         std::env::set_current_dir(working_directory.clone()).unwrap();
+
+        // We must re-read settings, because each project have its own unique settings.
+        self.reload_settings();
+
+        let engine = &mut self.engine;
 
         engine
             .get_window()
