@@ -1,14 +1,12 @@
-use crate::settings::camera::CameraSettings;
 use crate::{
     inspector::editors::make_property_editors_container,
     settings::{
-        debugging::DebuggingSettings, graphics::GraphicsSettings, model::ModelSettings,
-        move_mode::MoveInteractionModeSettings, rotate_mode::RotateInteractionModeSettings,
-        selection::SelectionSettings,
+        camera::CameraSettings, debugging::DebuggingSettings, graphics::GraphicsSettings,
+        model::ModelSettings, move_mode::MoveInteractionModeSettings, recent::RecentFiles,
+        rotate_mode::RotateInteractionModeSettings, selection::SelectionSettings,
     },
     GameEngine, Message, MSG_SYNC_FLAG,
 };
-use fyrox::gui::inspector::PropertyAction;
 use fyrox::{
     core::{
         inspect::{Inspect, PropertyInfo},
@@ -25,7 +23,7 @@ use fyrox::{
                 inspectable::InspectablePropertyEditorDefinition,
                 PropertyEditorDefinitionContainer,
             },
-            InspectorBuilder, InspectorContext, InspectorMessage, PropertyChanged,
+            InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction, PropertyChanged,
         },
         message::{MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
@@ -46,6 +44,7 @@ pub mod debugging;
 pub mod graphics;
 pub mod model;
 pub mod move_mode;
+pub mod recent;
 pub mod rotate_mode;
 pub mod selection;
 
@@ -65,6 +64,9 @@ pub struct Settings {
     pub rotate_mode_settings: RotateInteractionModeSettings,
     pub model: ModelSettings,
     pub camera: CameraSettings,
+    #[inspect(skip)]
+    #[reflect(hidden)]
+    pub recent: RecentFiles,
 }
 
 #[derive(Debug)]

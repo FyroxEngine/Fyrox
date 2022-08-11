@@ -292,7 +292,9 @@ pub enum SaveSceneConfirmationDialogAction {
     /// Do nothing.
     None,
     /// Opens `Load Scene` dialog.
-    LoadScene,
+    OpenLoadSceneDialog,
+    /// Load specified scene.
+    LoadScene(PathBuf),
     /// Immediately creates new scene.
     MakeNewScene,
     /// Closes current scene.
@@ -345,7 +347,7 @@ impl SaveSceneConfirmationDialog {
                 match result {
                     MessageBoxResult::No => match self.action {
                         SaveSceneConfirmationDialogAction::None => {}
-                        SaveSceneConfirmationDialogAction::LoadScene => {
+                        SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
                             sender.send(Message::OpenLoadSceneDialog).unwrap()
                         }
                         SaveSceneConfirmationDialogAction::MakeNewScene => {
@@ -353,6 +355,9 @@ impl SaveSceneConfirmationDialog {
                         }
                         SaveSceneConfirmationDialogAction::CloseScene => {
                             sender.send(Message::CloseScene).unwrap()
+                        }
+                        SaveSceneConfirmationDialogAction::LoadScene(ref path) => {
+                            sender.send(Message::LoadScene(path.clone())).unwrap()
                         }
                     },
                     MessageBoxResult::Yes => {
@@ -364,7 +369,7 @@ impl SaveSceneConfirmationDialog {
 
                                 match self.action {
                                     SaveSceneConfirmationDialogAction::None => {}
-                                    SaveSceneConfirmationDialogAction::LoadScene => {
+                                    SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
                                         sender.send(Message::OpenLoadSceneDialog).unwrap()
                                     }
                                     SaveSceneConfirmationDialogAction::MakeNewScene => {
@@ -372,6 +377,9 @@ impl SaveSceneConfirmationDialog {
                                     }
                                     SaveSceneConfirmationDialogAction::CloseScene => {
                                         sender.send(Message::CloseScene).unwrap()
+                                    }
+                                    SaveSceneConfirmationDialogAction::LoadScene(ref path) => {
+                                        sender.send(Message::LoadScene(path.clone())).unwrap()
                                     }
                                 }
 
@@ -381,7 +389,8 @@ impl SaveSceneConfirmationDialog {
                                 // scene was saved.
                                 match self.action {
                                     SaveSceneConfirmationDialogAction::None => {}
-                                    SaveSceneConfirmationDialogAction::LoadScene
+                                    SaveSceneConfirmationDialogAction::OpenLoadSceneDialog
+                                    | SaveSceneConfirmationDialogAction::LoadScene(_)
                                     | SaveSceneConfirmationDialogAction::MakeNewScene
                                     | SaveSceneConfirmationDialogAction::CloseScene => {
                                         sender.send(Message::OpenSaveSceneDialog).unwrap()
@@ -400,7 +409,7 @@ impl SaveSceneConfirmationDialog {
         if let Message::SaveScene(_) = message {
             match std::mem::replace(&mut self.action, SaveSceneConfirmationDialogAction::None) {
                 SaveSceneConfirmationDialogAction::None => {}
-                SaveSceneConfirmationDialogAction::LoadScene => {
+                SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
                     sender.send(Message::OpenLoadSceneDialog).unwrap();
                 }
                 SaveSceneConfirmationDialogAction::MakeNewScene => {
@@ -408,6 +417,9 @@ impl SaveSceneConfirmationDialog {
                 }
                 SaveSceneConfirmationDialogAction::CloseScene => {
                     sender.send(Message::CloseScene).unwrap();
+                }
+                SaveSceneConfirmationDialogAction::LoadScene(path) => {
+                    sender.send(Message::LoadScene(path)).unwrap()
                 }
             }
         }
@@ -539,7 +551,7 @@ impl Editor {
 
         let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone());
         let asset_browser = AssetBrowser::new(&mut engine);
-        let menu = Menu::new(&mut engine, message_sender.clone());
+        let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(&mut engine);
         let audio_panel = AudioPanel::new(&mut engine);
 
@@ -824,6 +836,16 @@ impl Editor {
         self.scene = Some(editor_scene);
 
         self.set_interaction_mode(Some(InteractionModeKind::Move));
+
+        if let Some(path) = path.as_ref() {
+            if !self.settings.recent.scenes.contains(path) {
+                self.settings.recent.scenes.push(path.clone());
+                Log::verify(self.settings.save());
+                self.menu
+                    .file_menu
+                    .update_recent_files_list(&mut self.engine.user_interface, &self.settings);
+            }
+        }
 
         self.scene_viewer.set_title(
             &self.engine.user_interface,

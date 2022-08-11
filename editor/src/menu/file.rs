@@ -1,12 +1,10 @@
-use crate::scene::is_scene_needs_to_be_saved;
 use crate::{
     make_save_file_selector, make_scene_file_filter,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
-    scene::EditorScene,
-    settings::{Settings, SettingsWindow},
+    scene::{is_scene_needs_to_be_saved, EditorScene},
+    settings::{recent::RecentFiles, Settings, SettingsWindow},
     GameEngine, Message, Mode, SaveSceneConfirmationDialogAction,
 };
-use fyrox::gui::widget::WidgetMessage;
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -14,9 +12,9 @@ use fyrox::{
         menu::MenuItemMessage,
         message::{MessageDirection, UiMessage},
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage},
-        widget::WidgetBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        UiNode, UserInterface,
+        BuildContext, UiNode, UserInterface,
     },
 };
 use std::sync::mpsc::Sender;
@@ -35,10 +33,23 @@ pub struct FileMenu {
     pub load_file_selector: Handle<UiNode>,
     configure_message: Handle<UiNode>,
     pub settings: SettingsWindow,
+    pub recent_files_container: Handle<UiNode>,
+    pub recent_files: Vec<Handle<UiNode>>,
+}
+
+fn make_recent_files_items(
+    ctx: &mut BuildContext,
+    recent_files: &RecentFiles,
+) -> Vec<Handle<UiNode>> {
+    recent_files
+        .scenes
+        .iter()
+        .map(|f| create_menu_item(f.to_string_lossy().as_ref(), vec![], ctx))
+        .collect::<Vec<_>>()
 }
 
 impl FileMenu {
-    pub fn new(engine: &mut GameEngine) -> Self {
+    pub fn new(engine: &mut GameEngine, settings: &Settings) -> Self {
         let new_scene;
         let save;
         let save_as;
@@ -47,6 +58,7 @@ impl FileMenu {
         let open_settings;
         let configure;
         let exit;
+        let recent_files_container;
 
         let ctx = &mut engine.user_interface.build_ctx();
 
@@ -58,6 +70,8 @@ impl FileMenu {
         .with_text("Cannot reconfigure editor while scene is open! Close scene first and retry.")
         .with_buttons(MessageBoxButtons::Ok)
         .build(ctx);
+
+        let recent_files = make_recent_files_items(ctx, &settings.recent);
 
         let menu = create_root_menu_item(
             "File",
@@ -92,6 +106,11 @@ impl FileMenu {
                     configure
                 },
                 {
+                    recent_files_container =
+                        create_menu_item("Recent Files", recent_files.clone(), ctx);
+                    recent_files_container
+                },
+                {
                     exit = create_menu_item_shortcut("Exit", "Alt+F4", vec![], ctx);
                     exit
                 },
@@ -123,7 +142,18 @@ impl FileMenu {
             configure,
             configure_message,
             settings: SettingsWindow::new(engine),
+            recent_files_container,
+            recent_files,
         }
+    }
+
+    pub fn update_recent_files_list(&mut self, ui: &mut UserInterface, settings: &Settings) {
+        self.recent_files = make_recent_files_items(&mut ui.build_ctx(), &settings.recent);
+        ui.send_message(MenuItemMessage::items(
+            self.recent_files_container,
+            MessageDirection::ToWidget,
+            self.recent_files.clone(),
+        ));
     }
 
     pub fn open_load_file_selector(&self, ui: &mut UserInterface) {
@@ -210,7 +240,7 @@ impl FileMenu {
                 if is_scene_needs_to_be_saved(editor_scene.as_deref()) {
                     sender
                         .send(Message::OpenSaveSceneConfirmationDialog(
-                            SaveSceneConfirmationDialogAction::LoadScene,
+                            SaveSceneConfirmationDialogAction::OpenLoadSceneDialog,
                         ))
                         .unwrap();
                 } else {
@@ -258,6 +288,26 @@ impl FileMenu {
             } else if message.destination() == self.open_settings {
                 self.settings
                     .open(&mut engine.user_interface, settings, sender);
+            } else if let Some(recent_file) = self
+                .recent_files
+                .iter()
+                .position(|i| *i == message.destination())
+            {
+                if let Some(recent_file_path) = settings.recent.scenes.get(recent_file) {
+                    if is_scene_needs_to_be_saved(editor_scene.as_deref()) {
+                        sender
+                            .send(Message::OpenSaveSceneConfirmationDialog(
+                                SaveSceneConfirmationDialogAction::LoadScene(
+                                    recent_file_path.clone(),
+                                ),
+                            ))
+                            .unwrap();
+                    } else {
+                        sender
+                            .send(Message::LoadScene(recent_file_path.clone()))
+                            .unwrap();
+                    }
+                }
             }
         }
     }
