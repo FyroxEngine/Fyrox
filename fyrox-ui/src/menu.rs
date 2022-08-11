@@ -39,12 +39,18 @@ pub enum MenuItemMessage {
     Open,
     Close,
     Click,
+    AddItem(Handle<UiNode>),
+    RemoveItem(Handle<UiNode>),
+    Items(Vec<Handle<UiNode>>),
 }
 
 impl MenuItemMessage {
     define_constructor!(MenuItemMessage:Open => fn open(), layout: false);
     define_constructor!(MenuItemMessage:Close => fn close(), layout: false);
     define_constructor!(MenuItemMessage:Click => fn click(), layout: false);
+    define_constructor!(MenuItemMessage:AddItem => fn add_item(Handle<UiNode>), layout: false);
+    define_constructor!(MenuItemMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false);
+    define_constructor!(MenuItemMessage:Items => fn items(Vec<Handle<UiNode>>), layout: false);
 }
 
 #[derive(Clone)]
@@ -165,6 +171,7 @@ pub struct MenuItem {
     widget: Widget,
     items: Vec<Handle<UiNode>>,
     popup: Handle<UiNode>,
+    panel: Handle<UiNode>,
     placement: MenuItemPlacement,
 }
 
@@ -314,27 +321,73 @@ impl Control for MenuItem {
                 _ => {}
             }
         } else if let Some(msg) = message.data::<MenuItemMessage>() {
-            match msg {
-                MenuItemMessage::Open => {
-                    if !self.items.is_empty() {
-                        let placement = match self.placement {
-                            MenuItemPlacement::Bottom => Placement::LeftBottom(self.handle),
-                            MenuItemPlacement::Right => Placement::RightTop(self.handle),
-                        };
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::ToWidget
+            {
+                match msg {
+                    MenuItemMessage::Open => {
+                        if !self.items.is_empty() {
+                            let placement = match self.placement {
+                                MenuItemPlacement::Bottom => Placement::LeftBottom(self.handle),
+                                MenuItemPlacement::Right => Placement::RightTop(self.handle),
+                            };
 
-                        // Open popup.
-                        ui.send_message(PopupMessage::placement(
+                            // Open popup.
+                            ui.send_message(PopupMessage::placement(
+                                self.popup,
+                                MessageDirection::ToWidget,
+                                placement,
+                            ));
+                            ui.send_message(PopupMessage::open(
+                                self.popup,
+                                MessageDirection::ToWidget,
+                            ));
+                        }
+                    }
+                    MenuItemMessage::Close => {
+                        ui.send_message(PopupMessage::close(
                             self.popup,
                             MessageDirection::ToWidget,
-                            placement,
                         ));
-                        ui.send_message(PopupMessage::open(self.popup, MessageDirection::ToWidget));
+                    }
+                    MenuItemMessage::Click => {}
+                    MenuItemMessage::AddItem(item) => {
+                        ui.send_message(WidgetMessage::link(
+                            *item,
+                            MessageDirection::ToWidget,
+                            self.panel,
+                        ));
+                        self.items.push(*item);
+                    }
+                    MenuItemMessage::RemoveItem(item) => {
+                        if let Some(position) = self.items.iter().position(|i| *i == *item) {
+                            self.items.remove(position);
+
+                            ui.send_message(WidgetMessage::remove(
+                                *item,
+                                MessageDirection::ToWidget,
+                            ));
+                        }
+                    }
+                    MenuItemMessage::Items(items) => {
+                        for &current_item in self.items.iter() {
+                            ui.send_message(WidgetMessage::remove(
+                                current_item,
+                                MessageDirection::ToWidget,
+                            ));
+                        }
+
+                        for &item in items {
+                            ui.send_message(WidgetMessage::link(
+                                item,
+                                MessageDirection::ToWidget,
+                                self.panel,
+                            ));
+                        }
+
+                        self.items = items.clone();
                     }
                 }
-                MenuItemMessage::Close => {
-                    ui.send_message(PopupMessage::close(self.popup, MessageDirection::ToWidget));
-                }
-                MenuItemMessage::Click => {}
             }
         }
     }
@@ -610,13 +663,15 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
 
         ctx.link(content, back);
 
+        let panel;
         let popup = PopupBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(10.0, 10.0)))
-            .with_content(
-                StackPanelBuilder::new(
+            .with_content({
+                panel = StackPanelBuilder::new(
                     WidgetBuilder::new().with_children(self.items.iter().cloned()),
                 )
-                .build(ctx),
-            )
+                .build(ctx);
+                panel
+            })
             // We'll manually control if popup is either open or closed.
             .stays_open(true)
             .build(ctx);
@@ -631,6 +686,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
             popup,
             items: self.items,
             placement: MenuItemPlacement::Right,
+            panel,
         };
 
         let handle = ctx.add_node(UiNode::new(menu));
