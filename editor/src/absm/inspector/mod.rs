@@ -1,16 +1,8 @@
 use crate::{
     absm::{
         command::{
-            blend::{
-                AddInputCommand, AddPoseSourceCommand, RemoveInputCommand, RemovePoseSourceCommand,
-                SetBlendAnimationsByIndexInputBlendTimeCommand,
-                SetBlendAnimationsByIndexParameterCommand, SetBlendAnimationsPoseWeightCommand,
-                SetPoseWeightConstantCommand, SetPoseWeightParameterCommand,
-            },
-            AbsmCommand, CommandGroup, MovePoseNodeCommand, MoveStateNodeCommand,
-            SetPlayAnimationResourceCommand, SetPlayAnimationSpeedCommand,
-            SetPlayAnimationTimeSliceCommand, SetStateNameCommand, SetTransitionInvertRuleCommand,
-            SetTransitionNameCommand, SetTransitionRuleCommand, SetTransitionTimeCommand,
+            pose::make_set_pose_property_command, state::make_set_state_property_command,
+            transition::make_set_transition_property_command, CommandGroup,
         },
         message::MessageSender,
         AbsmDataModel, SelectedEntity,
@@ -25,12 +17,9 @@ use fyrox::{
                 BlendAnimationsByIndexDefinition, BlendAnimationsDefinition, BlendPoseDefinition,
                 IndexedBlendInputDefinition,
             },
-            play::PlayAnimationDefinition,
-            play::TimeSlice,
-            BasePoseNodeDefinition, PoseNodeDefinition,
+            play::{PlayAnimationDefinition, TimeSlice},
+            BasePoseNodeDefinition,
         },
-        state::StateDefinition,
-        transition::TransitionDefinition,
         MachineDefinition, PoseWeight,
     },
     core::{inspect::Inspect, pool::Handle},
@@ -42,8 +31,7 @@ use fyrox::{
                 inspectable::InspectablePropertyEditorDefinition,
                 PropertyEditorDefinitionContainer,
             },
-            CollectionChanged, FieldKind, InspectorBuilder, InspectorContext, InspectorMessage,
-            PropertyChanged,
+            InspectorBuilder, InspectorContext, InspectorMessage,
         },
         message::UiMessage,
         widget::WidgetBuilder,
@@ -52,7 +40,7 @@ use fyrox::{
     },
     utils::log::Log,
 };
-use std::{any::TypeId, ops::Range, rc::Rc, sync::mpsc::Sender};
+use std::{rc::Rc, sync::mpsc::Sender};
 
 pub struct Inspector {
     pub window: Handle<UiNode>,
@@ -84,8 +72,18 @@ impl Inspector {
         property_editors
             .insert(VecCollectionPropertyEditorDefinition::<BlendPoseDefinition>::new());
         property_editors.insert(EnumPropertyEditorDefinition::<PoseWeight>::new());
+        property_editors.insert(InspectablePropertyEditorDefinition::<PoseWeight>::new());
         property_editors.insert(InspectablePropertyEditorDefinition::<TimeSlice>::new());
         property_editors.insert(EnumPropertyEditorDefinition::<TimeSlice>::new_optional());
+        property_editors.insert(InspectablePropertyEditorDefinition::<TimeSlice>::new());
+        property_editors.insert(InspectablePropertyEditorDefinition::<
+            BlendAnimationsByIndexDefinition,
+        >::new());
+        property_editors.insert(InspectablePropertyEditorDefinition::<
+            BlendAnimationsDefinition,
+        >::new());
+        property_editors
+            .insert(InspectablePropertyEditorDefinition::<PlayAnimationDefinition>::new());
 
         Self {
             window,
@@ -171,35 +169,15 @@ impl Inspector {
                 let group = data_model
                     .selection
                     .iter()
-                    .filter_map(|entry| match entry {
+                    .map(|entry| match entry {
                         SelectedEntity::Transition(transition) => {
-                            handle_transition_property_changed(args, *transition)
+                            make_set_transition_property_command(*transition, args)
                         }
-                        SelectedEntity::State(state) => handle_state_property_changed(
-                            args,
-                            *state,
-                            &data_model.resource.data_ref().absm_definition.states[*state],
-                        ),
+                        SelectedEntity::State(state) => {
+                            make_set_state_property_command(*state, args)
+                        }
                         SelectedEntity::PoseNode(pose_node) => {
-                            let node =
-                                &data_model.resource.data_ref().absm_definition.nodes[*pose_node];
-                            if args.owner_type_id == TypeId::of::<PlayAnimationDefinition>() {
-                                handle_play_animation_node_property_changed(args, *pose_node, node)
-                            } else if args.owner_type_id
-                                == TypeId::of::<BlendAnimationsByIndexDefinition>()
-                            {
-                                handle_blend_animations_by_index_node_property_changed(
-                                    args, *pose_node, node,
-                                )
-                            } else if args.owner_type_id
-                                == TypeId::of::<BlendAnimationsDefinition>()
-                            {
-                                handle_blend_animations_node_property_changed(
-                                    args, *pose_node, node,
-                                )
-                            } else {
-                                None
-                            }
+                            make_set_pose_property_command(*pose_node, args)
                         }
                     })
                     .collect::<Vec<_>>();
@@ -211,252 +189,5 @@ impl Inspector {
                 }
             }
         }
-    }
-}
-
-fn handle_transition_property_changed(
-    args: &PropertyChanged,
-    handle: Handle<TransitionDefinition>,
-) -> Option<AbsmCommand> {
-    match args.value {
-        FieldKind::Object(ref value) => match args.name.as_ref() {
-            TransitionDefinition::NAME => Some(AbsmCommand::new(SetTransitionNameCommand {
-                handle,
-                value: value.cast_clone()?,
-            })),
-            TransitionDefinition::RULE => Some(AbsmCommand::new(SetTransitionRuleCommand {
-                handle,
-                value: value.cast_clone()?,
-            })),
-            TransitionDefinition::TRANSITION_TIME => {
-                Some(AbsmCommand::new(SetTransitionTimeCommand {
-                    handle,
-                    value: value.cast_clone()?,
-                }))
-            }
-            TransitionDefinition::INVERT_RULE => {
-                Some(AbsmCommand::new(SetTransitionInvertRuleCommand {
-                    handle,
-                    value: value.cast_clone()?,
-                }))
-            }
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
-fn handle_state_property_changed(
-    args: &PropertyChanged,
-    handle: Handle<StateDefinition>,
-    state_definition: &StateDefinition,
-) -> Option<AbsmCommand> {
-    match args.value {
-        FieldKind::Object(ref value) => match args.name.as_ref() {
-            StateDefinition::POSITION => Some(AbsmCommand::new(MoveStateNodeCommand::new(
-                handle,
-                state_definition.position,
-                value.cast_clone()?,
-            ))),
-            StateDefinition::NAME => Some(AbsmCommand::new(SetStateNameCommand {
-                handle,
-                value: value.cast_clone()?,
-            })),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
-fn handle_play_animation_node_property_changed(
-    args: &PropertyChanged,
-    handle: Handle<PoseNodeDefinition>,
-    node: &PoseNodeDefinition,
-) -> Option<AbsmCommand> {
-    match args.value {
-        FieldKind::Object(ref value) => match args.name.as_ref() {
-            PlayAnimationDefinition::ANIMATION => {
-                Some(AbsmCommand::new(SetPlayAnimationResourceCommand {
-                    handle,
-                    value: value.cast_clone()?,
-                }))
-            }
-            PlayAnimationDefinition::SPEED => {
-                Some(AbsmCommand::new(SetPlayAnimationSpeedCommand {
-                    handle,
-                    value: value.cast_clone()?,
-                }))
-            }
-            PlayAnimationDefinition::TIME_SLICE => {
-                Some(AbsmCommand::new(SetPlayAnimationTimeSliceCommand {
-                    handle,
-                    value: value.cast_clone()?,
-                }))
-            }
-            _ => None,
-        },
-        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
-            PlayAnimationDefinition::BASE => {
-                handle_base_pose_node_property_changed(inner, handle, node)
-            }
-            PlayAnimationDefinition::TIME_SLICE => {
-                handle_play_animation_time_slice_property_changed(inner, handle)
-            }
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
-fn handle_blend_animations_by_index_node_property_changed(
-    args: &PropertyChanged,
-    handle: Handle<PoseNodeDefinition>,
-    node: &PoseNodeDefinition,
-) -> Option<AbsmCommand> {
-    match args.value {
-        FieldKind::Object(ref value) => match args.name.as_ref() {
-            BlendAnimationsByIndexDefinition::INDEX_PARAMETER => Some(AbsmCommand::new(
-                SetBlendAnimationsByIndexParameterCommand {
-                    handle,
-                    value: value.cast_clone()?,
-                },
-            )),
-            _ => None,
-        },
-        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
-            BlendAnimationsByIndexDefinition::BASE => {
-                handle_base_pose_node_property_changed(inner, handle, node)
-            }
-            _ => None,
-        },
-        FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
-            BlendAnimationsByIndexDefinition::INPUTS => match **collection_changed {
-                CollectionChanged::Add(_) => Some(AbsmCommand::new(AddInputCommand {
-                    handle,
-                    value: Some(Default::default()),
-                })),
-                CollectionChanged::Remove(i) => {
-                    Some(AbsmCommand::new(RemoveInputCommand::new(handle, i)))
-                }
-                CollectionChanged::ItemChanged {
-                    index,
-                    ref property,
-                    ..
-                } => match property.value {
-                    FieldKind::Object(ref value) => match property.name.as_ref() {
-                        IndexedBlendInputDefinition::BLEND_TIME => Some(AbsmCommand::new(
-                            SetBlendAnimationsByIndexInputBlendTimeCommand {
-                                handle,
-                                index,
-                                value: value.cast_clone()?,
-                            },
-                        )),
-                        _ => None,
-                    },
-                    _ => None,
-                },
-            },
-            _ => None,
-        },
-    }
-}
-
-#[allow(clippy::manual_map)]
-fn handle_blend_animations_node_property_changed(
-    args: &PropertyChanged,
-    handle: Handle<PoseNodeDefinition>,
-    node: &PoseNodeDefinition,
-) -> Option<AbsmCommand> {
-    match args.value {
-        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
-            BlendAnimationsDefinition::BASE => {
-                handle_base_pose_node_property_changed(inner, handle, node)
-            }
-            _ => None,
-        },
-        FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
-            BlendAnimationsDefinition::POSE_SOURCES => match **collection_changed {
-                CollectionChanged::Add(_) => Some(AbsmCommand::new(AddPoseSourceCommand {
-                    handle,
-                    value: Some(Default::default()),
-                })),
-                CollectionChanged::Remove(i) => {
-                    Some(AbsmCommand::new(RemovePoseSourceCommand::new(handle, i)))
-                }
-                CollectionChanged::ItemChanged {
-                    index,
-                    ref property,
-                    ..
-                } => match property.value {
-                    FieldKind::Object(ref value) => match property.name.as_ref() {
-                        BlendPoseDefinition::WEIGHT => {
-                            Some(AbsmCommand::new(SetBlendAnimationsPoseWeightCommand {
-                                handle,
-                                index,
-                                value: value.cast_clone()?,
-                            }))
-                        }
-                        _ => None,
-                    },
-                    FieldKind::Inspectable(ref inner) => match inner.value {
-                        FieldKind::Object(ref value) => match inner.name.as_ref() {
-                            PoseWeight::CONSTANT_F_0 => {
-                                Some(AbsmCommand::new(SetPoseWeightConstantCommand {
-                                    handle,
-                                    value: value.cast_clone()?,
-                                    index,
-                                }))
-                            }
-                            PoseWeight::PARAMETER_F_0 => {
-                                Some(AbsmCommand::new(SetPoseWeightParameterCommand {
-                                    handle,
-                                    value: value.cast_clone()?,
-                                    index,
-                                }))
-                            }
-                            _ => None,
-                        },
-                        _ => None,
-                    },
-                    _ => None,
-                },
-            },
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
-fn handle_base_pose_node_property_changed(
-    args: &PropertyChanged,
-    handle: Handle<PoseNodeDefinition>,
-    base: &BasePoseNodeDefinition,
-) -> Option<AbsmCommand> {
-    match args.value {
-        FieldKind::Object(ref value) => {
-            match args.name.as_ref() {
-                BasePoseNodeDefinition::POSITION => Some(AbsmCommand::new(
-                    MovePoseNodeCommand::new(handle, base.position, value.cast_clone()?),
-                )),
-                _ => None,
-            }
-        }
-        _ => None,
-    }
-}
-
-fn handle_play_animation_time_slice_property_changed(
-    args: &PropertyChanged,
-    handle: Handle<PoseNodeDefinition>,
-) -> Option<AbsmCommand> {
-    match args.value {
-        FieldKind::Object(ref value) => match args.name.as_ref() {
-            TimeSlice::F_0 => Some(AbsmCommand::new(SetPlayAnimationTimeSliceCommand {
-                handle,
-                value: Some(TimeSlice(value.cast_clone::<Range<f32>>()?)),
-            })),
-            _ => None,
-        },
-        _ => None,
     }
 }

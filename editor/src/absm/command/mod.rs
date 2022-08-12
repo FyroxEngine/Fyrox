@@ -1,5 +1,4 @@
 use crate::{absm::SelectedEntity, define_command_stack};
-use fyrox::animation::machine::node::play::TimeSlice;
 use fyrox::{
     animation::machine::{
         node::PoseNodeDefinition, parameter::ParameterDefinition, state::StateDefinition,
@@ -16,6 +15,10 @@ use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
+
+pub mod pose;
+pub mod state;
+pub mod transition;
 
 #[derive(Debug)]
 pub struct AbsmEditorContext<'a> {
@@ -699,34 +702,6 @@ define_absm_swap_command!(SetStateRootPoseCommand<Handle<StateDefinition>, Handl
     &mut context.resource.absm_definition.states[self.handle].root
 });
 
-define_absm_swap_command!(SetStateNameCommand<Handle<StateDefinition>, String>[](self, context) {
-    &mut context.resource.absm_definition.states[self.handle].name
-});
-
-define_absm_swap_command!(SetPlayAnimationResourceCommand<Handle<PoseNodeDefinition>, String>[](self, context) {
-    if let PoseNodeDefinition::PlayAnimation(ref mut play_animation) = context.resource.absm_definition.nodes[self.handle] {
-        &mut play_animation.animation
-    } else {
-        unreachable!()
-    }
-});
-
-define_absm_swap_command!(SetPlayAnimationSpeedCommand<Handle<PoseNodeDefinition>, f32>[](self, context) {
-    if let PoseNodeDefinition::PlayAnimation(ref mut play_animation) = context.resource.absm_definition.nodes[self.handle] {
-        &mut play_animation.speed
-    } else {
-        unreachable!()
-    }
-});
-
-define_absm_swap_command!(SetPlayAnimationTimeSliceCommand<Handle<PoseNodeDefinition>, Option<TimeSlice>>[](self, context) {
-    if let PoseNodeDefinition::PlayAnimation(ref mut play_animation) = context.resource.absm_definition.nodes[self.handle] {
-        &mut play_animation.time_slice
-    } else {
-        unreachable!()
-    }
-});
-
 define_push_element_to_collection_command!(AddParameterCommand<(), ParameterDefinition>(self, context) {
    &mut context.resource.absm_definition.parameters.container
 });
@@ -765,20 +740,4 @@ define_absm_swap_command!(SetParameterIndexValueCommand<usize, u32>[](self, cont
     } else {
         unreachable!()
     }
-});
-
-define_absm_swap_command!(SetTransitionNameCommand<Handle<TransitionDefinition>, String>[](self, context) {
-    &mut context.resource.absm_definition.transitions[self.handle].name
-});
-
-define_absm_swap_command!(SetTransitionTimeCommand<Handle<TransitionDefinition>, f32>[](self, context) {
-    &mut context.resource.absm_definition.transitions[self.handle].transition_time
-});
-
-define_absm_swap_command!(SetTransitionRuleCommand<Handle<TransitionDefinition>, String>[](self, context) {
-    &mut context.resource.absm_definition.transitions[self.handle].rule
-});
-
-define_absm_swap_command!(SetTransitionInvertRuleCommand<Handle<TransitionDefinition>, bool>[](self, context) {
-    &mut context.resource.absm_definition.transitions[self.handle].invert_rule
 });

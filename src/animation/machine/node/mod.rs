@@ -131,7 +131,7 @@ pub struct BasePoseNodeDefinition {
     pub parent_state: Handle<StateDefinition>,
 }
 
-#[derive(Debug, Visit, Clone)]
+#[derive(Debug, Visit, Clone, Inspect, Reflect)]
 pub enum PoseNodeDefinition {
     PlayAnimation(PlayAnimationDefinition),
     BlendAnimations(BlendAnimationsDefinition),
@@ -175,16 +175,6 @@ impl DerefMut for PoseNodeDefinition {
             PoseNodeDefinition::PlayAnimation(v) => v,
             PoseNodeDefinition::BlendAnimations(v) => v,
             PoseNodeDefinition::BlendAnimationsByIndex(v) => v,
-        }
-    }
-}
-
-impl Inspect for PoseNodeDefinition {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        match self {
-            PoseNodeDefinition::PlayAnimation(v) => v.properties(),
-            PoseNodeDefinition::BlendAnimations(v) => v.properties(),
-            PoseNodeDefinition::BlendAnimationsByIndex(v) => v.properties(),
         }
     }
 }
