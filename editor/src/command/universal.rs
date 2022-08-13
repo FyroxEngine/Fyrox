@@ -33,6 +33,7 @@ macro_rules! define_universal_commands {
 
         #[derive(Debug)]
         pub struct SetPropertyCommand {
+            #[allow(dead_code)]
             $handle_ident: $handle,
             value: Option<Box<dyn fyrox::core::reflect::Reflect>>,
             path: String,
@@ -122,6 +123,7 @@ macro_rules! define_universal_commands {
 
         #[derive(Debug)]
         pub struct AddCollectionItemCommand {
+            #[allow(dead_code)]
             $handle_ident: $handle,
             path: String,
             item: Option<Box<dyn fyrox::core::reflect::Reflect>>,
@@ -177,6 +179,7 @@ macro_rules! define_universal_commands {
 
         #[derive(Debug)]
         pub struct RemoveCollectionItemCommand {
+            #[allow(dead_code)]
             $handle_ident: $handle,
             path: String,
             index: usize,

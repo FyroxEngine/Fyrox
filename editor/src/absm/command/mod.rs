@@ -1,8 +1,8 @@
 use crate::{absm::SelectedEntity, define_command_stack};
 use fyrox::{
     animation::machine::{
-        node::PoseNodeDefinition, parameter::ParameterDefinition, state::StateDefinition,
-        transition::TransitionDefinition, MachineDefinition, MachineInstantiationError, Parameter,
+        node::PoseNodeDefinition, state::StateDefinition, transition::TransitionDefinition,
+        MachineDefinition, MachineInstantiationError,
     },
     asset::ResourceDataRef,
     core::{
@@ -16,6 +16,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+pub mod parameter;
 pub mod pose;
 pub mod state;
 pub mod transition;
@@ -700,44 +701,4 @@ macro_rules! define_absm_swap_command {
 
 define_absm_swap_command!(SetStateRootPoseCommand<Handle<StateDefinition>, Handle<PoseNodeDefinition>>[](self, context) {
     &mut context.resource.absm_definition.states[self.handle].root
-});
-
-define_push_element_to_collection_command!(AddParameterCommand<(), ParameterDefinition>(self, context) {
-   &mut context.resource.absm_definition.parameters.container
-});
-
-define_remove_collection_element_command!(RemoveParameterCommand<(), ParameterDefinition>(self, context) {
-    &mut context.resource.absm_definition.parameters.container
-});
-
-define_absm_swap_command!(SetParameterNameCommand<usize, String>[](self, context) {
-    &mut context.resource.absm_definition.parameters.container[self.handle].name
-});
-
-define_absm_swap_command!(SetParameterValueCommand<usize, Parameter>[](self, context) {
-    &mut context.resource.absm_definition.parameters.container[self.handle].value
-});
-
-define_absm_swap_command!(SetParameterWeightValueCommand<usize, f32>[](self, context) {
-    if let Parameter::Weight(ref mut weight) = context.resource.absm_definition.parameters.container[self.handle].value {
-        weight
-    } else {
-        unreachable!()
-    }
-});
-
-define_absm_swap_command!(SetParameterRuleValueCommand<usize, bool>[](self, context) {
-    if let Parameter::Rule(ref mut rule) = context.resource.absm_definition.parameters.container[self.handle].value {
-        rule
-    } else {
-        unreachable!()
-    }
-});
-
-define_absm_swap_command!(SetParameterIndexValueCommand<usize, u32>[](self, context) {
-    if let Parameter::Index(ref mut index) = context.resource.absm_definition.parameters.container[self.handle].value {
-        index
-    } else {
-        unreachable!()
-    }
 });
