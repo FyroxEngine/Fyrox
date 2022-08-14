@@ -41,6 +41,9 @@ pub struct Menu {
 pub struct Panels<'b> {
     pub light_panel: Handle<UiNode>,
     pub log_panel: Handle<UiNode>,
+    pub navmesh_panel: Handle<UiNode>,
+    pub audio_panel: Handle<UiNode>,
+    pub command_stack_panel: Handle<UiNode>,
     pub inspector_window: Handle<UiNode>,
     pub world_outliner_window: Handle<UiNode>,
     pub asset_window: Handle<UiNode>,

@@ -16,6 +16,9 @@ pub struct ViewMenu {
     asset_browser: Handle<UiNode>,
     light_panel: Handle<UiNode>,
     log_panel: Handle<UiNode>,
+    nav_mesh: Handle<UiNode>,
+    audio: Handle<UiNode>,
+    command_stack: Handle<UiNode>,
 }
 
 fn switch_window_state(window: Handle<UiNode>, ui: &UserInterface, center: bool) {
@@ -34,6 +37,9 @@ impl ViewMenu {
         let world_viewer;
         let light_panel;
         let log_panel;
+        let nav_mesh;
+        let audio;
+        let command_stack;
         let menu = create_root_menu_item(
             "View",
             vec![
@@ -57,6 +63,18 @@ impl ViewMenu {
                     log_panel = create_menu_item("Log Panel", vec![], ctx);
                     log_panel
                 },
+                {
+                    nav_mesh = create_menu_item("Navmesh Panel", vec![], ctx);
+                    nav_mesh
+                },
+                {
+                    audio = create_menu_item("Audio Panel", vec![], ctx);
+                    audio
+                },
+                {
+                    command_stack = create_menu_item("Command Stack Panel", vec![], ctx);
+                    command_stack
+                },
             ],
             ctx,
         );
@@ -68,6 +86,9 @@ impl ViewMenu {
             asset_browser,
             light_panel,
             log_panel,
+            nav_mesh,
+            audio,
+            command_stack,
         }
     }
 
@@ -83,6 +104,12 @@ impl ViewMenu {
                 switch_window_state(panels.inspector_window, ui, false);
             } else if message.destination() == self.log_panel {
                 switch_window_state(panels.log_panel, ui, false);
+            } else if message.destination() == self.nav_mesh {
+                switch_window_state(panels.navmesh_panel, ui, false);
+            } else if message.destination() == self.audio {
+                switch_window_state(panels.audio_panel, ui, false);
+            } else if message.destination() == self.command_stack {
+                switch_window_state(panels.command_stack_panel, ui, false);
             }
         }
     }
