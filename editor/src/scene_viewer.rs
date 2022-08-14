@@ -74,6 +74,7 @@ fn make_interaction_mode_button(
                 BorderBuilder::new(
                     WidgetBuilder::new()
                         .with_max_size(Vector2::new(300.0, f32::MAX))
+                        .with_visibility(false)
                         .with_child(
                             TextBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
