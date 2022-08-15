@@ -1,8 +1,6 @@
-use crate::scene::mesh::Mesh;
-use crate::scene::terrain::Terrain;
 use crate::{
     core::{
-        algebra::{Matrix4, Point3, Vector3},
+        algebra::{Matrix4, Point3, Vector2, Vector3},
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Rect},
         sstorage::ImmutableString,
     },
@@ -25,9 +23,10 @@ use crate::{
         camera::Camera,
         graph::Graph,
         light::directional::{DirectionalLight, FrustumSplitOptions, CSM_NUM_CASCADES},
+        mesh::Mesh,
+        terrain::Terrain,
     },
 };
-use fyrox_core::algebra::Vector2;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct Cascade {
@@ -168,12 +167,6 @@ impl CsmRenderer {
             .try_normalize(f32::EPSILON)
             .unwrap_or_else(Vector3::z);
 
-        let light_view_matrix = Matrix4::look_at_rh(
-            &Point3::new(0.0, 0.0, 0.0),
-            &Point3::from(light_direction),
-            &light_up_vec,
-        );
-
         let z_values = match light.csm_options.split_options {
             FrustumSplitOptions::Absolute { far_planes } => [
                 camera.projection().z_near(),
@@ -207,6 +200,13 @@ impl CsmRenderer {
             let frustum =
                 Frustum::from(projection_matrix * camera.view_matrix()).unwrap_or_default();
 
+            let center = frustum.center();
+            let light_view_matrix = Matrix4::look_at_lh(
+                &Point3::from(center + light_direction),
+                &Point3::from(center),
+                &light_up_vec,
+            );
+
             let mut aabb = AxisAlignedBoundingBox::default();
             for corner in frustum.corners() {
                 let light_space_corner = light_view_matrix
@@ -215,20 +215,24 @@ impl CsmRenderer {
                 aabb.add_point(light_space_corner);
             }
 
-            // TODO: For some reason this coefficient is crucial, without it CSM bugs when cascades
-            // don't overlap for some frustum orientations. Investigate why this is needed.
-            const CASCADE_Z_OVERLAP: f32 = 10.0;
+            // Make sure most of the objects outside of the frustum will cast shadows.
+            let z_mult = 10.0;
+            if aabb.min.z < 0.0 {
+                aabb.min.z *= z_mult;
+            } else {
+                aabb.min.z /= z_mult;
+            }
+            if aabb.max.z < 0.0 {
+                aabb.max.z /= z_mult;
+            } else {
+                aabb.max.z *= z_mult;
+            }
 
-            let projection_matrix = Matrix4::new_orthographic(
-                aabb.min.x,
-                aabb.max.x,
-                aabb.min.y,
-                aabb.max.y,
-                aabb.min.z,
-                aabb.max.z + CASCADE_Z_OVERLAP,
+            let cascade_projection_matrix = Matrix4::new_orthographic(
+                aabb.min.x, aabb.max.x, aabb.min.y, aabb.max.y, aabb.min.z, aabb.max.z,
             );
 
-            let light_view_projection = projection_matrix * light_view_matrix;
+            let light_view_projection = cascade_projection_matrix * light_view_matrix;
             self.cascades[i].view_proj_matrix = light_view_projection;
             self.cascades[i].z_far = zfar;
 
