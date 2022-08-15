@@ -406,6 +406,12 @@ pub struct Base {
     pub(crate) original_handle_in_resource: Handle<Node>,
 
     // Current script of the scene node.
+    //
+    // # Important notes
+    //
+    // WARNING: Setting a new script via reflection will break normal script destruction process!
+    // Use it at your own risk only when you're completely sure what you are doing.
+    #[reflect(setter = "set_script_internal")]
     pub(crate) script: Option<Script>,
 }
 
@@ -746,6 +752,10 @@ impl Base {
                 }));
             }
         }
+    }
+
+    fn set_script_internal(&mut self, script: Option<Script>) -> Option<Script> {
+        std::mem::replace(&mut self.script, script)
     }
 
     /// Returns shared reference to current script instance.
