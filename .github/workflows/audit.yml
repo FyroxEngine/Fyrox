@@ -27,9 +27,7 @@ jobs:
       - run: rustup update
       - run: cargo audit --version
       # RUSTSEC-2020-0016: net2 is unmaintained - fixed in notify 5.0 prerelease, waiting for release
-      # RUSTSEC-2020-0056: stdweb is unmaintained - should be safe to ignore until stdweb is removed from instant
       # RUSTSEC-2020-0097: xcb - Soundness issue with base::Error
-      # RUSTSEC-2021-0019: xcb - Multiple soundness issues
-      # RUSTSEC-2021-0119: nix - Out-of-bounds write in nix::unistd::getgrouplist - waiting for new winit release
+      # RUSTSEC-2022-0048: xml-rs is Unmaintained
       # For more info: https://github.com/FyroxEngine/Fyrox/issues/208
-      - run: cargo audit --deny warnings --ignore RUSTSEC-2020-0016 --ignore RUSTSEC-2020-0056 --ignore RUSTSEC-2020-0097 --ignore RUSTSEC-2021-0019 --ignore RUSTSEC-2021-0119
+      - run: cargo audit --deny warnings --ignore RUSTSEC-2020-0016 --ignore RUSTSEC-2020-0097 --ignore RUSTSEC-2022-0048
