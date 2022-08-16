@@ -796,6 +796,7 @@ impl DeferredLightRenderer {
                             self.csm_renderer.cascades()[1].view_proj_matrix,
                             self.csm_renderer.cascades()[2].view_proj_matrix,
                         ];
+                        let csm_map_size = self.csm_renderer.size() as f32;
 
                         program_binding
                             .set_vector3(&shader.light_direction, &emit_direction)
@@ -830,7 +831,9 @@ impl DeferredLightRenderer {
                             .set_f32_slice(&shader.cascade_distances, &distances)
                             .set_matrix4(&shader.view_matrix, &camera.view_matrix())
                             .set_f32(&shader.shadow_bias, directional.csm_options.shadow_bias())
-                            .set_bool(&shader.shadows_enabled, shadows_enabled);
+                            .set_bool(&shader.shadows_enabled, shadows_enabled)
+                            .set_bool(&shader.soft_shadows, settings.csm_settings.pcf)
+                            .set_f32(&shader.shadow_map_inv_size, 1.0 / csm_map_size);
                     },
                 )
             } else {

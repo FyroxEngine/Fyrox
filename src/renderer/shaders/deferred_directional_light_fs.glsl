@@ -21,6 +21,8 @@ uniform sampler2D shadowCascade2;
 
 uniform bool shadowsEnabled;
 uniform float shadowBias;
+uniform bool softShadows;
+uniform float shadowMapInvSize;
 
 in vec2 texCoord;
 out vec4 FragColor;
@@ -28,25 +30,7 @@ out vec4 FragColor;
 // Returns **inverted** shadow factor where 1 - fully bright, 0 - fully in shadow.
 float CsmGetShadow(in sampler2D sampler, in vec3 fragmentPosition, in mat4 lightViewProjMatrix)
 {
-    if (shadowsEnabled)
-    {
-        vec3 lightSpacePosition = S_Project(fragmentPosition, lightViewProjMatrix);
-
-        float biasedLightSpaceZ = lightSpacePosition.z - shadowBias;
-
-        if (biasedLightSpaceZ > texture(sampler, lightSpacePosition.xy).r)
-        {
-            return 0.0;
-        }
-        else
-        {
-            return 1.0;
-        }
-    }
-    else
-    {
-        return 1.0;
-    }
+    return S_SpotShadowFactor(shadowsEnabled, softShadows, shadowBias, fragmentPosition, lightViewProjMatrix, shadowMapInvSize, sampler);
 }
 
 void main()
