@@ -1,3 +1,4 @@
+use crate::gui::make_image_button_with_tooltip;
 use crate::{
     load_image,
     scene::{
@@ -29,7 +30,6 @@ use fyrox::{
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         decorator::{Decorator, DecoratorMessage},
         grid::{Column, GridBuilder, Row},
-        image::ImageBuilder,
         message::{MessageDirection, UiMessage},
         scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
         stack_panel::StackPanelBuilder,
@@ -189,52 +189,39 @@ impl WorldViewer {
                                     .with_margin(Thickness::uniform(1.0))
                                     .on_row(0)
                                     .with_child({
-                                        collapse_all = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_content(
-                                            ImageBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_margin(Thickness::uniform(1.0))
-                                                    .with_width(20.0)
-                                                    .with_height(20.0),
-                                            )
-                                            .with_opt_texture(load_image(include_bytes!(
+                                        collapse_all = make_image_button_with_tooltip(
+                                            ctx,
+                                            20.0,
+                                            20.0,
+                                            load_image(include_bytes!(
                                                 "../../resources/embed/collapse.png"
-                                            )))
-                                            .build(ctx),
-                                        )
-                                        .build(ctx);
+                                            )),
+                                            "Collapse Everything",
+                                        );
                                         collapse_all
                                     })
                                     .with_child({
-                                        expand_all = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_content(
-                                            ImageBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_margin(Thickness::uniform(1.0))
-                                                    .with_width(20.0)
-                                                    .with_height(20.0),
-                                            )
-                                            .with_opt_texture(load_image(include_bytes!(
+                                        expand_all = make_image_button_with_tooltip(
+                                            ctx,
+                                            20.0,
+                                            20.0,
+                                            load_image(include_bytes!(
                                                 "../../resources/embed/expand.png"
-                                            )))
-                                            .build(ctx),
-                                        )
-                                        .build(ctx);
+                                            )),
+                                            "Expand Everything",
+                                        );
                                         expand_all
                                     })
                                     .with_child({
-                                        locate_selection = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_text("Locate Selection")
-                                        .build(ctx);
+                                        locate_selection = make_image_button_with_tooltip(
+                                            ctx,
+                                            20.0,
+                                            20.0,
+                                            load_image(include_bytes!(
+                                                "../../resources/embed/locate.png"
+                                            )),
+                                            "Locate Selection",
+                                        );
                                         locate_selection
                                     })
                                     .with_child({

@@ -1,13 +1,17 @@
 use fyrox::{
-    core::pool::Handle,
+    core::{algebra::Vector2, pool::Handle},
     gui::{
         border::BorderBuilder,
+        button::ButtonBuilder,
         decorator::DecoratorBuilder,
         define_constructor,
+        draw::SharedTexture,
+        formatted_text::WrapMode,
+        image::ImageBuilder,
         message::{MessageDirection, UiMessage},
         text::TextBuilder,
         widget::WidgetBuilder,
-        BuildContext, HorizontalAlignment, UiNode, VerticalAlignment,
+        BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
 };
 
@@ -48,4 +52,44 @@ pub fn make_dropdown_list_option_with_height(
 
 impl AssetItemMessage {
     define_constructor!(AssetItemMessage:Select => fn select(bool), layout: false);
+}
+
+pub fn make_image_button_with_tooltip(
+    ctx: &mut BuildContext,
+    width: f32,
+    height: f32,
+    image: Option<SharedTexture>,
+    tooltip: &str,
+) -> Handle<UiNode> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .with_tooltip(
+                BorderBuilder::new(
+                    WidgetBuilder::new()
+                        .with_max_size(Vector2::new(300.0, f32::MAX))
+                        .with_visibility(false)
+                        .with_child(
+                            TextBuilder::new(
+                                WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                            )
+                            .with_wrap(WrapMode::Word)
+                            .with_text(tooltip)
+                            .build(ctx),
+                        ),
+                )
+                .build(ctx),
+            )
+            .with_margin(Thickness::uniform(1.0)),
+    )
+    .with_content(
+        ImageBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .with_width(width)
+                .with_height(height),
+        )
+        .with_opt_texture(image)
+        .build(ctx),
+    )
+    .build(ctx)
 }
