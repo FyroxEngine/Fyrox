@@ -1171,15 +1171,21 @@ impl Graph {
 
     /// Returns rotation quaternion of a node in world coordinates.
     pub fn global_rotation(&self, node: Handle<Node>) -> UnitQuaternion<f32> {
-        UnitQuaternion::from(Rotation3::from_matrix(
+        UnitQuaternion::from(Rotation3::from_matrix_eps(
             &self.global_transform_no_scale(node).basis(),
+            f32::EPSILON,
+            16,
+            Rotation3::identity(),
         ))
     }
 
     /// Returns rotation quaternion of a node in world coordinates without pre- and post-rotations.
     pub fn isometric_global_rotation(&self, node: Handle<Node>) -> UnitQuaternion<f32> {
-        UnitQuaternion::from(Rotation3::from_matrix(
+        UnitQuaternion::from(Rotation3::from_matrix_eps(
             &self.isometric_global_transform(node).basis(),
+            f32::EPSILON,
+            16,
+            Rotation3::identity(),
         ))
     }
 

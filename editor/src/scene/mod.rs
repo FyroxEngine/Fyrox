@@ -292,8 +292,13 @@ impl EditorScene {
                     (light.full_cone_angle() * 0.5).tan() * light.distance(),
                     light.distance(),
                     Matrix4::new_translation(&light.global_position())
-                        * UnitQuaternion::from_matrix(&light.global_transform().basis())
-                            .to_homogeneous()
+                        * UnitQuaternion::from_matrix_eps(
+                            &light.global_transform().basis(),
+                            f32::EPSILON,
+                            16,
+                            UnitQuaternion::identity(),
+                        )
+                        .to_homogeneous()
                         * Matrix4::new_translation(&Vector3::new(
                             0.0,
                             -light.distance() * 0.5,

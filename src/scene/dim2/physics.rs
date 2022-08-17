@@ -360,7 +360,9 @@ fn isometry_from_global_transform(transform: &Matrix4<f32>) -> Isometry2<f32> {
     Isometry2 {
         translation: Translation2::new(transform[12], transform[13]),
         rotation: UnitComplex::from_angle(
-            Rotation3::from_matrix(&transform.basis()).euler_angles().2,
+            Rotation3::from_matrix_eps(&transform.basis(), f32::EPSILON, 16, Rotation3::identity())
+                .euler_angles()
+                .2,
         ),
     }
 }
@@ -625,7 +627,12 @@ impl PhysicsWorld {
                         .unwrap_or_else(Matrix4::identity)
                         * isometry2_to_mat4(native.position());
 
-                    let local_rotation = UnitQuaternion::from_matrix(&local_transform.basis());
+                    let local_rotation = UnitQuaternion::from_matrix_eps(
+                        &local_transform.basis(),
+                        f32::EPSILON,
+                        16,
+                        UnitQuaternion::identity(),
+                    );
                     let local_position =
                         Vector3::new(local_transform[12], local_transform[13], 0.0);
 

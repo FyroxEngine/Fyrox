@@ -914,7 +914,12 @@ pub struct PhysicsWorld {
 fn isometry_from_global_transform(transform: &Matrix4<f32>) -> Isometry3<f32> {
     Isometry3 {
         translation: Translation3::new(transform[12], transform[13], transform[14]),
-        rotation: UnitQuaternion::from_matrix(&transform.basis()),
+        rotation: UnitQuaternion::from_matrix_eps(
+            &transform.basis(),
+            f32::EPSILON,
+            16,
+            UnitQuaternion::identity(),
+        ),
     }
 }
 
@@ -1178,7 +1183,12 @@ impl PhysicsWorld {
                         .unwrap_or_else(Matrix4::identity)
                         * native.position().to_homogeneous();
 
-                    let local_rotation = UnitQuaternion::from_matrix(&local_transform.basis());
+                    let local_rotation = UnitQuaternion::from_matrix_eps(
+                        &local_transform.basis(),
+                        f32::EPSILON,
+                        16,
+                        UnitQuaternion::identity(),
+                    );
                     let local_position = Vector3::new(
                         local_transform[12],
                         local_transform[13],
