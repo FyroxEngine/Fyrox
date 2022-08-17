@@ -1,4 +1,3 @@
-use crate::utils::window_content;
 use crate::{
     load_image,
     scene::{
@@ -6,6 +5,7 @@ use crate::{
         EditorScene, Selection,
     },
     send_sync_message,
+    utils::window_content,
     world::{
         graph::{
             item::{SceneItem, SceneItemBuilder, SceneItemMessage},
@@ -29,6 +29,7 @@ use fyrox::{
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         decorator::{Decorator, DecoratorMessage},
         grid::{Column, GridBuilder, Row},
+        image::ImageBuilder,
         message::{MessageDirection, UiMessage},
         scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
         stack_panel::StackPanelBuilder,
@@ -192,7 +193,18 @@ impl WorldViewer {
                                             WidgetBuilder::new()
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("Collapse All")
+                                        .with_content(
+                                            ImageBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(1.0))
+                                                    .with_width(20.0)
+                                                    .with_height(20.0),
+                                            )
+                                            .with_opt_texture(load_image(include_bytes!(
+                                                "../../resources/embed/collapse.png"
+                                            )))
+                                            .build(ctx),
+                                        )
                                         .build(ctx);
                                         collapse_all
                                     })
@@ -201,7 +213,18 @@ impl WorldViewer {
                                             WidgetBuilder::new()
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("Expand All")
+                                        .with_content(
+                                            ImageBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(1.0))
+                                                    .with_width(20.0)
+                                                    .with_height(20.0),
+                                            )
+                                            .with_opt_texture(load_image(include_bytes!(
+                                                "../../resources/embed/expand.png"
+                                            )))
+                                            .build(ctx),
+                                        )
                                         .build(ctx);
                                         expand_all
                                     })
