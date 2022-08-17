@@ -1,22 +1,19 @@
-use crate::utils::window_content;
 use crate::{
-    command::CommandStack, load_image, scene::commands::SceneContext, send_sync_message, Message,
-    Mode,
+    command::CommandStack, gui::make_image_button_with_tooltip, load_image,
+    scene::commands::SceneContext, send_sync_message, utils::window_content, Message, Mode,
 };
-use fyrox::gui::widget::WidgetMessage;
 use fyrox::{
     core::{color::Color, pool::Handle, scope_profile},
     gui::{
         brush::Brush,
-        button::{ButtonBuilder, ButtonMessage},
+        button::ButtonMessage,
         grid::{Column, GridBuilder, Row},
-        image::ImageBuilder,
         list_view::{ListViewBuilder, ListViewMessage},
         message::{MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
-        widget::WidgetBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface,
     },
@@ -47,60 +44,39 @@ impl CommandStackViewer {
                             StackPanelBuilder::new(
                                 WidgetBuilder::new()
                                     .with_child({
-                                        undo = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_content(
-                                            ImageBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_margin(Thickness::uniform(1.0))
-                                                    .with_height(24.0)
-                                                    .with_width(24.0),
-                                            )
-                                            .with_opt_texture(load_image(include_bytes!(
+                                        undo = make_image_button_with_tooltip(
+                                            ctx,
+                                            20.0,
+                                            20.0,
+                                            load_image(include_bytes!(
                                                 "../../resources/embed/undo.png"
-                                            )))
-                                            .build(ctx),
-                                        )
-                                        .build(ctx);
+                                            )),
+                                            "Undo The Command",
+                                        );
                                         undo
                                     })
                                     .with_child({
-                                        redo = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_content(
-                                            ImageBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_margin(Thickness::uniform(1.0))
-                                                    .with_height(24.0)
-                                                    .with_width(24.0),
-                                            )
-                                            .with_opt_texture(load_image(include_bytes!(
+                                        redo = make_image_button_with_tooltip(
+                                            ctx,
+                                            20.0,
+                                            20.0,
+                                            load_image(include_bytes!(
                                                 "../../resources/embed/redo.png"
-                                            )))
-                                            .build(ctx),
-                                        )
-                                        .build(ctx);
+                                            )),
+                                            "Redo The Command",
+                                        );
                                         redo
                                     })
                                     .with_child({
-                                        clear = ButtonBuilder::new(WidgetBuilder::new())
-                                            .with_content(
-                                                ImageBuilder::new(
-                                                    WidgetBuilder::new()
-                                                        .with_margin(Thickness::uniform(1.0))
-                                                        .with_height(24.0)
-                                                        .with_width(24.0),
-                                                )
-                                                .with_opt_texture(load_image(include_bytes!(
-                                                    "../../resources/embed/clear.png"
-                                                )))
-                                                .build(ctx),
-                                            )
-                                            .build(ctx);
+                                        clear = make_image_button_with_tooltip(
+                                            ctx,
+                                            20.0,
+                                            20.0,
+                                            load_image(include_bytes!(
+                                                "../../resources/embed/clear.png"
+                                            )),
+                                            "Clear Command Stack\nChanges history will be erased.",
+                                        );
                                         clear
                                     }),
                             )

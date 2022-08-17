@@ -1,7 +1,8 @@
 use fyrox::{
-    core::{algebra::Vector2, pool::Handle},
+    core::{algebra::Vector2, color::Color, pool::Handle},
     gui::{
         border::BorderBuilder,
+        brush::Brush,
         button::ButtonBuilder,
         decorator::DecoratorBuilder,
         define_constructor,
@@ -84,6 +85,7 @@ pub fn make_image_button_with_tooltip(
     .with_content(
         ImageBuilder::new(
             WidgetBuilder::new()
+                .with_background(Brush::Solid(Color::opaque(180, 180, 180)))
                 .with_margin(Thickness::uniform(1.0))
                 .with_width(width)
                 .with_height(height),
