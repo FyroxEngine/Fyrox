@@ -133,7 +133,8 @@ impl Control for Menu {
                     'depth_search: while let Some(handle) = stack.pop() {
                         let node = ui.node(handle);
                         if let Some(item) = node.cast::<MenuItem>() {
-                            if ui.node(item.popup).screen_bounds().contains(pos) {
+                            let popup = ui.node(item.popup);
+                            if popup.screen_bounds().contains(pos) && popup.is_globally_visible() {
                                 // Once we found that we clicked inside some descendant menu item
                                 // we can immediately stop search - we don't want to close menu
                                 // items popups in this case and can safely skip all stuff below.
