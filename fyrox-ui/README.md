@@ -66,7 +66,8 @@ fyrox-ui uses a bit unusual way of styling - you have to replace entire sub-grap
 
 ## Screenshots
 
-![editor](https://fyrox.rs/assets/absm_editor_full.png)
+![editor](https://raw.githubusercontent.com/FyroxEngine/Fyrox/master/pics/editor.png)
+![absm editor](https://fyrox.rs/assets/absm_editor_full.png)
 ![sound](https://fyrox.rs/assets/reverb_properties.png)
 
 ## Contributing
