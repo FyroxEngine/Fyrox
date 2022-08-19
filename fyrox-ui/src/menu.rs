@@ -161,7 +161,7 @@ impl Control for Menu {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
 pub enum MenuItemPlacement {
     Bottom,
     Right,
