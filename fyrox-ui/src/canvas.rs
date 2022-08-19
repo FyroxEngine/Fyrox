@@ -12,7 +12,7 @@ use std::{
 /// Allows user to directly set position and size of a node
 #[derive(Clone)]
 pub struct Canvas {
-    widget: Widget,
+    pub widget: Widget,
 }
 
 crate::define_widget_deref!(Canvas);

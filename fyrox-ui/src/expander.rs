@@ -24,10 +24,10 @@ impl ExpanderMessage {
 
 #[derive(Clone)]
 pub struct Expander {
-    widget: Widget,
-    content: Handle<UiNode>,
-    expander: Handle<UiNode>,
-    is_expanded: bool,
+    pub widget: Widget,
+    pub content: Handle<UiNode>,
+    pub expander: Handle<UiNode>,
+    pub is_expanded: bool,
 }
 
 crate::define_widget_deref!(Expander);

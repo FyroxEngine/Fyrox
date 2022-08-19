@@ -162,18 +162,18 @@ impl Control for Menu {
 }
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash)]
-enum MenuItemPlacement {
+pub enum MenuItemPlacement {
     Bottom,
     Right,
 }
 
 #[derive(Clone)]
 pub struct MenuItem {
-    widget: Widget,
-    items: Vec<Handle<UiNode>>,
-    popup: Handle<UiNode>,
-    panel: Handle<UiNode>,
-    placement: MenuItemPlacement,
+    pub widget: Widget,
+    pub items: Vec<Handle<UiNode>>,
+    pub popup: Handle<UiNode>,
+    pub panel: Handle<UiNode>,
+    pub placement: MenuItemPlacement,
 }
 
 crate::define_widget_deref!(MenuItem);

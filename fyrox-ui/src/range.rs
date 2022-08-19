@@ -30,10 +30,10 @@ pub struct RangeEditor<T>
 where
     T: NumericType,
 {
-    widget: Widget,
-    value: Range<T>,
-    start: Handle<UiNode>,
-    end: Handle<UiNode>,
+    pub widget: Widget,
+    pub value: Range<T>,
+    pub start: Handle<UiNode>,
+    pub end: Handle<UiNode>,
 }
 
 impl<T> Deref for RangeEditor<T>

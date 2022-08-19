@@ -1,10 +1,9 @@
-use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     core::math::Rect,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-            PropertyEditorMessageContext,
+            PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
         FieldKind, InspectorError, PropertyChanged,
     },

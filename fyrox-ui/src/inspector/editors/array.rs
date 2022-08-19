@@ -28,13 +28,13 @@ use std::{
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Item {
-    inspector: Handle<UiNode>,
+    pub inspector: Handle<UiNode>,
 }
 
 #[derive(Clone, Debug)]
 pub struct ArrayEditor {
-    widget: Widget,
-    items: Vec<Item>,
+    pub widget: Widget,
+    pub items: Vec<Item>,
 }
 
 crate::define_widget_deref!(ArrayEditor);

@@ -106,19 +106,19 @@ pub enum FileBrowserMode {
 
 #[derive(Clone)]
 pub struct FileBrowser {
-    widget: Widget,
-    tree_root: Handle<UiNode>,
-    path_text: Handle<UiNode>,
-    scroll_viewer: Handle<UiNode>,
-    path: PathBuf,
-    root: Option<PathBuf>,
-    filter: Option<Filter>,
-    mode: FileBrowserMode,
-    file_name: Handle<UiNode>,
-    file_name_value: PathBuf,
-    fs_receiver: Rc<Receiver<notify::DebouncedEvent>>,
+    pub widget: Widget,
+    pub tree_root: Handle<UiNode>,
+    pub path_text: Handle<UiNode>,
+    pub scroll_viewer: Handle<UiNode>,
+    pub path: PathBuf,
+    pub root: Option<PathBuf>,
+    pub filter: Option<Filter>,
+    pub mode: FileBrowserMode,
+    pub file_name: Handle<UiNode>,
+    pub file_name_value: PathBuf,
+    pub fs_receiver: Rc<Receiver<notify::DebouncedEvent>>,
     #[allow(clippy::type_complexity)]
-    watcher: Rc<cell::Cell<Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>>>,
+    pub watcher: Rc<cell::Cell<Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>>>,
 }
 
 crate::define_widget_deref!(FileBrowser);
@@ -286,7 +286,7 @@ impl Control for FileBrowser {
                         let existing_parent_node = find_tree(self.tree_root, &parent_path, ui);
                         if existing_parent_node.is_some() {
                             if let Some(tree) = ui.node(existing_parent_node).cast::<Tree>() {
-                                if tree.expanded() {
+                                if tree.is_expanded {
                                     build_tree(
                                         existing_parent_node,
                                         existing_parent_node == self.tree_root,
@@ -294,7 +294,7 @@ impl Control for FileBrowser {
                                         parent_path,
                                         ui,
                                     );
-                                } else if !tree.expander_shown() {
+                                } else if !tree.always_show_expander {
                                     ui.send_message(TreeMessage::set_expander_shown(
                                         tree.handle(),
                                         MessageDirection::ToWidget,
@@ -514,7 +514,7 @@ fn find_tree<P: AsRef<Path>>(node: Handle<UiNode>, path: &P, ui: &UserInterface)
         if tree_path == path.as_ref() {
             tree_handle = node;
         } else {
-            for &item in tree.items() {
+            for &item in &tree.items {
                 let tree = find_tree(item, path, ui);
                 if tree.is_some() {
                     tree_handle = tree;
@@ -969,10 +969,10 @@ fn setup_filebrowser_fs_watcher(
 /// cancel selection.
 #[derive(Clone)]
 pub struct FileSelector {
-    window: Window,
-    browser: Handle<UiNode>,
-    ok: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    pub window: Window,
+    pub browser: Handle<UiNode>,
+    pub ok: Handle<UiNode>,
+    pub cancel: Handle<UiNode>,
 }
 
 impl Deref for FileSelector {

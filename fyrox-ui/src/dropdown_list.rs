@@ -10,14 +10,13 @@ use crate::{
     message::{MessageDirection, UiMessage},
     popup::{Placement, PopupBuilder, PopupMessage},
     utils::{make_arrow, ArrowDirection},
-    widget::Widget,
-    widget::{WidgetBuilder, WidgetMessage},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_LIGHT,
 };
-use std::sync::mpsc::Sender;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,14 +38,14 @@ impl DropdownListMessage {
 
 #[derive(Clone)]
 pub struct DropdownList {
-    widget: Widget,
-    popup: Handle<UiNode>,
-    items: Vec<Handle<UiNode>>,
-    list_view: Handle<UiNode>,
-    current: Handle<UiNode>,
-    selection: Option<usize>,
-    close_on_selection: bool,
-    main_grid: Handle<UiNode>,
+    pub widget: Widget,
+    pub popup: Handle<UiNode>,
+    pub items: Vec<Handle<UiNode>>,
+    pub list_view: Handle<UiNode>,
+    pub current: Handle<UiNode>,
+    pub selection: Option<usize>,
+    pub close_on_selection: bool,
+    pub main_grid: Handle<UiNode>,
 }
 
 crate::define_widget_deref!(DropdownList);

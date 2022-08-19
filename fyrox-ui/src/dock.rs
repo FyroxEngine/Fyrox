@@ -68,16 +68,16 @@ impl TileContent {
 
 #[derive(Clone)]
 pub struct Tile {
-    widget: Widget,
-    left_anchor: Handle<UiNode>,
-    right_anchor: Handle<UiNode>,
-    top_anchor: Handle<UiNode>,
-    bottom_anchor: Handle<UiNode>,
-    center_anchor: Handle<UiNode>,
-    content: TileContent,
-    splitter: Handle<UiNode>,
-    dragging_splitter: bool,
-    drop_anchor: Cell<Handle<UiNode>>,
+    pub widget: Widget,
+    pub left_anchor: Handle<UiNode>,
+    pub right_anchor: Handle<UiNode>,
+    pub top_anchor: Handle<UiNode>,
+    pub bottom_anchor: Handle<UiNode>,
+    pub center_anchor: Handle<UiNode>,
+    pub content: TileContent,
+    pub splitter: Handle<UiNode>,
+    pub dragging_splitter: bool,
+    pub drop_anchor: Cell<Handle<UiNode>>,
 }
 
 crate::define_widget_deref!(Tile);
@@ -746,8 +746,8 @@ impl Tile {
 
 #[derive(Clone)]
 pub struct DockingManager {
-    widget: Widget,
-    floating_windows: RefCell<Vec<Handle<UiNode>>>,
+    pub widget: Widget,
+    pub floating_windows: RefCell<Vec<Handle<UiNode>>>,
 }
 
 crate::define_widget_deref!(DockingManager);

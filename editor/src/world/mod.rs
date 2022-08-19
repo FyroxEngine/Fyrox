@@ -133,7 +133,7 @@ fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
                 Color::opaque(60, 60, 60)
             });
 
-            if decorator.normal_brush() != &new_brush {
+            if decorator.normal_brush != new_brush {
                 ui.send_message(DecoratorMessage::normal_brush(
                     handle,
                     MessageDirection::ToWidget,
@@ -415,7 +415,7 @@ impl WorldViewer {
                 // Such filtering is needed because we can have links as children in UI.
                 let items = item
                     .tree
-                    .items()
+                    .items
                     .iter()
                     .cloned()
                     .filter(|i| ui.node(*i).cast::<SceneItem<Node>>().is_some())
@@ -488,7 +488,7 @@ impl WorldViewer {
                     }
                 }
             } else if let Some(folder) = ui_node.cast::<Tree>() {
-                if folder.items().is_empty() {
+                if folder.items.is_empty() {
                     let graph_node_item = make_graph_node_item(
                         node,
                         node_handle,
@@ -506,7 +506,7 @@ impl WorldViewer {
                     self.node_to_view_map.insert(node_handle, graph_node_item);
                     self.stack.push((graph_node_item, node_handle));
                 } else {
-                    self.stack.push((folder.items()[0], node_handle));
+                    self.stack.push((folder.items[0], node_handle));
                 }
             }
         }
@@ -529,13 +529,13 @@ impl WorldViewer {
                         );
                     }
 
-                    stack.extend_from_slice(item.tree.items());
+                    stack.extend_from_slice(&item.tree.items);
                 }
             } else if let Some(root) = ui_node.cast::<TreeRoot>() {
                 stack.extend_from_slice(root.items())
             } else if let Some(tree) = ui_node.cast::<Tree>() {
                 // Make sure to take folders into account.
-                stack.extend_from_slice(tree.items())
+                stack.extend_from_slice(&tree.items)
             }
         }
 

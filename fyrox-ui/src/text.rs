@@ -34,8 +34,8 @@ impl TextMessage {
 
 #[derive(Clone)]
 pub struct Text {
-    widget: Widget,
-    formatted_text: RefCell<FormattedText>,
+    pub widget: Widget,
+    pub formatted_text: RefCell<FormattedText>,
 }
 
 crate::define_widget_deref!(Text);

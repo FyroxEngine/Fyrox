@@ -84,15 +84,15 @@ impl TreeRootMessage {
 
 #[derive(Debug, Clone)]
 pub struct Tree {
-    widget: Widget,
-    expander: Handle<UiNode>,
-    content: Handle<UiNode>,
-    panel: Handle<UiNode>,
-    is_expanded: bool,
-    background: Handle<UiNode>,
-    items: Vec<Handle<UiNode>>,
-    is_selected: bool,
-    always_show_expander: bool,
+    pub widget: Widget,
+    pub expander: Handle<UiNode>,
+    pub content: Handle<UiNode>,
+    pub panel: Handle<UiNode>,
+    pub is_expanded: bool,
+    pub background: Handle<UiNode>,
+    pub items: Vec<Handle<UiNode>>,
+    pub is_selected: bool,
+    pub always_show_expander: bool,
 }
 
 crate::define_widget_deref!(Tree);
@@ -196,7 +196,7 @@ impl Control for Tree {
 
                         match expansion_strategy {
                             TreeExpansionStrategy::RecursiveDescendants => {
-                                for &item in self.items() {
+                                for &item in &self.items {
                                     ui.send_message(TreeMessage::expand(
                                         item,
                                         MessageDirection::ToWidget,
@@ -282,18 +282,6 @@ impl Control for Tree {
 }
 
 impl Tree {
-    pub fn content(&self) -> Handle<UiNode> {
-        self.content
-    }
-
-    pub fn back(&self) -> Handle<UiNode> {
-        self.background
-    }
-
-    pub fn items(&self) -> &[Handle<UiNode>] {
-        &self.items
-    }
-
     /// Adds new item to given tree. This method is meant to be used only on widget build stage,
     /// any runtime actions should be done via messages.
     pub fn add_item(tree: Handle<UiNode>, item: Handle<UiNode>, ctx: &mut BuildContext) {
@@ -302,14 +290,6 @@ impl Tree {
             let panel = tree.panel;
             ctx.link(item, panel);
         }
-    }
-
-    pub fn expanded(&self) -> bool {
-        self.is_expanded
-    }
-
-    pub fn expander_shown(&self) -> bool {
-        self.always_show_expander
     }
 }
 

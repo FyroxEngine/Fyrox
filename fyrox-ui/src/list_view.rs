@@ -36,12 +36,12 @@ impl ListViewMessage {
 
 #[derive(Clone)]
 pub struct ListView {
-    widget: Widget,
-    selected_index: Option<usize>,
-    item_containers: Vec<Handle<UiNode>>,
-    panel: Handle<UiNode>,
-    items: Vec<Handle<UiNode>>,
-    scroll_viewer: Handle<UiNode>,
+    pub widget: Widget,
+    pub selected_index: Option<usize>,
+    pub item_containers: Vec<Handle<UiNode>>,
+    pub panel: Handle<UiNode>,
+    pub items: Vec<Handle<UiNode>>,
+    pub scroll_viewer: Handle<UiNode>,
 }
 
 crate::define_widget_deref!(ListView);
@@ -123,7 +123,7 @@ impl ListView {
 
 #[derive(Clone)]
 pub struct ListViewItem {
-    widget: Widget,
+    pub widget: Widget,
 }
 
 crate::define_widget_deref!(ListViewItem);

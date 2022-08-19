@@ -1,4 +1,3 @@
-use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     border::BorderBuilder,
     core::{inspect::Inspect, pool::Handle},
@@ -9,7 +8,7 @@ use crate::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
-            PropertyEditorMessageContext,
+            PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
         make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
         InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
@@ -21,12 +20,12 @@ use crate::{
     VerticalAlignment,
 };
 use fyrox_core::reflect::Reflect;
-use std::str::FromStr;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     rc::Rc,
+    str::FromStr,
 };
 use strum::VariantNames;
 
@@ -48,14 +47,14 @@ impl EnumPropertyEditorMessage {
 }
 
 pub struct EnumPropertyEditor<T: InspectableEnum> {
-    widget: Widget,
-    variant_selector: Handle<UiNode>,
-    inspector: Handle<UiNode>,
-    definition: EnumPropertyEditorDefinition<T>,
-    definition_container: Rc<PropertyEditorDefinitionContainer>,
-    environment: Option<Rc<dyn InspectorEnvironment>>,
-    sync_flag: u64,
-    layer_index: usize,
+    pub widget: Widget,
+    pub variant_selector: Handle<UiNode>,
+    pub inspector: Handle<UiNode>,
+    pub definition: EnumPropertyEditorDefinition<T>,
+    pub definition_container: Rc<PropertyEditorDefinitionContainer>,
+    pub environment: Option<Rc<dyn InspectorEnvironment>>,
+    pub sync_flag: u64,
+    pub layer_index: usize,
 }
 
 impl<T: InspectableEnum> Debug for EnumPropertyEditor<T> {

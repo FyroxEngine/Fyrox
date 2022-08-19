@@ -11,31 +11,11 @@ use std::{
 
 #[derive(Clone)]
 pub struct StackPanel {
-    widget: Widget,
-    orientation: Orientation,
+    pub widget: Widget,
+    pub orientation: Orientation,
 }
 
 crate::define_widget_deref!(StackPanel);
-
-impl StackPanel {
-    pub fn new(widget: Widget) -> Self {
-        Self {
-            widget,
-            orientation: Orientation::Vertical,
-        }
-    }
-
-    pub fn set_orientation(&mut self, orientation: Orientation) {
-        if self.orientation != orientation {
-            self.orientation = orientation;
-            self.widget.invalidate_layout();
-        }
-    }
-
-    pub fn orientation(&self) -> Orientation {
-        self.orientation
-    }
-}
 
 impl Control for StackPanel {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

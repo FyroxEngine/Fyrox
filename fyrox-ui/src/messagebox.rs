@@ -50,12 +50,12 @@ pub enum MessageBoxButtons {
 
 #[derive(Clone)]
 pub struct MessageBox {
-    window: Window,
-    buttons: MessageBoxButtons,
-    ok_yes: Handle<UiNode>,
-    no: Handle<UiNode>,
-    cancel: Handle<UiNode>,
-    text: Handle<UiNode>,
+    pub window: Window,
+    pub buttons: MessageBoxButtons,
+    pub ok_yes: Handle<UiNode>,
+    pub no: Handle<UiNode>,
+    pub cancel: Handle<UiNode>,
+    pub text: Handle<UiNode>,
 }
 
 impl Deref for MessageBox {

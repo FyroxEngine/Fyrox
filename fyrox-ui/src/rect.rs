@@ -32,10 +32,10 @@ pub struct RectEditor<T>
 where
     T: NumericType,
 {
-    widget: Widget,
-    position: Handle<UiNode>,
-    size: Handle<UiNode>,
-    value: Rect<T>,
+    pub widget: Widget,
+    pub position: Handle<UiNode>,
+    pub size: Handle<UiNode>,
+    pub value: Rect<T>,
 }
 
 impl<T> Deref for RectEditor<T>

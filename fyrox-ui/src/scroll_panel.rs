@@ -30,10 +30,10 @@ impl ScrollPanelMessage {
 /// Allows user to scroll content
 #[derive(Clone)]
 pub struct ScrollPanel {
-    widget: Widget,
-    scroll: Vector2<f32>,
-    vertical_scroll_allowed: bool,
-    horizontal_scroll_allowed: bool,
+    pub widget: Widget,
+    pub scroll: Vector2<f32>,
+    pub vertical_scroll_allowed: bool,
+    pub horizontal_scroll_allowed: bool,
 }
 
 crate::define_widget_deref!(ScrollPanel);
@@ -181,17 +181,6 @@ impl Control for ScrollPanel {
                     }
                 }
             }
-        }
-    }
-}
-
-impl ScrollPanel {
-    pub fn new(widget: Widget) -> Self {
-        Self {
-            widget,
-            scroll: Default::default(),
-            vertical_scroll_allowed: true,
-            horizontal_scroll_allowed: false,
         }
     }
 }

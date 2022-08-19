@@ -37,25 +37,6 @@ pub struct Button {
 
 crate::define_widget_deref!(Button);
 
-impl Button {
-    pub fn new(widget: Widget, body: Handle<UiNode>, content: Handle<UiNode>) -> Self {
-        Self {
-            widget,
-            decorator: body,
-            content,
-        }
-    }
-
-    pub fn content(&self) -> Handle<UiNode> {
-        self.content
-    }
-
-    pub fn set_content(&mut self, content: Handle<UiNode>) -> &mut Self {
-        self.content = content;
-        self
-    }
-}
-
 impl Control for Button {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {

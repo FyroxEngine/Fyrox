@@ -13,8 +13,8 @@ use std::{
 
 #[derive(Clone)]
 pub struct Border {
-    widget: Widget,
-    stroke_thickness: Thickness,
+    pub widget: Widget,
+    pub stroke_thickness: Thickness,
 }
 
 crate::define_widget_deref!(Border);

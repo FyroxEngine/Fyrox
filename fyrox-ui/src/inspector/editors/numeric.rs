@@ -1,10 +1,9 @@
-use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     core::num_traits::NumCast,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-            PropertyEditorMessageContext,
+            PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
         FieldKind, InspectorError, PropertyChanged,
     },

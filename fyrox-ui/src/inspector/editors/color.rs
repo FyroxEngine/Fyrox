@@ -1,11 +1,10 @@
-use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     color::{ColorFieldBuilder, ColorFieldMessage},
     core::color::Color,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-            PropertyEditorMessageContext,
+            PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
         FieldKind, InspectorError, PropertyChanged,
     },

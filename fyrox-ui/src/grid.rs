@@ -20,10 +20,10 @@ pub enum SizeMode {
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct GridDimension {
-    size_mode: SizeMode,
-    desired_size: f32,
-    actual_size: f32,
-    location: f32,
+    pub size_mode: SizeMode,
+    pub desired_size: f32,
+    pub actual_size: f32,
+    pub location: f32,
 }
 
 impl GridDimension {
@@ -55,24 +55,24 @@ pub type Row = GridDimension;
 /// Automatically arranges children by rows and columns
 #[derive(Clone)]
 pub struct Grid {
-    widget: Widget,
-    rows: RefCell<Vec<Row>>,
-    columns: RefCell<Vec<Column>>,
-    draw_border: bool,
-    border_thickness: f32,
-    cells: RefCell<Vec<Cell>>,
-    groups: RefCell<[Vec<usize>; 4]>,
+    pub widget: Widget,
+    pub rows: RefCell<Vec<Row>>,
+    pub columns: RefCell<Vec<Column>>,
+    pub draw_border: bool,
+    pub border_thickness: f32,
+    pub cells: RefCell<Vec<Cell>>,
+    pub groups: RefCell<[Vec<usize>; 4]>,
 }
 
 crate::define_widget_deref!(Grid);
 
 #[derive(Clone)]
-struct Cell {
-    nodes: Vec<Handle<UiNode>>,
-    width_constraint: Option<f32>,
-    height_constraint: Option<f32>,
-    row_index: usize,
-    column_index: usize,
+pub struct Cell {
+    pub nodes: Vec<Handle<UiNode>>,
+    pub width_constraint: Option<f32>,
+    pub height_constraint: Option<f32>,
+    pub row_index: usize,
+    pub column_index: usize,
 }
 
 fn group_index(row_size_mode: SizeMode, column_size_mode: SizeMode) -> usize {
@@ -458,63 +458,5 @@ impl GridBuilder {
             groups: Default::default(),
         };
         ui.add_node(UiNode::new(grid))
-    }
-}
-
-impl Grid {
-    pub fn new(widget: Widget) -> Self {
-        Self {
-            widget,
-            rows: Default::default(),
-            columns: Default::default(),
-            draw_border: false,
-            border_thickness: 1.0,
-            cells: Default::default(),
-            groups: Default::default(),
-        }
-    }
-
-    pub fn add_row(&mut self, row: Row) -> &mut Self {
-        self.rows.borrow_mut().push(row);
-        self
-    }
-
-    pub fn add_column(&mut self, column: Column) -> &mut Self {
-        self.columns.borrow_mut().push(column);
-        self
-    }
-
-    pub fn clear_columns(&mut self) {
-        self.columns.borrow_mut().clear();
-    }
-
-    pub fn clear_rows(&mut self) {
-        self.rows.borrow_mut().clear();
-    }
-
-    pub fn set_columns(&mut self, columns: Vec<Column>) {
-        self.columns = RefCell::new(columns);
-    }
-
-    pub fn set_rows(&mut self, rows: Vec<Row>) {
-        self.rows = RefCell::new(rows);
-    }
-
-    pub fn set_draw_border(&mut self, value: bool) -> &mut Self {
-        self.draw_border = value;
-        self
-    }
-
-    pub fn is_draw_border(&self) -> bool {
-        self.draw_border
-    }
-
-    pub fn set_border_thickness(&mut self, value: f32) -> &mut Self {
-        self.border_thickness = value;
-        self
-    }
-
-    pub fn border_thickness(&self) -> f32 {
-        self.border_thickness
     }
 }

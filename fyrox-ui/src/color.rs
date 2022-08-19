@@ -18,10 +18,10 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-use std::sync::mpsc::Sender;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -99,10 +99,10 @@ impl ColorFieldMessage {
 
 #[derive(Clone)]
 pub struct AlphaBar {
-    widget: Widget,
-    orientation: Orientation,
-    alpha: f32,
-    is_picking: bool,
+    pub widget: Widget,
+    pub orientation: Orientation,
+    pub alpha: f32,
+    pub is_picking: bool,
 }
 
 crate::define_widget_deref!(AlphaBar);
@@ -354,10 +354,10 @@ impl AlphaBarBuilder {
 
 #[derive(Clone)]
 pub struct HueBar {
-    widget: Widget,
-    orientation: Orientation,
-    is_picking: bool,
-    hue: f32,
+    pub widget: Widget,
+    pub orientation: Orientation,
+    pub is_picking: bool,
+    pub hue: f32,
 }
 
 crate::define_widget_deref!(HueBar);
@@ -511,11 +511,11 @@ impl HueBarBuilder {
 
 #[derive(Clone)]
 pub struct SaturationBrightnessField {
-    widget: Widget,
-    is_picking: bool,
-    hue: f32,
-    saturation: f32,
-    brightness: f32,
+    pub widget: Widget,
+    pub is_picking: bool,
+    pub hue: f32,
+    pub saturation: f32,
+    pub brightness: f32,
 }
 
 crate::define_widget_deref!(SaturationBrightnessField);
@@ -721,20 +721,20 @@ impl SaturationBrightnessFieldBuilder {
 
 #[derive(Clone)]
 pub struct ColorPicker {
-    widget: Widget,
-    hue_bar: Handle<UiNode>,
-    alpha_bar: Handle<UiNode>,
-    saturation_brightness_field: Handle<UiNode>,
-    red: Handle<UiNode>,
-    green: Handle<UiNode>,
-    blue: Handle<UiNode>,
-    alpha: Handle<UiNode>,
-    hue: Handle<UiNode>,
-    saturation: Handle<UiNode>,
-    brightness: Handle<UiNode>,
-    color_mark: Handle<UiNode>,
-    color: Color,
-    hsv: Hsv,
+    pub widget: Widget,
+    pub hue_bar: Handle<UiNode>,
+    pub alpha_bar: Handle<UiNode>,
+    pub saturation_brightness_field: Handle<UiNode>,
+    pub red: Handle<UiNode>,
+    pub green: Handle<UiNode>,
+    pub blue: Handle<UiNode>,
+    pub alpha: Handle<UiNode>,
+    pub hue: Handle<UiNode>,
+    pub saturation: Handle<UiNode>,
+    pub brightness: Handle<UiNode>,
+    pub color_mark: Handle<UiNode>,
+    pub color: Color,
+    pub hsv: Hsv,
 }
 
 crate::define_widget_deref!(ColorPicker);
@@ -1156,10 +1156,10 @@ impl ColorPickerBuilder {
 
 #[derive(Clone)]
 pub struct ColorField {
-    widget: Widget,
-    popup: Handle<UiNode>,
-    picker: Handle<UiNode>,
-    color: Color,
+    pub widget: Widget,
+    pub popup: Handle<UiNode>,
+    pub picker: Handle<UiNode>,
+    pub color: Color,
 }
 
 crate::define_widget_deref!(ColorField);

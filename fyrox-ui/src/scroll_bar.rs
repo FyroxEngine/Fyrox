@@ -303,53 +303,6 @@ impl Control for ScrollBar {
 
 impl ScrollBar {
     pub const PART_CANVAS: &'static str = "PART_Canvas";
-
-    pub fn new(
-        widget: Widget,
-        increase: Handle<UiNode>,
-        decrease: Handle<UiNode>,
-        indicator: Handle<UiNode>,
-        field: Handle<UiNode>,
-        value_text: Handle<UiNode>,
-    ) -> Self {
-        Self {
-            widget,
-            min: 0.0,
-            max: 100.0,
-            value: 0.0,
-            step: 1.0,
-            orientation: Orientation::Vertical,
-            is_dragging: false,
-            offset: Default::default(),
-            increase,
-            decrease,
-            indicator,
-            field,
-            value_text,
-            value_precision: 3,
-        }
-    }
-
-    pub fn value(&self) -> f32 {
-        self.value
-    }
-
-    pub fn max_value(&self) -> f32 {
-        self.max
-    }
-
-    pub fn min_value(&self) -> f32 {
-        self.min
-    }
-
-    pub fn set_step(&mut self, step: f32) -> &mut Self {
-        self.step = step;
-        self
-    }
-
-    pub fn step(&self) -> f32 {
-        self.step
-    }
 }
 
 pub struct ScrollBarBuilder {

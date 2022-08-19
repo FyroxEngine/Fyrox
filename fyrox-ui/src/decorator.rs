@@ -9,8 +9,8 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_LIGHT,
     BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST, COLOR_LIGHTEST,
 };
-use std::any::{Any, TypeId};
 use std::{
+    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -44,48 +44,14 @@ impl DecoratorMessage {
 /// widgets. For example it used to decorate button, items in items control.
 #[derive(Clone)]
 pub struct Decorator {
-    border: Border,
-    normal_brush: Brush,
-    hover_brush: Brush,
-    pressed_brush: Brush,
-    selected_brush: Brush,
-    disabled_brush: Brush,
-    is_selected: bool,
-    is_pressable: bool,
-}
-
-impl Decorator {
-    pub fn border(&self) -> &Border {
-        &self.border
-    }
-
-    pub fn normal_brush(&self) -> &Brush {
-        &self.normal_brush
-    }
-
-    pub fn hover_brush(&self) -> &Brush {
-        &self.hover_brush
-    }
-
-    pub fn pressed_brush(&self) -> &Brush {
-        &self.pressed_brush
-    }
-
-    pub fn selected_brush(&self) -> &Brush {
-        &self.selected_brush
-    }
-
-    pub fn disabled_brush(&self) -> &Brush {
-        &self.disabled_brush
-    }
-
-    pub fn is_pressable(&self) -> bool {
-        self.is_pressable
-    }
-
-    pub fn is_selected(&self) -> bool {
-        self.is_pressable
-    }
+    pub border: Border,
+    pub normal_brush: Brush,
+    pub hover_brush: Brush,
+    pub pressed_brush: Brush,
+    pub selected_brush: Brush,
+    pub disabled_brush: Brush,
+    pub is_selected: bool,
+    pub is_pressable: bool,
 }
 
 impl Deref for Decorator {

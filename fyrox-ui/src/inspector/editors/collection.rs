@@ -1,5 +1,3 @@
-use crate::inspector::editors::PropertyEditorTranslationContext;
-use crate::inspector::ObjectValue;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{inspect::Inspect, pool::Handle},
@@ -8,10 +6,11 @@ use crate::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
-            PropertyEditorMessageContext,
+            PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
         make_expander_container, CollectionChanged, FieldKind, Inspector, InspectorBuilder,
-        InspectorContext, InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
+        InspectorContext, InspectorEnvironment, InspectorError, InspectorMessage, ObjectValue,
+        PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
@@ -40,12 +39,12 @@ impl<T: Inspect + Clone + Reflect + Debug + Default + 'static> CollectionItem fo
 
 #[derive(Debug)]
 pub struct CollectionEditor<T: CollectionItem> {
-    widget: Widget,
-    add: Handle<UiNode>,
-    items: Vec<Item>,
-    panel: Handle<UiNode>,
-    layer_index: usize,
-    phantom: PhantomData<T>,
+    pub widget: Widget,
+    pub add: Handle<UiNode>,
+    pub items: Vec<Item>,
+    pub panel: Handle<UiNode>,
+    pub layer_index: usize,
+    pub phantom: PhantomData<T>,
 }
 
 impl<T: CollectionItem> Clone for CollectionEditor<T> {

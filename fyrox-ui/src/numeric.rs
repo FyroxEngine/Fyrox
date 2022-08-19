@@ -76,15 +76,15 @@ impl<T: NumericType> NumericUpDownMessage<T> {
 
 #[derive(Clone)]
 pub struct NumericUpDown<T: NumericType> {
-    widget: Widget,
-    field: Handle<UiNode>,
-    increase: Handle<UiNode>,
-    decrease: Handle<UiNode>,
-    value: T,
-    step: T,
-    min_value: T,
-    max_value: T,
-    precision: usize,
+    pub widget: Widget,
+    pub field: Handle<UiNode>,
+    pub increase: Handle<UiNode>,
+    pub decrease: Handle<UiNode>,
+    pub value: T,
+    pub step: T,
+    pub min_value: T,
+    pub max_value: T,
+    pub precision: usize,
 }
 
 impl<T: NumericType> Deref for NumericUpDown<T> {

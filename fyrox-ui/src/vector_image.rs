@@ -71,8 +71,8 @@ impl Primitive {
 
 #[derive(Clone)]
 pub struct VectorImage {
-    widget: Widget,
-    primitives: Vec<Primitive>,
+    pub widget: Widget,
+    pub primitives: Vec<Primitive>,
 }
 
 crate::define_widget_deref!(VectorImage);

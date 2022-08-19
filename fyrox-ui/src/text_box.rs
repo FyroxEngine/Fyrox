@@ -45,10 +45,10 @@ pub enum VerticalDirection {
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
 pub struct Position {
     // Line index.
-    line: usize,
+    pub line: usize,
 
     // Offset from beginning of a line.
-    offset: usize,
+    pub offset: usize,
 }
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash)]
@@ -71,8 +71,8 @@ pub enum TextCommitMode {
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct SelectionRange {
-    begin: Position,
-    end: Position,
+    pub begin: Position,
+    pub end: Position,
 }
 
 impl SelectionRange {
@@ -102,21 +102,21 @@ pub type FilterCallback = dyn FnMut(char) -> bool;
 
 #[derive(Clone)]
 pub struct TextBox {
-    widget: Widget,
-    caret_position: Position,
-    caret_visible: bool,
-    blink_timer: f32,
-    blink_interval: f32,
-    formatted_text: RefCell<FormattedText>,
-    selection_range: Option<SelectionRange>,
-    selecting: bool,
-    has_focus: bool,
-    caret_brush: Brush,
-    selection_brush: Brush,
-    filter: Option<Rc<RefCell<FilterCallback>>>,
-    commit_mode: TextCommitMode,
-    multiline: bool,
-    editable: bool,
+    pub widget: Widget,
+    pub caret_position: Position,
+    pub caret_visible: bool,
+    pub blink_timer: f32,
+    pub blink_interval: f32,
+    pub formatted_text: RefCell<FormattedText>,
+    pub selection_range: Option<SelectionRange>,
+    pub selecting: bool,
+    pub has_focus: bool,
+    pub caret_brush: Brush,
+    pub selection_brush: Brush,
+    pub filter: Option<Rc<RefCell<FilterCallback>>>,
+    pub commit_mode: TextCommitMode,
+    pub multiline: bool,
+    pub editable: bool,
 }
 
 impl Debug for TextBox {
@@ -128,17 +128,12 @@ impl Debug for TextBox {
 crate::define_widget_deref!(TextBox);
 
 impl TextBox {
-    pub fn reset_blink(&mut self) {
+    fn reset_blink(&mut self) {
         self.caret_visible = true;
         self.blink_timer = 0.0;
     }
 
-    pub fn move_caret_x(
-        &mut self,
-        mut offset: usize,
-        direction: HorizontalDirection,
-        select: bool,
-    ) {
+    fn move_caret_x(&mut self, mut offset: usize, direction: HorizontalDirection, select: bool) {
         if select {
             if self.selection_range.is_none() {
                 self.selection_range = Some(SelectionRange {
@@ -196,7 +191,7 @@ impl TextBox {
         }
     }
 
-    pub fn move_caret_y(&mut self, offset: usize, direction: VerticalDirection, select: bool) {
+    fn move_caret_y(&mut self, offset: usize, direction: VerticalDirection, select: bool) {
         if select {
             if self.selection_range.is_none() {
                 self.selection_range = Some(SelectionRange {
@@ -379,40 +374,16 @@ impl TextBox {
         self.formatted_text.borrow().text()
     }
 
-    pub fn set_wrap(&mut self, wrap: WrapMode) -> &mut Self {
-        self.formatted_text.borrow_mut().set_wrap(wrap);
-        self
-    }
-
     pub fn wrap_mode(&self) -> WrapMode {
         self.formatted_text.borrow().wrap_mode()
-    }
-
-    pub fn set_font(&mut self, font: SharedFont) -> &mut Self {
-        self.formatted_text.borrow_mut().set_font(font);
-        self
     }
 
     pub fn font(&self) -> SharedFont {
         self.formatted_text.borrow().get_font()
     }
 
-    pub fn set_vertical_alignment(&mut self, valign: VerticalAlignment) -> &mut Self {
-        self.formatted_text
-            .borrow_mut()
-            .set_vertical_alignment(valign);
-        self
-    }
-
     pub fn vertical_alignment(&self) -> VerticalAlignment {
         self.formatted_text.borrow().vertical_alignment()
-    }
-
-    pub fn set_horizontal_alignment(&mut self, halign: HorizontalAlignment) -> &mut Self {
-        self.formatted_text
-            .borrow_mut()
-            .set_horizontal_alignment(halign);
-        self
     }
 
     pub fn horizontal_alignment(&self) -> HorizontalAlignment {

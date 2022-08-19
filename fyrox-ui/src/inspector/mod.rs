@@ -275,8 +275,8 @@ pub trait InspectorEnvironment: Any {
 
 #[derive(Clone)]
 pub struct Inspector {
-    widget: Widget,
-    context: InspectorContext,
+    pub widget: Widget,
+    pub context: InspectorContext,
 }
 
 crate::define_widget_deref!(Inspector);
@@ -333,8 +333,8 @@ impl PartialEq for ContextEntry {
 
 #[derive(Clone)]
 pub struct InspectorContext {
-    stack_panel: Handle<UiNode>,
-    entries: Vec<ContextEntry>,
+    pub stack_panel: Handle<UiNode>,
+    pub entries: Vec<ContextEntry>,
     pub property_definitions: Rc<PropertyEditorDefinitionContainer>,
     pub environment: Option<Rc<dyn InspectorEnvironment>>,
     pub sync_flag: u64,

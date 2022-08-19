@@ -25,9 +25,9 @@ impl ImageMessage {
 
 #[derive(Clone)]
 pub struct Image {
-    widget: Widget,
-    texture: Option<SharedTexture>,
-    flip: bool,
+    pub widget: Widget,
+    pub texture: Option<SharedTexture>,
+    pub flip: bool,
 }
 
 crate::define_widget_deref!(Image);

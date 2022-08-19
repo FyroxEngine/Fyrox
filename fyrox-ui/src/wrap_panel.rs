@@ -14,9 +14,9 @@ use std::{
 
 #[derive(Clone)]
 pub struct WrapPanel {
-    widget: Widget,
-    orientation: Orientation,
-    lines: RefCell<Vec<Line>>,
+    pub widget: Widget,
+    pub orientation: Orientation,
+    pub lines: RefCell<Vec<Line>>,
 }
 
 crate::define_widget_deref!(WrapPanel);
@@ -43,9 +43,9 @@ impl WrapPanel {
 }
 
 #[derive(Clone)]
-struct Line {
-    children: Range<usize>,
-    bounds: Rect<f32>,
+pub struct Line {
+    pub children: Range<usize>,
+    pub bounds: Rect<f32>,
 }
 
 impl Default for Line {

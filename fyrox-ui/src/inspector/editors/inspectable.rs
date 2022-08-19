@@ -1,10 +1,9 @@
-use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     core::inspect::Inspect,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-            PropertyEditorMessageContext,
+            PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
         make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
         InspectorError, InspectorMessage, PropertyChanged,

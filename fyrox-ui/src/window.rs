@@ -78,30 +78,30 @@ impl WindowMessage {
 /// Window can be dragged by its title.
 #[derive(Clone)]
 pub struct Window {
-    widget: Widget,
-    mouse_click_pos: Vector2<f32>,
-    initial_position: Vector2<f32>,
-    initial_size: Vector2<f32>,
-    is_dragging: bool,
-    minimized: bool,
-    can_minimize: bool,
-    can_close: bool,
-    can_resize: bool,
-    header: Handle<UiNode>,
-    minimize_button: Handle<UiNode>,
-    close_button: Handle<UiNode>,
-    drag_delta: Vector2<f32>,
-    content: Handle<UiNode>,
-    grips: RefCell<[Grip; 8]>,
-    title: Handle<UiNode>,
-    title_grid: Handle<UiNode>,
+    pub widget: Widget,
+    pub mouse_click_pos: Vector2<f32>,
+    pub initial_position: Vector2<f32>,
+    pub initial_size: Vector2<f32>,
+    pub is_dragging: bool,
+    pub minimized: bool,
+    pub can_minimize: bool,
+    pub can_close: bool,
+    pub can_resize: bool,
+    pub header: Handle<UiNode>,
+    pub minimize_button: Handle<UiNode>,
+    pub close_button: Handle<UiNode>,
+    pub drag_delta: Vector2<f32>,
+    pub content: Handle<UiNode>,
+    pub grips: RefCell<[Grip; 8]>,
+    pub title: Handle<UiNode>,
+    pub title_grid: Handle<UiNode>,
 }
 
 const GRIP_SIZE: f32 = 6.0;
 const CORNER_GRIP_SIZE: f32 = GRIP_SIZE * 2.0;
 
 #[derive(Copy, Clone, Debug)]
-enum GripKind {
+pub enum GripKind {
     LeftTopCorner = 0,
     RightTopCorner = 1,
     RightBottomCorner = 2,
@@ -113,11 +113,11 @@ enum GripKind {
 }
 
 #[derive(Clone)]
-struct Grip {
-    kind: GripKind,
-    bounds: Rect<f32>,
-    is_dragging: bool,
-    cursor: CursorIcon,
+pub struct Grip {
+    pub kind: GripKind,
+    pub bounds: Rect<f32>,
+    pub is_dragging: bool,
+    pub cursor: CursorIcon,
 }
 
 impl Grip {

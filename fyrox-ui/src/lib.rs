@@ -570,7 +570,7 @@ impl TooltipEntry {
 }
 
 #[derive(Debug)]
-enum LayoutEvent {
+pub enum LayoutEvent {
     MeasurementInvalidated(Handle<UiNode>),
     ArrangementInvalidated(Handle<UiNode>),
     VisibilityChanged(Handle<UiNode>),

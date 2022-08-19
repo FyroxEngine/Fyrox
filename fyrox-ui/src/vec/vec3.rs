@@ -23,11 +23,11 @@ impl<T: NumericType> Vec3EditorMessage<T> {
 
 #[derive(Clone)]
 pub struct Vec3Editor<T: NumericType> {
-    widget: Widget,
-    x_field: Handle<UiNode>,
-    y_field: Handle<UiNode>,
-    z_field: Handle<UiNode>,
-    value: Vector3<T>,
+    pub widget: Widget,
+    pub x_field: Handle<UiNode>,
+    pub y_field: Handle<UiNode>,
+    pub z_field: Handle<UiNode>,
+    pub value: Vector3<T>,
 }
 
 impl<T: NumericType> Deref for Vec3Editor<T> {

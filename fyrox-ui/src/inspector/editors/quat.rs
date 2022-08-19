@@ -1,4 +1,3 @@
-use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
     core::{
         algebra::{RealField, SimdRealField, SimdValue, UnitQuaternion, Vector3},
@@ -8,7 +7,7 @@ use crate::{
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-            PropertyEditorMessageContext,
+            PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
         FieldKind, InspectorError, PropertyChanged,
     },

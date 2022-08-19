@@ -71,9 +71,9 @@ pub struct BitField<T>
 where
     T: BitContainer,
 {
-    widget: Widget,
-    value: T,
-    bit_switches: Vec<Handle<UiNode>>,
+    pub widget: Widget,
+    pub value: T,
+    pub bit_switches: Vec<Handle<UiNode>>,
 }
 
 impl<T> Deref for BitField<T>

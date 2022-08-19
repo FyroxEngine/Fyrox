@@ -24,10 +24,10 @@ impl ProgressBarMessage {
 
 #[derive(Clone)]
 pub struct ProgressBar {
-    widget: Widget,
-    progress: f32,
-    indicator: Handle<UiNode>,
-    body: Handle<UiNode>,
+    pub widget: Widget,
+    pub progress: f32,
+    pub indicator: Handle<UiNode>,
+    pub body: Handle<UiNode>,
 }
 
 crate::define_widget_deref!(ProgressBar);
