@@ -21,11 +21,6 @@ bitflags! {
         const MODIFIED = 0b0000_0001;
         /// A variable must be synced with respective variable from data model.
         const NEED_SYNC = 0b0000_0010;
-        /// Ensures that the variable will not be marked as modified on deserialization
-        /// if it is failed to load as a [`TemplateVariable`]. See TemplateVariable::visit.
-        ///
-        /// **Warning**: This flag will be removed in 0.26!
-        const DONT_MARK_AS_MODIFIED_IF_MISSING = 0b0000_0100;
     }
 }
 
