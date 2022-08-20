@@ -131,10 +131,7 @@ impl Default for Mesh {
     fn default() -> Self {
         Self {
             base: Default::default(),
-            surfaces: TemplateVariable::new_with_flags(
-                Default::default(),
-                VariableFlags::DONT_MARK_AS_MODIFIED_IF_MISSING,
-            ),
+            surfaces: Default::default(),
             local_bounding_box: Default::default(),
             world_bounding_box: Default::default(),
             local_bounding_box_dirty: Cell::new(true),
