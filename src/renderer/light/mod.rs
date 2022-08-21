@@ -406,10 +406,10 @@ impl DeferredLightRenderer {
                 depth_write: false,
                 stencil_test: None,
                 depth_test: false,
-                blend: Some(BlendFunc {
-                    sfactor: BlendFactor::SrcAlpha,
-                    dfactor: BlendFactor::OneMinusSrcAlpha,
-                }),
+                blend: Some(BlendFunc::new(
+                    BlendFactor::SrcAlpha,
+                    BlendFactor::OneMinusSrcAlpha,
+                )),
                 stencil_op: Default::default(),
             },
             |mut program_binding| {
@@ -647,10 +647,7 @@ impl DeferredLightRenderer {
                     ..Default::default()
                 },
                 depth_test: false,
-                blend: Some(BlendFunc {
-                    sfactor: BlendFactor::One,
-                    dfactor: BlendFactor::One,
-                }),
+                blend: Some(BlendFunc::new(BlendFactor::One, BlendFactor::One)),
             };
 
             let quad = &self.quad;
@@ -779,10 +776,7 @@ impl DeferredLightRenderer {
                         depth_write: false,
                         stencil_test: None,
                         depth_test: false,
-                        blend: Some(BlendFunc {
-                            sfactor: BlendFactor::One,
-                            dfactor: BlendFactor::One,
-                        }),
+                        blend: Some(BlendFunc::new(BlendFactor::One, BlendFactor::One)),
                         stencil_op: Default::default(),
                     },
                     |mut program_binding| {

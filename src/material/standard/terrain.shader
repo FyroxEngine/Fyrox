@@ -74,6 +74,8 @@
                 blend: Some(BlendFunc(
                     sfactor: SrcAlpha,
                     dfactor: OneMinusSrcAlpha,
+                    alpha_sfactor: SrcAlpha,
+                    alpha_dfactor: OneMinusSrcAlpha,
                 )),
                 stencil_op: StencilOp(
                     fail: Keep,
@@ -204,6 +206,8 @@
                 blend: Some(BlendFunc(
                     sfactor: SrcAlpha,
                     dfactor: OneMinusSrcAlpha,
+                    alpha_sfactor: SrcAlpha,
+                    alpha_dfactor: OneMinusSrcAlpha,
                 )),
                 stencil_op: StencilOp(
                     fail: Keep,

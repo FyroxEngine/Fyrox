@@ -348,6 +348,8 @@ define_new_resource!(
     ///                 blend: Some(BlendFunc(
     ///                     sfactor: SrcAlpha,
     ///                     dfactor: OneMinusSrcAlpha,
+    ///                     alpha_sfactor: SrcAlpha,
+    ///                     alpha_dfactor: OneMinusSrcAlpha,
     ///                 )),
     ///
     ///                 // Stencil options.

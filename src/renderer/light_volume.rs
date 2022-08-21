@@ -248,10 +248,7 @@ impl LightVolumeRenderer {
                         mask: 0xFFFF_FFFF,
                     }),
                     depth_test: false,
-                    blend: Some(BlendFunc {
-                        sfactor: BlendFactor::One,
-                        dfactor: BlendFactor::One,
-                    }),
+                    blend: Some(BlendFunc::new(BlendFactor::One, BlendFactor::One)),
                     // Make sure to clean stencil buffer after drawing full screen quad.
                     stencil_op: StencilOp {
                         zpass: StencilAction::Zero,
@@ -336,10 +333,7 @@ impl LightVolumeRenderer {
                         mask: 0xFFFF_FFFF,
                     }),
                     depth_test: false,
-                    blend: Some(BlendFunc {
-                        sfactor: BlendFactor::One,
-                        dfactor: BlendFactor::One,
-                    }),
+                    blend: Some(BlendFunc::new(BlendFactor::One, BlendFactor::One)),
                     // Make sure to clean stencil buffer after drawing full screen quad.
                     stencil_op: StencilOp {
                         zpass: StencilAction::Zero,

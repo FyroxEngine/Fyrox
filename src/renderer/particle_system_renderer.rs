@@ -185,10 +185,10 @@ impl ParticleSystemRenderer {
                 depth_write: false,
                 stencil_test: None,
                 depth_test: true,
-                blend: Some(BlendFunc {
-                    sfactor: BlendFactor::SrcAlpha,
-                    dfactor: BlendFactor::OneMinusSrcAlpha,
-                }),
+                blend: Some(BlendFunc::new(
+                    BlendFactor::SrcAlpha,
+                    BlendFactor::OneMinusSrcAlpha,
+                )),
                 stencil_op: Default::default(),
             };
 

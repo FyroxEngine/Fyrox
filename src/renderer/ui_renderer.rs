@@ -317,10 +317,10 @@ impl UiRenderer {
                 depth_write: false,
                 stencil_test,
                 depth_test: false,
-                blend: Some(BlendFunc {
-                    sfactor: BlendFactor::SrcAlpha,
-                    dfactor: BlendFactor::OneMinusSrcAlpha,
-                }),
+                blend: Some(BlendFunc::new(
+                    BlendFactor::SrcAlpha,
+                    BlendFactor::OneMinusSrcAlpha,
+                )),
                 stencil_op: Default::default(),
             };
 

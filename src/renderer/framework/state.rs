@@ -106,6 +106,33 @@ impl Default for BlendFactor {
 pub struct BlendFunc {
     pub sfactor: BlendFactor,
     pub dfactor: BlendFactor,
+    pub alpha_sfactor: BlendFactor,
+    pub alpha_dfactor: BlendFactor,
+}
+
+impl BlendFunc {
+    pub fn new(sfactor: BlendFactor, dfactor: BlendFactor) -> Self {
+        Self {
+            sfactor,
+            dfactor,
+            alpha_sfactor: sfactor,
+            alpha_dfactor: dfactor,
+        }
+    }
+
+    pub fn new_separate(
+        sfactor: BlendFactor,
+        dfactor: BlendFactor,
+        alpha_sfactor: BlendFactor,
+        alpha_dfactor: BlendFactor,
+    ) -> Self {
+        Self {
+            sfactor,
+            dfactor,
+            alpha_sfactor,
+            alpha_dfactor,
+        }
+    }
 }
 
 impl Default for BlendFunc {
@@ -113,6 +140,8 @@ impl Default for BlendFunc {
         Self {
             sfactor: BlendFactor::One,
             dfactor: BlendFactor::Zero,
+            alpha_sfactor: BlendFactor::One,
+            alpha_dfactor: BlendFactor::Zero,
         }
     }
 }
@@ -473,9 +502,11 @@ impl PipelineState {
             self.blend_func = func;
 
             unsafe {
-                self.gl.blend_func(
+                self.gl.blend_func_separate(
                     self.blend_func.sfactor as u32,
                     self.blend_func.dfactor as u32,
+                    self.blend_func.alpha_sfactor as u32,
+                    self.blend_func.alpha_dfactor as u32,
                 );
             }
         }
