@@ -80,7 +80,7 @@
                     ),
                     equation: BlendEquation(
                         rgb: Add,
-                        alpha: Add
+                        alpha: Max
                     )
                 )),
                 stencil_op: StencilOp(
@@ -218,7 +218,7 @@
                     ),
                     equation: BlendEquation(
                         rgb: Add,
-                        alpha: Add
+                        alpha: Max
                     )
                 )),
                 stencil_op: StencilOp(
