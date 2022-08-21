@@ -1,3 +1,4 @@
+use crate::renderer::framework::framebuffer::BlendParameters;
 use crate::scene::light::point::PointLight;
 use crate::scene::light::spot::SpotLight;
 use crate::{
@@ -248,7 +249,10 @@ impl LightVolumeRenderer {
                         mask: 0xFFFF_FFFF,
                     }),
                     depth_test: false,
-                    blend: Some(BlendFunc::new(BlendFactor::One, BlendFactor::One)),
+                    blend: Some(BlendParameters {
+                        func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
+                        ..Default::default()
+                    }),
                     // Make sure to clean stencil buffer after drawing full screen quad.
                     stencil_op: StencilOp {
                         zpass: StencilAction::Zero,
@@ -333,7 +337,10 @@ impl LightVolumeRenderer {
                         mask: 0xFFFF_FFFF,
                     }),
                     depth_test: false,
-                    blend: Some(BlendFunc::new(BlendFactor::One, BlendFactor::One)),
+                    blend: Some(BlendParameters {
+                        func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
+                        ..Default::default()
+                    }),
                     // Make sure to clean stencil buffer after drawing full screen quad.
                     stencil_op: StencilOp {
                         zpass: StencilAction::Zero,

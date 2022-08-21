@@ -22,11 +22,17 @@
                 depth_write: true,
                 stencil_test: None,
                 depth_test: true,
-                blend: Some(BlendFunc(
-                    sfactor: SrcAlpha,
-                    dfactor: OneMinusSrcAlpha,
-                    alpha_sfactor: SrcAlpha,
-                    alpha_dfactor: OneMinusSrcAlpha,
+                blend: Some(BlendParameters(
+                    func: BlendFunc(
+                        sfactor: SrcAlpha,
+                        dfactor: OneMinusSrcAlpha,
+                        alpha_sfactor: SrcAlpha,
+                        alpha_dfactor: OneMinusSrcAlpha,
+                    ),
+                    equation: BlendEquation(
+                        rgb: Add,
+                        alpha: Add
+                    )
                 )),
                 stencil_op: StencilOp(
                     fail: Keep,

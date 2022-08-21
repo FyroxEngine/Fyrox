@@ -1,4 +1,5 @@
 use fyrox::core::sstorage::ImmutableString;
+use fyrox::renderer::framework::framebuffer::BlendParameters;
 use fyrox::renderer::framework::geometry_buffer::{GeometryBuffer, GeometryBufferKind};
 use fyrox::renderer::framework::state::{BlendFactor, BlendFunc};
 use fyrox::{
@@ -125,10 +126,10 @@ impl SceneRenderPass for OverlayRenderPass {
                     depth_write: false,
                     stencil_test: None,
                     depth_test: true,
-                    blend: Some(BlendFunc::new(
-                        BlendFactor::SrcAlpha,
-                        BlendFactor::OneMinusSrcAlpha,
-                    )),
+                    blend: Some(BlendParameters {
+                        func: BlendFunc::new(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha),
+                        ..Default::default()
+                    }),
                     stencil_op: Default::default(),
                 },
                 |mut program_binding| {

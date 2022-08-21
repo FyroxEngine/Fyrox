@@ -1,4 +1,5 @@
 use crate::core::sstorage::ImmutableString;
+use crate::renderer::framework::framebuffer::BlendParameters;
 use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::scene::particle_system::ParticleSystem;
 use crate::{
@@ -185,10 +186,10 @@ impl ParticleSystemRenderer {
                 depth_write: false,
                 stencil_test: None,
                 depth_test: true,
-                blend: Some(BlendFunc::new(
-                    BlendFactor::SrcAlpha,
-                    BlendFactor::OneMinusSrcAlpha,
-                )),
+                blend: Some(BlendParameters {
+                    func: BlendFunc::new(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha),
+                    ..Default::default()
+                }),
                 stencil_op: Default::default(),
             };
 

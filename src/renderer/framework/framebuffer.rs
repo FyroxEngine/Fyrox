@@ -1,3 +1,4 @@
+use crate::renderer::framework::state::BlendEquation;
 use crate::{
     core::{color::Color, math::Rect, scope_profile, visitor::prelude::*},
     renderer::framework::{
@@ -44,6 +45,12 @@ impl Default for CullFace {
     }
 }
 
+#[derive(Deserialize, Default, Visit, Debug, PartialEq, Clone, Eq)]
+pub struct BlendParameters {
+    pub func: BlendFunc,
+    pub equation: BlendEquation,
+}
+
 #[derive(Deserialize, Visit, Debug, PartialEq, Clone, Eq)]
 pub struct DrawParameters {
     pub cull_face: Option<CullFace>,
@@ -51,7 +58,7 @@ pub struct DrawParameters {
     pub depth_write: bool,
     pub stencil_test: Option<StencilFunc>,
     pub depth_test: bool,
-    pub blend: Option<BlendFunc>,
+    pub blend: Option<BlendParameters>,
     pub stencil_op: StencilOp,
 }
 

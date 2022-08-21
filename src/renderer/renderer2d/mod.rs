@@ -1,5 +1,6 @@
 //! A renderer responsible for drawing 2D scenes.
 
+use crate::renderer::framework::framebuffer::BlendParameters;
 use crate::{
     core::{
         algebra::{Vector2, Vector3, Vector4},
@@ -291,10 +292,13 @@ impl Renderer2d {
                         depth_write: true,
                         stencil_test: None,
                         depth_test: true,
-                        blend: Some(BlendFunc::new(
-                            BlendFactor::SrcAlpha,
-                            BlendFactor::OneMinusSrcAlpha,
-                        )),
+                        blend: Some(BlendParameters {
+                            func: BlendFunc::new(
+                                BlendFactor::SrcAlpha,
+                                BlendFactor::OneMinusSrcAlpha,
+                            ),
+                            ..Default::default()
+                        }),
                         stencil_op: Default::default(),
                     },
                     |mut program_binding| {

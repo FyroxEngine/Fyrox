@@ -10,6 +10,7 @@
 //! now I don't know better solution.
 
 use crate::core::sstorage::ImmutableString;
+use crate::renderer::framework::framebuffer::BlendParameters;
 use crate::renderer::framework::geometry_buffer::{GeometryBuffer, GeometryBufferKind};
 use crate::scene::decal::Decal;
 use crate::{
@@ -373,10 +374,10 @@ impl GBuffer {
                     depth_write: false,
                     stencil_test: None,
                     depth_test: false,
-                    blend: Some(BlendFunc::new(
-                        BlendFactor::SrcAlpha,
-                        BlendFactor::OneMinusSrcAlpha,
-                    )),
+                    blend: Some(BlendParameters {
+                        func: BlendFunc::new(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha),
+                        ..Default::default()
+                    }),
                     stencil_op: Default::default(),
                 },
                 |mut program_binding| {

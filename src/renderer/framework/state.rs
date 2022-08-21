@@ -102,6 +102,28 @@ impl Default for BlendFactor {
     }
 }
 
+#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Deserialize, Visit, Debug)]
+#[repr(u32)]
+pub enum BlendMode {
+    Add = glow::FUNC_ADD,
+    Subtract = glow::FUNC_SUBTRACT,
+    ReverseSubtract = glow::FUNC_REVERSE_SUBTRACT,
+    Min = glow::MIN,
+    Max = glow::MAX,
+}
+
+impl Default for BlendMode {
+    fn default() -> Self {
+        Self::Add
+    }
+}
+
+#[derive(Copy, Clone, Default, PartialOrd, PartialEq, Ord, Eq, Hash, Deserialize, Visit, Debug)]
+pub struct BlendEquation {
+    rgb: BlendMode,
+    alpha: BlendMode,
+}
+
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Deserialize, Visit, Debug)]
 pub struct BlendFunc {
     pub sfactor: BlendFactor,
@@ -169,6 +191,7 @@ pub struct PipelineState {
     viewport: Rect<i32>,
 
     blend_func: BlendFunc,
+    blend_equation: BlendEquation,
 
     program: Option<glow::Program>,
     texture_units: [TextureUnit; 32],
@@ -334,6 +357,7 @@ impl PipelineState {
             vao: Default::default(),
             vbo: Default::default(),
             frame_statistics: Default::default(),
+            blend_equation: Default::default(),
         }
     }
 
@@ -512,6 +536,19 @@ impl PipelineState {
         }
     }
 
+    pub fn set_blend_equation(&mut self, equation: BlendEquation) {
+        if self.blend_equation != equation {
+            self.blend_equation = equation;
+
+            unsafe {
+                self.gl.blend_equation_separate(
+                    self.blend_equation.rgb as u32,
+                    self.blend_equation.alpha as u32,
+                );
+            }
+        }
+    }
+
     pub fn set_depth_func(&mut self, depth_func: CompareFunc) {
         if self.depth_func != depth_func {
             self.depth_func = depth_func;
@@ -677,8 +714,9 @@ impl PipelineState {
     }
 
     pub fn apply_draw_parameters(&mut self, draw_params: &DrawParameters) {
-        if let Some(blend_func) = draw_params.blend {
-            self.set_blend_func(blend_func);
+        if let Some(ref blend_params) = draw_params.blend {
+            self.set_blend_func(blend_params.func);
+            self.set_blend_equation(blend_params.equation);
             self.set_blend(true);
         } else {
             self.set_blend(false);

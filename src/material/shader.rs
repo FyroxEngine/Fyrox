@@ -345,11 +345,17 @@ define_new_resource!(
     ///                 depth_test: true,
     ///
     ///                 // Blending options.
-    ///                 blend: Some(BlendFunc(
-    ///                     sfactor: SrcAlpha,
-    ///                     dfactor: OneMinusSrcAlpha,
-    ///                     alpha_sfactor: SrcAlpha,
-    ///                     alpha_dfactor: OneMinusSrcAlpha,
+    ///                 blend: Some(BlendParameters(
+    ///                     func: BlendFunc(
+    ///                         sfactor: SrcAlpha,
+    ///                         dfactor: OneMinusSrcAlpha,
+    ///                         alpha_sfactor: SrcAlpha,
+    ///                         alpha_dfactor: OneMinusSrcAlpha,
+    ///                     ),
+    ///                     equation: BlendEquation(
+    ///                         rgb: Add,
+    ///                         alpha: Add
+    ///                     )
     ///                 )),
     ///
     ///                 // Stencil options.
