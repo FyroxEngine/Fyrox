@@ -1,5 +1,3 @@
-pub mod machine;
-
 use crate::{
     asset::ResourceState,
     core::{
@@ -14,11 +12,13 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
-use std::ops::Range;
 use std::{
     collections::VecDeque,
-    ops::{Index, IndexMut},
+    ops::{Index, IndexMut, Range},
 };
+
+pub mod machine;
+pub mod spritesheet;
 
 #[derive(Copy, Clone, Debug, Visit)]
 pub struct KeyFrame {
