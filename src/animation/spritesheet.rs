@@ -4,8 +4,22 @@
 use crate::core::{
     algebra::Vector2, inspect::prelude::*, math::Rect, reflect::Reflect, visitor::prelude::*,
 };
+use std::ops::{Deref, DerefMut};
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
-#[derive(Visit, Reflect, Inspect, Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(
+    Visit,
+    Reflect,
+    Inspect,
+    Copy,
+    Clone,
+    Eq,
+    PartialEq,
+    Debug,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 pub enum Status {
     Playing,
     Stopped,
@@ -18,9 +32,26 @@ impl Default for Status {
     }
 }
 
+#[derive(Visit, Reflect, Inspect, Default, Clone, Debug)]
+pub struct FrameBounds(pub Rect<f32>);
+
+impl Deref for FrameBounds {
+    type Target = Rect<f32>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for FrameBounds {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 #[derive(Visit, Reflect, Inspect, Clone, Debug)]
 pub struct SpriteSheetAnimation {
-    frames: Vec<Rect<f32>>,
+    frames: Vec<FrameBounds>,
     current_frame: f32,
     speed: f32,
     status: Status,
@@ -147,13 +178,13 @@ impl SpriteSheetAnimation {
                     n / height_in_frames
                 };
 
-                Rect {
+                FrameBounds(Rect {
                     position: Vector2::new(
                         x as f32 * normalized_frame_width,
                         y as f32 * normalized_frame_height,
                     ),
                     size: Vector2::new(normalized_frame_width, normalized_frame_height),
-                }
+                })
             })
             .collect::<Vec<_>>();
 
@@ -164,12 +195,12 @@ impl SpriteSheetAnimation {
     }
 
     /// Adds new frame.
-    pub fn add_frame(&mut self, frame: Rect<f32>) {
+    pub fn add_frame(&mut self, frame: FrameBounds) {
         self.frames.push(frame);
     }
 
     /// Remove a frame at given index.
-    pub fn remove_frame(&mut self, index: usize) -> Option<Rect<f32>> {
+    pub fn remove_frame(&mut self, index: usize) -> Option<FrameBounds> {
         if index < self.frames.len() {
             self.current_frame = self.current_frame.min(self.frames.len() as f32);
             Some(self.frames.remove(index))
@@ -217,7 +248,7 @@ impl SpriteSheetAnimation {
     }
 
     /// Tries to fetch UV rectangle at current frame. Returns `None` if animation is empty.
-    pub fn current_frame_uv_rect(&self) -> Option<&Rect<f32>> {
+    pub fn current_frame_uv_rect(&self) -> Option<&FrameBounds> {
         self.frames.get(self.current_frame())
     }
 

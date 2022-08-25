@@ -6,11 +6,16 @@ use crate::{
     },
     Message,
 };
-use fyrox::scene::particle_system::EmitterWrapper;
-use fyrox::scene::sound::effect::{Effect, ReverbEffect};
 use fyrox::{
-    animation::machine::MachineInstantiationError,
-    core::{futures::executor::block_on, parking_lot::Mutex, pool::ErasedHandle, pool::Handle},
+    animation::{
+        machine::MachineInstantiationError,
+        spritesheet::{self, FrameBounds, SpriteSheetAnimation},
+    },
+    core::{
+        futures::executor::block_on,
+        parking_lot::Mutex,
+        pool::{ErasedHandle, Handle},
+    },
     gui::inspector::editors::{
         array::ArrayPropertyEditorDefinition, bit::BitFieldPropertyEditorDefinition,
         collection::VecCollectionPropertyEditorDefinition,
@@ -53,13 +58,14 @@ use fyrox::{
             base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
             sphere::SphereEmitter, Emitter,
         },
+        particle_system::EmitterWrapper,
         rigidbody::RigidBodyType,
         sound::{
             self,
-            effect::{BaseEffect, EffectInput},
-            Biquad, DistanceModel, Status,
+            effect::{BaseEffect, Effect, EffectInput, ReverbEffect},
+            Biquad, DistanceModel, SoundBufferResource, SoundBufferResourceLoadError,
+            SoundBufferState, Status,
         },
-        sound::{SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
         terrain::Layer,
         transform::Transform,
     },
@@ -114,7 +120,12 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<f32>::new_optional());
     container.insert(EnumPropertyEditorDefinition::<u32>::new_optional());
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
+    container.insert(EnumPropertyEditorDefinition::<spritesheet::Status>::new());
     container.insert(InspectablePropertyEditorDefinition::<LodGroup>::new());
+    container.insert(InspectablePropertyEditorDefinition::<SpriteSheetAnimation>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<SpriteSheetAnimation>::new());
+    container.insert(InspectablePropertyEditorDefinition::<FrameBounds>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<FrameBounds>::new());
     container.insert(ResourceFieldPropertyEditorDefinition::<
         Model,
         ModelData,
