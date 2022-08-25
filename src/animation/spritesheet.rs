@@ -1,12 +1,15 @@
 //! Sprite sheet animation is used to create simple key frame animation using single image with
 //! series of frames.
 
+#![warn(missing_docs)]
+
 use crate::core::{
     algebra::Vector2, inspect::prelude::*, math::Rect, reflect::Reflect, visitor::prelude::*,
 };
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
+/// Animation playback status.
 #[derive(
     Visit,
     Reflect,
@@ -21,8 +24,14 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
     EnumVariantNames,
 )]
 pub enum Status {
+    /// Animation is playing.
     Playing,
+
+    /// Animation is stopped. Stopped animation is guaranteed to be either at beginning or at end frames (depending on speed).
+    /// When an animation is stopped manually via ([`SpriteSheetAnimation::stop()`], the animation will be rewound to beginning.
     Stopped,
+
+    /// Animation is paused. Playback can be resumed by [`SpriteSheetAnimation::play()`].
     Paused,
 }
 
@@ -32,8 +41,19 @@ impl Default for Status {
     }
 }
 
-#[derive(Visit, Reflect, Inspect, Default, Clone, Debug)]
+/// Frame bounds, represented in normalized coordinates (range [0; 1]). Normalized coordinates represents fractions of some
+/// other coordinates, which means `[0; 0]` corresponds to top-left corner of a texture and `[1; 1]` corresponds to right-bottom
+/// corner.
+#[derive(Visit, Reflect, Inspect, Default, Clone, Debug, PartialEq)]
 pub struct FrameBounds(pub Rect<f32>);
+
+impl FrameBounds {
+    /// Creates new frame bounds using given position and size.
+    #[inline]
+    pub fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
+        Self(Rect::new(x, y, w, h))
+    }
+}
 
 impl Deref for FrameBounds {
     type Target = Rect<f32>;
@@ -49,6 +69,8 @@ impl DerefMut for FrameBounds {
     }
 }
 
+/// Sprite sheet animation is an animation based on key frames, where each key frame is packed into single image. Usually, all key
+/// frames have the same size, but this is not mandatory.
 #[derive(Visit, Reflect, Inspect, Clone, Debug)]
 pub struct SpriteSheetAnimation {
     frames: Vec<FrameBounds>,
@@ -70,18 +92,34 @@ impl Default for SpriteSheetAnimation {
     }
 }
 
+/// Sprite sheet source image parameters defines how to interpret an image. It defines size of each frame,
+/// total size of an image, frame range to use, etc.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ImageParameters {
+    /// Width of an image in pixels.
     pub width: usize,
+
+    /// Height of an image in pixels.
     pub height: usize,
+
+    /// Width of every frame in an image.
     pub frame_width: usize,
+
+    /// Height of every frame in an image.
     pub frame_height: usize,
+
+    /// Index of a first frame at which a produced animation should start.
     pub first_frame: usize,
+
+    /// Index of a last frame at which a produced animation should end.
     pub last_frame: usize,
+
+    /// Defines how to interpret the image - is it pack in rows of frames or columns of frames.
     pub column_major: bool,
 }
 
 impl SpriteSheetAnimation {
+    /// Creates new empty animation.
     pub fn new() -> Self {
         Self::default()
     }
@@ -293,25 +331,42 @@ impl SpriteSheetAnimation {
         self.status
     }
 
+    /// Starts animation playback.
     pub fn play(&mut self) {
         self.status = Status::Playing;
     }
 
-    pub fn stop(&mut self) {
-        self.status = Status::Stopped;
+    /// Returns `true` if the animation is playing, `false` - otherwise.
+    pub fn is_playing(&self) -> bool {
+        self.status == Status::Playing
     }
 
+    /// Stops animation playback, rewinds animation to the beginning.
+    pub fn stop(&mut self) {
+        self.status = Status::Stopped;
+        self.rewind_to_beginning();
+    }
+
+    /// Returns `true` if the animation is stopped, `false` - otherwise.
+    pub fn is_stopped(&self) -> bool {
+        self.status == Status::Stopped
+    }
+
+    /// Puts animation playback on pause.
     pub fn pause(&mut self) {
         self.status = Status::Paused;
+    }
+
+    /// Returns `true` if the animation is paused, `false` - otherwise.
+    pub fn is_paused(&self) -> bool {
+        self.status == Status::Paused
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::animation::spritesheet::Status;
-    use crate::{
-        animation::spritesheet::{ImageParameters, SpriteSheetAnimation},
-        core::math::Rect,
+    use crate::animation::spritesheet::{
+        FrameBounds, ImageParameters, SpriteSheetAnimation, Status,
     };
 
     #[test]
@@ -325,10 +380,10 @@ mod test {
             last_frame: 4,
             column_major: false,
         });
-        assert_eq!(animation.frames[0], Rect::new(0.0, 0.0, 0.25, 0.25));
-        assert_eq!(animation.frames[1], Rect::new(0.25, 0.0, 0.25, 0.25));
-        assert_eq!(animation.frames[2], Rect::new(0.5, 0.0, 0.25, 0.25));
-        assert_eq!(animation.frames[3], Rect::new(0.75, 0.0, 0.25, 0.25));
+        assert_eq!(animation.frames[0], FrameBounds::new(0.0, 0.0, 0.25, 0.25));
+        assert_eq!(animation.frames[1], FrameBounds::new(0.25, 0.0, 0.25, 0.25));
+        assert_eq!(animation.frames[2], FrameBounds::new(0.5, 0.0, 0.25, 0.25));
+        assert_eq!(animation.frames[3], FrameBounds::new(0.75, 0.0, 0.25, 0.25));
     }
 
     #[test]
@@ -342,10 +397,10 @@ mod test {
             last_frame: 4,
             column_major: true,
         });
-        assert_eq!(animation.frames[0], Rect::new(0.0, 0.0, 0.25, 0.25));
-        assert_eq!(animation.frames[1], Rect::new(0.0, 0.25, 0.25, 0.25));
-        assert_eq!(animation.frames[2], Rect::new(0.0, 0.5, 0.25, 0.25));
-        assert_eq!(animation.frames[3], Rect::new(0.0, 0.75, 0.25, 0.25));
+        assert_eq!(animation.frames[0], FrameBounds::new(0.0, 0.0, 0.25, 0.25));
+        assert_eq!(animation.frames[1], FrameBounds::new(0.0, 0.25, 0.25, 0.25));
+        assert_eq!(animation.frames[2], FrameBounds::new(0.0, 0.5, 0.25, 0.25));
+        assert_eq!(animation.frames[3], FrameBounds::new(0.0, 0.75, 0.25, 0.25));
     }
 
     #[test]
@@ -359,10 +414,13 @@ mod test {
             last_frame: 6,
             column_major: false,
         });
-        assert_eq!(animation.frames[0], Rect::new(0.5, 0.0, 0.25, 0.25));
-        assert_eq!(animation.frames[1], Rect::new(0.75, 0.0, 0.25, 0.25));
-        assert_eq!(animation.frames[2], Rect::new(0.0, 0.25, 0.25, 0.25));
-        assert_eq!(animation.frames[3], Rect::new(0.25, 0.25, 0.25, 0.25));
+        assert_eq!(animation.frames[0], FrameBounds::new(0.5, 0.0, 0.25, 0.25));
+        assert_eq!(animation.frames[1], FrameBounds::new(0.75, 0.0, 0.25, 0.25));
+        assert_eq!(animation.frames[2], FrameBounds::new(0.0, 0.25, 0.25, 0.25));
+        assert_eq!(
+            animation.frames[3],
+            FrameBounds::new(0.25, 0.25, 0.25, 0.25)
+        );
     }
 
     #[test]
@@ -376,10 +434,13 @@ mod test {
             last_frame: 6,
             column_major: true,
         });
-        assert_eq!(animation.frames[0], Rect::new(0.0, 0.5, 0.25, 0.25));
-        assert_eq!(animation.frames[1], Rect::new(0.0, 0.75, 0.25, 0.25));
-        assert_eq!(animation.frames[2], Rect::new(0.25, 0.0, 0.25, 0.25));
-        assert_eq!(animation.frames[3], Rect::new(0.25, 0.25, 0.25, 0.25));
+        assert_eq!(animation.frames[0], FrameBounds::new(0.0, 0.5, 0.25, 0.25));
+        assert_eq!(animation.frames[1], FrameBounds::new(0.0, 0.75, 0.25, 0.25));
+        assert_eq!(animation.frames[2], FrameBounds::new(0.25, 0.0, 0.25, 0.25));
+        assert_eq!(
+            animation.frames[3],
+            FrameBounds::new(0.25, 0.25, 0.25, 0.25)
+        );
     }
 
     #[test]
@@ -404,10 +465,10 @@ mod test {
         assert_eq!(animation.status, Status::Playing);
 
         let expected_output = [
-            Rect::new(0.0, 0.5, 0.25, 0.25),
-            Rect::new(0.0, 0.75, 0.25, 0.25),
-            Rect::new(0.25, 0.0, 0.25, 0.25),
-            Rect::new(0.25, 0.25, 0.25, 0.25),
+            FrameBounds::new(0.0, 0.5, 0.25, 0.25),
+            FrameBounds::new(0.0, 0.75, 0.25, 0.25),
+            FrameBounds::new(0.25, 0.0, 0.25, 0.25),
+            FrameBounds::new(0.25, 0.25, 0.25, 0.25),
         ];
 
         for expected_frame in &expected_output {
