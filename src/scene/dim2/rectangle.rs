@@ -106,6 +106,7 @@ pub struct Rectangle {
 
     #[inspect(deref, is_modified = "is_modified()")]
     #[reflect(deref, setter = "set_texture")]
+    #[visit(optional)] // Backward compatibility
     texture: TemplateVariable<Option<Texture>>,
 
     #[inspect(deref, is_modified = "is_modified()")]
