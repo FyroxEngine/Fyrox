@@ -400,10 +400,14 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 .context()
                 .clone();
 
-            if let Err(e) = inspector_ctx.sync(value, ctx.ui, layer_index + 1) {
-                Err(InspectorError::Group(e))
+            if let Some(value) = value.as_ref() {
+                if let Err(e) = inspector_ctx.sync(value, ctx.ui, layer_index + 1) {
+                    Err(InspectorError::Group(e))
+                } else {
+                    Ok(None)
+                }
             } else {
-                Ok(None)
+                Err(InspectorError::Custom("Invalid script value!".to_owned()))
             }
         }
     }
