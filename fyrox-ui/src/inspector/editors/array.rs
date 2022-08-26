@@ -1,8 +1,5 @@
 use crate::{
-    border::BorderBuilder,
-    brush::Brush,
-    core::{color::Color, inspect::Inspect, pool::Handle},
-    expander::ExpanderBuilder,
+    core::{inspect::Inspect, pool::Handle},
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
@@ -14,9 +11,8 @@ use crate::{
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
-    text::TextBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
+    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use std::{
     any::{Any, TypeId},
@@ -80,27 +76,22 @@ where
     layer_index: usize,
 }
 
-fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
+fn create_item_views(
+    items: &[Item],
+    ctx: &mut BuildContext,
+    layer_index: usize,
+) -> Vec<Handle<UiNode>> {
     items
         .iter()
         .enumerate()
         .map(|(n, item)| {
-            BorderBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(
-                        ExpanderBuilder::new(WidgetBuilder::new())
-                            .with_header(
-                                TextBuilder::new(WidgetBuilder::new())
-                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                    .with_text(format!("Item {}", n))
-                                    .build(ctx),
-                            )
-                            .with_content(item.inspector)
-                            .build(ctx),
-                    )
-                    .with_foreground(Brush::Solid(Color::opaque(130, 130, 130))),
+            make_expander_container(
+                layer_index,
+                &format!("Item {}", n),
+                Default::default(),
+                item.inspector,
+                ctx,
             )
-            .build(ctx)
         })
         .collect::<Vec<_>>()
 }
@@ -190,14 +181,16 @@ where
                     definition_container,
                     ctx,
                     sync_flag,
-                    self.layer_index,
+                    self.layer_index + 1,
                 )
             })
             .unwrap_or_default();
 
-        let panel = StackPanelBuilder::new(
-            WidgetBuilder::new().with_children(create_item_views(&items, ctx)),
-        )
+        let panel = StackPanelBuilder::new(WidgetBuilder::new().with_children(create_item_views(
+            &items,
+            ctx,
+            self.layer_index,
+        )))
         .build(ctx);
 
         let ce = ArrayEditor {
