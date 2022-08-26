@@ -126,6 +126,12 @@ pub fn make_property_editors_container(
     container.insert(VecCollectionPropertyEditorDefinition::<SpriteSheetAnimation>::new());
     container.insert(InspectablePropertyEditorDefinition::<FrameBounds>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<FrameBounds>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        spritesheet::signal::Signal,
+    >::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<
+        spritesheet::signal::Signal,
+    >::new());
     container.insert(ResourceFieldPropertyEditorDefinition::<
         Model,
         ModelData,

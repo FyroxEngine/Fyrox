@@ -3,11 +3,19 @@
 
 #![warn(missing_docs)]
 
-use crate::core::{
-    algebra::Vector2, inspect::prelude::*, math::Rect, reflect::Reflect, visitor::prelude::*,
+use crate::{
+    animation::spritesheet::signal::Signal,
+    core::{
+        algebra::Vector2, inspect::prelude::*, math::Rect, reflect::Reflect, visitor::prelude::*,
+    },
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    collections::vec_deque::VecDeque,
+    ops::{Deref, DerefMut},
+};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+
+pub mod signal;
 
 /// Animation playback status.
 #[derive(
@@ -69,6 +77,20 @@ impl DerefMut for FrameBounds {
     }
 }
 
+/// Some animation event.
+#[derive(Visit, Reflect, Inspect, Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Event {
+    /// A signal with an id was hit.
+    Signal(u64),
+}
+
+impl Default for Event {
+    fn default() -> Self {
+        Self::Signal(0)
+    }
+}
+
 /// Sprite sheet animation is an animation based on key frames, where each key frame is packed into single image. Usually, all key
 /// frames have the same size, but this is not mandatory.
 #[derive(Visit, Reflect, Inspect, Clone, Debug)]
@@ -78,6 +100,11 @@ pub struct SpriteSheetAnimation {
     speed: f32,
     status: Status,
     looping: bool,
+    signals: Vec<Signal>,
+    #[reflect(hidden)]
+    #[inspect(skip)]
+    #[visit(skip)]
+    events: VecDeque<Event>,
 }
 
 impl Default for SpriteSheetAnimation {
@@ -88,6 +115,8 @@ impl Default for SpriteSheetAnimation {
             speed: 10.0,
             status: Default::default(),
             looping: true,
+            signals: Default::default(),
+            events: Default::default(),
         }
     }
 }
@@ -258,7 +287,22 @@ impl SpriteSheetAnimation {
             return;
         }
 
-        self.current_frame += self.speed * dt;
+        let next_frame = self.current_frame + self.speed * dt;
+
+        for signal in self.signals.iter_mut().filter(|s| s.enabled) {
+            let signal_frame = signal.frame as f32;
+
+            if (self.speed >= 0.0
+                && (self.current_frame < signal_frame && next_frame >= signal_frame)
+                || self.speed < 0.0
+                    && (self.current_frame > signal_frame && next_frame <= signal_frame))
+                && self.events.len() < 32
+            {
+                self.events.push_back(Event::Signal(signal.id));
+            }
+        }
+
+        self.current_frame = next_frame;
         if self.current_frame >= self.frames.len() as f32 {
             if self.looping {
                 // Continue playing from beginning.
@@ -361,12 +405,28 @@ impl SpriteSheetAnimation {
     pub fn is_paused(&self) -> bool {
         self.status == Status::Paused
     }
+
+    /// Adds new animation signal to the animation.
+    pub fn add_signal(&mut self, signal: Signal) {
+        self.signals.push(signal)
+    }
+
+    /// Removes animation signal by given id.
+    pub fn remove_signal(&mut self, id: u64) {
+        self.signals.retain(|s| s.id != id)
+    }
+
+    /// Pops animation event from internal queue.
+    pub fn pop_event(&mut self) -> Option<Event> {
+        self.events.pop_front()
+    }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::animation::spritesheet::signal::Signal;
     use crate::animation::spritesheet::{
-        FrameBounds, ImageParameters, SpriteSheetAnimation, Status,
+        Event, FrameBounds, ImageParameters, SpriteSheetAnimation, Status,
     };
 
     #[test]
@@ -486,5 +546,46 @@ mod test {
             assert_eq!(animation.current_frame_uv_rect(), Some(expected_frame));
             animation.update(1.0);
         }
+    }
+
+    #[test]
+    fn test_signals() {
+        let mut animation = SpriteSheetAnimation::new();
+
+        animation.add_frame(FrameBounds::default());
+        animation.add_frame(FrameBounds::default());
+        animation.add_frame(FrameBounds::default());
+
+        animation.set_speed(1.0);
+        animation.set_looping(false);
+        animation.play();
+
+        animation.add_signal(Signal {
+            id: 0,
+            frame: 1,
+            enabled: true,
+        });
+
+        animation.add_signal(Signal {
+            id: 1,
+            frame: 1,
+            enabled: false,
+        });
+
+        animation.add_signal(Signal {
+            id: 2,
+            frame: 2,
+            enabled: true,
+        });
+
+        for _ in 0..3 {
+            animation.update(1.0);
+        }
+
+        assert_eq!(animation.pop_event(), Some(Event::Signal(0)));
+        // Disable signals does not produce any events.
+        assert_eq!(animation.pop_event(), Some(Event::Signal(2)));
+        // Only two should appear.
+        assert_eq!(animation.pop_event(), None);
     }
 }
