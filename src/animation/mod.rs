@@ -472,7 +472,7 @@ impl Animation {
         let current_time_position = self.get_time_position();
         let new_time_position = current_time_position + dt * self.get_speed();
 
-        for signal in self.signals.iter_mut() {
+        for signal in self.signals.iter_mut().filter(|s| s.enabled) {
             if self.speed >= 0.0
                 && (current_time_position < signal.time && new_time_position >= signal.time)
                 || self.speed < 0.0
