@@ -15,7 +15,7 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/resources/**/
 [dependencies]
 fyrox = { version = "0.27.1", path = ".." }
 lazy_static = "1.4.0"
-ron = "0.7.0"
+ron = "0.8.0"
 serde = "^1.0.0"
 toml = "0.5"
 strum = "0.24.0"

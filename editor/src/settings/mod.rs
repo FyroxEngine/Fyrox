@@ -72,12 +72,19 @@ pub struct Settings {
 #[derive(Debug)]
 pub enum SettingsError {
     Io(std::io::Error),
+    RonSpanned(ron::error::SpannedError),
     Ron(ron::Error),
 }
 
 impl From<std::io::Error> for SettingsError {
     fn from(e: std::io::Error) -> Self {
         Self::Io(e)
+    }
+}
+
+impl From<ron::error::SpannedError> for SettingsError {
+    fn from(e: ron::error::SpannedError) -> Self {
+        Self::RonSpanned(e)
     }
 }
 

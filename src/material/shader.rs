@@ -18,7 +18,6 @@ use crate::{
         framework::framebuffer::DrawParameters,
     },
 };
-use ron::Error;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
@@ -278,11 +277,11 @@ pub enum ShaderError {
 
     /// A parsing error has occurred.
     #[error("A parsing error has occurred {0:?}")]
-    ParseError(ron::Error),
+    ParseError(ron::error::SpannedError),
 }
 
-impl From<ron::Error> for ShaderError {
-    fn from(e: Error) -> Self {
+impl From<ron::error::SpannedError> for ShaderError {
+    fn from(e: ron::error::SpannedError) -> Self {
         Self::ParseError(e)
     }
 }
