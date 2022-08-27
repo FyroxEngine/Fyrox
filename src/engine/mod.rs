@@ -7,7 +7,7 @@ pub mod error;
 pub mod executor;
 pub mod resource_manager;
 
-use crate::plugin::PluginConstructor;
+use crate::plugin::{PluginConstructor, SoundEngineHelper};
 use crate::{
     asset::ResourceState,
     core::{algebra::Vector2, futures::executor::block_on, instant, pool::Handle},
@@ -494,6 +494,9 @@ impl Engine {
                 user_interface: &mut self.user_interface,
                 serialization_context: &self.serialization_context,
                 window: get_window!(self),
+                sound_engine: SoundEngineHelper {
+                    engine: &self.sound_engine,
+                },
             };
 
             for plugin in self.plugins.iter_mut() {
@@ -509,6 +512,9 @@ impl Engine {
                     user_interface: &mut self.user_interface,
                     serialization_context: &self.serialization_context,
                     window: get_window!(self),
+                    sound_engine: SoundEngineHelper {
+                        engine: &self.sound_engine,
+                    },
                 };
                 for plugin in self.plugins.iter_mut() {
                     plugin.on_ui_message(&mut context, &message, control_flow);
@@ -536,6 +542,9 @@ impl Engine {
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
                         window: get_window!(self),
+                        sound_engine: SoundEngineHelper {
+                            engine: &self.sound_engine,
+                        },
                     },
                     control_flow,
                 );
@@ -794,6 +803,9 @@ impl Engine {
                             user_interface: &mut self.user_interface,
                             serialization_context: &self.serialization_context,
                             window: get_window!(self),
+                            sound_engine: SoundEngineHelper {
+                                engine: &self.sound_engine,
+                            },
                         },
                     ));
                 }
@@ -810,6 +822,9 @@ impl Engine {
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
                         window: get_window!(self),
+                        sound_engine: SoundEngineHelper {
+                            engine: &self.sound_engine,
+                        },
                     });
                 }
             }
