@@ -325,15 +325,15 @@ fn init_script(raw_name: &str) {
             r#"
 use crate::GameConstructor;
 use fyrox::{{
-    core::{{inspect::prelude::*, uuid::{{Uuid, uuid}}, visitor::prelude::*}},
+    core::{{inspect::prelude::*, uuid::{{Uuid, uuid}}, visitor::prelude::*, reflect::Reflect}},
     engine::resource_manager::ResourceManager,
     event::Event, impl_component_provider,
     scene::{{graph::map::NodeHandleMap, node::TypeUuidProvider}},
     script::{{ScriptContext, ScriptDeinitContext, ScriptTrait}},
 }};
 
-#[derive(Visit, Inspect, Default, Debug, Clone)]
-struct {name} {{
+#[derive(Visit, Reflect, Inspect, Default, Debug, Clone)]
+pub struct {name} {{
     // Add fields here.
 }}
 
