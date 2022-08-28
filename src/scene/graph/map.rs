@@ -31,6 +31,15 @@ impl NodeHandleMap {
         self
     }
 
+    /// Maps each handle in the slice to a handle of its origin, or sets it to [Handle::NONE] if there is no such node.
+    /// It should be used when you are sure that respective origin exists.
+    pub fn map_slice(&self, handles: &mut [Handle<Node>]) -> &Self {
+        for handle in handles {
+            self.map(handle);
+        }
+        self
+    }
+
     /// Tries to map a handle to a handle of its origin. If it exists, the method returns true or false otherwise.
     /// It should be used when you not sure that respective origin exists.
     pub fn try_map(&self, handle: &mut Handle<Node>) -> bool {
@@ -40,6 +49,16 @@ impl NodeHandleMap {
         } else {
             false
         }
+    }
+
+    /// Tries to map each handle in the slice to a handle of its origin. If it exists, the method returns true or false otherwise.
+    /// It should be used when you not sure that respective origin exists.
+    pub fn try_map_slice(&self, handles: &mut [Handle<Node>]) -> bool {
+        let mut success = true;
+        for handle in handles {
+            success &= self.try_map(handle);
+        }
+        success
     }
 
     /// Tries to silently map (without setting `modified` flag) a templated handle to a handle of its origin.
