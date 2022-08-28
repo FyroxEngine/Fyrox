@@ -188,6 +188,12 @@ pub fn create_terrain_layer_material() -> Arc<Mutex<Material>> {
 }
 
 #[derive(Debug)]
+pub enum BuildProfile {
+    Debug,
+    Release,
+}
+
+#[derive(Debug)]
 pub enum Message {
     DoSceneCommand(SceneCommand),
     UndoSceneCommand,
@@ -224,6 +230,7 @@ pub enum Message {
     OpenLoadSceneDialog,
     OpenSaveSceneDialog,
     OpenSaveSceneConfirmationDialog(SaveSceneConfirmationDialogAction),
+    SetBuildProfile(BuildProfile),
 }
 
 impl Message {
@@ -459,6 +466,7 @@ pub struct Editor {
     absm_editor: AbsmEditor,
     mode: Mode,
     build_window: BuildWindow,
+    build_profile: BuildProfile,
 }
 
 impl Editor {
@@ -741,6 +749,7 @@ impl Editor {
             },
             absm_editor,
             build_window,
+            build_profile: BuildProfile::Debug,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move));
@@ -1182,17 +1191,21 @@ impl Editor {
             if let Some(path) = scene.path.as_ref().cloned() {
                 self.save_current_scene(path.clone());
 
-                match std::process::Command::new("cargo")
+                let mut process = std::process::Command::new("cargo");
+
+                process
                     .stdout(Stdio::piped())
                     .arg("run")
                     .arg("--package")
-                    .arg("executor")
-                    .arg("--release")
-                    .arg("--")
-                    .arg("--override-scene")
-                    .arg(path)
-                    .spawn()
-                {
+                    .arg("executor");
+
+                if let BuildProfile::Release = self.build_profile {
+                    process.arg("--release");
+                };
+
+                process.arg("--").arg("--override-scene").arg(path);
+
+                match process.spawn() {
                     Ok(mut process) => {
                         let active = Arc::new(AtomicBool::new(true));
 
@@ -1225,14 +1238,18 @@ impl Editor {
         if let Mode::Edit = self.mode {
             if let Some(scene) = self.scene.as_ref() {
                 if scene.path.is_some() {
-                    match std::process::Command::new("cargo")
+                    let mut process = std::process::Command::new("cargo");
+                    process
                         .stdout(Stdio::piped())
                         .arg("build")
                         .arg("--package")
-                        .arg("executor")
-                        .arg("--release")
-                        .spawn()
-                    {
+                        .arg("executor");
+
+                    if let BuildProfile::Release = self.build_profile {
+                        process.arg("--release");
+                    }
+
+                    match process.spawn() {
                         Ok(mut process) => {
                             self.build_window.listen(
                                 process.stdout.take().unwrap(),
@@ -1735,6 +1752,9 @@ impl Editor {
                 Message::OpenSaveSceneConfirmationDialog(action) => {
                     self.save_scene_dialog
                         .open(&self.engine.user_interface, action);
+                }
+                Message::SetBuildProfile(profile) => {
+                    self.build_profile = profile;
                 }
             }
         }

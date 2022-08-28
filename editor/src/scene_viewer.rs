@@ -1,9 +1,10 @@
 use crate::{
-    camera::PickingOptions, gui::make_dropdown_list_option_with_height, load_image,
+    camera::PickingOptions, gui::make_dropdown_list_option,
+    gui::make_dropdown_list_option_with_height, load_image,
     scene::commands::graph::ScaleNodeCommand, utils::enable_widget, AddModelCommand, AssetItem,
-    AssetKind, ChangeSelectionCommand, CommandGroup, DropdownListBuilder, EditorScene, GameEngine,
-    GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand, Selection,
-    SetMeshTextureCommand, Settings,
+    AssetKind, BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder,
+    EditorScene, GameEngine, GraphSelection, InteractionMode, InteractionModeKind, Message, Mode,
+    SceneCommand, Selection, SetMeshTextureCommand, Settings,
 };
 use fyrox::{
     core::{
@@ -56,6 +57,7 @@ pub struct SceneViewer {
     terrain_mode: Handle<UiNode>,
     camera_projection: Handle<UiNode>,
     switch_mode: Handle<UiNode>,
+    build_profile: Handle<UiNode>,
     sender: Sender<Message>,
     interaction_mode_panel: Handle<UiNode>,
     contextual_actions: Handle<UiNode>,
@@ -171,6 +173,7 @@ impl SceneViewer {
         let selection_frame;
         let camera_projection;
         let switch_mode;
+        let build_profile;
 
         let interaction_mode_panel = StackPanelBuilder::new(
             WidgetBuilder::new()
@@ -237,7 +240,6 @@ impl SceneViewer {
         let contextual_actions = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .on_column(1)
-                .with_margin(Thickness::uniform(1.0))
                 .with_horizontal_alignment(HorizontalAlignment::Right)
                 .with_child({
                     camera_projection = DropdownListBuilder::new(
@@ -260,15 +262,36 @@ impl SceneViewer {
         let top_ribbon = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child({
-                    switch_mode = ButtonBuilder::new(
+                    StackPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_horizontal_alignment(HorizontalAlignment::Right)
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_width(100.0),
+                            .with_child({
+                                switch_mode = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_width(100.0),
+                                )
+                                .with_text("Play")
+                                .build(ctx);
+                                switch_mode
+                            })
+                            .with_child({
+                                build_profile = DropdownListBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_width(100.0),
+                                )
+                                .with_items(vec![
+                                    make_dropdown_list_option(ctx, "Debug"),
+                                    make_dropdown_list_option(ctx, "Release"),
+                                ])
+                                .with_selected(0)
+                                .build(ctx);
+                                build_profile
+                            }),
                     )
-                    .with_text("Play")
-                    .build(ctx);
-                    switch_mode
+                    .with_orientation(Orientation::Horizontal)
+                    .build(ctx)
                 })
                 .with_child(contextual_actions),
         )
@@ -379,6 +402,7 @@ impl SceneViewer {
             interaction_mode_panel,
             contextual_actions,
             global_position_display,
+            build_profile,
         }
     }
 }
@@ -479,21 +503,31 @@ impl SceneViewer {
                 self.sender.send(Message::OpenSettings).unwrap();
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
-            if message.destination() == self.camera_projection
-                && message.direction == MessageDirection::FromWidget
-            {
-                if *index == 0 {
-                    self.sender
-                        .send(Message::SetEditorCameraProjection(Projection::Perspective(
-                            Default::default(),
-                        )))
-                        .unwrap()
-                } else {
-                    self.sender
-                        .send(Message::SetEditorCameraProjection(
-                            Projection::Orthographic(Default::default()),
-                        ))
-                        .unwrap()
+            if message.direction == MessageDirection::FromWidget {
+                if message.destination() == self.camera_projection {
+                    if *index == 0 {
+                        self.sender
+                            .send(Message::SetEditorCameraProjection(Projection::Perspective(
+                                Default::default(),
+                            )))
+                            .unwrap()
+                    } else {
+                        self.sender
+                            .send(Message::SetEditorCameraProjection(
+                                Projection::Orthographic(Default::default()),
+                            ))
+                            .unwrap()
+                    }
+                } else if message.destination() == self.build_profile {
+                    if *index == 0 {
+                        self.sender
+                            .send(Message::SetBuildProfile(BuildProfile::Debug))
+                            .unwrap();
+                    } else {
+                        self.sender
+                            .send(Message::SetBuildProfile(BuildProfile::Release))
+                            .unwrap();
+                    }
                 }
             }
         }
