@@ -79,13 +79,13 @@ impl Control for TextureEditor {
         if let Some(WidgetMessage::Drop(dropped)) = message.data::<WidgetMessage>() {
             if message.destination() == self.image {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    let relative_path = make_relative_path(&item.path);
-
-                    ui.send_message(TextureEditorMessage::texture(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        Some(self.resource_manager.request_texture(relative_path)),
-                    ));
+                    if let Ok(relative_path) = make_relative_path(&item.path) {
+                        ui.send_message(TextureEditorMessage::texture(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            Some(self.resource_manager.request_texture(relative_path)),
+                        ));
+                    }
                 }
             }
         } else if let Some(TextureEditorMessage::Texture(texture)) =

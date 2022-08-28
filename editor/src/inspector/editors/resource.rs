@@ -165,16 +165,16 @@ where
         if let Some(WidgetMessage::Drop(dropped)) = message.data::<WidgetMessage>() {
             if message.destination() == self.handle() {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    let relative_path = make_relative_path(&item.path);
-
-                    if let Ok(value) =
-                        (self.loader)(&self.resource_manager, relative_path.as_path())
-                    {
-                        ui.send_message(ResourceFieldMessage::value(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            Some(value),
-                        ));
+                    if let Ok(relative_path) = make_relative_path(&item.path) {
+                        if let Ok(value) =
+                            (self.loader)(&self.resource_manager, relative_path.as_path())
+                        {
+                            ui.send_message(ResourceFieldMessage::value(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                Some(value),
+                            ));
+                        }
                     }
                 }
             }

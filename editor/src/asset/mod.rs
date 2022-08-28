@@ -408,25 +408,28 @@ impl AssetBrowser {
                             )
                         }
 
-                        let entry_path = make_relative_path(entry.path());
-                        if !entry_path.is_dir() && entry_path.extension().map_or(false, check_ext) {
-                            let asset_item = AssetItemBuilder::new(
-                                WidgetBuilder::new().with_context_menu(self.context_menu.menu),
-                            )
-                            .with_path(entry_path.clone())
-                            .build(&mut ui.build_ctx(), engine.resource_manager.clone());
+                        if let Ok(entry_path) = make_relative_path(entry.path()) {
+                            if !entry_path.is_dir()
+                                && entry_path.extension().map_or(false, check_ext)
+                            {
+                                let asset_item = AssetItemBuilder::new(
+                                    WidgetBuilder::new().with_context_menu(self.context_menu.menu),
+                                )
+                                .with_path(entry_path.clone())
+                                .build(&mut ui.build_ctx(), engine.resource_manager.clone());
 
-                            self.items.push(asset_item);
+                                self.items.push(asset_item);
 
-                            ui.send_message(WidgetMessage::link(
-                                asset_item,
-                                MessageDirection::ToWidget,
-                                self.content_panel,
-                            ));
+                                ui.send_message(WidgetMessage::link(
+                                    asset_item,
+                                    MessageDirection::ToWidget,
+                                    self.content_panel,
+                                ));
 
-                            if let Some(item_to_select) = item_to_select.as_ref() {
-                                if item_to_select == &entry_path {
-                                    handle_to_select = asset_item;
+                                if let Some(item_to_select) = item_to_select.as_ref() {
+                                    if item_to_select == &entry_path {
+                                        handle_to_select = asset_item;
+                                    }
                                 }
                             }
                         }

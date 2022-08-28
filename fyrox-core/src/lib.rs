@@ -331,15 +331,18 @@ pub fn hash_combine(lhs: u64, rhs: u64) -> u64 {
         .wrapping_add(lhs >> 2))
 }
 
-/// Strip working directory from file name.
-pub fn make_relative_path<P: AsRef<Path>>(path: P) -> PathBuf {
-    let relative_path = path
+/// Strip working directory from file name. The function may fail for one main reason -
+/// input path is not valid, does not exist, or there is some other issues with it.
+pub fn make_relative_path<P: AsRef<Path>>(path: P) -> Result<PathBuf, std::io::Error> {
+    match path
         .as_ref()
-        .canonicalize()
-        .unwrap()
-        .strip_prefix(std::env::current_dir().unwrap().canonicalize().unwrap())
-        .unwrap()
-        .to_owned();
-
-    replace_slashes(relative_path)
+        .canonicalize()?
+        .strip_prefix(std::env::current_dir()?.canonicalize()?)
+    {
+        Ok(relative_path) => Ok(replace_slashes(relative_path)),
+        Err(_) => Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "unable to strip prefix!",
+        )),
+    }
 }

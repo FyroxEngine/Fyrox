@@ -334,8 +334,10 @@ impl MaterialEditor {
             let path = dir.path();
             if let Some(extension) = path.extension() {
                 if extension == "shader" {
-                    self.shaders_list
-                        .push(resource_manager.request_shader(make_relative_path(path)));
+                    if let Ok(relative_path) = make_relative_path(path) {
+                        self.shaders_list
+                            .push(resource_manager.request_shader(relative_path));
+                    }
                 }
             }
         }
@@ -745,20 +747,23 @@ impl MaterialEditor {
                     if let Some(asset_item) =
                         engine.user_interface.node(*handle).cast::<AssetItem>()
                     {
-                        let relative_path = make_relative_path(&asset_item.path);
+                        if let Ok(relative_path) = make_relative_path(&asset_item.path) {
+                            let texture =
+                                Some(engine.resource_manager.request_texture(relative_path));
 
-                        let texture = Some(engine.resource_manager.request_texture(relative_path));
+                            engine.user_interface.send_message(ImageMessage::texture(
+                                message.destination(),
+                                MessageDirection::ToWidget,
+                                texture.clone().map(into_gui_texture),
+                            ));
 
-                        engine.user_interface.send_message(ImageMessage::texture(
-                            message.destination(),
-                            MessageDirection::ToWidget,
-                            texture.clone().map(into_gui_texture),
-                        ));
-
-                        Some(PropertyValue::Sampler {
-                            value: texture,
-                            fallback: Default::default(),
-                        })
+                            Some(PropertyValue::Sampler {
+                                value: texture,
+                                fallback: Default::default(),
+                            })
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
