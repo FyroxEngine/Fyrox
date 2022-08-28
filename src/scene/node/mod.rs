@@ -192,6 +192,32 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Inspect + Visit {
     }
 }
 
+/// A small wrapper over `Handle<Node>`. Its main purpose is to provide a convenient way
+/// to handle arrays of handles in the editor.
+#[derive(Reflect, Inspect, Default, Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct NodeHandle(pub Handle<Node>);
+
+impl Deref for NodeHandle {
+    type Target = Handle<Node>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for NodeHandle {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Visit for NodeHandle {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
 /// Node is the basic building block for 3D scenes. It has multiple variants, but all of them share some
 /// common functionality:
 ///

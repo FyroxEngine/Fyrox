@@ -7,6 +7,7 @@ use crate::{
     scene::node::Node,
 };
 use fxhash::FxHashMap;
+use std::ops::{Deref, DerefMut};
 
 /// A `OriginalHandle -> CopyHandle` map. It is used to map handles to nodes after copying.
 ///
@@ -33,7 +34,10 @@ impl NodeHandleMap {
 
     /// Maps each handle in the slice to a handle of its origin, or sets it to [Handle::NONE] if there is no such node.
     /// It should be used when you are sure that respective origin exists.
-    pub fn map_slice(&self, handles: &mut [Handle<Node>]) -> &Self {
+    pub fn map_slice<T>(&self, handles: &mut [T]) -> &Self
+    where
+        T: Deref<Target = Handle<Node>> + DerefMut,
+    {
         for handle in handles {
             self.map(handle);
         }
@@ -53,7 +57,10 @@ impl NodeHandleMap {
 
     /// Tries to map each handle in the slice to a handle of its origin. If it exists, the method returns true or false otherwise.
     /// It should be used when you not sure that respective origin exists.
-    pub fn try_map_slice(&self, handles: &mut [Handle<Node>]) -> bool {
+    pub fn try_map_slice<T>(&self, handles: &mut [T]) -> bool
+    where
+        T: Deref<Target = Handle<Node>> + DerefMut,
+    {
         let mut success = true;
         for handle in handles {
             success &= self.try_map(handle);

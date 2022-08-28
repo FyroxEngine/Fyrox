@@ -6,6 +6,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::scene::node::NodeHandle;
 use fyrox::{
     animation::{
         machine::MachineInstantiationError,
@@ -121,6 +122,8 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<u32>::new_optional());
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
     container.insert(EnumPropertyEditorDefinition::<spritesheet::Status>::new());
+    container.insert(InspectablePropertyEditorDefinition::<NodeHandle>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<NodeHandle>::new());
     container.insert(InspectablePropertyEditorDefinition::<LodGroup>::new());
     container.insert(InspectablePropertyEditorDefinition::<SpriteSheetAnimation>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<SpriteSheetAnimation>::new());
