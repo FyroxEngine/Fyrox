@@ -408,7 +408,8 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                     Ok(None)
                 }
             } else {
-                Err(InspectorError::Custom("Invalid script value!".to_owned()))
+                // This is not an error, because we can actually have None variant here, because script can be unassigned.
+                Ok(None)
             }
         }
     }
