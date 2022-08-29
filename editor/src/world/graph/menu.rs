@@ -1,5 +1,6 @@
 use crate::{
-    menu::create::CreateEntityMenu,
+    make_save_file_selector,
+    menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
     scene::{commands::make_delete_selection_command, EditorScene, Selection},
     world::graph::item::SceneItem,
     GameEngine, Message, MessageDirection,
@@ -7,11 +8,13 @@ use crate::{
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
+        file_browser::FileSelectorMessage,
         menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
         message::UiMessage,
         popup::{Placement, PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
         widget::{WidgetBuilder, WidgetMessage},
+        window::WindowMessage,
         BuildContext, UiNode,
     },
     scene::node::Node,
@@ -26,12 +29,15 @@ pub struct ItemContextMenu {
     placement_target: Handle<UiNode>,
     // TODO: Ideally this should belong to node-specific context menu only.
     preview_camera: Handle<UiNode>,
+    save_as_prefab: Handle<UiNode>,
+    save_as_prefab_dialog: Handle<UiNode>,
 }
 
 impl ItemContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let delete_selection;
         let copy_selection;
+        let save_as_prefab;
 
         let (create_entity_menu, create_entity_menu_root_items) = CreateEntityMenu::new(ctx);
 
@@ -41,34 +47,22 @@ impl ItemContextMenu {
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
-                            delete_selection = MenuItemBuilder::new(
-                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
-                            )
-                            .with_content(MenuItemContent::Text {
-                                text: "Delete Selection",
-                                shortcut: "Del",
-                                icon: Default::default(),
-                                arrow: true,
-                            })
-                            .build(ctx);
+                            delete_selection =
+                                create_menu_item_shortcut("Delete Selection", "Del", vec![], ctx);
                             delete_selection
                         })
                         .with_child({
-                            copy_selection = MenuItemBuilder::new(
-                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
-                            )
-                            .with_content(MenuItemContent::Text {
-                                text: "Copy Selection",
-                                shortcut: "Ctrl+C",
-                                icon: Default::default(),
-                                arrow: true,
-                            })
-                            .build(ctx);
+                            copy_selection =
+                                create_menu_item_shortcut("Copy Selection", "Ctrl+C", vec![], ctx);
                             copy_selection
+                        })
+                        .with_child({
+                            save_as_prefab = create_menu_item("Save As Prefab...", vec![], ctx);
+                            save_as_prefab
                         })
                         .with_child(
                             MenuItemBuilder::new(
-                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
+                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
                             )
                             .with_content(MenuItemContent::text("Create Child"))
                             .with_items(create_entity_menu_root_items)
@@ -78,7 +72,7 @@ impl ItemContextMenu {
                             preview_camera = MenuItemBuilder::new(
                                 WidgetBuilder::new()
                                     .with_enabled(false)
-                                    .with_min_size(Vector2::new(120.0, 20.0)),
+                                    .with_min_size(Vector2::new(120.0, 22.0)),
                             )
                             .with_content(MenuItemContent::text_no_arrow("Preview"))
                             .build(ctx);
@@ -89,6 +83,9 @@ impl ItemContextMenu {
             )
             .build(ctx);
 
+        // TODO: Not sure if this is the right place for this dialog.
+        let save_as_prefab_dialog = make_save_file_selector(ctx);
+
         Self {
             create_entity_menu,
             menu,
@@ -96,6 +93,8 @@ impl ItemContextMenu {
             copy_selection,
             placement_target: Default::default(),
             preview_camera,
+            save_as_prefab,
+            save_as_prefab_dialog,
         }
     }
 
@@ -143,6 +142,21 @@ impl ItemContextMenu {
                 } else {
                     editor_scene.preview_camera = new_preview_camera
                 }
+            } else if message.destination() == self.save_as_prefab {
+                engine
+                    .user_interface
+                    .send_message(WindowMessage::open_modal(
+                        self.save_as_prefab_dialog,
+                        MessageDirection::ToWidget,
+                        true,
+                    ));
+                engine
+                    .user_interface
+                    .send_message(FileSelectorMessage::root(
+                        self.save_as_prefab_dialog,
+                        MessageDirection::ToWidget,
+                        Some(std::env::current_dir().unwrap()),
+                    ));
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu {
@@ -168,6 +182,12 @@ impl ItemContextMenu {
                     MessageDirection::ToWidget,
                     is_camera,
                 ));
+            }
+        } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
+            if message.destination() == self.save_as_prefab_dialog {
+                sender
+                    .send(Message::SaveSelectionAsPrefab(path.clone()))
+                    .unwrap();
             }
         }
     }

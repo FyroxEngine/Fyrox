@@ -68,6 +68,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use fyrox::core::visitor::Visitor;
 use fyrox::{
     core::{
         algebra::{Matrix3, Vector2},
@@ -231,6 +232,7 @@ pub enum Message {
     OpenSaveSceneDialog,
     OpenSaveSceneConfirmationDialog(SaveSceneConfirmationDialogAction),
     SetBuildProfile(BuildProfile),
+    SaveSelectionAsPrefab(PathBuf),
 }
 
 impl Message {
@@ -1756,6 +1758,9 @@ impl Editor {
                 Message::SetBuildProfile(profile) => {
                     self.build_profile = profile;
                 }
+                Message::SaveSelectionAsPrefab(path) => {
+                    self.try_save_selection_as_prefab(path);
+                }
             }
         }
 
@@ -1796,6 +1801,47 @@ impl Editor {
 
         self.material_editor.update(&mut self.engine);
         self.asset_browser.update(&mut self.engine);
+    }
+
+    fn try_save_selection_as_prefab(&self, path: PathBuf) {
+        if let Some(editor_scene) = self.scene.as_ref() {
+            let source_scene = &self.engine.scenes[editor_scene.scene];
+            let mut dest_scene = Scene::new();
+            if let Selection::Graph(ref graph_selection) = editor_scene.selection {
+                for root_node in graph_selection.root_nodes(&source_scene.graph) {
+                    source_scene
+                        .graph
+                        .copy_node(root_node, &mut dest_scene.graph, &mut |_, _| true);
+                }
+
+                let mut visitor = Visitor::new();
+                match dest_scene.save("Scene", &mut visitor) {
+                    Err(e) => Log::err(format!(
+                        "Failed to save selection as prefab! Reason: {:?}",
+                        e
+                    )),
+                    Ok(_) => {
+                        if let Err(e) = visitor.save_binary(&path) {
+                            Log::err(format!(
+                                "Failed to save selection as prefab! Reason: {:?}",
+                                e
+                            ));
+                        } else {
+                            Log::info(format!(
+                                "Selection was successfully saved as prefab to {:?}!",
+                                path
+                            ))
+                        }
+                    }
+                }
+            } else {
+                Log::warn(
+                    "Unable to selection to prefab, because selection is not scene selection!",
+                );
+            }
+        } else {
+            Log::warn("Unable to save selection to prefab, because there is no scene loaded!");
+        }
     }
 
     pub fn add_game_plugin<P>(&mut self, plugin: P)
