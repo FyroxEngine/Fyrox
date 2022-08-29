@@ -88,6 +88,7 @@ fn create_item_views(
             make_expander_container(
                 layer_index,
                 &format!("Item {}", n),
+                &format!("Item {} of the collection", n),
                 Default::default(),
                 item.inspector,
                 ctx,
@@ -248,6 +249,7 @@ where
         let container = make_expander_container(
             ctx.layer_index,
             ctx.property_info.display_name,
+            ctx.property_info.description.as_ref(),
             Handle::NONE,
             {
                 editor = ArrayEditorBuilder::new(

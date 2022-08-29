@@ -379,6 +379,7 @@ fn make_expander_margin(layer_index: usize) -> Thickness {
 fn make_expander_check_box(
     layer_index: usize,
     property_name: &str,
+    property_description: &str,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     CheckBoxBuilder::new(
@@ -398,6 +399,7 @@ fn make_expander_check_box(
     .with_content(
         TextBuilder::new(
             WidgetBuilder::new()
+                .with_tooltip(make_tooltip(ctx, property_description))
                 .with_height(16.0)
                 .with_margin(Thickness::left(2.0)),
         )
@@ -414,12 +416,18 @@ fn make_expander_check_box(
 pub fn make_expander_container(
     layer_index: usize,
     property_name: &str,
+    description: &str,
     header: Handle<UiNode>,
     content: Handle<UiNode>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     ExpanderBuilder::new(WidgetBuilder::new())
-        .with_checkbox(make_expander_check_box(layer_index, property_name, ctx))
+        .with_checkbox(make_expander_check_box(
+            layer_index,
+            property_name,
+            description,
+            ctx,
+        ))
         .with_expander_column(Column::strict(NAME_COLUMN_WIDTH))
         .with_expanded(true)
         .with_header(header)
