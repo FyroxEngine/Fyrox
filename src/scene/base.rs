@@ -802,6 +802,12 @@ impl Base {
 
     // Prefab inheritance resolving.
     pub(crate) fn inherit_properties(&mut self, parent: &Base) -> Result<(), InheritError> {
+        // Inherit script properties.
+        if let (Some(self_script), Some(parent_script)) = (self.script.as_mut(), parent.script()) {
+            self_script
+                .as_directly_inheritable_mut()
+                .try_inherit_self_properties(parent_script.as_directly_inheritable_ref())?;
+        }
         self.local_transform.inherit(parent.local_transform())?;
         self.try_inherit_self_properties(parent)?;
         Ok(())

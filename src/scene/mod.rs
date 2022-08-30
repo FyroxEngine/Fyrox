@@ -25,13 +25,8 @@ pub mod terrain;
 pub mod transform;
 pub mod visibility;
 
-use crate::plugin::Plugin;
-use crate::scene::base::ScriptMessage;
-use crate::scene::graph::map::NodeHandleMap;
-use crate::script::{ScriptContext, ScriptDeinitContext};
 use crate::{
     animation::{machine::container::AnimationMachineContainer, AnimationContainer},
-    core::variable::{InheritError, InheritableVariable},
     core::{
         algebra::Vector2,
         color::Color,
@@ -41,15 +36,18 @@ use crate::{
         pool::{Handle, Pool, Ticket},
         reflect::Reflect,
         sstorage::ImmutableString,
+        variable::{InheritError, InheritableVariable},
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::{resource_manager::ResourceManager, SerializationContext},
     material::{shader::SamplerFallback, PropertyValue},
+    plugin::Plugin,
     resource::texture::Texture,
     scene::{
+        base::ScriptMessage,
         camera::Camera,
         debug::SceneDrawingContext,
-        graph::{Graph, GraphPerformanceStatistics},
+        graph::{map::NodeHandleMap, Graph, GraphPerformanceStatistics},
         mesh::buffer::{
             VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
             VertexWriteTrait,
@@ -58,11 +56,12 @@ use crate::{
         node::Node,
         sound::SoundEngine,
     },
+    script::{ScriptContext, ScriptDeinitContext},
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::FxHashMap;
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
     path::Path,
@@ -71,15 +70,12 @@ use std::{
 };
 
 /// A trait for object that has any TemplateVariable and should support property inheritance.
-pub trait DirectlyInheritableEntity: Any {
+pub trait DirectlyInheritableEntity: Reflect {
     /// Returns a list of references to inheritable variables of an entity.
     fn inheritable_properties_ref(&self) -> Vec<&dyn InheritableVariable>;
 
     /// Returns a list of references to inheritable variables of an entity.
     fn inheritable_properties_mut(&mut self) -> Vec<&mut dyn InheritableVariable>;
-
-    /// Casts self as [`Any`]
-    fn as_any(&self) -> &dyn Any;
 
     /// Tries to inherit properties from parent in **non-resursive** manner.
     fn try_inherit_self_properties(
@@ -136,10 +132,6 @@ macro_rules! impl_directly_inheritable_entity_trait {
                 vec![
                     $(&mut self.$name),*
                 ]
-            }
-
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
             }
         }
     }
