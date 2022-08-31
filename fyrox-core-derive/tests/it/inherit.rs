@@ -20,8 +20,12 @@ fn test<'a, 'b>(
     ys: impl IntoIterator<Item = &'b dyn InheritableVariable>,
 ) {
     assert_eq!(
-        xs.into_iter().map(|x| x.as_any().type_id()).collect::<Vec<_>>(),
-        ys.into_iter().map(|y| y.as_any().type_id()).collect::<Vec<_>>(),
+        xs.into_iter()
+            .map(|x| x.as_any().type_id())
+            .collect::<Vec<_>>(),
+        ys.into_iter()
+            .map(|y| y.as_any().type_id())
+            .collect::<Vec<_>>(),
     );
 }
 
@@ -30,8 +34,12 @@ fn test_mut<'a, 'b>(
     ys: impl IntoIterator<Item = &'b mut dyn InheritableVariable>,
 ) {
     assert_eq!(
-        xs.into_iter().map(|x| x.as_any().type_id()).collect::<Vec<_>>(),
-        ys.into_iter().map(|y| y.as_any().type_id()).collect::<Vec<_>>(),
+        xs.into_iter()
+            .map(|x| x.as_any().type_id())
+            .collect::<Vec<_>>(),
+        ys.into_iter()
+            .map(|y| y.as_any().type_id())
+            .collect::<Vec<_>>(),
     );
 }
 
@@ -58,6 +66,23 @@ fn test_inherit() {
 
     test_mut(
         foo1.inheritable_properties_mut(),
-        [as_dyn_mut(&mut foo2.inheritable_field), as_dyn_mut(&mut foo2.x)],
+        [
+            as_dyn_mut(&mut foo2.inheritable_field),
+            as_dyn_mut(&mut foo2.x),
+        ],
     );
+}
+
+#[derive(Default, Clone, Reflect, Inherit)]
+struct Generic<T> {
+    #[inherit]
+    #[reflect(hidden)]
+    f: T,
+}
+
+#[test]
+fn test_inherit_for_generic_type() {
+    let mut gen = Generic::<TemplateVariable<Vector3<f32>>>::default();
+    assert_eq!(gen.inheritable_properties_ref().len(), 1);
+    assert_eq!(gen.inheritable_properties_mut().len(), 1);
 }
