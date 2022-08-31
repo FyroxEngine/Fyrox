@@ -69,6 +69,8 @@ use std::{
     time::Duration,
 };
 
+pub use fyrox_core_derive::Inherit;
+
 /// A trait for object that has any TemplateVariable and should support property inheritance.
 pub trait DirectlyInheritableEntity: Reflect {
     /// Returns a list of references to inheritable variables of an entity.
