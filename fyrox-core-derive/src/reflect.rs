@@ -12,7 +12,14 @@ use prop::Property;
 
 pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
     if ty_args.hide_all {
-        return self::gen_impl(ty_args, quote!(None), quote!(None), None);
+        return self::gen_impl(
+            ty_args,
+            quote!(None),
+            quote!(None),
+            quote!(vec![]),
+            quote!(vec![]),
+            None,
+        );
     }
 
     match &ty_args.data {
@@ -39,6 +46,8 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, _field_args: &args::Fields) -> 
         })
         .unzip();
     let (fields, field_muts) = self::collect_field_refs(&props, &fields, &field_muts);
+    let fields = fields.collect::<Vec<_>>();
+    let field_muts = field_muts.collect::<Vec<_>>();
 
     let field_body = quote! {
         match name {
@@ -58,8 +67,31 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, _field_args: &args::Fields) -> 
         }
     };
 
+    let fields_body = quote! {
+        vec! [
+            #(
+                #fields,
+            )*
+        ]
+    };
+
+    let fields_mut_body = quote! {
+        vec! [
+            #(
+                #field_muts,
+            )*
+        ]
+    };
+
     let set_field_body = self::struct_set_field_body(ty_args);
-    self::gen_impl(ty_args, field_body, field_mut_body, set_field_body)
+    self::gen_impl(
+        ty_args,
+        field_body,
+        field_mut_body,
+        fields_body,
+        fields_mut_body,
+        set_field_body,
+    )
 }
 
 fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
@@ -101,6 +133,8 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
 }
 
 fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
+    let mut fields_list = Vec::new();
+    let mut fields_list_mut = Vec::new();
     let (fields, field_muts): (Vec<_>, Vec<_>) = variant_args
         .iter()
         .map(|v| {
@@ -129,6 +163,20 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                 })
                 .unzip();
             let (fields, field_muts) = self::collect_field_refs(&props, &fields, &field_muts);
+            let fields = fields.collect::<Vec<_>>();
+            let field_muts = field_muts.collect::<Vec<_>>();
+
+            let fields_list_raw = quote! {
+                #(
+                    #fields,
+                )*
+            };
+
+            let fields_mut_list_raw = quote! {
+                #(
+                    #field_muts,
+                )*
+            };
 
             let fields = quote! {
                 #(
@@ -148,12 +196,33 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                 )*
             };
 
+            fields_list.push(quote! {
+                match self {
+                    #matcher => return vec![ #fields_list_raw ],
+                    _ => (),
+                }
+            });
+
+            fields_list_mut.push(quote! {
+                match self {
+                    #matcher => return vec![ #fields_mut_list_raw ],
+                    _ => (),
+                }
+            });
+
             (fields, field_muts)
         })
         .unzip();
 
     if fields.is_empty() {
-        self::gen_impl(ty_args, quote!(None), quote!(None), None)
+        self::gen_impl(
+            ty_args,
+            quote!(None),
+            quote!(None),
+            quote!(vec![]),
+            quote!(vec![]),
+            None,
+        )
     } else {
         let field_body = quote! {
             Some(match name {
@@ -173,7 +242,30 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             })
         };
 
-        self::gen_impl(ty_args, field_body, field_mut_body, None)
+        let fields_body = quote! {
+            #(
+                #fields_list
+            )*
+
+            vec![]
+        };
+
+        let fields_mut_body = quote! {
+            #(
+                #fields_list_mut
+            )*
+
+            vec![]
+        };
+
+        self::gen_impl(
+            ty_args,
+            field_body,
+            field_mut_body,
+            fields_body,
+            fields_mut_body,
+            None,
+        )
     }
 }
 
@@ -181,6 +273,8 @@ fn gen_impl(
     ty_args: &args::TypeArgs,
     field: TokenStream2,
     field_mut: TokenStream2,
+    fields: TokenStream2,
+    fields_mut: TokenStream2,
     set_field: Option<TokenStream2>,
 ) -> TokenStream2 {
     let ty_ident = &ty_args.ident;
@@ -226,6 +320,14 @@ fn gen_impl(
 
             fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
                 self
+            }
+
+            fn fields(&self) -> Vec<&dyn Reflect> {
+                #fields
+            }
+
+            fn fields_mut(&mut self) -> Vec<&mut dyn Reflect> {
+                #fields_mut
             }
 
             fn field(&self, name: &str) -> Option<&dyn Reflect> {

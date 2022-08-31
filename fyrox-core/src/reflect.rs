@@ -49,6 +49,14 @@ pub trait Reflect: Any {
         }
     }
 
+    fn fields(&self) -> Vec<&dyn Reflect> {
+        vec![]
+    }
+
+    fn fields_mut(&mut self) -> Vec<&mut dyn Reflect> {
+        vec![]
+    }
+
     fn field(&self, _name: &str) -> Option<&dyn Reflect> {
         None
     }

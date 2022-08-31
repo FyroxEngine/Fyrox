@@ -223,3 +223,56 @@ fn reflect_custom_setter() {
         .is_ok());
     assert!(wrapper.is_dirty);
 }
+
+#[test]
+fn reflect_fields_list_of_struct() {
+    #[derive(Reflect)]
+    struct Foo {
+        field_a: f32,
+        field_b: String,
+    }
+
+    let foo = Foo {
+        field_a: 1.23,
+        field_b: "Foobar".to_string(),
+    };
+
+    assert_eq!(foo.fields().len(), 2);
+    assert_eq!(foo.fields()[0].downcast_ref::<f32>().cloned(), Some(1.23));
+    assert_eq!(
+        foo.fields()[1].downcast_ref::<String>().cloned(),
+        Some("Foobar".to_string())
+    );
+}
+
+#[test]
+fn reflect_fields_list_of_enum() {
+    #[derive(Reflect)]
+    enum Foo {
+        Bar { field_a: f32 },
+        Baz { field_b: u32, field_c: String },
+    }
+
+    let bar_variant = Foo::Bar { field_a: 1.23 };
+
+    assert_eq!(bar_variant.fields().len(), 1);
+    assert_eq!(
+        bar_variant.fields()[0].downcast_ref::<f32>().cloned(),
+        Some(1.23)
+    );
+
+    let baz_variant = Foo::Baz {
+        field_b: 321,
+        field_c: "Foobar".to_string(),
+    };
+
+    assert_eq!(baz_variant.fields().len(), 2);
+    assert_eq!(
+        baz_variant.fields()[0].downcast_ref::<u32>().cloned(),
+        Some(321)
+    );
+    assert_eq!(
+        baz_variant.fields()[1].downcast_ref::<String>().cloned(),
+        Some("Foobar".to_string())
+    );
+}
