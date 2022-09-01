@@ -5,7 +5,6 @@
 // #![feature(trace_macros)]
 // trace_macros!(true);
 
-pub mod inherit;
 pub mod inspect;
 pub mod reflect;
 pub mod visit;

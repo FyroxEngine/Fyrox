@@ -80,11 +80,10 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::TemplateVariable,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
@@ -95,7 +94,6 @@ use crate::{
             emitter::{Emit, Emitter},
             particle::Particle,
         },
-        DirectlyInheritableEntity,
     },
 };
 use std::{
@@ -138,29 +136,28 @@ pub struct ParticleSystem {
     base: Base,
 
     /// List of emitters of the particle system.
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref)]
+    #[inspect(deref)]
     pub emitters: TemplateVariable<Vec<EmitterWrapper>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_texture")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_texture")]
     texture: TemplateVariable<Option<Texture>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_acceleration")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_acceleration")]
     acceleration: TemplateVariable<Vector3<f32>>,
 
     #[visit(rename = "ColorGradient")]
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_color_over_lifetime_gradient")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_color_over_lifetime_gradient")]
     color_over_lifetime: TemplateVariable<Option<ColorGradient>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_soft_boundary_sharpness_factor")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_soft_boundary_sharpness_factor")]
     soft_boundary_sharpness_factor: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_enabled")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_enabled")]
     enabled: TemplateVariable<bool>,
 
     #[inspect(skip)]
@@ -171,15 +168,6 @@ pub struct ParticleSystem {
     #[reflect(hidden)]
     free_particles: Vec<u32>,
 }
-
-impl_directly_inheritable_entity_trait!(ParticleSystem;
-    emitters,
-    texture,
-    acceleration,
-    color_over_lifetime,
-    soft_boundary_sharpness_factor,
-    enabled
-);
 
 impl Deref for ParticleSystem {
     type Target = Base;
@@ -377,20 +365,6 @@ impl NodeTrait for ParticleSystem {
             .transform(&self.global_transform())
     }
 
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Some(parent) = parent.cast::<Self>() {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
         self.base.restore_resources(resource_manager.clone());
 
@@ -574,12 +548,13 @@ impl ParticleSystemBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::core::reflect::Reflect;
+    use crate::core::variable::try_inherit_properties;
     use crate::{
         core::algebra::Vector3,
         resource::texture::test::create_test_texture,
         scene::{
             base::{test::check_inheritable_properties_equality, BaseBuilder},
-            node::NodeTrait,
             particle_system::{ParticleSystem, ParticleSystemBuilder},
         },
     };
@@ -594,7 +569,7 @@ mod test {
 
         let mut child = ParticleSystemBuilder::new(BaseBuilder::new()).build_particle_system();
 
-        child.inherit(&parent).unwrap();
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
 
         let parent = parent.cast::<ParticleSystem>().unwrap();
 

@@ -24,17 +24,15 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::TemplateVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     scene::{
         base::Base,
         graph::{map::NodeHandleMap, Graph},
         light::{BaseLight, BaseLightBuilder},
         node::{Node, NodeTrait, TypeUuidProvider},
-        DirectlyInheritableEntity,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -44,19 +42,14 @@ use std::ops::{Deref, DerefMut};
 pub struct PointLight {
     base_light: BaseLight,
 
-    #[inspect(min_value = 0.0, step = 0.001, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_shadow_bias")]
+    #[inspect(min_value = 0.0, step = 0.001, deref)]
+    #[reflect(setter = "set_shadow_bias")]
     shadow_bias: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_radius")]
+    #[inspect(min_value = 0.0, step = 0.1, deref)]
+    #[reflect(setter = "set_radius")]
     radius: TemplateVariable<f32>,
 }
-
-impl_directly_inheritable_entity_trait!(PointLight;
-    shadow_bias,
-    radius
-);
 
 impl Deref for PointLight {
     type Target = Base;
@@ -124,20 +117,6 @@ impl NodeTrait for PointLight {
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.local_bounding_box()
             .transform(&self.global_transform())
-    }
-
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        if let Some(parent) = parent.cast::<Self>() {
-            self.base_light.inherit(parent.base_light_ref())?;
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    fn reset_inheritable_properties(&mut self) {
-        self.base_light.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
     }
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
@@ -214,13 +193,14 @@ impl PointLightBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::core::reflect::Reflect;
+    use crate::core::variable::try_inherit_properties;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         light::{
             point::{PointLight, PointLightBuilder},
             BaseLightBuilder,
         },
-        node::NodeTrait,
     };
 
     #[test]
@@ -233,7 +213,7 @@ mod test {
         let mut child =
             PointLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new())).build_point_light();
 
-        child.inherit(&parent).unwrap();
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
 
         let parent = parent.cast::<PointLight>().unwrap();
 

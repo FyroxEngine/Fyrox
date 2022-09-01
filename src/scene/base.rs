@@ -9,16 +9,13 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{ErasedHandle, Handle},
         reflect::Reflect,
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::TemplateVariable,
         visitor::{Visit, VisitError, VisitResult, Visitor},
         VecExtensions,
     },
     engine::{resource_manager::ResourceManager, SerializationContext},
-    impl_directly_inheritable_entity_trait,
     resource::model::Model,
-    scene::{
-        graph::map::NodeHandleMap, node::Node, transform::Transform, DirectlyInheritableEntity,
-    },
+    scene::{graph::map::NodeHandleMap, node::Node, transform::Transform},
     script::Script,
     utils::log::Log,
 };
@@ -310,56 +307,49 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) script_message_sender: Option<Sender<ScriptMessage>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_name_internal")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_name_internal")]
     pub(crate) name: TemplateVariable<String>,
 
     pub(crate) local_transform: Transform,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_visibility")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_visibility")]
     visibility: TemplateVariable<bool>,
 
     // Maximum amount of Some(time) that node will "live" or None
     // if node has undefined lifetime.
     #[inspect(skip)] // TEMPORARILY HIDDEN. It causes crashes when set from the editor.
-    #[reflect(hidden)]
     pub(crate) lifetime: TemplateVariable<Option<f32>>,
 
-    #[inspect(
-        min_value = 0.0,
-        max_value = 1.0,
-        step = 0.1,
-        deref,
-        is_modified = "is_modified()"
-    )]
-    #[reflect(deref, setter = "set_depth_offset_factor")]
+    #[inspect(min_value = 0.0, max_value = 1.0, step = 0.1, deref)]
+    #[reflect(setter = "set_depth_offset_factor")]
     depth_offset: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_lod_group")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_lod_group")]
     lod_group: TemplateVariable<Option<LodGroup>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_mobility")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_mobility")]
     mobility: TemplateVariable<Mobility>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_tag")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_tag")]
     tag: TemplateVariable<String>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_cast_shadows")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_cast_shadows")]
     cast_shadows: TemplateVariable<bool>,
 
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_properties")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_properties")]
     pub properties: TemplateVariable<Vec<Property>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_frustum_culling")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_frustum_culling")]
     frustum_culling: TemplateVariable<bool>,
 
     #[inspect(skip)]
@@ -420,18 +410,6 @@ impl Drop for Base {
         self.remove_script();
     }
 }
-
-impl_directly_inheritable_entity_trait!(Base;
-    name,
-    visibility,
-    lifetime,
-    depth_offset,
-    lod_group,
-    mobility,
-    tag,
-    properties,
-    frustum_culling
-);
 
 impl Clone for Base {
     fn clone(&self) -> Self {
@@ -800,24 +778,6 @@ impl Base {
         }
     }
 
-    // Prefab inheritance resolving.
-    pub(crate) fn inherit_properties(&mut self, parent: &Base) -> Result<(), InheritError> {
-        // Inherit script properties.
-        if let (Some(self_script), Some(parent_script)) = (self.script.as_mut(), parent.script()) {
-            self_script
-                .as_directly_inheritable_mut()
-                .try_inherit_self_properties(parent_script.as_directly_inheritable_ref())?;
-        }
-        self.local_transform.inherit(parent.local_transform())?;
-        self.try_inherit_self_properties(parent)?;
-        Ok(())
-    }
-
-    pub(crate) fn reset_inheritable_properties(&mut self) {
-        self.reset_self_inheritable_properties();
-        self.local_transform.reset_inheritable_properties();
-    }
-
     pub(crate) fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         for property in self.properties.get_mut_silent().iter_mut() {
             if let PropertyValue::NodeHandle(ref mut handle) = property.value {
@@ -1098,23 +1058,20 @@ impl BaseBuilder {
 
 #[cfg(test)]
 pub mod test {
-    use crate::scene::{
-        base::{BaseBuilder, LevelOfDetail, LodGroup, Mobility},
-        DirectlyInheritableEntity,
+    use crate::{
+        core::{reflect::Reflect, variable::try_inherit_properties},
+        scene::base::{BaseBuilder, LevelOfDetail, LodGroup, Mobility},
     };
 
-    pub fn check_inheritable_properties_equality<T: DirectlyInheritableEntity>(
-        entity_a: &T,
-        entity_b: &T,
-    ) {
-        for (a, b) in entity_a
-            .inheritable_properties_ref()
-            .iter()
-            .zip(entity_b.inheritable_properties_ref())
-        {
-            if !a.value_equals(b) {
-                panic!("Value of property {:#?} is not equal to {:#?}", a, b)
+    pub fn check_inheritable_properties_equality(entity_a: &dyn Reflect, entity_b: &dyn Reflect) {
+        for (a, b) in entity_a.fields().iter().zip(entity_b.fields()) {
+            if let (Some(ta), Some(tb)) = ((*a).as_template_variable(), b.as_template_variable()) {
+                if !ta.value_equals(tb) {
+                    panic!("Value of property {:?} is not equal to {:?}", ta, tb)
+                }
             }
+
+            check_inheritable_properties_equality(*a, b);
         }
     }
 
@@ -1139,7 +1096,7 @@ pub mod test {
 
         let mut child = BaseBuilder::new().build_base();
 
-        child.inherit_properties(&parent).unwrap();
+        try_inherit_properties(&mut child, &parent).unwrap();
 
         check_inheritable_properties_equality(&child.local_transform, &parent.local_transform);
         check_inheritable_properties_equality(&child, &parent)

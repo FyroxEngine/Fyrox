@@ -6,7 +6,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         reflect::Reflect,
-        variable::{InheritableVariable, TemplateVariable},
+        variable::TemplateVariable,
         visitor::prelude::*,
     },
     define_with,
@@ -33,15 +33,15 @@ pub struct EffectInput {
 /// Base effect contains common properties for every effect (gain, inputs, etc.)
 #[derive(Visit, Inspect, Reflect, Debug, Clone)]
 pub struct BaseEffect {
-    #[inspect(deref, is_modified = "is_modified()")]
+    #[inspect(deref)]
     #[reflect(deref, setter = "set_name_internal")]
     pub(crate) name: TemplateVariable<String>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
+    #[inspect(deref)]
     #[reflect(deref, setter = "set_gain")]
     pub(crate) gain: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
+    #[inspect(deref)]
     #[reflect(deref, setter = "set_inputs")]
     pub(crate) inputs: TemplateVariable<Vec<EffectInput>>,
 
@@ -197,19 +197,19 @@ impl BaseEffectBuilder {
 pub struct ReverbEffect {
     pub(crate) base: BaseEffect,
 
-    #[inspect(deref, is_modified = "is_modified()")]
+    #[inspect(deref)]
     #[reflect(deref, setter = "set_dry")]
     pub(crate) dry: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
+    #[inspect(deref)]
     #[reflect(deref, setter = "set_wet")]
     pub(crate) wet: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
+    #[inspect(deref)]
     #[reflect(deref, setter = "set_fc")]
     pub(crate) fc: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
+    #[inspect(deref)]
     #[reflect(deref, setter = "set_decay_time")]
     pub(crate) decay_time: TemplateVariable<f32>,
 }

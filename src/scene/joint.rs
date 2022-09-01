@@ -8,16 +8,14 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::TemplateVariable,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         graph::{map::NodeHandleMap, Graph},
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
-        DirectlyInheritableEntity,
     },
     utils::log::Log,
 };
@@ -162,20 +160,20 @@ impl Default for JointParams {
 pub struct Joint {
     base: Base,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_params")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_params")]
     pub(crate) params: TemplateVariable<JointParams>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_body1")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_body1")]
     pub(crate) body1: TemplateVariable<Handle<Node>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_body2")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_body2")]
     pub(crate) body2: TemplateVariable<Handle<Node>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_contacts_enabled")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_contacts_enabled")]
     #[visit(optional)] // Backward compatibility
     pub(crate) contacts_enabled: TemplateVariable<bool>,
 
@@ -189,13 +187,6 @@ pub struct Joint {
     #[reflect(hidden)]
     pub(crate) need_rebind: Cell<bool>,
 }
-
-impl_directly_inheritable_entity_trait!(Joint;
-    params,
-    body1,
-    body2,
-    contacts_enabled
-);
 
 impl Default for Joint {
     fn default() -> Self {
@@ -304,20 +295,6 @@ impl NodeTrait for Joint {
 
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.world_bounding_box()
-    }
-
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Some(parent) = parent.cast::<Self>() {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
     }
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
@@ -441,10 +418,11 @@ impl JointBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::core::reflect::Reflect;
+    use crate::core::variable::try_inherit_properties;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         joint::{BallJoint, Joint, JointBuilder, JointParams},
-        node::NodeTrait,
     };
 
     #[test]
@@ -455,7 +433,7 @@ mod test {
 
         let mut child = JointBuilder::new(BaseBuilder::new()).build_joint();
 
-        child.inherit(&parent).unwrap();
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
 
         let parent = parent.cast::<Joint>().unwrap();
 

@@ -16,11 +16,10 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::TemplateVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         graph::{map::NodeHandleMap, Graph},
@@ -29,7 +28,6 @@ use crate::{
             surface::Surface,
         },
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
-        DirectlyInheritableEntity,
     },
 };
 use std::{
@@ -93,16 +91,16 @@ pub struct Mesh {
     #[visit(rename = "Common")]
     base: Base,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_surfaces")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_surfaces")]
     surfaces: TemplateVariable<Vec<Surface>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_render_path")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_render_path")]
     render_path: TemplateVariable<RenderPath>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_decal_layer_index")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_decal_layer_index")]
     decal_layer_index: TemplateVariable<u8>,
 
     #[inspect(skip)]
@@ -120,12 +118,6 @@ pub struct Mesh {
     #[reflect(hidden)]
     world_bounding_box: Cell<AxisAlignedBoundingBox>,
 }
-
-impl_directly_inheritable_entity_trait!(Mesh;
-    surfaces,
-    render_path,
-    decal_layer_index
-);
 
 impl Default for Mesh {
     fn default() -> Self {
@@ -287,20 +279,6 @@ impl NodeTrait for Mesh {
     /// Returns current **world-space** bounding box.
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.world_bounding_box.get()
-    }
-
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Some(parent) = parent.cast::<Self>() {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
     }
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {

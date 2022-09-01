@@ -38,6 +38,7 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
+use fyrox_core::variable::reset_inheritable_properties;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
@@ -92,7 +93,7 @@ impl Model {
 
             // Reset inheritable properties, so property inheritance system will take properties
             // from parent objects on resolve stage.
-            node.reset_inheritable_properties();
+            reset_inheritable_properties(node.as_reflect_mut());
 
             // Continue on children.
             stack.extend_from_slice(node.children());

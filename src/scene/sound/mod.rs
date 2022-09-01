@@ -8,17 +8,15 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::TemplateVariable,
         visitor::prelude::*,
     },
     define_with,
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider, UpdateContext},
-        DirectlyInheritableEntity,
     },
     utils::log::Log,
 };
@@ -52,52 +50,52 @@ pub mod listener;
 pub struct Sound {
     base: Base,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_buffer")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_buffer")]
     buffer: TemplateVariable<Option<SoundBufferResource>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_play_once")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_play_once")]
     play_once: TemplateVariable<bool>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_gain")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[reflect(setter = "set_gain")]
     gain: TemplateVariable<f32>,
 
-    #[inspect(min_value = -1.0, max_value = 1.0, step = 0.05, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_panning")]
+    #[inspect(min_value = -1.0, max_value = 1.0, step = 0.05, deref)]
+    #[reflect(setter = "set_panning")]
     panning: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_status")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_status")]
     pub(crate) status: TemplateVariable<Status>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_looping")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_looping")]
     looping: TemplateVariable<bool>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_pitch")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[reflect(setter = "set_pitch")]
     pitch: TemplateVariable<f64>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_radius")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[reflect(setter = "set_radius")]
     radius: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_max_distance")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[reflect(setter = "set_max_distance")]
     max_distance: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_rolloff_factor")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[reflect(setter = "set_rolloff_factor")]
     rolloff_factor: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_playback_time")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_playback_time")]
     playback_time: TemplateVariable<Duration>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_spatial_blend")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_spatial_blend")]
     spatial_blend: TemplateVariable<f32>,
 
     #[inspect(skip)]
@@ -105,20 +103,6 @@ pub struct Sound {
     #[reflect(hidden)]
     pub(crate) native: Cell<Handle<SoundSource>>,
 }
-
-impl_directly_inheritable_entity_trait!(Sound;
-    status,
-    buffer,
-    play_once,
-    gain,
-    panning,
-    looping,
-    pitch,
-    radius,
-    max_distance,
-    rolloff_factor,
-    playback_time
-);
 
 impl Deref for Sound {
     type Target = Base;
@@ -363,20 +347,6 @@ impl NodeTrait for Sound {
             .transform(&self.global_transform())
     }
 
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Some(parent) = parent.cast::<Sound>() {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
         self.base.restore_resources(resource_manager.clone());
 
@@ -553,9 +523,10 @@ impl SoundBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::core::reflect::Reflect;
+    use crate::core::variable::try_inherit_properties;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
-        node::NodeTrait,
         sound::{Sound, SoundBuilder},
     };
     use fyrox_sound::source::Status;
@@ -576,7 +547,7 @@ mod test {
 
         let mut child = SoundBuilder::new(BaseBuilder::new()).build_sound();
 
-        child.inherit(&parent).unwrap();
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
 
         let parent = parent.cast::<Sound>().unwrap();
 

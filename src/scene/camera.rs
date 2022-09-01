@@ -22,18 +22,16 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::TemplateVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     resource::texture::{Texture, TextureError, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
         graph::{map::NodeHandleMap, Graph},
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
         visibility::VisibilityCache,
-        DirectlyInheritableEntity,
     },
     utils::log::Log,
 };
@@ -260,36 +258,36 @@ impl Default for Exposure {
 pub struct Camera {
     base: Base,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_projection")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_projection")]
     projection: TemplateVariable<Projection>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_viewport")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_viewport")]
     viewport: TemplateVariable<Rect<f32>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_enabled")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_enabled")]
     enabled: TemplateVariable<bool>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_skybox")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_skybox")]
     sky_box: TemplateVariable<Option<SkyBox>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_environment")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_environment")]
     environment: TemplateVariable<Option<Texture>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_exposure")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_exposure")]
     exposure: TemplateVariable<Exposure>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_color_grading_lut")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_color_grading_lut")]
     color_grading_lut: TemplateVariable<Option<ColorGradingLut>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_color_grading_enabled")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_color_grading_enabled")]
     color_grading_enabled: TemplateVariable<bool>,
 
     #[visit(skip)]
@@ -308,17 +306,6 @@ pub struct Camera {
     #[reflect(hidden)]
     pub visibility_cache: VisibilityCache,
 }
-
-impl_directly_inheritable_entity_trait!(Camera;
-    projection,
-    viewport,
-    enabled,
-    sky_box,
-    environment,
-    exposure,
-    color_grading_lut,
-    color_grading_enabled
-);
 
 impl Deref for Camera {
     type Target = Base;
@@ -591,20 +578,6 @@ impl NodeTrait for Camera {
     /// Returns current **world-space** bounding box.
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.world_bounding_box()
-    }
-
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Some(parent) = parent.cast::<Self>() {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
     }
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {

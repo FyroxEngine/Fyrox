@@ -4,9 +4,7 @@
 
 #![warn(missing_docs)]
 
-use crate::scene::graph::map::NodeHandleMap;
 use crate::{
-    core::variable::InheritError,
     core::{
         algebra::{Matrix4, Vector2},
         inspect::{Inspect, PropertyInfo},
@@ -23,7 +21,7 @@ use crate::{
         camera::Camera,
         decal::Decal,
         dim2::{self, rectangle::Rectangle},
-        graph::{self, Graph, NodePool},
+        graph::{self, map::NodeHandleMap, Graph, NodePool},
         light::{point::PointLight, spot::SpotLight},
         mesh::Mesh,
         particle_system::ParticleSystem,
@@ -150,12 +148,6 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Inspect + Visit {
     /// can be calculated with a knowledge of parent world transform, so node on its own cannot know
     /// its world bounding box without additional information.
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox;
-
-    /// Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError>;
-
-    /// Resets inheritable property flags after cloning the node.
-    fn reset_inheritable_properties(&mut self);
 
     /// Restores resource handles, it is used to re-map "shallow" resource handles to fully loaded
     /// ones after the scene is loaded in the engine. This is needed because when the engine

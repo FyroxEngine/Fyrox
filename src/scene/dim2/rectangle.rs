@@ -11,17 +11,15 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::TemplateVariable,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
         graph::{map::NodeHandleMap, Graph},
         node::{Node, NodeTrait, TypeUuidProvider},
-        DirectlyInheritableEntity,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -104,17 +102,17 @@ use std::ops::{Deref, DerefMut};
 pub struct Rectangle {
     base: Base,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_texture")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_texture")]
     #[visit(optional)] // Backward compatibility
     texture: TemplateVariable<Option<Texture>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_color")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_color")]
     color: TemplateVariable<Color>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_uv_rect")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_uv_rect")]
     #[visit(optional)] // Backward compatibility
     uv_rect: TemplateVariable<Rect<f32>>,
 }
@@ -129,11 +127,6 @@ impl Default for Rectangle {
         }
     }
 }
-
-impl_directly_inheritable_entity_trait!(Rectangle;
-    texture,
-    color
-);
 
 impl Deref for Rectangle {
     type Target = Base;
@@ -223,20 +216,6 @@ impl NodeTrait for Rectangle {
             .try_restore_template_resource(&mut self.texture);
     }
 
-    fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Some(parent) = parent.cast::<Self>() {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
     fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         self.base.remap_handles(old_new_mapping);
     }
@@ -307,13 +286,14 @@ impl RectangleBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::core::reflect::Reflect;
+    use crate::core::variable::try_inherit_properties;
     use crate::{
         core::color::Color,
         resource::texture::test::create_test_texture,
         scene::{
             base::{test::check_inheritable_properties_equality, BaseBuilder},
             dim2::rectangle::{Rectangle, RectangleBuilder},
-            node::NodeTrait,
         },
     };
 
@@ -326,7 +306,7 @@ mod test {
 
         let mut child = RectangleBuilder::new(BaseBuilder::new()).build_rectangle();
 
-        child.inherit(&parent).unwrap();
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
 
         let parent = parent.cast::<Rectangle>().unwrap();
 

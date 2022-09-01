@@ -22,15 +22,13 @@ use crate::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
         reflect::Reflect,
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::TemplateVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         graph::map::NodeHandleMap,
-        DirectlyInheritableEntity,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -58,35 +56,27 @@ pub const DEFAULT_SCATTER_B: f32 = 0.03;
 pub struct BaseLight {
     base: Base,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_color")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_color")]
     color: TemplateVariable<Color>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_cast_shadows")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_cast_shadows")]
     cast_shadows: TemplateVariable<bool>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
+    #[inspect(deref)]
     #[visit(rename = "ScatterFactor")]
-    #[reflect(deref, setter = "set_scatter")]
+    #[reflect(setter = "set_scatter")]
     scatter: TemplateVariable<Vector3<f32>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "enable_scatter")]
+    #[inspect(deref)]
+    #[reflect(setter = "enable_scatter")]
     scatter_enabled: TemplateVariable<bool>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_intensity")]
+    #[inspect(min_value = 0.0, step = 0.1, deref)]
+    #[reflect(setter = "set_intensity")]
     intensity: TemplateVariable<f32>,
 }
-
-impl_directly_inheritable_entity_trait!(BaseLight;
-    color,
-    cast_shadows,
-    scatter,
-    scatter_enabled,
-    intensity
-);
 
 impl Deref for BaseLight {
     type Target = Base;
@@ -197,18 +187,6 @@ impl BaseLight {
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
         self.base.restore_resources(resource_manager);
-    }
-
-    // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &BaseLight) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        self.try_inherit_self_properties(parent)?;
-        Ok(())
-    }
-
-    pub(crate) fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
     }
 
     pub(crate) fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {

@@ -13,7 +13,7 @@ use crate::{
     engine::resource_manager::ResourceManager,
     event::Event,
     plugin::Plugin,
-    scene::{graph::map::NodeHandleMap, node::Node, DirectlyInheritableEntity, Scene},
+    scene::{graph::map::NodeHandleMap, node::Node, Scene},
     utils::component::ComponentProvider,
 };
 use std::{
@@ -25,33 +25,17 @@ use std::{
 pub mod constructor;
 
 /// Base script trait is used to automatically implement some trait to reduce amount of boilerplate code.
-pub trait BaseScript:
-    Visit + Inspect + Reflect + Send + Debug + DirectlyInheritableEntity + 'static
-{
+pub trait BaseScript: Visit + Inspect + Reflect + Send + Debug + 'static {
     /// Creates exact copy of the script.
     fn clone_box(&self) -> Box<dyn ScriptTrait>;
-
-    /// Returns self as DirectlyInheritableEntity
-    fn as_directly_inheritable_ref(&self) -> &dyn DirectlyInheritableEntity;
-
-    /// Returns self as DirectlyInheritableEntity
-    fn as_directly_inheritable_mut(&mut self) -> &mut dyn DirectlyInheritableEntity;
 }
 
 impl<T> BaseScript for T
 where
-    T: Clone + ScriptTrait + Any + DirectlyInheritableEntity,
+    T: Clone + ScriptTrait + Any,
 {
     fn clone_box(&self) -> Box<dyn ScriptTrait> {
         Box::new(self.clone())
-    }
-
-    fn as_directly_inheritable_ref(&self) -> &dyn DirectlyInheritableEntity {
-        self
-    }
-
-    fn as_directly_inheritable_mut(&mut self) -> &mut dyn DirectlyInheritableEntity {
-        self
     }
 }
 
@@ -186,7 +170,7 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     ///     core::reflect::Reflect,
     ///     core::uuid::Uuid,
     ///     script::ScriptTrait,
-    ///     core::uuid::uuid, impl_component_provider, impl_directly_inheritable_entity_trait
+    ///     core::uuid::uuid, impl_component_provider
     /// };
     ///
     /// #[derive(Inspect, Reflect, Visit, Debug, Clone)]
@@ -203,7 +187,6 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// }
     ///
     /// impl_component_provider!(MyScript);
-    /// impl_directly_inheritable_entity_trait!(MyScript;);
     ///
     /// impl ScriptTrait for MyScript {
     ///     fn id(&self) -> Uuid {

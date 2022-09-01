@@ -36,7 +36,6 @@ use crate::{
         pool::{Handle, Pool, Ticket},
         reflect::Reflect,
         sstorage::ImmutableString,
-        variable::{InheritError, InheritableVariable},
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::{resource_manager::ResourceManager, SerializationContext},
@@ -61,83 +60,12 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use std::{
-    any::TypeId,
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
     path::Path,
     sync::{Arc, Mutex},
     time::Duration,
 };
-
-pub use fyrox_core_derive::Inherit;
-
-/// A trait for object that has any TemplateVariable and should support property inheritance.
-pub trait DirectlyInheritableEntity: Reflect {
-    /// Returns a list of references to inheritable variables of an entity.
-    fn inheritable_properties_ref(&self) -> Vec<&dyn InheritableVariable>;
-
-    /// Returns a list of references to inheritable variables of an entity.
-    fn inheritable_properties_mut(&mut self) -> Vec<&mut dyn InheritableVariable>;
-
-    /// Tries to inherit properties from parent in **non-resursive** manner.
-    fn try_inherit_self_properties(
-        &mut self,
-        parent: &dyn DirectlyInheritableEntity,
-    ) -> Result<(), InheritError> {
-        let any_parent = parent.as_any();
-        if TypeId::of::<Self>() == any_parent.type_id() {
-            for (dest, src) in self
-                .inheritable_properties_mut()
-                .iter_mut()
-                .zip(parent.inheritable_properties_ref())
-            {
-                dest.try_inherit(src)?;
-            }
-            Ok(())
-        } else {
-            Err(InheritError::TypesMismatch {
-                left_type: TypeId::of::<Self>(),
-                right_type: any_parent.type_id(),
-            })
-        }
-    }
-
-    /// Resets modified flags on every property of an entity. It is useful for model instantiation,
-    /// we reset modified flags on copies thus forcing copies to inherit properties from "parent"
-    /// objects.
-    fn reset_self_inheritable_properties(&mut self) {
-        for property in self.inheritable_properties_mut() {
-            property.reset_modified_flag();
-        }
-    }
-}
-
-/// Implements [`DirectlyInheritableEntity`] trait for a specified object.
-///
-/// As first argument it accepts type name for which the trait will be implemented, second variadic
-/// parameter is field names of the type that implement InheritableVariable trait.
-#[macro_export]
-macro_rules! impl_directly_inheritable_entity_trait {
-    ($ty:ty; $($name:ident),*) => {
-        impl $crate::scene::DirectlyInheritableEntity for $ty {
-            fn inheritable_properties_ref(&self)
-                -> Vec<&dyn $crate::core::variable::InheritableVariable>
-            {
-                vec![
-                    $(&self.$name),*
-                ]
-            }
-
-            fn inheritable_properties_mut(&mut self)
-                -> Vec<&mut dyn $crate::core::variable::InheritableVariable>
-            {
-                vec![
-                    $(&mut self.$name),*
-                ]
-            }
-        }
-    }
-}
 
 /// A container for navigational meshes.
 #[derive(Default, Clone, Debug, Visit)]

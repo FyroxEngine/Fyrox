@@ -17,17 +17,15 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::TemplateVariable,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         graph::{map::NodeHandleMap, Graph},
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider, UpdateContext},
         rigidbody::RigidBodyType,
-        DirectlyInheritableEntity,
     },
     utils::log::Log,
 };
@@ -67,52 +65,52 @@ pub(crate) enum ApplyAction {
 pub struct RigidBody {
     base: Base,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_lin_vel")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_lin_vel")]
     pub(crate) lin_vel: TemplateVariable<Vector2<f32>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_ang_vel")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_ang_vel")]
     pub(crate) ang_vel: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_lin_damping")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_lin_damping")]
     pub(crate) lin_damping: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_ang_damping")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_ang_damping")]
     pub(crate) ang_damping: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_body_type")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_body_type")]
     pub(crate) body_type: TemplateVariable<RigidBodyType>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_mass")]
+    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[reflect(setter = "set_mass")]
     pub(crate) mass: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "lock_rotations")]
+    #[inspect(deref)]
+    #[reflect(setter = "lock_rotations")]
     pub(crate) rotation_locked: TemplateVariable<bool>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
+    #[inspect(deref)]
     #[reflect(deref, setter = "lock_translation")]
     pub(crate) translation_locked: TemplateVariable<bool>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "enable_ccd")]
+    #[inspect(deref)]
+    #[reflect(setter = "enable_ccd")]
     pub(crate) ccd_enabled: TemplateVariable<bool>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_can_sleep")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_can_sleep")]
     pub(crate) can_sleep: TemplateVariable<bool>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_dominance")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_dominance")]
     pub(crate) dominance: TemplateVariable<i8>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_gravity_scale")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_gravity_scale")]
     pub(crate) gravity_scale: TemplateVariable<f32>,
 
     #[visit(skip)]
@@ -130,21 +128,6 @@ pub struct RigidBody {
     #[reflect(hidden)]
     pub(crate) actions: Mutex<VecDeque<ApplyAction>>,
 }
-
-impl_directly_inheritable_entity_trait!(RigidBody;
-    lin_vel,
-    ang_vel,
-    lin_damping,
-    ang_damping,
-    body_type,
-    mass,
-    rotation_locked,
-    translation_locked,
-    ccd_enabled,
-    can_sleep,
-    dominance,
-    gravity_scale
-);
 
 impl Debug for RigidBody {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -435,20 +418,6 @@ impl NodeTrait for RigidBody {
         self.base.world_bounding_box()
     }
 
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Some(parent) = parent.cast::<Self>() {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
         self.base.restore_resources(resource_manager);
     }
@@ -643,12 +612,13 @@ impl RigidBodyBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::core::reflect::Reflect;
+    use crate::core::variable::try_inherit_properties;
     use crate::{
         core::algebra::Vector2,
         scene::{
             base::{test::check_inheritable_properties_equality, BaseBuilder},
             dim2::rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
-            node::NodeTrait,
         },
     };
 
@@ -672,7 +642,7 @@ mod test {
 
         let mut child = RigidBodyBuilder::new(BaseBuilder::new()).build_rigid_body();
 
-        child.inherit(&parent).unwrap();
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
 
         let parent = parent.cast::<RigidBody>().unwrap();
 

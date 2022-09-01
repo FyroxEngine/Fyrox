@@ -2,12 +2,15 @@
 //!
 //! For more info see [`TemplateVariable`]
 
-use crate::{reflect::Reflect, visitor::prelude::*};
+use crate::{
+    reflect::{Reflect, ReflectArray, ReflectList, ReflectTemplateVariable},
+    visitor::prelude::*,
+};
 use bitflags::bitflags;
-use std::fmt::Debug;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
+    fmt::Debug,
     ops::{Deref, DerefMut},
 };
 
@@ -34,73 +37,6 @@ pub enum InheritError {
         /// Type of right property.
         right_type: TypeId,
     },
-}
-
-/// A variable that can inherit its value from parent.
-pub trait InheritableVariable: Any + Debug {
-    /// Tries to inherit a value from parent. It will succeed only if the current variable is
-    /// not marked as modified.
-    fn try_inherit(&mut self, parent: &dyn InheritableVariable) -> Result<bool, InheritError>;
-
-    /// Resets modified flag from the variable.
-    fn reset_modified_flag(&mut self);
-
-    /// Casts self as Any trait.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Returns current variable flags.
-    fn flags(&self) -> VariableFlags;
-
-    /// Returns true if value was modified.
-    fn is_modified(&self) -> bool;
-
-    /// Returns true if value equals to other's value.
-    fn value_equals(&self, other: &dyn InheritableVariable) -> bool;
-}
-
-impl<T> InheritableVariable for TemplateVariable<T>
-where
-    T: Debug + PartialEq + Clone + 'static,
-{
-    fn try_inherit(&mut self, parent: &dyn InheritableVariable) -> Result<bool, InheritError> {
-        let any_parent = parent.as_any();
-        if let Some(parent) = any_parent.downcast_ref::<Self>() {
-            if !self.is_modified() {
-                self.value = parent.value.clone();
-                Ok(true)
-            } else {
-                Ok(false)
-            }
-        } else {
-            Err(InheritError::TypesMismatch {
-                left_type: TypeId::of::<Self>(),
-                right_type: any_parent.type_id(),
-            })
-        }
-    }
-
-    fn reset_modified_flag(&mut self) {
-        self.flags.get_mut().remove(VariableFlags::MODIFIED)
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn flags(&self) -> VariableFlags {
-        self.flags.get()
-    }
-
-    fn is_modified(&self) -> bool {
-        self.flags.get().contains(VariableFlags::MODIFIED)
-    }
-
-    fn value_equals(&self, other: &dyn InheritableVariable) -> bool {
-        other
-            .as_any()
-            .downcast_ref::<Self>()
-            .map_or(false, |other| self.value == other.value)
-    }
 }
 
 /// A wrapper for a variable that hold additional flag that tells that initial value was changed in runtime.
@@ -289,5 +225,217 @@ where
         self.flags.get_mut().bits.visit("Flags", &mut region)?;
 
         Ok(())
+    }
+}
+
+impl<T> Reflect for TemplateVariable<T>
+where
+    T: Reflect + Clone + PartialEq + Debug,
+{
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        Box::new(self.value).into_any()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self.value.as_any()
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self.value.as_any_mut()
+    }
+
+    fn as_reflect(&self) -> &dyn Reflect {
+        self.value.as_reflect()
+    }
+
+    fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
+        self.value.as_reflect_mut()
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        self.value.set(value)
+    }
+
+    fn set_field(
+        &mut self,
+        field: &str,
+        value: Box<dyn Reflect>,
+    ) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        self.value.set_field(field, value)
+    }
+
+    fn field(&self, name: &str) -> Option<&dyn Reflect> {
+        self.value.field(name)
+    }
+
+    fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
+        self.value.field_mut(name)
+    }
+
+    fn as_array(&self) -> Option<&dyn ReflectArray> {
+        self.value.as_array()
+    }
+
+    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
+        self.value.as_array_mut()
+    }
+
+    fn as_list(&self) -> Option<&dyn ReflectList> {
+        self.value.as_list()
+    }
+
+    fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
+        self.value.as_list_mut()
+    }
+
+    fn as_template_variable(&self) -> Option<&dyn ReflectTemplateVariable> {
+        Some(self)
+    }
+
+    fn as_template_variable_mut(&mut self) -> Option<&mut dyn ReflectTemplateVariable> {
+        Some(self)
+    }
+}
+
+impl<T> ReflectTemplateVariable for TemplateVariable<T>
+where
+    T: Reflect + Clone + PartialEq + Debug,
+{
+    fn try_inherit(&mut self, parent: &dyn ReflectTemplateVariable) -> Result<bool, InheritError> {
+        // Cast directly to inner type, because any type that implements ReflectTemplateVariable,
+        // has delegating methods for almost every method of Reflect trait implementation.
+        if let Some(parent_value) = parent.as_reflect().downcast_ref::<T>() {
+            if !self.is_modified() {
+                self.value = parent_value.clone();
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        } else {
+            Err(InheritError::TypesMismatch {
+                left_type: TypeId::of::<Self>(),
+                right_type: parent.type_id(),
+            })
+        }
+    }
+
+    fn reset_modified_flag(&mut self) {
+        self.flags.get_mut().remove(VariableFlags::MODIFIED)
+    }
+
+    fn flags(&self) -> VariableFlags {
+        self.flags.get()
+    }
+
+    fn is_modified(&self) -> bool {
+        self.flags.get().contains(VariableFlags::MODIFIED)
+    }
+
+    fn value_equals(&self, other: &dyn ReflectTemplateVariable) -> bool {
+        other
+            .as_reflect()
+            .downcast_ref::<T>()
+            .map_or(false, |other| &self.value == other)
+    }
+}
+
+/// Simultaneously walks over fields of given child and parent and tries to inherit values of properties
+/// of child with parent's properties. It is done recursively for every fields in entities.
+pub fn try_inherit_properties(
+    child: &mut dyn Reflect,
+    parent: &dyn Reflect,
+) -> Result<(), InheritError> {
+    if (*child).type_id() != (*parent).type_id() {
+        return Err(InheritError::TypesMismatch {
+            left_type: (*child).type_id(),
+            right_type: (*parent).type_id(),
+        });
+    }
+
+    for (child_field, parent_field) in child.fields_mut().iter_mut().zip(parent.fields()) {
+        // If both fields are TemplateVariable<T>, try to inherit.
+        if let (Some(child_template_field), Some(parent_template_field)) = (
+            child_field.as_template_variable_mut(),
+            parent_field.as_template_variable(),
+        ) {
+            child_template_field.try_inherit(parent_template_field)?;
+        }
+
+        // Look into inner properties recursively and try to inherit them. This is mandatory step, because inner
+        // fields may also be TemplateVariable<T>.
+        try_inherit_properties(*child_field, parent_field)?;
+    }
+
+    Ok(())
+}
+
+pub fn reset_inheritable_properties(object: &mut dyn Reflect) {
+    for field in object.fields_mut() {
+        if let Some(template_field) = field.as_template_variable_mut() {
+            template_field.reset_modified_flag();
+        }
+
+        reset_inheritable_properties(field);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        reflect::{Reflect, ReflectTemplateVariable},
+        variable::{try_inherit_properties, TemplateVariable},
+    };
+
+    #[derive(Reflect, Clone, Debug, PartialEq)]
+    struct Foo {
+        value: TemplateVariable<f32>,
+    }
+
+    #[derive(Reflect, Clone, Debug, PartialEq)]
+    struct Bar {
+        foo: Foo,
+
+        other_value: TemplateVariable<String>,
+    }
+
+    #[test]
+    fn test_property_inheritance_via_reflection() {
+        let mut parent = Bar {
+            foo: Foo {
+                value: TemplateVariable::new(1.23),
+            },
+            other_value: TemplateVariable::new("Foobar".to_string()),
+        };
+
+        let mut child = parent.clone();
+
+        // Try inherit non-modified, the result objects must be equal.
+        try_inherit_properties(&mut child, &parent).unwrap();
+        assert_eq!(parent, child);
+
+        // Then modify parent's and child's values.
+        parent.other_value.set("Baz".to_string());
+        assert_eq!(
+            ReflectTemplateVariable::is_modified(&parent.other_value),
+            true
+        );
+
+        child.foo.value.set(3.21);
+        assert_eq!(ReflectTemplateVariable::is_modified(&child.foo.value), true);
+
+        try_inherit_properties(&mut child, &parent).unwrap();
+
+        // This property reflects parent's changes, because it is non-modified.
+        assert_eq!(child.other_value.value, "Baz".to_string());
+        // This property must remain unchanged, because it is modified.
+        assert_eq!(child.foo.value.value, 3.21);
+    }
+
+    #[test]
+    fn test_template_variable_equality() {
+        let va = TemplateVariable::new(1.23);
+        let vb = TemplateVariable::new(1.23);
+
+        assert!(va.value_equals(&vb))
     }
 }

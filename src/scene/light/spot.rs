@@ -29,18 +29,16 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::TemplateVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     resource::texture::Texture,
     scene::{
         base::Base,
         graph::{map::NodeHandleMap, Graph},
         light::{BaseLight, BaseLightBuilder},
         node::{Node, NodeTrait, TypeUuidProvider},
-        DirectlyInheritableEntity,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -50,40 +48,26 @@ use std::ops::{Deref, DerefMut};
 pub struct SpotLight {
     base_light: BaseLight,
 
-    #[inspect(
-        min_value = 0.0,
-        max_value = 3.14159,
-        step = 0.1,
-        deref,
-        is_modified = "is_modified()"
-    )]
-    #[reflect(deref, setter = "set_hotspot_cone_angle")]
+    #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1, deref)]
+    #[reflect(setter = "set_hotspot_cone_angle")]
     hotspot_cone_angle: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_falloff_angle_delta")]
+    #[inspect(min_value = 0.0, step = 0.1, deref)]
+    #[reflect(setter = "set_falloff_angle_delta")]
     falloff_angle_delta: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.001, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_shadow_bias")]
+    #[inspect(min_value = 0.0, step = 0.001, deref)]
+    #[reflect(setter = "set_shadow_bias")]
     shadow_bias: TemplateVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_distance")]
+    #[inspect(min_value = 0.0, step = 0.1, deref)]
+    #[reflect(setter = "set_distance")]
     distance: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_cookie_texture")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_cookie_texture")]
     cookie_texture: TemplateVariable<Option<Texture>>,
 }
-
-impl_directly_inheritable_entity_trait!(SpotLight;
-    hotspot_cone_angle,
-    falloff_angle_delta,
-    shadow_bias,
-    distance,
-    cookie_texture
-);
 
 impl Deref for SpotLight {
     type Target = Base;
@@ -217,20 +201,6 @@ impl NodeTrait for SpotLight {
             .transform(&self.global_transform())
     }
 
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        if let Some(parent) = parent.cast::<SpotLight>() {
-            self.base_light.inherit(parent.base_light_ref())?;
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    fn reset_inheritable_properties(&mut self) {
-        self.base_light.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
         self.base_light.restore_resources(resource_manager.clone());
 
@@ -326,6 +296,8 @@ impl SpotLightBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::core::reflect::Reflect;
+    use crate::core::variable::try_inherit_properties;
     use crate::{
         resource::texture::test::create_test_texture,
         scene::{
@@ -334,7 +306,6 @@ mod test {
                 spot::{SpotLight, SpotLightBuilder},
                 BaseLightBuilder,
             },
-            node::NodeTrait,
         },
     };
 
@@ -351,7 +322,7 @@ mod test {
         let mut child =
             SpotLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new())).build_spot_light();
 
-        child.inherit(&parent).unwrap();
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
 
         let parent = parent.cast::<SpotLight>().unwrap();
 

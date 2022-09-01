@@ -10,17 +10,15 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::TemplateVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
         graph::{map::NodeHandleMap, Graph},
         node::{Node, NodeTrait, TypeUuidProvider},
-        DirectlyInheritableEntity,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -68,29 +66,22 @@ use std::ops::{Deref, DerefMut};
 pub struct Sprite {
     base: Base,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_texture")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_texture")]
     texture: TemplateVariable<Option<Texture>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_color")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_color")]
     color: TemplateVariable<Color>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_size")]
+    #[inspect(min_value = 0.0, step = 0.1, deref)]
+    #[reflect(setter = "set_size")]
     size: TemplateVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_rotation")]
+    #[inspect(deref)]
+    #[reflect(setter = "set_rotation")]
     rotation: TemplateVariable<f32>,
 }
-
-impl_directly_inheritable_entity_trait!(Sprite;
-    texture,
-    color,
-    size,
-    rotation
-);
 
 impl Deref for Sprite {
     type Target = Base;
@@ -177,20 +168,6 @@ impl NodeTrait for Sprite {
 
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.world_bounding_box()
-    }
-
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Some(parent) = parent.cast::<Self>() {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
     }
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
@@ -285,12 +262,13 @@ impl SpriteBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::core::reflect::Reflect;
+    use crate::core::variable::try_inherit_properties;
     use crate::{
         core::color::Color,
         resource::texture::test::create_test_texture,
         scene::{
             base::{test::check_inheritable_properties_equality, BaseBuilder},
-            node::NodeTrait,
             sprite::{Sprite, SpriteBuilder},
         },
     };
@@ -306,7 +284,7 @@ mod test {
 
         let mut child = SpriteBuilder::new(BaseBuilder::new()).build_sprite();
 
-        child.inherit(&parent).unwrap();
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
 
         let parent = parent.cast::<Sprite>().unwrap();
 

@@ -31,6 +31,7 @@ use crate::{
         math::Matrix4Ext,
         pool::{Handle, Pool, Ticket},
         reflect::Reflect,
+        variable::try_inherit_properties,
         visitor::{Visit, VisitResult, Visitor},
     },
     resource::model::{Model, NodeMapping},
@@ -625,7 +626,10 @@ impl Graph {
                             node.original_handle_in_resource = original;
                             node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
 
-                            Log::verify(node.inherit(resource_node));
+                            Log::verify(try_inherit_properties(
+                                node.as_reflect_mut(),
+                                resource_node.as_reflect(),
+                            ));
                         } else {
                             Log::warn(format!(
                                 "Unable to find original handle for node {}",
