@@ -415,13 +415,10 @@ mod test {
 
         // Then modify parent's and child's values.
         parent.other_value.set("Baz".to_string());
-        assert_eq!(
-            ReflectTemplateVariable::is_modified(&parent.other_value),
-            true
-        );
+        assert!(ReflectTemplateVariable::is_modified(&parent.other_value),);
 
         child.foo.value.set(3.21);
-        assert_eq!(ReflectTemplateVariable::is_modified(&child.foo.value), true);
+        assert!(ReflectTemplateVariable::is_modified(&child.foo.value));
 
         try_inherit_properties(&mut child, &parent).unwrap();
 
