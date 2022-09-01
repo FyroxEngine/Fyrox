@@ -16,7 +16,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -93,15 +93,15 @@ pub struct Mesh {
 
     #[inspect(deref)]
     #[reflect(setter = "set_surfaces")]
-    surfaces: TemplateVariable<Vec<Surface>>,
+    surfaces: InheritableVariable<Vec<Surface>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_render_path")]
-    render_path: TemplateVariable<RenderPath>,
+    render_path: InheritableVariable<RenderPath>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_decal_layer_index")]
-    decal_layer_index: TemplateVariable<u8>,
+    decal_layer_index: InheritableVariable<u8>,
 
     #[inspect(skip)]
     #[visit(skip)]
@@ -127,8 +127,8 @@ impl Default for Mesh {
             local_bounding_box: Default::default(),
             world_bounding_box: Default::default(),
             local_bounding_box_dirty: Cell::new(true),
-            render_path: TemplateVariable::new(RenderPath::Deferred),
-            decal_layer_index: TemplateVariable::new(0),
+            render_path: InheritableVariable::new(RenderPath::Deferred),
+            decal_layer_index: InheritableVariable::new(0),
         }
     }
 }

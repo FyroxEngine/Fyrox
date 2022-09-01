@@ -14,7 +14,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -107,7 +107,7 @@ pub struct DirectionalLight {
     base_light: BaseLight,
     /// See [`CsmOptions`].
     #[inspect(deref)]
-    pub csm_options: TemplateVariable<CsmOptions>,
+    pub csm_options: InheritableVariable<CsmOptions>,
 }
 
 impl From<BaseLight> for DirectionalLight {

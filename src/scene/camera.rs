@@ -22,7 +22,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -260,35 +260,35 @@ pub struct Camera {
 
     #[inspect(deref)]
     #[reflect(setter = "set_projection")]
-    projection: TemplateVariable<Projection>,
+    projection: InheritableVariable<Projection>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_viewport")]
-    viewport: TemplateVariable<Rect<f32>>,
+    viewport: InheritableVariable<Rect<f32>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_enabled")]
-    enabled: TemplateVariable<bool>,
+    enabled: InheritableVariable<bool>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_skybox")]
-    sky_box: TemplateVariable<Option<SkyBox>>,
+    sky_box: InheritableVariable<Option<SkyBox>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_environment")]
-    environment: TemplateVariable<Option<Texture>>,
+    environment: InheritableVariable<Option<Texture>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_exposure")]
-    exposure: TemplateVariable<Exposure>,
+    exposure: InheritableVariable<Exposure>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_color_grading_lut")]
-    color_grading_lut: TemplateVariable<Option<ColorGradingLut>>,
+    color_grading_lut: InheritableVariable<Option<ColorGradingLut>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_color_grading_enabled")]
-    color_grading_enabled: TemplateVariable<bool>,
+    color_grading_enabled: InheritableVariable<bool>,
 
     #[visit(skip)]
     #[inspect(skip)]
@@ -585,7 +585,7 @@ impl NodeTrait for Camera {
 
         let mut state = resource_manager.state();
         let texture_container = &mut state.containers_mut().textures;
-        texture_container.try_restore_template_resource(&mut self.environment);
+        texture_container.try_restore_inheritable_resource(&mut self.environment);
 
         if let Some(skybox) = self.skybox_mut() {
             texture_container.try_restore_optional_resource(&mut skybox.bottom);

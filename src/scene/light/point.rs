@@ -24,7 +24,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -44,11 +44,11 @@ pub struct PointLight {
 
     #[inspect(min_value = 0.0, step = 0.001, deref)]
     #[reflect(setter = "set_shadow_bias")]
-    shadow_bias: TemplateVariable<f32>,
+    shadow_bias: InheritableVariable<f32>,
 
     #[inspect(min_value = 0.0, step = 0.1, deref)]
     #[reflect(setter = "set_radius")]
-    radius: TemplateVariable<f32>,
+    radius: InheritableVariable<f32>,
 }
 
 impl Deref for PointLight {
@@ -136,8 +136,8 @@ impl Default for PointLight {
     fn default() -> Self {
         Self {
             base_light: Default::default(),
-            shadow_bias: TemplateVariable::new(0.025),
-            radius: TemplateVariable::new(10.0),
+            shadow_bias: InheritableVariable::new(0.025),
+            radius: InheritableVariable::new(10.0),
         }
     }
 }

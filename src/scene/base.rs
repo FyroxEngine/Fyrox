@@ -9,7 +9,7 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{ErasedHandle, Handle},
         reflect::Reflect,
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::{Visit, VisitError, VisitResult, Visitor},
         VecExtensions,
     },
@@ -309,48 +309,48 @@ pub struct Base {
 
     #[inspect(deref)]
     #[reflect(setter = "set_name_internal")]
-    pub(crate) name: TemplateVariable<String>,
+    pub(crate) name: InheritableVariable<String>,
 
     pub(crate) local_transform: Transform,
 
     #[inspect(deref)]
     #[reflect(setter = "set_visibility")]
-    visibility: TemplateVariable<bool>,
+    visibility: InheritableVariable<bool>,
 
     // Maximum amount of Some(time) that node will "live" or None
     // if node has undefined lifetime.
     #[inspect(skip)] // TEMPORARILY HIDDEN. It causes crashes when set from the editor.
-    pub(crate) lifetime: TemplateVariable<Option<f32>>,
+    pub(crate) lifetime: InheritableVariable<Option<f32>>,
 
     #[inspect(min_value = 0.0, max_value = 1.0, step = 0.1, deref)]
     #[reflect(setter = "set_depth_offset_factor")]
-    depth_offset: TemplateVariable<f32>,
+    depth_offset: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_lod_group")]
-    lod_group: TemplateVariable<Option<LodGroup>>,
+    lod_group: InheritableVariable<Option<LodGroup>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_mobility")]
-    mobility: TemplateVariable<Mobility>,
+    mobility: InheritableVariable<Mobility>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_tag")]
-    tag: TemplateVariable<String>,
+    tag: InheritableVariable<String>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_cast_shadows")]
-    cast_shadows: TemplateVariable<bool>,
+    cast_shadows: InheritableVariable<bool>,
 
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
     #[inspect(deref)]
     #[reflect(setter = "set_properties")]
-    pub properties: TemplateVariable<Vec<Property>>,
+    pub properties: InheritableVariable<Vec<Property>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_frustum_culling")]
-    frustum_culling: TemplateVariable<bool>,
+    frustum_culling: InheritableVariable<bool>,
 
     #[inspect(skip)]
     #[reflect(hidden)]
@@ -1065,7 +1065,9 @@ pub mod test {
 
     pub fn check_inheritable_properties_equality(entity_a: &dyn Reflect, entity_b: &dyn Reflect) {
         for (a, b) in entity_a.fields().iter().zip(entity_b.fields()) {
-            if let (Some(ta), Some(tb)) = ((*a).as_template_variable(), b.as_template_variable()) {
+            if let (Some(ta), Some(tb)) =
+                ((*a).as_inheritable_variable(), b.as_inheritable_variable())
+            {
                 if !ta.value_equals(tb) {
                     panic!("Value of property {:?} is not equal to {:?}", ta, tb)
                 }

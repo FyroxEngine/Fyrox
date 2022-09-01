@@ -10,7 +10,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -459,39 +459,39 @@ pub struct Collider {
 
     #[inspect(deref)]
     #[reflect(setter = "set_shape")]
-    pub(crate) shape: TemplateVariable<ColliderShape>,
+    pub(crate) shape: InheritableVariable<ColliderShape>,
 
     #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(setter = "set_friction")]
-    pub(crate) friction: TemplateVariable<f32>,
+    pub(crate) friction: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_density")]
-    pub(crate) density: TemplateVariable<Option<f32>>,
+    pub(crate) density: InheritableVariable<Option<f32>>,
 
     #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(setter = "set_restitution")]
-    pub(crate) restitution: TemplateVariable<f32>,
+    pub(crate) restitution: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_is_sensor")]
-    pub(crate) is_sensor: TemplateVariable<bool>,
+    pub(crate) is_sensor: InheritableVariable<bool>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_collision_groups")]
-    pub(crate) collision_groups: TemplateVariable<InteractionGroups>,
+    pub(crate) collision_groups: InheritableVariable<InteractionGroups>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_solver_groups")]
-    pub(crate) solver_groups: TemplateVariable<InteractionGroups>,
+    pub(crate) solver_groups: InheritableVariable<InteractionGroups>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_friction_combine_rule")]
-    pub(crate) friction_combine_rule: TemplateVariable<CoefficientCombineRule>,
+    pub(crate) friction_combine_rule: InheritableVariable<CoefficientCombineRule>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_restitution_combine_rule")]
-    pub(crate) restitution_combine_rule: TemplateVariable<CoefficientCombineRule>,
+    pub(crate) restitution_combine_rule: InheritableVariable<CoefficientCombineRule>,
 
     #[visit(skip)]
     #[inspect(skip)]
@@ -504,10 +504,10 @@ impl Default for Collider {
         Self {
             base: Default::default(),
             shape: Default::default(),
-            friction: TemplateVariable::new(0.0),
-            density: TemplateVariable::new(None),
-            restitution: TemplateVariable::new(0.0),
-            is_sensor: TemplateVariable::new(false),
+            friction: InheritableVariable::new(0.0),
+            density: InheritableVariable::new(None),
+            restitution: InheritableVariable::new(0.0),
+            is_sensor: InheritableVariable::new(false),
             collision_groups: Default::default(),
             solver_groups: Default::default(),
             friction_combine_rule: Default::default(),

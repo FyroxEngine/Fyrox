@@ -17,7 +17,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -67,51 +67,51 @@ pub struct RigidBody {
 
     #[inspect(deref)]
     #[reflect(setter = "set_lin_vel")]
-    pub(crate) lin_vel: TemplateVariable<Vector2<f32>>,
+    pub(crate) lin_vel: InheritableVariable<Vector2<f32>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_ang_vel")]
-    pub(crate) ang_vel: TemplateVariable<f32>,
+    pub(crate) ang_vel: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_lin_damping")]
-    pub(crate) lin_damping: TemplateVariable<f32>,
+    pub(crate) lin_damping: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_ang_damping")]
-    pub(crate) ang_damping: TemplateVariable<f32>,
+    pub(crate) ang_damping: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_body_type")]
-    pub(crate) body_type: TemplateVariable<RigidBodyType>,
+    pub(crate) body_type: InheritableVariable<RigidBodyType>,
 
     #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(setter = "set_mass")]
-    pub(crate) mass: TemplateVariable<f32>,
+    pub(crate) mass: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(setter = "lock_rotations")]
-    pub(crate) rotation_locked: TemplateVariable<bool>,
+    pub(crate) rotation_locked: InheritableVariable<bool>,
 
     #[inspect(deref)]
     #[reflect(deref, setter = "lock_translation")]
-    pub(crate) translation_locked: TemplateVariable<bool>,
+    pub(crate) translation_locked: InheritableVariable<bool>,
 
     #[inspect(deref)]
     #[reflect(setter = "enable_ccd")]
-    pub(crate) ccd_enabled: TemplateVariable<bool>,
+    pub(crate) ccd_enabled: InheritableVariable<bool>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_can_sleep")]
-    pub(crate) can_sleep: TemplateVariable<bool>,
+    pub(crate) can_sleep: InheritableVariable<bool>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_dominance")]
-    pub(crate) dominance: TemplateVariable<i8>,
+    pub(crate) dominance: InheritableVariable<i8>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_gravity_scale")]
-    pub(crate) gravity_scale: TemplateVariable<f32>,
+    pub(crate) gravity_scale: InheritableVariable<f32>,
 
     #[visit(skip)]
     #[inspect(skip)]
@@ -144,14 +144,14 @@ impl Default for RigidBody {
             lin_damping: Default::default(),
             ang_damping: Default::default(),
             sleeping: Default::default(),
-            body_type: TemplateVariable::new(RigidBodyType::Dynamic),
-            mass: TemplateVariable::new(1.0),
+            body_type: InheritableVariable::new(RigidBodyType::Dynamic),
+            mass: InheritableVariable::new(1.0),
             rotation_locked: Default::default(),
             translation_locked: Default::default(),
             ccd_enabled: Default::default(),
-            can_sleep: TemplateVariable::new(true),
+            can_sleep: InheritableVariable::new(true),
             dominance: Default::default(),
-            gravity_scale: TemplateVariable::new(1.0),
+            gravity_scale: InheritableVariable::new(1.0),
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
         }

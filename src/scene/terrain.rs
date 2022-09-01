@@ -12,7 +12,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::{prelude::*, PodVecView},
     },
     engine::resource_manager::ResourceManager,
@@ -258,11 +258,11 @@ pub struct Terrain {
 
     #[inspect(deref)]
     #[reflect(setter = "set_layers")]
-    layers: TemplateVariable<Vec<Layer>>,
+    layers: InheritableVariable<Vec<Layer>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_decal_layer_index")]
-    decal_layer_index: TemplateVariable<u8>,
+    decal_layer_index: InheritableVariable<u8>,
 
     #[inspect(read_only)]
     #[reflect(hidden)]

@@ -8,7 +8,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::prelude::*,
     },
     define_with,
@@ -52,51 +52,51 @@ pub struct Sound {
 
     #[inspect(deref)]
     #[reflect(setter = "set_buffer")]
-    buffer: TemplateVariable<Option<SoundBufferResource>>,
+    buffer: InheritableVariable<Option<SoundBufferResource>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_play_once")]
-    play_once: TemplateVariable<bool>,
+    play_once: InheritableVariable<bool>,
 
     #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(setter = "set_gain")]
-    gain: TemplateVariable<f32>,
+    gain: InheritableVariable<f32>,
 
     #[inspect(min_value = -1.0, max_value = 1.0, step = 0.05, deref)]
     #[reflect(setter = "set_panning")]
-    panning: TemplateVariable<f32>,
+    panning: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_status")]
-    pub(crate) status: TemplateVariable<Status>,
+    pub(crate) status: InheritableVariable<Status>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_looping")]
-    looping: TemplateVariable<bool>,
+    looping: InheritableVariable<bool>,
 
     #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(setter = "set_pitch")]
-    pitch: TemplateVariable<f64>,
+    pitch: InheritableVariable<f64>,
 
     #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(setter = "set_radius")]
-    radius: TemplateVariable<f32>,
+    radius: InheritableVariable<f32>,
 
     #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(setter = "set_max_distance")]
-    max_distance: TemplateVariable<f32>,
+    max_distance: InheritableVariable<f32>,
 
     #[inspect(min_value = 0.0, step = 0.05, deref)]
     #[reflect(setter = "set_rolloff_factor")]
-    rolloff_factor: TemplateVariable<f32>,
+    rolloff_factor: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_playback_time")]
-    playback_time: TemplateVariable<Duration>,
+    playback_time: InheritableVariable<Duration>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_spatial_blend")]
-    spatial_blend: TemplateVariable<f32>,
+    spatial_blend: InheritableVariable<f32>,
 
     #[inspect(skip)]
     #[visit(skip)]
@@ -122,18 +122,18 @@ impl Default for Sound {
     fn default() -> Self {
         Self {
             base: Default::default(),
-            buffer: TemplateVariable::new(None),
-            play_once: TemplateVariable::new(false),
-            gain: TemplateVariable::new(1.0),
-            panning: TemplateVariable::new(0.0),
-            status: TemplateVariable::new(Status::Stopped),
-            looping: TemplateVariable::new(false),
-            pitch: TemplateVariable::new(1.0),
-            radius: TemplateVariable::new(10.0),
-            max_distance: TemplateVariable::new(f32::MAX),
-            rolloff_factor: TemplateVariable::new(1.0),
+            buffer: InheritableVariable::new(None),
+            play_once: InheritableVariable::new(false),
+            gain: InheritableVariable::new(1.0),
+            panning: InheritableVariable::new(0.0),
+            status: InheritableVariable::new(Status::Stopped),
+            looping: InheritableVariable::new(false),
+            pitch: InheritableVariable::new(1.0),
+            radius: InheritableVariable::new(10.0),
+            max_distance: InheritableVariable::new(f32::MAX),
+            rolloff_factor: InheritableVariable::new(1.0),
             playback_time: Default::default(),
-            spatial_blend: TemplateVariable::new(1.0),
+            spatial_blend: InheritableVariable::new(1.0),
             native: Default::default(),
         }
     }

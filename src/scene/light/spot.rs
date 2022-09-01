@@ -29,7 +29,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -50,23 +50,23 @@ pub struct SpotLight {
 
     #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1, deref)]
     #[reflect(setter = "set_hotspot_cone_angle")]
-    hotspot_cone_angle: TemplateVariable<f32>,
+    hotspot_cone_angle: InheritableVariable<f32>,
 
     #[inspect(min_value = 0.0, step = 0.1, deref)]
     #[reflect(setter = "set_falloff_angle_delta")]
-    falloff_angle_delta: TemplateVariable<f32>,
+    falloff_angle_delta: InheritableVariable<f32>,
 
     #[inspect(min_value = 0.0, step = 0.001, deref)]
     #[reflect(setter = "set_shadow_bias")]
-    shadow_bias: TemplateVariable<f32>,
+    shadow_bias: InheritableVariable<f32>,
 
     #[inspect(min_value = 0.0, step = 0.1, deref)]
     #[reflect(setter = "set_distance")]
-    distance: TemplateVariable<f32>,
+    distance: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_cookie_texture")]
-    cookie_texture: TemplateVariable<Option<Texture>>,
+    cookie_texture: InheritableVariable<Option<Texture>>,
 }
 
 impl Deref for SpotLight {
@@ -87,11 +87,11 @@ impl Default for SpotLight {
     fn default() -> Self {
         Self {
             base_light: Default::default(),
-            hotspot_cone_angle: TemplateVariable::new(90.0f32.to_radians()),
-            falloff_angle_delta: TemplateVariable::new(5.0f32.to_radians()),
-            shadow_bias: TemplateVariable::new(0.00005),
-            distance: TemplateVariable::new(10.0),
-            cookie_texture: TemplateVariable::new(None),
+            hotspot_cone_angle: InheritableVariable::new(90.0f32.to_radians()),
+            falloff_angle_delta: InheritableVariable::new(5.0f32.to_radians()),
+            shadow_bias: InheritableVariable::new(0.00005),
+            distance: InheritableVariable::new(10.0),
+            cookie_texture: InheritableVariable::new(None),
         }
     }
 }
@@ -206,7 +206,7 @@ impl NodeTrait for SpotLight {
 
         let mut state = resource_manager.state();
         let texture_container = &mut state.containers_mut().textures;
-        texture_container.try_restore_template_resource(&mut self.cookie_texture);
+        texture_container.try_restore_inheritable_resource(&mut self.cookie_texture);
     }
 
     fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {

@@ -10,7 +10,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -68,19 +68,19 @@ pub struct Sprite {
 
     #[inspect(deref)]
     #[reflect(setter = "set_texture")]
-    texture: TemplateVariable<Option<Texture>>,
+    texture: InheritableVariable<Option<Texture>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_color")]
-    color: TemplateVariable<Color>,
+    color: InheritableVariable<Color>,
 
     #[inspect(min_value = 0.0, step = 0.1, deref)]
     #[reflect(setter = "set_size")]
-    size: TemplateVariable<f32>,
+    size: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_rotation")]
-    rotation: TemplateVariable<f32>,
+    rotation: InheritableVariable<f32>,
 }
 
 impl Deref for Sprite {
@@ -175,7 +175,7 @@ impl NodeTrait for Sprite {
 
         let mut state = resource_manager.state();
         let texture_container = &mut state.containers_mut().textures;
-        texture_container.try_restore_template_resource(&mut self.texture);
+        texture_container.try_restore_inheritable_resource(&mut self.texture);
     }
 
     fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {

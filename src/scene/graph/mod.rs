@@ -586,7 +586,7 @@ impl Graph {
 
     fn restore_original_handles(&mut self) {
         // Iterate over each node in the graph and resolve original handles. Original handle is a handle
-        // to a node in resource from which a node was instantiated from. Also sync templated properties
+        // to a node in resource from which a node was instantiated from. Also sync inheritable properties
         // if needed and copy surfaces from originals.
         for node in self.pool.iter_mut() {
             if let Some(model) = node.resource() {

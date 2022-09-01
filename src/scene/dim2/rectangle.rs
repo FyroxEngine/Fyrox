@@ -11,7 +11,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -105,16 +105,16 @@ pub struct Rectangle {
     #[inspect(deref)]
     #[reflect(setter = "set_texture")]
     #[visit(optional)] // Backward compatibility
-    texture: TemplateVariable<Option<Texture>>,
+    texture: InheritableVariable<Option<Texture>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_color")]
-    color: TemplateVariable<Color>,
+    color: InheritableVariable<Color>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_uv_rect")]
     #[visit(optional)] // Backward compatibility
-    uv_rect: TemplateVariable<Rect<f32>>,
+    uv_rect: InheritableVariable<Rect<f32>>,
 }
 
 impl Default for Rectangle {
@@ -123,7 +123,7 @@ impl Default for Rectangle {
             base: Default::default(),
             texture: Default::default(),
             color: Default::default(),
-            uv_rect: TemplateVariable::new(Rect::new(0.0, 0.0, 1.0, 1.0)),
+            uv_rect: InheritableVariable::new(Rect::new(0.0, 0.0, 1.0, 1.0)),
         }
     }
 }
@@ -213,7 +213,7 @@ impl NodeTrait for Rectangle {
             .state()
             .containers_mut()
             .textures
-            .try_restore_template_resource(&mut self.texture);
+            .try_restore_inheritable_resource(&mut self.texture);
     }
 
     fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {

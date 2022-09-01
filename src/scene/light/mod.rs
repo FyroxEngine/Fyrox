@@ -22,7 +22,7 @@ use crate::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
         reflect::Reflect,
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -58,24 +58,24 @@ pub struct BaseLight {
 
     #[inspect(deref)]
     #[reflect(setter = "set_color")]
-    color: TemplateVariable<Color>,
+    color: InheritableVariable<Color>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_cast_shadows")]
-    cast_shadows: TemplateVariable<bool>,
+    cast_shadows: InheritableVariable<bool>,
 
     #[inspect(deref)]
     #[visit(rename = "ScatterFactor")]
     #[reflect(setter = "set_scatter")]
-    scatter: TemplateVariable<Vector3<f32>>,
+    scatter: InheritableVariable<Vector3<f32>>,
 
     #[inspect(deref)]
     #[reflect(setter = "enable_scatter")]
-    scatter_enabled: TemplateVariable<bool>,
+    scatter_enabled: InheritableVariable<bool>,
 
     #[inspect(min_value = 0.0, step = 0.1, deref)]
     #[reflect(setter = "set_intensity")]
-    intensity: TemplateVariable<f32>,
+    intensity: InheritableVariable<f32>,
 }
 
 impl Deref for BaseLight {
@@ -96,15 +96,15 @@ impl Default for BaseLight {
     fn default() -> Self {
         Self {
             base: Default::default(),
-            color: TemplateVariable::new(Color::WHITE),
-            cast_shadows: TemplateVariable::new(true),
-            scatter: TemplateVariable::new(Vector3::new(
+            color: InheritableVariable::new(Color::WHITE),
+            cast_shadows: InheritableVariable::new(true),
+            scatter: InheritableVariable::new(Vector3::new(
                 DEFAULT_SCATTER_R,
                 DEFAULT_SCATTER_G,
                 DEFAULT_SCATTER_B,
             )),
-            scatter_enabled: TemplateVariable::new(true),
-            intensity: TemplateVariable::new(1.0),
+            scatter_enabled: InheritableVariable::new(true),
+            intensity: InheritableVariable::new(1.0),
         }
     }
 }

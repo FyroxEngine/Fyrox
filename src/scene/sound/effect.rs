@@ -6,7 +6,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
         reflect::Reflect,
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::prelude::*,
     },
     define_with,
@@ -35,15 +35,15 @@ pub struct EffectInput {
 pub struct BaseEffect {
     #[inspect(deref)]
     #[reflect(deref, setter = "set_name_internal")]
-    pub(crate) name: TemplateVariable<String>,
+    pub(crate) name: InheritableVariable<String>,
 
     #[inspect(deref)]
     #[reflect(deref, setter = "set_gain")]
-    pub(crate) gain: TemplateVariable<f32>,
+    pub(crate) gain: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(deref, setter = "set_inputs")]
-    pub(crate) inputs: TemplateVariable<Vec<EffectInput>>,
+    pub(crate) inputs: InheritableVariable<Vec<EffectInput>>,
 
     #[visit(skip)]
     #[inspect(skip)]
@@ -100,8 +100,8 @@ impl BaseEffect {
 impl Default for BaseEffect {
     fn default() -> Self {
         Self {
-            name: TemplateVariable::new("".to_string()),
-            gain: TemplateVariable::new(1.0),
+            name: InheritableVariable::new("".to_string()),
+            gain: InheritableVariable::new(1.0),
             inputs: Default::default(),
             native: Default::default(),
         }
@@ -199,29 +199,29 @@ pub struct ReverbEffect {
 
     #[inspect(deref)]
     #[reflect(deref, setter = "set_dry")]
-    pub(crate) dry: TemplateVariable<f32>,
+    pub(crate) dry: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(deref, setter = "set_wet")]
-    pub(crate) wet: TemplateVariable<f32>,
+    pub(crate) wet: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(deref, setter = "set_fc")]
-    pub(crate) fc: TemplateVariable<f32>,
+    pub(crate) fc: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(deref, setter = "set_decay_time")]
-    pub(crate) decay_time: TemplateVariable<f32>,
+    pub(crate) decay_time: InheritableVariable<f32>,
 }
 
 impl Default for ReverbEffect {
     fn default() -> Self {
         Self {
             base: Default::default(),
-            dry: TemplateVariable::new(1.0),
-            wet: TemplateVariable::new(1.0),
-            fc: TemplateVariable::new(DEFAULT_FC),
-            decay_time: TemplateVariable::new(3.0),
+            dry: InheritableVariable::new(1.0),
+            wet: InheritableVariable::new(1.0),
+            fc: InheritableVariable::new(DEFAULT_FC),
+            decay_time: InheritableVariable::new(3.0),
         }
     }
 }

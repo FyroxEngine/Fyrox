@@ -82,11 +82,11 @@ pub trait Reflect: Any {
         None
     }
 
-    fn as_template_variable(&self) -> Option<&dyn ReflectTemplateVariable> {
+    fn as_inheritable_variable(&self) -> Option<&dyn ReflectInheritableVariable> {
         None
     }
 
-    fn as_template_variable_mut(&mut self) -> Option<&mut dyn ReflectTemplateVariable> {
+    fn as_inheritable_variable_mut(&mut self) -> Option<&mut dyn ReflectInheritableVariable> {
         None
     }
 }
@@ -110,10 +110,13 @@ pub trait ReflectList: ReflectArray {
     ) -> Result<(), Box<dyn Reflect>>;
 }
 
-pub trait ReflectTemplateVariable: Reflect + Debug {
+pub trait ReflectInheritableVariable: Reflect + Debug {
     /// Tries to inherit a value from parent. It will succeed only if the current variable is
     /// not marked as modified.
-    fn try_inherit(&mut self, parent: &dyn ReflectTemplateVariable) -> Result<bool, InheritError>;
+    fn try_inherit(
+        &mut self,
+        parent: &dyn ReflectInheritableVariable,
+    ) -> Result<bool, InheritError>;
 
     /// Resets modified flag from the variable.
     fn reset_modified_flag(&mut self);
@@ -125,7 +128,7 @@ pub trait ReflectTemplateVariable: Reflect + Debug {
     fn is_modified(&self) -> bool;
 
     /// Returns true if value equals to other's value.
-    fn value_equals(&self, other: &dyn ReflectTemplateVariable) -> bool;
+    fn value_equals(&self, other: &dyn ReflectInheritableVariable) -> bool;
 }
 
 /// An error returned from a failed path string query.

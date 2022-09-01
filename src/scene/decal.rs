@@ -10,7 +10,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -89,19 +89,19 @@ pub struct Decal {
 
     #[inspect(deref)]
     #[reflect(setter = "set_diffuse_texture")]
-    diffuse_texture: TemplateVariable<Option<Texture>>,
+    diffuse_texture: InheritableVariable<Option<Texture>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_normal_texture")]
-    normal_texture: TemplateVariable<Option<Texture>>,
+    normal_texture: InheritableVariable<Option<Texture>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_color")]
-    color: TemplateVariable<Color>,
+    color: InheritableVariable<Color>,
 
     #[inspect(min_value = 0.0, deref)]
     #[reflect(setter = "set_layer")]
-    layer: TemplateVariable<u8>,
+    layer: InheritableVariable<u8>,
 }
 
 impl Deref for Decal {
@@ -200,8 +200,8 @@ impl NodeTrait for Decal {
 
         let mut state = resource_manager.state();
         let texture_container = &mut state.containers_mut().textures;
-        texture_container.try_restore_template_resource(&mut self.diffuse_texture);
-        texture_container.try_restore_template_resource(&mut self.normal_texture);
+        texture_container.try_restore_inheritable_resource(&mut self.diffuse_texture);
+        texture_container.try_restore_inheritable_resource(&mut self.normal_texture);
     }
 
     fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {

@@ -1,9 +1,9 @@
 //! A wrapper for a variable that hold additional flag that tells that initial value was changed in runtime.
 //!
-//! For more info see [`TemplateVariable`]
+//! For more info see [`InheritableVariable`]
 
 use crate::{
-    reflect::{Reflect, ReflectArray, ReflectList, ReflectTemplateVariable},
+    reflect::{Reflect, ReflectArray, ReflectInheritableVariable, ReflectList},
     visitor::prelude::*,
 };
 use bitflags::bitflags;
@@ -41,7 +41,7 @@ pub enum InheritError {
 
 /// A wrapper for a variable that hold additional flag that tells that initial value was changed in runtime.
 ///
-/// TemplateVariables are used for resource inheritance system. Resource inheritance may just sound weird,
+/// InheritableVariables are used for resource inheritance system. Resource inheritance may just sound weird,
 /// but the idea behind it is very simple - take property values from parent resource if the value in current
 /// hasn't changed in runtime.
 ///
@@ -49,7 +49,7 @@ pub enum InheritError {
 /// instance. Now you realizes that the 3d model has a misplaced object and you need to fix it, you open a
 /// 3D modelling software (Blender, 3Ds max, etc) and move the object to a correct spot and re-save the 3D model.
 /// The question is: what should happen with the instance of the object in the scene? Logical answer would be:
-/// if it hasn't been modified, then just take the new position from the 3D model. This is where template
+/// if it hasn't been modified, then just take the new position from the 3D model. This is where inheritable
 /// variable comes into play. If you've change the value of such variable, it will remember changes and the object
 /// will stay on its new position instead of changed.
 ///
@@ -58,12 +58,12 @@ pub enum InheritError {
 /// Access via Deref provides access to inner variable. **DerefMut marks variable as modified** and returns a
 /// mutable reference to inner variable.
 #[derive(Debug)]
-pub struct TemplateVariable<T> {
+pub struct InheritableVariable<T> {
     value: T,
     flags: Cell<VariableFlags>,
 }
 
-impl<T: Clone> Clone for TemplateVariable<T> {
+impl<T: Clone> Clone for InheritableVariable<T> {
     fn clone(&self) -> Self {
         Self {
             value: self.value.clone(),
@@ -72,22 +72,22 @@ impl<T: Clone> Clone for TemplateVariable<T> {
     }
 }
 
-impl<T> From<T> for TemplateVariable<T> {
+impl<T> From<T> for InheritableVariable<T> {
     fn from(v: T) -> Self {
-        TemplateVariable::new(v)
+        InheritableVariable::new(v)
     }
 }
 
-impl<T: PartialEq> PartialEq for TemplateVariable<T> {
+impl<T: PartialEq> PartialEq for InheritableVariable<T> {
     fn eq(&self, other: &Self) -> bool {
         // `custom` flag intentionally ignored!
         self.value.eq(&other.value)
     }
 }
 
-impl<T: Eq> Eq for TemplateVariable<T> {}
+impl<T: Eq> Eq for InheritableVariable<T> {}
 
-impl<T: Default> Default for TemplateVariable<T> {
+impl<T: Default> Default for InheritableVariable<T> {
     fn default() -> Self {
         Self {
             value: T::default(),
@@ -96,13 +96,13 @@ impl<T: Default> Default for TemplateVariable<T> {
     }
 }
 
-impl<T: Clone> TemplateVariable<T> {
+impl<T: Clone> InheritableVariable<T> {
     /// Clones wrapped value.
     pub fn clone_inner(&self) -> T {
         self.value.clone()
     }
 
-    /// Tries to sync a value in a data model with a value in the template variable. The value
+    /// Tries to sync a value in a data model with a value in the inheritable variable. The value
     /// will be synced only if it was marked as needs sync.
     pub fn try_sync_model<S: FnOnce(T)>(&self, setter: S) -> bool {
         if self.need_sync() {
@@ -121,7 +121,7 @@ impl<T: Clone> TemplateVariable<T> {
     }
 }
 
-impl<T> TemplateVariable<T> {
+impl<T> InheritableVariable<T> {
     /// Creates new non-modified variable from given value.
     pub fn new(value: T) -> Self {
         Self {
@@ -199,7 +199,7 @@ impl<T> TemplateVariable<T> {
     }
 }
 
-impl<T> Deref for TemplateVariable<T> {
+impl<T> Deref for InheritableVariable<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -207,14 +207,14 @@ impl<T> Deref for TemplateVariable<T> {
     }
 }
 
-impl<T> DerefMut for TemplateVariable<T> {
+impl<T> DerefMut for InheritableVariable<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.mark_modified();
         &mut self.value
     }
 }
 
-impl<T> Visit for TemplateVariable<T>
+impl<T> Visit for InheritableVariable<T>
 where
     T: Visit,
 {
@@ -228,7 +228,7 @@ where
     }
 }
 
-impl<T> Reflect for TemplateVariable<T>
+impl<T> Reflect for InheritableVariable<T>
 where
     T: Reflect + Clone + PartialEq + Debug,
 {
@@ -288,21 +288,24 @@ where
         self.value.as_list_mut()
     }
 
-    fn as_template_variable(&self) -> Option<&dyn ReflectTemplateVariable> {
+    fn as_inheritable_variable(&self) -> Option<&dyn ReflectInheritableVariable> {
         Some(self)
     }
 
-    fn as_template_variable_mut(&mut self) -> Option<&mut dyn ReflectTemplateVariable> {
+    fn as_inheritable_variable_mut(&mut self) -> Option<&mut dyn ReflectInheritableVariable> {
         Some(self)
     }
 }
 
-impl<T> ReflectTemplateVariable for TemplateVariable<T>
+impl<T> ReflectInheritableVariable for InheritableVariable<T>
 where
     T: Reflect + Clone + PartialEq + Debug,
 {
-    fn try_inherit(&mut self, parent: &dyn ReflectTemplateVariable) -> Result<bool, InheritError> {
-        // Cast directly to inner type, because any type that implements ReflectTemplateVariable,
+    fn try_inherit(
+        &mut self,
+        parent: &dyn ReflectInheritableVariable,
+    ) -> Result<bool, InheritError> {
+        // Cast directly to inner type, because any type that implements ReflectInheritableVariable,
         // has delegating methods for almost every method of Reflect trait implementation.
         if let Some(parent_value) = parent.as_reflect().downcast_ref::<T>() {
             if !self.is_modified() {
@@ -331,7 +334,7 @@ where
         self.flags.get().contains(VariableFlags::MODIFIED)
     }
 
-    fn value_equals(&self, other: &dyn ReflectTemplateVariable) -> bool {
+    fn value_equals(&self, other: &dyn ReflectInheritableVariable) -> bool {
         other
             .as_reflect()
             .downcast_ref::<T>()
@@ -353,16 +356,16 @@ pub fn try_inherit_properties(
     }
 
     for (child_field, parent_field) in child.fields_mut().iter_mut().zip(parent.fields()) {
-        // If both fields are TemplateVariable<T>, try to inherit.
-        if let (Some(child_template_field), Some(parent_template_field)) = (
-            child_field.as_template_variable_mut(),
-            parent_field.as_template_variable(),
+        // If both fields are InheritableVariable<T>, try to inherit.
+        if let (Some(child_inheritable_field), Some(parent_inheritable_field)) = (
+            child_field.as_inheritable_variable_mut(),
+            parent_field.as_inheritable_variable(),
         ) {
-            child_template_field.try_inherit(parent_template_field)?;
+            child_inheritable_field.try_inherit(parent_inheritable_field)?;
         }
 
         // Look into inner properties recursively and try to inherit them. This is mandatory step, because inner
-        // fields may also be TemplateVariable<T>.
+        // fields may also be InheritableVariable<T>.
         try_inherit_properties(*child_field, parent_field)?;
     }
 
@@ -371,8 +374,8 @@ pub fn try_inherit_properties(
 
 pub fn reset_inheritable_properties(object: &mut dyn Reflect) {
     for field in object.fields_mut() {
-        if let Some(template_field) = field.as_template_variable_mut() {
-            template_field.reset_modified_flag();
+        if let Some(inheritable_field) = field.as_inheritable_variable_mut() {
+            inheritable_field.reset_modified_flag();
         }
 
         reset_inheritable_properties(field);
@@ -382,29 +385,29 @@ pub fn reset_inheritable_properties(object: &mut dyn Reflect) {
 #[cfg(test)]
 mod test {
     use crate::{
-        reflect::{Reflect, ReflectTemplateVariable},
-        variable::{try_inherit_properties, TemplateVariable},
+        reflect::{Reflect, ReflectInheritableVariable},
+        variable::{try_inherit_properties, InheritableVariable},
     };
 
     #[derive(Reflect, Clone, Debug, PartialEq)]
     struct Foo {
-        value: TemplateVariable<f32>,
+        value: InheritableVariable<f32>,
     }
 
     #[derive(Reflect, Clone, Debug, PartialEq)]
     struct Bar {
         foo: Foo,
 
-        other_value: TemplateVariable<String>,
+        other_value: InheritableVariable<String>,
     }
 
     #[test]
     fn test_property_inheritance_via_reflection() {
         let mut parent = Bar {
             foo: Foo {
-                value: TemplateVariable::new(1.23),
+                value: InheritableVariable::new(1.23),
             },
-            other_value: TemplateVariable::new("Foobar".to_string()),
+            other_value: InheritableVariable::new("Foobar".to_string()),
         };
 
         let mut child = parent.clone();
@@ -415,10 +418,10 @@ mod test {
 
         // Then modify parent's and child's values.
         parent.other_value.set("Baz".to_string());
-        assert!(ReflectTemplateVariable::is_modified(&parent.other_value),);
+        assert!(ReflectInheritableVariable::is_modified(&parent.other_value),);
 
         child.foo.value.set(3.21);
-        assert!(ReflectTemplateVariable::is_modified(&child.foo.value));
+        assert!(ReflectInheritableVariable::is_modified(&child.foo.value));
 
         try_inherit_properties(&mut child, &parent).unwrap();
 
@@ -429,9 +432,9 @@ mod test {
     }
 
     #[test]
-    fn test_template_variable_equality() {
-        let va = TemplateVariable::new(1.23);
-        let vb = TemplateVariable::new(1.23);
+    fn test_inheritable_variable_equality() {
+        let va = InheritableVariable::new(1.23);
+        let vb = InheritableVariable::new(1.23);
 
         assert!(va.value_equals(&vb))
     }

@@ -8,7 +8,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -162,20 +162,20 @@ pub struct Joint {
 
     #[inspect(deref)]
     #[reflect(setter = "set_params")]
-    pub(crate) params: TemplateVariable<JointParams>,
+    pub(crate) params: InheritableVariable<JointParams>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_body1")]
-    pub(crate) body1: TemplateVariable<Handle<Node>>,
+    pub(crate) body1: InheritableVariable<Handle<Node>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_body2")]
-    pub(crate) body2: TemplateVariable<Handle<Node>>,
+    pub(crate) body2: InheritableVariable<Handle<Node>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_contacts_enabled")]
     #[visit(optional)] // Backward compatibility
-    pub(crate) contacts_enabled: TemplateVariable<bool>,
+    pub(crate) contacts_enabled: InheritableVariable<bool>,
 
     #[visit(skip)]
     #[inspect(skip)]
@@ -195,7 +195,7 @@ impl Default for Joint {
             params: Default::default(),
             body1: Default::default(),
             body2: Default::default(),
-            contacts_enabled: TemplateVariable::new(true),
+            contacts_enabled: InheritableVariable::new(true),
             native: Cell::new(ImpulseJointHandle::invalid()),
             need_rebind: Cell::new(true),
         }

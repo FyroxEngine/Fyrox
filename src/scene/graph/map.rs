@@ -3,7 +3,7 @@
 //! See [NodeHandleMap] docs for more info.
 
 use crate::{
-    core::{pool::Handle, variable::TemplateVariable},
+    core::{pool::Handle, variable::InheritableVariable},
     scene::node::Node,
 };
 use fxhash::FxHashMap;
@@ -71,9 +71,12 @@ impl NodeHandleMap {
     /// Tries to silently map (without setting `modified` flag) a templated handle to a handle of its origin.
     /// If it exists, the method returns true or false otherwise. It should be used when you not sure that respective
     /// origin exists.
-    pub fn try_map_silent(&self, templated_handle: &mut TemplateVariable<Handle<Node>>) -> bool {
-        if let Some(new_handle) = self.map.get(templated_handle) {
-            templated_handle.set_silent(*new_handle);
+    pub fn try_map_silent(
+        &self,
+        inheritable_handle: &mut InheritableVariable<Handle<Node>>,
+    ) -> bool {
+        if let Some(new_handle) = self.map.get(inheritable_handle) {
+            inheritable_handle.set_silent(*new_handle);
             true
         } else {
             false

@@ -80,7 +80,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::TemplateVariable,
+        variable::InheritableVariable,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
@@ -137,28 +137,28 @@ pub struct ParticleSystem {
 
     /// List of emitters of the particle system.
     #[inspect(deref)]
-    pub emitters: TemplateVariable<Vec<EmitterWrapper>>,
+    pub emitters: InheritableVariable<Vec<EmitterWrapper>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_texture")]
-    texture: TemplateVariable<Option<Texture>>,
+    texture: InheritableVariable<Option<Texture>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_acceleration")]
-    acceleration: TemplateVariable<Vector3<f32>>,
+    acceleration: InheritableVariable<Vector3<f32>>,
 
     #[visit(rename = "ColorGradient")]
     #[inspect(deref)]
     #[reflect(setter = "set_color_over_lifetime_gradient")]
-    color_over_lifetime: TemplateVariable<Option<ColorGradient>>,
+    color_over_lifetime: InheritableVariable<Option<ColorGradient>>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_soft_boundary_sharpness_factor")]
-    soft_boundary_sharpness_factor: TemplateVariable<f32>,
+    soft_boundary_sharpness_factor: InheritableVariable<f32>,
 
     #[inspect(deref)]
     #[reflect(setter = "set_enabled")]
-    enabled: TemplateVariable<bool>,
+    enabled: InheritableVariable<bool>,
 
     #[inspect(skip)]
     #[reflect(hidden)]
@@ -370,7 +370,7 @@ impl NodeTrait for ParticleSystem {
 
         let mut state = resource_manager.state();
         let texture_container = &mut state.containers_mut().textures;
-        texture_container.try_restore_template_resource(&mut self.texture);
+        texture_container.try_restore_inheritable_resource(&mut self.texture);
     }
 
     fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
