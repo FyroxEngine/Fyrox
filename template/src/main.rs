@@ -327,7 +327,7 @@ use crate::GameConstructor;
 use fyrox::{{
     core::{{inspect::prelude::*, uuid::{{Uuid, uuid}}, visitor::prelude::*, reflect::Reflect}},
     engine::resource_manager::ResourceManager,
-    event::Event, impl_component_provider, impl_directly_inheritable_entity_trait,
+    event::Event, impl_component_provider,
     scene::{{graph::map::NodeHandleMap, node::TypeUuidProvider}},
     script::{{ScriptContext, ScriptDeinitContext, ScriptTrait}},
 }};
@@ -338,9 +338,6 @@ pub struct {name} {{
 }}
 
 impl_component_provider!({name});
-impl_directly_inheritable_entity_trait!({name};
-    // Add inheritable (TemplateVariable<T>) fields here.
-);
 
 impl TypeUuidProvider for {name} {{
     fn type_uuid() -> Uuid {{
