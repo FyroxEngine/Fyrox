@@ -457,39 +457,32 @@ impl ColliderShape {
 pub struct Collider {
     base: Base,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_shape")]
     pub(crate) shape: InheritableVariable<ColliderShape>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[inspect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_friction")]
     pub(crate) friction: InheritableVariable<f32>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_density")]
     pub(crate) density: InheritableVariable<Option<f32>>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[inspect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_restitution")]
     pub(crate) restitution: InheritableVariable<f32>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_is_sensor")]
     pub(crate) is_sensor: InheritableVariable<bool>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_collision_groups")]
     pub(crate) collision_groups: InheritableVariable<InteractionGroups>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_solver_groups")]
     pub(crate) solver_groups: InheritableVariable<InteractionGroups>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_friction_combine_rule")]
     pub(crate) friction_combine_rule: InheritableVariable<CoefficientCombineRule>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_restitution_combine_rule")]
     pub(crate) restitution_combine_rule: InheritableVariable<CoefficientCombineRule>,
 

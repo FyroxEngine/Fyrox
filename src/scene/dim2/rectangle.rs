@@ -102,16 +102,13 @@ use std::ops::{Deref, DerefMut};
 pub struct Rectangle {
     base: Base,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_texture")]
     #[visit(optional)] // Backward compatibility
     texture: InheritableVariable<Option<Texture>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_color")]
     color: InheritableVariable<Color>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_uv_rect")]
     #[visit(optional)] // Backward compatibility
     uv_rect: InheritableVariable<Rect<f32>>,

@@ -48,23 +48,22 @@ use std::ops::{Deref, DerefMut};
 pub struct SpotLight {
     base_light: BaseLight,
 
-    #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1, deref)]
+    #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1)]
     #[reflect(setter = "set_hotspot_cone_angle")]
     hotspot_cone_angle: InheritableVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref)]
+    #[inspect(min_value = 0.0, step = 0.1)]
     #[reflect(setter = "set_falloff_angle_delta")]
     falloff_angle_delta: InheritableVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.001, deref)]
+    #[inspect(min_value = 0.0, step = 0.001)]
     #[reflect(setter = "set_shadow_bias")]
     shadow_bias: InheritableVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref)]
+    #[inspect(min_value = 0.0, step = 0.1)]
     #[reflect(setter = "set_distance")]
     distance: InheritableVariable<f32>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_cookie_texture")]
     cookie_texture: InheritableVariable<Option<Texture>>,
 }

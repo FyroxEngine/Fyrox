@@ -307,13 +307,11 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) script_message_sender: Option<Sender<ScriptMessage>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_name_internal")]
     pub(crate) name: InheritableVariable<String>,
 
     pub(crate) local_transform: Transform,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_visibility")]
     visibility: InheritableVariable<bool>,
 
@@ -322,33 +320,28 @@ pub struct Base {
     #[inspect(skip)] // TEMPORARILY HIDDEN. It causes crashes when set from the editor.
     pub(crate) lifetime: InheritableVariable<Option<f32>>,
 
-    #[inspect(min_value = 0.0, max_value = 1.0, step = 0.1, deref)]
+    #[inspect(min_value = 0.0, max_value = 1.0, step = 0.1)]
     #[reflect(setter = "set_depth_offset_factor")]
     depth_offset: InheritableVariable<f32>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_lod_group")]
     lod_group: InheritableVariable<Option<LodGroup>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_mobility")]
     mobility: InheritableVariable<Mobility>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_tag")]
     tag: InheritableVariable<String>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_cast_shadows")]
     cast_shadows: InheritableVariable<bool>,
 
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
-    #[inspect(deref)]
+
     #[reflect(setter = "set_properties")]
     pub properties: InheritableVariable<Vec<Property>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_frustum_culling")]
     frustum_culling: InheritableVariable<bool>,
 

@@ -1,3 +1,4 @@
+use crate::inspector::editors::inherit::InheritablePropertyEditorDefinition;
 use crate::{
     core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
@@ -20,6 +21,7 @@ use crate::{
     BuildContext, UiNode, UserInterface,
 };
 use fxhash::FxHashMap;
+use fyrox_core::algebra::{UnitQuaternion, Vector2, Vector3, Vector4};
 use std::{
     any::TypeId,
     cell::{Ref, RefCell},
@@ -33,6 +35,7 @@ pub mod bool;
 pub mod collection;
 pub mod color;
 pub mod enumeration;
+pub mod inherit;
 pub mod inspectable;
 pub mod numeric;
 pub mod quat;
@@ -189,6 +192,24 @@ impl PropertyEditorDefinitionContainer {
         container.insert(RectPropertyEditorDefinition::<u8>::new());
         container.insert(RectPropertyEditorDefinition::<usize>::new());
         container.insert(RectPropertyEditorDefinition::<isize>::new());
+
+        container.insert(InheritablePropertyEditorDefinition::<f64>::new());
+        container.insert(InheritablePropertyEditorDefinition::<f32>::new());
+        container.insert(InheritablePropertyEditorDefinition::<i32>::new());
+        container.insert(InheritablePropertyEditorDefinition::<u32>::new());
+        container.insert(InheritablePropertyEditorDefinition::<i16>::new());
+        container.insert(InheritablePropertyEditorDefinition::<u16>::new());
+        container.insert(InheritablePropertyEditorDefinition::<i8>::new());
+        container.insert(InheritablePropertyEditorDefinition::<u8>::new());
+        container.insert(InheritablePropertyEditorDefinition::<usize>::new());
+        container.insert(InheritablePropertyEditorDefinition::<isize>::new());
+        container.insert(InheritablePropertyEditorDefinition::<String>::new());
+        container.insert(InheritablePropertyEditorDefinition::<bool>::new());
+
+        container.insert(InheritablePropertyEditorDefinition::<Vector2<f32>>::new());
+        container.insert(InheritablePropertyEditorDefinition::<Vector3<f32>>::new());
+        container.insert(InheritablePropertyEditorDefinition::<Vector4<f32>>::new());
+        container.insert(InheritablePropertyEditorDefinition::<UnitQuaternion<f32>>::new());
 
         container.insert(ColorPropertyEditorDefinition);
 

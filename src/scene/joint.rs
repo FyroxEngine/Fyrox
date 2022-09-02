@@ -160,19 +160,15 @@ impl Default for JointParams {
 pub struct Joint {
     base: Base,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_params")]
     pub(crate) params: InheritableVariable<JointParams>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_body1")]
     pub(crate) body1: InheritableVariable<Handle<Node>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_body2")]
     pub(crate) body2: InheritableVariable<Handle<Node>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_contacts_enabled")]
     #[visit(optional)] // Backward compatibility
     pub(crate) contacts_enabled: InheritableVariable<bool>,

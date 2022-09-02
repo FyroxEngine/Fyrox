@@ -256,11 +256,9 @@ pub struct TerrainRayCastResult {
 pub struct Terrain {
     base: Base,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_layers")]
     layers: InheritableVariable<Vec<Layer>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_decal_layer_index")]
     decal_layer_index: InheritableVariable<u8>,
 

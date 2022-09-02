@@ -91,15 +91,12 @@ pub struct Mesh {
     #[visit(rename = "Common")]
     base: Base,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_surfaces")]
     surfaces: InheritableVariable<Vec<Surface>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_render_path")]
     render_path: InheritableVariable<RenderPath>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_decal_layer_index")]
     decal_layer_index: InheritableVariable<u8>,
 

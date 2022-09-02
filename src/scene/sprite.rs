@@ -66,19 +66,16 @@ use std::ops::{Deref, DerefMut};
 pub struct Sprite {
     base: Base,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_texture")]
     texture: InheritableVariable<Option<Texture>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_color")]
     color: InheritableVariable<Color>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref)]
+    #[inspect(min_value = 0.0, step = 0.1)]
     #[reflect(setter = "set_size")]
     size: InheritableVariable<f32>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_rotation")]
     rotation: InheritableVariable<f32>,
 }

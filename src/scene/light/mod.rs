@@ -56,24 +56,20 @@ pub const DEFAULT_SCATTER_B: f32 = 0.03;
 pub struct BaseLight {
     base: Base,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_color")]
     color: InheritableVariable<Color>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_cast_shadows")]
     cast_shadows: InheritableVariable<bool>,
 
-    #[inspect(deref)]
     #[visit(rename = "ScatterFactor")]
     #[reflect(setter = "set_scatter")]
     scatter: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "enable_scatter")]
     scatter_enabled: InheritableVariable<bool>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref)]
+    #[inspect(min_value = 0.0, step = 0.1)]
     #[reflect(setter = "set_intensity")]
     intensity: InheritableVariable<f32>,
 }

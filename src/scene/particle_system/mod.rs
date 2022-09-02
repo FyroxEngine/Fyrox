@@ -136,27 +136,21 @@ pub struct ParticleSystem {
     base: Base,
 
     /// List of emitters of the particle system.
-    #[inspect(deref)]
     pub emitters: InheritableVariable<Vec<EmitterWrapper>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_texture")]
     texture: InheritableVariable<Option<Texture>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_acceleration")]
     acceleration: InheritableVariable<Vector3<f32>>,
 
     #[visit(rename = "ColorGradient")]
-    #[inspect(deref)]
     #[reflect(setter = "set_color_over_lifetime_gradient")]
     color_over_lifetime: InheritableVariable<Option<ColorGradient>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_soft_boundary_sharpness_factor")]
     soft_boundary_sharpness_factor: InheritableVariable<f32>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_enabled")]
     enabled: InheritableVariable<bool>,
 

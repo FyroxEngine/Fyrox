@@ -42,11 +42,11 @@ use std::ops::{Deref, DerefMut};
 pub struct PointLight {
     base_light: BaseLight,
 
-    #[inspect(min_value = 0.0, step = 0.001, deref)]
+    #[inspect(min_value = 0.0, step = 0.001)]
     #[reflect(setter = "set_shadow_bias")]
     shadow_bias: InheritableVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.1, deref)]
+    #[inspect(min_value = 0.0, step = 0.1)]
     #[reflect(setter = "set_radius")]
     radius: InheritableVariable<f32>,
 }

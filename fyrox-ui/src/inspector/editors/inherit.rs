@@ -1,0 +1,128 @@
+use crate::{
+    core::{inspect::Inspect, pool::Handle, variable::InheritableVariable},
+    inspector::{
+        editors::{
+            PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorMessageContext, PropertyEditorTranslationContext,
+        },
+        make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
+        InspectorError, InspectorMessage, PropertyChanged,
+    },
+    message::{MessageDirection, UiMessage},
+    widget::WidgetBuilder,
+};
+use std::{
+    any::TypeId,
+    fmt::{Debug, Formatter},
+    marker::PhantomData,
+};
+
+pub struct InheritablePropertyEditorDefinition<T>
+where
+    T: Inspect + 'static,
+{
+    phantom: PhantomData<T>,
+}
+
+impl<T> InheritablePropertyEditorDefinition<T>
+where
+    T: Inspect + 'static,
+{
+    pub fn new() -> Self {
+        Self {
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<T> Debug for InheritablePropertyEditorDefinition<T>
+where
+    T: Inspect + 'static,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "InheritablePropertyEditorDefinition")
+    }
+}
+
+impl<T> PropertyEditorDefinition for InheritablePropertyEditorDefinition<T>
+where
+    T: Inspect + 'static,
+{
+    fn value_type_id(&self) -> TypeId {
+        TypeId::of::<InheritableVariable<T>>()
+    }
+
+    fn create_instance(
+        &self,
+        ctx: PropertyEditorBuildContext,
+    ) -> Result<PropertyEditorInstance, InspectorError> {
+        let value = ctx.property_info.cast_value::<InheritableVariable<T>>()?;
+
+        let inspector_context = InspectorContext::from_object(
+            &**value,
+            ctx.build_context,
+            ctx.definition_container.clone(),
+            ctx.environment.clone(),
+            ctx.sync_flag,
+            ctx.layer_index + 1,
+        );
+
+        let editor;
+        let container = make_expander_container(
+            ctx.layer_index,
+            ctx.property_info.display_name,
+            ctx.property_info.description.as_ref(),
+            Handle::NONE,
+            {
+                editor = InspectorBuilder::new(WidgetBuilder::new())
+                    .with_context(inspector_context)
+                    .build(ctx.build_context);
+                editor
+            },
+            ctx.build_context,
+        );
+
+        Ok(PropertyEditorInstance::Custom { container, editor })
+    }
+
+    fn create_message(
+        &self,
+        ctx: PropertyEditorMessageContext,
+    ) -> Result<Option<UiMessage>, InspectorError> {
+        let value = ctx.property_info.cast_value::<InheritableVariable<T>>()?;
+
+        let mut error_group = Vec::new();
+
+        let inspector_context = ctx
+            .ui
+            .node(ctx.instance)
+            .cast::<Inspector>()
+            .expect("Must be Inspector!")
+            .context()
+            .clone();
+        if let Err(e) = inspector_context.sync(&**value, ctx.ui, ctx.layer_index + 1) {
+            error_group.extend(e.into_iter())
+        }
+
+        if error_group.is_empty() {
+            Ok(None)
+        } else {
+            Err(InspectorError::Group(error_group))
+        }
+    }
+
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if let Some(InspectorMessage::PropertyChanged(msg)) = ctx.message.data::<InspectorMessage>()
+        {
+            if ctx.message.direction() == MessageDirection::FromWidget {
+                return Some(PropertyChanged {
+                    name: ctx.name.to_owned(),
+                    owner_type_id: ctx.owner_type_id,
+                    value: FieldKind::Inspectable(Box::new(msg.clone())),
+                });
+            }
+        }
+
+        None
+    }
+}

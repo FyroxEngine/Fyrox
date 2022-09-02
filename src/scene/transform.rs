@@ -54,7 +54,7 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
-use std::{cell::Cell, ops::Deref};
+use std::cell::Cell;
 
 /// See module docs.
 #[derive(Clone, Debug, Inspect, Reflect)]
@@ -65,45 +65,39 @@ pub struct Transform {
     #[reflect(hidden)]
     dirty: Cell<bool>,
 
-    #[inspect(deref, description = "Local scale of the transform")]
+    #[inspect(description = "Local scale of the transform")]
     #[reflect(setter = "set_scale_internal")]
     local_scale: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(deref, description = "Local position of the transform")]
+    #[inspect(description = "Local position of the transform")]
     #[reflect(setter = "set_position_internal")]
     local_position: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(deref, description = "Local rotation of the transform")]
+    #[inspect(description = "Local rotation of the transform")]
     #[reflect(setter = "set_rotation_internal")]
     local_rotation: InheritableVariable<UnitQuaternion<f32>>,
 
-    #[inspect(
-        deref,
-        description = "Pre rotation of the transform. Applied before local rotation."
-    )]
+    #[inspect(description = "Pre rotation of the transform. Applied before local rotation.")]
     #[reflect(setter = "set_pre_rotation_internal")]
     pre_rotation: InheritableVariable<UnitQuaternion<f32>>,
 
-    #[inspect(
-        deref,
-        description = "Post rotation of the transform. Applied after local rotation."
-    )]
+    #[inspect(description = "Post rotation of the transform. Applied after local rotation.")]
     #[reflect(setter = "set_post_rotation_internal")]
     post_rotation: InheritableVariable<UnitQuaternion<f32>>,
 
-    #[inspect(deref, description = "Rotation offset of the transform.")]
+    #[inspect(description = "Rotation offset of the transform.")]
     #[reflect(setter = "set_rotation_offset_internal")]
     rotation_offset: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(deref, description = "Rotation pivot of the transform.")]
+    #[inspect(description = "Rotation pivot of the transform.")]
     #[reflect(setter = "set_rotation_pivot_internal")]
     rotation_pivot: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(deref, description = "Scale offset of the transform.")]
+    #[inspect(description = "Scale offset of the transform.")]
     #[reflect(setter = "set_scaling_offset_internal")]
     scaling_offset: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(deref, description = "Scale pivot of the transform.")]
+    #[inspect(description = "Scale pivot of the transform.")]
     #[reflect(setter = "set_scaling_pivot_internal")]
     scaling_pivot: InheritableVariable<Vector3<f32>>,
 

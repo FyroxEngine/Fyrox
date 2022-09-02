@@ -3,6 +3,7 @@
 //! For more info see [`InheritableVariable`]
 
 use crate::{
+    inspect::{Inspect, PropertyInfo},
     reflect::{Reflect, ReflectArray, ReflectInheritableVariable, ReflectList},
     visitor::prelude::*,
 };
@@ -225,6 +226,15 @@ where
         self.flags.get_mut().bits.visit("Flags", &mut region)?;
 
         Ok(())
+    }
+}
+
+impl<T> Inspect for InheritableVariable<T>
+where
+    T: Inspect,
+{
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        self.value.properties()
     }
 }
 

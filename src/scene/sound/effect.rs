@@ -33,16 +33,13 @@ pub struct EffectInput {
 /// Base effect contains common properties for every effect (gain, inputs, etc.)
 #[derive(Visit, Inspect, Reflect, Debug, Clone)]
 pub struct BaseEffect {
-    #[inspect(deref)]
-    #[reflect(deref, setter = "set_name_internal")]
+    #[reflect(setter = "set_name_internal")]
     pub(crate) name: InheritableVariable<String>,
 
-    #[inspect(deref)]
-    #[reflect(deref, setter = "set_gain")]
+    #[reflect(setter = "set_gain")]
     pub(crate) gain: InheritableVariable<f32>,
 
-    #[inspect(deref)]
-    #[reflect(deref, setter = "set_inputs")]
+    #[reflect(setter = "set_inputs")]
     pub(crate) inputs: InheritableVariable<Vec<EffectInput>>,
 
     #[visit(skip)]
@@ -197,20 +194,16 @@ impl BaseEffectBuilder {
 pub struct ReverbEffect {
     pub(crate) base: BaseEffect,
 
-    #[inspect(deref)]
-    #[reflect(deref, setter = "set_dry")]
+    #[reflect(setter = "set_dry")]
     pub(crate) dry: InheritableVariable<f32>,
 
-    #[inspect(deref)]
-    #[reflect(deref, setter = "set_wet")]
+    #[reflect(setter = "set_wet")]
     pub(crate) wet: InheritableVariable<f32>,
 
-    #[inspect(deref)]
-    #[reflect(deref, setter = "set_fc")]
+    #[reflect(setter = "set_fc")]
     pub(crate) fc: InheritableVariable<f32>,
 
-    #[inspect(deref)]
-    #[reflect(deref, setter = "set_decay_time")]
+    #[reflect(setter = "set_decay_time")]
     pub(crate) decay_time: InheritableVariable<f32>,
 }
 

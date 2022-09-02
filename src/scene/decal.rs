@@ -87,19 +87,16 @@ use std::ops::{Deref, DerefMut};
 pub struct Decal {
     base: Base,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_diffuse_texture")]
     diffuse_texture: InheritableVariable<Option<Texture>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_normal_texture")]
     normal_texture: InheritableVariable<Option<Texture>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_color")]
     color: InheritableVariable<Color>,
 
-    #[inspect(min_value = 0.0, deref)]
+    #[inspect(min_value = 0.0)]
     #[reflect(setter = "set_layer")]
     layer: InheritableVariable<u8>,
 }

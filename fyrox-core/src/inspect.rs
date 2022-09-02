@@ -5,6 +5,7 @@
 #![warn(missing_docs)]
 
 use fyrox_core_derive::impl_inspect;
+use nalgebra::{UnitQuaternion, Vector2, Vector3, Vector4};
 use std::{
     any::{Any, TypeId},
     fmt::{self, Debug},
@@ -162,14 +163,15 @@ impl_inspect! {
     pub struct Box<T: Inspect + Debug + 'static>;
 }
 
-macro_rules! impl_self_inspect {
+#[macro_export]
+macro_rules! impl_numeric_inspect {
     ($ty:ty, $min:expr, $max:expr, $step:expr, $precision:expr) => {
         impl Inspect for $ty {
             fn properties(&self) -> Vec<PropertyInfo<'_>> {
                 vec![PropertyInfo {
                     owner_type_id: TypeId::of::<Self>(),
                     name: "self",
-                    display_name: "self",
+                    display_name: "Value",
                     value: self,
                     read_only: false,
                     min_value: Some($min),
@@ -184,15 +186,47 @@ macro_rules! impl_self_inspect {
     };
 }
 
-impl_self_inspect!(f32, f32::MIN as f64, f32::MAX as f64, 1.0, 7);
-impl_self_inspect!(f64, f64::MIN, f64::MAX, 1.0, 15);
-impl_self_inspect!(i64, i64::MIN as f64, i64::MAX as f64, 1.0, 0);
-impl_self_inspect!(u64, u64::MIN as f64, u64::MAX as f64, 1.0, 0);
-impl_self_inspect!(i32, i32::MIN as f64, i32::MAX as f64, 1.0, 0);
-impl_self_inspect!(u32, u32::MIN as f64, u32::MAX as f64, 1.0, 0);
-impl_self_inspect!(i16, i16::MIN as f64, i16::MAX as f64, 1.0, 0);
-impl_self_inspect!(u16, u16::MIN as f64, u16::MAX as f64, 1.0, 0);
-impl_self_inspect!(i8, i8::MIN as f64, i8::MAX as f64, 1.0, 0);
-impl_self_inspect!(u8, u8::MIN as f64, u8::MAX as f64, 1.0, 0);
+impl_numeric_inspect!(f32, f32::MIN as f64, f32::MAX as f64, 1.0, 7);
+impl_numeric_inspect!(f64, f64::MIN, f64::MAX, 1.0, 15);
+impl_numeric_inspect!(i64, i64::MIN as f64, i64::MAX as f64, 1.0, 0);
+impl_numeric_inspect!(u64, u64::MIN as f64, u64::MAX as f64, 1.0, 0);
+impl_numeric_inspect!(i32, i32::MIN as f64, i32::MAX as f64, 1.0, 0);
+impl_numeric_inspect!(u32, u32::MIN as f64, u32::MAX as f64, 1.0, 0);
+impl_numeric_inspect!(i16, i16::MIN as f64, i16::MAX as f64, 1.0, 0);
+impl_numeric_inspect!(u16, u16::MIN as f64, u16::MAX as f64, 1.0, 0);
+impl_numeric_inspect!(i8, i8::MIN as f64, i8::MAX as f64, 1.0, 0);
+impl_numeric_inspect!(u8, u8::MIN as f64, u8::MAX as f64, 1.0, 0);
+impl_numeric_inspect!(usize, usize::MIN as f64, usize::MAX as f64, 1.0, 0);
+impl_numeric_inspect!(isize, isize::MIN as f64, isize::MAX as f64, 1.0, 0);
+
+#[macro_export]
+macro_rules! impl_simple_inspect {
+    ($ty:ty) => {
+        impl Inspect for $ty {
+            fn properties(&self) -> Vec<PropertyInfo<'_>> {
+                vec![PropertyInfo {
+                    owner_type_id: TypeId::of::<Self>(),
+                    name: "self",
+                    display_name: "Value",
+                    value: self,
+                    read_only: false,
+                    min_value: None,
+                    max_value: None,
+                    step: None,
+                    precision: None,
+                    description: "".to_string(),
+                    is_modified: false,
+                }]
+            }
+        }
+    };
+}
+
+impl_simple_inspect!(String);
+impl_simple_inspect!(bool);
+impl_simple_inspect!(Vector2<f32>);
+impl_simple_inspect!(Vector3<f32>);
+impl_simple_inspect!(Vector4<f32>);
+impl_simple_inspect!(UnitQuaternion<f32>);
 
 pub use fyrox_core_derive::Inspect;

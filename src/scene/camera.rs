@@ -258,35 +258,27 @@ impl Default for Exposure {
 pub struct Camera {
     base: Base,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_projection")]
     projection: InheritableVariable<Projection>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_viewport")]
     viewport: InheritableVariable<Rect<f32>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_enabled")]
     enabled: InheritableVariable<bool>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_skybox")]
     sky_box: InheritableVariable<Option<SkyBox>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_environment")]
     environment: InheritableVariable<Option<Texture>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_exposure")]
     exposure: InheritableVariable<Exposure>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_color_grading_lut")]
     color_grading_lut: InheritableVariable<Option<ColorGradingLut>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_color_grading_enabled")]
     color_grading_enabled: InheritableVariable<bool>,
 

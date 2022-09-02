@@ -50,51 +50,45 @@ pub mod listener;
 pub struct Sound {
     base: Base,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_buffer")]
     buffer: InheritableVariable<Option<SoundBufferResource>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_play_once")]
     play_once: InheritableVariable<bool>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[inspect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_gain")]
     gain: InheritableVariable<f32>,
 
-    #[inspect(min_value = -1.0, max_value = 1.0, step = 0.05, deref)]
+    #[inspect(min_value = -1.0, max_value = 1.0, step = 0.05)]
     #[reflect(setter = "set_panning")]
     panning: InheritableVariable<f32>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_status")]
     pub(crate) status: InheritableVariable<Status>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_looping")]
     looping: InheritableVariable<bool>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[inspect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_pitch")]
     pitch: InheritableVariable<f64>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[inspect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_radius")]
     radius: InheritableVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[inspect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_max_distance")]
     max_distance: InheritableVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[inspect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_rolloff_factor")]
     rolloff_factor: InheritableVariable<f32>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_playback_time")]
     playback_time: InheritableVariable<Duration>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_spatial_blend")]
     spatial_blend: InheritableVariable<f32>,
 

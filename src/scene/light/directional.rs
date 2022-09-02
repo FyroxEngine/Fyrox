@@ -106,7 +106,6 @@ impl CsmOptions {
 pub struct DirectionalLight {
     base_light: BaseLight,
     /// See [`CsmOptions`].
-    #[inspect(deref)]
     pub csm_options: InheritableVariable<CsmOptions>,
 }
 

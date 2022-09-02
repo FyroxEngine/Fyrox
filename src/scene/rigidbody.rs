@@ -141,59 +141,46 @@ pub(crate) enum ApplyAction {
 pub struct RigidBody {
     base: Base,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_lin_vel")]
     pub(crate) lin_vel: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_ang_vel")]
     pub(crate) ang_vel: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_lin_damping")]
     pub(crate) lin_damping: InheritableVariable<f32>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_ang_damping")]
     pub(crate) ang_damping: InheritableVariable<f32>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_body_type")]
     pub(crate) body_type: InheritableVariable<RigidBodyType>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref)]
+    #[inspect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_mass")]
     pub(crate) mass: InheritableVariable<f32>,
 
-    #[inspect(deref)]
     #[reflect(setter = "lock_x_rotations")]
     pub(crate) x_rotation_locked: InheritableVariable<bool>,
 
-    #[inspect(deref)]
     #[reflect(setter = "lock_y_rotations")]
     pub(crate) y_rotation_locked: InheritableVariable<bool>,
 
-    #[inspect(deref)]
     #[reflect(setter = "lock_z_rotations")]
     pub(crate) z_rotation_locked: InheritableVariable<bool>,
 
-    #[inspect(deref)]
     #[reflect(setter = "lock_translation")]
     pub(crate) translation_locked: InheritableVariable<bool>,
 
-    #[inspect(deref)]
     #[reflect(setter = "enable_ccd")]
     pub(crate) ccd_enabled: InheritableVariable<bool>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_can_sleep")]
     pub(crate) can_sleep: InheritableVariable<bool>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_dominance")]
     pub(crate) dominance: InheritableVariable<i8>,
 
-    #[inspect(deref)]
     #[reflect(setter = "set_gravity_scale")]
     pub(crate) gravity_scale: InheritableVariable<f32>,
 
