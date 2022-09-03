@@ -17,7 +17,7 @@ pub mod prelude {
 }
 
 /// A value of a property.
-pub trait PropertyValue: Any + Debug {
+pub trait PropertyValue: Any + Debug + 'static {
     /// Casts `self` to a `&dyn Any`
     fn as_any(&self) -> &dyn Any;
 }
@@ -163,7 +163,6 @@ impl_inspect! {
     pub struct Box<T: Inspect + Debug + 'static>;
 }
 
-#[macro_export]
 macro_rules! impl_numeric_inspect {
     ($ty:ty, $min:expr, $max:expr, $step:expr, $precision:expr) => {
         impl Inspect for $ty {
@@ -199,7 +198,6 @@ impl_numeric_inspect!(u8, u8::MIN as f64, u8::MAX as f64, 1.0, 0);
 impl_numeric_inspect!(usize, usize::MIN as f64, usize::MAX as f64, 1.0, 0);
 impl_numeric_inspect!(isize, isize::MIN as f64, isize::MAX as f64, 1.0, 0);
 
-#[macro_export]
 macro_rules! impl_simple_inspect {
     ($ty:ty) => {
         impl Inspect for $ty {

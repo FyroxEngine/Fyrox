@@ -68,6 +68,7 @@ pub struct PropertyEditorTranslationContext<'b, 'c> {
     pub name: &'b str,
     pub owner_type_id: TypeId,
     pub message: &'c UiMessage,
+    pub definition_container: Rc<PropertyEditorDefinitionContainer>,
 }
 
 pub enum PropertyEditorInstance {

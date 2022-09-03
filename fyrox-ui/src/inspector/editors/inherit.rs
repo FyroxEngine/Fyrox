@@ -1,32 +1,132 @@
+//! Property editor for [`InheritableVariable`]. It acts like a proxy to inner property, but also
+//! adds special "revert" button that is used to revert value to its parent's value.
+
 use crate::{
-    core::{inspect::Inspect, pool::Handle, variable::InheritableVariable},
+    button::ButtonBuilder,
+    core::{
+        inspect::{PropertyInfo, PropertyValue},
+        pool::Handle,
+        variable::InheritableVariable,
+    },
+    grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
-        InspectorError, InspectorMessage, PropertyChanged,
+        InspectorError, PropertyChanged,
     },
-    message::{MessageDirection, UiMessage},
+    message::UiMessage,
     widget::WidgetBuilder,
+    BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
 };
 use std::{
-    any::TypeId,
+    any::{Any, TypeId},
     fmt::{Debug, Formatter},
     marker::PhantomData,
+    ops::{Deref, DerefMut},
 };
+
+#[derive(Debug, Clone)]
+pub struct InheritablePropertyEditor {
+    widget: Widget,
+    revert: Handle<UiNode>,
+    inner_editor: Handle<UiNode>,
+}
+
+impl Deref for InheritablePropertyEditor {
+    type Target = Widget;
+
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl DerefMut for InheritablePropertyEditor {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
+}
+
+impl Control for InheritablePropertyEditor {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.widget.handle_routed_message(ui, message);
+
+        // Re-cast messages from inner editor as message from this editor.
+        if message.destination() == self.inner_editor {
+            let mut clone = message.clone();
+            clone.destination = self.handle;
+            ui.send_message(clone);
+        }
+    }
+}
+
+struct InheritablePropertyEditorBuilder {
+    widget_builder: WidgetBuilder,
+    inner_editor: Handle<UiNode>,
+}
+
+impl InheritablePropertyEditorBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
+        Self {
+            widget_builder,
+            inner_editor: Handle::NONE,
+        }
+    }
+
+    pub fn with_inner_editor(mut self, inner_editor: Handle<UiNode>) -> Self {
+        self.inner_editor = inner_editor;
+        self
+    }
+
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let revert;
+        let grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(self.inner_editor)
+                .with_child({
+                    revert = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_width(16.0)
+                            .with_margin(Thickness::uniform(1.0))
+                            .on_column(1),
+                    )
+                    .with_text("<")
+                    .build(ctx);
+                    revert
+                }),
+        )
+        .add_row(Row::auto())
+        .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .build(ctx);
+
+        ctx.add_node(UiNode::new(InheritablePropertyEditor {
+            widget: self.widget_builder.with_child(grid).build(),
+            revert,
+            inner_editor: self.inner_editor,
+        }))
+    }
+}
 
 pub struct InheritablePropertyEditorDefinition<T>
 where
-    T: Inspect + 'static,
+    T: PropertyValue,
 {
     phantom: PhantomData<T>,
 }
 
 impl<T> InheritablePropertyEditorDefinition<T>
 where
-    T: Inspect + 'static,
+    T: PropertyValue,
 {
     pub fn new() -> Self {
         Self {
@@ -37,16 +137,40 @@ where
 
 impl<T> Debug for InheritablePropertyEditorDefinition<T>
 where
-    T: Inspect + 'static,
+    T: PropertyValue,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "InheritablePropertyEditorDefinition")
     }
 }
 
+fn make_proxy<'a, 'b, T>(
+    property_info: &'b PropertyInfo<'a>,
+) -> Result<PropertyInfo<'a>, InspectorError>
+where
+    T: PropertyValue,
+    'b: 'a,
+{
+    let value = property_info.cast_value::<InheritableVariable<T>>()?;
+
+    Ok(PropertyInfo {
+        owner_type_id: TypeId::of::<T>(),
+        name: property_info.name,
+        display_name: property_info.display_name,
+        value: &**value,
+        read_only: property_info.read_only,
+        min_value: property_info.min_value,
+        max_value: property_info.max_value,
+        step: property_info.step,
+        precision: property_info.precision,
+        description: property_info.description.clone(),
+        is_modified: property_info.is_modified,
+    })
+}
+
 impl<T> PropertyEditorDefinition for InheritablePropertyEditorDefinition<T>
 where
-    T: Inspect + 'static,
+    T: PropertyValue,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<InheritableVariable<T>>()
@@ -56,71 +180,85 @@ where
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        let value = ctx.property_info.cast_value::<InheritableVariable<T>>()?;
+        if let Some(definition) = ctx
+            .definition_container
+            .definitions()
+            .get(&TypeId::of::<T>())
+        {
+            let instance = definition.create_instance(PropertyEditorBuildContext {
+                build_context: ctx.build_context,
+                property_info: &make_proxy::<T>(ctx.property_info)?,
+                environment: ctx.environment.clone(),
+                definition_container: ctx.definition_container.clone(),
+                sync_flag: ctx.sync_flag,
+                layer_index: ctx.layer_index,
+            })?;
 
-        let inspector_context = InspectorContext::from_object(
-            &**value,
-            ctx.build_context,
-            ctx.definition_container.clone(),
-            ctx.environment.clone(),
-            ctx.sync_flag,
-            ctx.layer_index + 1,
-        );
+            let wrapper = InheritablePropertyEditorBuilder::new(WidgetBuilder::new())
+                .with_inner_editor(match instance {
+                    PropertyEditorInstance::Simple { editor } => editor,
+                    PropertyEditorInstance::Custom { editor, .. } => editor,
+                })
+                .build(ctx.build_context);
 
-        let editor;
-        let container = make_expander_container(
-            ctx.layer_index,
-            ctx.property_info.display_name,
-            ctx.property_info.description.as_ref(),
-            Handle::NONE,
-            {
-                editor = InspectorBuilder::new(WidgetBuilder::new())
-                    .with_context(inspector_context)
-                    .build(ctx.build_context);
-                editor
-            },
-            ctx.build_context,
-        );
-
-        Ok(PropertyEditorInstance::Custom { container, editor })
+            Ok(match instance {
+                PropertyEditorInstance::Simple { .. } => {
+                    PropertyEditorInstance::Simple { editor: wrapper }
+                }
+                PropertyEditorInstance::Custom { container, .. } => {
+                    PropertyEditorInstance::Custom {
+                        container,
+                        editor: wrapper,
+                    }
+                }
+            })
+        } else {
+            Err(InspectorError::Custom("No editor!".to_string()))
+        }
     }
 
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        let value = ctx.property_info.cast_value::<InheritableVariable<T>>()?;
+        if let Some(definition) = ctx
+            .definition_container
+            .definitions()
+            .get(&TypeId::of::<T>())
+        {
+            let instance = ctx
+                .ui
+                .node(ctx.instance)
+                .cast::<InheritablePropertyEditor>()
+                .unwrap();
 
-        let mut error_group = Vec::new();
-
-        let inspector_context = ctx
-            .ui
-            .node(ctx.instance)
-            .cast::<Inspector>()
-            .expect("Must be Inspector!")
-            .context()
-            .clone();
-        if let Err(e) = inspector_context.sync(&**value, ctx.ui, ctx.layer_index + 1) {
-            error_group.extend(e.into_iter())
+            return definition.create_message(PropertyEditorMessageContext {
+                property_info: &make_proxy::<T>(ctx.property_info)?,
+                environment: ctx.environment.clone(),
+                definition_container: ctx.definition_container.clone(),
+                sync_flag: ctx.sync_flag,
+                instance: instance.inner_editor,
+                layer_index: ctx.layer_index,
+                ui: ctx.ui,
+            });
         }
 
-        if error_group.is_empty() {
-            Ok(None)
-        } else {
-            Err(InspectorError::Group(error_group))
-        }
+        Err(InspectorError::Custom("No editor!".to_string()))
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if let Some(InspectorMessage::PropertyChanged(msg)) = ctx.message.data::<InspectorMessage>()
+        if let Some(definition) = ctx
+            .definition_container
+            .definitions()
+            .get(&TypeId::of::<T>())
         {
-            if ctx.message.direction() == MessageDirection::FromWidget {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_owned(),
-                    owner_type_id: ctx.owner_type_id,
-                    value: FieldKind::Inspectable(Box::new(msg.clone())),
-                });
-            }
+            return definition.translate_message(PropertyEditorTranslationContext {
+                environment: ctx.environment.clone(),
+                name: ctx.name,
+                owner_type_id: ctx.owner_type_id,
+                message: ctx.message,
+                definition_container: ctx.definition_container.clone(),
+            });
         }
 
         None

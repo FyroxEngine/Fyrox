@@ -704,6 +704,7 @@ impl Control for Inspector {
                             name: &entry.property_name,
                             owner_type_id: entry.property_owner_type_id,
                             message,
+                            definition_container: self.context.property_definitions.clone(),
                         },
                     ) {
                         ui.send_message(InspectorMessage::property_changed(
