@@ -17,8 +17,9 @@ use crate::{
         InspectorError, PropertyChanged,
     },
     message::UiMessage,
+    utils::make_simple_tooltip,
     widget::WidgetBuilder,
-    BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
+    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment, Widget,
 };
 use std::{
     any::{Any, TypeId},
@@ -72,6 +73,7 @@ impl Control for InheritablePropertyEditor {
 struct InheritablePropertyEditorBuilder {
     widget_builder: WidgetBuilder,
     inner_editor: Handle<UiNode>,
+    container: Handle<UiNode>,
 }
 
 impl InheritablePropertyEditorBuilder {
@@ -79,6 +81,7 @@ impl InheritablePropertyEditorBuilder {
         Self {
             widget_builder,
             inner_editor: Handle::NONE,
+            container: Handle::NONE,
         }
     }
 
@@ -87,23 +90,27 @@ impl InheritablePropertyEditorBuilder {
         self
     }
 
+    pub fn with_container(mut self, container: Handle<UiNode>) -> Self {
+        self.container = container;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let revert;
-        let grid = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(self.inner_editor)
-                .with_child({
-                    revert = ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .with_width(16.0)
-                            .with_margin(Thickness::uniform(1.0))
-                            .on_column(1),
-                    )
-                    .with_text("<")
-                    .build(ctx);
-                    revert
-                }),
-        )
+        let grid = GridBuilder::new(WidgetBuilder::new().with_child(self.container).with_child({
+            revert = ButtonBuilder::new(
+                WidgetBuilder::new()
+                    .with_width(16.0)
+                    .with_height(16.0)
+                    .with_vertical_alignment(VerticalAlignment::Top)
+                    .with_tooltip(make_simple_tooltip(ctx, "Revert To Parent"))
+                    .with_margin(Thickness::uniform(1.0))
+                    .on_column(1),
+            )
+            .with_text("<")
+            .build(ctx);
+            revert
+        }))
         .add_row(Row::auto())
         .add_column(Column::stretch())
         .add_column(Column::auto())
@@ -195,6 +202,10 @@ where
             })?;
 
             let wrapper = InheritablePropertyEditorBuilder::new(WidgetBuilder::new())
+                .with_container(match instance {
+                    PropertyEditorInstance::Simple { editor } => editor,
+                    PropertyEditorInstance::Custom { container, .. } => container,
+                })
                 .with_inner_editor(match instance {
                     PropertyEditorInstance::Simple { editor } => editor,
                     PropertyEditorInstance::Custom { editor, .. } => editor,
@@ -205,12 +216,10 @@ where
                 PropertyEditorInstance::Simple { .. } => {
                     PropertyEditorInstance::Simple { editor: wrapper }
                 }
-                PropertyEditorInstance::Custom { container, .. } => {
-                    PropertyEditorInstance::Custom {
-                        container,
-                        editor: wrapper,
-                    }
-                }
+                PropertyEditorInstance::Custom { .. } => PropertyEditorInstance::Custom {
+                    container: wrapper,
+                    editor: wrapper,
+                },
             })
         } else {
             Err(InspectorError::Custom("No editor!".to_string()))
