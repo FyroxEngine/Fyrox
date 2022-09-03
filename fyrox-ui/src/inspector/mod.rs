@@ -1,6 +1,5 @@
 use crate::{
     border::BorderBuilder,
-    button::ButtonBuilder,
     check_box::CheckBoxBuilder,
     core::{
         algebra::Vector2,
@@ -315,7 +314,6 @@ pub struct ContextEntry {
     pub property_owner_type_id: TypeId,
     pub property_editor_definition: Rc<dyn PropertyEditorDefinition>,
     pub property_editor: Handle<UiNode>,
-    pub revert: Handle<UiNode>,
 }
 
 impl PartialEq for ContextEntry {
@@ -516,42 +514,18 @@ impl InspectorContext {
                                     (container, editor)
                                 }
                             };
-
-                            let revert;
-                            let grid = GridBuilder::new(
-                                WidgetBuilder::new().with_child(container).with_child({
-                                    revert = ButtonBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_visibility(info.is_modified)
-                                            .on_column(1)
-                                            .with_width(16.0)
-                                            .with_height(16.0)
-                                            .with_margin(Thickness::uniform(1.0))
-                                            .with_vertical_alignment(VerticalAlignment::Top),
-                                    )
-                                    .with_text("<")
-                                    .build(ctx);
-                                    revert
-                                }),
-                            )
-                            .add_row(Row::auto())
-                            .add_column(Column::stretch())
-                            .add_column(Column::auto())
-                            .build(ctx);
-
                             entries.push(ContextEntry {
                                 property_editor: editor,
                                 property_editor_definition: definition.clone(),
                                 property_name: info.name.to_string(),
                                 property_owner_type_id: info.owner_type_id,
-                                revert,
                             });
 
                             if info.read_only {
                                 ctx[editor].set_enabled(false);
                             }
 
-                            grid
+                            container
                         }
                         Err(e) => make_simple_property_container(
                             create_header(ctx, info.display_name, layer_index),
@@ -610,12 +584,6 @@ impl InspectorContext {
                 .get(&info.value.type_id())
             {
                 if let Some(property_editor) = self.find_property_editor(info.name) {
-                    ui.send_message(WidgetMessage::visibility(
-                        property_editor.revert,
-                        MessageDirection::ToWidget,
-                        info.is_modified,
-                    ));
-
                     let ctx = PropertyEditorMessageContext {
                         sync_flag: self.sync_flag,
                         instance: property_editor.property_editor,
