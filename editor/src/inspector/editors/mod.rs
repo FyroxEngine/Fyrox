@@ -6,7 +6,6 @@ use crate::{
     },
     Message,
 };
-use fyrox::scene::node::NodeHandle;
 use fyrox::{
     animation::{
         machine::MachineInstantiationError,
@@ -18,10 +17,8 @@ use fyrox::{
         pool::{ErasedHandle, Handle},
     },
     gui::inspector::editors::{
-        array::ArrayPropertyEditorDefinition, bit::BitFieldPropertyEditorDefinition,
-        collection::VecCollectionPropertyEditorDefinition,
-        enumeration::EnumPropertyEditorDefinition,
-        inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
+        bit::BitFieldPropertyEditorDefinition, enumeration::EnumPropertyEditorDefinition,
+        inherit::InheritablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
     material::shader::{Shader, ShaderError, ShaderState},
     resource::{
@@ -29,7 +26,7 @@ use fyrox::{
         curve::{CurveResource, CurveResourceError, CurveResourceState},
         model::{MaterialSearchOptions, Model, ModelData, ModelLoadError},
         texture::{
-            CompressionOptions, TextureMagnificationFilter, TextureMinificationFilter,
+            CompressionOptions, Texture, TextureMagnificationFilter, TextureMinificationFilter,
             TextureWrapMode,
         },
     },
@@ -54,12 +51,14 @@ use fyrox::{
             BaseLight,
         },
         mesh::{surface::Surface, RenderPath},
-        node::Node,
-        particle_system::emitter::{
-            base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
-            sphere::SphereEmitter, Emitter,
+        node::{Node, NodeHandle},
+        particle_system::{
+            emitter::{
+                base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
+                sphere::SphereEmitter, Emitter,
+            },
+            EmitterWrapper,
         },
-        particle_system::EmitterWrapper,
         rigidbody::RigidBodyType,
         sound::{
             self,
@@ -104,37 +103,45 @@ pub fn make_property_editors_container(
     let container = PropertyEditorDefinitionContainer::new();
 
     container.insert(TexturePropertyEditorDefinition);
+    container.insert(InheritablePropertyEditorDefinition::<Option<Texture>>::new());
+
     container.insert(MaterialPropertyEditorDefinition {
         sender: Mutex::new(sender.clone()),
     });
-    container.insert(VecCollectionPropertyEditorDefinition::<Surface>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<Layer>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<EmitterWrapper>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<LevelOfDetail>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<ErasedHandle>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<Handle<Node>>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<Property>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<LodControlledObject>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<GeometrySource>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<EffectInput>::new());
+
+    container.register_inheritable_vec_collection::<Handle<Node>>();
+    container.insert(HandlePropertyEditorDefinition::<Node>::new(sender));
+    container.register_inheritable_inspectable::<NodeHandle>();
+    container.register_inheritable_vec_collection::<NodeHandle>();
+
+    container.register_inheritable_vec_collection::<Surface>();
+    container.register_inheritable_vec_collection::<Layer>();
+    container.register_inheritable_vec_collection::<EmitterWrapper>();
+    container.register_inheritable_vec_collection::<LevelOfDetail>();
+    container.register_inheritable_vec_collection::<ErasedHandle>();
+    container.register_inheritable_vec_collection::<Property>();
+    container.register_inheritable_vec_collection::<LodControlledObject>();
+    container.register_inheritable_vec_collection::<GeometrySource>();
+    container.register_inheritable_vec_collection::<EffectInput>();
+
     container.insert(make_status_enum_editor_definition());
-    container.insert(EnumPropertyEditorDefinition::<f32>::new_optional());
-    container.insert(EnumPropertyEditorDefinition::<u32>::new_optional());
+
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
-    container.insert(EnumPropertyEditorDefinition::<spritesheet::Status>::new());
-    container.insert(InspectablePropertyEditorDefinition::<NodeHandle>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<NodeHandle>::new());
-    container.insert(InspectablePropertyEditorDefinition::<LodGroup>::new());
-    container.insert(InspectablePropertyEditorDefinition::<SpriteSheetAnimation>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<SpriteSheetAnimation>::new());
-    container.insert(InspectablePropertyEditorDefinition::<FrameBounds>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<FrameBounds>::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        spritesheet::signal::Signal,
-    >::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<
-        spritesheet::signal::Signal,
-    >::new());
+    container.insert(InheritablePropertyEditorDefinition::<Option<LodGroup>>::new());
+
+    container.register_inheritable_enum::<spritesheet::Status, _>();
+
+    container.register_inheritable_inspectable::<LodGroup>();
+
+    container.register_inheritable_inspectable::<SpriteSheetAnimation>();
+    container.register_inheritable_vec_collection::<SpriteSheetAnimation>();
+
+    container.register_inheritable_inspectable::<FrameBounds>();
+    container.register_inheritable_vec_collection::<FrameBounds>();
+
+    container.register_inheritable_inspectable::<spritesheet::signal::Signal>();
+    container.register_inheritable_vec_collection::<spritesheet::signal::Signal>();
+
     container.insert(ResourceFieldPropertyEditorDefinition::<
         Model,
         ModelData,
@@ -142,6 +149,8 @@ pub fn make_property_editors_container(
     >::new(Rc::new(|resource_manager, path| {
         block_on(resource_manager.request_model(path))
     })));
+    container.insert(InheritablePropertyEditorDefinition::<Option<Model>>::new());
+
     container.insert(ResourceFieldPropertyEditorDefinition::<
         SoundBufferResource,
         SoundBufferState,
@@ -149,6 +158,10 @@ pub fn make_property_editors_container(
     >::new(Rc::new(|resource_manager, path| {
         block_on(resource_manager.request_sound_buffer(path))
     })));
+    container.insert(InheritablePropertyEditorDefinition::<
+        Option<SoundBufferResource>,
+    >::new());
+
     container.insert(ResourceFieldPropertyEditorDefinition::<
         AbsmResource,
         AbsmResourceState,
@@ -156,6 +169,8 @@ pub fn make_property_editors_container(
     >::new(Rc::new(|resource_manager, path| {
         block_on(resource_manager.request_absm(path))
     })));
+    container.insert(InheritablePropertyEditorDefinition::<Option<AbsmResource>>::new());
+
     container.insert(ResourceFieldPropertyEditorDefinition::<
         CurveResource,
         CurveResourceState,
@@ -163,6 +178,8 @@ pub fn make_property_editors_container(
     >::new(Rc::new(|resource_manager, path| {
         block_on(resource_manager.request_curve(path))
     })));
+    container.insert(InheritablePropertyEditorDefinition::<Option<CurveResource>>::new());
+
     container.insert(ResourceFieldPropertyEditorDefinition::<
         Shader,
         ShaderState,
@@ -170,103 +187,85 @@ pub fn make_property_editors_container(
     >::new(Rc::new(|resource_manager, path| {
         block_on(resource_manager.request_shader(path))
     })));
-    container.insert(InspectablePropertyEditorDefinition::<ColorGradingLut>::new());
-    container.insert(InspectablePropertyEditorDefinition::<InteractionGroups>::new());
-    container.insert(InspectablePropertyEditorDefinition::<ColliderShape>::new());
-    container.insert(InspectablePropertyEditorDefinition::<GeometrySource>::new());
-    container.insert(EnumPropertyEditorDefinition::<JointParams>::new());
-    container.insert(EnumPropertyEditorDefinition::<dim2::joint::JointParams>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BallJoint>::new());
-    container.insert(InspectablePropertyEditorDefinition::<dim2::joint::BallJoint>::new());
-    container.insert(InspectablePropertyEditorDefinition::<FixedJoint>::new());
-    container.insert(InspectablePropertyEditorDefinition::<dim2::joint::FixedJoint>::new());
-    container.insert(InspectablePropertyEditorDefinition::<RevoluteJoint>::new());
-    container.insert(InspectablePropertyEditorDefinition::<PrismaticJoint>::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        dim2::joint::PrismaticJoint,
-    >::new());
-    container.insert(InspectablePropertyEditorDefinition::<Base>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BaseEffect>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BaseLight>::new());
-    container.insert(EnumPropertyEditorDefinition::<Effect>::new());
-    container.insert(EnumPropertyEditorDefinition::<Emitter>::new());
-    container.insert(InspectablePropertyEditorDefinition::<ReverbEffect>::new());
-    container.insert(InspectablePropertyEditorDefinition::<Biquad>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BaseEmitter>::new());
-    container.insert(InspectablePropertyEditorDefinition::<SphereEmitter>::new());
-    container.insert(InspectablePropertyEditorDefinition::<CylinderEmitter>::new());
-    container.insert(InspectablePropertyEditorDefinition::<CuboidEmitter>::new());
-    container.insert(InspectablePropertyEditorDefinition::<PerspectiveProjection>::new());
-    container.insert(InspectablePropertyEditorDefinition::<OrthographicProjection>::new());
-    container.insert(InspectablePropertyEditorDefinition::<Transform>::new());
-    container.insert(InspectablePropertyEditorDefinition::<CsmOptions>::new());
-    container.insert(ArrayPropertyEditorDefinition::<f32, 3>::new());
-    container.insert(ArrayPropertyEditorDefinition::<f32, 2>::new());
-    container.insert(EnumPropertyEditorDefinition::<ColorGradingLut>::new_optional());
-    container.insert(EnumPropertyEditorDefinition::<Biquad>::new_optional());
-    container.insert(EnumPropertyEditorDefinition::<SkyBox>::new_optional());
-    container.insert(InspectablePropertyEditorDefinition::<SkyBox>::new());
-    container.insert(HandlePropertyEditorDefinition::<Node>::new(sender));
-    container.insert(EnumPropertyEditorDefinition::<dim2::collider::ColliderShape>::new());
-    container.insert(EnumPropertyEditorDefinition::<CoefficientCombineRule>::new());
-    container.insert(EnumPropertyEditorDefinition::<CompressionOptions>::new());
-    container.insert(EnumPropertyEditorDefinition::<TextureWrapMode>::new());
-    container.insert(EnumPropertyEditorDefinition::<TextureMagnificationFilter>::new());
-    container.insert(EnumPropertyEditorDefinition::<TextureMinificationFilter>::new());
-    container.insert(EnumPropertyEditorDefinition::<Projection>::new());
-    container.insert(EnumPropertyEditorDefinition::<ColliderShape>::new());
-    container.insert(EnumPropertyEditorDefinition::<PropertyValue>::new());
-    container.insert(EnumPropertyEditorDefinition::<Mobility>::new());
-    container.insert(EnumPropertyEditorDefinition::<RigidBodyType>::new());
-    container.insert(EnumPropertyEditorDefinition::<Exposure>::new());
-    container.insert(EnumPropertyEditorDefinition::<RenderPath>::new());
-    container.insert(EnumPropertyEditorDefinition::<FrustumSplitOptions>::new());
-    container.insert(EnumPropertyEditorDefinition::<MaterialSearchOptions>::new());
-    container.insert(EnumPropertyEditorDefinition::<DistanceModel>::new());
-    container.insert(EnumPropertyEditorDefinition::<sound::Renderer>::new());
+    container.insert(InheritablePropertyEditorDefinition::<Option<Shader>>::new());
+
+    container.register_inheritable_inspectable::<ColorGradingLut>();
+    container.register_inheritable_inspectable::<InteractionGroups>();
+    container.register_inheritable_inspectable::<GeometrySource>();
+
+    container.register_inheritable_enum::<JointParams, _>();
+    container.register_inheritable_enum::<dim2::joint::JointParams, _>();
+
+    container.register_inheritable_inspectable::<BallJoint>();
+    container.register_inheritable_inspectable::<dim2::joint::BallJoint>();
+    container.register_inheritable_inspectable::<FixedJoint>();
+    container.register_inheritable_inspectable::<dim2::joint::FixedJoint>();
+    container.register_inheritable_inspectable::<RevoluteJoint>();
+    container.register_inheritable_inspectable::<PrismaticJoint>();
+    container.register_inheritable_inspectable::<dim2::joint::PrismaticJoint>();
+
+    container.register_inheritable_inspectable::<Base>();
+    container.register_inheritable_inspectable::<BaseEffect>();
+    container.register_inheritable_inspectable::<BaseLight>();
+
+    container.register_inheritable_enum::<Effect, _>();
+    container.register_inheritable_enum::<Emitter, _>();
+
+    container.register_inheritable_inspectable::<ReverbEffect>();
+    container.register_inheritable_inspectable::<Biquad>();
+    container.register_inheritable_inspectable::<BaseEmitter>();
+    container.register_inheritable_inspectable::<SphereEmitter>();
+    container.register_inheritable_inspectable::<CylinderEmitter>();
+    container.register_inheritable_inspectable::<CuboidEmitter>();
+    container.register_inheritable_inspectable::<PerspectiveProjection>();
+    container.register_inheritable_inspectable::<OrthographicProjection>();
+    container.register_inheritable_inspectable::<Transform>();
+    container.register_inheritable_inspectable::<CsmOptions>();
+
+    container.register_inheritable_option::<ColorGradingLut>();
+    container.register_inheritable_option::<Biquad>();
+    container.register_inheritable_option::<SkyBox>();
+
+    container.register_inheritable_inspectable::<SkyBox>();
+
+    container.register_inheritable_enum::<dim2::collider::ColliderShape, _>();
+    container.register_inheritable_enum::<CoefficientCombineRule, _>();
+    container.register_inheritable_enum::<CompressionOptions, _>();
+    container.register_inheritable_enum::<TextureWrapMode, _>();
+    container.register_inheritable_enum::<TextureMagnificationFilter, _>();
+    container.register_inheritable_enum::<TextureMinificationFilter, _>();
+    container.register_inheritable_enum::<Projection, _>();
+    container.register_inheritable_enum::<ColliderShape, _>();
+    container.register_inheritable_enum::<PropertyValue, _>();
+    container.register_inheritable_enum::<Mobility, _>();
+    container.register_inheritable_enum::<RigidBodyType, _>();
+    container.register_inheritable_enum::<Exposure, _>();
+    container.register_inheritable_enum::<FrustumSplitOptions, _>();
+    container.register_inheritable_enum::<MaterialSearchOptions, _>();
+    container.register_inheritable_enum::<DistanceModel, _>();
+    container.register_inheritable_enum::<sound::Renderer, _>();
+    container.register_inheritable_enum::<RenderPath, _>();
+
     container.insert(ScriptPropertyEditorDefinition {});
     container.insert(BitFieldPropertyEditorDefinition::<BitMask>::new());
 
-    container.insert(InspectablePropertyEditorDefinition::<BallShape>::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        dim2::collider::BallShape,
-    >::new());
-
-    container.insert(InspectablePropertyEditorDefinition::<CylinderShape>::new());
-
-    container.insert(InspectablePropertyEditorDefinition::<ConeShape>::new());
-
-    container.insert(InspectablePropertyEditorDefinition::<CuboidShape>::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        dim2::collider::CuboidShape,
-    >::new());
-
-    container.insert(InspectablePropertyEditorDefinition::<CapsuleShape>::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        dim2::collider::CapsuleShape,
-    >::new());
-
-    container.insert(InspectablePropertyEditorDefinition::<SegmentShape>::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        dim2::collider::SegmentShape,
-    >::new());
-
-    container.insert(InspectablePropertyEditorDefinition::<TriangleShape>::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        dim2::collider::TriangleShape,
-    >::new());
-
-    container.insert(InspectablePropertyEditorDefinition::<TrimeshShape>::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        dim2::collider::TrimeshShape,
-    >::new());
-
-    container.insert(InspectablePropertyEditorDefinition::<HeightfieldShape>::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        dim2::collider::HeightfieldShape,
-    >::new());
-
-    container.insert(InspectablePropertyEditorDefinition::<ConvexPolyhedronShape>::new());
+    container.register_inheritable_inspectable::<BallShape>();
+    container.register_inheritable_inspectable::<dim2::collider::BallShape>();
+    container.register_inheritable_inspectable::<CylinderShape>();
+    container.register_inheritable_inspectable::<ConeShape>();
+    container.register_inheritable_inspectable::<CuboidShape>();
+    container.register_inheritable_inspectable::<dim2::collider::CuboidShape>();
+    container.register_inheritable_inspectable::<CapsuleShape>();
+    container.register_inheritable_inspectable::<dim2::collider::CapsuleShape>();
+    container.register_inheritable_inspectable::<SegmentShape>();
+    container.register_inheritable_inspectable::<dim2::collider::SegmentShape>();
+    container.register_inheritable_inspectable::<TriangleShape>();
+    container.register_inheritable_inspectable::<dim2::collider::TriangleShape>();
+    container.register_inheritable_inspectable::<TrimeshShape>();
+    container.register_inheritable_inspectable::<dim2::collider::TrimeshShape>();
+    container.register_inheritable_inspectable::<HeightfieldShape>();
+    container.register_inheritable_inspectable::<dim2::collider::HeightfieldShape>();
+    container.register_inheritable_inspectable::<ConvexPolyhedronShape>();
 
     container
 }
