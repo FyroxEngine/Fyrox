@@ -1,8 +1,8 @@
 use fyrox::core::reflect::{Reflect, ResolvePath};
 
-pub fn set_entity_field<'a, 'b>(
-    entity: &'a mut dyn Reflect,
-    path: &'b str,
+pub fn set_entity_field(
+    entity: &mut dyn Reflect,
+    path: &str,
     value: Box<dyn Reflect>,
 ) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
     let mut components = fyrox::core::reflect::path_to_components(path);
