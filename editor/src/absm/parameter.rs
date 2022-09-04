@@ -110,7 +110,7 @@ impl ParameterPanel {
             if let Some(InspectorMessage::PropertyChanged(args)) =
                 message.data::<InspectorMessage>()
             {
-                sender.do_command_value(make_set_parameters_property_command((), args));
+                sender.do_command_value(make_set_parameters_property_command((), args).unwrap());
             }
         }
     }

@@ -52,10 +52,16 @@ impl CollectionChanged {
 }
 
 #[derive(Debug, Clone)]
+pub enum InheritableAction {
+    Revert,
+}
+
+#[derive(Debug, Clone)]
 pub enum FieldKind {
     Collection(Box<CollectionChanged>),
     Inspectable(Box<PropertyChanged>),
     Object(ObjectValue),
+    Inheritable(InheritableAction),
 }
 
 /// An action for some property.
@@ -76,6 +82,8 @@ pub enum PropertyAction {
         /// Index of an item.
         index: usize,
     },
+    /// Revert value to parent.
+    Revert,
 }
 
 impl PropertyAction {
@@ -97,6 +105,7 @@ impl PropertyAction {
                 }
             },
             FieldKind::Inspectable(ref inspectable) => Self::from_field_kind(&inspectable.value),
+            FieldKind::Inheritable { .. } => Self::Revert,
         }
     }
 
@@ -141,6 +150,10 @@ impl PropertyAction {
                 }
 
                 Err(Self::RemoveItem { index })
+            }
+            PropertyAction::Revert => {
+                // Unsupported due to lack of context (a reference to parent entity).
+                Err(Self::Revert)
             }
         }
     }
@@ -251,9 +264,22 @@ impl PropertyChanged {
             FieldKind::Inspectable(ref inspectable) => {
                 path += format!(".{}", inspectable.path()).as_ref();
             }
-            FieldKind::Object(_) => {}
+            FieldKind::Object(_) | FieldKind::Inheritable { .. } => {}
         }
         path
+    }
+
+    pub fn is_inheritable(&self) -> bool {
+        match self.value {
+            FieldKind::Collection(ref collection_changed) => match **collection_changed {
+                CollectionChanged::Add(_) => false,
+                CollectionChanged::Remove(_) => false,
+                CollectionChanged::ItemChanged { ref property, .. } => property.is_inheritable(),
+            },
+            FieldKind::Inspectable(ref inspectable) => inspectable.is_inheritable(),
+            FieldKind::Object(_) => false,
+            FieldKind::Inheritable(_) => true,
+        }
     }
 }
 

@@ -1,19 +1,70 @@
+use fyrox::core::reflect::{Reflect, ResolvePath};
+
+pub fn set_entity_field<'a, 'b>(
+    entity: &'a mut dyn Reflect,
+    path: &'b str,
+    value: Box<dyn Reflect>,
+) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+    let mut components = fyrox::core::reflect::path_to_components(path);
+    if let Some(fyrox::core::reflect::Component::Field(field)) = components.pop() {
+        let mut parent_path = String::new();
+        for component in components.into_iter() {
+            match component {
+                fyrox::core::reflect::Component::Field(s) => {
+                    if !parent_path.is_empty() {
+                        parent_path.push('.');
+                    }
+                    parent_path += s;
+                }
+                fyrox::core::reflect::Component::Index(s) => {
+                    parent_path.push('[');
+                    parent_path += s;
+                    parent_path.push(']');
+                }
+            }
+        }
+
+        let parent_entity = if parent_path.is_empty() {
+            entity
+        } else {
+            match entity.resolve_path_mut(&parent_path) {
+                Err(e) => {
+                    fyrox::utils::log::Log::err(format!(
+                        "There is no such parent property {}! Reason: {:?}",
+                        parent_path, e
+                    ));
+
+                    return Err(value);
+                }
+                Ok(property) => property,
+            }
+        };
+
+        parent_entity.set_field(field, value)
+    } else {
+        Err(value)
+    }
+}
+
 #[macro_export]
 macro_rules! define_universal_commands {
     ($name:ident, $command:ident, $command_wrapper:ty, $ctx:ty, $handle:ty, $ctx_ident:ident, $handle_ident:ident, $self:ident, $entity_getter:block) => {
-        pub fn $name($handle_ident: $handle, property_changed: &fyrox::gui::inspector::PropertyChanged) -> $command_wrapper {
+        pub fn $name($handle_ident: $handle, property_changed: &fyrox::gui::inspector::PropertyChanged) -> Option<$command_wrapper> {
             match fyrox::gui::inspector::PropertyAction::from_field_kind(&property_changed.value) {
-                fyrox::gui::inspector::PropertyAction::Modify { value } => <$command_wrapper>::new(SetPropertyCommand::new(
+                fyrox::gui::inspector::PropertyAction::Modify { value } => Some(<$command_wrapper>::new(SetPropertyCommand::new(
                     $handle_ident,
                     property_changed.path(),
                     value,
-                )),
-                fyrox::gui::inspector::PropertyAction::AddItem { value } => <$command_wrapper>::new(
+                ))),
+                fyrox::gui::inspector::PropertyAction::AddItem { value } => Some(<$command_wrapper>::new(
                     AddCollectionItemCommand::new($handle_ident, property_changed.path(), value),
-                ),
-                fyrox::gui::inspector::PropertyAction::RemoveItem { index } => <$command_wrapper>::new(
+                )),
+                fyrox::gui::inspector::PropertyAction::RemoveItem { index } => Some(<$command_wrapper>::new(
                     RemoveCollectionItemCommand::new($handle_ident, property_changed.path(), index),
-                ),
+                )),
+                // Must be handled outside, there is not enough context and it near to impossible to create universal reversion
+                // for InheritableVariable<T>.
+                fyrox::gui::inspector::PropertyAction::Revert => None
             }
         }
 

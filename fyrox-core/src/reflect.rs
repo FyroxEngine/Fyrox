@@ -116,7 +116,7 @@ pub trait ReflectInheritableVariable: Reflect + Debug {
     fn try_inherit(
         &mut self,
         parent: &dyn ReflectInheritableVariable,
-    ) -> Result<bool, InheritError>;
+    ) -> Result<Option<Box<dyn Reflect>>, InheritError>;
 
     /// Resets modified flag from the variable.
     fn reset_modified_flag(&mut self);
@@ -129,6 +129,9 @@ pub trait ReflectInheritableVariable: Reflect + Debug {
 
     /// Returns true if value equals to other's value.
     fn value_equals(&self, other: &dyn ReflectInheritableVariable) -> bool;
+
+    /// Clones self value.
+    fn clone_value_box(&self) -> Box<dyn Reflect>;
 }
 
 /// An error returned from a failed path string query.

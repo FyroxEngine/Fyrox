@@ -1,6 +1,8 @@
 //! Property editor for [`InheritableVariable`]. It acts like a proxy to inner property, but also
 //! adds special "revert" button that is used to revert value to its parent's value.
 
+use crate::button::ButtonMessage;
+use crate::inspector::{FieldKind, InheritableAction};
 use crate::{
     button::ButtonBuilder,
     core::{
@@ -8,6 +10,7 @@ use crate::{
         pool::Handle,
         variable::InheritableVariable,
     },
+    define_constructor,
     grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
@@ -19,7 +22,8 @@ use crate::{
     message::UiMessage,
     utils::make_simple_tooltip,
     widget::WidgetBuilder,
-    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment, Widget,
+    BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
+    Widget,
 };
 use std::{
     any::{Any, TypeId},
@@ -27,6 +31,15 @@ use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
 };
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum InheritablePropertyEditorMessage {
+    Revert,
+}
+
+impl InheritablePropertyEditorMessage {
+    define_constructor!(InheritablePropertyEditorMessage:Revert => fn revert(), layout: false);
+}
 
 #[derive(Debug, Clone)]
 pub struct InheritablePropertyEditor {
@@ -60,6 +73,15 @@ impl Control for InheritablePropertyEditor {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
+
+        if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.revert {
+                ui.send_message(InheritablePropertyEditorMessage::revert(
+                    self.handle,
+                    MessageDirection::FromWidget,
+                ));
+            }
+        }
 
         // Re-cast messages from inner editor as message from this editor.
         if message.destination() == self.inner_editor {
@@ -256,6 +278,15 @@ where
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if let Some(InheritablePropertyEditorMessage::Revert) = ctx.message.data() {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                owner_type_id: ctx.owner_type_id,
+                value: FieldKind::Inheritable(InheritableAction::Revert),
+            });
+        }
+
+        // Try translate other messages using inner property editor.
         if let Some(definition) = ctx
             .definition_container
             .definitions()

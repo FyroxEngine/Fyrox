@@ -314,15 +314,17 @@ where
     fn try_inherit(
         &mut self,
         parent: &dyn ReflectInheritableVariable,
-    ) -> Result<bool, InheritError> {
+    ) -> Result<Option<Box<dyn Reflect>>, InheritError> {
         // Cast directly to inner type, because any type that implements ReflectInheritableVariable,
         // has delegating methods for almost every method of Reflect trait implementation.
         if let Some(parent_value) = parent.as_reflect().downcast_ref::<T>() {
             if !self.is_modified() {
-                self.value = parent_value.clone();
-                Ok(true)
+                Ok(Some(Box::new(std::mem::replace(
+                    &mut self.value,
+                    parent_value.clone(),
+                ))))
             } else {
-                Ok(false)
+                Ok(None)
             }
         } else {
             Err(InheritError::TypesMismatch {
@@ -349,6 +351,10 @@ where
             .as_reflect()
             .downcast_ref::<T>()
             .map_or(false, |other| &self.value == other)
+    }
+
+    fn clone_value_box(&self) -> Box<dyn Reflect> {
+        Box::new(self.value.clone())
     }
 }
 
