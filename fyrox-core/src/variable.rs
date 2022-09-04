@@ -193,6 +193,11 @@ impl<T> InheritableVariable<T> {
         &mut self.value
     }
 
+    /// Returns true if variable was modified and should not be overwritten during property inheritance.
+    pub fn is_modified(&self) -> bool {
+        self.flags.get().contains(VariableFlags::MODIFIED)
+    }
+
     fn mark_modified(&mut self) {
         self.flags
             .get_mut()
@@ -343,7 +348,7 @@ where
     }
 
     fn is_modified(&self) -> bool {
-        self.flags.get().contains(VariableFlags::MODIFIED)
+        self.is_modified()
     }
 
     fn value_equals(&self, other: &dyn ReflectInheritableVariable) -> bool {
