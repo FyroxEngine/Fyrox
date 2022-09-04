@@ -102,58 +102,17 @@ macro_rules! define_universal_commands {
             fn swap(&mut $self, $ctx_ident: &mut $ctx) {
                 let entity = $entity_getter;
 
-                let mut components = fyrox::core::reflect::path_to_components(&$self.path);
-                if let Some(fyrox::core::reflect::Component::Field(field)) = components.pop() {
-                    let mut parent_path = String::new();
-                    for component in components.into_iter() {
-                        match component {
-                            fyrox::core::reflect::Component::Field(s) => {
-                                if !parent_path.is_empty() {
-                                    parent_path.push('.');
-                                }
-                                parent_path += s;
-                            }
-                            fyrox::core::reflect::Component::Index(s) => {
-                                parent_path.push('[');
-                                parent_path += s;
-                                parent_path.push(']');
-                            }
-                        }
+                match crate::command::universal::set_entity_field(entity, &$self.path, $self.value.take().unwrap()) {
+                    Ok(old_value) => {
+                        $self.value = Some(old_value);
                     }
-
-                    let parent_entity = if parent_path.is_empty() {
-                        entity
-                    } else {
-                        match entity.resolve_path_mut(&parent_path) {
-                            Err(e) => {
-                                fyrox::utils::log::Log::err(format!(
-                                    "There is no such parent property {}! Reason: {:?}",
-                                    parent_path, e
-                                ));
-
-                                return;
-                            }
-                            Ok(property) => property,
-                        }
-                    };
-
-                    match parent_entity.set_field(field, $self.value.take().unwrap()) {
-                        Ok(old_value) => {
-                            $self.value = Some(old_value);
-                        }
-                        Err(current_value) => {
-                            $self.value = Some(current_value);
-                            fyrox::utils::log::Log::err(format!(
-                                "Failed to set property {}! Incompatible types!",
-                                $self.path
-                            ))
-                        }
+                    Err(current_value) => {
+                        $self.value = Some(current_value);
+                        fyrox::utils::log::Log::err(format!(
+                            "Failed to set property {}! Incompatible types!",
+                            $self.path
+                        ))
                     }
-                } else {
-                    fyrox::utils::log::Log::err(format!(
-                        "Failed to set property {}! Invalid path!",
-                        $self.path
-                    ))
                 }
             }
         }
