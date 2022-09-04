@@ -1,10 +1,8 @@
 //! Property editor for [`InheritableVariable`]. It acts like a proxy to inner property, but also
 //! adds special "revert" button that is used to revert value to its parent's value.
 
-use crate::button::ButtonMessage;
-use crate::inspector::{FieldKind, InheritableAction};
 use crate::{
-    button::ButtonBuilder,
+    button::{ButtonBuilder, ButtonMessage},
     core::{
         inspect::{PropertyInfo, PropertyValue},
         pool::Handle,
@@ -19,11 +17,12 @@ use crate::{
         },
         InspectorError, PropertyChanged,
     },
+    inspector::{FieldKind, InheritableAction},
     message::UiMessage,
     utils::make_simple_tooltip,
     widget::WidgetBuilder,
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
-    Widget,
+    Widget, WidgetMessage,
 };
 use std::{
     any::{Any, TypeId},
@@ -35,10 +34,12 @@ use std::{
 #[derive(Debug, Clone, PartialEq)]
 pub enum InheritablePropertyEditorMessage {
     Revert,
+    Modified(bool),
 }
 
 impl InheritablePropertyEditorMessage {
     define_constructor!(InheritablePropertyEditorMessage:Revert => fn revert(), layout: false);
+    define_constructor!(InheritablePropertyEditorMessage:Modified => fn modified(bool), layout: false);
 }
 
 #[derive(Debug, Clone)]
@@ -81,6 +82,14 @@ impl Control for InheritablePropertyEditor {
                     MessageDirection::FromWidget,
                 ));
             }
+        } else if let Some(InheritablePropertyEditorMessage::Modified(modified)) = message.data() {
+            if message.destination() == self.handle {
+                ui.send_message(WidgetMessage::visibility(
+                    self.revert,
+                    MessageDirection::ToWidget,
+                    *modified,
+                ));
+            }
         }
 
         // Re-cast messages from inner editor as message from this editor.
@@ -96,6 +105,7 @@ struct InheritablePropertyEditorBuilder {
     widget_builder: WidgetBuilder,
     inner_editor: Handle<UiNode>,
     container: Handle<UiNode>,
+    modified: bool,
 }
 
 impl InheritablePropertyEditorBuilder {
@@ -104,6 +114,7 @@ impl InheritablePropertyEditorBuilder {
             widget_builder,
             inner_editor: Handle::NONE,
             container: Handle::NONE,
+            modified: false,
         }
     }
 
@@ -117,11 +128,17 @@ impl InheritablePropertyEditorBuilder {
         self
     }
 
+    pub fn with_modified(mut self, modified: bool) -> Self {
+        self.modified = modified;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let revert;
         let grid = GridBuilder::new(WidgetBuilder::new().with_child(self.container).with_child({
             revert = ButtonBuilder::new(
                 WidgetBuilder::new()
+                    .with_visibility(self.modified)
                     .with_width(16.0)
                     .with_height(16.0)
                     .with_vertical_alignment(VerticalAlignment::Top)
@@ -232,6 +249,11 @@ where
                     PropertyEditorInstance::Simple { editor } => editor,
                     PropertyEditorInstance::Custom { editor, .. } => editor,
                 })
+                .with_modified(
+                    ctx.property_info
+                        .cast_value::<InheritableVariable<T>>()?
+                        .is_modified(),
+                )
                 .build(ctx.build_context);
 
             Ok(match instance {
@@ -262,6 +284,15 @@ where
                 .node(ctx.instance)
                 .cast::<InheritablePropertyEditor>()
                 .unwrap();
+
+            ctx.ui
+                .send_message(InheritablePropertyEditorMessage::modified(
+                    instance.handle,
+                    MessageDirection::ToWidget,
+                    ctx.property_info
+                        .cast_value::<InheritableVariable<T>>()?
+                        .is_modified(),
+                ));
 
             return definition.create_message(PropertyEditorMessageContext {
                 property_info: &make_proxy::<T>(ctx.property_info)?,
