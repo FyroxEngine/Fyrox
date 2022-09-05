@@ -102,7 +102,7 @@ macro_rules! define_universal_commands {
             fn swap(&mut $self, $ctx_ident: &mut $ctx) {
                 let entity = $entity_getter;
 
-                match crate::command::universal::set_entity_field(entity, &$self.path, $self.value.take().unwrap()) {
+                match $crate::command::universal::set_entity_field(entity, &$self.path, $self.value.take().unwrap()) {
                     Ok(old_value) => {
                         $self.value = Some(old_value);
                     }
