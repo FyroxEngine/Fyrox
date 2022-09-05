@@ -275,6 +275,7 @@ where
     }
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        self.mark_modified_and_need_sync();
         self.value.set(value)
     }
 
@@ -283,6 +284,7 @@ where
         field: &str,
         value: Box<dyn Reflect>,
     ) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        self.mark_modified_and_need_sync();
         self.value.set_field(field, value)
     }
 
