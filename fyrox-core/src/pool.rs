@@ -138,7 +138,6 @@ impl<T: 'static> Inspect for Handle<T> {
                 step: None,
                 precision: None,
                 description: "Index of an object in a pool.".to_string(),
-                is_modified: false,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -151,7 +150,6 @@ impl<T: 'static> Inspect for Handle<T> {
                 step: None,
                 precision: None,
                 description: "Generation of an object in a pool.".to_string(),
-                is_modified: false,
             },
         ]
     }

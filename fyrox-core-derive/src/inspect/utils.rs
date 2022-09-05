@@ -245,13 +245,6 @@ fn quote_field_prop(
 
     let description = field.description.clone().unwrap_or_default();
 
-    let is_modified = match field.is_modified.as_ref() {
-        Some(getter) => {
-            quote! { #field_ref.#getter }
-        }
-        None => quote! { false },
-    };
-
     quote! {
         PropertyInfo {
             owner_type_id: std::any::TypeId::of::<Self>(),
@@ -264,7 +257,6 @@ fn quote_field_prop(
             step: #step,
             precision: #precision,
             description: (#description).to_string(),
-            is_modified: #is_modified,
         }
     }
 }

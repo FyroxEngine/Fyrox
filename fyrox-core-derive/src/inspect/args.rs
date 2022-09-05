@@ -99,12 +99,6 @@ pub struct FieldArgs {
     /// Description of the property.
     #[darling(default)]
     pub description: Option<String>,
-
-    /// `#[inspect(is_modified = <expr>)]`
-    ///
-    /// Method call syntax. It returns true if the value has been modified.
-    #[darling(default)]
-    pub is_modified: Option<Expr>,
 }
 
 impl FieldArgs {

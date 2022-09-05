@@ -210,7 +210,6 @@ where
         step: property_info.step,
         precision: property_info.precision,
         description: property_info.description.clone(),
-        is_modified: property_info.is_modified,
     })
 }
 
