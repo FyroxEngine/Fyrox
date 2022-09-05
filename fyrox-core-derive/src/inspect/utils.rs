@@ -209,7 +209,7 @@ fn quote_field_prop(
             quote! { #field_ref.#getter }
         }
         // default: get reference of the field
-        None => field_ref.clone(),
+        None => field_ref,
     };
 
     let prop_key_name = field_prefix.property_key_name(nth_field, field);

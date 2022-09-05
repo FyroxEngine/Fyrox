@@ -99,7 +99,6 @@ fn inspect_attributes() {
             step: Some(0.1),
             precision: Some(3),
             description: "This is a property description.".to_string(),
-            ..default_prop()
         },
     ];
 
