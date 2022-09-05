@@ -398,7 +398,7 @@ pub fn try_inherit_properties(
 
         // Look into inner properties recursively and try to inherit them. This is mandatory step, because inner
         // fields may also be InheritableVariable<T>.
-        try_inherit_properties(*child_field, parent_field)?;
+        try_inherit_properties(child_field.as_reflect_mut(), parent_field.as_reflect())?;
     }
 
     Ok(())
@@ -469,5 +469,26 @@ mod test {
         let vb = InheritableVariable::new(1.23);
 
         assert!(va.value_equals(&vb))
+    }
+
+    #[test]
+    fn test_enum_inheritance() {
+        #[derive(Reflect)]
+        enum Foo {
+            Bar(InheritableVariable<f32>),
+            Baz {
+                foo: InheritableVariable<f32>,
+                foobar: InheritableVariable<u32>,
+            },
+        }
+
+        let mut child = Foo::Bar(InheritableVariable::new(1.23));
+        let parent = Foo::Bar(InheritableVariable::new(3.21));
+
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+
+        if let Foo::Bar(value) = child {
+            assert_eq!(*value, 3.21);
+        }
     }
 }
