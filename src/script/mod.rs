@@ -13,7 +13,7 @@ use crate::{
     engine::resource_manager::ResourceManager,
     event::Event,
     plugin::Plugin,
-    scene::{graph::map::NodeHandleMap, node::Node, DirectlyInheritableEntity, Scene},
+    scene::{graph::map::NodeHandleMap, node::Node, Scene},
     utils::component::ComponentProvider,
 };
 use std::{
@@ -25,33 +25,17 @@ use std::{
 pub mod constructor;
 
 /// Base script trait is used to automatically implement some trait to reduce amount of boilerplate code.
-pub trait BaseScript:
-    Visit + Inspect + Reflect + Send + Debug + DirectlyInheritableEntity + 'static
-{
+pub trait BaseScript: Visit + Inspect + Reflect + Send + Debug + 'static {
     /// Creates exact copy of the script.
     fn clone_box(&self) -> Box<dyn ScriptTrait>;
-
-    /// Returns self as DirectlyInheritableEntity
-    fn as_directly_inheritable_ref(&self) -> &dyn DirectlyInheritableEntity;
-
-    /// Returns self as DirectlyInheritableEntity
-    fn as_directly_inheritable_mut(&mut self) -> &mut dyn DirectlyInheritableEntity;
 }
 
 impl<T> BaseScript for T
 where
-    T: Clone + ScriptTrait + Any + DirectlyInheritableEntity,
+    T: Clone + ScriptTrait + Any,
 {
     fn clone_box(&self) -> Box<dyn ScriptTrait> {
         Box::new(self.clone())
-    }
-
-    fn as_directly_inheritable_ref(&self) -> &dyn DirectlyInheritableEntity {
-        self
-    }
-
-    fn as_directly_inheritable_mut(&mut self) -> &mut dyn DirectlyInheritableEntity {
-        self
     }
 }
 
@@ -186,7 +170,7 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     ///     core::reflect::Reflect,
     ///     core::uuid::Uuid,
     ///     script::ScriptTrait,
-    ///     core::uuid::uuid, impl_component_provider, impl_directly_inheritable_entity_trait
+    ///     core::uuid::uuid, impl_component_provider
     /// };
     ///
     /// #[derive(Inspect, Reflect, Visit, Debug, Clone)]
@@ -203,7 +187,6 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// }
     ///
     /// impl_component_provider!(MyScript);
-    /// impl_directly_inheritable_entity_trait!(MyScript;);
     ///
     /// impl ScriptTrait for MyScript {
     ///     fn id(&self) -> Uuid {
@@ -337,5 +320,90 @@ impl Script {
         self.0
             .query_component_mut(TypeId::of::<T>())
             .and_then(|c| c.downcast_mut())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        core::{
+            inspect::prelude::*, reflect::Reflect, uuid::Uuid, variable::try_inherit_properties,
+            variable::InheritableVariable, visitor::prelude::*,
+        },
+        impl_component_provider,
+        scene::base::Base,
+        script::{Script, ScriptTrait},
+    };
+
+    #[derive(Reflect, Inspect, Visit, Debug, Clone, Default)]
+    struct MyScript {
+        field: InheritableVariable<f32>,
+    }
+
+    impl_component_provider!(MyScript);
+
+    impl ScriptTrait for MyScript {
+        fn id(&self) -> Uuid {
+            todo!()
+        }
+
+        fn plugin_uuid(&self) -> Uuid {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn test_script_property_inheritance_on_nodes() {
+        let mut child = Base::default();
+
+        child.script = Some(Script::new(MyScript {
+            field: InheritableVariable::new(1.23),
+        }));
+
+        let mut parent = Base::default();
+
+        parent.script = Some(Script::new(MyScript {
+            field: InheritableVariable::new(3.21),
+        }));
+
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+
+        assert_eq!(
+            *child.script().unwrap().cast::<MyScript>().unwrap().field,
+            3.21
+        );
+    }
+
+    #[test]
+    fn test_script_property_inheritance() {
+        let mut child = Script::new(MyScript {
+            field: InheritableVariable::new(1.23),
+        });
+
+        let parent = Script::new(MyScript {
+            field: InheritableVariable::new(3.21),
+        });
+
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+
+        assert_eq!(*child.cast::<MyScript>().unwrap().field, 3.21);
+    }
+
+    #[test]
+    fn test_script_property_inheritance_option() {
+        let mut child = Some(Script::new(MyScript {
+            field: InheritableVariable::new(1.23),
+        }));
+
+        let parent = Some(Script::new(MyScript {
+            field: InheritableVariable::new(3.21),
+        }));
+
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+
+        assert_eq!(
+            *child.as_ref().unwrap().cast::<MyScript>().unwrap().field,
+            3.21
+        );
     }
 }

@@ -22,18 +22,16 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     resource::texture::{Texture, TextureError, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
         graph::{map::NodeHandleMap, Graph},
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
         visibility::VisibilityCache,
-        DirectlyInheritableEntity,
     },
     utils::log::Log,
 };
@@ -260,37 +258,29 @@ impl Default for Exposure {
 pub struct Camera {
     base: Base,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_projection")]
-    projection: TemplateVariable<Projection>,
+    #[reflect(setter = "set_projection")]
+    projection: InheritableVariable<Projection>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_viewport")]
-    viewport: TemplateVariable<Rect<f32>>,
+    #[reflect(setter = "set_viewport")]
+    viewport: InheritableVariable<Rect<f32>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_enabled")]
-    enabled: TemplateVariable<bool>,
+    #[reflect(setter = "set_enabled")]
+    enabled: InheritableVariable<bool>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_skybox")]
-    sky_box: TemplateVariable<Option<SkyBox>>,
+    #[reflect(setter = "set_skybox")]
+    sky_box: InheritableVariable<Option<SkyBox>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_environment")]
-    environment: TemplateVariable<Option<Texture>>,
+    #[reflect(setter = "set_environment")]
+    environment: InheritableVariable<Option<Texture>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_exposure")]
-    exposure: TemplateVariable<Exposure>,
+    #[reflect(setter = "set_exposure")]
+    exposure: InheritableVariable<Exposure>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_color_grading_lut")]
-    color_grading_lut: TemplateVariable<Option<ColorGradingLut>>,
+    #[reflect(setter = "set_color_grading_lut")]
+    color_grading_lut: InheritableVariable<Option<ColorGradingLut>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_color_grading_enabled")]
-    color_grading_enabled: TemplateVariable<bool>,
+    #[reflect(setter = "set_color_grading_enabled")]
+    color_grading_enabled: InheritableVariable<bool>,
 
     #[visit(skip)]
     #[inspect(skip)]
@@ -308,17 +298,6 @@ pub struct Camera {
     #[reflect(hidden)]
     pub visibility_cache: VisibilityCache,
 }
-
-impl_directly_inheritable_entity_trait!(Camera;
-    projection,
-    viewport,
-    enabled,
-    sky_box,
-    environment,
-    exposure,
-    color_grading_lut,
-    color_grading_enabled
-);
 
 impl Deref for Camera {
     type Target = Base;
@@ -593,26 +572,12 @@ impl NodeTrait for Camera {
         self.base.world_bounding_box()
     }
 
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Some(parent) = parent.cast::<Self>() {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
         self.base.restore_resources(resource_manager.clone());
 
         let mut state = resource_manager.state();
         let texture_container = &mut state.containers_mut().textures;
-        texture_container.try_restore_template_resource(&mut self.environment);
+        texture_container.try_restore_inheritable_resource(&mut self.environment);
 
         if let Some(skybox) = self.skybox_mut() {
             texture_container.try_restore_optional_resource(&mut skybox.bottom);

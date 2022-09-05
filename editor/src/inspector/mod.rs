@@ -333,7 +333,7 @@ impl Inspector {
                     Selection::Effect(selection) => selection
                         .effects
                         .iter()
-                        .map(|&handle| make_set_effect_property_command(handle, args))
+                        .filter_map(|&handle| make_set_effect_property_command(handle, args))
                         .collect::<Vec<_>>(),
                     _ => vec![],
                 };

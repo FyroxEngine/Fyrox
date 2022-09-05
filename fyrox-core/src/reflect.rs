@@ -5,6 +5,7 @@ mod std_impls;
 
 pub use fyrox_core_derive::Reflect;
 
+use std::fmt::Debug;
 use std::{
     any::{Any, TypeId},
     fmt,
@@ -80,6 +81,14 @@ pub trait Reflect: Any {
     fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
         None
     }
+
+    fn as_inheritable_variable(&self) -> Option<&dyn ReflectInheritableVariable> {
+        None
+    }
+
+    fn as_inheritable_variable_mut(&mut self) -> Option<&mut dyn ReflectInheritableVariable> {
+        None
+    }
 }
 
 /// [`Reflect`] sub trait for working with slices.
@@ -99,6 +108,33 @@ pub trait ReflectList: ReflectArray {
         index: usize,
         value: Box<dyn Reflect>,
     ) -> Result<(), Box<dyn Reflect>>;
+}
+
+pub trait ReflectInheritableVariable: Reflect + Debug {
+    /// Tries to inherit a value from parent. It will succeed only if the current variable is
+    /// not marked as modified.
+    fn try_inherit(
+        &mut self,
+        parent: &dyn ReflectInheritableVariable,
+    ) -> Result<Option<Box<dyn Reflect>>, InheritError>;
+
+    /// Resets modified flag from the variable.
+    fn reset_modified_flag(&mut self);
+
+    /// Returns current variable flags.
+    fn flags(&self) -> VariableFlags;
+
+    /// Returns true if value was modified.
+    fn is_modified(&self) -> bool;
+
+    /// Returns true if value equals to other's value.
+    fn value_equals(&self, other: &dyn ReflectInheritableVariable) -> bool;
+
+    /// Clones self value.
+    fn clone_value_box(&self) -> Box<dyn Reflect>;
+
+    /// Marks value as modified, so its value won't be overwritten during property inheritance.
+    fn mark_modified(&mut self);
 }
 
 /// An error returned from a failed path string query.
@@ -470,5 +506,6 @@ macro_rules! delegate_reflect {
     };
 }
 
+use crate::variable::{InheritError, VariableFlags};
 pub use blank_reflect;
 pub use delegate_reflect;

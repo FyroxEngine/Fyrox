@@ -1,3 +1,4 @@
+use crate::scene::commands::RevertSceneNodePropertyCommand;
 use crate::{
     scene::commands::{
         make_set_node_property_command,
@@ -48,7 +49,12 @@ impl SceneNodePropertyChangedHandler {
         handle: Handle<Node>,
         node: &mut Node,
     ) -> SceneCommand {
-        self.try_get_command(args, handle, node)
-            .unwrap_or_else(|| make_set_node_property_command(handle, args))
+        self.try_get_command(args, handle, node).unwrap_or_else(|| {
+            if args.is_inheritable() {
+                SceneCommand::new(RevertSceneNodePropertyCommand::new(args.path(), handle))
+            } else {
+                make_set_node_property_command(handle, args).unwrap()
+            }
+        })
     }
 }

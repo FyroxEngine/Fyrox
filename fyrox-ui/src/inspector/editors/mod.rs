@@ -1,9 +1,20 @@
 use crate::{
-    core::{inspect::PropertyInfo, pool::Handle},
+    core::{
+        algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
+        color::Color,
+        inspect::{Inspect, PropertyInfo, PropertyValue},
+        math::Rect,
+        pool::Handle,
+    },
     inspector::{
         editors::{
+            array::ArrayPropertyEditorDefinition,
             bool::BoolPropertyEditorDefinition,
+            collection::{CollectionItem, VecCollectionPropertyEditorDefinition},
             color::ColorPropertyEditorDefinition,
+            enumeration::{EnumPropertyEditorDefinition, InspectableEnum},
+            inherit::InheritablePropertyEditorDefinition,
+            inspectable::InspectablePropertyEditorDefinition,
             numeric::NumericPropertyEditorDefinition,
             quat::QuatPropertyEditorDefinition,
             range::RangePropertyEditorDefinition,
@@ -24,8 +35,11 @@ use std::{
     any::TypeId,
     cell::{Ref, RefCell},
     fmt::Debug,
+    ops::Range,
     rc::Rc,
+    str::FromStr,
 };
+use strum::VariantNames;
 
 pub mod array;
 pub mod bit;
@@ -33,6 +47,7 @@ pub mod bool;
 pub mod collection;
 pub mod color;
 pub mod enumeration;
+pub mod inherit;
 pub mod inspectable;
 pub mod numeric;
 pub mod quat;
@@ -65,6 +80,7 @@ pub struct PropertyEditorTranslationContext<'b, 'c> {
     pub name: &'b str,
     pub owner_type_id: TypeId,
     pub message: &'c UiMessage,
+    pub definition_container: Rc<PropertyEditorDefinitionContainer>,
 }
 
 pub enum PropertyEditorInstance {
@@ -103,105 +119,163 @@ pub struct PropertyEditorDefinitionContainer {
     definitions: RefCell<FxHashMap<TypeId, Rc<dyn PropertyEditorDefinition>>>,
 }
 
+macro_rules! reg_array_property_editor {
+    ($container:ident, $ty:ty, $($count:literal),*) => {
+        $(
+            $container.insert(ArrayPropertyEditorDefinition::<$ty, $count>::new());
+        )*
+    }
+}
+
+macro_rules! reg_property_editor {
+    ($container:ident, $base:ident:$init:ident, $($ty:ty),*) => {
+        $(
+             $container.insert($base::<$ty>::$init());
+        )*
+    }
+}
+
 impl PropertyEditorDefinitionContainer {
     pub fn new() -> Self {
         let container = Self::default();
 
+        // bool + InheritableVariable<bool>
+        container.insert(InheritablePropertyEditorDefinition::<bool>::new());
         container.insert(BoolPropertyEditorDefinition);
 
+        // String + InheritableVariable<String>
         container.insert(StringPropertyEditorDefinition);
+        container.insert(InheritablePropertyEditorDefinition::<String>::new());
 
-        container.insert(NumericPropertyEditorDefinition::<f64>::default());
-        container.insert(NumericPropertyEditorDefinition::<f32>::default());
-        container.insert(NumericPropertyEditorDefinition::<i64>::default());
-        container.insert(NumericPropertyEditorDefinition::<u64>::default());
-        container.insert(NumericPropertyEditorDefinition::<i32>::default());
-        container.insert(NumericPropertyEditorDefinition::<u32>::default());
-        container.insert(NumericPropertyEditorDefinition::<i16>::default());
-        container.insert(NumericPropertyEditorDefinition::<u16>::default());
-        container.insert(NumericPropertyEditorDefinition::<i8>::default());
-        container.insert(NumericPropertyEditorDefinition::<u8>::default());
-        container.insert(NumericPropertyEditorDefinition::<usize>::default());
-        container.insert(NumericPropertyEditorDefinition::<isize>::default());
+        // NumericType + InheritableVariable<NumericType>
+        reg_property_editor! { container, NumericPropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, InheritablePropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
 
-        container.insert(Vec4PropertyEditorDefinition::<f64>::default());
-        container.insert(Vec4PropertyEditorDefinition::<f32>::default());
-        container.insert(Vec4PropertyEditorDefinition::<i64>::default());
-        container.insert(Vec4PropertyEditorDefinition::<u64>::default());
-        container.insert(Vec4PropertyEditorDefinition::<i32>::default());
-        container.insert(Vec4PropertyEditorDefinition::<u32>::default());
-        container.insert(Vec4PropertyEditorDefinition::<i16>::default());
-        container.insert(Vec4PropertyEditorDefinition::<u16>::default());
-        container.insert(Vec4PropertyEditorDefinition::<i8>::default());
-        container.insert(Vec4PropertyEditorDefinition::<u8>::default());
-        container.insert(Vec4PropertyEditorDefinition::<usize>::default());
-        container.insert(Vec4PropertyEditorDefinition::<isize>::default());
+        // Vector4<NumericType> + InheritableVariable<Vector4>
+        reg_property_editor! { container, Vec4PropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
+            Vector4<f64>, Vector4<f32>, Vector4<i64>, Vector4<u64>, Vector4<i32>, Vector4<u32>,
+            Vector4<i16>, Vector4<u16>, Vector4<i8>, Vector4<u8>, Vector4<usize>, Vector4<isize>
+        };
 
-        container.insert(Vec3PropertyEditorDefinition::<f64>::default());
-        container.insert(Vec3PropertyEditorDefinition::<f32>::default());
-        container.insert(Vec3PropertyEditorDefinition::<i64>::default());
-        container.insert(Vec3PropertyEditorDefinition::<u64>::default());
-        container.insert(Vec3PropertyEditorDefinition::<i32>::default());
-        container.insert(Vec3PropertyEditorDefinition::<u32>::default());
-        container.insert(Vec3PropertyEditorDefinition::<i16>::default());
-        container.insert(Vec3PropertyEditorDefinition::<u16>::default());
-        container.insert(Vec3PropertyEditorDefinition::<i8>::default());
-        container.insert(Vec3PropertyEditorDefinition::<u8>::default());
-        container.insert(Vec3PropertyEditorDefinition::<usize>::default());
-        container.insert(Vec3PropertyEditorDefinition::<isize>::default());
+        // Vector3<NumericType> + InheritableVariable<Vector3>
+        reg_property_editor! { container, Vec3PropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
+            Vector3<f64>, Vector3<f32>, Vector3<i64>, Vector3<u64>, Vector3<i32>, Vector3<u32>,
+            Vector3<i16>, Vector3<u16>, Vector3<i8>, Vector3<u8>, Vector3<usize>, Vector3<isize>
+        };
 
-        container.insert(Vec2PropertyEditorDefinition::<f64>::default());
-        container.insert(Vec2PropertyEditorDefinition::<f32>::default());
-        container.insert(Vec2PropertyEditorDefinition::<i64>::default());
-        container.insert(Vec2PropertyEditorDefinition::<u64>::default());
-        container.insert(Vec2PropertyEditorDefinition::<i32>::default());
-        container.insert(Vec2PropertyEditorDefinition::<u32>::default());
-        container.insert(Vec2PropertyEditorDefinition::<i16>::default());
-        container.insert(Vec2PropertyEditorDefinition::<u16>::default());
-        container.insert(Vec2PropertyEditorDefinition::<i8>::default());
-        container.insert(Vec2PropertyEditorDefinition::<u8>::default());
-        container.insert(Vec2PropertyEditorDefinition::<usize>::default());
-        container.insert(Vec2PropertyEditorDefinition::<isize>::default());
+        // Vector2<NumericType> + InheritableVariable<Vector2>
+        reg_property_editor! { container, Vec2PropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
+            Vector2<f64>, Vector2<f32>, Vector2<i64>, Vector2<u64>, Vector2<i32>, Vector2<u32>,
+            Vector2<i16>, Vector2<u16>, Vector2<i8>, Vector2<u8>, Vector2<usize>, Vector2<isize>
+        };
 
-        container.insert(RangePropertyEditorDefinition::<f64>::new());
-        container.insert(RangePropertyEditorDefinition::<f32>::new());
-        container.insert(RangePropertyEditorDefinition::<i64>::new());
-        container.insert(RangePropertyEditorDefinition::<u64>::new());
-        container.insert(RangePropertyEditorDefinition::<i32>::new());
-        container.insert(RangePropertyEditorDefinition::<u32>::new());
-        container.insert(RangePropertyEditorDefinition::<i16>::new());
-        container.insert(RangePropertyEditorDefinition::<u16>::new());
-        container.insert(RangePropertyEditorDefinition::<i8>::new());
-        container.insert(RangePropertyEditorDefinition::<u8>::new());
-        container.insert(RangePropertyEditorDefinition::<usize>::new());
-        container.insert(RangePropertyEditorDefinition::<isize>::new());
+        // Range<NumericType> + InheritableVariable<Range<NumericType>>
+        reg_property_editor! { container, RangePropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
+            Range<f64>, Range<f32>, Range<i64>, Range<u64>, Range<i32>, Range<u32>,
+            Range<i16>, Range<u16>, Range<i8>, Range<u8>, Range<usize>, Range<isize>
+        };
 
+        // UnitQuaternion + InheritableVariable<UnitQuaternion>
         container.insert(QuatPropertyEditorDefinition::<f64>::default());
+        container.insert(InheritablePropertyEditorDefinition::<UnitQuaternion<f64>>::new());
         container.insert(QuatPropertyEditorDefinition::<f32>::default());
+        container.insert(InheritablePropertyEditorDefinition::<UnitQuaternion<f32>>::new());
 
-        container.insert(RectPropertyEditorDefinition::<f64>::new());
-        container.insert(RectPropertyEditorDefinition::<f32>::new());
-        container.insert(RectPropertyEditorDefinition::<i32>::new());
-        container.insert(RectPropertyEditorDefinition::<u32>::new());
-        container.insert(RectPropertyEditorDefinition::<i16>::new());
-        container.insert(RectPropertyEditorDefinition::<u16>::new());
-        container.insert(RectPropertyEditorDefinition::<i8>::new());
-        container.insert(RectPropertyEditorDefinition::<u8>::new());
-        container.insert(RectPropertyEditorDefinition::<usize>::new());
-        container.insert(RectPropertyEditorDefinition::<isize>::new());
+        // Rect<NumericType> + InheritableVariable<Rect<NumericType>>
+        reg_property_editor! { container, RectPropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
+            Rect<f64>, Rect<f32>, Rect<i64>, Rect<u64>, Rect<i32>, Rect<u32>,
+            Rect<i16>, Rect<u16>, Rect<i8>, Rect<u8>, Rect<usize>, Rect<isize>
+        };
 
+        // Option<NumericType> + InheritableVariable<Option<NumericType>>
+        reg_property_editor! { container, EnumPropertyEditorDefinition: new_optional, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
+            Option<f64>, Option<f32>, Option<i64>, Option<u64>, Option<i32>, Option<u32>,
+            Option<i16>, Option<u16>, Option<i8>, Option<u8>, Option<usize>, Option<isize>
+        };
+
+        // Color + InheritableVariable<Color>
         container.insert(ColorPropertyEditorDefinition);
+        container.insert(InheritablePropertyEditorDefinition::<Color>::new());
+
+        // [NumericType; 1..N]
+        reg_array_property_editor! { container, f64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, f32, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, u64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, i64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, u32, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, i32, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, u16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, i16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, i8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, usize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, isize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
 
         container
     }
 
-    pub fn insert<T: PropertyEditorDefinition + 'static>(
-        &self,
-        definition: T,
-    ) -> Option<Rc<dyn PropertyEditorDefinition>> {
+    pub fn insert<T>(&self, definition: T) -> Option<Rc<dyn PropertyEditorDefinition>>
+    where
+        T: PropertyEditorDefinition + 'static,
+    {
         self.definitions
             .borrow_mut()
             .insert(definition.value_type_id(), Rc::new(definition))
+    }
+
+    pub fn register_inheritable_vec_collection<T>(&self)
+    where
+        T: CollectionItem + PropertyValue,
+    {
+        assert!(self
+            .insert(VecCollectionPropertyEditorDefinition::<T>::new())
+            .is_none());
+        assert!(self
+            .insert(InheritablePropertyEditorDefinition::<Vec<T>>::new())
+            .is_none());
+    }
+
+    pub fn register_inheritable_inspectable<T>(&self)
+    where
+        T: Inspect + PropertyValue,
+    {
+        assert!(self
+            .insert(InspectablePropertyEditorDefinition::<T>::new())
+            .is_none());
+        assert!(self
+            .insert(InheritablePropertyEditorDefinition::<T>::new())
+            .is_none());
+    }
+
+    pub fn register_inheritable_enum<T, E: Debug>(&self)
+    where
+        T: InspectableEnum + PropertyValue + VariantNames + AsRef<str> + FromStr<Err = E> + Debug,
+    {
+        assert!(self
+            .insert(EnumPropertyEditorDefinition::<T>::new())
+            .is_none());
+        assert!(self
+            .insert(InheritablePropertyEditorDefinition::<T>::new())
+            .is_none());
+    }
+
+    pub fn register_inheritable_option<T>(&self)
+    where
+        T: InspectableEnum + PropertyValue + Default,
+    {
+        assert!(self
+            .insert(EnumPropertyEditorDefinition::<T>::new_optional())
+            .is_none());
+        assert!(self
+            .insert(InheritablePropertyEditorDefinition::<Option<T>>::new())
+            .is_none());
     }
 
     pub fn definitions(&self) -> Ref<FxHashMap<TypeId, Rc<dyn PropertyEditorDefinition>>> {

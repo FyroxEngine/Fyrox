@@ -169,7 +169,7 @@ impl Inspector {
                 let group = data_model
                     .selection
                     .iter()
-                    .map(|entry| match entry {
+                    .filter_map(|entry| match entry {
                         SelectedEntity::Transition(transition) => {
                             make_set_transition_property_command(*transition, args)
                         }

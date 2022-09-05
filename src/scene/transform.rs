@@ -49,17 +49,12 @@ use crate::{
         algebra::{Matrix3, Matrix4, UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
         reflect::Reflect,
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
-    impl_directly_inheritable_entity_trait,
-    scene::DirectlyInheritableEntity,
     utils::log::{Log, MessageKind},
 };
-use std::{
-    cell::Cell,
-    ops::{Deref, DerefMut},
-};
+use std::cell::Cell;
 
 /// See module docs.
 #[derive(Clone, Debug, Inspect, Reflect)]
@@ -70,77 +65,41 @@ pub struct Transform {
     #[reflect(hidden)]
     dirty: Cell<bool>,
 
-    #[inspect(
-        deref,
-        description = "Local scale of the transform",
-        is_modified = "is_modified()"
-    )]
-    #[reflect(deref, setter = "set_scale_internal")]
-    local_scale: TemplateVariable<Vector3<f32>>,
+    #[inspect(description = "Local scale of the transform")]
+    #[reflect(setter = "set_scale_internal")]
+    local_scale: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(
-        deref,
-        description = "Local position of the transform",
-        is_modified = "is_modified()"
-    )]
-    #[reflect(deref, setter = "set_position_internal")]
-    local_position: TemplateVariable<Vector3<f32>>,
+    #[inspect(description = "Local position of the transform")]
+    #[reflect(setter = "set_position_internal")]
+    local_position: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(
-        deref,
-        description = "Local rotation of the transform",
-        is_modified = "is_modified()"
-    )]
-    #[reflect(deref, setter = "set_rotation_internal")]
-    local_rotation: TemplateVariable<UnitQuaternion<f32>>,
+    #[inspect(description = "Local rotation of the transform")]
+    #[reflect(setter = "set_rotation_internal")]
+    local_rotation: InheritableVariable<UnitQuaternion<f32>>,
 
-    #[inspect(
-        deref,
-        description = "Pre rotation of the transform. Applied before local rotation.",
-        is_modified = "is_modified()"
-    )]
-    #[reflect(deref, setter = "set_pre_rotation_internal")]
-    pre_rotation: TemplateVariable<UnitQuaternion<f32>>,
+    #[inspect(description = "Pre rotation of the transform. Applied before local rotation.")]
+    #[reflect(setter = "set_pre_rotation_internal")]
+    pre_rotation: InheritableVariable<UnitQuaternion<f32>>,
 
-    #[inspect(
-        deref,
-        description = "Post rotation of the transform. Applied after local rotation.",
-        is_modified = "is_modified()"
-    )]
-    #[reflect(deref, setter = "set_post_rotation_internal")]
-    post_rotation: TemplateVariable<UnitQuaternion<f32>>,
+    #[inspect(description = "Post rotation of the transform. Applied after local rotation.")]
+    #[reflect(setter = "set_post_rotation_internal")]
+    post_rotation: InheritableVariable<UnitQuaternion<f32>>,
 
-    #[inspect(
-        deref,
-        description = "Rotation offset of the transform.",
-        is_modified = "is_modified()"
-    )]
-    #[reflect(deref, setter = "set_rotation_offset_internal")]
-    rotation_offset: TemplateVariable<Vector3<f32>>,
+    #[inspect(description = "Rotation offset of the transform.")]
+    #[reflect(setter = "set_rotation_offset_internal")]
+    rotation_offset: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(
-        deref,
-        description = "Rotation pivot of the transform.",
-        is_modified = "is_modified()"
-    )]
-    #[reflect(deref, setter = "set_rotation_pivot_internal")]
-    rotation_pivot: TemplateVariable<Vector3<f32>>,
+    #[inspect(description = "Rotation pivot of the transform.")]
+    #[reflect(setter = "set_rotation_pivot_internal")]
+    rotation_pivot: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(
-        deref,
-        description = "Scale offset of the transform.",
-        is_modified = "is_modified()"
-    )]
-    #[reflect(deref, setter = "set_scaling_offset_internal")]
-    scaling_offset: TemplateVariable<Vector3<f32>>,
+    #[inspect(description = "Scale offset of the transform.")]
+    #[reflect(setter = "set_scaling_offset_internal")]
+    scaling_offset: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(
-        deref,
-        description = "Scale pivot of the transform.",
-        is_modified = "is_modified()"
-    )]
-    #[reflect(deref, setter = "set_scaling_pivot_internal")]
-    scaling_pivot: TemplateVariable<Vector3<f32>>,
+    #[inspect(description = "Scale pivot of the transform.")]
+    #[reflect(setter = "set_scaling_pivot_internal")]
+    scaling_pivot: InheritableVariable<Vector3<f32>>,
 
     // Combined transform. Final result of combination of other properties.
     #[inspect(skip)]
@@ -151,18 +110,6 @@ pub struct Transform {
     #[reflect(hidden)]
     post_rotation_matrix: Matrix3<f32>,
 }
-
-impl_directly_inheritable_entity_trait!(Transform;
-    local_position,
-    local_rotation,
-    local_scale,
-    pre_rotation,
-    post_rotation,
-    rotation_offset,
-    rotation_pivot,
-    scaling_offset,
-    scaling_pivot
-);
 
 impl Visit for Transform {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -215,15 +162,15 @@ impl Transform {
     pub fn identity() -> Self {
         Self {
             dirty: Cell::new(true),
-            local_position: TemplateVariable::new(Vector3::default()),
-            local_scale: TemplateVariable::new(Vector3::new(1.0, 1.0, 1.0)),
-            local_rotation: TemplateVariable::new(UnitQuaternion::identity()),
-            pre_rotation: TemplateVariable::new(UnitQuaternion::identity()),
-            post_rotation: TemplateVariable::new(UnitQuaternion::identity()),
-            rotation_offset: TemplateVariable::new(Vector3::default()),
-            rotation_pivot: TemplateVariable::new(Vector3::default()),
-            scaling_offset: TemplateVariable::new(Vector3::default()),
-            scaling_pivot: TemplateVariable::new(Vector3::default()),
+            local_position: InheritableVariable::new(Vector3::default()),
+            local_scale: InheritableVariable::new(Vector3::new(1.0, 1.0, 1.0)),
+            local_rotation: InheritableVariable::new(UnitQuaternion::identity()),
+            pre_rotation: InheritableVariable::new(UnitQuaternion::identity()),
+            post_rotation: InheritableVariable::new(UnitQuaternion::identity()),
+            rotation_offset: InheritableVariable::new(Vector3::default()),
+            rotation_pivot: InheritableVariable::new(Vector3::default()),
+            scaling_offset: InheritableVariable::new(Vector3::default()),
+            scaling_pivot: InheritableVariable::new(Vector3::default()),
             matrix: Cell::new(Matrix4::identity()),
             post_rotation_matrix: Matrix3::identity(),
         }
@@ -231,7 +178,7 @@ impl Transform {
 
     /// Returns current position of transform.
     #[inline]
-    pub fn position(&self) -> &TemplateVariable<Vector3<f32>> {
+    pub fn position(&self) -> &InheritableVariable<Vector3<f32>> {
         &self.local_position
     }
 
@@ -252,7 +199,7 @@ impl Transform {
 
     /// Returns current rotation quaternion of transform.
     #[inline]
-    pub fn rotation(&self) -> &TemplateVariable<UnitQuaternion<f32>> {
+    pub fn rotation(&self) -> &InheritableVariable<UnitQuaternion<f32>> {
         &self.local_rotation
     }
 
@@ -276,7 +223,7 @@ impl Transform {
 
     /// Returns current scale factor of transform.
     #[inline]
-    pub fn scale(&self) -> &TemplateVariable<Vector3<f32>> {
+    pub fn scale(&self) -> &InheritableVariable<Vector3<f32>> {
         &self.local_scale
     }
 
@@ -317,7 +264,7 @@ impl Transform {
 
     /// Returns current pre-rotation of transform.
     #[inline]
-    pub fn pre_rotation(&self) -> &TemplateVariable<UnitQuaternion<f32>> {
+    pub fn pre_rotation(&self) -> &InheritableVariable<UnitQuaternion<f32>> {
         &self.pre_rotation
     }
 
@@ -344,7 +291,7 @@ impl Transform {
 
     /// Returns current post-rotation of transform.
     #[inline]
-    pub fn post_rotation(&self) -> &TemplateVariable<UnitQuaternion<f32>> {
+    pub fn post_rotation(&self) -> &InheritableVariable<UnitQuaternion<f32>> {
         &self.post_rotation
     }
 
@@ -366,7 +313,7 @@ impl Transform {
 
     /// Returns current rotation offset of transform.
     #[inline]
-    pub fn rotation_offset(&self) -> &TemplateVariable<Vector3<f32>> {
+    pub fn rotation_offset(&self) -> &InheritableVariable<Vector3<f32>> {
         &self.rotation_offset
     }
 
@@ -389,7 +336,7 @@ impl Transform {
 
     /// Returns current rotation pivot of transform.
     #[inline]
-    pub fn rotation_pivot(&self) -> &TemplateVariable<Vector3<f32>> {
+    pub fn rotation_pivot(&self) -> &InheritableVariable<Vector3<f32>> {
         &self.rotation_pivot
     }
 
@@ -412,7 +359,7 @@ impl Transform {
 
     /// Returns current scaling offset of transform.
     #[inline]
-    pub fn scaling_offset(&self) -> &TemplateVariable<Vector3<f32>> {
+    pub fn scaling_offset(&self) -> &InheritableVariable<Vector3<f32>> {
         &self.scaling_offset
     }
 
@@ -435,7 +382,7 @@ impl Transform {
 
     /// Returns current scaling pivot of transform.
     #[inline]
-    pub fn scaling_pivot(&self) -> &TemplateVariable<Vector3<f32>> {
+    pub fn scaling_pivot(&self) -> &InheritableVariable<Vector3<f32>> {
         &self.scaling_pivot
     }
 
@@ -578,18 +525,6 @@ impl Transform {
         }
         self.matrix.get()
     }
-
-    // Prefab inheritance resolving.
-    pub(crate) fn inherit(&mut self, parent: &Transform) -> Result<(), InheritError> {
-        self.try_inherit_self_properties(parent)?;
-        self.dirty.set(true);
-        self.post_rotation_matrix = build_post_rotation_matrix(self.post_rotation.clone_inner());
-        Ok(())
-    }
-
-    pub(crate) fn reset_inheritable_properties(&mut self) {
-        self.reset_self_inheritable_properties();
-    }
 }
 
 /// Transform builder allows you to construct transform in declarative manner.
@@ -704,6 +639,8 @@ impl TransformBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::core::reflect::Reflect;
+    use crate::core::variable::try_inherit_properties;
     use crate::{
         core::algebra::{UnitQuaternion, Vector3},
         scene::{base::test::check_inheritable_properties_equality, transform::TransformBuilder},
@@ -725,7 +662,7 @@ mod test {
 
         let mut child = TransformBuilder::new().build();
 
-        child.inherit(&parent).unwrap();
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
 
         check_inheritable_properties_equality(&child, &parent);
     }

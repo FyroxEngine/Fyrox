@@ -1,4 +1,6 @@
 use crate::{
+    core::algebra::Vector2,
+    formatted_text::WrapMode,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -27,10 +29,15 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<String>()?;
         Ok(PropertyEditorInstance::Simple {
-            editor: TextBoxBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                .with_text(value)
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .build(ctx.build_context),
+            editor: TextBoxBuilder::new(
+                WidgetBuilder::new()
+                    .with_min_size(Vector2::new(0.0, 17.0))
+                    .with_margin(Thickness::uniform(1.0)),
+            )
+            .with_wrap(WrapMode::Word)
+            .with_text(value)
+            .with_vertical_text_alignment(VerticalAlignment::Center)
+            .build(ctx.build_context),
         })
     }
 

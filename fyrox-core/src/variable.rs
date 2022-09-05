@@ -1,13 +1,17 @@
 //! A wrapper for a variable that hold additional flag that tells that initial value was changed in runtime.
 //!
-//! For more info see [`TemplateVariable`]
+//! For more info see [`InheritableVariable`]
 
-use crate::{reflect::Reflect, visitor::prelude::*};
+use crate::{
+    inspect::{Inspect, PropertyInfo},
+    reflect::{Reflect, ReflectArray, ReflectInheritableVariable, ReflectList},
+    visitor::prelude::*,
+};
 use bitflags::bitflags;
-use std::fmt::Debug;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
+    fmt::Debug,
     ops::{Deref, DerefMut},
 };
 
@@ -36,76 +40,9 @@ pub enum InheritError {
     },
 }
 
-/// A variable that can inherit its value from parent.
-pub trait InheritableVariable: Any + Debug {
-    /// Tries to inherit a value from parent. It will succeed only if the current variable is
-    /// not marked as modified.
-    fn try_inherit(&mut self, parent: &dyn InheritableVariable) -> Result<bool, InheritError>;
-
-    /// Resets modified flag from the variable.
-    fn reset_modified_flag(&mut self);
-
-    /// Casts self as Any trait.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Returns current variable flags.
-    fn flags(&self) -> VariableFlags;
-
-    /// Returns true if value was modified.
-    fn is_modified(&self) -> bool;
-
-    /// Returns true if value equals to other's value.
-    fn value_equals(&self, other: &dyn InheritableVariable) -> bool;
-}
-
-impl<T> InheritableVariable for TemplateVariable<T>
-where
-    T: Debug + PartialEq + Clone + 'static,
-{
-    fn try_inherit(&mut self, parent: &dyn InheritableVariable) -> Result<bool, InheritError> {
-        let any_parent = parent.as_any();
-        if let Some(parent) = any_parent.downcast_ref::<Self>() {
-            if !self.is_modified() {
-                self.value = parent.value.clone();
-                Ok(true)
-            } else {
-                Ok(false)
-            }
-        } else {
-            Err(InheritError::TypesMismatch {
-                left_type: TypeId::of::<Self>(),
-                right_type: any_parent.type_id(),
-            })
-        }
-    }
-
-    fn reset_modified_flag(&mut self) {
-        self.flags.get_mut().remove(VariableFlags::MODIFIED)
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn flags(&self) -> VariableFlags {
-        self.flags.get()
-    }
-
-    fn is_modified(&self) -> bool {
-        self.flags.get().contains(VariableFlags::MODIFIED)
-    }
-
-    fn value_equals(&self, other: &dyn InheritableVariable) -> bool {
-        other
-            .as_any()
-            .downcast_ref::<Self>()
-            .map_or(false, |other| self.value == other.value)
-    }
-}
-
 /// A wrapper for a variable that hold additional flag that tells that initial value was changed in runtime.
 ///
-/// TemplateVariables are used for resource inheritance system. Resource inheritance may just sound weird,
+/// InheritableVariables are used for resource inheritance system. Resource inheritance may just sound weird,
 /// but the idea behind it is very simple - take property values from parent resource if the value in current
 /// hasn't changed in runtime.
 ///
@@ -113,7 +50,7 @@ where
 /// instance. Now you realizes that the 3d model has a misplaced object and you need to fix it, you open a
 /// 3D modelling software (Blender, 3Ds max, etc) and move the object to a correct spot and re-save the 3D model.
 /// The question is: what should happen with the instance of the object in the scene? Logical answer would be:
-/// if it hasn't been modified, then just take the new position from the 3D model. This is where template
+/// if it hasn't been modified, then just take the new position from the 3D model. This is where inheritable
 /// variable comes into play. If you've change the value of such variable, it will remember changes and the object
 /// will stay on its new position instead of changed.
 ///
@@ -122,12 +59,12 @@ where
 /// Access via Deref provides access to inner variable. **DerefMut marks variable as modified** and returns a
 /// mutable reference to inner variable.
 #[derive(Debug)]
-pub struct TemplateVariable<T> {
+pub struct InheritableVariable<T> {
     value: T,
     flags: Cell<VariableFlags>,
 }
 
-impl<T: Clone> Clone for TemplateVariable<T> {
+impl<T: Clone> Clone for InheritableVariable<T> {
     fn clone(&self) -> Self {
         Self {
             value: self.value.clone(),
@@ -136,22 +73,22 @@ impl<T: Clone> Clone for TemplateVariable<T> {
     }
 }
 
-impl<T> From<T> for TemplateVariable<T> {
+impl<T> From<T> for InheritableVariable<T> {
     fn from(v: T) -> Self {
-        TemplateVariable::new(v)
+        InheritableVariable::new(v)
     }
 }
 
-impl<T: PartialEq> PartialEq for TemplateVariable<T> {
+impl<T: PartialEq> PartialEq for InheritableVariable<T> {
     fn eq(&self, other: &Self) -> bool {
         // `custom` flag intentionally ignored!
         self.value.eq(&other.value)
     }
 }
 
-impl<T: Eq> Eq for TemplateVariable<T> {}
+impl<T: Eq> Eq for InheritableVariable<T> {}
 
-impl<T: Default> Default for TemplateVariable<T> {
+impl<T: Default> Default for InheritableVariable<T> {
     fn default() -> Self {
         Self {
             value: T::default(),
@@ -160,13 +97,13 @@ impl<T: Default> Default for TemplateVariable<T> {
     }
 }
 
-impl<T: Clone> TemplateVariable<T> {
+impl<T: Clone> InheritableVariable<T> {
     /// Clones wrapped value.
     pub fn clone_inner(&self) -> T {
         self.value.clone()
     }
 
-    /// Tries to sync a value in a data model with a value in the template variable. The value
+    /// Tries to sync a value in a data model with a value in the inheritable variable. The value
     /// will be synced only if it was marked as needs sync.
     pub fn try_sync_model<S: FnOnce(T)>(&self, setter: S) -> bool {
         if self.need_sync() {
@@ -185,7 +122,7 @@ impl<T: Clone> TemplateVariable<T> {
     }
 }
 
-impl<T> TemplateVariable<T> {
+impl<T> InheritableVariable<T> {
     /// Creates new non-modified variable from given value.
     pub fn new(value: T) -> Self {
         Self {
@@ -212,7 +149,7 @@ impl<T> TemplateVariable<T> {
 
     /// Replaces value and also raises the [`VariableFlags::MODIFIED`] flag.
     pub fn set(&mut self, value: T) -> T {
-        self.mark_modified();
+        self.mark_modified_and_need_sync();
         std::mem::replace(&mut self.value, value)
     }
 
@@ -243,7 +180,7 @@ impl<T> TemplateVariable<T> {
     ///
     /// The method raises `modified` flag, no matter if actual modification was made!
     pub fn get_mut(&mut self) -> &mut T {
-        self.mark_modified();
+        self.mark_modified_and_need_sync();
         &mut self.value
     }
 
@@ -256,14 +193,26 @@ impl<T> TemplateVariable<T> {
         &mut self.value
     }
 
-    fn mark_modified(&mut self) {
+    /// Returns true if variable was modified and should not be overwritten during property inheritance.
+    pub fn is_modified(&self) -> bool {
+        self.flags.get().contains(VariableFlags::MODIFIED)
+    }
+
+    /// Marks value as modified, so its value won't be overwritten during property inheritance.
+    pub fn mark_modified(&mut self) {
+        self.flags
+            .get_mut()
+            .insert(VariableFlags::MODIFIED | VariableFlags::NEED_SYNC);
+    }
+
+    fn mark_modified_and_need_sync(&mut self) {
         self.flags
             .get_mut()
             .insert(VariableFlags::MODIFIED | VariableFlags::NEED_SYNC);
     }
 }
 
-impl<T> Deref for TemplateVariable<T> {
+impl<T> Deref for InheritableVariable<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -271,14 +220,14 @@ impl<T> Deref for TemplateVariable<T> {
     }
 }
 
-impl<T> DerefMut for TemplateVariable<T> {
+impl<T> DerefMut for InheritableVariable<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.mark_modified();
+        self.mark_modified_and_need_sync();
         &mut self.value
     }
 }
 
-impl<T> Visit for TemplateVariable<T>
+impl<T> Visit for InheritableVariable<T>
 where
     T: Visit,
 {
@@ -289,5 +238,282 @@ where
         self.flags.get_mut().bits.visit("Flags", &mut region)?;
 
         Ok(())
+    }
+}
+
+impl<T> Inspect for InheritableVariable<T>
+where
+    T: Inspect,
+{
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        self.value.properties()
+    }
+}
+
+impl<T> Reflect for InheritableVariable<T>
+where
+    T: Reflect + Clone + PartialEq + Debug,
+{
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        Box::new(self.value).into_any()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self.value.as_any()
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self.value.as_any_mut()
+    }
+
+    fn as_reflect(&self) -> &dyn Reflect {
+        self.value.as_reflect()
+    }
+
+    fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
+        self.value.as_reflect_mut()
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        self.mark_modified_and_need_sync();
+        self.value.set(value)
+    }
+
+    fn set_field(
+        &mut self,
+        field: &str,
+        value: Box<dyn Reflect>,
+    ) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        self.mark_modified_and_need_sync();
+        self.value.set_field(field, value)
+    }
+
+    fn field(&self, name: &str) -> Option<&dyn Reflect> {
+        self.value.field(name)
+    }
+
+    fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
+        self.value.field_mut(name)
+    }
+
+    fn as_array(&self) -> Option<&dyn ReflectArray> {
+        self.value.as_array()
+    }
+
+    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
+        self.value.as_array_mut()
+    }
+
+    fn as_list(&self) -> Option<&dyn ReflectList> {
+        self.value.as_list()
+    }
+
+    fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
+        self.value.as_list_mut()
+    }
+
+    fn as_inheritable_variable(&self) -> Option<&dyn ReflectInheritableVariable> {
+        Some(self)
+    }
+
+    fn as_inheritable_variable_mut(&mut self) -> Option<&mut dyn ReflectInheritableVariable> {
+        Some(self)
+    }
+}
+
+impl<T> ReflectInheritableVariable for InheritableVariable<T>
+where
+    T: Reflect + Clone + PartialEq + Debug,
+{
+    fn try_inherit(
+        &mut self,
+        parent: &dyn ReflectInheritableVariable,
+    ) -> Result<Option<Box<dyn Reflect>>, InheritError> {
+        // Cast directly to inner type, because any type that implements ReflectInheritableVariable,
+        // has delegating methods for almost every method of Reflect trait implementation.
+        if let Some(parent_value) = parent.as_reflect().downcast_ref::<T>() {
+            if !self.is_modified() {
+                Ok(Some(Box::new(std::mem::replace(
+                    &mut self.value,
+                    parent_value.clone(),
+                ))))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Err(InheritError::TypesMismatch {
+                left_type: TypeId::of::<Self>(),
+                right_type: parent.type_id(),
+            })
+        }
+    }
+
+    fn reset_modified_flag(&mut self) {
+        self.flags.get_mut().remove(VariableFlags::MODIFIED)
+    }
+
+    fn flags(&self) -> VariableFlags {
+        self.flags.get()
+    }
+
+    fn is_modified(&self) -> bool {
+        self.is_modified()
+    }
+
+    fn value_equals(&self, other: &dyn ReflectInheritableVariable) -> bool {
+        other
+            .as_reflect()
+            .downcast_ref::<T>()
+            .map_or(false, |other| &self.value == other)
+    }
+
+    fn clone_value_box(&self) -> Box<dyn Reflect> {
+        Box::new(self.value.clone())
+    }
+
+    fn mark_modified(&mut self) {
+        self.mark_modified()
+    }
+}
+
+/// Simultaneously walks over fields of given child and parent and tries to inherit values of properties
+/// of child with parent's properties. It is done recursively for every fields in entities.
+pub fn try_inherit_properties(
+    child: &mut dyn Reflect,
+    parent: &dyn Reflect,
+) -> Result<(), InheritError> {
+    if (*child).type_id() != (*parent).type_id() {
+        return Err(InheritError::TypesMismatch {
+            left_type: (*child).type_id(),
+            right_type: (*parent).type_id(),
+        });
+    }
+
+    for (child_field, parent_field) in child.fields_mut().iter_mut().zip(parent.fields()) {
+        // If both fields are InheritableVariable<T>, try to inherit.
+        if let (Some(child_inheritable_field), Some(parent_inheritable_field)) = (
+            child_field.as_inheritable_variable_mut(),
+            parent_field.as_inheritable_variable(),
+        ) {
+            child_inheritable_field.try_inherit(parent_inheritable_field)?;
+        }
+
+        // Look into inner properties recursively and try to inherit them. This is mandatory step, because inner
+        // fields may also be InheritableVariable<T>.
+        try_inherit_properties(child_field.as_reflect_mut(), parent_field.as_reflect())?;
+    }
+
+    Ok(())
+}
+
+pub fn reset_inheritable_properties(object: &mut dyn Reflect) {
+    for field in object.fields_mut() {
+        if let Some(inheritable_field) = field.as_inheritable_variable_mut() {
+            inheritable_field.reset_modified_flag();
+        }
+
+        reset_inheritable_properties(field);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        reflect::{Reflect, ReflectInheritableVariable},
+        variable::{try_inherit_properties, InheritableVariable},
+    };
+
+    #[derive(Reflect, Clone, Debug, PartialEq)]
+    struct Foo {
+        value: InheritableVariable<f32>,
+    }
+
+    #[derive(Reflect, Clone, Debug, PartialEq)]
+    struct Bar {
+        foo: Foo,
+
+        other_value: InheritableVariable<String>,
+    }
+
+    #[test]
+    fn test_property_inheritance_via_reflection() {
+        let mut parent = Bar {
+            foo: Foo {
+                value: InheritableVariable::new(1.23),
+            },
+            other_value: InheritableVariable::new("Foobar".to_string()),
+        };
+
+        let mut child = parent.clone();
+
+        // Try inherit non-modified, the result objects must be equal.
+        try_inherit_properties(&mut child, &parent).unwrap();
+        assert_eq!(parent, child);
+
+        // Then modify parent's and child's values.
+        parent.other_value.set("Baz".to_string());
+        assert!(ReflectInheritableVariable::is_modified(&parent.other_value),);
+
+        child.foo.value.set(3.21);
+        assert!(ReflectInheritableVariable::is_modified(&child.foo.value));
+
+        try_inherit_properties(&mut child, &parent).unwrap();
+
+        // This property reflects parent's changes, because it is non-modified.
+        assert_eq!(child.other_value.value, "Baz".to_string());
+        // This property must remain unchanged, because it is modified.
+        assert_eq!(child.foo.value.value, 3.21);
+    }
+
+    #[test]
+    fn test_inheritable_variable_equality() {
+        let va = InheritableVariable::new(1.23);
+        let vb = InheritableVariable::new(1.23);
+
+        assert!(va.value_equals(&vb))
+    }
+
+    #[derive(Reflect)]
+    enum SomeEnum {
+        Bar(InheritableVariable<f32>),
+        Baz {
+            foo: InheritableVariable<f32>,
+            foobar: InheritableVariable<u32>,
+        },
+    }
+
+    #[test]
+    fn test_enum_inheritance_tuple() {
+        let mut child = SomeEnum::Bar(InheritableVariable::new(1.23));
+        let parent = SomeEnum::Bar(InheritableVariable::new(3.21));
+
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+
+        if let SomeEnum::Bar(value) = child {
+            assert_eq!(*value, 3.21);
+        } else {
+            unreachable!()
+        }
+    }
+
+    #[test]
+    fn test_enum_inheritance_struct() {
+        let mut child = SomeEnum::Baz {
+            foo: InheritableVariable::new(1.23),
+            foobar: InheritableVariable::new(123),
+        };
+        let parent = SomeEnum::Baz {
+            foo: InheritableVariable::new(3.21),
+            foobar: InheritableVariable::new(321),
+        };
+
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+
+        if let SomeEnum::Baz { foo, foobar } = child {
+            assert_eq!(*foo, 3.21);
+            assert_eq!(*foobar, 321);
+        } else {
+            unreachable!()
+        }
     }
 }

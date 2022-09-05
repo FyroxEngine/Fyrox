@@ -16,11 +16,10 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         graph::{map::NodeHandleMap, Graph},
@@ -29,7 +28,6 @@ use crate::{
             surface::Surface,
         },
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
-        DirectlyInheritableEntity,
     },
 };
 use std::{
@@ -93,17 +91,14 @@ pub struct Mesh {
     #[visit(rename = "Common")]
     base: Base,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_surfaces")]
-    surfaces: TemplateVariable<Vec<Surface>>,
+    #[reflect(setter = "set_surfaces")]
+    surfaces: InheritableVariable<Vec<Surface>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_render_path")]
-    render_path: TemplateVariable<RenderPath>,
+    #[reflect(setter = "set_render_path")]
+    render_path: InheritableVariable<RenderPath>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_decal_layer_index")]
-    decal_layer_index: TemplateVariable<u8>,
+    #[reflect(setter = "set_decal_layer_index")]
+    decal_layer_index: InheritableVariable<u8>,
 
     #[inspect(skip)]
     #[visit(skip)]
@@ -121,12 +116,6 @@ pub struct Mesh {
     world_bounding_box: Cell<AxisAlignedBoundingBox>,
 }
 
-impl_directly_inheritable_entity_trait!(Mesh;
-    surfaces,
-    render_path,
-    decal_layer_index
-);
-
 impl Default for Mesh {
     fn default() -> Self {
         Self {
@@ -135,8 +124,8 @@ impl Default for Mesh {
             local_bounding_box: Default::default(),
             world_bounding_box: Default::default(),
             local_bounding_box_dirty: Cell::new(true),
-            render_path: TemplateVariable::new(RenderPath::Deferred),
-            decal_layer_index: TemplateVariable::new(0),
+            render_path: InheritableVariable::new(RenderPath::Deferred),
+            decal_layer_index: InheritableVariable::new(0),
         }
     }
 }
@@ -287,20 +276,6 @@ impl NodeTrait for Mesh {
     /// Returns current **world-space** bounding box.
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.world_bounding_box.get()
-    }
-
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Some(parent) = parent.cast::<Self>() {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
     }
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {

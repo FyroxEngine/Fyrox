@@ -1,5 +1,7 @@
 //! Test cases for `fyrox_core::reflect::Reflect`
 
+#![allow(clippy::blacklisted_name)] // Useless in tests
+
 use std::ops::{Deref, DerefMut};
 
 use fyrox_core::reflect::*;

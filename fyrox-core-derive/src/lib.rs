@@ -1,4 +1,3 @@
-mod inherit;
 mod inspect;
 mod reflect;
 mod visit;
@@ -62,12 +61,4 @@ pub fn impl_reflect(input: TokenStream) -> TokenStream {
     let reflect_impl = reflect::impl_reflect(&ty_args);
 
     TokenStream::from(reflect_impl)
-}
-
-/// Implements `DirectlyInheritableEntity` trait
-// The trait is not in `fyrox_core` though
-#[proc_macro_derive(Inherit, attributes(inherit))]
-pub fn inherit(input: TokenStream) -> TokenStream {
-    let ast = parse_macro_input!(input as DeriveInput);
-    TokenStream::from(inherit::impl_inherit(ast))
 }

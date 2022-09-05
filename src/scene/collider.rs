@@ -10,11 +10,10 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::InheritableVariable,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     scene::{
         base::{Base, BaseBuilder},
         graph::{
@@ -23,7 +22,6 @@ use crate::{
             Graph,
         },
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
-        DirectlyInheritableEntity,
     },
     utils::log::Log,
 };
@@ -459,41 +457,34 @@ impl ColliderShape {
 pub struct Collider {
     base: Base,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_shape")]
-    pub(crate) shape: TemplateVariable<ColliderShape>,
+    #[reflect(setter = "set_shape")]
+    pub(crate) shape: InheritableVariable<ColliderShape>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_friction")]
-    pub(crate) friction: TemplateVariable<f32>,
+    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(setter = "set_friction")]
+    pub(crate) friction: InheritableVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_density")]
-    pub(crate) density: TemplateVariable<Option<f32>>,
+    #[reflect(setter = "set_density")]
+    pub(crate) density: InheritableVariable<Option<f32>>,
 
-    #[inspect(min_value = 0.0, step = 0.05, deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_restitution")]
-    pub(crate) restitution: TemplateVariable<f32>,
+    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(setter = "set_restitution")]
+    pub(crate) restitution: InheritableVariable<f32>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_is_sensor")]
-    pub(crate) is_sensor: TemplateVariable<bool>,
+    #[reflect(setter = "set_is_sensor")]
+    pub(crate) is_sensor: InheritableVariable<bool>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_collision_groups")]
-    pub(crate) collision_groups: TemplateVariable<InteractionGroups>,
+    #[reflect(setter = "set_collision_groups")]
+    pub(crate) collision_groups: InheritableVariable<InteractionGroups>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_solver_groups")]
-    pub(crate) solver_groups: TemplateVariable<InteractionGroups>,
+    #[reflect(setter = "set_solver_groups")]
+    pub(crate) solver_groups: InheritableVariable<InteractionGroups>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_friction_combine_rule")]
-    pub(crate) friction_combine_rule: TemplateVariable<CoefficientCombineRule>,
+    #[reflect(setter = "set_friction_combine_rule")]
+    pub(crate) friction_combine_rule: InheritableVariable<CoefficientCombineRule>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_restitution_combine_rule")]
-    pub(crate) restitution_combine_rule: TemplateVariable<CoefficientCombineRule>,
+    #[reflect(setter = "set_restitution_combine_rule")]
+    pub(crate) restitution_combine_rule: InheritableVariable<CoefficientCombineRule>,
 
     #[visit(skip)]
     #[inspect(skip)]
@@ -501,27 +492,15 @@ pub struct Collider {
     pub(crate) native: Cell<ColliderHandle>,
 }
 
-impl_directly_inheritable_entity_trait!(Collider;
-    shape,
-    friction,
-    density,
-    restitution,
-    is_sensor,
-    collision_groups,
-    solver_groups,
-    friction_combine_rule,
-    restitution_combine_rule
-);
-
 impl Default for Collider {
     fn default() -> Self {
         Self {
             base: Default::default(),
             shape: Default::default(),
-            friction: TemplateVariable::new(0.0),
-            density: TemplateVariable::new(None),
-            restitution: TemplateVariable::new(0.0),
-            is_sensor: TemplateVariable::new(false),
+            friction: InheritableVariable::new(0.0),
+            density: InheritableVariable::new(None),
+            restitution: InheritableVariable::new(0.0),
+            is_sensor: InheritableVariable::new(false),
             collision_groups: Default::default(),
             solver_groups: Default::default(),
             friction_combine_rule: Default::default(),
@@ -781,20 +760,6 @@ impl NodeTrait for Collider {
         self.base.world_bounding_box()
     }
 
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Some(parent) = parent.cast::<Self>() {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
-    }
-
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
         self.base.restore_resources(resource_manager);
     }
@@ -962,13 +927,14 @@ impl ColliderBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::core::reflect::Reflect;
     use crate::scene::collider::BitMask;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         collider::{Collider, ColliderBuilder, ColliderShape, InteractionGroups},
         graph::physics::CoefficientCombineRule,
-        node::NodeTrait,
     };
+    use fyrox_core::variable::try_inherit_properties;
 
     #[test]
     fn test_collider_inheritance() {
@@ -986,7 +952,7 @@ mod test {
 
         let mut child = ColliderBuilder::new(BaseBuilder::new()).build_collider();
 
-        child.inherit(&parent).unwrap();
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
 
         let parent = parent.cast::<Collider>().unwrap();
 

@@ -12,11 +12,10 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
-        variable::{InheritError, InheritableVariable, TemplateVariable},
+        variable::InheritableVariable,
         visitor::{prelude::*, PodVecView},
     },
     engine::resource_manager::ResourceManager,
-    impl_directly_inheritable_entity_trait,
     material::Material,
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
@@ -28,7 +27,6 @@ use crate::{
             vertex::StaticVertex,
         },
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
-        DirectlyInheritableEntity,
     },
 };
 use std::{
@@ -258,13 +256,11 @@ pub struct TerrainRayCastResult {
 pub struct Terrain {
     base: Base,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_layers")]
-    layers: TemplateVariable<Vec<Layer>>,
+    #[reflect(setter = "set_layers")]
+    layers: InheritableVariable<Vec<Layer>>,
 
-    #[inspect(deref, is_modified = "is_modified()")]
-    #[reflect(deref, setter = "set_decal_layer_index")]
-    decal_layer_index: TemplateVariable<u8>,
+    #[reflect(setter = "set_decal_layer_index")]
+    decal_layer_index: InheritableVariable<u8>,
 
     #[inspect(read_only)]
     #[reflect(hidden)]
@@ -302,11 +298,6 @@ pub struct Terrain {
     #[reflect(hidden)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
 }
-
-impl_directly_inheritable_entity_trait!(Terrain;
-    layers,
-    decal_layer_index
-);
 
 impl Deref for Terrain {
     type Target = Base;
@@ -666,20 +657,6 @@ impl NodeTrait for Terrain {
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.local_bounding_box()
             .transform(&self.global_transform())
-    }
-
-    // Prefab inheritance resolving.
-    fn inherit(&mut self, parent: &Node) -> Result<(), InheritError> {
-        self.base.inherit_properties(parent)?;
-        if let Some(parent) = parent.cast::<Self>() {
-            self.try_inherit_self_properties(parent)?;
-        }
-        Ok(())
-    }
-
-    fn reset_inheritable_properties(&mut self) {
-        self.base.reset_inheritable_properties();
-        self.reset_self_inheritable_properties();
     }
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
