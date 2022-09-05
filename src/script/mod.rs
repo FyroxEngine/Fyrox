@@ -322,3 +322,88 @@ impl Script {
             .and_then(|c| c.downcast_mut())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        core::{
+            inspect::prelude::*, reflect::Reflect, uuid::Uuid, variable::try_inherit_properties,
+            variable::InheritableVariable, visitor::prelude::*,
+        },
+        impl_component_provider,
+        scene::base::Base,
+        script::{Script, ScriptTrait},
+    };
+
+    #[derive(Reflect, Inspect, Visit, Debug, Clone, Default)]
+    struct MyScript {
+        field: InheritableVariable<f32>,
+    }
+
+    impl_component_provider!(MyScript);
+
+    impl ScriptTrait for MyScript {
+        fn id(&self) -> Uuid {
+            todo!()
+        }
+
+        fn plugin_uuid(&self) -> Uuid {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn test_script_property_inheritance_on_nodes() {
+        let mut child = Base::default();
+
+        child.script = Some(Script::new(MyScript {
+            field: InheritableVariable::new(1.23),
+        }));
+
+        let mut parent = Base::default();
+
+        parent.script = Some(Script::new(MyScript {
+            field: InheritableVariable::new(3.21),
+        }));
+
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+
+        assert_eq!(
+            *child.script().unwrap().cast::<MyScript>().unwrap().field,
+            3.21
+        );
+    }
+
+    #[test]
+    fn test_script_property_inheritance() {
+        let mut child = Script::new(MyScript {
+            field: InheritableVariable::new(1.23),
+        });
+
+        let parent = Script::new(MyScript {
+            field: InheritableVariable::new(3.21),
+        });
+
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+
+        assert_eq!(*child.cast::<MyScript>().unwrap().field, 3.21);
+    }
+
+    #[test]
+    fn test_script_property_inheritance_option() {
+        let mut child = Some(Script::new(MyScript {
+            field: InheritableVariable::new(1.23),
+        }));
+
+        let parent = Some(Script::new(MyScript {
+            field: InheritableVariable::new(3.21),
+        }));
+
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+
+        assert_eq!(
+            *child.as_ref().unwrap().cast::<MyScript>().unwrap().field,
+            3.21
+        );
+    }
+}
