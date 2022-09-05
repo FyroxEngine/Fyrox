@@ -149,7 +149,7 @@ impl<T> InheritableVariable<T> {
 
     /// Replaces value and also raises the [`VariableFlags::MODIFIED`] flag.
     pub fn set(&mut self, value: T) -> T {
-        self.mark_modified();
+        self.mark_modified_and_need_sync();
         std::mem::replace(&mut self.value, value)
     }
 
@@ -180,7 +180,7 @@ impl<T> InheritableVariable<T> {
     ///
     /// The method raises `modified` flag, no matter if actual modification was made!
     pub fn get_mut(&mut self) -> &mut T {
-        self.mark_modified();
+        self.mark_modified_and_need_sync();
         &mut self.value
     }
 
@@ -198,7 +198,14 @@ impl<T> InheritableVariable<T> {
         self.flags.get().contains(VariableFlags::MODIFIED)
     }
 
-    fn mark_modified(&mut self) {
+    /// Marks value as modified, so its value won't be overwritten during property inheritance.
+    pub fn mark_modified(&mut self) {
+        self.flags
+            .get_mut()
+            .insert(VariableFlags::MODIFIED | VariableFlags::NEED_SYNC);
+    }
+
+    fn mark_modified_and_need_sync(&mut self) {
         self.flags
             .get_mut()
             .insert(VariableFlags::MODIFIED | VariableFlags::NEED_SYNC);
@@ -215,7 +222,7 @@ impl<T> Deref for InheritableVariable<T> {
 
 impl<T> DerefMut for InheritableVariable<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.mark_modified();
+        self.mark_modified_and_need_sync();
         &mut self.value
     }
 }
@@ -360,6 +367,10 @@ where
 
     fn clone_value_box(&self) -> Box<dyn Reflect> {
         Box::new(self.value.clone())
+    }
+
+    fn mark_modified(&mut self) {
+        self.mark_modified()
     }
 }
 
