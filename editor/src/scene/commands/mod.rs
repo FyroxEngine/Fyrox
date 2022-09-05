@@ -340,6 +340,7 @@ pub struct RevertSceneNodePropertyCommand {
     path: String,
     handle: Handle<Node>,
     value: Option<Box<dyn Reflect>>,
+    was_modified: bool,
 }
 
 impl RevertSceneNodePropertyCommand {
@@ -348,6 +349,7 @@ impl RevertSceneNodePropertyCommand {
             path,
             handle,
             value: None,
+            was_modified: false,
         }
     }
 }
@@ -410,6 +412,16 @@ impl Command for RevertSceneNodePropertyCommand {
                     self.path, e
                 )),
             }
+        } else {
+            // Just remove "modified" flag.
+            if let Ok(field) = child.as_reflect_mut().resolve_path_mut(&self.path) {
+                if let Some(inheritable_field) = field.as_inheritable_variable_mut() {
+                    self.was_modified = inheritable_field.is_modified();
+                    if self.was_modified {
+                        inheritable_field.reset_modified_flag();
+                    }
+                }
+            }
         }
     }
 
@@ -427,6 +439,16 @@ impl Command for RevertSceneNodePropertyCommand {
                     "Failed to revert property {}. Reason: no such property!",
                     self.path
                 ))
+            }
+        } else if self.was_modified {
+            // Set modified flag back.
+            if let Ok(field) = context.scene.graph[self.handle]
+                .as_reflect_mut()
+                .resolve_path_mut(&self.path)
+            {
+                if let Some(inheritable_field) = field.as_inheritable_variable_mut() {
+                    inheritable_field.mark_modified();
+                }
             }
         }
     }
