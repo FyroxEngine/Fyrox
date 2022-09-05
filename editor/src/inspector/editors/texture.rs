@@ -1,7 +1,6 @@
 use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
-use fyrox::gui::inspector::editors::PropertyEditorTranslationContext;
 use fyrox::{
-    core::{make_relative_path, pool::Handle},
+    core::{algebra::Vector2, make_relative_path, pool::Handle},
     engine::resource_manager::ResourceManager,
     gui::{
         define_constructor,
@@ -9,7 +8,7 @@ use fyrox::{
         inspector::{
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-                PropertyEditorMessageContext,
+                PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
             FieldKind, InspectorError, PropertyChanged,
         },
@@ -20,9 +19,8 @@ use fyrox::{
     resource::texture::Texture,
     utils::into_gui_texture,
 };
-use std::any::Any;
 use std::{
-    any::TypeId,
+    any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
@@ -170,18 +168,20 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
         let value = ctx.property_info.cast_value::<Option<Texture>>()?;
 
         Ok(PropertyEditorInstance::Simple {
-            editor: TextureEditorBuilder::new(WidgetBuilder::new())
-                .with_texture(value.clone())
-                .build(
-                    ctx.build_context,
-                    ctx.environment
-                        .as_ref()
-                        .unwrap()
-                        .as_any()
-                        .downcast_ref::<EditorEnvironment>()
-                        .map(|e| e.resource_manager.clone())
-                        .unwrap(),
-                ),
+            editor: TextureEditorBuilder::new(
+                WidgetBuilder::new().with_min_size(Vector2::new(0.0, 17.0)),
+            )
+            .with_texture(value.clone())
+            .build(
+                ctx.build_context,
+                ctx.environment
+                    .as_ref()
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<EditorEnvironment>()
+                    .map(|e| e.resource_manager.clone())
+                    .unwrap(),
+            ),
         })
     }
 
