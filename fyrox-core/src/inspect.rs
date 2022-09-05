@@ -1,4 +1,4 @@
-//! Lightweight read-only runtime reflection.
+//! Inspection allows you to obtain a metadata of an object.
 //!
 //! See [`Inspect`] for more info.
 
@@ -126,8 +126,11 @@ impl<'a> PropertyInfo<'a> {
     }
 }
 
-/// A trait that allows you to "look inside" an object that implements it. It is used for lightweight
-/// runtime read-only reflection. The most common use case for it is various editors.
+/// A trait that allows you to "look inside" an object that implements it. It is used to get metadata
+/// (such as name, description, precision, etc.) of object's properties. The most common use case for
+/// it is various editors.
+///
+/// ## Implementation
 ///
 /// It is not advised to manually implement this trait. You should use `#[derive(Inspect, Reflect)]`
 /// whenever possible.
@@ -141,9 +144,6 @@ impl<'a> PropertyInfo<'a> {
 ///
 /// - `#[inspect(display_name = "Human-readable Name")]` - override display name.
 /// - `#[inspect(group = "Group Name")]` - override group name.
-/// - `#[inspect(expand)]` - extends the list of properties in case of composition, in other words it
-/// "flattens" and exposes the properties of an inner object. Useful when you have a structure that
-/// has some fields that are complex objects that implements `Inspect` too.
 pub trait Inspect {
     /// Returns information about "public" properties.
     fn properties(&self) -> Vec<PropertyInfo<'_>>;
