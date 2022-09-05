@@ -471,24 +471,47 @@ mod test {
         assert!(va.value_equals(&vb))
     }
 
-    #[test]
-    fn test_enum_inheritance() {
-        #[derive(Reflect)]
-        enum Foo {
-            Bar(InheritableVariable<f32>),
-            Baz {
-                foo: InheritableVariable<f32>,
-                foobar: InheritableVariable<u32>,
-            },
-        }
+    #[derive(Reflect)]
+    enum SomeEnum {
+        Bar(InheritableVariable<f32>),
+        Baz {
+            foo: InheritableVariable<f32>,
+            foobar: InheritableVariable<u32>,
+        },
+    }
 
-        let mut child = Foo::Bar(InheritableVariable::new(1.23));
-        let parent = Foo::Bar(InheritableVariable::new(3.21));
+    #[test]
+    fn test_enum_inheritance_tuple() {
+        let mut child = SomeEnum::Bar(InheritableVariable::new(1.23));
+        let parent = SomeEnum::Bar(InheritableVariable::new(3.21));
 
         try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
 
-        if let Foo::Bar(value) = child {
+        if let SomeEnum::Bar(value) = child {
             assert_eq!(*value, 3.21);
+        } else {
+            unreachable!()
+        }
+    }
+
+    #[test]
+    fn test_enum_inheritance_struct() {
+        let mut child = SomeEnum::Baz {
+            foo: InheritableVariable::new(1.23),
+            foobar: InheritableVariable::new(123),
+        };
+        let parent = SomeEnum::Baz {
+            foo: InheritableVariable::new(3.21),
+            foobar: InheritableVariable::new(321),
+        };
+
+        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+
+        if let SomeEnum::Baz { foo, foobar } = child {
+            assert_eq!(*foo, 3.21);
+            assert_eq!(*foobar, 321);
+        } else {
+            unreachable!()
         }
     }
 }
