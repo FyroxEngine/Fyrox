@@ -693,7 +693,11 @@ impl Control for TextBox {
                                             self.get_absolute_position(selection_range.end),
                                         ) {
                                             let _ = clipboard.set_contents(String::from(
-                                                &self.text()[begin..end],
+                                                &self.text()[if begin < end {
+                                                    begin..end
+                                                } else {
+                                                    end..begin
+                                                }],
                                             ));
                                         }
                                     }
