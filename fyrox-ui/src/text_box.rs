@@ -644,7 +644,7 @@ impl Control for TextBox {
                                         begin: prev_position,
                                         end: Position {
                                             line: self.caret_position.line,
-                                            offset: self.caret_position.offset - 1,
+                                            offset: self.caret_position.offset,
                                         },
                                     });
                                 } else {
@@ -659,13 +659,12 @@ impl Control for TextBox {
                                     self.selection_range = None;
                                 } else if ui.keyboard_modifiers().shift {
                                     let prev_position = self.caret_position;
-                                    self.caret_position.line = 0;
                                     self.caret_position.offset = 0;
                                     self.selection_range = Some(SelectionRange {
                                         begin: self.caret_position,
                                         end: Position {
                                             line: prev_position.line,
-                                            offset: prev_position.offset.saturating_sub(1),
+                                            offset: prev_position.offset,
                                         },
                                     });
                                 } else {
