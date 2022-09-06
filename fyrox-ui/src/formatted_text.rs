@@ -179,7 +179,7 @@ impl FormattedText {
         let mut width = 0.0;
         let font = self.font.0.lock();
         for index in range {
-            width += font.glyph_advance(self.text[index].glyph_index);
+            width += font.glyph_advance(self.text[index].char_code);
         }
         width
     }
