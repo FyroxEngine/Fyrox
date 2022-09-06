@@ -83,15 +83,21 @@ pub enum WidgetMessage {
     /// Direction: **From UI**.
     KeyUp(KeyCode),
 
-    /// Initiated when widget received focus. In most cases focus is received by clicking on
-    /// widget.
+    /// Initiated when widget received focus (when direction is [`MessageDirection::FromWidget`]). In most cases focus is received
+    /// by clicking on widget. You can request focus explicitly by sending this message to a widget with [`MessageDirection::ToWidget`]
     ///
-    /// Direction: **From UI**.
-    GotFocus,
+    /// Direction: **From UI/To UI**.
+    Focus,
+
+    /// Initiated when widget has lost its focus (when direction is [`MessageDirection::FromWidget`]). Can be used to
+    /// removed focus from widget if sent with [`MessageDirection::ToWidget`]
+    ///
+    /// Direction: **From UI/To UI**.
+    Unfocus,
 
     /// Initiated when dragging of a widget has started.
     ///
-    /// Direction: **From UI**.
+    /// Direction: **From UI/**.
     DragStarted(Handle<UiNode>),
 
     /// Initiated when user drags a widget over some other widget.
@@ -103,11 +109,6 @@ pub enum WidgetMessage {
     ///
     /// Direction: **From UI**.
     Drop(Handle<UiNode>),
-
-    /// Initiated when widget has lost its focus.
-    ///
-    /// Direction: **From UI**.
-    LostFocus,
 
     /// A request to make widget topmost. Widget can be made topmost only in the same hierarchy
     /// level only!
@@ -311,10 +312,10 @@ impl WidgetMessage {
     define_constructor!(WidgetMessage:LayoutTransform => fn layout_transform(Matrix3<f32>), layout: false);
     define_constructor!(WidgetMessage:RenderTransform => fn render_transform(Matrix3<f32>), layout: false);
     define_constructor!(WidgetMessage:ContextMenu => fn context_menu(Handle<UiNode>), layout: false);
+    define_constructor!(WidgetMessage:Focus => fn focus(), layout: false);
+    define_constructor!(WidgetMessage:Unfocus => fn unfocus(), layout: false);
 
     // Internal messages. Do not use.
-    define_constructor!(WidgetMessage:GotFocus => fn got_focus(), layout: false);
-    define_constructor!(WidgetMessage:LostFocus => fn lost_focus(), layout: false);
     define_constructor!(WidgetMessage:MouseDown => fn mouse_down(pos: Vector2<f32>, button: MouseButton), layout: false);
     define_constructor!(WidgetMessage:MouseUp => fn mouse_up(pos: Vector2<f32>, button: MouseButton), layout: false);
     define_constructor!(WidgetMessage:MouseMove => fn mouse_move(pos: Vector2<f32>, state: MouseState), layout: false);

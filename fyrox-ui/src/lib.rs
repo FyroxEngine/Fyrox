@@ -733,6 +733,7 @@ impl UserInterface {
             double_click_time_slice: 0.75,
         };
         ui.root_canvas = ui.add_node(UiNode::new(Canvas::new(WidgetBuilder::new().build())));
+        ui.keyboard_focus_node = ui.root_canvas;
         ui
     }
 
@@ -1538,6 +1539,20 @@ impl UserInterface {
                                 }
                             }
                         }
+                        WidgetMessage::Focus => {
+                            if message.destination().is_some()
+                                && message.direction() == MessageDirection::ToWidget
+                            {
+                                self.request_focus(message.destination());
+                            }
+                        }
+                        WidgetMessage::Unfocus => {
+                            if message.destination().is_some()
+                                && message.direction() == MessageDirection::ToWidget
+                            {
+                                self.request_focus(self.root_canvas);
+                            }
+                        }
                         WidgetMessage::Topmost => {
                             if message.destination().is_some() {
                                 self.make_topmost(message.destination());
@@ -1769,6 +1784,26 @@ impl UserInterface {
         }
     }
 
+    fn request_focus(&mut self, new_focused: Handle<UiNode>) {
+        if self.keyboard_focus_node != new_focused {
+            if self.keyboard_focus_node.is_some() {
+                self.send_message(WidgetMessage::unfocus(
+                    self.keyboard_focus_node,
+                    MessageDirection::FromWidget,
+                ));
+            }
+
+            self.keyboard_focus_node = new_focused;
+
+            if self.keyboard_focus_node.is_some() {
+                self.send_message(WidgetMessage::focus(
+                    self.keyboard_focus_node,
+                    MessageDirection::FromWidget,
+                ));
+            }
+        }
+    }
+
     /// Translates raw window event into some specific UI message. This is one of the
     /// most important methods of UI. You must call it each time you received a message
     /// from a window.
@@ -1838,23 +1873,7 @@ impl UserInterface {
                             self.drag_context.click_pos = self.cursor_position;
                         }
 
-                        if self.keyboard_focus_node != self.picked_node {
-                            if self.keyboard_focus_node.is_some() {
-                                self.send_message(WidgetMessage::lost_focus(
-                                    self.keyboard_focus_node,
-                                    MessageDirection::FromWidget,
-                                ));
-                            }
-
-                            self.keyboard_focus_node = self.picked_node;
-
-                            if self.keyboard_focus_node.is_some() {
-                                self.send_message(WidgetMessage::got_focus(
-                                    self.keyboard_focus_node,
-                                    MessageDirection::FromWidget,
-                                ));
-                            }
-                        }
+                        self.request_focus(self.picked_node);
 
                         if self.picked_node.is_some() {
                             self.send_message(WidgetMessage::mouse_down(
@@ -2473,9 +2492,10 @@ mod test {
         border::BorderBuilder,
         core::algebra::Vector2,
         message::MessageDirection,
+        text_box::{TextBoxBuilder, TextBoxMessage},
         transform_size,
         widget::{WidgetBuilder, WidgetMessage},
-        UserInterface,
+        OsEvent, UserInterface,
     };
     use fyrox_core::algebra::{Rotation2, UnitComplex};
 
@@ -2506,5 +2526,61 @@ mod test {
         let expected_position = (screen_size - widget_size).scale(0.5);
         let actual_position = ui.node(widget).actual_local_position();
         assert_eq!(actual_position, expected_position);
+    }
+
+    #[test]
+    fn test_keyboard_focus() {
+        let screen_size = Vector2::new(1000.0, 1000.0);
+        let mut ui = UserInterface::new(screen_size);
+
+        let text_box = TextBoxBuilder::new(WidgetBuilder::new()).build(&mut ui.build_ctx());
+
+        // Make sure layout was calculated.
+        ui.update(screen_size, 0.0);
+
+        assert!(ui.poll_message().is_none());
+
+        ui.send_message(WidgetMessage::focus(text_box, MessageDirection::ToWidget));
+
+        // Ensure that the message has gotten in the queue.
+        assert_eq!(
+            ui.poll_message(),
+            Some(WidgetMessage::focus(text_box, MessageDirection::ToWidget))
+        );
+        // Root must be unfocused right before new widget is focused.
+        assert_eq!(
+            ui.poll_message(),
+            Some(WidgetMessage::unfocus(
+                ui.root(),
+                MessageDirection::FromWidget
+            ))
+        );
+        // Finally there should be a response from newly focused node.
+        assert_eq!(
+            ui.poll_message(),
+            Some(WidgetMessage::focus(text_box, MessageDirection::FromWidget))
+        );
+
+        // Do additional check - emulate key press of "A" and check if the focused text box has accepted it.
+        ui.process_os_event(&OsEvent::Character('A'));
+
+        assert_eq!(
+            ui.poll_message(),
+            Some(WidgetMessage::text(
+                text_box,
+                MessageDirection::FromWidget,
+                'A'
+            ))
+        );
+        assert_eq!(
+            ui.poll_message(),
+            Some(TextBoxMessage::text(
+                text_box,
+                MessageDirection::ToWidget,
+                "A".to_string()
+            ))
+        );
+
+        assert!(ui.poll_message().is_none());
     }
 }

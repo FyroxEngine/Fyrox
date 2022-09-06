@@ -168,7 +168,7 @@ impl<T: NumericType> Control for NumericUpDown<T> {
         if let Some(msg) = message.data::<WidgetMessage>() {
             if message.destination() == self.field {
                 match msg {
-                    WidgetMessage::LostFocus => {
+                    WidgetMessage::Unfocus => {
                         self.try_parse_value(ui);
                     }
                     WidgetMessage::KeyDown(KeyCode::Return) => {

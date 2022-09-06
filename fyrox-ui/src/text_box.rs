@@ -714,23 +714,27 @@ impl Control for TextBox {
                             _ => (),
                         }
                     }
-                    WidgetMessage::GotFocus => {
-                        self.reset_blink();
-                        self.selection_range = None;
-                        self.has_focus = true;
+                    WidgetMessage::Focus => {
+                        if message.direction() == MessageDirection::FromWidget {
+                            self.reset_blink();
+                            self.selection_range = None;
+                            self.has_focus = true;
+                        }
                     }
-                    WidgetMessage::LostFocus => {
-                        self.selection_range = None;
-                        self.has_focus = false;
+                    WidgetMessage::Unfocus => {
+                        if message.direction() == MessageDirection::FromWidget {
+                            self.selection_range = None;
+                            self.has_focus = false;
 
-                        if self.commit_mode == TextCommitMode::LostFocus
-                            || self.commit_mode == TextCommitMode::LostFocusPlusEnter
-                        {
-                            ui.send_message(TextBoxMessage::text(
-                                self.handle,
-                                MessageDirection::FromWidget,
-                                self.text(),
-                            ));
+                            if self.commit_mode == TextCommitMode::LostFocus
+                                || self.commit_mode == TextCommitMode::LostFocusPlusEnter
+                            {
+                                ui.send_message(TextBoxMessage::text(
+                                    self.handle,
+                                    MessageDirection::FromWidget,
+                                    self.text(),
+                                ));
+                            }
                         }
                     }
                     WidgetMessage::MouseDown { pos, button } => {
