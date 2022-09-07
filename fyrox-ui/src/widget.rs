@@ -97,7 +97,7 @@ pub enum WidgetMessage {
 
     /// Initiated when dragging of a widget has started.
     ///
-    /// Direction: **From UI/**.
+    /// Direction: **From UI**.
     DragStarted(Handle<UiNode>),
 
     /// Initiated when user drags a widget over some other widget.

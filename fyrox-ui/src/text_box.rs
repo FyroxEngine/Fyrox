@@ -358,9 +358,15 @@ impl TextBox {
                         };
                     let char_bounds = Rect::new(x, line_bounds.y(), width, height);
                     if char_bounds.contains(screen_pos) {
+                        let char_bounds_center_x = char_bounds.x() + char_bounds.w() * 0.5;
+
                         return Some(Position {
                             line: line_index,
-                            offset,
+                            offset: if screen_pos.x <= char_bounds_center_x {
+                                offset
+                            } else {
+                                (offset + 1).min(line.len())
+                            },
                         });
                     }
                     x += advance;
@@ -569,10 +575,6 @@ impl Control for TextBox {
                         }
                     }
                     WidgetMessage::KeyDown(code) => {
-                        // TextBox "eats" all input by default, some of the keys are used for input control while
-                        // others are used directly to enter text.
-                        message.set_handled(true);
-
                         match code {
                             KeyCode::Up => {
                                 self.move_caret_y(
@@ -716,6 +718,10 @@ impl Control for TextBox {
                             }
                             _ => (),
                         }
+
+                        // TextBox "eats" all input by default, some of the keys are used for input control while
+                        // others are used directly to enter text.
+                        message.set_handled(true);
                     }
                     WidgetMessage::Focus => {
                         if message.direction() == MessageDirection::FromWidget {
@@ -748,11 +754,6 @@ impl Control for TextBox {
 
                             if let Some(position) = self.screen_pos_to_text_pos(*pos) {
                                 self.caret_position = position;
-
-                                self.selection_range = Some(SelectionRange {
-                                    begin: position,
-                                    end: position,
-                                })
                             }
 
                             ui.capture_mouse(self.handle());
@@ -761,15 +762,14 @@ impl Control for TextBox {
                     WidgetMessage::MouseMove { pos, .. } => {
                         if self.selecting {
                             if let Some(position) = self.screen_pos_to_text_pos(*pos) {
-                                if let Some(ref mut sel_range) = self.selection_range {
-                                    if position.offset > sel_range.begin.offset {
-                                        sel_range.end = Position {
-                                            line: position.line,
-                                            offset: position.offset + 1,
-                                        };
-                                    } else {
-                                        sel_range.end = position;
-                                    }
+                                if let Some(ref mut selection_range) = self.selection_range {
+                                    self.caret_position = position;
+                                    selection_range.end = position;
+                                } else if position != self.caret_position {
+                                    self.selection_range = Some(SelectionRange {
+                                        begin: self.caret_position,
+                                        end: position,
+                                    })
                                 }
                             }
                         }
