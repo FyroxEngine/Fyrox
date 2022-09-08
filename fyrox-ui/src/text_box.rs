@@ -329,6 +329,10 @@ impl TextBox {
     }
 
     pub fn screen_pos_to_text_pos(&self, screen_pos: Vector2<f32>) -> Option<Position> {
+        if !self.screen_bounds().contains(screen_pos) {
+            return None;
+        }
+
         let caret_pos = self.widget.screen_position();
         let font = self.formatted_text.borrow().get_font();
         let font = font.0.lock();
@@ -373,6 +377,29 @@ impl TextBox {
                 }
             }
         }
+
+        // Additionally check each line again, but now check if the cursor is either at left or right side of the cursor.
+        // This allows us to set caret at lines by clicking at either ends of it.
+        for (line_index, line) in self.formatted_text.borrow().get_lines().iter().enumerate() {
+            let line_x_begin = caret_pos.x + line.x_offset;
+            let line_x_end = line_x_begin + line.width;
+            let line_y_begin = caret_pos.y + line.y_offset;
+            let line_y_end = line_y_begin + font.ascender();
+            if (line_y_begin..line_y_end).contains(&screen_pos.y) {
+                if screen_pos.x < line_x_begin {
+                    return Some(Position {
+                        line: line_index,
+                        offset: 0,
+                    });
+                } else if screen_pos.x > line_x_end {
+                    return Some(Position {
+                        line: line_index,
+                        offset: line.len(),
+                    });
+                }
+            }
+        }
+
         None
     }
 
