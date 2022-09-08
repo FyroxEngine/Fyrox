@@ -244,6 +244,71 @@ impl TextBox {
             .map(|line| line.begin + cmp::min(position.offset, line.len()))
     }
 
+    pub fn char_index_to_position(&self, i: usize) -> Option<Position> {
+        self.formatted_text
+            .borrow()
+            .get_lines()
+            .iter()
+            .enumerate()
+            .find_map(|(line_index, line)| {
+                if (line.begin..line.end).contains(&i) {
+                    Some(Position {
+                        line: line_index,
+                        offset: i - line.begin,
+                    })
+                } else {
+                    None
+                }
+            })
+    }
+
+    pub fn end_position(&self) -> Position {
+        let formatted_text = self.formatted_text.borrow();
+        let lines = formatted_text.get_lines();
+        lines
+            .last()
+            .map(|line| Position {
+                line: lines.len() - 1,
+                offset: line.len(),
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn find_next_word(&self, from: Position) -> Position {
+        self.get_absolute_position(from)
+            .and_then(|i| {
+                self.formatted_text
+                    .borrow()
+                    .get_raw_text()
+                    .iter()
+                    .enumerate()
+                    .skip(i)
+                    .skip_while(|(_, c)| !c.is_whitespace())
+                    .skip_while(|(_, c)| c.is_whitespace())
+                    .next()
+                    .and_then(|(n, _)| self.char_index_to_position(n))
+            })
+            .unwrap_or_else(|| self.end_position())
+    }
+
+    pub fn find_prev_word(&self, from: Position) -> Position {
+        self.get_absolute_position(from)
+            .and_then(|i| {
+                let text = self.formatted_text.borrow();
+                let len = text.get_raw_text().len();
+                text.get_raw_text()
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .skip(len.saturating_sub(i))
+                    .skip_while(|(_, c)| !c.is_whitespace())
+                    .skip_while(|(_, c)| c.is_whitespace())
+                    .next()
+                    .and_then(|(n, _)| self.char_index_to_position(n + 1))
+            })
+            .unwrap_or_default()
+    }
+
     /// Inserts given character at current caret position.
     fn insert_char(&mut self, c: char, ui: &UserInterface) {
         if !c.is_control() {
@@ -618,18 +683,28 @@ impl Control for TextBox {
                                 );
                             }
                             KeyCode::Right => {
-                                self.move_caret_x(
-                                    1,
-                                    HorizontalDirection::Right,
-                                    ui.keyboard_modifiers().shift,
-                                );
+                                if ui.keyboard_modifiers.control {
+                                    self.caret_position = self.find_next_word(self.caret_position);
+                                    self.blink_timer = 0.0;
+                                } else {
+                                    self.move_caret_x(
+                                        1,
+                                        HorizontalDirection::Right,
+                                        ui.keyboard_modifiers().shift,
+                                    );
+                                }
                             }
                             KeyCode::Left => {
-                                self.move_caret_x(
-                                    1,
-                                    HorizontalDirection::Left,
-                                    ui.keyboard_modifiers().shift,
-                                );
+                                if ui.keyboard_modifiers.control {
+                                    self.caret_position = self.find_prev_word(self.caret_position);
+                                    self.blink_timer = 0.0;
+                                } else {
+                                    self.move_caret_x(
+                                        1,
+                                        HorizontalDirection::Left,
+                                        ui.keyboard_modifiers().shift,
+                                    );
+                                }
                             }
                             KeyCode::Delete if !message.handled() && self.editable => {
                                 if let Some(range) = self.selection_range {

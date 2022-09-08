@@ -85,6 +85,13 @@ impl Character {
             glyph_index: font.glyph_index(char_code).unwrap_or_default() as u32,
         }
     }
+
+    #[inline]
+    pub fn is_whitespace(&self) -> bool {
+        char::from_u32(self.char_code)
+            .unwrap_or_default()
+            .is_whitespace()
+    }
 }
 
 #[derive(Clone, Debug)]
