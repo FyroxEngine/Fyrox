@@ -324,29 +324,30 @@ impl FormattedText {
                     }
                     WrapMode::Word => {
                         if word_ended {
-                            let word = word.take().unwrap();
-                            if word.width > self.constraint.x {
-                                // The word is longer than available constraints.
-                                // Push the word as a whole.
-                                current_line.width += word.width;
-                                current_line.end += word.length;
-                                self.lines.push(current_line);
-                                current_line.begin = current_line.end;
-                                current_line.width = 0.0;
-                                total_height += font.ascender();
-                            } else if current_line.width + word.width > self.constraint.x {
-                                // The word will exceed horizontal constraint, we have to
-                                // commit current line and move the word in the next line.
-                                self.lines.push(current_line);
-                                current_line.begin = i - word.length;
-                                current_line.end = i;
-                                current_line.width = word.width;
-                                total_height += font.ascender();
-                            } else {
-                                // The word does not exceed horizontal constraint, append it
-                                // to the line.
-                                current_line.width += word.width;
-                                current_line.end += word.length;
+                            if let Some(word) = word.take() {
+                                if word.width > self.constraint.x {
+                                    // The word is longer than available constraints.
+                                    // Push the word as a whole.
+                                    current_line.width += word.width;
+                                    current_line.end += word.length;
+                                    self.lines.push(current_line);
+                                    current_line.begin = current_line.end;
+                                    current_line.width = 0.0;
+                                    total_height += font.ascender();
+                                } else if current_line.width + word.width > self.constraint.x {
+                                    // The word will exceed horizontal constraint, we have to
+                                    // commit current line and move the word in the next line.
+                                    self.lines.push(current_line);
+                                    current_line.begin = i - word.length;
+                                    current_line.end = i;
+                                    current_line.width = word.width;
+                                    total_height += font.ascender();
+                                } else {
+                                    // The word does not exceed horizontal constraint, append it
+                                    // to the line.
+                                    current_line.width += word.width;
+                                    current_line.end += word.length;
+                                }
                             }
                         }
 
