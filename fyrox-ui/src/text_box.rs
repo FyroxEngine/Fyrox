@@ -683,7 +683,8 @@ impl Control for TextBox {
                             KeyCode::Right => {
                                 if ui.keyboard_modifiers.control {
                                     self.caret_position = self.find_next_word(self.caret_position);
-                                    self.blink_timer = 0.0;
+                                    self.reset_blink();
+                                    self.selection_range = None;
                                 } else {
                                     self.move_caret_x(
                                         1,
@@ -695,7 +696,8 @@ impl Control for TextBox {
                             KeyCode::Left => {
                                 if ui.keyboard_modifiers.control {
                                     self.caret_position = self.find_prev_word(self.caret_position);
-                                    self.blink_timer = 0.0;
+                                    self.reset_blink();
+                                    self.selection_range = None;
                                 } else {
                                     self.move_caret_x(
                                         1,
