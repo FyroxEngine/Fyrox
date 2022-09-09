@@ -309,12 +309,16 @@ impl TextBox {
 
     /// Inserts given character at current caret position.
     fn insert_char(&mut self, c: char, ui: &UserInterface) {
-        let position = self.get_absolute_position(self.caret_position).unwrap_or(0);
+        let position = self
+            .get_absolute_position(self.caret_position)
+            .unwrap_or_default();
         self.formatted_text
             .borrow_mut()
             .insert_char(c, position)
             .build();
-        self.move_caret_x(1, HorizontalDirection::Right, false);
+        self.caret_position = self
+            .char_index_to_position(position + 1)
+            .unwrap_or_default();
         ui.send_message(TextBoxMessage::text(
             self.handle,
             MessageDirection::ToWidget,
@@ -323,9 +327,16 @@ impl TextBox {
     }
 
     fn insert_str(&mut self, str: &str, ui: &UserInterface) {
-        let position = self.get_absolute_position(self.caret_position).unwrap_or(0);
-        self.formatted_text.borrow_mut().insert_str(str, position);
-        self.move_caret_x(str.chars().count(), HorizontalDirection::Right, false);
+        let position = self
+            .get_absolute_position(self.caret_position)
+            .unwrap_or_default();
+        let mut text = self.formatted_text.borrow_mut();
+        text.insert_str(str, position);
+        text.build();
+        drop(text);
+        self.caret_position = self
+            .char_index_to_position(position + str.chars().count())
+            .unwrap_or_default();
         ui.send_message(TextBoxMessage::text(
             self.handle,
             MessageDirection::ToWidget,
