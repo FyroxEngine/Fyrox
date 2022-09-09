@@ -14,7 +14,7 @@ use copypasta::ClipboardProvider;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
-    cmp::{self, Ordering},
+    cmp::Ordering,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     rc::Rc,
@@ -236,12 +236,37 @@ impl TextBox {
         }
     }
 
-    pub fn get_absolute_position(&self, position: Position) -> Option<usize> {
+    pub fn position_to_char_index_internal(
+        &self,
+        position: Position,
+        clamp: bool,
+    ) -> Option<usize> {
         self.formatted_text
             .borrow()
             .get_lines()
             .get(position.line)
-            .map(|line| line.begin + cmp::min(position.offset, line.len()))
+            .map(|line| {
+                line.begin
+                    + position.offset.min(if clamp {
+                        line.len().saturating_sub(1)
+                    } else {
+                        line.len()
+                    })
+            })
+    }
+
+    /// Maps input [`Position`] to a linear position in character array. Output index can be equal
+    /// to length of text, this means that position is at the end of the text. You should check
+    /// the index before trying to use it to fetch data from inner array of characters.
+    pub fn position_to_char_index_unclamped(&self, position: Position) -> Option<usize> {
+        self.position_to_char_index_internal(position, false)
+    }
+
+    /// Maps input [`Position`] to a linear position in character array. Output index will always
+    /// be valid for fetching, if the method returned `Some(index)`. The index however cannot be
+    /// used for text insertion, because it cannot point to a "place after last char".
+    pub fn position_to_char_index_clamped(&self, position: Position) -> Option<usize> {
+        self.position_to_char_index_internal(position, true)
     }
 
     pub fn char_index_to_position(&self, i: usize) -> Option<Position> {
@@ -275,7 +300,7 @@ impl TextBox {
     }
 
     pub fn find_next_word(&self, from: Position) -> Position {
-        self.get_absolute_position(from)
+        self.position_to_char_index_unclamped(from)
             .and_then(|i| {
                 self.formatted_text
                     .borrow()
@@ -291,7 +316,7 @@ impl TextBox {
     }
 
     pub fn find_prev_word(&self, from: Position) -> Position {
-        self.get_absolute_position(from)
+        self.position_to_char_index_unclamped(from)
             .and_then(|i| {
                 let text = self.formatted_text.borrow();
                 let len = text.get_raw_text().len();
@@ -310,7 +335,7 @@ impl TextBox {
     /// Inserts given character at current caret position.
     fn insert_char(&mut self, c: char, ui: &UserInterface) {
         let position = self
-            .get_absolute_position(self.caret_position)
+            .position_to_char_index_unclamped(self.caret_position)
             .unwrap_or_default();
         self.formatted_text
             .borrow_mut()
@@ -328,7 +353,7 @@ impl TextBox {
 
     fn insert_str(&mut self, str: &str, ui: &UserInterface) {
         let position = self
-            .get_absolute_position(self.caret_position)
+            .position_to_char_index_unclamped(self.caret_position)
             .unwrap_or_default();
         let mut text = self.formatted_text.borrow_mut();
         text.insert_str(str, position);
@@ -349,7 +374,7 @@ impl TextBox {
     }
 
     fn remove_char(&mut self, direction: HorizontalDirection, ui: &UserInterface) {
-        if let Some(position) = self.get_absolute_position(self.caret_position) {
+        if let Some(position) = self.position_to_char_index_unclamped(self.caret_position) {
             let text_len = self.get_text_len();
             if text_len != 0 {
                 let position = match direction {
@@ -385,8 +410,8 @@ impl TextBox {
 
     fn remove_range(&mut self, ui: &UserInterface, selection: SelectionRange) {
         let selection = selection.normalized();
-        if let Some(begin) = self.get_absolute_position(selection.begin) {
-            if let Some(end) = self.get_absolute_position(selection.end) {
+        if let Some(begin) = self.position_to_char_index_unclamped(selection.begin) {
+            if let Some(end) = self.position_to_char_index_unclamped(selection.end) {
                 self.formatted_text.borrow_mut().remove_range(begin..end);
                 self.formatted_text.borrow_mut().build();
 
@@ -497,7 +522,7 @@ impl TextBox {
     }
 
     fn select_word(&mut self, position: Position) {
-        if let Some(index) = self.get_absolute_position(position) {
+        if let Some(index) = self.position_to_char_index_clamped(position) {
             let text_ref = self.formatted_text.borrow();
             let text = text_ref.get_raw_text();
             let search_whitespace = !text[index].is_whitespace();
@@ -846,8 +871,12 @@ impl Control for TextBox {
                                 if let Some(clipboard) = ui.clipboard_mut() {
                                     if let Some(selection_range) = self.selection_range.as_ref() {
                                         if let (Some(begin), Some(end)) = (
-                                            self.get_absolute_position(selection_range.begin),
-                                            self.get_absolute_position(selection_range.end),
+                                            self.position_to_char_index_unclamped(
+                                                selection_range.begin,
+                                            ),
+                                            self.position_to_char_index_unclamped(
+                                                selection_range.end,
+                                            ),
                                         ) {
                                             let _ = clipboard.set_contents(String::from(
                                                 &self.text()[if begin < end {
