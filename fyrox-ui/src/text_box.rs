@@ -366,8 +366,11 @@ impl TextBox {
                         position
                     }
                 };
-                self.formatted_text.borrow_mut().remove_at(position);
-                self.formatted_text.borrow_mut().build();
+
+                let mut text = self.formatted_text.borrow_mut();
+                text.remove_at(position);
+                text.build();
+                drop(text);
 
                 ui.send_message(TextBoxMessage::text(
                     self.handle(),
@@ -375,9 +378,7 @@ impl TextBox {
                     self.formatted_text.borrow().text(),
                 ));
 
-                if direction == HorizontalDirection::Left {
-                    self.move_caret_x(1, direction, false);
-                }
+                self.caret_position = self.char_index_to_position(position).unwrap_or_default();
             }
         }
     }
