@@ -1824,6 +1824,7 @@ impl UserInterface {
                         let picked_changed =
                             self.try_set_picked_node(self.hit_test(self.cursor_position));
 
+                        let mut emit_double_click = false;
                         if !picked_changed {
                             match self.double_click_entries.entry(button) {
                                 Entry::Occupied(e) => {
@@ -1833,12 +1834,7 @@ impl UserInterface {
                                         if entry.click_count >= 2 {
                                             entry.click_count = 0;
                                             entry.timer = self.double_click_time_slice;
-
-                                            self.send_message(WidgetMessage::double_click(
-                                                self.picked_node,
-                                                MessageDirection::FromWidget,
-                                                button,
-                                            ));
+                                            emit_double_click = true;
                                         }
                                     } else {
                                         entry.timer = self.double_click_time_slice;
@@ -1883,6 +1879,15 @@ impl UserInterface {
                                 button,
                             ));
                             event_processed = true;
+                        }
+
+                        // Make sure double click will be emitted after mouse down event.
+                        if emit_double_click {
+                            self.send_message(WidgetMessage::double_click(
+                                self.picked_node,
+                                MessageDirection::FromWidget,
+                                button,
+                            ));
                         }
                     }
                     ButtonState::Released => {
