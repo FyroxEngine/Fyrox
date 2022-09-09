@@ -251,7 +251,7 @@ impl TextBox {
             .iter()
             .enumerate()
             .find_map(|(line_index, line)| {
-                if (line.begin..line.end).contains(&i) {
+                if (line.begin..=line.end).contains(&i) {
                     Some(Position {
                         line: line_index,
                         offset: i - line.begin,
@@ -484,6 +484,48 @@ impl TextBox {
 
     pub fn horizontal_alignment(&self) -> HorizontalAlignment {
         self.formatted_text.borrow().horizontal_alignment()
+    }
+
+    fn select_word(&mut self, position: Position) {
+        if let Some(index) = self.get_absolute_position(position) {
+            let text_ref = self.formatted_text.borrow();
+            let text = text_ref.get_raw_text();
+            let search_whitespace = !text[index].is_whitespace();
+
+            let mut left_index = index;
+            while left_index > 0 {
+                let is_whitespace = text[left_index].is_whitespace();
+                if search_whitespace && is_whitespace || !search_whitespace && !is_whitespace {
+                    left_index += 1;
+                    break;
+                }
+                left_index = left_index.saturating_sub(1);
+            }
+
+            let mut right_index = index;
+            while right_index < text.len() {
+                let is_whitespace = text[right_index].is_whitespace();
+                if search_whitespace && is_whitespace || !search_whitespace && !is_whitespace {
+                    break;
+                }
+
+                right_index += 1;
+            }
+
+            drop(text_ref);
+
+            if let (Some(left), Some(right)) = (
+                self.char_index_to_position(left_index),
+                self.char_index_to_position(right_index),
+            ) {
+                self.selection_range = Some(SelectionRange {
+                    begin: left,
+                    end: right,
+                });
+                self.caret_position = right;
+                self.reset_blink();
+            }
+        }
     }
 }
 
@@ -859,6 +901,13 @@ impl Control for TextBox {
                             }
 
                             ui.capture_mouse(self.handle());
+                        }
+                    }
+                    WidgetMessage::DoubleClick {
+                        button: MouseButton::Left,
+                    } => {
+                        if let Some(position) = self.screen_pos_to_text_pos(ui.cursor_position) {
+                            self.select_word(position);
                         }
                     }
                     WidgetMessage::MouseMove { pos, .. } => {
