@@ -309,19 +309,17 @@ impl TextBox {
 
     /// Inserts given character at current caret position.
     fn insert_char(&mut self, c: char, ui: &UserInterface) {
-        if !c.is_control() {
-            let position = self.get_absolute_position(self.caret_position).unwrap_or(0);
-            self.formatted_text
-                .borrow_mut()
-                .insert_char(c, position)
-                .build();
-            self.move_caret_x(1, HorizontalDirection::Right, false);
-            ui.send_message(TextBoxMessage::text(
-                self.handle,
-                MessageDirection::ToWidget,
-                self.formatted_text.borrow().text(),
-            ));
-        }
+        let position = self.get_absolute_position(self.caret_position).unwrap_or(0);
+        self.formatted_text
+            .borrow_mut()
+            .insert_char(c, position)
+            .build();
+        self.move_caret_x(1, HorizontalDirection::Right, false);
+        ui.send_message(TextBoxMessage::text(
+            self.handle,
+            MessageDirection::ToWidget,
+            self.formatted_text.borrow().text(),
+        ));
     }
 
     fn insert_str(&mut self, str: &str, ui: &UserInterface) {
@@ -703,7 +701,9 @@ impl Control for TextBox {
                                 self.remove_range(ui, range);
                                 self.selection_range = None;
                             }
-                            self.insert_char(symbol, ui);
+                            if !symbol.is_control() {
+                                self.insert_char(symbol, ui);
+                            }
                         }
                     }
                     WidgetMessage::KeyDown(code) => {
