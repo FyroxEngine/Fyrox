@@ -117,6 +117,7 @@ pub struct TextBox {
     pub commit_mode: TextCommitMode,
     pub multiline: bool,
     pub editable: bool,
+    pub view_position: Vector2<f32>,
 }
 
 impl Debug for TextBox {
@@ -151,7 +152,8 @@ impl TextBox {
         let lines = text.get_lines();
 
         if lines.is_empty() {
-            self.caret_position = Default::default();
+            drop(text);
+            self.set_caret_position(Default::default());
             return;
         }
 
@@ -189,6 +191,10 @@ impl TextBox {
                 selection_range.end = self.caret_position;
             }
         }
+
+        drop(text);
+
+        self.ensure_caret_visible();
     }
 
     fn move_caret_y(&mut self, offset: usize, direction: VerticalDirection, select: bool) {
@@ -234,6 +240,10 @@ impl TextBox {
                 selection_range.end = self.caret_position;
             }
         }
+
+        drop(text);
+
+        self.ensure_caret_visible();
     }
 
     pub fn position_to_char_index_internal(
@@ -341,9 +351,10 @@ impl TextBox {
             .borrow_mut()
             .insert_char(c, position)
             .build();
-        self.caret_position = self
-            .char_index_to_position(position + 1)
-            .unwrap_or_default();
+        self.set_caret_position(
+            self.char_index_to_position(position + 1)
+                .unwrap_or_default(),
+        );
         ui.send_message(TextBoxMessage::text(
             self.handle,
             MessageDirection::ToWidget,
@@ -359,9 +370,10 @@ impl TextBox {
         text.insert_str(str, position);
         text.build();
         drop(text);
-        self.caret_position = self
-            .char_index_to_position(position + str.chars().count())
-            .unwrap_or_default();
+        self.set_caret_position(
+            self.char_index_to_position(position + str.chars().count())
+                .unwrap_or_default(),
+        );
         ui.send_message(TextBoxMessage::text(
             self.handle,
             MessageDirection::ToWidget,
@@ -371,6 +383,64 @@ impl TextBox {
 
     pub fn get_text_len(&self) -> usize {
         self.formatted_text.borrow_mut().get_raw_text().len()
+    }
+
+    pub fn caret_local_position(&self) -> Vector2<f32> {
+        let text = self.formatted_text.borrow();
+
+        let font = text.get_font();
+        let mut caret_pos = Vector2::default();
+
+        let font = font.0.lock();
+        if let Some(line) = text.get_lines().get(self.caret_position.line) {
+            let text = text.get_raw_text();
+            caret_pos += Vector2::new(line.x_offset, line.y_offset);
+            for (offset, char_index) in (line.begin..line.end).enumerate() {
+                if offset >= self.caret_position.offset {
+                    break;
+                }
+                if let Some(glyph) = font.glyphs().get(text[char_index].glyph_index as usize) {
+                    caret_pos.x += glyph.advance;
+                } else {
+                    caret_pos.x += font.height();
+                }
+            }
+        }
+
+        caret_pos
+    }
+
+    fn point_to_view_pos(&self, position: Vector2<f32>) -> Vector2<f32> {
+        position - self.view_position
+    }
+
+    fn rect_to_view_pos(&self, mut rect: Rect<f32>) -> Rect<f32> {
+        rect.position -= self.view_position;
+        rect
+    }
+
+    fn ensure_caret_visible(&mut self) {
+        let local_bounds = self.bounding_rect();
+        let caret_view_position = self.point_to_view_pos(self.caret_local_position());
+        // Move view position to contain the caret + add some spacing.
+        let spacing_step = self.formatted_text.borrow().get_font().0.lock().ascender();
+        let spacing = spacing_step * 3.0;
+        let top_left_corner = local_bounds.left_top_corner();
+        let bottom_right_corner = local_bounds.right_bottom_corner();
+        if caret_view_position.x > bottom_right_corner.x {
+            self.view_position.x += caret_view_position.x - bottom_right_corner.x + spacing;
+        }
+        if caret_view_position.x < top_left_corner.x {
+            self.view_position.x -= top_left_corner.x - caret_view_position.x + spacing;
+        }
+        if caret_view_position.y > bottom_right_corner.y {
+            self.view_position.y += bottom_right_corner.y - caret_view_position.y + spacing;
+        }
+        if caret_view_position.y < top_left_corner.y {
+            self.view_position.y -= top_left_corner.y - caret_view_position.y + spacing;
+        }
+        self.view_position.x = self.view_position.x.max(0.0);
+        self.view_position.y = self.view_position.y.max(0.0);
     }
 
     fn remove_char(&mut self, direction: HorizontalDirection, ui: &UserInterface) {
@@ -403,7 +473,7 @@ impl TextBox {
                     self.formatted_text.borrow().text(),
                 ));
 
-                self.caret_position = self.char_index_to_position(position).unwrap_or_default();
+                self.set_caret_position(self.char_index_to_position(position).unwrap_or_default());
             }
         }
     }
@@ -421,28 +491,34 @@ impl TextBox {
                     self.formatted_text.borrow().text(),
                 ));
 
-                self.caret_position = selection.begin;
+                self.set_caret_position(selection.begin);
             }
         }
     }
 
-    pub fn screen_pos_to_text_pos(&self, screen_pos: Vector2<f32>) -> Option<Position> {
-        if !self.screen_bounds().contains(screen_pos) {
+    fn set_caret_position(&mut self, position: Position) {
+        self.caret_position = position;
+        self.ensure_caret_visible();
+        self.reset_blink();
+    }
+
+    pub fn screen_pos_to_text_pos(&self, screen_point: Vector2<f32>) -> Option<Position> {
+        if !self.screen_bounds().contains(screen_point) {
             return None;
         }
 
-        let caret_pos = self.widget.screen_position();
+        let self_screen_position = self.widget.screen_position();
         let font = self.formatted_text.borrow().get_font();
         let font = font.0.lock();
         for (line_index, line) in self.formatted_text.borrow().get_lines().iter().enumerate() {
-            let line_bounds = Rect::new(
-                caret_pos.x + line.x_offset,
-                caret_pos.y + line.y_offset,
+            let line_screen_bounds = Rect::new(
+                self_screen_position.x + line.x_offset - self.view_position.x,
+                self_screen_position.y + line.y_offset - self.view_position.y,
                 line.width,
                 font.ascender(),
             );
-            if line_bounds.contains(screen_pos) {
-                let mut x = line_bounds.x();
+            if line_screen_bounds.contains(screen_point) {
+                let mut x = line_screen_bounds.x();
                 // Check each character in line.
                 for (offset, index) in (line.begin..line.end).enumerate() {
                     let character = self.formatted_text.borrow().get_raw_text()[index];
@@ -458,13 +534,14 @@ impl TextBox {
                             let h = font.height();
                             (h, h, h)
                         };
-                    let char_bounds = Rect::new(x, line_bounds.y(), width, height);
-                    if char_bounds.contains(screen_pos) {
-                        let char_bounds_center_x = char_bounds.x() + char_bounds.w() * 0.5;
+                    let char_screen_bounds = Rect::new(x, line_screen_bounds.y(), width, height);
+                    if char_screen_bounds.contains(screen_point) {
+                        let char_bounds_center_x =
+                            char_screen_bounds.x() + char_screen_bounds.w() * 0.5;
 
                         return Some(Position {
                             line: line_index,
-                            offset: if screen_pos.x <= char_bounds_center_x {
+                            offset: if screen_point.x <= char_bounds_center_x {
                                 offset
                             } else {
                                 (offset + 1).min(line.len())
@@ -479,17 +556,17 @@ impl TextBox {
         // Additionally check each line again, but now check if the cursor is either at left or right side of the cursor.
         // This allows us to set caret at lines by clicking at either ends of it.
         for (line_index, line) in self.formatted_text.borrow().get_lines().iter().enumerate() {
-            let line_x_begin = caret_pos.x + line.x_offset;
+            let line_x_begin = self_screen_position.x + line.x_offset - self.view_position.x;
             let line_x_end = line_x_begin + line.width;
-            let line_y_begin = caret_pos.y + line.y_offset;
+            let line_y_begin = self_screen_position.y + line.y_offset - self.view_position.y;
             let line_y_end = line_y_begin + font.ascender();
-            if (line_y_begin..line_y_end).contains(&screen_pos.y) {
-                if screen_pos.x < line_x_begin {
+            if (line_y_begin..line_y_end).contains(&screen_point.y) {
+                if screen_point.x < line_x_begin {
                     return Some(Position {
                         line: line_index,
                         offset: 0,
                     });
-                } else if screen_pos.x > line_x_end {
+                } else if screen_point.x > line_x_end {
                     return Some(Position {
                         line: line_index,
                         offset: line.len(),
@@ -557,8 +634,7 @@ impl TextBox {
                     begin: left,
                     end: right,
                 });
-                self.caret_position = right;
-                self.reset_blink();
+                self.set_caret_position(right);
             }
         }
     }
@@ -596,6 +672,7 @@ impl Control for TextBox {
             .set_brush(self.widget.foreground())
             .build();
 
+        let view_bounds = self.rect_to_view_pos(bounds);
         if let Some(ref selection_range) = self.selection_range.map(|r| r.normalized()) {
             let text = self.formatted_text.borrow();
             let lines = text.get_lines();
@@ -608,17 +685,17 @@ impl Control for TextBox {
                     (line.begin + selection_range.begin.offset)
                         ..(line.begin + selection_range.end.offset),
                 );
-                let bounds = Rect::new(
-                    bounds.x() + line.x_offset + offset,
-                    bounds.y() + line.y_offset,
+                let selection_bounds = Rect::new(
+                    view_bounds.x() + line.x_offset + offset,
+                    view_bounds.y() + line.y_offset,
                     width,
                     line.height,
                 );
-                drawing_context.push_rect_filled(&bounds, None);
+                drawing_context.push_rect_filled(&selection_bounds, None);
             } else {
                 for (i, line) in text.get_lines().iter().enumerate() {
                     if i >= selection_range.begin.line && i <= selection_range.end.line {
-                        let bounds = if i == selection_range.begin.line {
+                        let selection_bounds = if i == selection_range.begin.line {
                             // Begin line
                             let offset = text.get_range_width(
                                 line.begin..(line.begin + selection_range.begin.offset),
@@ -627,8 +704,8 @@ impl Control for TextBox {
                                 (line.begin + selection_range.begin.offset)..line.end,
                             );
                             Rect::new(
-                                bounds.x() + line.x_offset + offset,
-                                bounds.y() + line.y_offset,
+                                view_bounds.x() + line.x_offset + offset,
+                                view_bounds.y() + line.y_offset,
                                 width,
                                 line.height,
                             )
@@ -638,21 +715,21 @@ impl Control for TextBox {
                                 line.begin..(line.begin + selection_range.end.offset),
                             );
                             Rect::new(
-                                bounds.x() + line.x_offset,
-                                bounds.y() + line.y_offset,
+                                view_bounds.x() + line.x_offset,
+                                view_bounds.y() + line.y_offset,
                                 width,
                                 line.height,
                             )
                         } else {
                             // Everything between
                             Rect::new(
-                                bounds.x() + line.x_offset,
-                                bounds.y() + line.y_offset,
+                                view_bounds.x() + line.x_offset,
+                                view_bounds.y() + line.y_offset,
                                 line.width,
                                 line.height,
                             )
                         };
-                        drawing_context.push_rect_filled(&bounds, None);
+                        drawing_context.push_rect_filled(&selection_bounds, None);
                     }
                 }
             }
@@ -664,7 +741,7 @@ impl Control for TextBox {
             None,
         );
 
-        let local_position = bounds.position;
+        let local_position = self.point_to_view_pos(bounds.position);
         drawing_context.draw_text(
             self.clip_bounds(),
             local_position,
@@ -672,28 +749,13 @@ impl Control for TextBox {
         );
 
         if self.caret_visible {
-            let text = self.formatted_text.borrow();
-
-            let font = text.get_font();
-            let mut caret_pos = local_position;
-
-            let font = font.0.lock();
-            if let Some(line) = text.get_lines().get(self.caret_position.line) {
-                let text = text.get_raw_text();
-                caret_pos += Vector2::new(line.x_offset, line.y_offset);
-                for (offset, char_index) in (line.begin..line.end).enumerate() {
-                    if offset >= self.caret_position.offset {
-                        break;
-                    }
-                    if let Some(glyph) = font.glyphs().get(text[char_index].glyph_index as usize) {
-                        caret_pos.x += glyph.advance;
-                    } else {
-                        caret_pos.x += font.height();
-                    }
-                }
-            }
-
-            let caret_bounds = Rect::new(caret_pos.x, caret_pos.y, 2.0, font.height());
+            let caret_pos = self.point_to_view_pos(self.caret_local_position());
+            let caret_bounds = Rect::new(
+                caret_pos.x,
+                caret_pos.y,
+                2.0,
+                self.formatted_text.borrow().get_font().0.lock().height(),
+            );
             drawing_context.push_rect_filled(&caret_bounds, None);
             drawing_context.commit(
                 self.clip_bounds(),
@@ -761,7 +823,9 @@ impl Control for TextBox {
                             }
                             KeyCode::Right => {
                                 if ui.keyboard_modifiers.control {
-                                    self.caret_position = self.find_next_word(self.caret_position);
+                                    self.set_caret_position(
+                                        self.find_next_word(self.caret_position),
+                                    );
                                     self.reset_blink();
                                     self.selection_range = None;
                                 } else {
@@ -774,8 +838,9 @@ impl Control for TextBox {
                             }
                             KeyCode::Left => {
                                 if ui.keyboard_modifiers.control {
-                                    self.caret_position = self.find_prev_word(self.caret_position);
-                                    self.reset_blink();
+                                    self.set_caret_position(
+                                        self.find_prev_word(self.caret_position),
+                                    );
                                     self.selection_range = None;
                                 } else {
                                     self.move_caret_x(
@@ -817,12 +882,21 @@ impl Control for TextBox {
                                 let text = self.formatted_text.borrow();
                                 let line = &text.get_lines()[self.caret_position.line];
                                 if ui.keyboard_modifiers().control {
-                                    self.caret_position.line = text.get_lines().len() - 1;
-                                    self.caret_position.offset = line.end - line.begin;
+                                    let new_position = Position {
+                                        line: text.get_lines().len() - 1,
+                                        offset: line.end - line.begin,
+                                    };
+                                    drop(text);
+                                    self.set_caret_position(new_position);
                                     self.selection_range = None;
                                 } else if ui.keyboard_modifiers().shift {
                                     let prev_position = self.caret_position;
-                                    self.caret_position.offset = line.end - line.begin;
+                                    let new_position = Position {
+                                        line: self.caret_position.line,
+                                        offset: line.end - line.begin,
+                                    };
+                                    drop(text);
+                                    self.set_caret_position(new_position);
                                     self.selection_range = Some(SelectionRange {
                                         begin: prev_position,
                                         end: Position {
@@ -831,18 +905,25 @@ impl Control for TextBox {
                                         },
                                     });
                                 } else {
-                                    self.caret_position.offset = line.end - line.begin;
+                                    let new_position = Position {
+                                        line: self.caret_position.line,
+                                        offset: line.end - line.begin,
+                                    };
+                                    drop(text);
+                                    self.set_caret_position(new_position);
                                     self.selection_range = None;
                                 }
                             }
                             KeyCode::Home => {
                                 if ui.keyboard_modifiers().control {
-                                    self.caret_position.line = 0;
-                                    self.caret_position.offset = 0;
+                                    self.set_caret_position(Position { line: 0, offset: 0 });
                                     self.selection_range = None;
                                 } else if ui.keyboard_modifiers().shift {
                                     let prev_position = self.caret_position;
-                                    self.caret_position.offset = 0;
+                                    self.set_caret_position(Position {
+                                        line: self.caret_position.line,
+                                        offset: 0,
+                                    });
                                     self.selection_range = Some(SelectionRange {
                                         begin: self.caret_position,
                                         end: Position {
@@ -851,7 +932,10 @@ impl Control for TextBox {
                                         },
                                     });
                                 } else {
-                                    self.caret_position.offset = 0;
+                                    self.set_caret_position(Position {
+                                        line: self.caret_position.line,
+                                        offset: 0,
+                                    });
                                     self.selection_range = None;
                                 }
                             }
@@ -938,7 +1022,7 @@ impl Control for TextBox {
                             self.has_focus = true;
 
                             if let Some(position) = self.screen_pos_to_text_pos(*pos) {
-                                self.caret_position = position;
+                                self.set_caret_position(position);
                             }
 
                             ui.capture_mouse(self.handle());
@@ -955,8 +1039,8 @@ impl Control for TextBox {
                         if self.selecting {
                             if let Some(position) = self.screen_pos_to_text_pos(*pos) {
                                 if let Some(ref mut selection_range) = self.selection_range {
-                                    self.caret_position = position;
                                     selection_range.end = position;
+                                    self.set_caret_position(position);
                                 } else if position != self.caret_position {
                                     self.selection_range = Some(SelectionRange {
                                         begin: self.caret_position,
@@ -1132,6 +1216,7 @@ impl TextBoxBuilder {
             commit_mode: self.commit_mode,
             multiline: self.multiline,
             editable: self.editable,
+            view_position: Default::default(),
         };
 
         ctx.add_node(UiNode::new(text_box))
