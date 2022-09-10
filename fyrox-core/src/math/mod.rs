@@ -49,6 +49,16 @@ where
         }
     }
 
+    pub fn with_position(mut self, position: Vector2<T>) -> Self {
+        self.position = position;
+        self
+    }
+
+    pub fn with_size(mut self, size: Vector2<T>) -> Self {
+        self.size = size;
+        self
+    }
+
     #[must_use = "this method creates new instance of rect"]
     pub fn inflate(&self, dw: T, dh: T) -> Self {
         Self {
