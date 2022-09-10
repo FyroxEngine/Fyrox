@@ -1,6 +1,11 @@
 use crate::{
     brush::Brush,
-    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
+    core::{
+        algebra::{Point2, Vector2},
+        color::Color,
+        math::Rect,
+        pool::Handle,
+    },
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
@@ -503,21 +508,29 @@ impl TextBox {
     }
 
     pub fn screen_pos_to_text_pos(&self, screen_point: Vector2<f32>) -> Option<Position> {
-        if !self.screen_bounds().contains(screen_point) {
+        // Transform given point into local space of the text box - this way calculations can be done
+        // as usual, without a need for special math.
+        let point_to_check = self
+            .visual_transform
+            .try_inverse()
+            .unwrap_or_default()
+            .transform_point(&Point2::from(screen_point))
+            .coords;
+
+        if !self.bounding_rect().contains(point_to_check) {
             return None;
         }
 
-        let self_screen_position = self.widget.screen_position();
         let font = self.formatted_text.borrow().get_font();
         let font = font.0.lock();
         for (line_index, line) in self.formatted_text.borrow().get_lines().iter().enumerate() {
             let line_screen_bounds = Rect::new(
-                self_screen_position.x + line.x_offset - self.view_position.x,
-                self_screen_position.y + line.y_offset - self.view_position.y,
+                line.x_offset - self.view_position.x,
+                line.y_offset - self.view_position.y,
                 line.width,
                 font.ascender(),
             );
-            if line_screen_bounds.contains(screen_point) {
+            if line_screen_bounds.contains(point_to_check) {
                 let mut x = line_screen_bounds.x();
                 // Check each character in line.
                 for (offset, index) in (line.begin..line.end).enumerate() {
@@ -535,13 +548,13 @@ impl TextBox {
                             (h, h, h)
                         };
                     let char_screen_bounds = Rect::new(x, line_screen_bounds.y(), width, height);
-                    if char_screen_bounds.contains(screen_point) {
+                    if char_screen_bounds.contains(point_to_check) {
                         let char_bounds_center_x =
                             char_screen_bounds.x() + char_screen_bounds.w() * 0.5;
 
                         return Some(Position {
                             line: line_index,
-                            offset: if screen_point.x <= char_bounds_center_x {
+                            offset: if point_to_check.x <= char_bounds_center_x {
                                 offset
                             } else {
                                 (offset + 1).min(line.len())
@@ -556,17 +569,17 @@ impl TextBox {
         // Additionally check each line again, but now check if the cursor is either at left or right side of the cursor.
         // This allows us to set caret at lines by clicking at either ends of it.
         for (line_index, line) in self.formatted_text.borrow().get_lines().iter().enumerate() {
-            let line_x_begin = self_screen_position.x + line.x_offset - self.view_position.x;
+            let line_x_begin = line.x_offset - self.view_position.x;
             let line_x_end = line_x_begin + line.width;
-            let line_y_begin = self_screen_position.y + line.y_offset - self.view_position.y;
+            let line_y_begin = line.y_offset - self.view_position.y;
             let line_y_end = line_y_begin + font.ascender();
-            if (line_y_begin..line_y_end).contains(&screen_point.y) {
-                if screen_point.x < line_x_begin {
+            if (line_y_begin..line_y_end).contains(&point_to_check.y) {
+                if point_to_check.x < line_x_begin {
                     return Some(Position {
                         line: line_index,
                         offset: 0,
                     });
-                } else if screen_point.x > line_x_end {
+                } else if point_to_check.x > line_x_end {
                     return Some(Position {
                         line: line_index,
                         offset: line.len(),
