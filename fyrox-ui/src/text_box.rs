@@ -523,7 +523,7 @@ impl TextBox {
                 for (offset, index) in (line.begin..line.end).enumerate() {
                     let character = self.formatted_text.borrow().get_raw_text()[index];
                     let (width, height, advance) =
-                        if let Some(glyph) = font.glyphs().get(character.char_code as usize) {
+                        if let Some(glyph) = font.glyphs().get(character.glyph_index as usize) {
                             (
                                 glyph.bitmap_width as f32,
                                 glyph.bitmap_height as f32,
