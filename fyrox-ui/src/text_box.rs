@@ -137,6 +137,7 @@ pub struct TextBox {
     pub multiline: bool,
     pub editable: bool,
     pub view_position: Vector2<f32>,
+    pub skip_chars: Vec<u32>,
 }
 
 impl Debug for TextBox {
@@ -337,8 +338,10 @@ impl TextBox {
                     .iter()
                     .enumerate()
                     .skip(i)
-                    .skip_while(|(_, c)| !c.is_whitespace())
-                    .find(|(_, c)| !c.is_whitespace())
+                    .skip_while(|(_, c)| {
+                        !(c.is_whitespace() || self.skip_chars.contains(&c.char_code))
+                    })
+                    .find(|(_, c)| !(c.is_whitespace() || self.skip_chars.contains(&c.char_code)))
                     .and_then(|(n, _)| self.char_index_to_position(n))
             })
             .unwrap_or_else(|| self.end_position())
@@ -354,8 +357,10 @@ impl TextBox {
                     .enumerate()
                     .rev()
                     .skip(len.saturating_sub(i))
-                    .skip_while(|(_, c)| !c.is_whitespace())
-                    .find(|(_, c)| !c.is_whitespace())
+                    .skip_while(|(_, c)| {
+                        !(c.is_whitespace() || self.skip_chars.contains(&c.char_code))
+                    })
+                    .find(|(_, c)| !(c.is_whitespace() || self.skip_chars.contains(&c.char_code)))
                     .and_then(|(n, _)| self.char_index_to_position(n + 1))
             })
             .unwrap_or_default()
@@ -1257,6 +1262,7 @@ pub struct TextBoxBuilder {
     shadow_brush: Brush,
     shadow_dilation: f32,
     shadow_offset: Vector2<f32>,
+    skip_chars: Vec<u32>,
 }
 
 impl TextBoxBuilder {
@@ -1279,6 +1285,7 @@ impl TextBoxBuilder {
             shadow_brush: Brush::Solid(Color::BLACK),
             shadow_dilation: 1.0,
             shadow_offset: Vector2::new(1.0, 1.0),
+            skip_chars: Default::default(),
         }
     }
 
@@ -1367,6 +1374,15 @@ impl TextBoxBuilder {
         self
     }
 
+    /// Sets desired set of characters that will be treated like whitespace during Ctrl+Arrow navigation
+    /// (Ctrl+Left Arrow and Ctrl+Right Arrow). This could be useful to treat underscores like whitespaces,
+    /// which in its turn could be useful for in-game consoles where commands usually separated using
+    /// underscores (`like_this_one`).
+    pub fn with_skip_chars(mut self, chars: Vec<char>) -> Self {
+        self.skip_chars = chars.into_iter().map(|c| c as u32).collect();
+        self
+    }
+
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(BRUSH_TEXT);
@@ -1407,6 +1423,7 @@ impl TextBoxBuilder {
             multiline: self.multiline,
             editable: self.editable,
             view_position: Default::default(),
+            skip_chars: self.skip_chars,
         };
 
         ctx.add_node(UiNode::new(text_box))
