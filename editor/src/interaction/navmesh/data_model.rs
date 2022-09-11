@@ -131,16 +131,9 @@ impl Navmesh {
     }
 }
 
+#[derive(Default)]
 pub struct NavmeshContainer {
     pub pool: Pool<Navmesh>,
-}
-
-impl Default for NavmeshContainer {
-    fn default() -> Self {
-        Self {
-            pool: Default::default(),
-        }
-    }
 }
 
 impl Deref for NavmeshContainer {
