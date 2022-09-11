@@ -180,6 +180,7 @@ impl InteractionMode for SelectInteractionMode {
         _editor_scene: &mut EditorScene,
         _camera: Handle<Node>,
         _engine: &mut GameEngine,
+        _settings: &Settings,
     ) {
     }
 

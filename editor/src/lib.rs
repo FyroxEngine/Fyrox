@@ -1771,7 +1771,7 @@ impl Editor {
         self.handle_resize();
 
         if let Some(editor_scene) = self.scene.as_mut() {
-            editor_scene.draw_debug(&mut self.engine, &self.settings.debugging);
+            editor_scene.draw_auxiliary_geometry(&mut self.engine, &self.settings);
 
             let scene = &mut self.engine.scenes[editor_scene.scene];
 
@@ -1795,6 +1795,7 @@ impl Editor {
                     editor_scene,
                     editor_scene.camera_controller.camera,
                     &mut self.engine,
+                    &self.settings,
                 );
             }
         }

@@ -189,6 +189,7 @@ impl InteractionMode for ScaleInteractionMode {
         editor_scene: &mut EditorScene,
         camera: Handle<Node>,
         engine: &mut GameEngine,
+        _settings: &Settings,
     ) {
         if let Selection::Graph(selection) = &editor_scene.selection {
             let graph = &mut engine.scenes[editor_scene.scene].graph;

@@ -359,6 +359,7 @@ impl InteractionMode for MoveInteractionMode {
         editor_scene: &mut EditorScene,
         camera: Handle<Node>,
         engine: &mut GameEngine,
+        _settings: &Settings,
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;

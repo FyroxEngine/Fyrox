@@ -37,7 +37,6 @@ use fyrox::{
     gui::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
-        check_box::CheckBoxBuilder,
         decorator::DecoratorBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::{ListView, ListViewBuilder, ListViewMessage},
@@ -46,7 +45,7 @@ use fyrox::{
         text::TextBuilder,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
-        BuildContext, Orientation, Thickness, UiNode, VerticalAlignment,
+        BuildContext, Orientation, Thickness, UiNode,
     },
     scene::{camera::Camera, node::Node},
 };
@@ -54,8 +53,6 @@ use std::{collections::HashMap, rc::Rc, sync::mpsc::Sender};
 
 pub mod data_model;
 pub mod selection;
-
-const VERTEX_RADIUS: f32 = 0.2;
 
 pub struct NavmeshPanel {
     pub window: Handle<UiNode>,
@@ -79,38 +76,14 @@ impl NavmeshPanel {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(
-                            StackPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_child(
-                                        CheckBoxBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .on_row(0),
-                                        )
-                                        .with_content(
-                                            TextBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_margin(Thickness::uniform(1.0))
-                                                    .with_vertical_alignment(
-                                                        VerticalAlignment::Center,
-                                                    ),
-                                            )
-                                            .with_text("Show")
-                                            .build(ctx),
-                                        )
-                                        .checked(Some(true))
-                                        .build(ctx),
-                                    )
-                                    .with_child({
-                                        connect = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_text("Connect")
-                                        .build(ctx);
-                                        connect
-                                    }),
-                            )
+                            StackPanelBuilder::new(WidgetBuilder::new().with_child({
+                                connect = ButtonBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("Connect")
+                                .build(ctx);
+                                connect
+                            }))
                             .with_orientation(Orientation::Horizontal)
                             .build(ctx),
                         )
@@ -442,7 +415,7 @@ impl InteractionMode for EditNavmeshMode {
                 let mut picked = false;
                 for (handle, vertex) in navmesh.vertices.pair_iter() {
                     if ray
-                        .sphere_intersection(&vertex.position, VERTEX_RADIUS)
+                        .sphere_intersection(&vertex.position, settings.navmesh.vertex_radius)
                         .is_some()
                     {
                         new_selection.add(NavmeshEntity::Vertex(handle));
@@ -460,7 +433,7 @@ impl InteractionMode for EditNavmeshMode {
                                 .cylinder_intersection(
                                     &begin,
                                     &end,
-                                    VERTEX_RADIUS,
+                                    settings.navmesh.vertex_radius,
                                     CylinderKind::Finite,
                                 )
                                 .is_some()
@@ -591,7 +564,7 @@ impl InteractionMode for EditNavmeshMode {
                 match drag_context {
                     DragContext::MoveSelection { .. } => {
                         if let Selection::Navmesh(navmesh_selection) = &mut editor_scene.selection {
-                            for &vertex in navmesh_selection.unique_vertices() {
+                            for &vertex in &*navmesh_selection.unique_vertices() {
                                 navmesh.vertices[vertex].position += offset;
                             }
                         }
@@ -611,6 +584,7 @@ impl InteractionMode for EditNavmeshMode {
         editor_scene: &mut EditorScene,
         camera: Handle<Node>,
         engine: &mut GameEngine,
+        settings: &Settings,
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
         self.move_gizmo.set_visible(&mut scene.graph, false);
@@ -619,36 +593,6 @@ impl InteractionMode for EditNavmeshMode {
 
         if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
             let navmesh = &editor_scene.navmeshes[self.navmesh];
-
-            if let Selection::Navmesh(navmesh_selection) = &mut editor_scene.selection {
-                for (handle, vertex) in navmesh.vertices.pair_iter() {
-                    scene.drawing_context.draw_sphere(
-                        vertex.position,
-                        10,
-                        10,
-                        VERTEX_RADIUS,
-                        if navmesh_selection.unique_vertices().contains(&handle) {
-                            Color::RED
-                        } else {
-                            Color::GREEN
-                        },
-                    );
-                }
-
-                for triangle in navmesh.triangles.iter() {
-                    for edge in &triangle.edges() {
-                        scene.drawing_context.add_line(fyrox::scene::debug::Line {
-                            begin: navmesh.vertices[edge.begin].position,
-                            end: navmesh.vertices[edge.end].position,
-                            color: if navmesh_selection.contains_edge(*edge) {
-                                Color::RED
-                            } else {
-                                Color::GREEN
-                            },
-                        });
-                    }
-                }
-            }
 
             if let Some(DragContext::EdgeDuplication {
                 vertices,
@@ -660,7 +604,7 @@ impl InteractionMode for EditNavmeshMode {
                         vertex.position,
                         10,
                         10,
-                        VERTEX_RADIUS,
+                        settings.navmesh.vertex_radius,
                         Color::RED,
                     );
                 }
@@ -731,7 +675,7 @@ impl InteractionMode for EditNavmeshMode {
                         if !navmesh_selection.is_empty() {
                             let mut commands = Vec::new();
 
-                            for &vertex in navmesh_selection.unique_vertices() {
+                            for &vertex in &*navmesh_selection.unique_vertices() {
                                 commands.push(SceneCommand::new(DeleteNavmeshVertexCommand::new(
                                     self.navmesh,
                                     vertex,

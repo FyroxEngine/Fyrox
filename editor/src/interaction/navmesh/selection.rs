@@ -1,20 +1,26 @@
-use crate::interaction::navmesh::data_model::{Navmesh, NavmeshEdge};
-use crate::interaction::navmesh::{NavmeshEntity, NavmeshVertex};
+use crate::interaction::navmesh::{
+    data_model::{Navmesh, NavmeshEdge},
+    NavmeshEntity, NavmeshVertex,
+};
 use fyrox::core::pool::Handle;
-use std::collections::HashSet;
+use std::cell::Ref;
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashSet,
+};
 
 #[derive(PartialEq, Clone, Debug, Eq)]
 pub struct NavmeshSelection {
-    dirty: bool,
+    dirty: Cell<bool>,
     navmesh: Handle<Navmesh>,
     entities: Vec<NavmeshEntity>,
-    unique_vertices: HashSet<Handle<NavmeshVertex>>,
+    unique_vertices: RefCell<HashSet<Handle<NavmeshVertex>>>,
 }
 
 impl NavmeshSelection {
     pub fn empty(navmesh: Handle<Navmesh>) -> Self {
         Self {
-            dirty: false,
+            dirty: Cell::new(false),
             navmesh,
             entities: vec![],
             unique_vertices: Default::default(),
@@ -23,7 +29,7 @@ impl NavmeshSelection {
 
     pub fn new(navmesh: Handle<Navmesh>, entities: Vec<NavmeshEntity>) -> Self {
         Self {
-            dirty: true,
+            dirty: Cell::new(true),
             navmesh,
             entities,
             unique_vertices: Default::default(),
@@ -36,13 +42,13 @@ impl NavmeshSelection {
 
     pub fn add(&mut self, entity: NavmeshEntity) {
         self.entities.push(entity);
-        self.dirty = true;
+        self.dirty.set(true);
     }
 
     pub fn clear(&mut self) {
         self.entities.clear();
-        self.unique_vertices.clear();
-        self.dirty = false;
+        self.unique_vertices.borrow_mut().clear();
+        self.dirty.set(false);
     }
 
     pub fn first(&self) -> Option<&NavmeshEntity> {
@@ -61,23 +67,24 @@ impl NavmeshSelection {
         self.entities.len()
     }
 
-    pub fn unique_vertices(&mut self) -> &HashSet<Handle<NavmeshVertex>> {
-        if self.dirty {
-            self.unique_vertices.clear();
+    pub fn unique_vertices(&self) -> Ref<'_, HashSet<Handle<NavmeshVertex>>> {
+        if self.dirty.get() {
+            let mut unique_vertices = self.unique_vertices.borrow_mut();
+            unique_vertices.clear();
             for entity in self.entities.iter() {
                 match entity {
                     NavmeshEntity::Vertex(v) => {
-                        self.unique_vertices.insert(*v);
+                        unique_vertices.insert(*v);
                     }
                     NavmeshEntity::Edge(edge) => {
-                        self.unique_vertices.insert(edge.begin);
-                        self.unique_vertices.insert(edge.end);
+                        unique_vertices.insert(edge.begin);
+                        unique_vertices.insert(edge.end);
                     }
                 }
             }
         }
 
-        &self.unique_vertices
+        self.unique_vertices.borrow()
     }
 
     pub fn entities(&self) -> &[NavmeshEntity] {

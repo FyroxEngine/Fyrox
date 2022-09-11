@@ -1,5 +1,6 @@
 use crate::{
     inspector::editors::make_property_editors_container,
+    settings::navmesh::NavmeshSettings,
     settings::{
         camera::CameraSettings, debugging::DebuggingSettings, graphics::GraphicsSettings,
         model::ModelSettings, move_mode::MoveInteractionModeSettings, recent::RecentFiles,
@@ -44,6 +45,7 @@ pub mod debugging;
 pub mod graphics;
 pub mod model;
 pub mod move_mode;
+pub mod navmesh;
 pub mod recent;
 pub mod rotate_mode;
 pub mod selection;
@@ -64,6 +66,7 @@ pub struct Settings {
     pub rotate_mode_settings: RotateInteractionModeSettings,
     pub model: ModelSettings,
     pub camera: CameraSettings,
+    pub navmesh: NavmeshSettings,
     #[inspect(skip)]
     #[reflect(hidden)]
     pub recent: RecentFiles,
@@ -131,6 +134,7 @@ impl Settings {
             RotateInteractionModeSettings,
         >::new());
         container.insert(InspectablePropertyEditorDefinition::<ModelSettings>::new());
+        container.insert(InspectablePropertyEditorDefinition::<NavmeshSettings>::new());
 
         Rc::new(container)
     }

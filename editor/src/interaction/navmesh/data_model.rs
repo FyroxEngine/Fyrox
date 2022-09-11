@@ -1,5 +1,14 @@
-use fyrox::core::algebra::Vector3;
-use fyrox::core::pool::{Handle, Pool};
+use crate::interaction::navmesh::selection::NavmeshSelection;
+use crate::settings::navmesh::NavmeshSettings;
+use fyrox::{
+    core::{
+        algebra::Vector3,
+        color::Color,
+        pool::{Handle, Pool},
+    },
+    scene::debug::SceneDrawingContext,
+};
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone)]
 pub struct NavmeshVertex {
@@ -79,6 +88,90 @@ impl Navmesh {
         Self {
             vertices,
             triangles,
+        }
+    }
+
+    pub fn draw(
+        &self,
+        drawing_context: &mut SceneDrawingContext,
+        selection: Option<&NavmeshSelection>,
+        vertex_radius: f32,
+    ) {
+        for (handle, vertex) in self.vertices.pair_iter() {
+            drawing_context.draw_sphere(
+                vertex.position,
+                10,
+                10,
+                vertex_radius,
+                selection.map_or(Color::GREEN, |s| {
+                    if s.unique_vertices().contains(&handle) {
+                        Color::RED
+                    } else {
+                        Color::GREEN
+                    }
+                }),
+            );
+        }
+
+        for triangle in self.triangles.iter() {
+            for edge in &triangle.edges() {
+                drawing_context.add_line(fyrox::scene::debug::Line {
+                    begin: self.vertices[edge.begin].position,
+                    end: self.vertices[edge.end].position,
+                    color: selection.map_or(Color::GREEN, |s| {
+                        if s.contains_edge(*edge) {
+                            Color::RED
+                        } else {
+                            Color::GREEN
+                        }
+                    }),
+                });
+            }
+        }
+    }
+}
+
+pub struct NavmeshContainer {
+    pub pool: Pool<Navmesh>,
+}
+
+impl Default for NavmeshContainer {
+    fn default() -> Self {
+        Self {
+            pool: Default::default(),
+        }
+    }
+}
+
+impl Deref for NavmeshContainer {
+    type Target = Pool<Navmesh>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.pool
+    }
+}
+
+impl DerefMut for NavmeshContainer {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.pool
+    }
+}
+
+impl NavmeshContainer {
+    pub fn draw(
+        &self,
+        drawing_context: &mut SceneDrawingContext,
+        selection: Option<&NavmeshSelection>,
+        settings: &NavmeshSettings,
+    ) {
+        if settings.draw_all {
+            for navmesh in self.pool.iter() {
+                navmesh.draw(drawing_context, selection, settings.vertex_radius)
+            }
+        } else if let Some(selection) = selection {
+            if let Some(nav_mesh) = self.pool.try_borrow(selection.navmesh()) {
+                nav_mesh.draw(drawing_context, Some(selection), settings.vertex_radius);
+            }
         }
     }
 }
