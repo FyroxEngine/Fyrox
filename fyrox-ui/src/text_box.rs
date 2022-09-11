@@ -850,11 +850,24 @@ impl Control for TextBox {
                             }
                             KeyCode::Right => {
                                 if ui.keyboard_modifiers.control {
-                                    self.set_caret_position(
-                                        self.find_next_word(self.caret_position),
-                                    );
+                                    let prev_position = self.caret_position;
+                                    let next_word_position =
+                                        self.find_next_word(self.caret_position);
+                                    self.set_caret_position(next_word_position);
                                     self.reset_blink();
-                                    self.selection_range = None;
+                                    if ui.keyboard_modifiers.shift {
+                                        if let Some(selection_range) = self.selection_range.as_mut()
+                                        {
+                                            selection_range.end = next_word_position;
+                                        } else {
+                                            self.selection_range = Some(SelectionRange {
+                                                begin: prev_position,
+                                                end: next_word_position,
+                                            });
+                                        }
+                                    } else {
+                                        self.selection_range = None;
+                                    }
                                 } else {
                                     self.move_caret_x(
                                         1,
@@ -865,10 +878,23 @@ impl Control for TextBox {
                             }
                             KeyCode::Left => {
                                 if ui.keyboard_modifiers.control {
-                                    self.set_caret_position(
-                                        self.find_prev_word(self.caret_position),
-                                    );
-                                    self.selection_range = None;
+                                    let prev_position = self.caret_position;
+                                    let prev_word_position =
+                                        self.find_prev_word(self.caret_position);
+                                    self.set_caret_position(prev_word_position);
+                                    if ui.keyboard_modifiers.shift {
+                                        if let Some(selection_range) = self.selection_range.as_mut()
+                                        {
+                                            selection_range.end = prev_word_position;
+                                        } else {
+                                            self.selection_range = Some(SelectionRange {
+                                                begin: prev_position,
+                                                end: prev_word_position,
+                                            });
+                                        }
+                                    } else {
+                                        self.selection_range = None;
+                                    }
                                 } else {
                                     self.move_caret_x(
                                         1,
