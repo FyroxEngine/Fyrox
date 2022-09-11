@@ -543,6 +543,34 @@ impl DrawingContext {
     ) {
         let font = formatted_text.get_font();
 
+        // Draw shadow, if any.
+        if formatted_text.shadow {
+            for element in formatted_text.get_glyphs() {
+                let bounds = element.get_bounds();
+
+                let final_bounds = Rect::new(
+                    position.x + bounds.x(),
+                    position.y + bounds.y(),
+                    bounds.w(),
+                    bounds.h(),
+                )
+                .inflate(
+                    formatted_text.shadow_dilation,
+                    formatted_text.shadow_dilation,
+                )
+                .translate(formatted_text.shadow_offset);
+
+                self.push_rect_filled(&final_bounds, Some(element.get_tex_coords()));
+            }
+
+            self.commit(
+                clip_bounds,
+                formatted_text.shadow_brush.clone(),
+                CommandTexture::Font(font.clone()),
+                None,
+            )
+        }
+
         for element in formatted_text.get_glyphs() {
             let bounds = element.get_bounds();
 

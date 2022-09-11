@@ -1165,6 +1165,38 @@ impl Control for TextBox {
                                 ui.send_message(message.reverse());
                             }
                         }
+                        &TextMessage::Shadow(shadow) => {
+                            if text.shadow != shadow {
+                                text.set_shadow(shadow);
+                                drop(text);
+                                self.invalidate_layout();
+                                ui.send_message(message.reverse());
+                            }
+                        }
+                        TextMessage::ShadowBrush(brush) => {
+                            if &text.shadow_brush != brush {
+                                text.set_shadow_brush(brush.clone());
+                                drop(text);
+                                self.invalidate_layout();
+                                ui.send_message(message.reverse());
+                            }
+                        }
+                        &TextMessage::ShadowDilation(dilation) => {
+                            if text.shadow_dilation != dilation {
+                                text.set_shadow_dilation(dilation);
+                                drop(text);
+                                self.invalidate_layout();
+                                ui.send_message(message.reverse());
+                            }
+                        }
+                        &TextMessage::ShadowOffset(offset) => {
+                            if text.shadow_offset != offset {
+                                text.set_shadow_offset(offset);
+                                drop(text);
+                                self.invalidate_layout();
+                                ui.send_message(message.reverse());
+                            }
+                        }
                     }
                 }
             } else if let Some(msg) = message.data::<TextBoxMessage>() {
@@ -1221,6 +1253,10 @@ pub struct TextBoxBuilder {
     multiline: bool,
     editable: bool,
     mask_char: Option<char>,
+    shadow: bool,
+    shadow_brush: Brush,
+    shadow_dilation: f32,
+    shadow_offset: Vector2<f32>,
 }
 
 impl TextBoxBuilder {
@@ -1239,6 +1275,10 @@ impl TextBoxBuilder {
             multiline: false,
             editable: true,
             mask_char: None,
+            shadow: false,
+            shadow_brush: Brush::Solid(Color::BLACK),
+            shadow_dilation: 1.0,
+            shadow_offset: Vector2::new(1.0, 1.0),
         }
     }
 
@@ -1302,6 +1342,31 @@ impl TextBoxBuilder {
         self
     }
 
+    /// Whether the shadow enabled or not.
+    pub fn with_shadow(mut self, shadow: bool) -> Self {
+        self.shadow = shadow;
+        self
+    }
+
+    /// Sets desired shadow brush. It will be used to render the shadow.
+    pub fn with_shadow_brush(mut self, brush: Brush) -> Self {
+        self.shadow_brush = brush;
+        self
+    }
+
+    /// Sets desired shadow dilation in units. Keep in mind that the dilation is absolute,
+    /// not percentage-based.
+    pub fn with_shadow_dilation(mut self, thickness: f32) -> Self {
+        self.shadow_dilation = thickness;
+        self
+    }
+
+    /// Sets desired shadow offset in units.
+    pub fn with_shadow_offset(mut self, offset: Vector2<f32>) -> Self {
+        self.shadow_offset = offset;
+        self
+    }
+
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(BRUSH_TEXT);
@@ -1326,6 +1391,10 @@ impl TextBoxBuilder {
                     .with_vertical_alignment(self.vertical_alignment)
                     .with_wrap(self.wrap)
                     .with_mask_char(self.mask_char)
+                    .with_shadow(self.shadow)
+                    .with_shadow_brush(self.shadow_brush)
+                    .with_shadow_dilation(self.shadow_dilation)
+                    .with_shadow_offset(self.shadow_offset)
                     .build(),
             ),
             selection_range: None,

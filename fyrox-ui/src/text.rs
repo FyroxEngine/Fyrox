@@ -22,6 +22,10 @@ pub enum TextMessage {
     Font(SharedFont),
     VerticalAlignment(VerticalAlignment),
     HorizontalAlignment(HorizontalAlignment),
+    Shadow(bool),
+    ShadowDilation(f32),
+    ShadowBrush(Brush),
+    ShadowOffset(Vector2<f32>),
 }
 
 impl TextMessage {
@@ -30,6 +34,10 @@ impl TextMessage {
     define_constructor!(TextMessage:Font => fn font(SharedFont), layout: false);
     define_constructor!(TextMessage:VerticalAlignment => fn vertical_alignment(VerticalAlignment), layout: false);
     define_constructor!(TextMessage:HorizontalAlignment => fn horizontal_alignment(HorizontalAlignment), layout: false);
+    define_constructor!(TextMessage:Shadow => fn shadow(bool), layout: false);
+    define_constructor!(TextMessage:ShadowDilation => fn shadow_dilation(f32), layout: false);
+    define_constructor!(TextMessage:ShadowBrush => fn shadow_brush(Brush), layout: false);
+    define_constructor!(TextMessage:ShadowOffset => fn shadow_offset(Vector2<f32>), layout: false);
 }
 
 #[derive(Clone)]
@@ -71,32 +79,68 @@ impl Control for Text {
 
         if message.destination() == self.handle() {
             if let Some(msg) = message.data::<TextMessage>() {
+                let mut text_ref = self.formatted_text.borrow_mut();
                 match msg {
                     TextMessage::Text(text) => {
-                        self.formatted_text.borrow_mut().set_text(text);
+                        text_ref.set_text(text);
+                        drop(text_ref);
                         self.invalidate_layout();
                     }
                     &TextMessage::Wrap(wrap) => {
-                        if self.formatted_text.borrow().wrap_mode() != wrap {
-                            self.formatted_text.borrow_mut().set_wrap(wrap);
+                        if text_ref.wrap_mode() != wrap {
+                            text_ref.set_wrap(wrap);
+                            drop(text_ref);
                             self.invalidate_layout();
                         }
                     }
                     TextMessage::Font(font) => {
-                        self.formatted_text.borrow_mut().set_font(font.clone());
-                        self.invalidate_layout();
+                        if &text_ref.get_font() != font {
+                            text_ref.set_font(font.clone());
+                            drop(text_ref);
+                            self.invalidate_layout();
+                        }
                     }
                     &TextMessage::HorizontalAlignment(horizontal_alignment) => {
-                        self.formatted_text
-                            .borrow_mut()
-                            .set_horizontal_alignment(horizontal_alignment);
-                        self.invalidate_layout();
+                        if text_ref.horizontal_alignment() != horizontal_alignment {
+                            text_ref.set_horizontal_alignment(horizontal_alignment);
+                            drop(text_ref);
+                            self.invalidate_layout();
+                        }
                     }
                     &TextMessage::VerticalAlignment(vertical_alignment) => {
-                        self.formatted_text
-                            .borrow_mut()
-                            .set_vertical_alignment(vertical_alignment);
-                        self.invalidate_layout();
+                        if text_ref.vertical_alignment() != vertical_alignment {
+                            text_ref.set_vertical_alignment(vertical_alignment);
+                            drop(text_ref);
+                            self.invalidate_layout();
+                        }
+                    }
+                    &TextMessage::Shadow(shadow) => {
+                        if text_ref.shadow != shadow {
+                            text_ref.set_shadow(shadow);
+                            drop(text_ref);
+                            self.invalidate_layout();
+                        }
+                    }
+                    TextMessage::ShadowBrush(brush) => {
+                        if &text_ref.shadow_brush != brush {
+                            text_ref.set_shadow_brush(brush.clone());
+                            drop(text_ref);
+                            self.invalidate_layout();
+                        }
+                    }
+                    &TextMessage::ShadowDilation(dilation) => {
+                        if text_ref.shadow_dilation != dilation {
+                            text_ref.set_shadow_dilation(dilation);
+                            drop(text_ref);
+                            self.invalidate_layout();
+                        }
+                    }
+                    &TextMessage::ShadowOffset(offset) => {
+                        if text_ref.shadow_offset != offset {
+                            text_ref.set_shadow_offset(offset);
+                            drop(text_ref);
+                            self.invalidate_layout();
+                        }
                     }
                 }
             }
@@ -133,6 +177,10 @@ pub struct TextBuilder {
     vertical_text_alignment: VerticalAlignment,
     horizontal_text_alignment: HorizontalAlignment,
     wrap: WrapMode,
+    shadow: bool,
+    shadow_brush: Brush,
+    shadow_dilation: f32,
+    shadow_offset: Vector2<f32>,
 }
 
 impl TextBuilder {
@@ -144,6 +192,10 @@ impl TextBuilder {
             vertical_text_alignment: VerticalAlignment::Top,
             horizontal_text_alignment: HorizontalAlignment::Left,
             wrap: WrapMode::NoWrap,
+            shadow: false,
+            shadow_brush: Brush::Solid(Color::BLACK),
+            shadow_dilation: 1.0,
+            shadow_offset: Vector2::new(1.0, 1.0),
         }
     }
 
@@ -177,6 +229,31 @@ impl TextBuilder {
         self
     }
 
+    /// Whether the shadow enabled or not.
+    pub fn with_shadow(mut self, shadow: bool) -> Self {
+        self.shadow = shadow;
+        self
+    }
+
+    /// Sets desired shadow brush. It will be used to render the shadow.
+    pub fn with_shadow_brush(mut self, brush: Brush) -> Self {
+        self.shadow_brush = brush;
+        self
+    }
+
+    /// Sets desired shadow dilation in units. Keep in mind that the dilation is absolute,
+    /// not percentage-based.
+    pub fn with_shadow_dilation(mut self, thickness: f32) -> Self {
+        self.shadow_dilation = thickness;
+        self
+    }
+
+    /// Sets desired shadow offset in units.
+    pub fn with_shadow_offset(mut self, offset: Vector2<f32>) -> Self {
+        self.shadow_offset = offset;
+        self
+    }
+
     pub fn build(mut self, ui: &mut BuildContext) -> Handle<UiNode> {
         let font = if let Some(font) = self.font {
             font
@@ -196,6 +273,10 @@ impl TextBuilder {
                     .with_vertical_alignment(self.vertical_text_alignment)
                     .with_horizontal_alignment(self.horizontal_text_alignment)
                     .with_wrap(self.wrap)
+                    .with_shadow(self.shadow)
+                    .with_shadow_brush(self.shadow_brush)
+                    .with_shadow_dilation(self.shadow_dilation)
+                    .with_shadow_offset(self.shadow_offset)
                     .build(),
             ),
         };
