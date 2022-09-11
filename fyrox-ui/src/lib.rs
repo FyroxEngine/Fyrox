@@ -2495,14 +2495,14 @@ fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -
 mod test {
     use crate::{
         border::BorderBuilder,
-        core::algebra::Vector2,
+        core::algebra::{Rotation2, UnitComplex, Vector2},
         message::MessageDirection,
-        text_box::{TextBoxBuilder, TextMessage},
+        text::TextMessage,
+        text_box::TextBoxBuilder,
         transform_size,
         widget::{WidgetBuilder, WidgetMessage},
         OsEvent, UserInterface,
     };
-    use fyrox_core::algebra::{Rotation2, UnitComplex};
 
     #[test]
     fn test_transform_size() {
