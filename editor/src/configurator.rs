@@ -1,4 +1,5 @@
 use crate::{GameEngine, Message};
+use fyrox::gui::text::TextMessage;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -17,7 +18,7 @@ use fyrox::{
         message::{MessageDirection, UiMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
-        text_box::{TextBoxBuilder, TextBoxMessage},
+        text_box::TextBoxBuilder,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
@@ -270,7 +271,7 @@ impl Configurator {
                 let entry = &self.history[index];
                 self.work_dir = entry.work_dir.clone();
 
-                engine.user_interface.send_message(TextBoxMessage::text(
+                engine.user_interface.send_message(TextMessage::text(
                     self.tb_work_dir,
                     MessageDirection::ToWidget,
                     self.work_dir.to_string_lossy().to_string(),
@@ -284,7 +285,7 @@ impl Configurator {
             if message.destination() == self.work_dir_browser {
                 if let Ok(work_dir) = path.clone().canonicalize() {
                     self.work_dir = work_dir;
-                    engine.user_interface.send_message(TextBoxMessage::text(
+                    engine.user_interface.send_message(TextMessage::text(
                         self.tb_work_dir,
                         MessageDirection::ToWidget,
                         self.work_dir.to_string_lossy().to_string(),

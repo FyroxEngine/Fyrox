@@ -10,6 +10,7 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
     message::{CursorIcon, KeyCode, MessageDirection, MouseButton, UiMessage},
+    text::TextMessage,
     ttf::SharedFont,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
@@ -26,13 +27,26 @@ use std::{
     sync::mpsc::Sender,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// A message for text box widget.
+///
+/// # Important notes
+///
+/// Text box widget also supports [`TextMessage`] and [`WidgetMessage`].
+#[derive(Debug, Clone, PartialEq)]
 pub enum TextBoxMessage {
-    Text(String),
+    SelectionBrush(Brush),
+    CaretBrush(Brush),
+    TextCommitMode(TextCommitMode),
+    Multiline(bool),
+    Editable(bool),
 }
 
 impl TextBoxMessage {
-    define_constructor!(TextBoxMessage:Text => fn text(String), layout: false);
+    define_constructor!(TextBoxMessage:SelectionBrush => fn selection_brush(Brush), layout: false);
+    define_constructor!(TextBoxMessage:CaretBrush => fn caret_brush(Brush), layout: false);
+    define_constructor!(TextBoxMessage:TextCommitMode => fn text_commit_mode(TextCommitMode), layout: false);
+    define_constructor!(TextBoxMessage:Multiline => fn multiline(bool), layout: false);
+    define_constructor!(TextBoxMessage:Editable => fn editable(bool), layout: false);
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -56,7 +70,7 @@ pub struct Position {
     pub offset: usize,
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug)]
 #[repr(u32)]
 pub enum TextCommitMode {
     /// Text box will immediately send Text message after any change.
@@ -360,7 +374,7 @@ impl TextBox {
             self.char_index_to_position(position + 1)
                 .unwrap_or_default(),
         );
-        ui.send_message(TextBoxMessage::text(
+        ui.send_message(TextMessage::text(
             self.handle,
             MessageDirection::ToWidget,
             self.formatted_text.borrow().text(),
@@ -379,7 +393,7 @@ impl TextBox {
             self.char_index_to_position(position + str.chars().count())
                 .unwrap_or_default(),
         );
-        ui.send_message(TextBoxMessage::text(
+        ui.send_message(TextMessage::text(
             self.handle,
             MessageDirection::ToWidget,
             self.formatted_text.borrow().text(),
@@ -472,7 +486,7 @@ impl TextBox {
                 text.build();
                 drop(text);
 
-                ui.send_message(TextBoxMessage::text(
+                ui.send_message(TextMessage::text(
                     self.handle(),
                     MessageDirection::ToWidget,
                     self.formatted_text.borrow().text(),
@@ -490,7 +504,7 @@ impl TextBox {
                 self.formatted_text.borrow_mut().remove_range(begin..end);
                 self.formatted_text.borrow_mut().build();
 
-                ui.send_message(TextBoxMessage::text(
+                ui.send_message(TextMessage::text(
                     self.handle(),
                     MessageDirection::ToWidget,
                     self.formatted_text.borrow().text(),
@@ -875,7 +889,7 @@ impl Control for TextBox {
                                 if self.multiline {
                                     self.insert_char('\n', ui);
                                 } else if self.commit_mode == TextCommitMode::LostFocusPlusEnter {
-                                    ui.send_message(TextBoxMessage::text(
+                                    ui.send_message(TextMessage::text(
                                         self.handle,
                                         MessageDirection::FromWidget,
                                         self.text(),
@@ -1020,7 +1034,7 @@ impl Control for TextBox {
                             if self.commit_mode == TextCommitMode::LostFocus
                                 || self.commit_mode == TextCommitMode::LostFocusPlusEnter
                             {
-                                ui.send_message(TextBoxMessage::text(
+                                ui.send_message(TextMessage::text(
                                     self.handle,
                                     MessageDirection::FromWidget,
                                     self.text(),
@@ -1070,27 +1084,95 @@ impl Control for TextBox {
                     }
                     _ => {}
                 }
-            } else if let Some(TextBoxMessage::Text(new_text)) = message.data::<TextBoxMessage>() {
+            } else if let Some(msg) = message.data::<TextMessage>() {
                 if message.direction() == MessageDirection::ToWidget {
-                    let mut equals = false;
-                    for (&old, new) in self
-                        .formatted_text
-                        .borrow()
-                        .get_raw_text()
-                        .iter()
-                        .zip(new_text.chars())
-                    {
-                        if old.char_code != new as u32 {
-                            equals = false;
-                            break;
+                    let mut text = self.formatted_text.borrow_mut();
+
+                    match msg {
+                        TextMessage::Text(new_text) => {
+                            let mut equals = false;
+                            for (&old, new) in text.get_raw_text().iter().zip(new_text.chars()) {
+                                if old.char_code != new as u32 {
+                                    equals = false;
+                                    break;
+                                }
+                            }
+                            if !equals {
+                                text.set_text(new_text);
+                                drop(text);
+                                self.invalidate_layout();
+
+                                if self.commit_mode == TextCommitMode::Immediate {
+                                    ui.send_message(message.reverse());
+                                }
+                            }
+                        }
+                        TextMessage::Wrap(wrap_mode) => {
+                            if text.wrap_mode() != *wrap_mode {
+                                text.set_wrap(*wrap_mode);
+                                drop(text);
+                                self.invalidate_layout();
+                                ui.send_message(message.reverse());
+                            }
+                        }
+                        TextMessage::Font(font) => {
+                            if &text.get_font() != font {
+                                text.set_font(font.clone());
+                                drop(text);
+                                self.invalidate_layout();
+                                ui.send_message(message.reverse());
+                            }
+                        }
+                        TextMessage::VerticalAlignment(alignment) => {
+                            if &text.vertical_alignment() != alignment {
+                                text.set_vertical_alignment(*alignment);
+                                drop(text);
+                                self.invalidate_layout();
+                                ui.send_message(message.reverse());
+                            }
+                        }
+                        TextMessage::HorizontalAlignment(alignment) => {
+                            if &text.horizontal_alignment() != alignment {
+                                text.set_horizontal_alignment(*alignment);
+                                drop(text);
+                                self.invalidate_layout();
+                                ui.send_message(message.reverse());
+                            }
                         }
                     }
-                    if !equals {
-                        self.formatted_text.borrow_mut().set_text(new_text);
-                        self.invalidate_layout();
-
-                        if self.commit_mode == TextCommitMode::Immediate {
-                            ui.send_message(message.reverse());
+                }
+            } else if let Some(msg) = message.data::<TextBoxMessage>() {
+                if message.direction() == MessageDirection::ToWidget {
+                    match msg {
+                        TextBoxMessage::SelectionBrush(brush) => {
+                            if &self.selection_brush != brush {
+                                self.selection_brush = brush.clone();
+                                ui.send_message(message.reverse());
+                            }
+                        }
+                        TextBoxMessage::CaretBrush(brush) => {
+                            if &self.caret_brush != brush {
+                                self.caret_brush = brush.clone();
+                                ui.send_message(message.reverse());
+                            }
+                        }
+                        TextBoxMessage::TextCommitMode(mode) => {
+                            if &self.commit_mode != mode {
+                                self.commit_mode = *mode;
+                                ui.send_message(message.reverse());
+                            }
+                        }
+                        TextBoxMessage::Multiline(multiline) => {
+                            if &self.multiline != multiline {
+                                self.multiline = *multiline;
+                                ui.send_message(message.reverse());
+                            }
+                        }
+                        TextBoxMessage::Editable(editable) => {
+                            if &self.editable != editable {
+                                self.editable = *editable;
+                                ui.send_message(message.reverse());
+                            }
                         }
                     }
                 }

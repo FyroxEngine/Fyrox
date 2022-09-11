@@ -1,3 +1,4 @@
+use crate::text::TextMessage;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -13,7 +14,7 @@ use crate::{
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{KeyCode, MessageDirection, UiMessage},
-    text_box::{TextBox, TextBoxBuilder, TextBoxMessage},
+    text_box::{TextBox, TextBoxBuilder},
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
@@ -190,7 +191,7 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                     self.value = clamped;
 
                     // Sync text field.
-                    ui.send_message(TextBoxMessage::text(
+                    ui.send_message(TextMessage::text(
                         self.field,
                         MessageDirection::ToWidget,
                         format!("{:.1$}", self.value, self.precision),

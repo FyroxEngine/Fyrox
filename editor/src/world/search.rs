@@ -1,11 +1,12 @@
 use crate::Message;
+use fyrox::gui::text::TextMessage;
 use fyrox::{
     core::pool::Handle,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
-        text_box::{TextBoxBuilder, TextBoxMessage, TextCommitMode},
+        text_box::{TextBoxBuilder, TextCommitMode},
         widget::WidgetBuilder,
         BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
@@ -61,7 +62,7 @@ impl SearchBar {
         ui: &UserInterface,
         sender: &Sender<Message>,
     ) {
-        if let Some(TextBoxMessage::Text(text)) = message.data::<TextBoxMessage>() {
+        if let Some(TextMessage::Text(text)) = message.data::<TextMessage>() {
             if message.destination() == self.text
                 && message.direction() == MessageDirection::FromWidget
             {
@@ -71,7 +72,7 @@ impl SearchBar {
             }
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.reset {
-                ui.send_message(TextBoxMessage::text(
+                ui.send_message(TextMessage::text(
                     self.text,
                     MessageDirection::ToWidget,
                     Default::default(),

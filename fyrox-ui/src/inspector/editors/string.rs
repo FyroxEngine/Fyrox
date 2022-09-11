@@ -9,7 +9,8 @@ use crate::{
         FieldKind, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
-    text_box::{TextBoxBuilder, TextBoxMessage},
+    text::TextMessage,
+    text_box::TextBoxBuilder,
     widget::WidgetBuilder,
     Thickness, VerticalAlignment,
 };
@@ -46,7 +47,7 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<String>()?;
-        Ok(Some(TextBoxMessage::text(
+        Ok(Some(TextMessage::text(
             ctx.instance,
             MessageDirection::ToWidget,
             value.clone(),
@@ -55,7 +56,7 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(TextBoxMessage::Text(value)) = ctx.message.data::<TextBoxMessage>() {
+            if let Some(TextMessage::Text(value)) = ctx.message.data::<TextMessage>() {
                 return Some(PropertyChanged {
                     owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),

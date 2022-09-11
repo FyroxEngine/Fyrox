@@ -13,7 +13,7 @@ use crate::{
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
-    text_box::{TextBoxBuilder, TextBoxMessage, TextCommitMode},
+    text_box::{TextBoxBuilder, TextCommitMode},
     tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
     widget::{Widget, WidgetBuilder},
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
@@ -36,6 +36,7 @@ use std::{
     thread,
 };
 
+use crate::text::TextMessage;
 use notify::Watcher;
 #[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{DiskExt, RefreshKind, SystemExt};
@@ -155,7 +156,7 @@ impl FileBrowser {
             ));
         } else {
             // Clear text field if path is invalid.
-            ui.send_message(TextBoxMessage::text(
+            ui.send_message(TextMessage::text(
                 self.path_text,
                 MessageDirection::ToWidget,
                 String::new(),
@@ -213,7 +214,7 @@ impl Control for FileBrowser {
                             self.path = path.clone();
 
                             // Set value of text field.
-                            ui.send_message(TextBoxMessage::text(
+                            ui.send_message(TextMessage::text(
                                 self.path_text,
                                 MessageDirection::ToWidget,
                                 path.to_string_lossy().to_string(),
@@ -321,7 +322,7 @@ impl Control for FileBrowser {
                     FileBrowserMessage::Rescan => (),
                 }
             }
-        } else if let Some(TextBoxMessage::Text(txt)) = message.data::<TextBoxMessage>() {
+        } else if let Some(TextMessage::Text(txt)) = message.data::<TextMessage>() {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.path_text {
                     self.path = txt.into();
@@ -384,7 +385,7 @@ impl Control for FileBrowser {
 
                     if let FileBrowserMode::Save { .. } = self.mode {
                         if path.is_file() {
-                            ui.send_message(TextBoxMessage::text(
+                            ui.send_message(TextMessage::text(
                                 self.file_name,
                                 MessageDirection::ToWidget,
                                 path.file_name()
@@ -399,7 +400,7 @@ impl Control for FileBrowser {
                     if self.path != path {
                         self.path = path.clone();
 
-                        ui.send_message(TextBoxMessage::text(
+                        ui.send_message(TextMessage::text(
                             self.path_text,
                             MessageDirection::ToWidget,
                             path.to_string_lossy().to_string(),

@@ -1,5 +1,6 @@
 use fyrox::{
     core::{
+        algebra::Vector2,
         color::Color,
         pool::Handle,
         uuid::{uuid, Uuid},
@@ -9,6 +10,8 @@ use fyrox::{
     plugin::{Plugin, PluginConstructor, PluginContext},
     scene::{node::TypeUuidProvider, Scene},
 };
+use fyrox_ui::formatted_text::WrapMode;
+use fyrox_ui::text_box::TextCommitMode;
 
 struct Game {}
 
@@ -36,10 +39,14 @@ impl PluginConstructor for GameConstructor {
 
         TextBoxBuilder::new(
             WidgetBuilder::new()
+                .with_desired_position(Vector2::new(100.0, 100.0))
                 .with_width(300.0)
                 .with_height(200.0)
                 .with_background(Brush::Solid(Color::opaque(90, 90, 90))),
         )
+        .with_multiline(true)
+        .with_wrap(WrapMode::Word)
+        .with_text_commit_mode(TextCommitMode::LostFocus)
         .with_text("This is some text")
         .build(ctx);
 

@@ -2497,7 +2497,7 @@ mod test {
         border::BorderBuilder,
         core::algebra::Vector2,
         message::MessageDirection,
-        text_box::{TextBoxBuilder, TextBoxMessage},
+        text_box::{TextBoxBuilder, TextMessage},
         transform_size,
         widget::{WidgetBuilder, WidgetMessage},
         OsEvent, UserInterface,
@@ -2579,7 +2579,7 @@ mod test {
         );
         assert_eq!(
             ui.poll_message(),
-            Some(TextBoxMessage::text(
+            Some(TextMessage::text(
                 text_box,
                 MessageDirection::ToWidget,
                 "A".to_string()
