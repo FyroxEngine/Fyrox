@@ -63,9 +63,19 @@ pub fn is_scene_needs_to_be_saved(editor_scene: Option<&EditorScene>) -> bool {
 }
 
 impl EditorScene {
-    pub fn from_native_scene(mut scene: Scene, engine: &mut Engine, path: Option<PathBuf>) -> Self {
+    pub fn from_native_scene(
+        mut scene: Scene,
+        engine: &mut Engine,
+        path: Option<PathBuf>,
+        settings: &Settings,
+    ) -> Self {
         let root = PivotBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
-        let camera_controller = CameraController::new(&mut scene.graph, root);
+        let camera_controller = CameraController::new(
+            &mut scene.graph,
+            root,
+            path.as_ref()
+                .and_then(|p| settings.camera.camera_settings.get(p)),
+        );
 
         // Freeze physics simulation in while editing scene by setting time step to zero.
         scene.graph.physics.integration_parameters.dt = 0.0;

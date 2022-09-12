@@ -33,6 +33,7 @@ mod settings;
 mod utils;
 mod world;
 
+use crate::settings::camera::SceneCameraSettings;
 use crate::{
     absm::AbsmEditor,
     asset::{item::AssetItem, item::AssetKind, AssetBrowser},
@@ -839,7 +840,8 @@ impl Editor {
         self.scene_viewer
             .set_render_target(&self.engine.user_interface, scene.render_target.clone());
 
-        let editor_scene = EditorScene::from_native_scene(scene, &mut self.engine, path.clone());
+        let editor_scene =
+            EditorScene::from_native_scene(scene, &mut self.engine, path.clone(), &self.settings);
 
         self.interaction_modes = vec![
             Box::new(SelectInteractionMode::new(
@@ -1790,6 +1792,25 @@ impl Editor {
                 .camera_controller
                 .update(graph, &self.settings.camera, dt);
 
+            // Save camera current camera settings for current scene to be able to load them
+            // on next launch.
+            if let Some(path) = editor_scene.path.as_ref() {
+                let last_settings = SceneCameraSettings {
+                    position: editor_scene.camera_controller.position(&scene.graph),
+                    yaw: editor_scene.camera_controller.yaw,
+                    pitch: editor_scene.camera_controller.pitch,
+                };
+
+                if let Some(entry) = self.settings.camera.camera_settings.get_mut(path) {
+                    *entry = last_settings;
+                } else {
+                    self.settings
+                        .camera
+                        .camera_settings
+                        .insert(path.clone(), last_settings);
+                }
+            }
+
             if let Some(mode) = self.current_interaction_mode {
                 self.interaction_modes[mode as usize].update(
                     editor_scene,
@@ -1945,6 +1966,9 @@ impl Editor {
                 if let Some(os_event) = translate_event(event) {
                     self.engine.user_interface.process_os_event(&os_event);
                 }
+            }
+            Event::LoopDestroyed => {
+                Log::verify(self.settings.save());
             }
             _ => *control_flow = ControlFlow::Poll,
         });

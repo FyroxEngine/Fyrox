@@ -1,4 +1,4 @@
-use crate::{settings::camera::CameraSettings, utils::built_in_skybox};
+use crate::{settings::camera::CameraSettings, utils::built_in_skybox, SceneCameraSettings};
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -26,13 +26,13 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-const DEFAULT_Z_OFFSET: f32 = -3.0;
+pub const DEFAULT_Z_OFFSET: f32 = -3.0;
 
 pub struct CameraController {
     pub pivot: Handle<Node>,
     pub camera: Handle<Node>,
-    yaw: f32,
-    pitch: f32,
+    pub yaw: f32,
+    pub pitch: f32,
     rotate: bool,
     drag_side: f32,
     drag_up: f32,
@@ -78,7 +78,13 @@ where
 }
 
 impl CameraController {
-    pub fn new(graph: &mut Graph, root: Handle<Node>) -> Self {
+    pub fn new(
+        graph: &mut Graph,
+        root: Handle<Node>,
+        settings: Option<&SceneCameraSettings>,
+    ) -> Self {
+        let settings = settings.cloned().unwrap_or_default();
+
         let camera;
         let pivot = PivotBuilder::new(
             BaseBuilder::new()
@@ -97,7 +103,7 @@ impl CameraController {
                 .with_name("EditorCameraPivot")
                 .with_local_transform(
                     TransformBuilder::new()
-                        .with_local_position(Vector3::new(0.0, 1.0, DEFAULT_Z_OFFSET))
+                        .with_local_position(settings.position)
                         .build(),
                 ),
         )
@@ -108,8 +114,8 @@ impl CameraController {
         Self {
             pivot,
             camera,
-            yaw: 0.0,
-            pitch: 0.0,
+            yaw: settings.yaw,
+            pitch: settings.pitch,
             rotate: false,
             drag_side: 0.0,
             drag_up: 0.0,
@@ -268,6 +274,10 @@ impl CameraController {
             }
             _ => false,
         }
+    }
+
+    pub fn position(&self, graph: &Graph) -> Vector3<f32> {
+        graph[self.pivot].global_position()
     }
 
     pub fn update(&mut self, graph: &mut Graph, settings: &CameraSettings, dt: f32) {
