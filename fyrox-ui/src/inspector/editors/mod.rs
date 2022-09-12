@@ -3,7 +3,7 @@ use crate::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         color::Color,
         inspect::{Inspect, PropertyInfo, PropertyValue},
-        math::Rect,
+        math::{Rect, SmoothAngle},
         pool::Handle,
     },
     inspector::{
@@ -217,6 +217,9 @@ impl PropertyEditorDefinitionContainer {
         reg_array_property_editor! { container, u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
         reg_array_property_editor! { container, usize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
         reg_array_property_editor! { container, isize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+
+        // SmoothAngle
+        container.register_inheritable_inspectable::<SmoothAngle>();
 
         container
     }

@@ -7,13 +7,15 @@ pub mod plane;
 pub mod ray;
 pub mod triangulator;
 
-use crate::algebra::{RealField, SimdRealField};
 use crate::{
-    algebra::{Matrix3, Matrix4, Scalar, UnitQuaternion, Vector2, Vector3},
+    algebra::{
+        Matrix3, Matrix4, RealField, Scalar, SimdRealField, UnitQuaternion, Vector2, Vector3,
+    },
+    inspect::prelude::*,
     math::ray::IntersectionResult,
     num_traits::{NumAssign, Zero},
     reflect::Reflect,
-    visitor::{Visit, VisitResult, Visitor},
+    visitor::prelude::*,
 };
 use std::ops::{Index, IndexMut};
 
@@ -846,7 +848,7 @@ pub fn get_closest_point_triangle_set<P: PositionProvider>(
     closest_index
 }
 
-#[derive(Debug, PartialEq, Visit)]
+#[derive(Debug, PartialEq, Visit, Reflect, Inspect, Clone)]
 pub struct SmoothAngle {
     /// Current angle in radians.
     pub angle: f32,
