@@ -423,7 +423,10 @@ impl TextBox {
                 if offset >= self.caret_position.offset {
                     break;
                 }
-                if let Some(glyph) = font.glyphs().get(text[char_index].glyph_index as usize) {
+                if let Some(glyph) = text
+                    .get(char_index)
+                    .and_then(|c| font.glyphs().get(c.glyph_index as usize))
+                {
                     caret_pos.x += glyph.advance;
                 } else {
                     caret_pos.x += font.height();
@@ -518,6 +521,14 @@ impl TextBox {
                 self.set_caret_position(selection.begin);
             }
         }
+    }
+
+    pub fn is_valid_position(&self, position: Position) -> bool {
+        self.formatted_text
+            .borrow()
+            .get_lines()
+            .get(position.line)
+            .map_or(false, |line| position.offset < line.len())
     }
 
     fn set_caret_position(&mut self, position: Position) {
@@ -1132,6 +1143,11 @@ impl Control for TextBox {
                                 text.set_text(new_text);
                                 drop(text);
                                 self.invalidate_layout();
+
+                                // Make sure caret will stay in valid bounds.
+                                if !self.is_valid_position(self.caret_position) {
+                                    self.set_caret_position(self.end_position());
+                                }
 
                                 if self.commit_mode == TextCommitMode::Immediate {
                                     ui.send_message(message.reverse());
