@@ -19,10 +19,9 @@ _Formerly known as rg3d_
 
 ## Support
 
-If you want to support the development of the project, click the link below. I'm working on the project full time and
-use my savings to drive development forward, I'm looking for any financial support.
-
-[![Become a patron!](https://c5.patreon.com/external/logo/become_a_patron_button.png)](https://www.patreon.com/mrdimas)
+If you want to support the development of the project, click the link below. Preferrable way is to use [Boosty](https://boosty.to/fyrox) - this way the money
+will be available for the development immediately. Alternatively you can can use [Patreon](https://www.patreon.com/mrdimas), but in this case the money will
+be on-hold for unknown period of time.
 
 ## Community
 
