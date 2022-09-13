@@ -91,28 +91,14 @@ pub struct ScriptDeinitContext<'a, 'b> {
 pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// The method is called when the script wasn't initialized yet. It is guaranteed to be called once,
     /// and before any other methods of the script.
-    ///
-    /// # Editor-specific information
-    ///
-    /// In the editor, the method will be called on entering the play mode.
     fn on_init(&mut self, #[allow(unused_variables)] context: ScriptContext) {}
 
     /// The method is called when the script is about to be destroyed. It is guaranteed to be called last.
-    ///
-    /// # Editor-specific information
-    ///
-    /// In the editor, the method will be called before leaving the play mode.
     fn on_deinit(&mut self, #[allow(unused_variables)] context: ScriptDeinitContext) {}
 
     /// Called when there is an event from the OS. The method allows you to "listen" for events
     /// coming from the main window of your game (or the editor if the game running inside the
     /// editor.
-    ///
-    /// # Editor-specific information
-    ///
-    /// When the game running inside the editor, every event related to position/size changes will
-    /// be modified to have position/size of the preview frame of the editor, not the main window.
-    /// For end user this means that the game will function as if it was run in standalone mode.
     fn on_os_event(
         &mut self,
         #[allow(unused_variables)] event: &Event<()>,
@@ -123,10 +109,6 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// Performs a single update tick of the script. The method may be called multiple times per
     /// frame, but it is guaranteed that the rate of call is stable and usually it will be called
     /// 60 times per second (this may change in future releases).
-    ///
-    /// # Editor-specific information
-    ///
-    /// Does not work in editor mode, works only in play mode.
     fn on_update(&mut self, #[allow(unused_variables)] context: ScriptContext) {}
 
     /// Called right after the parent node was copied, giving you the ability to remap handles to
