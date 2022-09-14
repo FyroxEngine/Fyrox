@@ -51,6 +51,7 @@ use crate::{
         sound::context::SoundContext,
         transform::TransformBuilder,
     },
+    script::ScriptTrait,
     utils::log::{Log, MessageKind},
 };
 use rapier3d::geometry::ColliderHandle;
@@ -424,6 +425,17 @@ impl Graph {
     /// is returned.
     pub fn find_by_name_from_root(&self, name: &str) -> Handle<Node> {
         self.find_by_name(self.root, name)
+    }
+
+    /// Searches for a **first** node with a script of given type [`S`] in the hierarchy starting
+    /// from given `root_node`.
+    pub fn find_first_by_script<S>(&self, root_node: Handle<Node>) -> Handle<Node>
+    where
+        S: ScriptTrait,
+    {
+        self.find(root_node, &mut |n| {
+            n.script().and_then(|s| s.cast::<S>()).is_some()
+        })
     }
 
     /// Searches node using specified compare closure starting from root. If nothing was found,
