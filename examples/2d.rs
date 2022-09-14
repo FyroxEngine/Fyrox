@@ -9,7 +9,6 @@ use fyrox::{
         algebra::{UnitQuaternion, Vector3},
         color::Color,
         pool::Handle,
-        uuid::{uuid, Uuid},
     },
     engine::{executor::Executor, resource_manager::ResourceManager},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
@@ -26,7 +25,7 @@ use fyrox::{
         camera::{CameraBuilder, OrthographicProjection, Projection},
         dim2::rectangle::RectangleBuilder,
         light::{point::PointLightBuilder, spot::SpotLightBuilder, BaseLightBuilder},
-        node::{Node, TypeUuidProvider},
+        node::Node,
         transform::TransformBuilder,
         Scene,
     },
@@ -161,10 +160,6 @@ impl Plugin for Game {
         ));
     }
 
-    fn id(&self) -> Uuid {
-        GameConstructor::type_uuid()
-    }
-
     fn on_os_event(
         &mut self,
         event: &Event<()>,
@@ -198,12 +193,6 @@ impl Plugin for Game {
 }
 
 struct GameConstructor;
-
-impl TypeUuidProvider for GameConstructor {
-    fn type_uuid() -> Uuid {
-        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
-    }
-}
 
 impl PluginConstructor for GameConstructor {
     fn create_instance(

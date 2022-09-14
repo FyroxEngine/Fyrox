@@ -1,10 +1,5 @@
 use fyrox::{
-    core::{
-        algebra::Vector2,
-        pool::Handle,
-        rand::Rng,
-        uuid::{uuid, Uuid},
-    },
+    core::{algebra::Vector2, pool::Handle, rand::Rng},
     engine::executor::Executor,
     event_loop::ControlFlow,
     gui::{
@@ -15,7 +10,7 @@ use fyrox::{
     },
     plugin::{Plugin, PluginConstructor, PluginContext},
     rand::thread_rng,
-    scene::{node::TypeUuidProvider, Scene},
+    scene::Scene,
 };
 
 struct Game {
@@ -23,10 +18,6 @@ struct Game {
 }
 
 impl Plugin for Game {
-    fn id(&self) -> Uuid {
-        GameConstructor::type_uuid()
-    }
-
     fn on_ui_message(
         &mut self,
         context: &mut PluginContext,
@@ -61,12 +52,6 @@ impl Plugin for Game {
 }
 
 struct GameConstructor;
-
-impl TypeUuidProvider for GameConstructor {
-    fn type_uuid() -> Uuid {
-        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
-    }
-}
 
 impl PluginConstructor for GameConstructor {
     fn create_instance(

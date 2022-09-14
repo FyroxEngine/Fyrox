@@ -77,22 +77,15 @@ use fyrox::{
     core::{
         futures::executor::block_on,
         pool::Handle,
-        uuid::{uuid, Uuid},
     },
     event::Event,
     event_loop::ControlFlow,
     gui::message::UiMessage,
     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
-    scene::{node::TypeUuidProvider, Scene, SceneLoader},
+    scene::{Scene, SceneLoader},
 };
 
 pub struct GameConstructor;
-
-impl TypeUuidProvider for GameConstructor {
-    fn type_uuid() -> Uuid {
-        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
-    }
-}
 
 impl PluginConstructor for GameConstructor {
     fn register(&self, _context: PluginRegistrationContext) {
@@ -141,10 +134,6 @@ impl Plugin for Game {
 
     fn update(&mut self, _context: &mut PluginContext, _control_flow: &mut ControlFlow) {
         // Add your global update code here.
-    }
-
-    fn id(&self) -> Uuid {
-        GameConstructor::type_uuid()
     }
 
     fn on_os_event(
@@ -323,7 +312,6 @@ fn init_script(raw_name: &str) {
         file_name,
         format!(
             r#"
-use crate::GameConstructor;
 use fyrox::{{
     core::{{inspect::prelude::*, uuid::{{Uuid, uuid}}, visitor::prelude::*, reflect::Reflect}},
     engine::resource_manager::ResourceManager,
@@ -372,10 +360,6 @@ impl ScriptTrait for {name} {{
 
     fn id(&self) -> Uuid {{
         Self::type_uuid()
-    }}
-
-    fn plugin_uuid(&self) -> Uuid {{
-        GameConstructor::type_uuid()
     }}
 }}
     "#,

@@ -47,7 +47,7 @@ pub struct ScriptContext<'a, 'b> {
     /// A reference to the plugin which the script instance belongs to. You can use it to access plugin data
     /// inside script methods. For example you can store some "global" data in the plugin - for example a
     /// controls configuration, some entity managers and so on.
-    pub plugin: &'a mut dyn Plugin,
+    pub plugins: &'a mut [Box<dyn Plugin>],
 
     /// Handle of a node to which the script instance belongs to. To access the node itself use `scene` field:
     ///
@@ -72,7 +72,7 @@ pub struct ScriptDeinitContext<'a, 'b> {
     /// A reference to the plugin which the script instance belongs to. You can use it to access plugin data
     /// inside script methods. For example you can store some "global" data in the plugin - for example a
     /// controls configuration, some entity managers and so on.
-    pub plugin: &'a mut dyn Plugin,
+    pub plugins: &'a mut [Box<dyn Plugin>],
 
     /// A reference to resource manager, use it to load resources.
     pub resource_manager: &'a ResourceManager,
@@ -174,18 +174,9 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     ///     fn id(&self) -> Uuid {
     ///         Self::type_uuid()
     ///     }
-    ///
-    ///    # fn plugin_uuid(&self) -> Uuid {
-    ///    #     todo!()
-    ///    # }
     /// }
     /// ```
     fn id(&self) -> Uuid;
-
-    /// Returns parent plugin UUID. It is used to find respective plugin when processing scripts.
-    /// The engine makes an attempt to find a plugin by comparing type uuids and if one found,
-    /// it is passed on ScriptContext.
-    fn plugin_uuid(&self) -> Uuid;
 }
 
 /// A wrapper for actual script instance internals, it used by the engine.
@@ -335,10 +326,6 @@ mod test {
 
     impl ScriptTrait for MyScript {
         fn id(&self) -> Uuid {
-            todo!()
-        }
-
-        fn plugin_uuid(&self) -> Uuid {
             todo!()
         }
     }

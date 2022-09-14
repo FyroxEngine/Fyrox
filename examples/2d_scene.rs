@@ -5,13 +5,7 @@
 //! This example shows simple 2D scene with light sources.
 
 use fyrox::{
-    core::{
-        algebra::Vector3,
-        color::Color,
-        futures::executor::block_on,
-        pool::Handle,
-        uuid::{uuid, Uuid},
-    },
+    core::{algebra::Vector3, color::Color, futures::executor::block_on, pool::Handle},
     engine::{executor::Executor, resource_manager::ResourceManager},
     event::Event,
     event::{ElementState, VirtualKeyCode, WindowEvent},
@@ -26,7 +20,7 @@ use fyrox::{
     scene::{
         base::BaseBuilder,
         camera::{CameraBuilder, OrthographicProjection, Projection},
-        node::{Node, TypeUuidProvider},
+        node::Node,
         Scene,
     },
 };
@@ -105,10 +99,6 @@ impl Plugin for Game {
         ));
     }
 
-    fn id(&self) -> Uuid {
-        GameConstructor::type_uuid()
-    }
-
     fn on_os_event(
         &mut self,
         event: &Event<()>,
@@ -143,12 +133,6 @@ impl Plugin for Game {
 }
 
 struct GameConstructor;
-
-impl TypeUuidProvider for GameConstructor {
-    fn type_uuid() -> Uuid {
-        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
-    }
-}
 
 impl PluginConstructor for GameConstructor {
     fn create_instance(

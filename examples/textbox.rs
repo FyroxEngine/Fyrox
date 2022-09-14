@@ -1,33 +1,18 @@
 use fyrox::{
-    core::{
-        algebra::Vector2,
-        color::Color,
-        pool::Handle,
-        uuid::{uuid, Uuid},
-    },
+    core::{algebra::Vector2, color::Color, pool::Handle},
     engine::executor::Executor,
     gui::{brush::Brush, text_box::TextBoxBuilder, widget::WidgetBuilder},
     plugin::{Plugin, PluginConstructor, PluginContext},
-    scene::{node::TypeUuidProvider, Scene},
+    scene::Scene,
 };
 use fyrox_ui::formatted_text::WrapMode;
 use fyrox_ui::text_box::TextCommitMode;
 
 struct Game {}
 
-impl Plugin for Game {
-    fn id(&self) -> Uuid {
-        GameConstructor::type_uuid()
-    }
-}
+impl Plugin for Game {}
 
 struct GameConstructor;
-
-impl TypeUuidProvider for GameConstructor {
-    fn type_uuid() -> Uuid {
-        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
-    }
-}
 
 impl PluginConstructor for GameConstructor {
     fn create_instance(

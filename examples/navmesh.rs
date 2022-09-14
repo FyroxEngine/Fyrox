@@ -16,7 +16,6 @@ use fyrox::{
         parking_lot::Mutex,
         pool::Handle,
         sstorage::ImmutableString,
-        uuid::{uuid, Uuid},
     },
     dpi::LogicalPosition,
     engine::{executor::Executor, resource_manager::ResourceManager},
@@ -38,7 +37,7 @@ use fyrox::{
             surface::{SurfaceBuilder, SurfaceData},
             MeshBuilder,
         },
-        node::{Node, TypeUuidProvider},
+        node::Node,
         transform::TransformBuilder,
         Scene,
     },
@@ -222,10 +221,6 @@ impl Plugin for Game {
         ));
     }
 
-    fn id(&self) -> Uuid {
-        GameConstructor::type_uuid()
-    }
-
     fn on_os_event(
         &mut self,
         event: &Event<()>,
@@ -262,12 +257,6 @@ impl Plugin for Game {
 }
 
 struct GameConstructor;
-
-impl TypeUuidProvider for GameConstructor {
-    fn type_uuid() -> Uuid {
-        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
-    }
-}
 
 impl PluginConstructor for GameConstructor {
     fn create_instance(

@@ -666,41 +666,33 @@ impl Scene {
         while let Ok(message) = self.graph.script_message_receiver.try_recv() {
             match message {
                 ScriptMessage::DestroyScript { mut script, handle } => {
-                    if let Some(plugin) =
-                        plugins.iter_mut().find(|p| p.id() == script.plugin_uuid())
-                    {
-                        assert!(script.initialized);
+                    assert!(script.initialized);
 
-                        script.on_deinit(ScriptDeinitContext {
-                            plugin: &mut **plugin,
-                            resource_manager,
-                            scene: self,
-                            node_handle: handle,
-                        });
-                    }
+                    script.on_deinit(ScriptDeinitContext {
+                        plugins,
+                        resource_manager,
+                        scene: self,
+                        node_handle: handle,
+                    });
                 }
                 ScriptMessage::InitializeScript { handle } => {
                     if let Some(mut script) =
                         self.graph.try_get_mut(handle).and_then(|n| n.script.take())
                     {
-                        if let Some(plugin) =
-                            plugins.iter_mut().find(|p| p.id() == script.plugin_uuid())
-                        {
-                            assert!(!script.initialized);
+                        assert!(!script.initialized);
 
-                            script.on_init(ScriptContext {
-                                dt: 0.0,
-                                plugin: &mut **plugin,
-                                handle,
-                                scene: self,
-                                resource_manager,
-                            });
+                        script.on_init(ScriptContext {
+                            dt: 0.0,
+                            plugins,
+                            handle,
+                            scene: self,
+                            resource_manager,
+                        });
 
-                            // Put script back to node, checked borrow is used because the node might be deleted
-                            // on initialization.
-                            if let Some(node) = self.graph.try_get_mut(handle) {
-                                node.script = Some(script);
-                            }
+                        // Put script back to node, checked borrow is used because the node might be deleted
+                        // on initialization.
+                        if let Some(node) = self.graph.try_get_mut(handle) {
+                            node.script = Some(script);
                         }
                     }
                 }

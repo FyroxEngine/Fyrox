@@ -2,12 +2,11 @@ use fyrox::{
     core::{
         color::{Color, Hsv},
         pool::Handle,
-        uuid::{uuid, Uuid},
     },
     engine::executor::Executor,
     event_loop::ControlFlow,
     plugin::{Plugin, PluginConstructor, PluginContext},
-    scene::{node::TypeUuidProvider, Scene},
+    scene::Scene,
 };
 
 struct Game {
@@ -25,19 +24,9 @@ impl Plugin for Game {
             .renderer
             .set_backbuffer_clear_color(Color::from(Hsv::new(self.hue % 360.0, 100.0, 100.0)))
     }
-
-    fn id(&self) -> Uuid {
-        GameConstructor::type_uuid()
-    }
 }
 
 struct GameConstructor;
-
-impl TypeUuidProvider for GameConstructor {
-    fn type_uuid() -> Uuid {
-        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
-    }
-}
 
 impl PluginConstructor for GameConstructor {
     fn create_instance(

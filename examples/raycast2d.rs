@@ -3,7 +3,6 @@ use fyrox::{
         algebra::{Point2, Vector2, Vector3},
         color::Color,
         pool::Handle,
-        uuid::{uuid, Uuid},
     },
     engine::executor::Executor,
     event_loop::ControlFlow,
@@ -18,7 +17,7 @@ use fyrox::{
             rigidbody::RigidBodyBuilder,
         },
         graph::Graph,
-        node::{Node, TypeUuidProvider},
+        node::Node,
         rigidbody::RigidBodyType,
         transform::TransformBuilder,
         Scene,
@@ -69,19 +68,9 @@ impl Plugin for Game {
                 .set_position(first.position.coords.to_homogeneous());
         }
     }
-
-    fn id(&self) -> Uuid {
-        GameConstructor::type_uuid()
-    }
 }
 
 struct GameConstructor;
-
-impl TypeUuidProvider for GameConstructor {
-    fn type_uuid() -> Uuid {
-        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
-    }
-}
 
 fn create_rect(
     graph: &mut Graph,

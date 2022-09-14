@@ -23,7 +23,7 @@ use crate::{
     resource::{model::Model, texture::TextureKind},
     scene::{
         graph::event::GraphEvent,
-        node::{constructor::NodeConstructorContainer, Node, TypeUuidProvider},
+        node::{constructor::NodeConstructorContainer, Node},
         sound::SoundEngine,
         Scene, SceneContainer,
     },
@@ -229,19 +229,16 @@ fn process_node<T>(
         }
     };
 
-    // Find respective plugin.
-    if let Some(plugin) = plugins.iter_mut().find(|p| p.id() == script.plugin_uuid()) {
-        // Form the context with all available data.
-        let context = ScriptContext {
-            dt,
-            plugin: &mut **plugin,
-            handle,
-            scene,
-            resource_manager,
-        };
+    // Form the context with all available data.
+    let context = ScriptContext {
+        dt,
+        plugins,
+        handle,
+        scene,
+        resource_manager,
+    };
 
-        func(&mut script, context);
-    }
+    func(&mut script, context);
 
     // Put the script back to the node. We must do a checked borrow, because it is possible
     // that the node is already destroyed by script logic.
@@ -584,21 +581,15 @@ impl Engine {
                         .try_get_mut(node_handle)
                         .and_then(|node| node.script.take())
                     {
-                        if let Some(plugin) = self
-                            .plugins
-                            .iter_mut()
-                            .find(|p| p.id() == script.plugin_uuid())
-                        {
-                            // A script could not be initialized in case if we added a scene, and then immediately
-                            // removed it. Calling `on_deinit` in this case would be a violation of API contract.
-                            if script.initialized {
-                                script.on_deinit(ScriptDeinitContext {
-                                    plugin: &mut **plugin,
-                                    resource_manager: &self.resource_manager,
-                                    scene: &mut detached_scene,
-                                    node_handle,
-                                })
-                            }
+                        // A script could not be initialized in case if we added a scene, and then immediately
+                        // removed it. Calling `on_deinit` in this case would be a violation of API contract.
+                        if script.initialized {
+                            script.on_deinit(ScriptDeinitContext {
+                                plugins: &mut self.plugins,
+                                resource_manager: &self.resource_manager,
+                                scene: &mut detached_scene,
+                                node_handle,
+                            })
                         }
                     }
                 }
@@ -871,7 +862,7 @@ impl Engine {
     /// Adds new plugin plugin constructor.
     pub fn add_plugin_constructor<P>(&mut self, constructor: P)
     where
-        P: PluginConstructor + TypeUuidProvider + 'static,
+        P: PluginConstructor + 'static,
     {
         constructor.register(PluginRegistrationContext {
             serialization_context: &self.serialization_context,

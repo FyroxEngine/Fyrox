@@ -14,7 +14,6 @@ use fyrox::{
         color::Color,
         futures,
         pool::Handle,
-        uuid::{uuid, Uuid},
     },
     engine::{executor::Executor, resource_manager::ResourceManager},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
@@ -28,10 +27,7 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
     plugin::{Plugin, PluginConstructor, PluginContext},
-    scene::{
-        node::{Node, TypeUuidProvider},
-        Scene,
-    },
+    scene::{node::Node, Scene},
 };
 use std::sync::{Arc, Mutex};
 
@@ -320,10 +316,6 @@ impl Plugin for Game {
         ));
     }
 
-    fn id(&self) -> Uuid {
-        GameConstructor::type_uuid()
-    }
-
     fn on_os_event(
         &mut self,
         event: &Event<()>,
@@ -370,12 +362,6 @@ impl Plugin for Game {
 }
 
 struct GameConstructor;
-
-impl TypeUuidProvider for GameConstructor {
-    fn type_uuid() -> Uuid {
-        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
-    }
-}
 
 impl PluginConstructor for GameConstructor {
     fn create_instance(

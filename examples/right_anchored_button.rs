@@ -2,10 +2,7 @@
 //! It also shows how to automatically adjust UI to new window size.
 
 use fyrox::{
-    core::{
-        pool::Handle,
-        uuid::{uuid, Uuid},
-    },
+    core::pool::Handle,
     engine::executor::Executor,
     event::{Event, WindowEvent},
     event_loop::ControlFlow,
@@ -17,7 +14,7 @@ use fyrox::{
         HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
     plugin::{Plugin, PluginConstructor, PluginContext},
-    scene::{node::TypeUuidProvider, Scene},
+    scene::Scene,
 };
 
 struct Game {
@@ -25,10 +22,6 @@ struct Game {
 }
 
 impl Plugin for Game {
-    fn id(&self) -> Uuid {
-        GameConstructor::type_uuid()
-    }
-
     fn on_os_event(
         &mut self,
         event: &Event<()>,
@@ -56,12 +49,6 @@ impl Plugin for Game {
 }
 
 struct GameConstructor;
-
-impl TypeUuidProvider for GameConstructor {
-    fn type_uuid() -> Uuid {
-        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
-    }
-}
 
 impl PluginConstructor for GameConstructor {
     fn create_instance(

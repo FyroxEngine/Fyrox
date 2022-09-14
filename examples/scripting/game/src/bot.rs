@@ -1,4 +1,4 @@
-use crate::{block_on, GameConstructor};
+use crate::block_on;
 use fyrox::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
@@ -6,8 +6,9 @@ use fyrox::{
     },
     core::{
         algebra::{UnitQuaternion, Vector3},
-       reflect::Reflect, inspect::{Inspect, PropertyInfo},
+        inspect::{Inspect, PropertyInfo},
         pool::Handle,
+        reflect::Reflect,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -140,10 +141,6 @@ impl ScriptTrait for Bot {
         if let Some(machine) = self.machine.as_mut() {
             machine.update(scene, dt, input);
         }
-    }
-
-    fn plugin_uuid(&self) -> Uuid {
-        GameConstructor::type_uuid()
     }
 
     fn id(&self) -> Uuid {

@@ -180,10 +180,6 @@ struct Game {
 }
 
 impl Plugin for Game {
-    fn id(&self) -> Uuid {
-        GameConstructor::type_uuid()
-    }
-
     fn update(&mut self, context: &mut PluginContext, _control_flow: &mut ControlFlow) {
         // Use stored scene handle to borrow a mutable reference of scene in
         // engine.

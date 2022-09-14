@@ -1,9 +1,6 @@
 use fyrox::engine::executor::Executor;
 use fyrox::{
-    core::{
-        pool::Handle,
-        uuid::{uuid, Uuid},
-    },
+    core::pool::Handle,
     gui::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
@@ -11,24 +8,14 @@ use fyrox::{
         widget::WidgetBuilder,
     },
     plugin::{Plugin, PluginConstructor, PluginContext},
-    scene::{node::TypeUuidProvider, Scene},
+    scene::Scene,
 };
 
 struct Game {}
 
-impl Plugin for Game {
-    fn id(&self) -> Uuid {
-        GameConstructor::type_uuid()
-    }
-}
+impl Plugin for Game {}
 
 struct GameConstructor;
-
-impl TypeUuidProvider for GameConstructor {
-    fn type_uuid() -> Uuid {
-        uuid!("f615ac42-b259-4a23-bb44-407d753ac178")
-    }
-}
 
 impl PluginConstructor for GameConstructor {
     fn create_instance(

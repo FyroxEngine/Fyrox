@@ -105,7 +105,7 @@ use fyrox::{
     scene::{
         camera::{Camera, Projection},
         mesh::Mesh,
-        node::{Node, TypeUuidProvider},
+        node::Node,
         Scene, SceneLoader,
     },
     utils::{
@@ -1868,7 +1868,7 @@ impl Editor {
 
     pub fn add_game_plugin<P>(&mut self, plugin: P)
     where
-        P: PluginConstructor + TypeUuidProvider + 'static,
+        P: PluginConstructor + 'static,
     {
         self.engine.add_plugin_constructor(plugin)
     }

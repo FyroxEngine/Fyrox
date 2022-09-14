@@ -6,7 +6,7 @@ use crate::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     plugin::PluginConstructor,
-    scene::{node::TypeUuidProvider, SceneLoader},
+    scene::SceneLoader,
     utils::{
         log::{Log, MessageKind},
         translate_event,
@@ -74,7 +74,7 @@ impl Executor {
 
     pub fn add_plugin_constructor<P>(&mut self, plugin: P)
     where
-        P: PluginConstructor + TypeUuidProvider + 'static,
+        P: PluginConstructor + 'static,
     {
         self.engine.add_plugin_constructor(plugin)
     }
