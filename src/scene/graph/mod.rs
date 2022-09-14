@@ -427,7 +427,7 @@ impl Graph {
         self.find_by_name(self.root, name)
     }
 
-    /// Searches for a **first** node with a script of given type [`S`] in the hierarchy starting
+    /// Searches for a **first** node with a script of given type `S` in the hierarchy starting
     /// from given `root_node`.
     pub fn find_first_by_script<S>(&self, root_node: Handle<Node>) -> Handle<Node>
     where
