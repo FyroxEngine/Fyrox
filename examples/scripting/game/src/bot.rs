@@ -55,32 +55,25 @@ impl TypeUuidProvider for Bot {
 }
 
 impl ScriptTrait for Bot {
-    fn on_init(&mut self, context: ScriptContext) {
-        let ScriptContext {
-            scene,
-            resource_manager,
-            handle,
-            ..
-        } = context;
-
+    fn on_init(&mut self, ctx: &mut ScriptContext) {
         // Load bot 3D model.
-        let model = block_on(resource_manager.request_model("data/zombie/zombie.fbx"))
+        let model = block_on(ctx.resource_manager.request_model("data/zombie/zombie.fbx"))
             .unwrap()
-            .instantiate_geometry(scene);
+            .instantiate_geometry(ctx.scene);
 
-        scene.graph[model]
+        ctx.scene.graph[model]
             .local_transform_mut()
             // Move the model a bit down to make sure bot's feet will be on ground.
             .set_position(Vector3::new(0.0, -0.45, 0.0))
             // Scale the model because it is too big.
             .set_scale(Vector3::new(0.01, 0.01, 0.01));
 
-        scene.graph.link_nodes(model, handle);
+        ctx.scene.graph.link_nodes(model, ctx.handle);
 
         self.machine = Some(block_on(BotAnimationMachine::new(
-            scene,
+            ctx.scene,
             model,
-            resource_manager.clone(),
+            ctx.resource_manager.clone(),
         )));
         self.follow_target = false;
     }
@@ -89,12 +82,8 @@ impl ScriptTrait for Bot {
         old_new_mapping.map(&mut self.collider);
     }
 
-    fn on_update(&mut self, context: ScriptContext) {
-        let ScriptContext {
-            scene, handle, dt, ..
-        } = context;
-
-        let node = &mut scene.graph[handle];
+    fn on_update(&mut self, ctx: &mut ScriptContext) {
+        let node = &mut ctx.scene.graph[ctx.handle];
 
         let attack_distance = 0.6;
 
@@ -139,7 +128,7 @@ impl ScriptTrait for Bot {
         };
 
         if let Some(machine) = self.machine.as_mut() {
-            machine.update(scene, dt, input);
+            machine.update(ctx.scene, ctx.dt, input);
         }
     }
 

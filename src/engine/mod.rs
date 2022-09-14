@@ -22,9 +22,7 @@ use crate::{
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{model::Model, texture::TextureKind},
     scene::{
-        graph::event::GraphEvent,
-        node::{constructor::NodeConstructorContainer, Node},
-        sound::SoundEngine,
+        graph::event::GraphEvent, node::constructor::NodeConstructorContainer, sound::SoundEngine,
         Scene, SceneContainer,
     },
     script::{constructor::ScriptConstructorContainer, Script, ScriptContext, ScriptDeinitContext},
@@ -202,19 +200,13 @@ pub struct EngineInitParams<'a> {
     pub vsync: bool,
 }
 
-fn process_node<T>(
-    scene: &mut Scene,
-    dt: f32,
-    handle: Handle<Node>,
-    plugins: &mut [Box<dyn Plugin>],
-    resource_manager: &ResourceManager,
-    func: &mut T,
-) where
-    T: FnMut(&mut Script, ScriptContext),
+fn process_node<T>(context: &mut ScriptContext, func: &mut T)
+where
+    T: FnMut(&mut Script, &mut ScriptContext),
 {
     // Take a script from node. We're temporarily taking ownership over script
     // instance.
-    let mut script = match scene.graph.try_get_mut(handle) {
+    let mut script = match context.scene.graph.try_get_mut(context.handle) {
         Some(node) => {
             if let Some(script) = node.script.take() {
                 script
@@ -229,20 +221,11 @@ fn process_node<T>(
         }
     };
 
-    // Form the context with all available data.
-    let context = ScriptContext {
-        dt,
-        plugins,
-        handle,
-        scene,
-        resource_manager,
-    };
-
     func(&mut script, context);
 
     // Put the script back to the node. We must do a checked borrow, because it is possible
     // that the node is already destroyed by script logic.
-    if let Some(node) = scene.graph.try_get_mut(handle) {
+    if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
         node.script = Some(script);
     }
 }
@@ -254,13 +237,20 @@ pub(crate) fn process_scripts<T>(
     dt: f32,
     mut func: T,
 ) where
-    T: FnMut(&mut Script, ScriptContext),
+    T: FnMut(&mut Script, &mut ScriptContext),
 {
-    // Start processing by going through the graph and processing nodes one-by-one.
-    for node_index in 0..scene.graph.capacity() {
-        let handle = scene.graph.handle_from_index(node_index);
+    let mut context = ScriptContext {
+        dt,
+        plugins,
+        handle: Default::default(),
+        scene,
+        resource_manager,
+    };
 
-        process_node(scene, dt, handle, plugins, resource_manager, &mut func);
+    for node_index in 0..context.scene.graph.capacity() {
+        context.handle = context.scene.graph.handle_from_index(node_index);
+
+        process_node(&mut context, &mut func);
     }
 }
 
@@ -572,24 +562,27 @@ impl Engine {
             if self.scripted_scenes.contains(&handle) {
                 detached_scene.handle_script_messages(&mut self.plugins, &self.resource_manager);
 
-                // Destroy every script instance from nodes that were still alive.
-                for node_index in 0..detached_scene.graph.capacity() {
-                    let node_handle = detached_scene.graph.handle_from_index(node_index);
+                let mut context = ScriptDeinitContext {
+                    plugins: &mut self.plugins,
+                    resource_manager: &self.resource_manager,
+                    scene: &mut detached_scene,
+                    node_handle: Default::default(),
+                };
 
-                    if let Some(mut script) = detached_scene
+                // Destroy every script instance from nodes that were still alive.
+                for node_index in 0..context.scene.graph.capacity() {
+                    context.node_handle = context.scene.graph.handle_from_index(node_index);
+
+                    if let Some(mut script) = context
+                        .scene
                         .graph
-                        .try_get_mut(node_handle)
+                        .try_get_mut(context.node_handle)
                         .and_then(|node| node.script.take())
                     {
                         // A script could not be initialized in case if we added a scene, and then immediately
                         // removed it. Calling `on_deinit` in this case would be a violation of API contract.
                         if script.initialized {
-                            script.on_deinit(ScriptDeinitContext {
-                                plugins: &mut self.plugins,
-                                resource_manager: &self.resource_manager,
-                                scene: &mut detached_scene,
-                                node_handle,
-                            })
+                            script.on_deinit(&mut context)
                         }
                     }
                 }
@@ -625,36 +618,30 @@ impl Engine {
                     },
                 );
 
+                let mut context = ScriptContext {
+                    dt,
+                    plugins: &mut self.plugins,
+                    handle: Default::default(),
+                    scene,
+                    resource_manager: &self.resource_manager,
+                };
+
                 // Initialize and update any newly added nodes, this will ensure that any newly created instances
                 // are correctly processed.
                 while let Ok(event) = rx.try_recv() {
                     if let GraphEvent::Added(node) = event {
-                        // Init first.
-                        process_node(
-                            scene,
-                            dt,
-                            node,
-                            &mut self.plugins,
-                            &self.resource_manager,
-                            &mut |script, context| {
-                                assert!(!script.initialized);
-                                script.on_init(context);
-                                script.initialized = true;
-                            },
-                        );
+                        context.handle = node;
 
-                        // Then update.
-                        process_node(
-                            scene,
-                            dt,
-                            node,
-                            &mut self.plugins,
-                            &self.resource_manager,
-                            &mut |script, context| {
-                                assert!(script.initialized);
-                                script.on_update(context);
-                            },
-                        );
+                        process_node(&mut context, &mut |script, context| {
+                            assert!(!script.initialized);
+
+                            // Init first.
+                            script.on_init(context);
+                            script.initialized = true;
+
+                            // Then update.
+                            script.on_update(context);
+                        });
                     }
                 }
             }
@@ -727,6 +714,14 @@ impl Engine {
 
             // Initialize any newly added nodes, this will ensure that any newly created instances
             // are correctly processed.
+            let mut context = ScriptContext {
+                dt,
+                plugins: &mut self.plugins,
+                handle: Default::default(),
+                scene,
+                resource_manager: &self.resource_manager,
+            };
+
             while let Ok(event) = rx.try_recv() {
                 if let GraphEvent::Added(node) = event {
                     let wait_context = self
@@ -736,19 +731,14 @@ impl Engine {
                         .wait_concurrent();
                     block_on(wait_context.wait_concurrent());
 
-                    process_node(
-                        scene,
-                        dt,
-                        node,
-                        &mut self.plugins,
-                        &self.resource_manager,
-                        &mut |script, context| {
-                            if !script.initialized {
-                                script.on_init(context);
-                                script.initialized = true;
-                            }
-                        },
-                    );
+                    context.handle = node;
+
+                    process_node(&mut context, &mut |script, context| {
+                        if !script.initialized {
+                            script.on_init(context);
+                            script.initialized = true;
+                        }
+                    });
                 }
             }
         }

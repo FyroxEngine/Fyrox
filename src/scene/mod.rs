@@ -668,7 +668,7 @@ impl Scene {
                 ScriptMessage::DestroyScript { mut script, handle } => {
                     assert!(script.initialized);
 
-                    script.on_deinit(ScriptDeinitContext {
+                    script.on_deinit(&mut ScriptDeinitContext {
                         plugins,
                         resource_manager,
                         scene: self,
@@ -681,7 +681,7 @@ impl Scene {
                     {
                         assert!(!script.initialized);
 
-                        script.on_init(ScriptContext {
+                        script.on_init(&mut ScriptContext {
                             dt: 0.0,
                             plugins,
                             handle,

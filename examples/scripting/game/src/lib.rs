@@ -146,12 +146,8 @@ impl ScriptTrait for Player {
         old_new_mapping.map(&mut self.camera);
     }
 
-    fn on_update(&mut self, context: ScriptContext) {
-        let ScriptContext {
-            dt, handle, scene, ..
-        } = context;
-
-        if let Some(body) = scene.graph[handle].cast_mut::<RigidBody>() {
+    fn on_update(&mut self, ctx: &mut ScriptContext) {
+        if let Some(body) = ctx.scene.graph[ctx.handle].cast_mut::<RigidBody>() {
             body.local_transform_mut()
                 .set_rotation(UnitQuaternion::from_axis_angle(
                     &Vector3::y_axis(),
@@ -183,7 +179,7 @@ impl ScriptTrait for Player {
                 velocity -= look_vector;
             }
 
-            let speed = 2.0 * dt;
+            let speed = 2.0 * ctx.dt;
             let velocity = velocity
                 .try_normalize(f32::EPSILON)
                 .map(|v| v.scale(speed))
@@ -191,13 +187,13 @@ impl ScriptTrait for Player {
 
             body.set_ang_vel(Default::default());
             body.set_lin_vel(Vector3::new(
-                velocity.x / dt,
+                velocity.x / ctx.dt,
                 body.lin_vel().y,
-                velocity.z / dt,
+                velocity.z / ctx.dt,
             ));
         }
 
-        if let Some(camera) = scene.graph.try_get_mut(self.camera) {
+        if let Some(camera) = ctx.scene.graph.try_get_mut(self.camera) {
             camera
                 .local_transform_mut()
                 .set_rotation(UnitQuaternion::from_axis_angle(
@@ -208,7 +204,7 @@ impl ScriptTrait for Player {
     }
 
     #[allow(clippy::collapsible_match)] // False positive
-    fn on_os_event(&mut self, event: &Event<()>, _context: ScriptContext) {
+    fn on_os_event(&mut self, event: &Event<()>, _context: &mut ScriptContext) {
         match event {
             Event::DeviceEvent { event, .. } => {
                 if let DeviceEvent::MouseMotion { delta } = event {
@@ -277,16 +273,16 @@ impl TypeUuidProvider for Jumper {
 }
 
 impl ScriptTrait for Jumper {
-    fn on_init(&mut self, _context: ScriptContext) {}
+    fn on_init(&mut self, _context: &mut ScriptContext) {}
 
-    fn on_update(&mut self, context: ScriptContext) {
-        if let Some(rigid_body) = context.scene.graph[context.handle].cast_mut::<RigidBody>() {
+    fn on_update(&mut self, ctx: &mut ScriptContext) {
+        if let Some(rigid_body) = ctx.scene.graph[ctx.handle].cast_mut::<RigidBody>() {
             if self.timer > self.period {
                 rigid_body.apply_force(Vector3::new(0.0, 200.0, 0.0));
                 self.timer = 0.0;
             }
 
-            self.timer += context.dt;
+            self.timer += ctx.dt;
         }
     }
 
