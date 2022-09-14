@@ -609,12 +609,14 @@ impl Engine {
                     &self.resource_manager,
                     dt,
                     |script, context| {
-                        // There might be uninitialized script, this could happen if a script spawned some other script
-                        // in `on_update`. We must ignore uninitialized script instances in this update pass. Such
-                        // scripts will be initialized and updated below as a separate pass.
-                        if script.initialized {
-                            script.on_update(context)
+                        // There might be an uninitialized script, this could happen if a script spawned some other script
+                        // in `on_update`, or a node with script was added from plugin code.
+                        if !script.initialized {
+                            script.on_init(context);
+                            script.initialized = true;
                         }
+
+                        script.on_update(context)
                     },
                 );
 
