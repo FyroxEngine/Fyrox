@@ -669,12 +669,14 @@ impl Scene {
                     if let Some(plugin) =
                         plugins.iter_mut().find(|p| p.id() == script.plugin_uuid())
                     {
+                        assert!(script.initialized);
+
                         script.on_deinit(ScriptDeinitContext {
                             plugin: &mut **plugin,
                             resource_manager,
                             scene: self,
                             node_handle: handle,
-                        })
+                        });
                     }
                 }
                 ScriptMessage::InitializeScript { handle } => {
@@ -684,6 +686,8 @@ impl Scene {
                         if let Some(plugin) =
                             plugins.iter_mut().find(|p| p.id() == script.plugin_uuid())
                         {
+                            assert!(!script.initialized);
+
                             script.on_init(ScriptContext {
                                 dt: 0.0,
                                 plugin: &mut **plugin,

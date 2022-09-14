@@ -190,55 +190,58 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
 
 /// A wrapper for actual script instance internals, it used by the engine.
 #[derive(Debug)]
-pub struct Script(pub Box<dyn ScriptTrait>);
+pub struct Script {
+    instance: Box<dyn ScriptTrait>,
+    pub(crate) initialized: bool,
+}
 
 impl Reflect for Script {
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self.0.into_any()
+        self.instance.into_any()
     }
 
     fn as_any(&self) -> &dyn Any {
-        self.0.deref().as_any()
+        self.instance.deref().as_any()
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
-        self.0.deref_mut().as_any_mut()
+        self.instance.deref_mut().as_any_mut()
     }
 
     fn as_reflect(&self) -> &dyn Reflect {
-        self.0.deref().as_reflect()
+        self.instance.deref().as_reflect()
     }
 
     fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
-        self.0.deref_mut().as_reflect_mut()
+        self.instance.deref_mut().as_reflect_mut()
     }
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-        self.0.deref_mut().set(value)
+        self.instance.deref_mut().set(value)
     }
 
     fn field(&self, name: &str) -> Option<&dyn Reflect> {
-        self.0.deref().field(name)
+        self.instance.deref().field(name)
     }
 
     fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
-        self.0.deref_mut().field_mut(name)
+        self.instance.deref_mut().field_mut(name)
     }
 
     fn as_array(&self) -> Option<&dyn ReflectArray> {
-        self.0.deref().as_array()
+        self.instance.deref().as_array()
     }
 
     fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
-        self.0.deref_mut().as_array_mut()
+        self.instance.deref_mut().as_array_mut()
     }
 
     fn as_list(&self) -> Option<&dyn ReflectList> {
-        self.0.deref().as_list()
+        self.instance.deref().as_list()
     }
 
     fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
-        self.0.deref_mut().as_list_mut()
+        self.instance.deref_mut().as_list_mut()
     }
 }
 
@@ -246,60 +249,66 @@ impl Deref for Script {
     type Target = dyn ScriptTrait;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &*self.instance
     }
 }
 
 impl DerefMut for Script {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.0
+        &mut *self.instance
     }
 }
 
 impl Inspect for Script {
     fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        self.0.properties()
+        self.instance.properties()
     }
 }
 
 impl Visit for Script {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
+        self.instance.visit(name, visitor)
     }
 }
 
 impl Clone for Script {
     fn clone(&self) -> Self {
-        Self(self.0.clone_box())
+        Self {
+            instance: self.instance.clone_box(),
+            initialized: false,
+        }
     }
 }
 
 impl Script {
     /// Creates new script wrapper using given script instance.
     pub fn new<T: ScriptTrait>(script_object: T) -> Self {
-        Self(Box::new(script_object))
+        Self {
+            instance: Box::new(script_object),
+            initialized: false,
+        }
     }
 
     /// Performs downcasting to a particular type.
     pub fn cast<T: ScriptTrait>(&self) -> Option<&T> {
-        self.0.as_any().downcast_ref::<T>()
+        self.instance.as_any().downcast_ref::<T>()
     }
 
     /// Performs downcasting to a particular type.
     pub fn cast_mut<T: ScriptTrait>(&mut self) -> Option<&mut T> {
-        self.0.as_any_mut().downcast_mut::<T>()
+        self.instance.as_any_mut().downcast_mut::<T>()
     }
 
     /// Tries to borrow a component of given type.
     pub fn query_component_ref<T: Any>(&self) -> Option<&T> {
-        self.0
+        self.instance
             .query_component_ref(TypeId::of::<T>())
             .and_then(|c| c.downcast_ref())
     }
 
     /// Tries to borrow a component of given type.
     pub fn query_component_mut<T: Any>(&mut self) -> Option<&mut T> {
-        self.0
+        self.instance
             .query_component_mut(TypeId::of::<T>())
             .and_then(|c| c.downcast_mut())
     }

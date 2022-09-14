@@ -589,12 +589,16 @@ impl Engine {
                             .iter_mut()
                             .find(|p| p.id() == script.plugin_uuid())
                         {
-                            script.on_deinit(ScriptDeinitContext {
-                                plugin: &mut **plugin,
-                                resource_manager: &self.resource_manager,
-                                scene: &mut detached_scene,
-                                node_handle,
-                            })
+                            // A script could not be initialized in case if we added a scene, and then immediately
+                            // removed it. Calling `on_deinit` in this case would be a violation of API contract.
+                            if script.initialized {
+                                script.on_deinit(ScriptDeinitContext {
+                                    plugin: &mut **plugin,
+                                    resource_manager: &self.resource_manager,
+                                    scene: &mut detached_scene,
+                                    node_handle,
+                                })
+                            }
                         }
                     }
                 }
@@ -615,7 +619,14 @@ impl Engine {
                     &mut self.plugins,
                     &self.resource_manager,
                     dt,
-                    |script, context| script.on_update(context),
+                    |script, context| {
+                        // There might be uninitialized script, this could happen if a script spawned some other script
+                        // in `on_update`. We must ignore uninitialized script instances in this update pass. Such
+                        // scripts will be initialized and updated below as a separate pass.
+                        if script.initialized {
+                            script.on_update(context)
+                        }
+                    },
                 );
 
                 // Initialize and update any newly added nodes, this will ensure that any newly created instances
@@ -629,7 +640,11 @@ impl Engine {
                             node,
                             &mut self.plugins,
                             &self.resource_manager,
-                            &mut |script, context| script.on_init(context),
+                            &mut |script, context| {
+                                assert!(!script.initialized);
+                                script.on_init(context);
+                                script.initialized = true;
+                            },
                         );
 
                         // Then update.
@@ -639,7 +654,10 @@ impl Engine {
                             node,
                             &mut self.plugins,
                             &self.resource_manager,
-                            &mut |script, context| script.on_update(context),
+                            &mut |script, context| {
+                                assert!(script.initialized);
+                                script.on_update(context);
+                            },
                         );
                     }
                 }
@@ -665,7 +683,11 @@ impl Engine {
             &mut self.plugins,
             &self.resource_manager,
             dt,
-            |script, context| script.on_os_event(event, context),
+            |script, context| {
+                if script.initialized {
+                    script.on_os_event(event, context);
+                }
+            },
         )
     }
 
@@ -699,7 +721,12 @@ impl Engine {
                 &mut self.plugins,
                 &self.resource_manager,
                 dt,
-                |script, context| script.on_init(context),
+                |script, context| {
+                    if !script.initialized {
+                        script.on_init(context);
+                        script.initialized = true;
+                    }
+                },
             );
 
             // Initialize any newly added nodes, this will ensure that any newly created instances
@@ -719,7 +746,12 @@ impl Engine {
                         node,
                         &mut self.plugins,
                         &self.resource_manager,
-                        &mut |script, context| script.on_init(context),
+                        &mut |script, context| {
+                            if !script.initialized {
+                                script.on_init(context);
+                                script.initialized = true;
+                            }
+                        },
                     );
                 }
             }
