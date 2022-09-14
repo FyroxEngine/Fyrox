@@ -609,6 +609,11 @@ impl Engine {
     fn update_scripted_scene_scripts(&mut self, dt: f32) {
         for &scene in self.scripted_scenes.iter() {
             if let Some(scene) = self.scenes.try_get_mut(scene) {
+                // Disabled scenes should not update their scripts.
+                if !scene.enabled {
+                    continue;
+                }
+
                 // Subscribe to graph events, we're interested in newly added nodes.
                 // Subscription is weak and will break after this method automatically.
                 let (tx, rx) = mpsc::channel();
