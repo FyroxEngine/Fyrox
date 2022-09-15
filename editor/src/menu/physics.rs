@@ -1,10 +1,9 @@
-use crate::{menu::create_menu_item, scene::commands::graph::AddNodeCommand, Message};
+use crate::menu::create_menu_item;
 use fyrox::{
     core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
     scene::{base::BaseBuilder, collider::*, joint::*, node::Node, rigidbody::RigidBodyBuilder},
 };
-use std::sync::mpsc::Sender;
 
 pub struct PhysicsMenu {
     pub menu: Handle<UiNode>,
@@ -66,67 +65,45 @@ impl PhysicsMenu {
         }
     }
 
-    pub fn handle_ui_message(
-        &mut self,
-        message: &UiMessage,
-        sender: &Sender<Message>,
-        parent: Handle<Node>,
-    ) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage) -> Option<Node> {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.create_rigid_body {
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(
-                        RigidBodyBuilder::new(BaseBuilder::new().with_name("Rigid Body"))
-                            .build_node(),
-                        parent,
-                    )))
-                    .unwrap();
+                Some(RigidBodyBuilder::new(BaseBuilder::new().with_name("Rigid Body")).build_node())
             } else if message.destination() == self.create_revolute_joint {
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(
-                        JointBuilder::new(BaseBuilder::new().with_name("Revolute Joint"))
-                            .with_params(JointParams::RevoluteJoint(Default::default()))
-                            .build_node(),
-                        parent,
-                    )))
-                    .unwrap()
+                Some(
+                    JointBuilder::new(BaseBuilder::new().with_name("Revolute Joint"))
+                        .with_params(JointParams::RevoluteJoint(Default::default()))
+                        .build_node(),
+                )
             } else if message.destination() == self.create_ball_joint {
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(
-                        JointBuilder::new(BaseBuilder::new().with_name("Ball Joint"))
-                            .with_params(JointParams::BallJoint(Default::default()))
-                            .build_node(),
-                        parent,
-                    )))
-                    .unwrap()
+                Some(
+                    JointBuilder::new(BaseBuilder::new().with_name("Ball Joint"))
+                        .with_params(JointParams::BallJoint(Default::default()))
+                        .build_node(),
+                )
             } else if message.destination() == self.create_prismatic_joint {
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(
-                        JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint"))
-                            .with_params(JointParams::PrismaticJoint(Default::default()))
-                            .build_node(),
-                        parent,
-                    )))
-                    .unwrap()
+                Some(
+                    JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint"))
+                        .with_params(JointParams::PrismaticJoint(Default::default()))
+                        .build_node(),
+                )
             } else if message.destination() == self.create_fixed_joint {
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(
-                        JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint"))
-                            .with_params(JointParams::FixedJoint(Default::default()))
-                            .build_node(),
-                        parent,
-                    )))
-                    .unwrap()
+                Some(
+                    JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint"))
+                        .with_params(JointParams::FixedJoint(Default::default()))
+                        .build_node(),
+                )
             } else if message.destination == self.create_collider {
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(
-                        ColliderBuilder::new(BaseBuilder::new().with_name("Collider"))
-                            .with_shape(ColliderShape::Cuboid(Default::default()))
-                            .build_node(),
-                        parent,
-                    )))
-                    .unwrap();
+                Some(
+                    ColliderBuilder::new(BaseBuilder::new().with_name("Collider"))
+                        .with_shape(ColliderShape::Cuboid(Default::default()))
+                        .build_node(),
+                )
+            } else {
+                None
             }
+        } else {
+            None
         }
     }
 }

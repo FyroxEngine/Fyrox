@@ -6,6 +6,7 @@ use fyrox::{
         pool::{Handle, Ticket},
     },
     scene::{
+        base::Base,
         graph::{Graph, SubGraph},
         node::Node,
     },
@@ -383,5 +384,41 @@ impl Command for AddNodeCommand {
                 .graph
                 .forget_ticket(ticket, self.node.take().unwrap());
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct ReplaceNodeCommand {
+    pub handle: Handle<Node>,
+    pub node: Node,
+}
+
+impl ReplaceNodeCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        let existing = &mut context.scene.graph[self.handle];
+
+        // Swap `Base` part, this is needed because base part contains hierarchy info.
+        // This way base part will be moved to replacement node.
+        let existing_base: &mut Base = &mut ***existing;
+        let replacement_base: &mut Base = &mut **self.node;
+
+        std::mem::swap(existing_base, replacement_base);
+
+        // Now swap them completely.
+        std::mem::swap(existing, &mut self.node);
+    }
+}
+
+impl Command for ReplaceNodeCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Replace Node".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context);
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context);
     }
 }

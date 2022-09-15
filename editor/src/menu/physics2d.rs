@@ -1,4 +1,4 @@
-use crate::{menu::create_menu_item, scene::commands::graph::AddNodeCommand, Message};
+use crate::menu::create_menu_item;
 use fyrox::{
     core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
@@ -8,7 +8,6 @@ use fyrox::{
         node::Node,
     },
 };
-use std::sync::mpsc::Sender;
 
 pub struct Physics2dMenu {
     pub menu: Handle<UiNode>,
@@ -63,58 +62,42 @@ impl Physics2dMenu {
         }
     }
 
-    pub fn handle_ui_message(
-        &mut self,
-        message: &UiMessage,
-        sender: &Sender<Message>,
-        parent: Handle<Node>,
-    ) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage) -> Option<Node> {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.create_rigid_body {
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(
-                        RigidBodyBuilder::new(BaseBuilder::new().with_name("Rigid Body 2D"))
-                            .build_node(),
-                        parent,
-                    )))
-                    .unwrap();
+                Some(
+                    RigidBodyBuilder::new(BaseBuilder::new().with_name("Rigid Body 2D"))
+                        .build_node(),
+                )
             } else if message.destination() == self.create_ball_joint {
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(
-                        JointBuilder::new(BaseBuilder::new().with_name("Ball Joint 2D"))
-                            .with_params(JointParams::BallJoint(Default::default()))
-                            .build_node(),
-                        parent,
-                    )))
-                    .unwrap()
+                Some(
+                    JointBuilder::new(BaseBuilder::new().with_name("Ball Joint 2D"))
+                        .with_params(JointParams::BallJoint(Default::default()))
+                        .build_node(),
+                )
             } else if message.destination() == self.create_prismatic_joint {
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(
-                        JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint 2D"))
-                            .with_params(JointParams::PrismaticJoint(Default::default()))
-                            .build_node(),
-                        parent,
-                    )))
-                    .unwrap()
+                Some(
+                    JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint 2D"))
+                        .with_params(JointParams::PrismaticJoint(Default::default()))
+                        .build_node(),
+                )
             } else if message.destination() == self.create_fixed_joint {
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(
-                        JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint 2D"))
-                            .with_params(JointParams::FixedJoint(Default::default()))
-                            .build_node(),
-                        parent,
-                    )))
-                    .unwrap()
+                Some(
+                    JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint 2D"))
+                        .with_params(JointParams::FixedJoint(Default::default()))
+                        .build_node(),
+                )
             } else if message.destination == self.create_collider {
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(
-                        ColliderBuilder::new(BaseBuilder::new().with_name("Collider 2D"))
-                            .with_shape(ColliderShape::Cuboid(Default::default()))
-                            .build_node(),
-                        parent,
-                    )))
-                    .unwrap();
+                Some(
+                    ColliderBuilder::new(BaseBuilder::new().with_name("Collider 2D"))
+                        .with_shape(ColliderShape::Cuboid(Default::default()))
+                        .build_node(),
+                )
+            } else {
+                None
             }
+        } else {
+            None
         }
     }
 }

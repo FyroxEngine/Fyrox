@@ -7,13 +7,12 @@ use crate::{
     scene::commands::graph::AddNodeCommand,
     Message, Mode,
 };
-use fyrox::gui::message::MessageDirection;
-use fyrox::gui::widget::WidgetMessage;
-use fyrox::gui::UserInterface;
-use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{algebra::Matrix4, parking_lot::Mutex, pool::Handle},
-    gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
+    gui::{
+        menu::MenuItemMessage, message::MessageDirection, message::UiMessage,
+        widget::WidgetMessage, BuildContext, UiNode, UserInterface,
+    },
     scene::{
         base::BaseBuilder,
         camera::CameraBuilder,
@@ -31,6 +30,7 @@ use fyrox::{
             emitter::{base::BaseEmitterBuilder, sphere::SphereEmitterBuilder},
             ParticleSystemBuilder,
         },
+        pivot::PivotBuilder,
         sound::{listener::ListenerBuilder, SoundBuilder},
         sprite::SpriteBuilder,
         terrain::{LayerDefinition, TerrainBuilder},
@@ -58,7 +58,11 @@ impl CreateEntityRootMenu {
         sender: &Sender<Message>,
         parent: Handle<Node>,
     ) {
-        self.sub_menus.handle_ui_message(message, sender, parent)
+        if let Some(node) = self.sub_menus.handle_ui_message(message) {
+            sender
+                .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
+                .unwrap();
+        }
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
@@ -229,126 +233,133 @@ impl CreateEntityMenu {
         )
     }
 
-    pub fn handle_ui_message(
-        &mut self,
-        message: &UiMessage,
-        sender: &Sender<Message>,
-        parent: Handle<Node>,
-    ) {
-        self.physics_menu.handle_ui_message(message, sender, parent);
-        self.physics2d_menu
-            .handle_ui_message(message, sender, parent);
-        self.dim2_menu.handle_ui_message(message, sender, parent);
-
-        if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
-            let node = if message.destination() == self.create_cube {
-                Some(
-                    MeshBuilder::new(BaseBuilder::new().with_name("Cube"))
-                        .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
-                            SurfaceData::make_cube(Matrix4::identity()),
-                        )))])
-                        .build_node(),
-                )
-            } else if message.destination() == self.create_spot_light {
-                Some(
-                    SpotLightBuilder::new(BaseLightBuilder::new(
-                        BaseBuilder::new().with_name("SpotLight"),
-                    ))
-                    .with_distance(10.0)
-                    .with_hotspot_cone_angle(45.0f32.to_radians())
-                    .with_falloff_angle_delta(2.0f32.to_radians())
-                    .build_node(),
-                )
-            } else if message.destination() == self.create_pivot {
-                Some(PivotBuilder::new(BaseBuilder::new().with_name("Pivot")).build_node())
-            } else if message.destination() == self.create_point_light {
-                Some(
-                    PointLightBuilder::new(BaseLightBuilder::new(
-                        BaseBuilder::new().with_name("PointLight"),
-                    ))
-                    .with_radius(10.0)
-                    .build_node(),
-                )
-            } else if message.destination() == self.create_directional_light {
-                Some(
-                    DirectionalLightBuilder::new(BaseLightBuilder::new(
-                        BaseBuilder::new().with_name("DirectionalLight"),
-                    ))
-                    .build_node(),
-                )
-            } else if message.destination() == self.create_cone {
-                Some(
-                    MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
-                        .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
-                            SurfaceData::make_cone(16, 0.5, 1.0, &Matrix4::identity()),
-                        )))])
-                        .build_node(),
-                )
-            } else if message.destination() == self.create_cylinder {
-                Some(
-                    MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
-                        .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
-                            SurfaceData::make_cylinder(16, 0.5, 1.0, true, &Matrix4::identity()),
-                        )))])
-                        .build_node(),
-                )
-            } else if message.destination() == self.create_sphere {
-                Some(
-                    MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
-                        .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
-                            SurfaceData::make_sphere(16, 16, 0.5, &Matrix4::identity()),
-                        )))])
-                        .build_node(),
-                )
-            } else if message.destination() == self.create_quad {
-                Some(
-                    MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
-                        .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
-                            SurfaceData::make_quad(&Matrix4::identity()),
-                        )))])
-                        .build_node(),
-                )
-            } else if message.destination() == self.create_camera {
-                Some(CameraBuilder::new(BaseBuilder::new().with_name("Camera")).build_node())
-            } else if message.destination() == self.create_sprite {
-                Some(SpriteBuilder::new(BaseBuilder::new().with_name("Sprite")).build_node())
-            } else if message.destination() == self.create_sound_source {
-                Some(SoundBuilder::new(BaseBuilder::new().with_name("Sound")).build_node())
-            } else if message.destination() == self.create_particle_system {
-                Some(
-                    ParticleSystemBuilder::new(BaseBuilder::new().with_name("ParticleSystem"))
-                        .with_emitters(vec![SphereEmitterBuilder::new(
-                            BaseEmitterBuilder::new()
-                                .with_max_particles(100)
-                                .resurrect_particles(true),
+    pub fn handle_ui_message(&mut self, message: &UiMessage) -> Option<Node> {
+        self.physics_menu
+            .handle_ui_message(message)
+            .or_else(|| self.physics2d_menu.handle_ui_message(message))
+            .or_else(|| self.dim2_menu.handle_ui_message(message))
+            .or_else(|| {
+                if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
+                    if message.destination() == self.create_cube {
+                        Some(
+                            MeshBuilder::new(BaseBuilder::new().with_name("Cube"))
+                                .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                                    SurfaceData::make_cube(Matrix4::identity()),
+                                )))])
+                                .build_node(),
                         )
-                        .with_radius(1.0)
-                        .build()])
-                        .build_node(),
-                )
-            } else if message.destination() == self.create_terrain {
-                Some(
-                    TerrainBuilder::new(BaseBuilder::new().with_name("Terrain"))
-                        .with_layers(vec![LayerDefinition {
-                            material: create_terrain_layer_material(),
-                            mask_property_name: "maskTexture".to_owned(),
-                        }])
-                        .with_height_map_resolution(4.0)
-                        .build_node(),
-                )
-            } else if message.destination() == self.create_decal {
-                Some(DecalBuilder::new(BaseBuilder::new().with_name("Decal")).build_node())
-            } else if message.destination() == self.create_listener {
-                Some(ListenerBuilder::new(BaseBuilder::new().with_name("Listener")).build_node())
-            } else {
-                None
-            };
-
-            if let Some(node) = node {
-                sender
-                    .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
-                    .unwrap();
-            }
-        }
+                    } else if message.destination() == self.create_spot_light {
+                        Some(
+                            SpotLightBuilder::new(BaseLightBuilder::new(
+                                BaseBuilder::new().with_name("SpotLight"),
+                            ))
+                            .with_distance(10.0)
+                            .with_hotspot_cone_angle(45.0f32.to_radians())
+                            .with_falloff_angle_delta(2.0f32.to_radians())
+                            .build_node(),
+                        )
+                    } else if message.destination() == self.create_pivot {
+                        Some(PivotBuilder::new(BaseBuilder::new().with_name("Pivot")).build_node())
+                    } else if message.destination() == self.create_point_light {
+                        Some(
+                            PointLightBuilder::new(BaseLightBuilder::new(
+                                BaseBuilder::new().with_name("PointLight"),
+                            ))
+                            .with_radius(10.0)
+                            .build_node(),
+                        )
+                    } else if message.destination() == self.create_directional_light {
+                        Some(
+                            DirectionalLightBuilder::new(BaseLightBuilder::new(
+                                BaseBuilder::new().with_name("DirectionalLight"),
+                            ))
+                            .build_node(),
+                        )
+                    } else if message.destination() == self.create_cone {
+                        Some(
+                            MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
+                                .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                                    SurfaceData::make_cone(16, 0.5, 1.0, &Matrix4::identity()),
+                                )))])
+                                .build_node(),
+                        )
+                    } else if message.destination() == self.create_cylinder {
+                        Some(
+                            MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
+                                .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                                    SurfaceData::make_cylinder(
+                                        16,
+                                        0.5,
+                                        1.0,
+                                        true,
+                                        &Matrix4::identity(),
+                                    ),
+                                )))])
+                                .build_node(),
+                        )
+                    } else if message.destination() == self.create_sphere {
+                        Some(
+                            MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
+                                .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                                    SurfaceData::make_sphere(16, 16, 0.5, &Matrix4::identity()),
+                                )))])
+                                .build_node(),
+                        )
+                    } else if message.destination() == self.create_quad {
+                        Some(
+                            MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
+                                .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                                    SurfaceData::make_quad(&Matrix4::identity()),
+                                )))])
+                                .build_node(),
+                        )
+                    } else if message.destination() == self.create_camera {
+                        Some(
+                            CameraBuilder::new(BaseBuilder::new().with_name("Camera")).build_node(),
+                        )
+                    } else if message.destination() == self.create_sprite {
+                        Some(
+                            SpriteBuilder::new(BaseBuilder::new().with_name("Sprite")).build_node(),
+                        )
+                    } else if message.destination() == self.create_sound_source {
+                        Some(SoundBuilder::new(BaseBuilder::new().with_name("Sound")).build_node())
+                    } else if message.destination() == self.create_particle_system {
+                        Some(
+                            ParticleSystemBuilder::new(
+                                BaseBuilder::new().with_name("ParticleSystem"),
+                            )
+                            .with_emitters(vec![SphereEmitterBuilder::new(
+                                BaseEmitterBuilder::new()
+                                    .with_max_particles(100)
+                                    .resurrect_particles(true),
+                            )
+                            .with_radius(1.0)
+                            .build()])
+                            .build_node(),
+                        )
+                    } else if message.destination() == self.create_terrain {
+                        Some(
+                            TerrainBuilder::new(BaseBuilder::new().with_name("Terrain"))
+                                .with_layers(vec![LayerDefinition {
+                                    material: create_terrain_layer_material(),
+                                    mask_property_name: "maskTexture".to_owned(),
+                                }])
+                                .with_height_map_resolution(4.0)
+                                .build_node(),
+                        )
+                    } else if message.destination() == self.create_decal {
+                        Some(DecalBuilder::new(BaseBuilder::new().with_name("Decal")).build_node())
+                    } else if message.destination() == self.create_listener {
+                        Some(
+                            ListenerBuilder::new(BaseBuilder::new().with_name("Listener"))
+                                .build_node(),
+                        )
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
     }
 }

@@ -1,7 +1,13 @@
 use crate::{
     make_save_file_selector,
     menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
-    scene::{commands::make_delete_selection_command, EditorScene, Selection},
+    scene::{
+        commands::{
+            graph::{AddNodeCommand, ReplaceNodeCommand},
+            make_delete_selection_command,
+        },
+        EditorScene, Selection,
+    },
     world::graph::item::SceneItem,
     GameEngine, Message, MessageDirection,
 };
@@ -26,6 +32,7 @@ pub struct ItemContextMenu {
     delete_selection: Handle<UiNode>,
     copy_selection: Handle<UiNode>,
     create_entity_menu: CreateEntityMenu,
+    replace_with_menu: CreateEntityMenu,
     placement_target: Handle<UiNode>,
     // TODO: Ideally this should belong to node-specific context menu only.
     preview_camera: Handle<UiNode>,
@@ -40,6 +47,7 @@ impl ItemContextMenu {
         let save_as_prefab;
 
         let (create_entity_menu, create_entity_menu_root_items) = CreateEntityMenu::new(ctx);
+        let (replace_with_menu, replace_with_menu_root_items) = CreateEntityMenu::new(ctx);
 
         let preview_camera;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
@@ -66,6 +74,14 @@ impl ItemContextMenu {
                             )
                             .with_content(MenuItemContent::text("Create Child"))
                             .with_items(create_entity_menu_root_items)
+                            .build(ctx),
+                        )
+                        .with_child(
+                            MenuItemBuilder::new(
+                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
+                            )
+                            .with_content(MenuItemContent::text("Replace With"))
+                            .with_items(replace_with_menu_root_items)
                             .build(ctx),
                         )
                         .with_child({
@@ -95,6 +111,7 @@ impl ItemContextMenu {
             preview_camera,
             save_as_prefab,
             save_as_prefab_dialog,
+            replace_with_menu,
         }
     }
 
@@ -109,8 +126,19 @@ impl ItemContextMenu {
 
         if let Selection::Graph(graph_selection) = &editor_scene.selection {
             if let Some(first) = graph_selection.nodes().first() {
-                self.create_entity_menu
-                    .handle_ui_message(message, sender, *first);
+                if let Some(node) = self.create_entity_menu.handle_ui_message(message) {
+                    sender
+                        .send(Message::do_scene_command(AddNodeCommand::new(node, *first)))
+                        .unwrap();
+                } else if let Some(replacement) = self.replace_with_menu.handle_ui_message(message)
+                {
+                    sender
+                        .send(Message::do_scene_command(ReplaceNodeCommand {
+                            handle: *first,
+                            node: replacement,
+                        }))
+                        .unwrap();
+                }
             }
         }
 
