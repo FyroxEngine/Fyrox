@@ -441,9 +441,15 @@ impl NodeTrait for RigidBody {
     }
 
     fn update(&mut self, context: &mut UpdateContext) -> bool {
-        context
-            .physics2d
-            .sync_rigid_body_node(self, context.nodes[self.parent].global_transform());
+        context.physics2d.sync_rigid_body_node(
+            self,
+            // Rigid body 2D can be root node of a scene, in this case it does not have a parent.
+            context
+                .nodes
+                .try_borrow(self.parent)
+                .map(|p| p.global_transform())
+                .unwrap_or_else(Matrix4::identity),
+        );
 
         self.base.update_lifetime(context.dt)
     }
