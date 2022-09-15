@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Base`]
 
+use crate::script::ScriptTrait;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -713,6 +714,7 @@ impl Base {
     }
 
     /// Sets new script for the scene node.
+    #[inline]
     pub fn set_script(&mut self, script: Option<Script>) {
         self.remove_script();
         self.script = script;
@@ -729,7 +731,29 @@ impl Base {
         std::mem::replace(&mut self.script, script)
     }
 
+    /// Checks if the node has a script of a particular type. Returns `false` if there is no script
+    /// at all, or if the script is not of a given type.
+    #[inline]
+    pub fn has_script<T: ScriptTrait>(&self) -> bool {
+        self.try_get_script::<T>().is_some()
+    }
+
+    /// Tries to cast current script instance (if any) to given type and returns a shared reference
+    /// to it on successful cast.
+    #[inline]
+    pub fn try_get_script<T: ScriptTrait>(&self) -> Option<&T> {
+        self.script.as_ref().and_then(|s| s.cast::<T>())
+    }
+
+    /// Tries to cast current script instance (if any) to given type and returns a mutable reference
+    /// to it on successful cast.
+    #[inline]
+    pub fn try_get_script_mut<T: ScriptTrait>(&mut self) -> Option<&mut T> {
+        self.script.as_mut().and_then(|s| s.cast_mut::<T>())
+    }
+
     /// Returns shared reference to current script instance.
+    #[inline]
     pub fn script(&self) -> Option<&Script> {
         self.script.as_ref()
     }
@@ -741,16 +765,19 @@ impl Base {
     /// Do **not** replace script instance using mutable reference given to you by this method.
     /// This will prevent correct script de-initialization! Use `Self::set_script` if you need
     /// to replace the script.
+    #[inline]
     pub fn script_mut(&mut self) -> Option<&mut Script> {
         self.script.as_mut()
     }
 
     /// Returns a copy of the current script.
+    #[inline]
     pub fn script_cloned(&self) -> Option<Script> {
         self.script.clone()
     }
 
     /// Internal. Do not use.
+    #[inline]
     pub fn script_inner(&mut self) -> &mut Option<Script> {
         &mut self.script
     }

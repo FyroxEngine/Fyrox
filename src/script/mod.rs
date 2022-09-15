@@ -273,6 +273,7 @@ impl Clone for Script {
 
 impl Script {
     /// Creates new script wrapper using given script instance.
+    #[inline]
     pub fn new<T: ScriptTrait>(script_object: T) -> Self {
         Self {
             instance: Box::new(script_object),
@@ -281,16 +282,19 @@ impl Script {
     }
 
     /// Performs downcasting to a particular type.
+    #[inline]
     pub fn cast<T: ScriptTrait>(&self) -> Option<&T> {
         self.instance.as_any().downcast_ref::<T>()
     }
 
     /// Performs downcasting to a particular type.
+    #[inline]
     pub fn cast_mut<T: ScriptTrait>(&mut self) -> Option<&mut T> {
         self.instance.as_any_mut().downcast_mut::<T>()
     }
 
     /// Tries to borrow a component of given type.
+    #[inline]
     pub fn query_component_ref<T: Any>(&self) -> Option<&T> {
         self.instance
             .query_component_ref(TypeId::of::<T>())
@@ -298,6 +302,7 @@ impl Script {
     }
 
     /// Tries to borrow a component of given type.
+    #[inline]
     pub fn query_component_mut<T: Any>(&mut self) -> Option<&mut T> {
         self.instance
             .query_component_mut(TypeId::of::<T>())
