@@ -213,10 +213,17 @@ impl Graph {
     /// Creates new graph instance with single root node.
     pub fn new() -> Self {
         let (tx, rx) = channel();
+
+        // Create root node.
+        let mut root_node = Pivot::default();
+        root_node.script_message_sender = Some(tx.clone());
+        root_node.set_name("__ROOT__");
+
+        // Add it to the pool.
         let mut pool = Pool::new();
-        let mut root = Node::new(Pivot::default());
-        root.set_name("__ROOT__");
-        let root = pool.spawn(root);
+        let root = pool.spawn(Node::new(root_node));
+        pool[root].self_handle = root;
+
         Self {
             physics: Default::default(),
             stack: Vec::new(),
