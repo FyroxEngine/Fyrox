@@ -334,19 +334,19 @@ impl TypeUuidProvider for {name} {{
 }}
 
 impl ScriptTrait for {name} {{
-    fn on_init(&mut self, context: ScriptContext) {{
+    fn on_init(&mut self, context: &mut ScriptContext) {{
         // Put initialization logic here.
     }}
 
-    fn on_deinit(&mut self, context: ScriptDeinitContext) {{
+    fn on_deinit(&mut self, context: &mut ScriptDeinitContext) {{
         // Put de-initialization logic here.
     }}
 
-    fn on_os_event(&mut self, event: &Event<()>, context: ScriptContext) {{
+    fn on_os_event(&mut self, event: &Event<()>, context: &mut ScriptContext) {{
         // Respond to OS events here.
     }}
 
-    fn on_update(&mut self, context: ScriptContext) {{
+    fn on_update(&mut self, context: &mut ScriptContext) {{
         // Put object logic here.
     }}
 
