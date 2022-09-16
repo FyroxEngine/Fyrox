@@ -561,13 +561,10 @@ impl WorldViewer {
                 is_any_match |= apply_filter_recursive(child, filter, ui)
             }
 
-            // TODO: It is very easy to forget to add a new condition here if a new type
-            // of a scene item is added. Find a way of doing this in a better way.
-            // Also due to very simple RTTI in Rust, it becomes boilerplate-ish very quick.
             let name = node_ref.cast::<SceneItem<Node>>().map(|i| i.name());
 
             if let Some(name) = name {
-                is_any_match |= name.contains(filter);
+                is_any_match |= name.to_lowercase().contains(filter);
 
                 ui.send_message(WidgetMessage::visibility(
                     node,
@@ -579,7 +576,7 @@ impl WorldViewer {
             is_any_match
         }
 
-        apply_filter_recursive(self.tree_root, &self.filter, ui);
+        apply_filter_recursive(self.tree_root, &self.filter.to_lowercase(), ui);
     }
 
     pub fn set_filter(&mut self, filter: String, ui: &UserInterface) {
