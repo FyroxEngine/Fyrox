@@ -663,17 +663,20 @@ impl Engine {
         scene: Handle<Scene>,
         dt: f32,
     ) {
-        process_scripts(
-            &mut self.scenes[scene],
-            &mut self.plugins,
-            &self.resource_manager,
-            dt,
-            |script, context| {
-                if script.initialized {
-                    script.on_os_event(event, context);
-                }
-            },
-        )
+        let scene = &mut self.scenes[scene];
+        if scene.enabled {
+            process_scripts(
+                scene,
+                &mut self.plugins,
+                &self.resource_manager,
+                dt,
+                |script, context| {
+                    if script.initialized {
+                        script.on_os_event(event, context);
+                    }
+                },
+            )
+        }
     }
 
     /// Initializes every script in the scene.
