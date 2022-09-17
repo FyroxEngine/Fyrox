@@ -101,6 +101,9 @@ pub struct Engine {
 
     plugins_enabled: bool,
 
+    // Amount of time (in seconds) that passed from creation of the engine.
+    elapsed_time: f32,
+
     /// A special container that is able to create nodes by their type UUID. Use a copy of this
     /// value whenever you need it as a parameter in other parts of the engine.
     pub serialization_context: Arc<SerializationContext>,
@@ -235,12 +238,14 @@ pub(crate) fn process_scripts<T>(
     plugins: &mut [Box<dyn Plugin>],
     resource_manager: &ResourceManager,
     dt: f32,
+    elapsed_time: f32,
     mut func: T,
 ) where
     T: FnMut(&mut Script, &mut ScriptContext),
 {
     let mut context = ScriptContext {
         dt,
+        elapsed_time,
         plugins,
         handle: Default::default(),
         scene,
@@ -399,6 +404,7 @@ impl Engine {
             scripted_scenes: Default::default(),
             plugins_enabled: false,
             plugin_constructors: Default::default(),
+            elapsed_time: 0.0,
         })
     }
 
@@ -411,6 +417,13 @@ impl Engine {
         self.context.resize(new_size.into());
 
         Ok(())
+    }
+
+    /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
+    /// this value is **not** guaranteed to match real time. A user can change delta time with
+    /// which the engine "ticks" and this delta time affects elapsed time.
+    pub fn elapsed_time(&self) -> f32 {
+        self.elapsed_time
     }
 
     /// Returns reference to main window. Could be useful to set fullscreen mode, change
@@ -469,6 +482,8 @@ impl Engine {
         self.ui_time = instant::Instant::now() - time;
 
         self.handle_script_messages();
+
+        self.elapsed_time += dt;
     }
 
     fn update_plugins(&mut self, dt: f32, control_flow: &mut ControlFlow) {
@@ -550,7 +565,11 @@ impl Engine {
     fn handle_script_messages(&mut self) {
         for (handle, scene) in self.scenes.pair_iter_mut() {
             if self.scripted_scenes.contains(&handle) {
-                scene.handle_script_messages(&mut self.plugins, &self.resource_manager);
+                scene.handle_script_messages(
+                    &mut self.plugins,
+                    &self.resource_manager,
+                    self.elapsed_time,
+                );
             } else {
                 scene.discard_script_messages();
             }
@@ -560,9 +579,14 @@ impl Engine {
         for (handle, mut detached_scene) in self.scenes.destruction_list.drain(..) {
             // Destroy every queued script instances first.
             if self.scripted_scenes.contains(&handle) {
-                detached_scene.handle_script_messages(&mut self.plugins, &self.resource_manager);
+                detached_scene.handle_script_messages(
+                    &mut self.plugins,
+                    &self.resource_manager,
+                    self.elapsed_time,
+                );
 
                 let mut context = ScriptDeinitContext {
+                    elapsed_time: self.elapsed_time,
                     plugins: &mut self.plugins,
                     resource_manager: &self.resource_manager,
                     scene: &mut detached_scene,
@@ -608,6 +632,7 @@ impl Engine {
                     &mut self.plugins,
                     &self.resource_manager,
                     dt,
+                    self.elapsed_time,
                     |script, context| {
                         // There might be an uninitialized script, this could happen if a script spawned some other script
                         // in `on_update`, or a node with script was added from plugin code.
@@ -622,6 +647,7 @@ impl Engine {
 
                 let mut context = ScriptContext {
                     dt,
+                    elapsed_time: self.elapsed_time,
                     plugins: &mut self.plugins,
                     handle: Default::default(),
                     scene,
@@ -670,6 +696,7 @@ impl Engine {
                 &mut self.plugins,
                 &self.resource_manager,
                 dt,
+                self.elapsed_time,
                 |script, context| {
                     if script.initialized {
                         script.on_os_event(event, context);
@@ -709,6 +736,7 @@ impl Engine {
                 &mut self.plugins,
                 &self.resource_manager,
                 dt,
+                self.elapsed_time,
                 |script, context| {
                     if !script.initialized {
                         script.on_init(context);
@@ -721,6 +749,7 @@ impl Engine {
             // are correctly processed.
             let mut context = ScriptContext {
                 dt,
+                elapsed_time: self.elapsed_time,
                 plugins: &mut self.plugins,
                 handle: Default::default(),
                 scene,

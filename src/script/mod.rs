@@ -44,6 +44,11 @@ pub struct ScriptContext<'a, 'b> {
     /// Amount of time that passed from last call. It has valid values only when called from `on_update`.
     pub dt: f32,
 
+    /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
+    /// this value is **not** guaranteed to match real time. A user can change delta time with
+    /// which the engine "ticks" and this delta time affects elapsed time.
+    pub elapsed_time: f32,
+
     /// A reference to the plugin which the script instance belongs to. You can use it to access plugin data
     /// inside script methods. For example you can store some "global" data in the plugin - for example a
     /// controls configuration, some entity managers and so on.
@@ -69,6 +74,11 @@ pub struct ScriptContext<'a, 'b> {
 
 /// A set of data that will be passed to a script instance just before its destruction.
 pub struct ScriptDeinitContext<'a, 'b> {
+    /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
+    /// this value is **not** guaranteed to match real time. A user can change delta time with
+    /// which the engine "ticks" and this delta time affects elapsed time.
+    pub elapsed_time: f32,
+
     /// A reference to the plugin which the script instance belongs to. You can use it to access plugin data
     /// inside script methods. For example you can store some "global" data in the plugin - for example a
     /// controls configuration, some entity managers and so on.

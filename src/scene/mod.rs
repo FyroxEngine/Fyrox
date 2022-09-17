@@ -662,6 +662,7 @@ impl Scene {
         &mut self,
         plugins: &mut [Box<dyn Plugin>],
         resource_manager: &ResourceManager,
+        elapsed_time: f32,
     ) {
         while let Ok(message) = self.graph.script_message_receiver.try_recv() {
             match message {
@@ -669,6 +670,7 @@ impl Scene {
                     assert!(script.initialized);
 
                     script.on_deinit(&mut ScriptDeinitContext {
+                        elapsed_time,
                         plugins,
                         resource_manager,
                         scene: self,
@@ -683,6 +685,7 @@ impl Scene {
 
                         script.on_init(&mut ScriptContext {
                             dt: 0.0,
+                            elapsed_time,
                             plugins,
                             handle,
                             scene: self,
