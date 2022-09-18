@@ -100,35 +100,27 @@ impl NodeHandleMap {
     pub fn remap_handles(&self, entity: &mut dyn Reflect) {
         for field in entity.fields_mut() {
             if let Some(handle) = field.downcast_mut::<Handle<Node>>() {
-                if handle.is_some() {
-                    if !self.try_map(handle) {
-                        Log::warn(format!("Failed to remap handle {}!", *handle));
-                    }
+                if handle.is_some() && !self.try_map(handle) {
+                    Log::warn(format!("Failed to remap handle {}!", *handle));
                 }
             } else if let Some(vec) = field.downcast_mut::<Vec<Handle<Node>>>() {
                 for handle in vec {
-                    if handle.is_some() {
-                        if !self.try_map(handle) {
-                            Log::warn(format!("Failed to remap handle {}!", *handle));
-                        }
+                    if handle.is_some() && !self.try_map(handle) {
+                        Log::warn(format!("Failed to remap handle {}!", *handle));
                     }
                 }
             } else if let Some(inheritable_handle) =
                 field.downcast_mut::<InheritableVariable<Handle<Node>>>()
             {
-                if inheritable_handle.is_some() {
-                    if !self.try_map_silent(inheritable_handle) {
-                        Log::warn(format!("Failed to remap handle {}!", **inheritable_handle));
-                    }
+                if inheritable_handle.is_some() && !self.try_map_silent(inheritable_handle) {
+                    Log::warn(format!("Failed to remap handle {}!", **inheritable_handle));
                 }
             } else if let Some(inheritable_vec) =
                 field.downcast_mut::<InheritableVariable<Vec<Handle<Node>>>>()
             {
                 for handle in inheritable_vec.get_mut_silent() {
-                    if handle.is_some() {
-                        if !self.try_map(handle) {
-                            Log::warn(format!("Failed to remap handle {}!", *handle));
-                        }
+                    if handle.is_some() && !self.try_map(handle) {
+                        Log::warn(format!("Failed to remap handle {}!", *handle));
                     }
                 }
             } else if let Some(array) = field.as_array_mut() {
