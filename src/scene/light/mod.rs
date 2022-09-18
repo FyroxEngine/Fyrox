@@ -26,10 +26,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    scene::{
-        base::{Base, BaseBuilder},
-        graph::map::NodeHandleMap,
-    },
+    scene::base::{Base, BaseBuilder},
 };
 use std::ops::{Deref, DerefMut};
 
@@ -183,10 +180,6 @@ impl BaseLight {
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
         self.base.restore_resources(resource_manager);
-    }
-
-    pub(crate) fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
-        self.base.remap_handles(old_new_mapping);
     }
 }
 

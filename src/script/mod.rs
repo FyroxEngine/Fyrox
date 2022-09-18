@@ -13,7 +13,7 @@ use crate::{
     engine::resource_manager::ResourceManager,
     event::Event,
     plugin::Plugin,
-    scene::{graph::map::NodeHandleMap, node::Node, Scene},
+    scene::{node::Node, Scene},
     utils::component::ComponentProvider,
 };
 use std::{
@@ -120,17 +120,6 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// frame, but it is guaranteed that the rate of call is stable and usually it will be called
     /// 60 times per second (this may change in future releases).
     fn on_update(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) {}
-
-    /// Called right after the parent node was copied, giving you the ability to remap handles to
-    /// nodes stored inside of your script.
-    ///
-    /// # Motivation
-    ///
-    /// Imagine that you have a character controller script that contains handles to some other
-    /// nodes in the scene, for example a collider. When you copy the node with the script, you
-    /// want the copy to contain references to respective copies, not the original objects.
-    /// The method allows you to do exactly this.
-    fn remap_handles(&mut self, #[allow(unused_variables)] old_new_mapping: &NodeHandleMap) {}
 
     /// Allows you to restore resources after deserialization.
     ///

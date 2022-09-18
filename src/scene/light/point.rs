@@ -30,7 +30,7 @@ use crate::{
     engine::resource_manager::ResourceManager,
     scene::{
         base::Base,
-        graph::{map::NodeHandleMap, Graph},
+        graph::Graph,
         light::{BaseLight, BaseLightBuilder},
         node::{Node, NodeTrait, TypeUuidProvider},
     },
@@ -121,10 +121,6 @@ impl NodeTrait for PointLight {
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
         self.base_light.restore_resources(resource_manager);
-    }
-
-    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
-        self.base_light.remap_handles(old_new_mapping);
     }
 
     fn id(&self) -> Uuid {

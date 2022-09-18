@@ -21,7 +21,7 @@ use crate::{
         camera::Camera,
         decal::Decal,
         dim2::{self, rectangle::Rectangle},
-        graph::{self, map::NodeHandleMap, Graph, NodePool},
+        graph::{self, Graph, NodePool},
         light::{point::PointLight, spot::SpotLight},
         mesh::Mesh,
         particle_system::ParticleSystem,
@@ -154,11 +154,6 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Inspect + Visit {
     /// serializes resource handle, it just writes a path to the resource, not its content. So we
     /// must get real resource after the node is loaded from a scene.
     fn restore_resources(&mut self, resource_manager: ResourceManager);
-
-    /// Re-maps internal handles after cloning or property inheritance. It is needed because a node
-    /// might store handles to other nodes in scene graph, for example a skinned mesh stores handles
-    /// to bones and when we copy the mesh, handles must be mapped to respective copies of each bone.
-    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap);
 
     /// Returns actual type id. It will be used for serialization, the type will be saved together
     /// with node's data allowing you to create correct node instance on deserialization.

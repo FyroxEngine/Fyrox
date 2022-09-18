@@ -33,7 +33,6 @@ pub use fyrox_sound::{
     source::Status,
 };
 
-use crate::scene::graph::map::NodeHandleMap;
 use fyrox_sound::source::SoundSource;
 use std::{
     cell::Cell,
@@ -348,10 +347,6 @@ impl NodeTrait for Sound {
             let state = buffer.state();
             self.set_buffer(Some(resource_manager.request_sound_buffer(state.path())));
         }
-    }
-
-    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
-        self.base.remap_handles(old_new_mapping);
     }
 
     fn id(&self) -> Uuid {

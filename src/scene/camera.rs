@@ -29,7 +29,7 @@ use crate::{
     resource::texture::{Texture, TextureError, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
-        graph::{map::NodeHandleMap, Graph},
+        graph::Graph,
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
         visibility::VisibilityCache,
     },
@@ -587,10 +587,6 @@ impl NodeTrait for Camera {
             texture_container.try_restore_optional_resource(&mut skybox.front);
             texture_container.try_restore_optional_resource(&mut skybox.back);
         }
-    }
-
-    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
-        self.base.remap_handles(old_new_mapping);
     }
 
     fn id(&self) -> Uuid {

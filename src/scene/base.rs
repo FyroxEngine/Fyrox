@@ -11,11 +11,10 @@ use crate::{
         reflect::Reflect,
         variable::InheritableVariable,
         visitor::{Visit, VisitError, VisitResult, Visitor},
-        VecExtensions,
     },
     engine::{resource_manager::ResourceManager, SerializationContext},
     resource::model::Model,
-    scene::{graph::map::NodeHandleMap, node::Node, transform::Transform},
+    scene::{node::Node, transform::Transform},
     script::{Script, ScriptTrait},
     utils::log::Log,
 };
@@ -833,38 +832,6 @@ impl Base {
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
         if let Some(script) = self.script.as_mut() {
             script.restore_resources(resource_manager);
-        }
-    }
-
-    pub(crate) fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
-        for property in self.properties.get_mut_silent().iter_mut() {
-            if let PropertyValue::NodeHandle(ref mut handle) = property.value {
-                if !old_new_mapping.try_map(handle) {
-                    Log::warn(format!(
-                        "Unable to remap node handle property {} of a node {}. Handle is {}!",
-                        property.name, *self.name, handle
-                    ))
-                }
-            }
-        }
-
-        // LODs also have handles that must be remapped too.
-        if let Some(lod_group) = self.lod_group.get_mut_silent() {
-            for level in lod_group.levels.iter_mut() {
-                level.objects.retain_mut_ext(|object| {
-                    if old_new_mapping.try_map(object) {
-                        true
-                    } else {
-                        Log::warn(format!(
-                            "Unable to remap LOD object handle of a node {}. Handle is {}!",
-                            *self.name, object.0
-                        ));
-
-                        // Discard invalid handles.
-                        false
-                    }
-                });
-            }
         }
     }
 }

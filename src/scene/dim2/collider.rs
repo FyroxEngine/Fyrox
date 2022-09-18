@@ -17,7 +17,7 @@ use crate::{
         base::{Base, BaseBuilder},
         collider::InteractionGroups,
         dim2::physics::{ContactPair, PhysicsWorld},
-        graph::{map::NodeHandleMap, physics::CoefficientCombineRule, Graph},
+        graph::{physics::CoefficientCombineRule, Graph},
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
     },
     utils::log::Log,
@@ -535,34 +535,6 @@ impl NodeTrait for Collider {
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
         self.base.restore_resources(resource_manager);
-    }
-
-    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
-        self.base.remap_handles(old_new_mapping);
-
-        match self.shape.get_mut_silent() {
-            ColliderShape::Trimesh(ref mut trimesh) => {
-                for source in trimesh.sources.iter_mut() {
-                    if !old_new_mapping.try_map(&mut source.0) {
-                        Log::warn(format!(
-                            "Unable to remap geometry source of a Trimesh collider {} shape. Handle is {}!",
-                            *self.base.name,
-                            source.0
-                        ))
-                    }
-                }
-            }
-            ColliderShape::Heightfield(ref mut heightfield) => {
-                if !old_new_mapping.try_map(&mut heightfield.geometry_source.0) {
-                    Log::warn(format!(
-                        "Unable to remap geometry source of a Height Field collider {} shape. Handle is {}!",
-                        *self.base.name,
-                        heightfield.geometry_source.0
-                    ))
-                }
-            }
-            _ => (),
-        }
     }
 
     fn id(&self) -> Uuid {

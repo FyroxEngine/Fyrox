@@ -20,7 +20,7 @@ use crate::{
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
-        graph::{map::NodeHandleMap, Graph},
+        graph::Graph,
         mesh::{
             buffer::{TriangleBuffer, VertexBuffer},
             surface::SurfaceData,
@@ -665,10 +665,6 @@ impl NodeTrait for Terrain {
         for layer in self.layers() {
             layer.material.lock().resolve(resource_manager.clone());
         }
-    }
-
-    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
-        self.base.remap_handles(old_new_mapping);
     }
 
     fn id(&self) -> Uuid {

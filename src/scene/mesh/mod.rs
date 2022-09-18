@@ -22,7 +22,7 @@ use crate::{
     engine::resource_manager::ResourceManager,
     scene::{
         base::{Base, BaseBuilder},
-        graph::{map::NodeHandleMap, Graph},
+        graph::Graph,
         mesh::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
             surface::Surface,
@@ -283,16 +283,6 @@ impl NodeTrait for Mesh {
 
         for surface in self.surfaces_mut() {
             surface.material().lock().resolve(resource_manager.clone());
-        }
-    }
-
-    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
-        self.base.remap_handles(old_new_mapping);
-
-        for surface in self.surfaces.get_mut_silent() {
-            for bone_handle in surface.bones.iter_mut() {
-                old_new_mapping.try_map(bone_handle);
-            }
         }
     }
 

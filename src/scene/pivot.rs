@@ -11,7 +11,7 @@ use crate::{
     engine::resource_manager::ResourceManager,
     scene::{
         base::{Base, BaseBuilder},
-        graph::{map::NodeHandleMap, Graph},
+        graph::Graph,
         node::{Node, NodeTrait, TypeUuidProvider},
     },
 };
@@ -62,10 +62,6 @@ impl NodeTrait for Pivot {
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
         self.base.restore_resources(resource_manager)
-    }
-
-    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
-        self.base.remap_handles(old_new_mapping)
     }
 
     fn id(&self) -> Uuid {

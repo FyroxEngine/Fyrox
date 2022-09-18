@@ -316,7 +316,7 @@ use fyrox::{{
     core::{{inspect::prelude::*, uuid::{{Uuid, uuid}}, visitor::prelude::*, reflect::Reflect}},
     engine::resource_manager::ResourceManager,
     event::Event, impl_component_provider,
-    scene::{{graph::map::NodeHandleMap, node::TypeUuidProvider}},
+    scene::{{node::TypeUuidProvider}},
     script::{{ScriptContext, ScriptDeinitContext, ScriptTrait}},
 }};
 
@@ -348,10 +348,6 @@ impl ScriptTrait for {name} {{
 
     fn on_update(&mut self, context: &mut ScriptContext) {{
         // Put object logic here.
-    }}
-
-    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {{
-        // Remap handles to other scene nodes here.
     }}
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {{

@@ -17,7 +17,7 @@ use crate::{
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
-        graph::{map::NodeHandleMap, Graph},
+        graph::Graph,
         node::{Node, NodeTrait, TypeUuidProvider},
     },
 };
@@ -173,10 +173,6 @@ impl NodeTrait for Sprite {
         let mut state = resource_manager.state();
         let texture_container = &mut state.containers_mut().textures;
         texture_container.try_restore_inheritable_resource(&mut self.texture);
-    }
-
-    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
-        self.base.remap_handles(old_new_mapping);
     }
 
     fn id(&self) -> Uuid {

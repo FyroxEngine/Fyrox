@@ -14,7 +14,7 @@ use crate::{
     engine::resource_manager::ResourceManager,
     scene::{
         base::{Base, BaseBuilder},
-        graph::{map::NodeHandleMap, Graph},
+        graph::Graph,
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
     },
     utils::log::Log,
@@ -295,24 +295,6 @@ impl NodeTrait for Joint {
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
         self.base.restore_resources(resource_manager);
-    }
-
-    fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
-        if !old_new_mapping.try_map_silent(&mut self.body1) {
-            Log::warn(format!(
-                "Unable to remap first body of a joint {}. Handle is {}!",
-                self.name(),
-                self.body1()
-            ))
-        }
-
-        if !old_new_mapping.try_map_silent(&mut self.body2) {
-            Log::warn(format!(
-                "Unable to remap second body of a joint {}. Handle is {}!",
-                self.name(),
-                self.body2()
-            ))
-        }
     }
 
     fn id(&self) -> Uuid {
