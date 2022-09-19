@@ -311,16 +311,8 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             .cast::<ScriptPropertyEditor>()
             .expect("Must be EnumPropertyEditor!");
 
-        let environment = ctx
-            .ui
-            .node(instance_ref.inspector)
-            .cast::<Inspector>()
-            .expect("Must be Inspector!")
-            .context()
-            .environment
-            .clone();
-
-        let editor_environment = get_editor_environment(&environment);
+        let editor_environment =
+            get_editor_environment(&ctx.environment).expect("Environment must be set!");
 
         let variant_selector_ref = ctx
             .ui
@@ -329,14 +321,13 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             .expect("Must be a DropDownList");
 
         // Script list might change over time if some plugins were reloaded.
-        if Some(variant_selector_ref.items().len())
-            != editor_environment.map(|e| {
-                e.serialization_context
-                    .script_constructors
-                    .map()
-                    .values()
-                    .count()
-            })
+        if variant_selector_ref.items().len()
+            != editor_environment
+                .serialization_context
+                .script_constructors
+                .map()
+                .values()
+                .count()
         {
             if let Some(items) = new_script_definitions_items {
                 send_sync_message(
@@ -381,7 +372,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                         script,
                         &mut ctx.ui.build_ctx(),
                         ctx.definition_container.clone(),
-                        environment,
+                        ctx.environment.clone(),
                         ctx.sync_flag,
                         ctx.layer_index + 1,
                     )
