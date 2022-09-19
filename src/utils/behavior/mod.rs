@@ -242,7 +242,7 @@ mod test {
     };
     use std::{env, fs::File, io::Write, path::PathBuf};
 
-    #[derive(Debug, PartialEq, Default, Visit)]
+    #[derive(Debug, PartialEq, Default, Visit, Clone)]
     struct WalkAction;
 
     impl<'a> Behavior<'a> for WalkAction {
@@ -262,7 +262,7 @@ mod test {
         }
     }
 
-    #[derive(Debug, PartialEq, Default, Visit)]
+    #[derive(Debug, PartialEq, Default, Visit, Clone)]
     struct OpenDoorAction;
 
     impl<'a> Behavior<'a> for OpenDoorAction {
@@ -277,7 +277,7 @@ mod test {
         }
     }
 
-    #[derive(Debug, PartialEq, Default, Visit)]
+    #[derive(Debug, PartialEq, Default, Visit, Clone)]
     struct StepThroughAction;
 
     impl<'a> Behavior<'a> for StepThroughAction {
@@ -297,7 +297,7 @@ mod test {
         }
     }
 
-    #[derive(Debug, PartialEq, Default, Visit)]
+    #[derive(Debug, PartialEq, Default, Visit, Clone)]
     struct CloseDoorAction;
 
     impl<'a> Behavior<'a> for CloseDoorAction {
@@ -313,7 +313,7 @@ mod test {
         }
     }
 
-    #[derive(Debug, PartialEq, Visit)]
+    #[derive(Debug, PartialEq, Visit, Clone)]
     enum BotBehavior {
         None,
         Walk(WalkAction),
