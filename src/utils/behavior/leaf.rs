@@ -8,13 +8,19 @@ use crate::{
 use std::cell::RefCell;
 
 /// See module docs.
-#[derive(Debug, PartialEq, Visit, Eq)]
-pub struct LeafNode<B> {
+#[derive(Debug, PartialEq, Visit, Eq, Clone)]
+pub struct LeafNode<B>
+where
+    B: Clone,
+{
     /// User-defined behavior.
     pub behavior: Option<RefCell<B>>,
 }
 
-impl<B> Default for LeafNode<B> {
+impl<B> Default for LeafNode<B>
+where
+    B: Clone,
+{
     fn default() -> Self {
         Self { behavior: None }
     }
@@ -22,7 +28,7 @@ impl<B> Default for LeafNode<B> {
 
 impl<B> LeafNode<B>
 where
-    B: 'static,
+    B: Clone + 'static,
 {
     /// Creates new leaf node with given action.
     pub fn new(behavior: B) -> Self {

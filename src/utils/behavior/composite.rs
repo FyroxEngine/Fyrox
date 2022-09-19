@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// Defines exact behavior of the composite node.
-#[derive(Debug, PartialEq, Visit, Eq)]
+#[derive(Debug, PartialEq, Visit, Eq, Clone)]
 pub enum CompositeNodeKind {
     /// `Sequence` node will execute children nodes consecutively
     /// until `Status::Failure` is returned from any descendant node. In other words `Sequence`
@@ -30,15 +30,21 @@ impl Default for CompositeNodeKind {
 }
 
 /// See module docs.
-#[derive(Debug, PartialEq, Visit, Eq)]
-pub struct CompositeNode<B> {
+#[derive(Debug, PartialEq, Visit, Eq, Clone)]
+pub struct CompositeNode<B>
+where
+    B: Clone,
+{
     /// A set of children.
     pub children: Vec<Handle<BehaviorNode<B>>>,
     /// Current kind of the node.
     pub kind: CompositeNodeKind,
 }
 
-impl<B> Default for CompositeNode<B> {
+impl<B> Default for CompositeNode<B>
+where
+    B: Clone,
+{
     fn default() -> Self {
         Self {
             children: Default::default(),
@@ -49,7 +55,7 @@ impl<B> Default for CompositeNode<B> {
 
 impl<B> CompositeNode<B>
 where
-    B: 'static,
+    B: Clone + 'static,
 {
     /// Creates new composite node of given kind and set of children nodes.
     pub fn new(kind: CompositeNodeKind, children: Vec<Handle<BehaviorNode<B>>>) -> Self {
