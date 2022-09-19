@@ -293,6 +293,8 @@ where
     }
 
     fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
+        // Any modifications inside of compound structs must mark the variable as modified.
+        self.mark_modified_and_need_sync();
         self.value.field_mut(name)
     }
 
@@ -301,6 +303,8 @@ where
     }
 
     fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
+        // Any modifications inside of inheritable arrays must mark the variable as modified.
+        self.mark_modified_and_need_sync();
         self.value.as_array_mut()
     }
 
@@ -309,6 +313,8 @@ where
     }
 
     fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
+        // Any modifications inside of inheritable lists must mark the variable as modified.
+        self.mark_modified_and_need_sync();
         self.value.as_list_mut()
     }
 
@@ -515,5 +521,62 @@ mod test {
         } else {
             unreachable!()
         }
+    }
+
+    #[test]
+    fn test_compound_inheritance() {
+        #[derive(Reflect, Clone, Debug, PartialEq, Eq)]
+        struct SomeComplexData {
+            foo: InheritableVariable<u32>,
+        }
+
+        #[derive(Reflect, Clone, Debug, PartialEq)]
+        struct MyEntity {
+            some_field: InheritableVariable<f32>,
+
+            // This field won't be inherited correctly - at first it will take parent's value and then
+            // will try to inherit inner fields, but its is useless step, because inner data is already
+            // a full copy of parent's field value. This absolutely ok, it just indicates issues in user
+            // code.
+            incorrectly_inheritable_data: InheritableVariable<SomeComplexData>,
+
+            // Subfields of this field will be correctly inherited, because the field itself is not inheritable.
+            inheritable_data: SomeComplexData,
+        }
+
+        let mut child = MyEntity {
+            some_field: InheritableVariable::new(1.23),
+            incorrectly_inheritable_data: InheritableVariable::new(SomeComplexData {
+                foo: InheritableVariable::new_modified(222),
+            }),
+            inheritable_data: SomeComplexData {
+                foo: InheritableVariable::new_modified(222),
+            },
+        };
+
+        let parent = MyEntity {
+            some_field: InheritableVariable::new(3.21),
+            incorrectly_inheritable_data: InheritableVariable::new(SomeComplexData {
+                foo: InheritableVariable::new(321),
+            }),
+            inheritable_data: SomeComplexData {
+                foo: InheritableVariable::new(321),
+            },
+        };
+
+        assert!(try_inherit_properties(&mut child, &parent).is_ok());
+
+        assert_eq!(child.some_field.value, 3.21);
+        // These fields are equal, despite the fact that they're marked as modified.
+        // This is due incorrect usage of inheritance.
+        assert_eq!(
+            child.incorrectly_inheritable_data.foo.value,
+            parent.incorrectly_inheritable_data.foo.value
+        );
+        // These fields are not equal, as it should be.
+        assert_ne!(
+            child.inheritable_data.foo.value,
+            parent.inheritable_data.foo.value
+        );
     }
 }
