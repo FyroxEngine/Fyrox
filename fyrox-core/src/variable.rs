@@ -288,6 +288,14 @@ where
         self.value.set_field(field, value)
     }
 
+    fn fields(&self) -> Vec<&dyn Reflect> {
+        self.value.fields()
+    }
+
+    fn fields_mut(&mut self) -> Vec<&mut dyn Reflect> {
+        self.value.fields_mut()
+    }
+
     fn field(&self, name: &str) -> Option<&dyn Reflect> {
         self.value.field(name)
     }
