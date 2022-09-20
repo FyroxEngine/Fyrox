@@ -98,37 +98,27 @@ impl NodeHandleMap {
     /// (`Handle<Node>`, `Vec<Handle<Node>>`, `InheritableVariable<Handle<Node>>`, `InheritableVariable<Vec<Handle<Node>>>`)
     /// and automatically maps old handles to new.
     pub fn remap_handles(&self, entity: &mut dyn Reflect) {
-        for field in entity.fields_mut() {
-            if let Some(handle) = field.downcast_mut::<Handle<Node>>() {
+        if let Some(handle) = entity.downcast_mut::<Handle<Node>>() {
+            if handle.is_some() && !self.try_map(handle) {
+                Log::warn(format!("Failed to remap handle {}!", *handle));
+            }
+        } else if let Some(vec) = entity.downcast_mut::<Vec<Handle<Node>>>() {
+            for handle in vec {
                 if handle.is_some() && !self.try_map(handle) {
                     Log::warn(format!("Failed to remap handle {}!", *handle));
                 }
-            } else if let Some(vec) = field.downcast_mut::<Vec<Handle<Node>>>() {
-                for handle in vec {
-                    if handle.is_some() && !self.try_map(handle) {
-                        Log::warn(format!("Failed to remap handle {}!", *handle));
-                    }
-                }
-            } else if let Some(inheritable_handle) =
-                field.downcast_mut::<InheritableVariable<Handle<Node>>>()
-            {
-                if inheritable_handle.is_some() && !self.try_map_silent(inheritable_handle) {
-                    Log::warn(format!("Failed to remap handle {}!", **inheritable_handle));
-                }
-            } else if let Some(inheritable_vec) =
-                field.downcast_mut::<InheritableVariable<Vec<Handle<Node>>>>()
-            {
-                for handle in inheritable_vec.get_mut_silent() {
-                    if handle.is_some() && !self.try_map(handle) {
-                        Log::warn(format!("Failed to remap handle {}!", *handle));
-                    }
-                }
-            } else if let Some(array) = field.as_array_mut() {
-                for i in 0..array.reflect_len() {
-                    self.remap_handles(array.reflect_index_mut(i).unwrap());
-                }
-            } else {
-                // Continue remapping recursively for every compound field.
+            }
+        } else if let Some(inheritable) = entity.as_inheritable_variable_mut() {
+            // In case of inheritable variable we must take inner value and do not mark variables as modified.
+            self.remap_handles(inheritable.inner_value_mut());
+        } else if let Some(array) = entity.as_array_mut() {
+            // Look in every array item.
+            for i in 0..array.reflect_len() {
+                self.remap_handles(array.reflect_index_mut(i).unwrap());
+            }
+        } else {
+            // Continue remapping recursively for every compound field.
+            for field in entity.fields_mut() {
                 self.remap_handles(field.as_reflect_mut());
             }
         }

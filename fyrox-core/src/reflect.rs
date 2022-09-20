@@ -135,6 +135,12 @@ pub trait ReflectInheritableVariable: Reflect + Debug {
 
     /// Marks value as modified, so its value won't be overwritten during property inheritance.
     fn mark_modified(&mut self);
+
+    /// Returns a mutable reference to wrapped value without marking the variable itself as modified.
+    fn inner_value_mut(&mut self) -> &mut dyn Reflect;
+
+    /// Returns a shared reference to wrapped value without marking the variable itself as modified.
+    fn inner_value_ref(&self) -> &dyn Reflect;
 }
 
 /// An error returned from a failed path string query.

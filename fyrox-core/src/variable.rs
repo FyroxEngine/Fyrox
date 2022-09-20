@@ -388,6 +388,14 @@ where
     fn mark_modified(&mut self) {
         self.mark_modified()
     }
+
+    fn inner_value_mut(&mut self) -> &mut dyn Reflect {
+        &mut self.value
+    }
+
+    fn inner_value_ref(&self) -> &dyn Reflect {
+        &self.value
+    }
 }
 
 /// Simultaneously walks over fields of given child and parent and tries to inherit values of properties
@@ -403,21 +411,31 @@ pub fn try_inherit_properties(
         });
     }
 
-    for (child_field, parent_field) in child.fields_mut().iter_mut().zip(parent.fields()) {
-        // If both fields are InheritableVariable<T>, try to inherit.
-        if let (Some(child_inheritable_field), Some(parent_inheritable_field)) = (
-            child_field.as_inheritable_variable_mut(),
-            parent_field.as_inheritable_variable(),
-        ) {
-            child_inheritable_field.try_inherit(parent_inheritable_field)?;
+    if let (Some(inheritable_child), Some(inheritable_parent)) = (
+        child.as_inheritable_variable_mut(),
+        parent.as_inheritable_variable(),
+    ) {
+        try_inherit_properties(
+            inheritable_child.inner_value_mut(),
+            inheritable_parent.inner_value_ref(),
+        )
+    } else {
+        for (child_field, parent_field) in child.fields_mut().iter_mut().zip(parent.fields()) {
+            // If both fields are InheritableVariable<T>, try to inherit.
+            if let (Some(child_inheritable_field), Some(parent_inheritable_field)) = (
+                child_field.as_inheritable_variable_mut(),
+                parent_field.as_inheritable_variable(),
+            ) {
+                child_inheritable_field.try_inherit(parent_inheritable_field)?;
+            }
+
+            // Look into inner properties recursively and try to inherit them. This is mandatory step, because inner
+            // fields may also be InheritableVariable<T>.
+            try_inherit_properties(child_field.as_reflect_mut(), parent_field.as_reflect())?;
         }
 
-        // Look into inner properties recursively and try to inherit them. This is mandatory step, because inner
-        // fields may also be InheritableVariable<T>.
-        try_inherit_properties(child_field.as_reflect_mut(), parent_field.as_reflect())?;
+        Ok(())
     }
-
-    Ok(())
 }
 
 pub fn reset_inheritable_properties(object: &mut dyn Reflect) {
