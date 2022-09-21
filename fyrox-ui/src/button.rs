@@ -17,7 +17,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ButtonMessage {
     Click,
     Content(ButtonContent),
@@ -98,15 +98,28 @@ impl Control for Button {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ButtonContent {
-    Text(String),
+    Text {
+        text: String,
+        font: Option<SharedFont>,
+    },
     Node(Handle<UiNode>),
 }
 
 impl ButtonContent {
     pub fn text<S: AsRef<str>>(s: S) -> Self {
-        Self::Text(s.as_ref().to_owned())
+        Self::Text {
+            text: s.as_ref().to_owned(),
+            font: None,
+        }
+    }
+
+    pub fn text_with_font<S: AsRef<str>>(s: S, font: SharedFont) -> Self {
+        Self::Text {
+            text: s.as_ref().to_owned(),
+            font: Some(font),
+        }
     }
 
     pub fn node(node: Handle<UiNode>) -> Self {
@@ -115,10 +128,11 @@ impl ButtonContent {
 
     fn build(&self, ctx: &mut BuildContext) -> Handle<UiNode> {
         match self {
-            Self::Text(txt) => TextBuilder::new(WidgetBuilder::new())
-                .with_text(txt.as_str())
+            Self::Text { text, font } => TextBuilder::new(WidgetBuilder::new())
+                .with_text(text)
                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
                 .with_vertical_text_alignment(VerticalAlignment::Center)
+                .with_font(font.clone().unwrap_or_else(|| ctx.ui.default_font.clone()))
                 .build(ctx),
             Self::Node(node) => *node,
         }
@@ -128,7 +142,6 @@ impl ButtonContent {
 pub struct ButtonBuilder {
     widget_builder: WidgetBuilder,
     content: Option<ButtonContent>,
-    font: Option<SharedFont>,
     back: Option<Handle<UiNode>>,
 }
 
@@ -137,23 +150,22 @@ impl ButtonBuilder {
         Self {
             widget_builder,
             content: None,
-            font: None,
             back: None,
         }
     }
 
     pub fn with_text(mut self, text: &str) -> Self {
-        self.content = Some(ButtonContent::Text(text.to_owned()));
+        self.content = Some(ButtonContent::text(text));
+        self
+    }
+
+    pub fn with_text_and_font(mut self, text: &str, font: SharedFont) -> Self {
+        self.content = Some(ButtonContent::text_with_font(text, font));
         self
     }
 
     pub fn with_content(mut self, node: Handle<UiNode>) -> Self {
         self.content = Some(ButtonContent::Node(node));
-        self
-    }
-
-    pub fn with_font(mut self, font: SharedFont) -> Self {
-        self.font = Some(font);
         self
     }
 
