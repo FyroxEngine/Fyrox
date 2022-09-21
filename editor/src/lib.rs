@@ -33,6 +33,7 @@ mod settings;
 mod utils;
 mod world;
 
+use crate::inspector::editors::handle::HandlePropertyEditorMessage;
 use crate::settings::camera::SceneCameraSettings;
 use crate::{
     absm::AbsmEditor,
@@ -234,6 +235,10 @@ pub enum Message {
     OpenSaveSceneConfirmationDialog(SaveSceneConfirmationDialogAction),
     SetBuildProfile(BuildProfile),
     SaveSelectionAsPrefab(PathBuf),
+    SyncNodeHandleName {
+        view: Handle<UiNode>,
+        handle: Handle<Node>,
+    },
 }
 
 impl Message {
@@ -1762,6 +1767,21 @@ impl Editor {
                 }
                 Message::SaveSelectionAsPrefab(path) => {
                     self.try_save_selection_as_prefab(path);
+                }
+                Message::SyncNodeHandleName { view, handle } => {
+                    if let Some(editor_scene) = self.scene.as_ref() {
+                        let scene = &self.engine.scenes[editor_scene.scene];
+
+                        if let Some(node) = scene.graph.try_get(handle) {
+                            self.engine.user_interface.send_message(
+                                HandlePropertyEditorMessage::name(
+                                    view,
+                                    MessageDirection::ToWidget,
+                                    node.name_owned(),
+                                ),
+                            );
+                        }
+                    }
                 }
             }
         }

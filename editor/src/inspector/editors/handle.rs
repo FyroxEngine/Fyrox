@@ -32,10 +32,12 @@ use std::{
 #[derive(Debug, PartialEq)]
 pub enum HandlePropertyEditorMessage {
     Value(Handle<Node>),
+    Name(String),
 }
 
 impl HandlePropertyEditorMessage {
     define_constructor!(HandlePropertyEditorMessage:Value => fn value(Handle<Node>), layout: false);
+    define_constructor!(HandlePropertyEditorMessage:Name => fn name(String), layout: false);
 }
 
 #[derive(Debug)]
@@ -87,22 +89,30 @@ impl Control for HandlePropertyEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(HandlePropertyEditorMessage::Value(handle)) =
-            message.data::<HandlePropertyEditorMessage>()
-        {
+        if let Some(msg) = message.data::<HandlePropertyEditorMessage>() {
             if message.destination() == self.handle()
                 && message.direction() == MessageDirection::ToWidget
-                && self.value != *handle
             {
-                self.value = *handle;
+                match msg {
+                    HandlePropertyEditorMessage::Value(handle) => {
+                        if self.value != *handle {
+                            self.value = *handle;
+                            ui.send_message(message.reverse());
+                        }
 
-                ui.send_message(TextMessage::text(
-                    self.text,
-                    MessageDirection::ToWidget,
-                    format!("{}", *handle),
-                ));
-
-                ui.send_message(message.reverse());
+                        // Sync name in any case, because it may be changed.
+                        request_name_sync(&self.sender, self.handle, self.value);
+                    }
+                    HandlePropertyEditorMessage::Name(value) => {
+                        // Handle messages from the editor, it will respond to requests and provide
+                        // node names in efficient way.
+                        ui.send_message(TextMessage::text(
+                            self.text,
+                            MessageDirection::ToWidget,
+                            format!("{} ({})", value, self.value),
+                        ));
+                    }
+                }
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if message.destination() == self.handle() {
@@ -166,7 +176,7 @@ impl HandlePropertyEditorBuilder {
                         .with_text(if self.value.is_none() {
                             "Unassigned".to_owned()
                         } else {
-                            format!("{}", self.value)
+                            "Err: Desync!".to_owned()
                         })
                         .build(ctx);
                     text
@@ -247,14 +257,15 @@ impl PropertyEditorDefinition for NodeHandlePropertyEditorDefinition {
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Handle<Node>>()?;
 
-        Ok(PropertyEditorInstance::Simple {
-            editor: HandlePropertyEditorBuilder::new(
-                WidgetBuilder::new(),
-                self.sender.lock().unwrap().clone(),
-            )
+        let sender = self.sender.lock().unwrap().clone();
+
+        let editor = HandlePropertyEditorBuilder::new(WidgetBuilder::new(), sender.clone())
             .with_value(*value)
-            .build(ctx.build_context),
-        })
+            .build(ctx.build_context);
+
+        request_name_sync(&sender, editor, *value);
+
+        Ok(PropertyEditorInstance::Simple { editor })
     }
 
     fn create_message(
@@ -284,4 +295,16 @@ impl PropertyEditorDefinition for NodeHandlePropertyEditorDefinition {
         }
         None
     }
+}
+
+fn request_name_sync(sender: &Sender<Message>, editor: Handle<UiNode>, handle: Handle<Node>) {
+    // It is not possible to **effectively** provide information about node names here,
+    // instead we ask the editor to provide such information in a deferred manner - by
+    // sending a message.
+    sender
+        .send(Message::SyncNodeHandleName {
+            view: editor,
+            handle,
+        })
+        .unwrap();
 }
