@@ -29,7 +29,7 @@ use std::{
     sync::{mpsc::Sender, Mutex},
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum HandlePropertyEditorMessage {
     Value(Handle<Node>),
     Name(String),
