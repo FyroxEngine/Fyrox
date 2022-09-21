@@ -1,6 +1,6 @@
 use crate::{
     inspector::editors::{
-        handle::HandlePropertyEditorDefinition, material::MaterialPropertyEditorDefinition,
+        handle::NodeHandlePropertyEditorDefinition, material::MaterialPropertyEditorDefinition,
         resource::ResourceFieldPropertyEditorDefinition, script::ScriptPropertyEditorDefinition,
         texture::TexturePropertyEditorDefinition,
     },
@@ -110,7 +110,7 @@ pub fn make_property_editors_container(
     });
 
     container.register_inheritable_vec_collection::<Handle<Node>>();
-    container.insert(HandlePropertyEditorDefinition::<Node>::new(sender));
+    container.insert(NodeHandlePropertyEditorDefinition::new(sender));
     container.register_inheritable_inspectable::<NodeHandle>();
     container.register_inheritable_vec_collection::<NodeHandle>();
 
