@@ -1145,6 +1145,7 @@ impl Control for TextBox {
                                 self.invalidate_layout();
 
                                 // Make sure caret will stay in valid bounds.
+                                self.formatted_text.borrow_mut().build();
                                 if !self.is_valid_position(self.caret_position) {
                                     self.set_caret_position(self.end_position());
                                 }
