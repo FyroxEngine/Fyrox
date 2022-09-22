@@ -595,21 +595,11 @@ impl Animation {
     }
 
     pub fn track_of(&self, handle: Handle<Node>) -> Option<&Track> {
-        for track in self.tracks.iter() {
-            if track.node == handle {
-                return Some(track);
-            }
-        }
-        None
+        self.tracks.iter().find(|&track| track.node == handle)
     }
 
     pub fn track_of_mut(&mut self, handle: Handle<Node>) -> Option<&mut Track> {
-        for track in self.tracks.iter_mut() {
-            if track.node == handle {
-                return Some(track);
-            }
-        }
-        None
+        self.tracks.iter_mut().find(|track| track.node == handle)
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {

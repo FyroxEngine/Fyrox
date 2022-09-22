@@ -773,13 +773,11 @@ impl Visitor {
     }
 
     fn find_field(&mut self, name: &str) -> Option<&mut Field> {
-        let node = self.nodes.borrow_mut(self.current_node);
-        for field in node.fields.iter_mut() {
-            if field.name == name {
-                return Some(field);
-            }
-        }
-        None
+        self.nodes
+            .borrow_mut(self.current_node)
+            .fields
+            .iter_mut()
+            .find(|field| field.name == name)
     }
 
     pub fn is_reading(&self) -> bool {
