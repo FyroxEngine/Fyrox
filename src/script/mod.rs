@@ -14,7 +14,7 @@ use crate::{
     event::Event,
     plugin::Plugin,
     scene::{node::Node, Scene},
-    utils::component::ComponentProvider,
+    utils::{component::ComponentProvider, log::Log},
 };
 use std::{
     any::{Any, TypeId},
@@ -101,7 +101,20 @@ pub struct ScriptDeinitContext<'a, 'b> {
 pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// The method is called when the script wasn't initialized yet. It is guaranteed to be called once,
     /// and before any other methods of the script.
+    ///
+    /// # Important
+    ///
+    /// The method **will not** be called in case if you serialized initialized script instance and then
+    /// loaded the instance. Internal flag will tell the engine that the script is initialized and this
+    /// method **will not** be called. This is intentional design decision to be able to create save files
+    /// in games. If you need a method that will be called in any case, use [`ScriptTrait::on_start`].
     fn on_init(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) {}
+
+    /// The method is called after [`ScriptTrait::on_init`], but in separate pass, which means that all
+    /// script instances are already initialized. However, if implementor of this method creates a new
+    /// node with a script, there will be a second pass of initialization. The method is guaranteed to
+    /// be called once.
+    fn on_start(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) {}
 
     /// The method is called when the script is about to be destroyed. It is guaranteed to be called last.
     fn on_deinit(&mut self, #[allow(unused_variables)] ctx: &mut ScriptDeinitContext) {}
@@ -257,7 +270,31 @@ impl Inspect for Script {
 
 impl Visit for Script {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.instance.visit(name, visitor)
+        let mut region_guard = visitor.enter_region(name)?;
+
+        // Check for new format first, this branch will fail only on attempt to deserialize
+        // scripts in old format.
+        if self.instance.visit("Data", &mut region_guard).is_ok() {
+            // Visit flags.
+            self.initialized.visit("Initialized", &mut region_guard)?;
+        } else {
+            Log::warn(format!(
+                "Unable to load script instance of id {} in new format! Trying to load in old format...",
+                self.id()
+            ));
+
+            // Leave region and try to load in old format.
+            drop(region_guard);
+
+            self.instance.visit(name, visitor)?;
+
+            Log::warn(format!(
+                "Script instance of id {} loaded successfully using compatibility loader! Resave the script!",
+                self.id()
+            ));
+        }
+
+        Ok(())
     }
 }
 

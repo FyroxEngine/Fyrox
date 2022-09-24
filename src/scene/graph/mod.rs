@@ -240,6 +240,7 @@ impl Graph {
     pub fn add_node(&mut self, mut node: Node) -> Handle<Node> {
         let children = node.children.clone();
         node.children.clear();
+        let has_script = node.script.is_some();
         let handle = self.pool.spawn(node);
         if self.root.is_some() {
             self.link_nodes(handle, self.root);
@@ -249,6 +250,11 @@ impl Graph {
         }
 
         self.event_broadcaster.broadcast(GraphEvent::Added(handle));
+        if has_script {
+            self.script_message_sender
+                .send(ScriptMessage::InitializeScript { handle })
+                .unwrap();
+        }
 
         let sender = self.script_message_sender.clone();
         let node = &mut self[handle];

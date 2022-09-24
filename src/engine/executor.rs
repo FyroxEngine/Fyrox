@@ -118,17 +118,12 @@ impl Executor {
                 .map(|(s, _)| s)
                 .collect::<Vec<_>>();
 
-            for scene_handle in scenes.iter() {
-                if !engine.scripted_scenes.contains(scene_handle) {
-                    engine.initialize_scene_scripts(*scene_handle, fixed_timestep);
-                    engine.scripted_scenes.insert(*scene_handle);
+            for &scene_handle in scenes.iter() {
+                if !engine.has_scripted_scene(scene_handle) {
+                    engine.register_scripted_scene(scene_handle);
                 }
 
-                engine
-                    .scripted_scenes
-                    .retain(|s| engine.scenes.is_valid_handle(*s));
-
-                engine.handle_os_event_by_scripts(&event, *scene_handle, fixed_timestep);
+                engine.handle_os_event_by_scripts(&event, scene_handle, fixed_timestep);
             }
 
             match event {

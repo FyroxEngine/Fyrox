@@ -40,10 +40,8 @@ use crate::{
     },
     engine::{resource_manager::ResourceManager, SerializationContext},
     material::{shader::SamplerFallback, PropertyValue},
-    plugin::Plugin,
     resource::texture::Texture,
     scene::{
-        base::ScriptMessage,
         camera::Camera,
         debug::SceneDrawingContext,
         graph::{map::NodeHandleMap, Graph, GraphPerformanceStatistics},
@@ -55,7 +53,6 @@ use crate::{
         node::Node,
         sound::SoundEngine,
     },
-    script::{ScriptContext, ScriptDeinitContext},
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::FxHashMap;
@@ -650,57 +647,6 @@ impl Scene {
         }
 
         self.visit(region_name, visitor)
-    }
-
-    pub(crate) fn discard_script_messages(&mut self) {
-        while self.graph.script_message_receiver.try_recv().is_ok() {
-            // Drop messages one by one.
-        }
-    }
-
-    pub(crate) fn handle_script_messages(
-        &mut self,
-        plugins: &mut [Box<dyn Plugin>],
-        resource_manager: &ResourceManager,
-        elapsed_time: f32,
-    ) {
-        while let Ok(message) = self.graph.script_message_receiver.try_recv() {
-            match message {
-                ScriptMessage::DestroyScript { mut script, handle } => {
-                    assert!(script.initialized);
-
-                    script.on_deinit(&mut ScriptDeinitContext {
-                        elapsed_time,
-                        plugins,
-                        resource_manager,
-                        scene: self,
-                        node_handle: handle,
-                    });
-                }
-                ScriptMessage::InitializeScript { handle } => {
-                    if let Some(mut script) =
-                        self.graph.try_get_mut(handle).and_then(|n| n.script.take())
-                    {
-                        assert!(!script.initialized);
-
-                        script.on_init(&mut ScriptContext {
-                            dt: 0.0,
-                            elapsed_time,
-                            plugins,
-                            handle,
-                            scene: self,
-                            resource_manager,
-                        });
-
-                        // Put script back to node, checked borrow is used because the node might be deleted
-                        // on initialization.
-                        if let Some(node) = self.graph.try_get_mut(handle) {
-                            node.script = Some(script);
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
