@@ -338,6 +338,11 @@ impl ScriptTrait for {name} {{
         // Put initialization logic here.
     }}
 
+    fn on_start(&mut self, context: &mut ScriptContext) {{
+        // There should be a logic that depends on other scripts in scene.
+        // It is called right after **all** scripts were initialized.
+    }}
+
     fn on_deinit(&mut self, context: &mut ScriptDeinitContext) {{
         // Put de-initialization logic here.
     }}
