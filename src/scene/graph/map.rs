@@ -97,29 +97,40 @@ impl NodeHandleMap {
     /// Tries to remap handles to nodes in a given entity using reflection. It finds all supported fields recursively
     /// (`Handle<Node>`, `Vec<Handle<Node>>`, `InheritableVariable<Handle<Node>>`, `InheritableVariable<Vec<Handle<Node>>>`)
     /// and automatically maps old handles to new.
-    pub fn remap_handles(&self, entity: &mut dyn Reflect) {
+    pub fn remap_handles(&self, node: &mut Node) {
+        let name = node.name_owned();
+        self.remap_handles_internal(node.as_reflect_mut(), &name);
+    }
+
+    fn remap_handles_internal(&self, entity: &mut dyn Reflect, node_name: &str) {
         if let Some(handle) = entity.downcast_mut::<Handle<Node>>() {
             if handle.is_some() && !self.try_map(handle) {
-                Log::warn(format!("Failed to remap handle {}!", *handle));
+                Log::warn(format!(
+                    "Failed to remap handle {} of node {}!",
+                    *handle, node_name
+                ));
             }
         } else if let Some(vec) = entity.downcast_mut::<Vec<Handle<Node>>>() {
             for handle in vec {
                 if handle.is_some() && !self.try_map(handle) {
-                    Log::warn(format!("Failed to remap handle {}!", *handle));
+                    Log::warn(format!(
+                        "Failed to remap handle {} in array of node {}!",
+                        *handle, node_name
+                    ));
                 }
             }
         } else if let Some(inheritable) = entity.as_inheritable_variable_mut() {
             // In case of inheritable variable we must take inner value and do not mark variables as modified.
-            self.remap_handles(inheritable.inner_value_mut());
+            self.remap_handles_internal(inheritable.inner_value_mut(), node_name);
         } else if let Some(array) = entity.as_array_mut() {
             // Look in every array item.
             for i in 0..array.reflect_len() {
-                self.remap_handles(array.reflect_index_mut(i).unwrap());
+                self.remap_handles_internal(array.reflect_index_mut(i).unwrap(), node_name);
             }
         } else {
             // Continue remapping recursively for every compound field.
             for field in entity.fields_mut() {
-                self.remap_handles(field.as_reflect_mut());
+                self.remap_handles_internal(field.as_reflect_mut(), node_name);
             }
         }
     }

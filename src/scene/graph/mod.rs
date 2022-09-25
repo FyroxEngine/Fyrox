@@ -178,7 +178,7 @@ pub struct SubGraph {
 fn remap_handles(old_new_mapping: &NodeHandleMap, dest_graph: &mut Graph) {
     // Iterate over instantiated nodes and remap handles.
     for (_, &new_node_handle) in old_new_mapping.inner().iter() {
-        old_new_mapping.remap_handles(dest_graph.pool[new_node_handle].as_reflect_mut());
+        old_new_mapping.remap_handles(&mut dest_graph.pool[new_node_handle]);
     }
 
     dest_graph.sound_context.remap_handles(old_new_mapping);
@@ -699,7 +699,7 @@ impl Graph {
             // Lastly, remap handles. We can't do this in single pass because there could
             // be cross references.
             for (_, handle) in old_new_mapping.map.iter() {
-                old_new_mapping.remap_handles(self.pool[*handle].as_reflect_mut());
+                old_new_mapping.remap_handles(&mut self.pool[*handle]);
             }
         }
     }
