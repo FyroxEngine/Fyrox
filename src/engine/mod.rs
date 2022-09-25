@@ -110,7 +110,216 @@ pub struct Engine {
     /// value whenever you need it as a parameter in other parts of the engine.
     pub serialization_context: Arc<SerializationContext>,
 
+    script_processor: ScriptProcessor,
+}
+
+#[derive(Default)]
+struct ScriptProcessor {
     scripted_scenes: FxHashSet<Handle<Scene>>,
+}
+
+impl ScriptProcessor {
+    fn has_scripted_scene(&self, scene: Handle<Scene>) -> bool {
+        self.scripted_scenes.contains(&scene)
+    }
+
+    fn register_scripted_scene(
+        &mut self,
+        scene: Handle<Scene>,
+        scenes: &mut SceneContainer,
+        resource_manager: &ResourceManager,
+    ) {
+        // Register the scene and ensure that it wasn't registered previously.
+        let added = self.scripted_scenes.insert(scene);
+
+        assert!(added);
+
+        let graph = &mut scenes[scene].graph;
+
+        // Spawn events for each node in the scene to force the engine to
+        // initialize scripts.
+        for (handle, _) in graph.pair_iter() {
+            graph
+                .script_message_sender
+                .send(ScriptMessage::InitializeScript { handle })
+                .unwrap();
+        }
+
+        // Wait until all resources are fully loaded (or failed to load). It is needed
+        // because some scripts may use resources and any attempt to use non loaded resource
+        // will result in panic.
+        let wait_context = resource_manager.state().containers_mut().wait_concurrent();
+        block_on(wait_context.wait_concurrent());
+    }
+
+    fn handle_scripts(
+        &mut self,
+        scenes: &mut SceneContainer,
+        plugins: &mut Vec<Box<dyn Plugin>>,
+        resource_manager: &ResourceManager,
+        dt: f32,
+        elapsed_time: f32,
+    ) {
+        self.scripted_scenes
+            .retain(|handle| scenes.is_valid_handle(*handle));
+
+        'scene_loop: for &scene_handle in self.scripted_scenes.iter() {
+            let scene = &mut scenes[scene_handle];
+
+            // Disabled scenes should not update their scripts.
+            if !scene.enabled {
+                continue 'scene_loop;
+            }
+
+            // Fill in initial handles to nodes to update.
+            let mut update_queue = VecDeque::new();
+            for (handle, node) in scene.graph.pair_iter() {
+                if node.script.is_some() {
+                    update_queue.push_back(handle);
+                }
+            }
+
+            // We'll gather all scripts queued for destruction and destroy them all at once at the
+            // end of the frame.
+            let mut destruction_queue = VecDeque::new();
+
+            let max_iterations = 64;
+
+            'update_loop: for update_loop_iteration in 0..max_iterations {
+                let mut context = ScriptContext {
+                    dt,
+                    elapsed_time,
+                    plugins,
+                    handle: Default::default(),
+                    scene,
+                    resource_manager,
+                };
+
+                'init_loop: for init_loop_iteration in 0..max_iterations {
+                    let mut start_queue = VecDeque::new();
+
+                    // Process events first. `on_init` of a script can also create some other instances
+                    // and these will be correctly initialized on current frame.
+                    while let Ok(event) = context.scene.graph.script_message_receiver.try_recv() {
+                        match event {
+                            ScriptMessage::InitializeScript { handle } => {
+                                context.handle = handle;
+
+                                process_node(&mut context, &mut |script, context| {
+                                    if !script.initialized {
+                                        script.on_init(context);
+                                        script.initialized = true;
+                                    }
+
+                                    // `on_start` must be called even if the script was initialized.
+                                    start_queue.push_back(handle);
+                                });
+                            }
+                            ScriptMessage::DestroyScript { handle, script } => {
+                                // Destruction is delayed to the end of the frame.
+                                destruction_queue.push_back((handle, script));
+                            }
+                        }
+                    }
+
+                    if start_queue.is_empty() {
+                        // There is no more new nodes, we can safely leave the init loop.
+                        break 'init_loop;
+                    } else {
+                        // Call `on_start` for every recently initialized node and go to next
+                        // iteration of init loop. This is needed because `on_start` can spawn
+                        // some other nodes that must be initialized before update.
+                        while let Some(node) = start_queue.pop_front() {
+                            context.handle = node;
+
+                            process_node(&mut context, &mut |script, context| {
+                                if !script.started {
+                                    script.on_start(context);
+                                    script.started = true;
+
+                                    update_queue.push_back(node);
+                                }
+                            });
+                        }
+                    }
+
+                    if init_loop_iteration == max_iterations - 1 {
+                        Log::warn(
+                            "Infinite init loop detected! Most likely some of \
+                    your scripts causing infinite prefab instantiation!",
+                        )
+                    }
+                }
+
+                // Update all initialized and started scripts until there is something to initialize.
+                if update_queue.is_empty() {
+                    break 'update_loop;
+                } else {
+                    while let Some(handle) = update_queue.pop_front() {
+                        context.handle = handle;
+
+                        process_node(&mut context, &mut |script, context| {
+                            script.on_update(context);
+                        });
+                    }
+                }
+
+                if update_loop_iteration == max_iterations - 1 {
+                    Log::warn(
+                        "Infinite update loop detected! Most likely some of \
+                    your scripts causing infinite prefab instantiation!",
+                    )
+                }
+            }
+
+            // As the last step, destroy queued scripts.
+            let mut context = ScriptDeinitContext {
+                elapsed_time,
+                plugins,
+                resource_manager,
+                scene,
+                node_handle: Default::default(),
+            };
+            while let Some((handle, mut script)) = destruction_queue.pop_front() {
+                context.node_handle = handle;
+
+                // `on_deinit` could also spawn new nodes, but we won't take those into account on
+                // this frame. They'll be correctly handled on next frame.
+                script.on_deinit(&mut context);
+            }
+        }
+
+        // Process scripts from destroyed scenes.
+        for (handle, mut detached_scene) in scenes.destruction_list.drain(..) {
+            if self.scripted_scenes.contains(&handle) {
+                let mut context = ScriptDeinitContext {
+                    elapsed_time,
+                    plugins,
+                    resource_manager,
+                    scene: &mut detached_scene,
+                    node_handle: Default::default(),
+                };
+
+                // Destroy every script instance from nodes that were still alive.
+                for node_index in 0..context.scene.graph.capacity() {
+                    context.node_handle = context.scene.graph.handle_from_index(node_index);
+
+                    if let Some(mut script) = context
+                        .scene
+                        .graph
+                        .try_get_mut(context.node_handle)
+                        .and_then(|node| node.script.take())
+                    {
+                        // A script could not be initialized in case if we added a scene, and then immediately
+                        // removed it. Calling `on_deinit` in this case would be a violation of API contract.
+                        if script.initialized {
+                            script.on_deinit(&mut context)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 struct ResourceGraphVertex {
@@ -402,7 +611,7 @@ impl Engine {
             window,
             plugins: Default::default(),
             serialization_context: node_constructors,
-            scripted_scenes: Default::default(),
+            script_processor: Default::default(),
             plugins_enabled: false,
             plugin_constructors: Default::default(),
             elapsed_time: 0.0,
@@ -486,195 +695,26 @@ impl Engine {
 
     /// Returns true if the scene is registered for script processing.
     pub fn has_scripted_scene(&self, scene: Handle<Scene>) -> bool {
-        self.scripted_scenes.contains(&scene)
+        self.script_processor.has_scripted_scene(scene)
     }
 
     /// Registers a scene for script processing.
     pub fn register_scripted_scene(&mut self, scene: Handle<Scene>) {
-        // Register the scene and ensure that it wasn't registered previously.
-        let added = self.scripted_scenes.insert(scene);
-
-        assert!(added);
-
-        let graph = &mut self.scenes[scene].graph;
-
-        // Spawn events for each node in the scene to force the engine to
-        // initialize scripts.
-        for (handle, _) in graph.pair_iter() {
-            graph
-                .script_message_sender
-                .send(ScriptMessage::InitializeScript { handle })
-                .unwrap();
-        }
-
-        // Wait until all resources are fully loaded (or failed to load). It is needed
-        // because some scripts may use resources and any attempt to use non loaded resource
-        // will result in panic.
-        let wait_context = self
-            .resource_manager
-            .state()
-            .containers_mut()
-            .wait_concurrent();
-        block_on(wait_context.wait_concurrent());
+        self.script_processor.register_scripted_scene(
+            scene,
+            &mut self.scenes,
+            &self.resource_manager,
+        )
     }
 
     fn handle_scripts(&mut self, dt: f32) {
-        self.scripted_scenes
-            .retain(|handle| self.scenes.is_valid_handle(*handle));
-
-        'scene_loop: for &scene_handle in self.scripted_scenes.iter() {
-            let scene = &mut self.scenes[scene_handle];
-
-            // Disabled scenes should not update their scripts.
-            if !scene.enabled {
-                continue 'scene_loop;
-            }
-
-            // Fill in initial handles to nodes to update.
-            let mut update_queue = VecDeque::new();
-            for (handle, node) in scene.graph.pair_iter() {
-                if node.script.is_some() {
-                    update_queue.push_back(handle);
-                }
-            }
-
-            // We'll gather all scripts queued for destruction and destroy them all at once at the
-            // end of the frame.
-            let mut destruction_queue = VecDeque::new();
-
-            let max_iterations = 64;
-
-            'update_loop: for update_loop_iteration in 0..max_iterations {
-                let mut context = ScriptContext {
-                    dt,
-                    elapsed_time: self.elapsed_time,
-                    plugins: &mut self.plugins,
-                    handle: Default::default(),
-                    scene,
-                    resource_manager: &self.resource_manager,
-                };
-
-                'init_loop: for init_loop_iteration in 0..max_iterations {
-                    let mut start_queue = VecDeque::new();
-
-                    // Process events first. `on_init` of a script can also create some other instances
-                    // and these will be correctly initialized on current frame.
-                    while let Ok(event) = context.scene.graph.script_message_receiver.try_recv() {
-                        match event {
-                            ScriptMessage::InitializeScript { handle } => {
-                                context.handle = handle;
-
-                                process_node(&mut context, &mut |script, context| {
-                                    if !script.initialized {
-                                        script.on_init(context);
-                                        script.initialized = true;
-                                    }
-
-                                    // `on_start` must be called even if the script was initialized.
-                                    start_queue.push_back(handle);
-                                });
-                            }
-                            ScriptMessage::DestroyScript { handle, script } => {
-                                // Destruction is delayed to the end of the frame.
-                                destruction_queue.push_back((handle, script));
-                            }
-                        }
-                    }
-
-                    if start_queue.is_empty() {
-                        // There is no more new nodes, we can safely leave the init loop.
-                        break 'init_loop;
-                    } else {
-                        // Call `on_start` for every recently initialized node and go to next
-                        // iteration of init loop. This is needed because `on_start` can spawn
-                        // some other nodes that must be initialized before update.
-                        while let Some(node) = start_queue.pop_front() {
-                            context.handle = node;
-
-                            process_node(&mut context, &mut |script, context| {
-                                script.on_start(context);
-
-                                update_queue.push_back(node);
-                            });
-                        }
-                    }
-
-                    if init_loop_iteration == max_iterations - 1 {
-                        Log::warn(
-                            "Infinite init loop detected! Most likely some of \
-                    your scripts causing infinite prefab instantiation!",
-                        )
-                    }
-                }
-
-                // Update all initialized and started scripts until there is something to initialize.
-                if update_queue.is_empty() {
-                    break 'update_loop;
-                } else {
-                    while let Some(handle) = update_queue.pop_front() {
-                        context.handle = handle;
-
-                        process_node(&mut context, &mut |script, context| {
-                            script.on_update(context);
-                        });
-                    }
-                }
-
-                if update_loop_iteration == max_iterations - 1 {
-                    Log::warn(
-                        "Infinite update loop detected! Most likely some of \
-                    your scripts causing infinite prefab instantiation!",
-                    )
-                }
-            }
-
-            // As the last step, destroy queued scripts.
-            let mut context = ScriptDeinitContext {
-                elapsed_time: self.elapsed_time,
-                plugins: &mut self.plugins,
-                resource_manager: &self.resource_manager,
-                scene,
-                node_handle: Default::default(),
-            };
-            while let Some((handle, mut script)) = destruction_queue.pop_front() {
-                context.node_handle = handle;
-
-                // `on_deinit` could also spawn new nodes, but we won't take those into account on
-                // this frame. They'll be correctly handled on next frame.
-                script.on_deinit(&mut context);
-            }
-        }
-
-        // Process scripts from destroyed scenes.
-        for (handle, mut detached_scene) in self.scenes.destruction_list.drain(..) {
-            if self.scripted_scenes.contains(&handle) {
-                let mut context = ScriptDeinitContext {
-                    elapsed_time: self.elapsed_time,
-                    plugins: &mut self.plugins,
-                    resource_manager: &self.resource_manager,
-                    scene: &mut detached_scene,
-                    node_handle: Default::default(),
-                };
-
-                // Destroy every script instance from nodes that were still alive.
-                for node_index in 0..context.scene.graph.capacity() {
-                    context.node_handle = context.scene.graph.handle_from_index(node_index);
-
-                    if let Some(mut script) = context
-                        .scene
-                        .graph
-                        .try_get_mut(context.node_handle)
-                        .and_then(|node| node.script.take())
-                    {
-                        // A script could not be initialized in case if we added a scene, and then immediately
-                        // removed it. Calling `on_deinit` in this case would be a violation of API contract.
-                        if script.initialized {
-                            script.on_deinit(&mut context)
-                        }
-                    }
-                }
-            }
-        }
+        self.script_processor.handle_scripts(
+            &mut self.scenes,
+            &mut self.plugins,
+            &self.resource_manager,
+            dt,
+            self.elapsed_time,
+        );
     }
 
     fn update_plugins(&mut self, dt: f32, control_flow: &mut ControlFlow) {
@@ -910,5 +950,99 @@ impl Drop for Engine {
 
         // Finally disable plugins.
         self.enable_plugins(Default::default(), false);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        core::{
+            inspect::prelude::*, pool::Handle, reflect::Reflect, uuid::Uuid, visitor::prelude::*,
+        },
+        engine::{resource_manager::ResourceManager, ScriptProcessor},
+        impl_component_provider,
+        scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene, SceneContainer},
+        script::{Script, ScriptContext, ScriptDeinitContext, ScriptTrait},
+    };
+    use std::sync::mpsc::{self, Sender};
+
+    #[derive(PartialEq, Eq, Clone, Debug)]
+    enum Event {
+        Initialized(Handle<Node>),
+        Started(Handle<Node>),
+        Updated(Handle<Node>),
+        Destroyed(Handle<Node>),
+    }
+
+    #[derive(Debug, Clone, Reflect, Inspect, Visit)]
+    struct MyScript {
+        #[reflect(hidden)]
+        #[inspect(skip)]
+        #[visit(skip)]
+        sender: Sender<Event>,
+    }
+
+    impl_component_provider!(MyScript);
+
+    impl ScriptTrait for MyScript {
+        fn on_init(&mut self, ctx: &mut ScriptContext) {
+            self.sender.send(Event::Initialized(ctx.handle)).unwrap();
+        }
+
+        fn on_start(&mut self, ctx: &mut ScriptContext) {
+            self.sender.send(Event::Started(ctx.handle)).unwrap();
+        }
+
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+            self.sender.send(Event::Destroyed(ctx.node_handle)).unwrap();
+        }
+
+        fn on_update(&mut self, ctx: &mut ScriptContext) {
+            self.sender.send(Event::Updated(ctx.handle)).unwrap();
+        }
+
+        fn id(&self) -> Uuid {
+            Uuid::new_v4()
+        }
+    }
+
+    #[test]
+    fn test_order() {
+        let resource_manager = ResourceManager::new(Default::default());
+        let mut scene = Scene::new();
+
+        let (tx, rx) = mpsc::channel();
+
+        let node_handle =
+            PivotBuilder::new(BaseBuilder::new().with_script(Script::new(MyScript { sender: tx })))
+                .build(&mut scene.graph);
+
+        let mut scene_container = SceneContainer::new(Default::default());
+
+        let scene_handle = scene_container.add(scene);
+
+        let mut script_processor = ScriptProcessor::default();
+
+        script_processor.register_scripted_scene(
+            scene_handle,
+            &mut scene_container,
+            &resource_manager,
+        );
+
+        for _ in 0..2 {
+            script_processor.handle_scripts(
+                &mut scene_container,
+                &mut Default::default(),
+                &resource_manager,
+                0.0,
+                0.0,
+            );
+        }
+
+        assert_eq!(rx.try_recv(), Ok(Event::Initialized(node_handle)));
+        assert_eq!(rx.try_recv(), Ok(Event::Started(node_handle)));
+
+        assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle)));
+        assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle)));
     }
 }

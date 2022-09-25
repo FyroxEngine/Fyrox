@@ -196,6 +196,7 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
 pub struct Script {
     instance: Box<dyn ScriptTrait>,
     pub(crate) initialized: bool,
+    pub(crate) started: bool,
 }
 
 impl Reflect for Script {
@@ -303,6 +304,7 @@ impl Clone for Script {
         Self {
             instance: self.instance.clone_box(),
             initialized: false,
+            started: false,
         }
     }
 }
@@ -314,6 +316,7 @@ impl Script {
         Self {
             instance: Box::new(script_object),
             initialized: false,
+            started: false,
         }
     }
 
