@@ -174,8 +174,10 @@ impl ScriptProcessor {
             // Fill in initial handles to nodes to update.
             let mut update_queue = VecDeque::new();
             for (handle, node) in scene.graph.pair_iter() {
-                if node.script.is_some() {
-                    update_queue.push_back(handle);
+                if let Some(script) = node.script.as_ref() {
+                    if script.initialized && script.started {
+                        update_queue.push_back(handle);
+                    }
                 }
             }
 
@@ -964,7 +966,7 @@ mod test {
         scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene, SceneContainer},
         script::{Script, ScriptContext, ScriptDeinitContext, ScriptTrait},
     };
-    use std::sync::mpsc::{self, Sender};
+    use std::sync::mpsc::{self, Sender, TryRecvError};
 
     #[derive(PartialEq, Eq, Clone, Debug)]
     enum Event {
@@ -980,11 +982,70 @@ mod test {
         #[inspect(skip)]
         #[visit(skip)]
         sender: Sender<Event>,
+        spawned: bool,
     }
 
     impl_component_provider!(MyScript);
 
     impl ScriptTrait for MyScript {
+        fn on_init(&mut self, ctx: &mut ScriptContext) {
+            self.sender.send(Event::Initialized(ctx.handle)).unwrap();
+
+            // Spawn new entity with script.
+            let handle =
+                PivotBuilder::new(BaseBuilder::new().with_script(Script::new(MySubScript {
+                    sender: self.sender.clone(),
+                })))
+                .build(&mut ctx.scene.graph);
+            assert_eq!(handle, Handle::new(2, 1));
+        }
+
+        fn on_start(&mut self, ctx: &mut ScriptContext) {
+            self.sender.send(Event::Started(ctx.handle)).unwrap();
+
+            // Spawn new entity with script.
+            let handle =
+                PivotBuilder::new(BaseBuilder::new().with_script(Script::new(MySubScript {
+                    sender: self.sender.clone(),
+                })))
+                .build(&mut ctx.scene.graph);
+            assert_eq!(handle, Handle::new(3, 1));
+        }
+
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+            self.sender.send(Event::Destroyed(ctx.node_handle)).unwrap();
+        }
+
+        fn on_update(&mut self, ctx: &mut ScriptContext) {
+            self.sender.send(Event::Updated(ctx.handle)).unwrap();
+
+            if !self.spawned {
+                // Spawn new entity with script.
+                PivotBuilder::new(BaseBuilder::new().with_script(Script::new(MySubScript {
+                    sender: self.sender.clone(),
+                })))
+                .build(&mut ctx.scene.graph);
+
+                self.spawned = true;
+            }
+        }
+
+        fn id(&self) -> Uuid {
+            Uuid::new_v4()
+        }
+    }
+
+    #[derive(Debug, Clone, Reflect, Inspect, Visit)]
+    struct MySubScript {
+        #[reflect(hidden)]
+        #[inspect(skip)]
+        #[visit(skip)]
+        sender: Sender<Event>,
+    }
+
+    impl_component_provider!(MySubScript);
+
+    impl ScriptTrait for MySubScript {
         fn on_init(&mut self, ctx: &mut ScriptContext) {
             self.sender.send(Event::Initialized(ctx.handle)).unwrap();
         }
@@ -1014,8 +1075,12 @@ mod test {
         let (tx, rx) = mpsc::channel();
 
         let node_handle =
-            PivotBuilder::new(BaseBuilder::new().with_script(Script::new(MyScript { sender: tx })))
-                .build(&mut scene.graph);
+            PivotBuilder::new(BaseBuilder::new().with_script(Script::new(MyScript {
+                sender: tx,
+                spawned: false,
+            })))
+            .build(&mut scene.graph);
+        assert_eq!(node_handle, Handle::new(1, 1));
 
         let mut scene_container = SceneContainer::new(Default::default());
 
@@ -1029,7 +1094,11 @@ mod test {
             &resource_manager,
         );
 
-        for _ in 0..2 {
+        let handle_on_init = Handle::new(2, 1);
+        let handle_on_start = Handle::new(3, 1);
+        let handle_on_update1 = Handle::new(4, 1);
+
+        for iteration in 0..2 {
             script_processor.handle_scripts(
                 &mut scene_container,
                 &mut Default::default(),
@@ -1037,12 +1106,36 @@ mod test {
                 0.0,
                 0.0,
             );
+
+            match iteration {
+                0 => {
+                    assert_eq!(rx.try_recv(), Ok(Event::Initialized(node_handle)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Initialized(handle_on_init)));
+
+                    assert_eq!(rx.try_recv(), Ok(Event::Started(node_handle)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Started(handle_on_init)));
+
+                    assert_eq!(rx.try_recv(), Ok(Event::Initialized(handle_on_start)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Started(handle_on_start)));
+
+                    assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_init)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_start)));
+
+                    assert_eq!(rx.try_recv(), Ok(Event::Initialized(handle_on_update1)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Started(handle_on_update1)));
+
+                    assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_update1)));
+                }
+                1 => {
+                    assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_init)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_start)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_update1)));
+                    assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
+                }
+                _ => (),
+            }
         }
-
-        assert_eq!(rx.try_recv(), Ok(Event::Initialized(node_handle)));
-        assert_eq!(rx.try_recv(), Ok(Event::Started(node_handle)));
-
-        assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle)));
-        assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle)));
     }
 }
