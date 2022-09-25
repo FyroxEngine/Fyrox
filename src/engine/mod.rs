@@ -1098,7 +1098,7 @@ mod test {
         let handle_on_start = Handle::new(3, 1);
         let handle_on_update1 = Handle::new(4, 1);
 
-        for iteration in 0..2 {
+        for iteration in 0..3 {
             script_processor.handle_scripts(
                 &mut scene_container,
                 &mut Default::default(),
@@ -1133,6 +1133,22 @@ mod test {
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_start)));
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_update1)));
                     assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
+
+                    // Now destroy every node with script, next iteration should correctly destroy attached scripts.
+                    let scene = &mut scene_container[scene_handle];
+                    scene.remove_node(node_handle);
+                    scene.remove_node(handle_on_init);
+                    scene.remove_node(handle_on_start);
+                    scene.remove_node(handle_on_update1);
+                }
+                2 => {
+                    assert_eq!(rx.try_recv(), Ok(Event::Destroyed(node_handle)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Destroyed(handle_on_init)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Destroyed(handle_on_start)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Destroyed(handle_on_update1)));
+
+                    // Every instance holding sender died, so receiver is disconnected from sender.
+                    assert_eq!(rx.try_recv(), Err(TryRecvError::Disconnected));
                 }
                 _ => (),
             }
