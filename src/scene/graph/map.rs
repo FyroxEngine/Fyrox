@@ -147,13 +147,11 @@ impl NodeHandleMap {
         do_map: bool,
     ) {
         if let Some(handle) = entity.downcast_mut::<Handle<Node>>() {
-            if do_map {
-                if handle.is_some() && !self.try_map(handle) {
-                    Log::warn(format!(
-                        "Failed to remap handle {} of node {}!",
-                        *handle, node_name
-                    ));
-                }
+            if do_map && handle.is_some() && !self.try_map(handle) {
+                Log::warn(format!(
+                    "Failed to remap handle {} of node {}!",
+                    *handle, node_name
+                ));
             }
         } else if let Some(vec) = entity.downcast_mut::<Vec<Handle<Node>>>() {
             if do_map {
