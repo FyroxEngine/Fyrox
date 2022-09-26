@@ -91,6 +91,10 @@ impl Model {
 
             node.resource = Some(model.clone());
 
+            // Reset resource instance root flag, this is needed because a node after instantiation cannot
+            // be a root anymore.
+            node.is_resource_instance_root = false;
+
             // Reset inheritable properties, so property inheritance system will take properties
             // from parent objects on resolve stage.
             reset_inheritable_properties(node.as_reflect_mut());
