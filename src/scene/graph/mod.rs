@@ -604,7 +604,7 @@ impl Graph {
         dest_copy_handle
     }
 
-    fn restore_original_handles(&mut self) {
+    fn restore_original_handles_and_inherit_properties(&mut self) {
         // Iterate over each node in the graph and resolve original handles. Original handle is a handle
         // to a node in resource from which a node was instantiated from. Also sync inheritable properties
         // if needed and copy surfaces from originals.
@@ -668,6 +668,12 @@ impl Graph {
         Log::writeln(MessageKind::Information, "Original handles resolved!");
     }
 
+    // Maps handles in properties of instances after property inheritance. It is needed, because when a
+    // property contains node handle, the handle cannot be used directly after inheritance. Instead, it
+    // must be mapped to respective instance first.
+    //
+    // To do so, we at first, build node handle mapping (original handle -> instance handle) starting from
+    // instance root. Then we must find all inheritable properties and try to remap them to instance handles.
     fn remap_handles(&mut self, instances: &[(Handle<Node>, Model)]) {
         for (instance_root, resource) in instances {
             // Prepare old -> new handle mapping first by walking over the graph
@@ -699,7 +705,7 @@ impl Graph {
             // Lastly, remap handles. We can't do this in single pass because there could
             // be cross references.
             for (_, handle) in old_new_mapping.map.iter() {
-                old_new_mapping.remap_handles(&mut self.pool[*handle]);
+                old_new_mapping.remap_inheritable_handles(&mut self.pool[*handle]);
             }
         }
     }
@@ -824,7 +830,7 @@ impl Graph {
 
         self.restore_dynamic_node_data();
         self.update_hierarchical_data();
-        self.restore_original_handles();
+        self.restore_original_handles_and_inherit_properties();
         let instances = self.restore_integrity();
         self.remap_handles(&instances);
 
