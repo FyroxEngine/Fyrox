@@ -29,7 +29,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         instant,
         math::Matrix4Ext,
-        pool::{Handle, Pool, Ticket},
+        pool::{Handle, MultiBorrowContext, Pool, Ticket},
         reflect::Reflect,
         variable::try_inherit_properties,
         visitor::{Visit, VisitResult, Visitor},
@@ -301,6 +301,14 @@ impl Graph {
     /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
     pub fn try_get_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
         self.pool.try_borrow_mut(handle)
+    }
+
+    /// Begins multi-borrow that allows you to as many (`N`) **unique** references to the graph
+    /// nodes as you need. See [`MultiBorrowContext::try_get`] for more info.
+    pub fn begin_multi_borrow<const N: usize>(
+        &mut self,
+    ) -> MultiBorrowContext<N, Node, NodeContainer> {
+        self.pool.begin_multi_borrow()
     }
 
     /// Destroys node and its children recursively.
