@@ -18,6 +18,7 @@ pub fn create_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
+        #[allow(clippy::question_mark)]
         impl #impl_generics Visit for #ty_ident #ty_generics #where_clause {
             fn visit(
                 &mut self,
