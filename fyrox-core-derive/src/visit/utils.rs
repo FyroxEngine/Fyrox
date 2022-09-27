@@ -18,6 +18,7 @@ pub fn create_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
+        #[allow(clippy::question_mark)]
         impl #impl_generics Visit for #ty_ident #ty_generics #where_clause {
             fn visit(
                 &mut self,
@@ -47,15 +48,15 @@ fn create_impl_generics(
     generics
 }
 
-/// `<prefix>field.visit("name", visitor);`
+/// `<prefix>field.visit("name", visitor)?;`
 pub fn create_field_visits<'a>(
-    // None or `f` when bindings tuple variants. NOTE: We can't use `prefix: Ident`
-    prefix: Option<Ident>,
+    // false if enum variant
+    is_struct: bool,
     fields: impl Iterator<Item = &'a args::FieldArgs>,
     field_style: ast::Style,
 ) -> Vec<TokenStream2> {
     if field_style == ast::Style::Unit {
-        // `Unit` (struct/enum variant) has no field to visit.
+        // `Unit` struct/enum variant has no field to visit.
         // We won't even enter this region:
         return vec![];
     }
@@ -76,14 +77,14 @@ pub fn create_field_visits<'a>(
                 }
                 // `Tuple(f32, ..)`
                 ast::Style::Tuple => {
-                    let ident = Index::from(field_index);
-
-                    let ident = match prefix {
-                        Some(ref prefix) => {
-                            let ident = format_ident!("{}{}", prefix, ident);
-                            quote!(#ident)
-                        }
-                        None => quote!(#ident),
+                    let index = Index::from(field_index);
+                    let ident = if is_struct {
+                        // accessed with `self.<index>`
+                        quote!(#index)
+                    } else {
+                        // named as `f<index>`
+                        let ident = format_ident!("f{}", index);
+                        quote!(#ident)
                     };
 
                     (ident, format!("{}", field_index))
@@ -114,16 +115,20 @@ pub fn create_field_visits<'a>(
         }
     }
 
+    let prefix = if is_struct { Some(quote!(self.)) } else { None };
+
     visit_args
         .iter()
         .map(|(ident, name, optional)| {
             if *optional {
                 quote! {
-                    #ident.visit(#name, &mut region).ok();
+                    #prefix #ident.visit(#name, &mut region).ok();
                 }
             } else {
                 quote! {
-                    #ident.visit(#name, &mut region)?;
+                    if let Err(err) = #prefix #ident.visit(#name, &mut region) {
+                        return Err(err);
+                    }
                 }
             }
         })

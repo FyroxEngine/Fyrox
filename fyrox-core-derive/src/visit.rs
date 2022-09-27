@@ -23,13 +23,16 @@ fn impl_visit_struct(
     let visit_fn_body = if field_args.style == ast::Style::Unit {
         quote! { Ok(()) }
     } else {
-        // `field.visit(..);` parts
+        // `field.visit(..)?;` parts
         let field_visits =
-            utils::create_field_visits(None, field_args.fields.iter(), field_args.style);
+            utils::create_field_visits(true, field_args.fields.iter(), field_args.style);
 
         quote! {
-            let mut region = visitor.enter_region(name)?;
-            #(self.#field_visits)*
+            let mut region = match visitor.enter_region(name) {
+                Ok(x) => x,
+                Err(err) => return Err(err),
+            };
+            #(#field_visits)*
             Ok(())
         }
     };
@@ -152,7 +155,7 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
 
         match style {
             ast::Style::Struct => {
-                let field_visits = utils::create_field_visits(None, fields.iter(), style);
+                let field_visits = utils::create_field_visits(false, fields.iter(), style);
 
                 let idents = fields.iter().map(|field| {
                     let ident = &field.ident;
@@ -166,8 +169,7 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
                 }
             }
             ast::Style::Tuple => {
-                let field_visits =
-                    utils::create_field_visits(parse_quote!(f), fields.iter(), style);
+                let field_visits = utils::create_field_visits(false, fields.iter(), style);
 
                 let idents = (0..fields.len()).map(|i| format_ident!("f{}", Index::from(i)));
 
@@ -187,13 +189,21 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
         ty_args,
         variant_args.iter().flat_map(|v| v.fields.iter()).cloned(),
         quote! {
-             let mut region = visitor.enter_region(name)?;
+             let mut region = match visitor.enter_region(name) {
+                 Ok(x) => x,
+                 Err(err) => return Err(err),
+             };
 
              let mut id = id(self);
-             id.visit("Id", &mut region)?;
+             if let Err(err) = id.visit("Id", &mut region) {
+                 return Err(err);
+             };
 
              if region.is_reading() {
-                 *self = from_id(id)?;
+                 *self = match from_id(id) {
+                     Ok(x) => x,
+                     Err(s) => return Err(s.into()),
+                 };
              }
 
              match self {

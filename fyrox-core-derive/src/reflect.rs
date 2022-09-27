@@ -300,7 +300,11 @@ fn gen_impl(
             }
 
             fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-                let this = std::mem::replace(self, value.take()?);
+                let value = match value.take() {
+                    Ok(x) => x,
+                    Err(err) => return Err(err),
+                };
+                let this = std::mem::replace(self, value);
                 Ok(Box::new(this))
             }
 
