@@ -27,6 +27,7 @@ use crate::{
     reflect::Reflect,
     visitor::{Visit, VisitResult, Visitor},
 };
+use arrayvec::ArrayVec;
 use std::{
     any::TypeId,
     fmt::{Debug, Display, Formatter},
@@ -1258,6 +1259,12 @@ where
         }
     }
 
+    /// Begins multi-borrow that allows you to as many (`N`) **unique** references to the pool
+    /// elements as you need. See [`MultiBorrowContext::try_get`] for more info.
+    pub fn begin_multi_borrow<const N: usize>(&mut self) -> MultiBorrowContext<N, T, P> {
+        MultiBorrowContext::new(self)
+    }
+
     /// Removes all elements from the pool.
     pub fn drain(&mut self) -> impl Iterator<Item = T> + '_ {
         self.free_stack.clear();
@@ -1478,6 +1485,70 @@ where
     }
 }
 
+/// Multi-borrow context allows you to get as many **unique** references to elements in
+/// a pool as you want.  
+pub struct MultiBorrowContext<'a, const N: usize, T, P = Option<T>>
+where
+    T: Sized,
+    P: PayloadContainer<Element = T> + 'static,
+{
+    pool: &'a mut Pool<T, P>,
+    borrowed: ArrayVec<Handle<T>, N>,
+}
+
+impl<'a, const N: usize, T, P> MultiBorrowContext<'a, N, T, P>
+where
+    T: Sized,
+    P: PayloadContainer<Element = T> + 'static,
+{
+    fn new(pool: &'a mut Pool<T, P>) -> Self {
+        Self {
+            pool,
+            borrowed: Default::default(),
+        }
+    }
+
+    /// Tries to get a mutable reference to a pool element located at the given handle. The method could
+    /// fail in three main reasons:
+    ///
+    /// 1) A reference to an element is already taken - returning multiple mutable references to the
+    /// same element is forbidden by Rust safety rules.
+    /// 2) You're trying to get more references that the context could handle (there is not enough space
+    /// in the internal handles storage) - in this case you must increase `N`.
+    /// 3) A given handle is invalid.
+    ///
+    /// # Performance
+    ///
+    /// This method has `O(N)` complexity, internally it does linear search in the internal handles storage
+    /// to enforce borrowing rules at runtime. The method is designed for small reference count (<32), where
+    /// linear search is faster than hash set.
+    pub fn try_get(&mut self, handle: Handle<T>) -> Option<&'a mut T> {
+        // Performance: linear search is much faster than hash set for small element count.
+        // The context is meant to be used for limited amount of references (<32).
+        if self.borrowed.contains(&handle) {
+            // Cannot give multiple mutable references to the same element.
+            None
+        } else {
+            // SAFETY: We enforce borrowing rules at runtime and do not return multiple
+            // references to the same element.
+            unsafe {
+                let pool = &mut *(self.pool as *mut Pool<T, P>);
+                if let Some(payload_ref) = pool.try_borrow_mut(handle) {
+                    // We can only return a reference to an element, if there is enough space to
+                    // register borrowed handle.
+                    if self.borrowed.try_push(handle).is_ok() {
+                        Some(payload_ref)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::pool::{Handle, Pool, INVALID_GENERATION};
@@ -1587,5 +1658,26 @@ mod test {
         assert_eq!(pool.free_stack.len(), 1);
         assert_eq!(pool.try_free(handle), None);
         assert_eq!(pool.free_stack.len(), 1);
+    }
+
+    #[test]
+    fn test_multi_borrow_context() {
+        let mut pool = Pool::<Payload>::new();
+
+        let a = pool.spawn(Payload);
+        let b = pool.spawn(Payload);
+        let c = pool.spawn(Payload);
+
+        let mut ctx = pool.begin_multi_borrow::<2>();
+
+        // Test borrowing of the same element.
+        assert_eq!(ctx.try_get(a), Some(&mut Payload));
+        assert_eq!(ctx.try_get(a), None);
+
+        // Test next element borrowing.
+        assert_eq!(ctx.try_get(b), Some(&mut Payload));
+
+        // Test out-of-space - context has limited capacity.mut
+        assert_eq!(ctx.try_get(c), None);
     }
 }
