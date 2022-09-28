@@ -1,3 +1,112 @@
+# 0.28 (WIP)
+
+- `MultiBorrowContext` for `Pool` and `Graph::begin_multi_borrow`, helps you to borrow multiple mutable
+references to different items.
+- Speed up code generation in proc-macros.
+- Correctly map handles in instances after property inheritance (fixed weird bugs when handles to nodes
+in your scripts mapped to incorrect ones)
+- Refactored script processing:
+  - Added `ScriptTrait::on_start` - it is guaranteed to be called after all scripts in scene are initialized, useful 
+  when a script depends on some other script
+  - Script processing is now centralized, not scattered as before.
+  - More deterministic update path (`on_init` -> `on_start` -> `on_update` -> `on_destroy`)
+- Fixed crash when modifying text in a text box via message and then trying to type something.
+- `ButtonBuilder::with_text_and_font` 
+- Show node names in for fields of `Handle<Node>` fields of structs in the editor.
+- Fixed crash in the editor when a script has resource field. 
+- Ability to clone behaviour trees.
+- Automatic node handle mapping via reflection.
+- Removed `ScriptTrait::remap_handles` method.
+- Pass elapsed time to scripts.
+- Do not call `ScriptTrait::on_os_event` if scene is disabled.
+- Make world viewer filtering case-insensitive.
+- Correctly set self handle and sender for graph's root node.
+- `#[inline]` attributes for "hot" methods.
+- Fixed panic when rigid body is a root node of a scene.
+- `Base::has_script` + `Base::try_get_script` + `Base::try_get_script_mut` helper methods, it is now easier
+to fetch scripts on scene nodes.
+- Ability to change selected node type in the editor (useful to change scene root type).
+- Optimized script trait parameter passing, script context now passed by reference instead of value.
+- Script context now have access to all plugins, which makes possible create cross plugin interaction.
+- Removed requirement of scripts api to provide parent plugin's uuid.
+- There is no more need to define uuid for plugins.
+- Do not update scene scripts if it is disabled.
+- `Graph::find_first_by_script` - helps you find a node by its script type.
+- Added missing property editors for `Inspector` widget.
+- Save editor's scene camera settings (position, orientation, zoom, etc.) per scene.
+- Skip-chars list to be able to treat some chars like white space.
+- Optional text shadow effect.
+- Ctrl+Shift+Arrow to select text word-by-word in text box widget.
+- Added navmesh settings to editor's settings panel.
+- Make text box widget to accept text messages + special messages for text box widget.
+- Set 500 ms double click interval (previously it was 750 ms).
+- Fixed text selection in case of custom ui scaling.
+- Fixed `TextBox::screen_pos_to_text_pos` - incorrect usage of `char_code` as index was leading to incorrect screen 
+position to text position mapping.
+- Ability to scroll text in the text box widget.
+- `Rect::with_position` + `Rect::with_size` methods.
+- Fixed caret position when removing text from text box in specific cases.
+- Fixed crash when typing spaces at the end of text box with word wrap.
+- Fixed caret position when adding text to the multiline text box widget.
+- Fixed new line addition in the text box widget.
+- Ability to select words (or whitespace spans) in the text box by double click.
+- Emit double click after mouse down event (not before).
+- Fixed caret blinking in the text box widget for various scenarios.
+- Ctrl+LeftArrow and Ctrl+RightArrow to skip words in the text box widget.
+- Allow setting caret position in the text box widget by clicking outside of line bounds.
+- `raycast2d` example.
+- Fixed text deletion in text box by `Delete` key + selection fixes.
+- Fixed selection by Ctrl+Home, Ctrl+End in the text box widget.
+- Fixed selected text highlighting in the text box widget.
+- Fixed panic when Ctrl+C in a text box when selection is right-to-left.
+- Ability to focus/unfocus a widget by sending a message.
+- Added `TextBox` example.
+- Removed `is_modified` flag from `PropertyInfo`.
+- Ability to revert inherited property to parent's prefab value.
+- Replaced manual property inheritance with reflection.
+- Added `fields` and `fields_mut` for `Reflect` trait.
+- Property inheritance for scripts.
+- Ability to extract selection as a prefab.
+- Fixed tooltips for complex properties in `Inspector` widget.
+- Allow selecting build profile when running a game from the editor.
+- `NodeHandle` wrapper to bypass some limitations of `Inspector` widget.
+- Return result instead of unwrap and panic in `make_relative_path` - fixed some issues with symlinks in the
+editor.
+- Added missing `Reflect` implementation for scripts made in `fyrox-template`.
+- Added dependencies optimization for projects generated in `fyrox-template`.
+- Provided access to some sound engine methods to plugins (`set_sound_gain` and `sound_gain`)
+- Fixed style for ArrayPropertyEditor widget.
+- Do not emit events for disabled animation signals.
+- Sprite sheet animations with signals.
+- Fixed terrain rendering - there's no more seams between layers with skybox content.
+- Ability to set blending equation in draw parameters in the renderer.
+- Ability to set blend function separately for RGB and Alpha in the renderer.
+- Ignore invisible menus when closing menu chain by out-of-bounds click.
+- Make some buttons in the editor smaller and less bright, add more tooltips.
+- Use images for `Expand all`, `Collapse all`, `Locate Selection` buttons in world viewer.
+- Fixed potential infinite loops when performing some math operations.
+- Smoothing for cascaded shadow maps.
+- Fixed script property editor - no more weird bugs in the editor when setting/editing/removing scripts from
+a node.
+- Fixed cascaded shadow maps for directional lights.
+- Added `Frustum::center` method.
+- Fixed list of panels in `View` menu in the editor.
+- Create tool tips for interaction modes hidden by default.
+- Reload settings when reconfiguring the editor.
+- Added list of recent scenes to `File` menu in the editor - makes easier to switch between most used scenes.
+- Ability to add, remove, set items for `MenuItem` widget
+- Correctly highlight selected interaction mode button
+- More hotkeys for the editor 
+  - `[5]` - activate navmesh edit mode
+  - `[6]` - activate terrain edit mode
+- Ability to set `Selected` flag to `Decorator` widget on build stage
+- Added `Invert drag` option for camera settings in the editor.
+- Fixed incorrect rendering of `Luminance` and `LuminanceAlpha` textures.
+- Fixed closing menus by clicking outside them.
+- Direct access to all fields in all widgets.
+- Force `TextBox` widget to consume all input messages, this fixes hot keys triggering in the editor while
+typing something in text fields.
+
 # 0.27.1
 
 - Fixed `Operation failed! Reason: Modify { value: dyn Reflect }` error.
