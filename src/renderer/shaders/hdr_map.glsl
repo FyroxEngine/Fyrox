@@ -36,10 +36,10 @@ void main() {
         exposure = fixedExposure;
     }
 
-    vec4 ldrColor = vec4(1.0) - exp(-hdrColor * exposure);
+    vec4 ldrColor = vec4(vec3(1.0) - exp(-hdrColor.rgb * exposure), hdrColor.a);
 
     if (useColorGrading) {
-        outLdrColor = vec4(ColorGrading(S_LinearToSRGB(ldrColor).rgb), 1.0);
+        outLdrColor = vec4(ColorGrading(S_LinearToSRGB(ldrColor).rgb), ldrColor.a);
     } else {
         outLdrColor = S_LinearToSRGB(ldrColor);
     }

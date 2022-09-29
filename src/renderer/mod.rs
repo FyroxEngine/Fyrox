@@ -1526,7 +1526,7 @@ impl Renderer {
                 scene_associated_data.hdr_scene_framebuffer.clear(
                     state,
                     viewport,
-                    Some(Color::from_rgba(0, 0, 0, 255)),
+                    Some(self.backbuffer_clear_color),
                     None, // Keep depth, we've just copied valid data in it.
                     Some(0),
                 );
