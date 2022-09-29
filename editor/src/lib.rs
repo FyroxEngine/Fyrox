@@ -1014,7 +1014,9 @@ impl Editor {
                     if let Some(editor_scene) = self.scene.as_mut() {
                         if !editor_scene.clipboard.is_empty() {
                             sender
-                                .send(Message::do_scene_command(PasteCommand::new()))
+                                .send(Message::do_scene_command(PasteCommand::new(
+                                    engine.scenes[editor_scene.scene].graph.get_root(),
+                                )))
                                 .unwrap();
                         }
                     }

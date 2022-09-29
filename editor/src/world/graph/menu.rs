@@ -9,7 +9,7 @@ use crate::{
         EditorScene, Selection,
     },
     world::graph::item::SceneItem,
-    GameEngine, Message, MessageDirection,
+    GameEngine, Message, MessageDirection, PasteCommand,
 };
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
@@ -38,6 +38,7 @@ pub struct ItemContextMenu {
     preview_camera: Handle<UiNode>,
     save_as_prefab: Handle<UiNode>,
     save_as_prefab_dialog: Handle<UiNode>,
+    paste: Handle<UiNode>,
 }
 
 impl ItemContextMenu {
@@ -45,6 +46,7 @@ impl ItemContextMenu {
         let delete_selection;
         let copy_selection;
         let save_as_prefab;
+        let paste;
 
         let (create_entity_menu, create_entity_menu_root_items) = CreateEntityMenu::new(ctx);
         let (replace_with_menu, replace_with_menu_root_items) = CreateEntityMenu::new(ctx);
@@ -63,6 +65,10 @@ impl ItemContextMenu {
                             copy_selection =
                                 create_menu_item_shortcut("Copy Selection", "Ctrl+C", vec![], ctx);
                             copy_selection
+                        })
+                        .with_child({
+                            paste = create_menu_item("Paste As Child", vec![], ctx);
+                            paste
                         })
                         .with_child({
                             save_as_prefab = create_menu_item("Save As Prefab...", vec![], ctx);
@@ -112,6 +118,7 @@ impl ItemContextMenu {
             save_as_prefab,
             save_as_prefab_dialog,
             replace_with_menu,
+            paste,
         }
     }
 
@@ -157,6 +164,16 @@ impl ItemContextMenu {
                         editor_scene.scene,
                         engine,
                     );
+                }
+            } else if message.destination() == self.paste {
+                if let Selection::Graph(graph_selection) = &editor_scene.selection {
+                    if let Some(first) = graph_selection.nodes.first() {
+                        if !editor_scene.clipboard.is_empty() {
+                            sender
+                                .send(Message::do_scene_command(PasteCommand::new(*first)))
+                                .unwrap();
+                        }
+                    }
                 }
             } else if message.destination() == self.preview_camera {
                 let new_preview_camera = engine
@@ -210,6 +227,13 @@ impl ItemContextMenu {
                     MessageDirection::ToWidget,
                     is_camera,
                 ));
+
+                // Check if there's something to paste and deactivate "Paste" if nothing.
+                engine.user_interface.send_message(WidgetMessage::enabled(
+                    self.paste,
+                    MessageDirection::ToWidget,
+                    !editor_scene.clipboard.is_empty(),
+                ))
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.save_as_prefab_dialog {

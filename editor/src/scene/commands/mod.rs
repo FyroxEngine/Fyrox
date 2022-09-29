@@ -241,18 +241,14 @@ enum PasteCommandState {
 
 #[derive(Debug)]
 pub struct PasteCommand {
+    parent: Handle<Node>,
     state: PasteCommandState,
 }
 
-impl Default for PasteCommand {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl PasteCommand {
-    pub fn new() -> Self {
+    pub fn new(parent: Handle<Node>) -> Self {
         Self {
+            parent,
             state: PasteCommandState::NonExecuted,
         }
     }
@@ -270,6 +266,10 @@ impl Command for PasteCommand {
                     .editor_scene
                     .clipboard
                     .paste(&mut context.scene.graph);
+
+                for &handle in paste_result.root_nodes.iter() {
+                    context.scene.graph.link_nodes(handle, self.parent);
+                }
 
                 let mut selection =
                     Selection::Graph(GraphSelection::from_list(paste_result.root_nodes.clone()));
@@ -292,6 +292,10 @@ impl Command for PasteCommand {
                     paste_result
                         .root_nodes
                         .push(context.scene.graph.put_sub_graph_back(subgraph));
+                }
+
+                for &handle in paste_result.root_nodes.iter() {
+                    context.scene.graph.link_nodes(handle, self.parent);
                 }
 
                 std::mem::swap(&mut context.editor_scene.selection, &mut selection);
