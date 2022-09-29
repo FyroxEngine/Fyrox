@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! Executor is a small wrapper that manages plugins and scripts for your game.
 
 use crate::{
     core::{futures::executor::block_on, instant::Instant, pool::Handle},
@@ -26,6 +26,7 @@ struct Args {
     override_scene: String,
 }
 
+/// Executor is a small wrapper that manages plugins and scripts for your game.
 pub struct Executor {
     event_loop: EventLoop<()>,
     engine: Engine,
@@ -52,26 +53,35 @@ impl Default for Executor {
 }
 
 impl Executor {
-    pub fn new() -> Self {
+    /// Creates new game executor using specified set of parameters. Much more flexible version of
+    /// [`Executor::new`].
+    pub fn from_params(window_builder: WindowBuilder, vsync: bool) -> Self {
         let event_loop = EventLoop::new();
-
-        let window_builder = WindowBuilder::new()
-            .with_title("Fyrox Game Executor")
-            .with_resizable(true);
-
         let serialization_context = Arc::new(SerializationContext::new());
         let engine = Engine::new(EngineInitParams {
             window_builder,
             resource_manager: ResourceManager::new(serialization_context.clone()),
             serialization_context,
             events_loop: &event_loop,
-            vsync: true,
+            vsync,
         })
         .unwrap();
 
         Self { event_loop, engine }
     }
 
+    /// Creates new game executor using default window and with vsync turned on. For more flexible
+    /// way to create an executor see [`Executor::from_params`].
+    pub fn new() -> Self {
+        Self::from_params(
+            WindowBuilder::new()
+                .with_title("Fyrox Game Executor")
+                .with_resizable(true),
+            true,
+        )
+    }
+
+    /// Adds new plugin constructor to the executor, the plugin will be enabled only on [`Executor::run`].
     pub fn add_plugin_constructor<P>(&mut self, plugin: P)
     where
         P: PluginConstructor + 'static,
@@ -79,6 +89,7 @@ impl Executor {
         self.engine.add_plugin_constructor(plugin)
     }
 
+    /// Runs the executor - starts your game. This function is never returns.
     pub fn run(self) -> ! {
         let mut engine = self.engine;
         let event_loop = self.event_loop;
