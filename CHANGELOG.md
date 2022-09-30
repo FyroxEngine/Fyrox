@@ -1,5 +1,10 @@
 # 0.28 (WIP)
 
+- Ability to set desired frame rate for `Executor` (default is 60 FPS).
+- Ability to paste editor's clipboard content to selected node (paste-as-child functionality).
+- Ability to render into transparent window while keeping the transparency of untouched pixels (see
+`transparent` example).
+- Ability to specify custom window builder in `Executor` + a way to disable vsync in `Executor`.
 - `MultiBorrowContext` for `Pool` and `Graph::begin_multi_borrow`, helps you to borrow multiple mutable
 references to different items.
 - Speed up code generation in proc-macros.
