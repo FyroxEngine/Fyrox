@@ -30,6 +30,7 @@ struct Args {
 pub struct Executor {
     event_loop: EventLoop<()>,
     engine: Engine,
+    desired_update_rate: f32,
 }
 
 impl Deref for Executor {
@@ -53,6 +54,9 @@ impl Default for Executor {
 }
 
 impl Executor {
+    /// Default update rate in frames per second.
+    pub const DEFAULT_UPDATE_RATE: f32 = 60.0;
+
     /// Creates new game executor using specified set of parameters. Much more flexible version of
     /// [`Executor::new`].
     pub fn from_params(window_builder: WindowBuilder, vsync: bool) -> Self {
@@ -67,7 +71,11 @@ impl Executor {
         })
         .unwrap();
 
-        Self { event_loop, engine }
+        Self {
+            event_loop,
+            engine,
+            desired_update_rate: Self::DEFAULT_UPDATE_RATE,
+        }
     }
 
     /// Creates new game executor using default window and with vsync turned on. For more flexible
@@ -79,6 +87,16 @@ impl Executor {
                 .with_resizable(true),
             true,
         )
+    }
+
+    /// Sets the desired update rate in frames per second.
+    pub fn set_desired_update_rate(&mut self, update_rate: f32) {
+        self.desired_update_rate = update_rate.abs();
+    }
+
+    /// Returns desired update rate in frames per second.
+    pub fn desired_update_rate(&self) -> f32 {
+        self.desired_update_rate
     }
 
     /// Adds new plugin constructor to the executor, the plugin will be enabled only on [`Executor::run`].
@@ -93,10 +111,6 @@ impl Executor {
     pub fn run(self) -> ! {
         let mut engine = self.engine;
         let event_loop = self.event_loop;
-
-        let clock = Instant::now();
-        let fixed_timestep = 1.0 / 60.0;
-        let mut elapsed_time = 0.0;
 
         let args = Args::parse();
 
@@ -120,8 +134,12 @@ impl Executor {
 
         engine.enable_plugins(override_scene, true);
 
+        let mut previous = Instant::now();
+        let fixed_time_step = 1.0 / self.desired_update_rate;
+        let mut lag = 0.0;
+
         event_loop.run(move |event, _, control_flow| {
-            engine.handle_os_event_by_plugins(&event, fixed_timestep, control_flow);
+            engine.handle_os_event_by_plugins(&event, fixed_time_step, control_flow, &mut lag);
 
             let scenes = engine
                 .scenes
@@ -134,17 +152,18 @@ impl Executor {
                     engine.register_scripted_scene(scene_handle);
                 }
 
-                engine.handle_os_event_by_scripts(&event, scene_handle, fixed_timestep);
+                engine.handle_os_event_by_scripts(&event, scene_handle, fixed_time_step);
             }
 
             match event {
                 Event::MainEventsCleared => {
-                    let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
-                    while dt >= fixed_timestep {
-                        dt -= fixed_timestep;
-                        elapsed_time += fixed_timestep;
+                    let elapsed = previous.elapsed();
+                    previous = Instant::now();
+                    lag += elapsed.as_secs_f32();
 
-                        engine.update(fixed_timestep, control_flow);
+                    while lag >= fixed_time_step {
+                        engine.update(fixed_time_step, control_flow, &mut lag);
+                        lag -= fixed_time_step;
                     }
 
                     while let Some(_ui_event) = engine.user_interface.poll_message() {}

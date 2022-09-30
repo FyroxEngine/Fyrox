@@ -648,8 +648,18 @@ impl Engine {
     /// Performs single update tick with given time delta. Engine internally will perform update
     /// of all scenes, sub-systems, user interface, etc. Must be called in order to get engine
     /// functioning.
-    pub fn update(&mut self, dt: f32, control_flow: &mut ControlFlow) {
-        self.pre_update(dt, control_flow);
+    ///
+    /// ## Parameters
+    ///
+    /// `lag` - is a reference to time accumulator, that holds remaining amount of time that should be used
+    /// to update a plugin. A caller splits `lag` into multiple sub-steps using `dt` and thus stabilizes
+    /// update rate. The main use of this variable, is to be able to reset `lag` when you doing some heavy
+    /// calculations in a your game loop (i.e. loading a new level) so the engine won't try to "catch up" with
+    /// all the time that was spent in heavy calculation. The engine does **not** use this variable itself,
+    /// but the plugins attach may use it, that's why you need to provide it. If you don't use plugins, then
+    /// put `&mut 0.0` here.
+    pub fn update(&mut self, dt: f32, control_flow: &mut ControlFlow, lag: &mut f32) {
+        self.pre_update(dt, control_flow, lag);
         self.post_update(dt);
     }
 
@@ -657,7 +667,17 @@ impl Engine {
     ///
     /// Normally, this is called from `Engine::update()`.
     /// You should only call this manually if you don't use that method.
-    pub fn pre_update(&mut self, dt: f32, control_flow: &mut ControlFlow) {
+    ///
+    /// ## Parameters
+    ///
+    /// `lag` - is a reference to time accumulator, that holds remaining amount of time that should be used
+    /// to update a plugin. A caller splits `lag` into multiple sub-steps using `dt` and thus stabilizes
+    /// update rate. The main use of this variable, is to be able to reset `lag` when you doing some heavy
+    /// calculations in a your game loop (i.e. loading a new level) so the engine won't try to "catch up" with
+    /// all the time that was spent in heavy calculation. The engine does **not** use this variable itself,
+    /// but the plugins attach may use it, that's why you need to provide it. If you don't use plugins, then
+    /// put `&mut 0.0` here.
+    pub fn pre_update(&mut self, dt: f32, control_flow: &mut ControlFlow, lag: &mut f32) {
         let inner_size = self.get_window().inner_size();
         let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
@@ -677,7 +697,7 @@ impl Engine {
             scene.update(frame_size, dt);
         }
 
-        self.update_plugins(dt, control_flow);
+        self.update_plugins(dt, control_flow, lag);
         self.handle_scripts(dt);
     }
 
@@ -719,13 +739,14 @@ impl Engine {
         );
     }
 
-    fn update_plugins(&mut self, dt: f32, control_flow: &mut ControlFlow) {
+    fn update_plugins(&mut self, dt: f32, control_flow: &mut ControlFlow, lag: &mut f32) {
         if self.plugins_enabled {
             let mut context = PluginContext {
                 scenes: &mut self.scenes,
                 resource_manager: &self.resource_manager,
                 renderer: &mut self.renderer,
                 dt,
+                lag,
                 user_interface: &mut self.user_interface,
                 serialization_context: &self.serialization_context,
                 window: get_window!(self),
@@ -744,6 +765,7 @@ impl Engine {
                     resource_manager: &self.resource_manager,
                     renderer: &mut self.renderer,
                     dt,
+                    lag,
                     user_interface: &mut self.user_interface,
                     serialization_context: &self.serialization_context,
                     window: get_window!(self),
@@ -764,6 +786,7 @@ impl Engine {
         event: &Event<()>,
         dt: f32,
         control_flow: &mut ControlFlow,
+        lag: &mut f32,
     ) {
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
@@ -774,6 +797,7 @@ impl Engine {
                         resource_manager: &self.resource_manager,
                         renderer: &mut self.renderer,
                         dt,
+                        lag,
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
                         window: get_window!(self),
@@ -891,6 +915,7 @@ impl Engine {
                             resource_manager: &self.resource_manager,
                             renderer: &mut self.renderer,
                             dt: 0.0,
+                            lag: &mut 0.0,
                             user_interface: &mut self.user_interface,
                             serialization_context: &self.serialization_context,
                             window: get_window!(self),
@@ -910,6 +935,7 @@ impl Engine {
                         resource_manager: &self.resource_manager,
                         renderer: &mut self.renderer,
                         dt: 0.0,
+                        lag: &mut 0.0,
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
                         window: get_window!(self),

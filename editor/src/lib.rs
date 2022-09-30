@@ -290,7 +290,7 @@ impl Mode {
 
 pub struct GameLoopData {
     clock: Instant,
-    elapsed_time: f32,
+    lag: f32,
 }
 
 pub struct StartupData {
@@ -753,7 +753,7 @@ impl Editor {
             mode: Mode::Edit,
             game_loop_data: GameLoopData {
                 clock: Instant::now(),
-                elapsed_time: 0.0,
+                lag: 0.0,
             },
             absm_editor,
             build_window,
@@ -2009,13 +2009,16 @@ fn set_ui_scaling(ui: &UserInterface, scale: f32) {
 fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
     scope_profile!();
 
-    let mut dt =
-        editor.game_loop_data.clock.elapsed().as_secs_f32() - editor.game_loop_data.elapsed_time;
-    while dt >= FIXED_TIMESTEP {
-        dt -= FIXED_TIMESTEP;
-        editor.game_loop_data.elapsed_time += FIXED_TIMESTEP;
+    let elapsed = editor.game_loop_data.clock.elapsed().as_secs_f32();
+    editor.game_loop_data.clock = Instant::now();
+    editor.game_loop_data.lag += elapsed;
 
-        editor.engine.pre_update(FIXED_TIMESTEP, control_flow);
+    while editor.game_loop_data.lag >= FIXED_TIMESTEP {
+        editor.game_loop_data.lag -= FIXED_TIMESTEP;
+
+        editor
+            .engine
+            .pre_update(FIXED_TIMESTEP, control_flow, &mut editor.game_loop_data.lag);
 
         editor.update(FIXED_TIMESTEP);
 
@@ -2025,7 +2028,7 @@ fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
 
         editor.post_update();
 
-        if dt >= 1.5 * FIXED_TIMESTEP {
+        if editor.game_loop_data.lag >= 1.5 * FIXED_TIMESTEP {
             break;
         }
     }

@@ -69,7 +69,7 @@ impl<'a> SoundEngineHelper<'a> {
 }
 
 /// Contains plugin environment.
-pub struct PluginContext<'a> {
+pub struct PluginContext<'a, 'b> {
     /// A reference to scene container of the engine. You can add new scenes from [`Plugin`] methods
     /// by using [`SceneContainer::add`].
     pub scenes: &'a mut SceneContainer,
@@ -86,8 +86,15 @@ pub struct PluginContext<'a> {
     pub renderer: &'a mut Renderer,
 
     /// The time (in seconds) that passed since last call of a method in which the context was
-    /// passed.
+    /// passed. It has fixed value that is defined by a caller (in most cases it is `Executor`).
     pub dt: f32,
+
+    /// A reference to time accumulator, that holds remaining amount of time that should be used
+    /// to update a plugin. A caller splits `lag` into multiple sub-steps using `dt` and thus
+    /// stabilizes update rate. The main use of this variable, is to be able to reset `lag` when
+    /// you doing some heavy calculations in a your game loop (i.e. loading a new level) so the
+    /// engine won't try to "catch up" with all the time that was spent in heavy calculation.
+    pub lag: &'b mut f32,
 
     /// A reference to serialization context of the engine. See [`SerializationContext`] for more
     /// info.

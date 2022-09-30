@@ -415,12 +415,12 @@ impl PhysicsWorld {
         }
     }
 
-    pub(crate) fn update(&mut self) {
+    pub(crate) fn update(&mut self, dt: f32) {
         let time = instant::Instant::now();
 
         if self.enabled {
             let integration_parameters = rapier2d::dynamics::IntegrationParameters {
-                dt: self.integration_parameters.dt,
+                dt: self.integration_parameters.dt.unwrap_or(dt),
                 min_ccd_dt: self.integration_parameters.min_ccd_dt,
                 erp: self.integration_parameters.erp,
                 damping_ratio: self.integration_parameters.damping_ratio,

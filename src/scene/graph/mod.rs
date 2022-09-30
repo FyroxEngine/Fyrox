@@ -937,11 +937,11 @@ impl Graph {
         self.performance_statistics.sync_time = instant::Instant::now() - last_time;
 
         self.physics.performance_statistics.reset();
-        self.physics.update();
+        self.physics.update(dt);
         self.performance_statistics.physics = self.physics.performance_statistics.clone();
 
         self.physics2d.performance_statistics.reset();
-        self.physics2d.update();
+        self.physics2d.update(dt);
         self.performance_statistics.physics2d = self.physics2d.performance_statistics.clone();
 
         self.sound_context.update(&self.pool);

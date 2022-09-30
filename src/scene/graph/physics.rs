@@ -678,12 +678,11 @@ fn collider_shape_into_native_shape(
 /// each parameter.
 #[derive(Copy, Clone, Visit, Inspect, Reflect, Debug)]
 pub struct IntegrationParameters {
-    /// The timestep length (default: `1.0 / 60.0`)
-    #[inspect(
-        min_value = 0.0,
-        description = "The timestep length (default: `1.0 / 60.0`)"
-    )]
-    pub dt: f32,
+    /// The time step length, default is None - this means that physics simulation will use engine's
+    /// time step.
+    #[inspect(min_value = 0.0, description = "The time step length (default: None)")]
+    #[visit(optional)]
+    pub dt: Option<f32>,
 
     /// Minimum timestep size when using CCD with multiple substeps (default `1.0 / 60.0 / 100.0`)
     ///
@@ -811,7 +810,7 @@ pub struct IntegrationParameters {
 impl Default for IntegrationParameters {
     fn default() -> Self {
         Self {
-            dt: 1.0 / 60.0,
+            dt: None,
             min_ccd_dt: 1.0 / 60.0 / 100.0,
             erp: 0.8,
             damping_ratio: 0.25,
@@ -971,12 +970,12 @@ impl PhysicsWorld {
         }
     }
 
-    pub(super) fn update(&mut self) {
+    pub(super) fn update(&mut self, dt: f32) {
         let time = instant::Instant::now();
 
         if self.enabled {
             let integration_parameters = rapier3d::dynamics::IntegrationParameters {
-                dt: self.integration_parameters.dt,
+                dt: self.integration_parameters.dt.unwrap_or(dt),
                 min_ccd_dt: self.integration_parameters.min_ccd_dt,
                 erp: self.integration_parameters.erp,
                 damping_ratio: self.integration_parameters.damping_ratio,

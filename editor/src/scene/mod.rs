@@ -78,8 +78,8 @@ impl EditorScene {
         );
 
         // Freeze physics simulation in while editing scene by setting time step to zero.
-        scene.graph.physics.integration_parameters.dt = 0.0;
-        scene.graph.physics2d.integration_parameters.dt = 0.0;
+        scene.graph.physics.integration_parameters.dt = Some(0.0);
+        scene.graph.physics2d.integration_parameters.dt = Some(0.0);
 
         let mut navmeshes = NavmeshContainer::default();
 
