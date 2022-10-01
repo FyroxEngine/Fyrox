@@ -335,9 +335,9 @@ fn main() {
     let mut scene_handle = Handle::NONE;
     let mut model_handle = Handle::NONE;
 
-    let clock = Instant::now();
+    let mut previous = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
-    let mut elapsed_time = 0.0;
+    let mut lag = 0.0;
 
     // We will rotate model using keyboard input.
     let mut model_angle = 180.0f32.to_radians();
@@ -357,11 +357,10 @@ fn main() {
                 // This main game loop - it has fixed time step which means that game
                 // code will run at fixed speed even if renderer can't give you desired
                 // 60 fps.
-                let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
-                while dt >= fixed_timestep {
-                    dt -= fixed_timestep;
-                    elapsed_time += fixed_timestep;
-
+                let elapsed = previous.elapsed();
+                previous = Instant::now();
+                lag += elapsed.as_secs_f32();
+                while lag >= fixed_timestep {
                     // ************************
                     // Put your game logic here.
                     // ************************
@@ -518,7 +517,9 @@ fn main() {
                         }
                     }
 
-                    engine.update(fixed_timestep, control_flow);
+                    engine.update(fixed_timestep, control_flow, &mut lag);
+
+                    lag -= fixed_timestep;
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.

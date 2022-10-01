@@ -35,9 +35,9 @@ fn main() {
     .unwrap();
 
     // Define game loop variables.
-    let clock = Instant::now();
+    let mut previous = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
-    let mut elapsed_time = 0.0;
+    let mut lag = 0.0;
 
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly. Engine lets you to decide which event should be handled,
@@ -48,11 +48,10 @@ fn main() {
                 // This main game loop - it has fixed time step which means that game
                 // code will run at fixed speed even if renderer can't give you desired
                 // 60 fps.
-                let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
-                while dt >= fixed_timestep {
-                    dt -= fixed_timestep;
-                    elapsed_time += fixed_timestep;
-
+                let elapsed = previous.elapsed();
+                previous = Instant::now();
+                lag += elapsed.as_secs_f32();
+                while lag >= fixed_timestep {
                     // ************************
                     // ************************
                     // Put your game logic here.
@@ -60,7 +59,9 @@ fn main() {
                     // ************************
 
                     // It is very important to update the engine every frame!
-                    engine.update(fixed_timestep, control_flow);
+                    engine.update(fixed_timestep, control_flow, &mut lag);
+
+                    lag -= fixed_timestep;
                 }
 
                 // It is very important to "pump" messages from UI. Even if don't need to

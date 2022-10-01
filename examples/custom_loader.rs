@@ -208,18 +208,18 @@ fn main() {
     let scene = block_on(GameSceneLoader::load_with(engine.resource_manager.clone())).scene;
     engine.scenes.add(scene);
 
-    let clock = Instant::now();
+    let mut previous = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
-    let mut elapsed_time = 0.0;
+    let mut lag = 0.0;
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::MainEventsCleared => {
-            let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
-            while dt >= fixed_timestep {
-                dt -= fixed_timestep;
-                elapsed_time += fixed_timestep;
-
-                engine.update(fixed_timestep, control_flow);
+            let elapsed = previous.elapsed();
+            previous = Instant::now();
+            lag += elapsed.as_secs_f32();
+            while lag >= fixed_timestep {
+                engine.update(fixed_timestep, control_flow, &mut lag);
+                lag -= fixed_timestep;
             }
 
             engine.get_window().request_redraw();

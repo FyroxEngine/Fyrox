@@ -8,6 +8,7 @@
 
 pub mod shared;
 
+use std::time::Instant;
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
 use fyrox::scene::sound::effect::EffectInput;
 use fyrox::{
@@ -45,9 +46,9 @@ fn main() {
         Vector2::new(screen_size.width, screen_size.height),
     );
 
-    let clock = std::time::Instant::now();
+    let mut previous =Instant::now();
     let fixed_timestep = 1.0 / 60.0;
-    let mut elapsed_time = 0.0;
+    let mut lag = 0.0;
 
     // We'll use four footstep sounds to randomize sound and make it more natural.
     let footstep_paths = [
@@ -76,10 +77,10 @@ fn main() {
                 // This is main game loop - it has fixed time step which means that game
                 // code will run at fixed speed even if renderer can't give you desired
                 // 60 fps.
-                let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
-                while dt >= fixed_timestep {
-                    dt -= fixed_timestep;
-                    elapsed_time += fixed_timestep;
+                let elapsed = previous.elapsed();
+                previous = Instant::now();
+                lag += elapsed.as_secs_f32();
+                while lag >= fixed_timestep {
 
                     // ************************
                     // Put your game logic here.
@@ -213,7 +214,9 @@ fn main() {
                         // ************************
                     }
 
-                    game.engine.update(fixed_timestep,control_flow);
+                    game.engine.update(fixed_timestep,control_flow, &mut lag);
+
+                    lag -= fixed_timestep;
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.

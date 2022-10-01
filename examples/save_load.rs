@@ -38,6 +38,7 @@ use fyrox::{
 };
 use fyrox_core::futures::executor::block_on;
 use std::path::Path;
+use std::time::Instant;
 
 // Start implementing Visit trait for simple types which are used by more complex.
 // At first implement trait for LocomotionMachine.
@@ -155,9 +156,9 @@ fn main() {
         Vector2::new(screen_size.width, screen_size.height),
     );
 
-    let clock = std::time::Instant::now();
+    let mut previous = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
-    let mut elapsed_time = 0.0;
+    let mut lag = 0.0;
 
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly.
@@ -167,10 +168,10 @@ fn main() {
                 // This is main game loop - it has fixed time step which means that game
                 // code will run at fixed speed even if renderer can't give you desired
                 // 60 fps.
-                let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
-                while dt >= fixed_timestep {
-                    dt -= fixed_timestep;
-                    elapsed_time += fixed_timestep;
+                let elapsed = previous.elapsed();
+                previous = Instant::now();
+                lag += elapsed.as_secs_f32();
+                while lag >= fixed_timestep {
 
                     // ************************
                     // Put your game logic here.
@@ -256,7 +257,9 @@ fn main() {
                         // ************************
                     }
 
-                    game.engine.update(fixed_timestep, control_flow);
+                    game.engine.update(fixed_timestep, control_flow, &mut lag);
+
+                    lag -= fixed_timestep;
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.
