@@ -369,15 +369,18 @@ impl ResourceGraphVertex {
             self.resource.state().path().display()
         ));
 
-        block_on(
-            self.resource
-                .data_ref()
-                .get_scene_mut()
-                .resolve(self.resource_manager.clone()),
-        );
+        // Wait until resource is fully loaded, then resolve.
+        if block_on(self.resource.clone()).is_ok() {
+            block_on(
+                self.resource
+                    .data_ref()
+                    .get_scene_mut()
+                    .resolve(self.resource_manager.clone()),
+            );
 
-        for child in self.children.iter() {
-            child.resolve();
+            for child in self.children.iter() {
+                child.resolve();
+            }
         }
     }
 }
