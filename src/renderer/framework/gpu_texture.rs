@@ -146,20 +146,17 @@ impl PixelKind {
             Self::RGBA16 | Self::RGBA16F | Self::RGB16 | Self::RGBA32F | Self::RGB32F => Some(8),
             Self::RGBA8
             | Self::SRGBA8
-            | Self::RGB8
             | Self::SRGB8
             | Self::BGRA8
-            | Self::BGR8
             | Self::RG16
             | Self::LA16
-            | Self::R16
             | Self::D24S8
             | Self::D32F
             | Self::F32
             | Self::R11G11B10F
             | Self::RGB10A2 => Some(4),
-            Self::RG8 | Self::LA8 | Self::D16 | Self::F16 | Self::L16 => Some(2),
-            Self::R8 | Self::L8 | Self::R8UI => Some(1),
+            Self::RG8 | Self::LA8 | Self::D16 | Self::F16 | Self::L16 | Self::R16 => Some(2),
+            Self::R8 | Self::L8 | Self::R8UI | Self::RGB8 | Self::BGR8 => Some(1),
             Self::DXT1RGB
             | Self::DXT1RGBA
             | Self::DXT3RGBA
