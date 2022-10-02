@@ -505,24 +505,28 @@ impl ResourceManagerState {
         containers.absm.update(dt);
 
         if let Some(watcher) = self.watcher.as_ref() {
-            if let Some(DebouncedEvent::Write(path)) = watcher.try_get_event() {
-                if let Ok(relative_path) = make_relative_path(path) {
-                    let containers = self.containers_mut();
-                    for container in [
-                        &mut containers.textures as &mut dyn Container,
-                        &mut containers.models as &mut dyn Container,
-                        &mut containers.sound_buffers as &mut dyn Container,
-                        &mut containers.shaders as &mut dyn Container,
-                        &mut containers.curves as &mut dyn Container,
-                        &mut containers.absm as &mut dyn Container,
-                    ] {
-                        if container.try_reload_resource_from_path(&relative_path) {
-                            Log::info(format!(
-                                "File {} was changed, trying to reload a respective resource...",
-                                relative_path.display()
-                            ));
+            if let Some(evt) = watcher.try_get_event() {
+                if let notify::EventKind::Modify(_) = evt.kind {
+                    for path in evt.paths {
+                        if let Ok(relative_path) = make_relative_path(path) {
+                            let containers = self.containers_mut();
+                            for container in [
+                                &mut containers.textures as &mut dyn Container,
+                                &mut containers.models as &mut dyn Container,
+                                &mut containers.sound_buffers as &mut dyn Container,
+                                &mut containers.shaders as &mut dyn Container,
+                                &mut containers.curves as &mut dyn Container,
+                                &mut containers.absm as &mut dyn Container,
+                            ] {
+                                if container.try_reload_resource_from_path(&relative_path) {
+                                    Log::info(format!(
+                                        "File {} was changed, trying to reload a respective resource...",
+                                        relative_path.display()
+                                    ));
 
-                            break;
+                                    break;
+                                }
+                            }
                         }
                     }
                 }

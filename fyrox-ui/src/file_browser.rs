@@ -117,7 +117,7 @@ pub struct FileBrowser {
     pub mode: FileBrowserMode,
     pub file_name: Handle<UiNode>,
     pub file_name_value: PathBuf,
-    pub fs_receiver: Rc<Receiver<notify::DebouncedEvent>>,
+    pub fs_receiver: Rc<Receiver<notify::Event>>,
     #[allow(clippy::type_complexity)]
     pub watcher: Rc<cell::Cell<Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>>>,
 }
@@ -249,14 +249,14 @@ impl Control for FileBrowser {
                                         None => self.path.clone(),
                                     };
                                     if current_root.exists() {
-                                        let _ = watcher.unwatch(current_root);
+                                        let _ = watcher.unwatch(&current_root);
                                     }
                                     let new_root = match &root {
                                         Some(path) => path.clone(),
                                         None => self.path.clone(),
                                     };
                                     let _ =
-                                        watcher.watch(new_root, notify::RecursiveMode::Recursive);
+                                        watcher.watch(&new_root, notify::RecursiveMode::Recursive);
                                     Some((watcher, converter))
                                 }
                                 None => None,
@@ -420,32 +420,31 @@ impl Control for FileBrowser {
 
     fn update(&mut self, _dt: f32, sender: &Sender<UiMessage>) {
         if let Ok(event) = self.fs_receiver.try_recv() {
-            match event {
-                notify::DebouncedEvent::Remove(path) => {
-                    let _ = sender.send(FileBrowserMessage::remove(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        path,
-                    ));
+            if event.need_rescan() {
+                let _ = sender.send(FileBrowserMessage::rescan(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                ));
+            } else {
+                for path in event.paths.iter() {
+                    match event.kind {
+                        notify::EventKind::Remove(_) => {
+                            let _ = sender.send(FileBrowserMessage::remove(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                                path.clone(),
+                            ));
+                        }
+                        notify::EventKind::Create(_) => {
+                            let _ = sender.send(FileBrowserMessage::add(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                                path.clone(),
+                            ));
+                        }
+                        _ => (),
+                    }
                 }
-                notify::DebouncedEvent::Create(path) => {
-                    let _ = sender.send(FileBrowserMessage::add(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        path,
-                    ));
-                }
-                notify::DebouncedEvent::Rescan | notify::DebouncedEvent::Error(_, _) => {
-                    let _ = sender.send(FileBrowserMessage::rescan(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                    ));
-                }
-                notify::DebouncedEvent::NoticeRemove(_) => (),
-                notify::DebouncedEvent::NoticeWrite(_) => (),
-                notify::DebouncedEvent::Write(_) => (),
-                notify::DebouncedEvent::Chmod(_) => (),
-                notify::DebouncedEvent::Rename(_, _) => (),
             }
         }
     }
@@ -942,24 +941,29 @@ impl FileBrowserBuilder {
 }
 
 fn setup_filebrowser_fs_watcher(
-    fs_sender: mpsc::Sender<notify::DebouncedEvent>,
+    fs_sender: mpsc::Sender<notify::Event>,
     the_path: PathBuf,
 ) -> Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)> {
     let (tx, rx) = mpsc::channel();
-    match notify::watcher(tx, time::Duration::from_secs(1)) {
+    match notify::RecommendedWatcher::new(
+        tx,
+        notify::Config::default().with_poll_interval(time::Duration::from_secs(1)),
+    ) {
         Ok(mut watcher) => {
             #[allow(clippy::while_let_loop)]
             let watcher_conversion_thread = std::thread::spawn(move || loop {
                 match rx.recv() {
                     Ok(event) => {
-                        let _ = fs_sender.send(event);
+                        if let Ok(event) = event {
+                            let _ = fs_sender.send(event);
+                        }
                     }
                     Err(_) => {
                         break;
                     }
                 };
             });
-            let _ = watcher.watch(the_path, notify::RecursiveMode::Recursive);
+            let _ = watcher.watch(&the_path, notify::RecursiveMode::Recursive);
             Some((watcher, watcher_conversion_thread))
         }
         Err(_) => None,

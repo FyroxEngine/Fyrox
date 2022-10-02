@@ -20,7 +20,7 @@ fyrox-core = { path = "../fyrox-core", version = "0.21.0" }
 lazy_static = "1.4.0"
 copypasta = "0.8.1"
 fontdue = "0.7.2"
-notify = "4.0"
+notify = "5.0.0"
 fxhash = "0.2.1"
 strum = "0.24.0"
 strum_macros = "0.24.0"
@@ -29,4 +29,4 @@ strum_macros = "0.24.0"
 enable_profiler = ["fyrox-core/enable_profiler"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-sysinfo = "0.20.0"
+sysinfo = "0.26.4"

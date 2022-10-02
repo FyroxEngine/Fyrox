@@ -1,7 +1,7 @@
 //! Resource watcher allows you to track changed resources and "tell" resource manager to reload
 //! them.
 
-use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::{
     path::Path,
     sync::mpsc::{channel, Receiver},
@@ -13,7 +13,7 @@ use std::{
 pub struct FileSystemWatcher {
     #[allow(dead_code)] // We must keep watcher alive, but compiler isn't smart enough.
     watcher: RecommendedWatcher,
-    receiver: Receiver<DebouncedEvent>,
+    receiver: Receiver<notify::Result<Event>>,
 }
 
 impl FileSystemWatcher {
@@ -21,9 +21,9 @@ impl FileSystemWatcher {
     pub fn new<P: AsRef<Path>>(path: P, delay: Duration) -> Result<Self, notify::Error> {
         let (tx, rx) = channel();
 
-        let mut watcher = watcher(tx, delay)?;
+        let mut watcher = RecommendedWatcher::new(tx, Config::default().with_poll_interval(delay))?;
 
-        watcher.watch(path, RecursiveMode::Recursive)?;
+        watcher.watch(path.as_ref(), RecursiveMode::Recursive)?;
 
         Ok(Self {
             receiver: rx,
@@ -31,7 +31,10 @@ impl FileSystemWatcher {
         })
     }
 
-    pub(crate) fn try_get_event(&self) -> Option<DebouncedEvent> {
-        self.receiver.try_recv().ok()
+    pub(crate) fn try_get_event(&self) -> Option<Event> {
+        if let Ok(Ok(evt)) = self.receiver.try_recv() {
+            return Some(evt);
+        }
+        None
     }
 }
