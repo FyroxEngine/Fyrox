@@ -82,14 +82,6 @@ impl ItemContextMenu {
                             .with_items(create_entity_menu_root_items)
                             .build(ctx),
                         )
-                        .with_child(
-                            MenuItemBuilder::new(
-                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
-                            )
-                            .with_content(MenuItemContent::text("Replace With"))
-                            .with_items(replace_with_menu_root_items)
-                            .build(ctx),
-                        )
                         .with_child({
                             preview_camera = MenuItemBuilder::new(
                                 WidgetBuilder::new()
@@ -99,7 +91,15 @@ impl ItemContextMenu {
                             .with_content(MenuItemContent::text_no_arrow("Preview"))
                             .build(ctx);
                             preview_camera
-                        }),
+                        })
+                        .with_child(
+                            MenuItemBuilder::new(
+                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
+                            )
+                            .with_content(MenuItemContent::text("Replace With"))
+                            .with_items(replace_with_menu_root_items)
+                            .build(ctx),
+                        ),
                 )
                 .build(ctx),
             )

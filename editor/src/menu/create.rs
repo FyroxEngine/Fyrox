@@ -190,7 +190,7 @@ impl CreateEntityMenu {
                 create_camera
             },
             {
-                create_sprite = create_menu_item("Sprite", vec![], ctx);
+                create_sprite = create_menu_item("Sprite (3D)", vec![], ctx);
                 create_sprite
             },
             {

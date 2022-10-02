@@ -17,7 +17,7 @@ impl Dim2Menu {
         let menu = create_menu_item(
             "2D",
             vec![{
-                create_sprite = create_menu_item("Rectangle", vec![], ctx);
+                create_sprite = create_menu_item("Rectangle (2D Sprite)", vec![], ctx);
                 create_sprite
             }],
             ctx,
@@ -34,7 +34,7 @@ impl Dim2Menu {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.create_sprite {
                 let node =
-                    RectangleBuilder::new(BaseBuilder::new().with_name("Sprite 2D")).build_node();
+                    RectangleBuilder::new(BaseBuilder::new().with_name("Sprite (2D)")).build_node();
                 Some(node)
             } else {
                 None
