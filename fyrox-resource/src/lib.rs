@@ -245,6 +245,11 @@ impl<T: ResourceData, E: ResourceLoadError> Resource<T, E> {
         self.state.as_ref().unwrap().lock()
     }
 
+    /// Returns true if the resource is still loading.
+    pub fn is_loading(&self) -> bool {
+        matches!(*self.state(), ResourceState::Pending { .. })
+    }
+
     /// Tries to lock internal mutex provides access to the state.
     #[inline]
     pub fn try_acquire_state(&self) -> Option<MutexGuard<'_, ResourceState<T, E>>> {

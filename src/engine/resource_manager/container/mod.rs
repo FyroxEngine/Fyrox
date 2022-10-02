@@ -238,14 +238,16 @@ where
 
     /// Reloads a single resource.
     pub fn reload_resource(&mut self, resource: T) {
-        resource.state().switch_to_pending_state();
+        if !resource.is_loading() {
+            resource.state().switch_to_pending_state();
 
-        self.task_pool.spawn_task(self.loader.load(
-            resource,
-            self.default_import_options.clone(),
-            self.event_broadcaster.clone(),
-            true,
-        ));
+            self.task_pool.spawn_task(self.loader.load(
+                resource,
+                self.default_import_options.clone(),
+                self.event_broadcaster.clone(),
+                true,
+            ));
+        }
     }
 
     /// Reloads all resources in the container. Returns a list of resources that will be reloaded.
