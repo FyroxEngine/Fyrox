@@ -333,8 +333,8 @@ impl Default for InteractionGroups {
 impl From<geometry::InteractionGroups> for InteractionGroups {
     fn from(g: geometry::InteractionGroups) -> Self {
         Self {
-            memberships: BitMask(g.memberships),
-            filter: BitMask(g.filter),
+            memberships: BitMask(g.memberships.bits()),
+            filter: BitMask(g.filter.bits()),
         }
     }
 }

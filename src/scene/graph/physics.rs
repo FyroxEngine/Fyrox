@@ -935,6 +935,10 @@ fn calculate_local_frames(
     )
 }
 
+fn u32_to_group(v: u32) -> rapier3d::geometry::Group {
+    rapier3d::geometry::Group::from_bits(v).unwrap_or_else(rapier3d::geometry::Group::all)
+}
+
 impl PhysicsWorld {
     /// Creates a new instance of the physics world.
     pub(super) fn new() -> Self {
@@ -1123,8 +1127,8 @@ impl PhysicsWorld {
             opts.max_len,
             true,
             QueryFilter::new().groups(InteractionGroups::new(
-                opts.groups.memberships.0,
-                opts.groups.filter.0,
+                u32_to_group(opts.groups.memberships.0),
+                u32_to_group(opts.groups.filter.0),
             )),
             |handle, intersection| {
                 query_buffer.push(Intersection {
@@ -1396,13 +1400,15 @@ impl PhysicsWorld {
                         .try_sync_model(|v| native.set_restitution(v));
                     collider_node.collision_groups.try_sync_model(|v| {
                         native.set_collision_groups(InteractionGroups::new(
-                            v.memberships.0,
-                            v.filter.0,
+                            u32_to_group(v.memberships.0),
+                            u32_to_group(v.filter.0),
                         ))
                     });
                     collider_node.solver_groups.try_sync_model(|v| {
-                        native
-                            .set_solver_groups(InteractionGroups::new(v.memberships.0, v.filter.0))
+                        native.set_solver_groups(InteractionGroups::new(
+                            u32_to_group(v.memberships.0),
+                            u32_to_group(v.filter.0),
+                        ))
                     });
                     collider_node
                         .friction
@@ -1443,14 +1449,14 @@ impl PhysicsWorld {
                         .friction(collider_node.friction())
                         .restitution(collider_node.restitution())
                         .collision_groups(InteractionGroups::new(
-                            collider_node.collision_groups().memberships.0,
-                            collider_node.collision_groups().filter.0,
+                            u32_to_group(collider_node.collision_groups().memberships.0),
+                            u32_to_group(collider_node.collision_groups().filter.0),
                         ))
                         .friction_combine_rule(collider_node.friction_combine_rule().into())
                         .restitution_combine_rule(collider_node.restitution_combine_rule().into())
                         .solver_groups(InteractionGroups::new(
-                            collider_node.solver_groups().memberships.0,
-                            collider_node.solver_groups().filter.0,
+                            u32_to_group(collider_node.solver_groups().memberships.0),
+                            u32_to_group(collider_node.solver_groups().filter.0),
                         ))
                         .sensor(collider_node.is_sensor());
 
