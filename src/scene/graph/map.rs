@@ -158,7 +158,6 @@ impl NodeHandleMap {
                 );
             }
         } else if let Some(handle) = entity.downcast_mut::<Handle<Node>>() {
-            let old = *handle;
             if do_map && handle.is_some() && !self.try_map(handle) {
                 Log::warn(format!(
                     "Failed to remap handle {} of node {}!",
