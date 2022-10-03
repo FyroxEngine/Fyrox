@@ -104,6 +104,7 @@ pub fn make_property_editors_container(
 
     container.insert(TexturePropertyEditorDefinition);
     container.insert(InheritablePropertyEditorDefinition::<Option<Texture>>::new());
+    container.insert(InheritablePropertyEditorDefinition::<Handle<Node>>::new());
 
     container.insert(MaterialPropertyEditorDefinition {
         sender: Mutex::new(sender.clone()),
