@@ -303,6 +303,7 @@ impl NodeTrait for Joint {
 
     fn clean_up(&mut self, graph: &mut Graph) {
         graph.physics.remove_joint(self.native.get());
+        self.native.set(ImpulseJointHandle::invalid());
 
         Log::info(format!(
             "Native joint was removed for node: {}",

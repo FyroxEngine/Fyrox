@@ -543,6 +543,7 @@ impl NodeTrait for Collider {
 
     fn clean_up(&mut self, graph: &mut Graph) {
         graph.physics2d.remove_collider(self.native.get());
+        self.native.set(ColliderHandle::invalid());
 
         Log::info(format!(
             "Native collider 2D was removed for node: {}",

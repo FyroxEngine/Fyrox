@@ -355,6 +355,7 @@ impl NodeTrait for Sound {
 
     fn clean_up(&mut self, graph: &mut Graph) {
         graph.sound_context.remove_sound(self.native.get());
+        self.native.set(Default::default());
 
         Log::info(format!(
             "Native sound source was removed for node: {}",

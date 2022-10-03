@@ -331,15 +331,11 @@ impl Graph {
 
             // Remove associated entities.
             let mut node = self.pool.free(handle);
-            self.clean_up_for_node(&mut node);
+            node.clean_up(self);
 
             self.event_broadcaster
                 .broadcast(GraphEvent::Removed(handle));
         }
-    }
-
-    fn clean_up_for_node(&mut self, node: &mut Node) {
-        node.clean_up(self);
     }
 
     fn unlink_internal(&mut self, node_handle: Handle<Node>) {
@@ -1056,7 +1052,9 @@ impl Graph {
     }
 
     pub(crate) fn take_reserve_internal(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
-        self.pool.take_reserve(handle)
+        let (ticket, mut node) = self.pool.take_reserve(handle);
+        node.clean_up(self);
+        (ticket, node)
     }
 
     /// Puts node back by given ticket. Attaches back to root node of graph.
@@ -1071,9 +1069,8 @@ impl Graph {
     }
 
     /// Makes node handle vacant again.
-    pub fn forget_ticket(&mut self, ticket: Ticket<Node>, mut node: Node) -> Node {
+    pub fn forget_ticket(&mut self, ticket: Ticket<Node>, node: Node) -> Node {
         self.pool.forget_ticket(ticket);
-        self.clean_up_for_node(&mut node);
         node
     }
 
@@ -1087,7 +1084,7 @@ impl Graph {
         let mut stack = self[root].children().to_vec();
         while let Some(handle) = stack.pop() {
             stack.extend_from_slice(self[handle].children());
-            descendants.push(self.pool.take_reserve(handle));
+            descendants.push(self.take_reserve_internal(handle));
         }
 
         SubGraph {
@@ -1115,13 +1112,11 @@ impl Graph {
 
     /// Forgets the entire sub-graph making handles to nodes invalid.
     pub fn forget_sub_graph(&mut self, sub_graph: SubGraph) {
-        for (ticket, mut node) in sub_graph.descendants {
+        for (ticket, _) in sub_graph.descendants {
             self.pool.forget_ticket(ticket);
-            self.clean_up_for_node(&mut node);
         }
-        let (ticket, mut root) = sub_graph.root;
+        let (ticket, _) = sub_graph.root;
         self.pool.forget_ticket(ticket);
-        self.clean_up_for_node(&mut root);
     }
 
     /// Returns the number of nodes in the graph.

@@ -769,6 +769,7 @@ impl NodeTrait for Collider {
 
     fn clean_up(&mut self, graph: &mut Graph) {
         graph.physics.remove_collider(self.native.get());
+        self.native.set(ColliderHandle::invalid());
 
         Log::info(format!(
             "Native collider was removed for node: {}",
