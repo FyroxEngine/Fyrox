@@ -146,7 +146,19 @@ impl NodeHandleMap {
         node_name: &str,
         do_map: bool,
     ) {
-        if let Some(handle) = entity.downcast_mut::<Handle<Node>>() {
+        if let Some(inheritable) = entity.as_inheritable_variable_mut() {
+            // In case of inheritable variable we must take inner value and do not mark variables as modified.
+            if !inheritable.is_modified() {
+                self.remap_inheritable_handles_internal(
+                    inheritable.inner_value_mut(),
+                    node_name,
+                    // Raise mapping flag, any handle in inner value will be mapped. The flag is propagated
+                    // to unlimited depth.
+                    true,
+                );
+            }
+        } else if let Some(handle) = entity.downcast_mut::<Handle<Node>>() {
+            let old = *handle;
             if do_map && handle.is_some() && !self.try_map(handle) {
                 Log::warn(format!(
                     "Failed to remap handle {} of node {}!",
@@ -163,17 +175,6 @@ impl NodeHandleMap {
                         ));
                     }
                 }
-            }
-        } else if let Some(inheritable) = entity.as_inheritable_variable_mut() {
-            // In case of inheritable variable we must take inner value and do not mark variables as modified.
-            if !inheritable.is_modified() {
-                self.remap_inheritable_handles_internal(
-                    inheritable.inner_value_mut(),
-                    node_name,
-                    // Raise mapping flag, any handle in inner value will be mapped. The flag is propagated
-                    // to unlimited depth.
-                    true,
-                );
             }
         } else if let Some(array) = entity.as_array_mut() {
             // Look in every array item.
