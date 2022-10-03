@@ -247,6 +247,14 @@ impl Reflect for Script {
     fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
         self.instance.deref_mut().as_list_mut()
     }
+
+    fn fields(&self) -> Vec<&dyn Reflect> {
+        self.instance.deref().fields()
+    }
+
+    fn fields_mut(&mut self) -> Vec<&mut dyn Reflect> {
+        self.instance.deref_mut().fields_mut()
+    }
 }
 
 impl Deref for Script {
