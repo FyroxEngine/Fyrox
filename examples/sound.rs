@@ -8,7 +8,6 @@
 
 pub mod shared;
 
-use std::time::Instant;
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
 use fyrox::scene::sound::effect::EffectInput;
 use fyrox::{
@@ -32,6 +31,7 @@ use fyrox::{
         translate_event,
     },
 };
+use std::time::Instant;
 
 const FOOTSTEP_SIGNAL: u64 = 1;
 
@@ -46,7 +46,7 @@ fn main() {
         Vector2::new(screen_size.width, screen_size.height),
     );
 
-    let mut previous =Instant::now();
+    let mut previous = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
     let mut lag = 0.0;
 

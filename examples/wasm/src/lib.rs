@@ -311,9 +311,9 @@ pub fn main_js() {
     // Create simple user interface that will show some useful info.
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());
 
-    let clock = fyrox::core::instant::Instant::now();
+    let mut previous = fyrox::core::instant::Instant::now();
     let fixed_timestep = 1.0 / 60.0;
-    let mut elapsed_time = 0.0;
+    let mut lag = 0.0;
 
     // We will rotate model using keyboard input.
     let mut model_angle = 180.0f32.to_radians();
@@ -333,11 +333,10 @@ pub fn main_js() {
                 // This main game loop - it has fixed time step which means that game
                 // code will run at fixed speed even if renderer can't give you desired
                 // 60 fps.
-                let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
-                while dt >= fixed_timestep {
-                    dt -= fixed_timestep;
-                    elapsed_time += fixed_timestep;
-
+                let elapsed = previous.elapsed();
+                previous = fyrox::core::instant::Instant::now();
+                lag += elapsed.as_secs_f32();
+                while lag >= fixed_timestep {
                     if let Some(scene) = load_context.lock().data.take() {
                         scene_handle = engine.scenes.add(scene.scene);
                         model_handle = scene.model;
@@ -379,7 +378,9 @@ pub fn main_js() {
                         text,
                     ));
 
-                    engine.update(fixed_timestep, control_flow);
+                    engine.update(fixed_timestep, control_flow, &mut lag);
+
+                    lag -= fixed_timestep;
                 }
 
                 // It is very important to "pump" messages from UI. Even if don't need to
