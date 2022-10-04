@@ -1572,9 +1572,16 @@ impl Editor {
     fn select_object(&mut self, type_id: TypeId, handle: ErasedHandle) {
         if let Some(scene) = self.scene.as_ref() {
             let new_selection = if type_id == TypeId::of::<Node>() {
-                Some(Selection::Graph(GraphSelection::single_or_empty(
-                    handle.into(),
-                )))
+                if self.engine.scenes[scene.scene]
+                    .graph
+                    .is_valid_handle(handle.into())
+                {
+                    Some(Selection::Graph(GraphSelection::single_or_empty(
+                        handle.into(),
+                    )))
+                } else {
+                    None
+                }
             } else {
                 None
             };
