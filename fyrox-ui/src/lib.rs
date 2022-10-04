@@ -1892,6 +1892,13 @@ impl UserInterface {
                     }
                     ButtonState::Released => {
                         if self.picked_node.is_some() {
+                            self.send_message(WidgetMessage::mouse_up(
+                                self.picked_node,
+                                MessageDirection::FromWidget,
+                                self.cursor_position,
+                                button,
+                            ));
+
                             if self.drag_context.is_dragging {
                                 self.drag_context.is_dragging = false;
                                 self.cursor_icon = CursorIcon::Default;
@@ -1920,12 +1927,6 @@ impl UserInterface {
                                 self.drag_context.drag_preview = Default::default();
                             }
 
-                            self.send_message(WidgetMessage::mouse_up(
-                                self.picked_node,
-                                MessageDirection::FromWidget,
-                                self.cursor_position,
-                                button,
-                            ));
                             event_processed = true;
                         }
                     }
