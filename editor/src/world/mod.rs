@@ -364,19 +364,19 @@ impl WorldViewer {
 
         if let Selection::Graph(selection) = &editor_scene.selection {
             if let Some(&first_selected) = selection.nodes().first() {
-                let mut item = first_selected;
-                while item.is_some() {
-                    let node = &scene.graph[item];
+                let mut node_handle = first_selected;
+                while node_handle.is_some() {
+                    let node = &scene.graph[node_handle];
 
                     let view = ui.find_by_criteria_down(self.graph_folder, &|n| {
                         n.cast::<SceneItem<Node>>()
-                            .map(|i| i.entity_handle == item)
+                            .map(|i| i.entity_handle == node_handle)
                             .unwrap_or_default()
                     });
                     assert!(view.is_some());
-                    self.build_breadcrumb(node.name(), view, ui);
+                    self.build_breadcrumb(&format!("{} ({})", node.name(), node_handle), view, ui);
 
-                    item = node.parent();
+                    node_handle = node.parent();
                 }
             }
         }
