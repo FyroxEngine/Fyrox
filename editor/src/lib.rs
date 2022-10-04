@@ -33,8 +33,6 @@ mod settings;
 mod utils;
 mod world;
 
-use crate::inspector::editors::handle::HandlePropertyEditorMessage;
-use crate::settings::camera::SceneCameraSettings;
 use crate::{
     absm::AbsmEditor,
     asset::{item::AssetItem, item::AssetKind, AssetBrowser},
@@ -43,7 +41,7 @@ use crate::{
     command::{panel::CommandStackViewer, Command, CommandStack},
     configurator::Configurator,
     curve_editor::CurveEditorWindow,
-    inspector::Inspector,
+    inspector::{editors::handle::HandlePropertyEditorMessage, Inspector},
     interaction::{
         move_mode::MoveInteractionMode,
         navmesh::{EditNavmeshMode, NavmeshPanel},
@@ -66,11 +64,10 @@ use crate::{
         is_scene_needs_to_be_saved, EditorScene, Selection,
     },
     scene_viewer::SceneViewer,
-    settings::Settings,
+    settings::{camera::SceneCameraSettings, Settings},
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::core::visitor::Visitor;
 use fyrox::{
     core::{
         algebra::{Matrix3, Vector2},
@@ -80,6 +77,7 @@ use fyrox::{
         pool::{ErasedHandle, Handle},
         scope_profile,
         sstorage::ImmutableString,
+        visitor::Visitor,
     },
     dpi::LogicalSize,
     engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
@@ -1773,16 +1771,13 @@ impl Editor {
                 Message::SyncNodeHandleName { view, handle } => {
                     if let Some(editor_scene) = self.scene.as_ref() {
                         let scene = &self.engine.scenes[editor_scene.scene];
-
-                        if let Some(node) = scene.graph.try_get(handle) {
-                            self.engine.user_interface.send_message(
-                                HandlePropertyEditorMessage::name(
-                                    view,
-                                    MessageDirection::ToWidget,
-                                    node.name_owned(),
-                                ),
-                            );
-                        }
+                        self.engine
+                            .user_interface
+                            .send_message(HandlePropertyEditorMessage::name(
+                                view,
+                                MessageDirection::ToWidget,
+                                scene.graph.try_get(handle).map(|n| n.name_owned()),
+                            ));
                     }
                 }
             }

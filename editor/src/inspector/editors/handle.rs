@@ -2,8 +2,9 @@ use crate::{
     world::graph::item::SceneItem, Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox::{
-    core::pool::Handle,
+    core::{color::Color, pool::Handle},
     gui::{
+        brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         define_constructor,
         grid::{Column, GridBuilder, Row},
@@ -32,12 +33,12 @@ use std::{
 #[derive(Debug, PartialEq, Eq)]
 pub enum HandlePropertyEditorMessage {
     Value(Handle<Node>),
-    Name(String),
+    Name(Option<String>),
 }
 
 impl HandlePropertyEditorMessage {
     define_constructor!(HandlePropertyEditorMessage:Value => fn value(Handle<Node>), layout: false);
-    define_constructor!(HandlePropertyEditorMessage:Name => fn name(String), layout: false);
+    define_constructor!(HandlePropertyEditorMessage:Name => fn name(Option<String>), layout: false);
 }
 
 #[derive(Debug)]
@@ -106,11 +107,39 @@ impl Control for HandlePropertyEditor {
                     HandlePropertyEditorMessage::Name(value) => {
                         // Handle messages from the editor, it will respond to requests and provide
                         // node names in efficient way.
-                        ui.send_message(TextMessage::text(
-                            self.text,
-                            MessageDirection::ToWidget,
-                            format!("{} ({})", value, self.value),
-                        ));
+                        let value = if let Some(value) = value {
+                            Some(value.as_str())
+                        } else if self.value.is_none() {
+                            Some("Unassigned")
+                        } else {
+                            None
+                        };
+
+                        if let Some(value) = value {
+                            ui.send_message(TextMessage::text(
+                                self.text,
+                                MessageDirection::ToWidget,
+                                format!("{} ({})", value, self.value),
+                            ));
+
+                            ui.send_message(WidgetMessage::foreground(
+                                self.text,
+                                MessageDirection::ToWidget,
+                                Brush::Solid(fyrox::gui::COLOR_FOREGROUND),
+                            ));
+                        } else {
+                            ui.send_message(TextMessage::text(
+                                self.text,
+                                MessageDirection::ToWidget,
+                                format!("<Invalid handle!> ({})", self.value),
+                            ));
+
+                            ui.send_message(WidgetMessage::foreground(
+                                self.text,
+                                MessageDirection::ToWidget,
+                                Brush::Solid(Color::RED),
+                            ));
+                        };
                     }
                 }
             }
