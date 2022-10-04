@@ -1496,9 +1496,9 @@ impl UserInterface {
         match self.receiver.try_recv() {
             Ok(mut message) => {
                 // Destination node may be destroyed at the time we receive message,
-                // we have to discard such messages.
+                // we have skip processing of such messages.
                 if !self.nodes.is_valid_handle(message.destination()) {
-                    return None;
+                    return Some(message);
                 }
 
                 if message.need_perform_layout() {
