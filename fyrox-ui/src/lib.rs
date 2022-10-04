@@ -401,10 +401,10 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
 }
 
 pub struct DragContext {
-    is_dragging: bool,
-    drag_node: Handle<UiNode>,
-    click_pos: Vector2<f32>,
-    drag_preview: Handle<UiNode>,
+    pub is_dragging: bool,
+    pub drag_node: Handle<UiNode>,
+    pub click_pos: Vector2<f32>,
+    pub drag_preview: Handle<UiNode>,
 }
 
 impl Default for DragContext {
@@ -2169,6 +2169,10 @@ impl UserInterface {
         }
 
         self.preview_set.remove(&node);
+    }
+
+    pub fn drag_context(&self) -> &DragContext {
+        &self.drag_context
     }
 
     /// Links specified child with specified parent.
