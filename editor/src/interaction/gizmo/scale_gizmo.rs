@@ -149,10 +149,7 @@ impl ScaleGizmo {
         }
     }
 
-    pub fn set_mode(&mut self, mode: ScaleGizmoMode, graph: &mut Graph) {
-        self.mode = mode;
-
-        // Restore initial colors first.
+    pub fn reset_state(&self, graph: &mut Graph) {
         set_mesh_diffuse_color(graph[self.origin].as_mesh_mut(), Color::opaque(0, 255, 255));
         set_mesh_diffuse_color(graph[self.x_axis].as_mesh_mut(), Color::RED);
         set_mesh_diffuse_color(graph[self.x_arrow].as_mesh_mut(), Color::RED);
@@ -160,6 +157,13 @@ impl ScaleGizmo {
         set_mesh_diffuse_color(graph[self.y_arrow].as_mesh_mut(), Color::GREEN);
         set_mesh_diffuse_color(graph[self.z_axis].as_mesh_mut(), Color::BLUE);
         set_mesh_diffuse_color(graph[self.z_arrow].as_mesh_mut(), Color::BLUE);
+    }
+
+    pub fn set_mode(&mut self, mode: ScaleGizmoMode, graph: &mut Graph) {
+        self.mode = mode;
+
+        // Restore initial colors first.
+        self.reset_state(graph);
 
         let yellow = Color::opaque(255, 255, 0);
         match self.mode {

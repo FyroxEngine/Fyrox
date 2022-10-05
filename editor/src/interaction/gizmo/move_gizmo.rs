@@ -188,8 +188,7 @@ impl MoveGizmo {
         }
     }
 
-    pub fn apply_mode(&mut self, mode: Option<PlaneKind>, graph: &mut Graph) {
-        // Restore initial colors first.
+    pub fn reset_state(&self, graph: &mut Graph) {
         set_mesh_diffuse_color(graph[self.x_axis].as_mesh_mut(), Color::RED);
         set_mesh_diffuse_color(graph[self.x_arrow].as_mesh_mut(), Color::RED);
         set_mesh_diffuse_color(graph[self.y_axis].as_mesh_mut(), Color::GREEN);
@@ -199,6 +198,11 @@ impl MoveGizmo {
         set_mesh_diffuse_color(graph[self.zx_plane].as_mesh_mut(), Color::GREEN);
         set_mesh_diffuse_color(graph[self.yz_plane].as_mesh_mut(), Color::RED);
         set_mesh_diffuse_color(graph[self.xy_plane].as_mesh_mut(), Color::BLUE);
+    }
+
+    pub fn apply_mode(&self, mode: Option<PlaneKind>, graph: &mut Graph) {
+        // Restore initial colors first.
+        self.reset_state(graph);
 
         if let Some(mode) = mode {
             let yellow = Color::opaque(255, 255, 0);

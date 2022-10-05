@@ -462,11 +462,14 @@ impl InteractionMode for EditNavmeshMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_scene: &mut EditorScene,
-        _engine: &mut GameEngine,
+        engine: &mut GameEngine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
+        self.move_gizmo
+            .reset_state(&mut engine.scenes[editor_scene.scene].graph);
+
         if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
             let navmesh = &mut editor_scene.navmeshes[self.navmesh];
             if let Some(drag_context) = self.drag_context.take() {

@@ -255,6 +255,8 @@ impl InteractionMode for MoveInteractionMode {
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
 
+        self.move_gizmo.reset_state(&mut scene.graph);
+
         if let Some(move_context) = self.move_context.take() {
             let mut changed = false;
 

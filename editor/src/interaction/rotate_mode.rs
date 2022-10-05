@@ -91,6 +91,8 @@ impl InteractionMode for RotateInteractionMode {
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
+        self.rotation_gizmo.reset_state(graph);
+
         if self.interacting {
             if let Selection::Graph(selection) = &editor_scene.selection {
                 if !selection.is_empty() {
