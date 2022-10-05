@@ -350,6 +350,13 @@ impl WorldViewer {
         self.breadcrumbs.insert(element, associated_item);
     }
 
+    fn clear_breadcrumbs(&mut self, ui: &UserInterface) {
+        self.breadcrumbs.clear();
+        for &child in ui.node(self.node_path).children() {
+            send_sync_message(ui, WidgetMessage::remove(child, MessageDirection::ToWidget));
+        }
+    }
+
     fn update_breadcrumbs(
         &mut self,
         ui: &mut UserInterface,
@@ -357,10 +364,7 @@ impl WorldViewer {
         scene: &Scene,
     ) {
         // Update breadcrumbs.
-        self.breadcrumbs.clear();
-        for &child in ui.node(self.node_path).children() {
-            send_sync_message(ui, WidgetMessage::remove(child, MessageDirection::ToWidget));
-        }
+        self.clear_breadcrumbs(ui);
 
         if let Selection::Graph(selection) = &editor_scene.selection {
             if let Some(&first_selected) = selection.nodes().first() {
@@ -795,7 +799,7 @@ impl WorldViewer {
 
     pub fn clear(&mut self, ui: &UserInterface) {
         self.node_to_view_map.clear();
-
+        self.clear_breadcrumbs(ui);
         ui.send_message(TreeMessage::set_items(
             self.graph_folder,
             MessageDirection::ToWidget,
