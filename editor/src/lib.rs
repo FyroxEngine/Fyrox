@@ -1345,7 +1345,7 @@ impl Editor {
     fn post_update(&mut self) {
         if let Some(scene) = self.scene.as_mut() {
             self.world_viewer
-                .post_update(scene, &mut self.engine, &mut self.settings);
+                .post_update(scene, &mut self.engine, &self.settings);
         }
     }
 
