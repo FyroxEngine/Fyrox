@@ -1,5 +1,5 @@
-use crate::gui::make_image_button_with_tooltip;
 use crate::{
+    gui::make_image_button_with_tooltip,
     load_image,
     scene::{
         commands::{graph::LinkNodesCommand, ChangeSelectionCommand},
@@ -15,7 +15,7 @@ use crate::{
         },
         search::SearchBar,
     },
-    GameEngine, Message, Mode,
+    GameEngine, Message, Mode, Settings,
 };
 use fyrox::{
     core::{
@@ -44,6 +44,7 @@ use fyrox::{
         VerticalAlignment,
     },
     scene::{graph::Graph, node::Node, Scene},
+    utils::log::Log,
 };
 use std::{any::TypeId, cmp::Ordering, collections::HashMap, sync::mpsc::Sender};
 
@@ -56,7 +57,6 @@ pub struct WorldViewer {
     graph_folder: Handle<UiNode>,
     sender: Sender<Message>,
     track_selection: Handle<UiNode>,
-    track_selection_state: bool,
     search_bar: SearchBar,
     filter: String,
     stack: Vec<(Handle<UiNode>, Handle<Node>)>,
@@ -166,8 +166,7 @@ fn make_folder(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
 }
 
 impl WorldViewer {
-    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
-        let track_selection_state = true;
+    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>, settings: &Settings) -> Self {
         let tree_root;
         let node_path;
         let collapse_all;
@@ -237,7 +236,7 @@ impl WorldViewer {
                                                 .with_text("Track Selection")
                                                 .build(ctx),
                                         )
-                                        .checked(Some(track_selection_state))
+                                        .checked(Some(settings.selection.track_selection))
                                         .build(ctx);
                                         track_selection
                                     }),
@@ -294,7 +293,6 @@ impl WorldViewer {
         Self {
             search_bar,
             track_selection,
-            track_selection_state,
             window,
             sender,
             tree_root,
@@ -593,6 +591,7 @@ impl WorldViewer {
         message: &UiMessage,
         editor_scene: &mut EditorScene,
         engine: &GameEngine,
+        settings: &mut Settings,
     ) {
         scope_profile!();
 
@@ -649,7 +648,8 @@ impl WorldViewer {
         } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data::<CheckBoxMessage>()
         {
             if message.destination() == self.track_selection {
-                self.track_selection_state = *value;
+                settings.selection.track_selection = *value;
+                Log::verify(settings.save());
                 if *value {
                     self.locate_selection(&editor_scene.selection, engine);
                 }
@@ -777,7 +777,12 @@ impl WorldViewer {
         }
     }
 
-    pub fn post_update(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    pub fn post_update(
+        &mut self,
+        editor_scene: &EditorScene,
+        engine: &mut GameEngine,
+        settings: &Settings,
+    ) {
         // Hack. See `self.sync_selection` for details.
         if self.sync_selection {
             let trees = self.map_selection(&editor_scene.selection, engine);
@@ -789,7 +794,7 @@ impl WorldViewer {
             );
 
             self.update_breadcrumbs(ui, editor_scene, &engine.scenes[editor_scene.scene]);
-            if self.track_selection_state {
+            if settings.selection.track_selection {
                 self.locate_selection(&editor_scene.selection, engine);
             }
 
@@ -804,6 +809,14 @@ impl WorldViewer {
             self.graph_folder,
             MessageDirection::ToWidget,
             vec![],
+        ));
+    }
+
+    pub fn on_configure(&self, ui: &UserInterface, settings: &Settings) {
+        ui.send_message(CheckBoxMessage::checked(
+            self.track_selection,
+            MessageDirection::ToWidget,
+            Some(settings.selection.track_selection),
         ));
     }
 

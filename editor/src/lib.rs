@@ -570,7 +570,7 @@ impl Editor {
 
         let ctx = &mut engine.user_interface.build_ctx();
         let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
-        let world_outliner = WorldViewer::new(ctx, message_sender.clone());
+        let world_outliner = WorldViewer::new(ctx, message_sender.clone(), &settings);
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
         let log = LogPanel::new(ctx, log_message_receiver);
         let inspector = Inspector::new(ctx, message_sender.clone());
@@ -1138,7 +1138,7 @@ impl Editor {
             }
 
             self.world_viewer
-                .handle_ui_message(message, editor_scene, engine);
+                .handle_ui_message(message, editor_scene, engine, &mut self.settings);
 
             self.light_panel
                 .handle_ui_message(message, editor_scene, engine);
@@ -1340,7 +1340,8 @@ impl Editor {
 
     fn post_update(&mut self) {
         if let Some(scene) = self.scene.as_mut() {
-            self.world_viewer.post_update(scene, &mut self.engine);
+            self.world_viewer
+                .post_update(scene, &mut self.engine, &mut self.settings);
         }
     }
 
@@ -1562,6 +1563,9 @@ impl Editor {
 
         self.asset_browser
             .set_working_directory(engine, &working_directory);
+
+        self.world_viewer
+            .on_configure(&engine.user_interface, &self.settings);
 
         Log::info(format!(
             "New working directory was successfully set: {:?}",
