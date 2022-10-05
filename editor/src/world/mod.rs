@@ -318,16 +318,7 @@ impl WorldViewer {
         let graph = &mut scene.graph;
         let ui = &mut engine.user_interface;
 
-        let mut selected_items = Vec::new();
-
-        selected_items.extend(self.sync_graph(ui, editor_scene, graph));
-
-        if !selected_items.is_empty() {
-            send_sync_message(
-                ui,
-                TreeRootMessage::select(self.tree_root, MessageDirection::ToWidget, selected_items),
-            );
-        }
+        self.sync_graph(ui, editor_scene, graph);
     }
 
     fn build_breadcrumb(
@@ -384,14 +375,7 @@ impl WorldViewer {
         }
     }
 
-    fn sync_graph(
-        &mut self,
-        ui: &mut UserInterface,
-        editor_scene: &EditorScene,
-        graph: &Graph,
-    ) -> Vec<Handle<UiNode>> {
-        let mut selected_items = Vec::new();
-
+    fn sync_graph(&mut self, ui: &mut UserInterface, editor_scene: &EditorScene, graph: &Graph) {
         // Sync tree structure with graph structure.
         self.stack.clear();
         self.stack.push((self.graph_folder, graph.get_root()));
@@ -478,11 +462,6 @@ impl WorldViewer {
                                         graph_node_item,
                                     ),
                                 );
-                                if let Selection::Graph(selection) = &editor_scene.selection {
-                                    if selection.contains(child_handle) {
-                                        selected_items.push(graph_node_item);
-                                    }
-                                }
                                 self.node_to_view_map.insert(child_handle, graph_node_item);
                                 self.stack.push((graph_node_item, child_handle));
                             }
@@ -545,8 +524,6 @@ impl WorldViewer {
 
         self.node_to_view_map
             .retain(|k, v| graph.is_valid_handle(*k) && ui.try_get_node(*v).is_some());
-
-        selected_items
     }
 
     pub fn colorize(&mut self, ui: &UserInterface) {
