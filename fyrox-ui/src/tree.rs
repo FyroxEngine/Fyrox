@@ -19,8 +19,8 @@ use crate::{
     stack_panel::StackPanelBuilder,
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, VerticalAlignment,
-    BRUSH_DARK, BRUSH_DARKEST,
+    BuildContext, Control, MouseButton, NodeHandleMapping, Thickness, UiNode, UserInterface,
+    VerticalAlignment, BRUSH_DARK, BRUSH_DARKEST,
 };
 use std::{
     any::{Any, TypeId},
@@ -140,37 +140,55 @@ impl Control for Tree {
                     TreeExpansionStrategy::Direct,
                 ));
             }
-        } else if let Some(WidgetMessage::MouseDown { .. }) = message.data::<WidgetMessage>() {
+        } else if let Some(msg) = message.data::<WidgetMessage>() {
             if !message.handled() {
-                let keyboard_modifiers = ui.keyboard_modifiers();
-                // Prevent selection changes by Alt+Click to be able to drag'n'drop tree items.
-                if !keyboard_modifiers.alt {
-                    if let Some((tree_root_handle, tree_root)) =
-                        ui.try_borrow_by_type_up::<TreeRoot>(self.parent())
-                    {
-                        let selection = if keyboard_modifiers.control {
-                            let mut selection = tree_root.selected.clone();
-                            if let Some(existing) = selection.iter().position(|&h| h == self.handle)
+                match msg {
+                    WidgetMessage::MouseDown { .. } => {
+                        let keyboard_modifiers = ui.keyboard_modifiers();
+                        // Prevent selection changes by Alt+Click to be able to drag'n'drop tree items.
+                        if !keyboard_modifiers.alt {
+                            if let Some((tree_root_handle, tree_root)) =
+                                ui.try_borrow_by_type_up::<TreeRoot>(self.parent())
                             {
-                                selection.remove(existing);
-                            } else {
-                                selection.push(self.handle);
+                                let selection = if keyboard_modifiers.control {
+                                    let mut selection = tree_root.selected.clone();
+                                    if let Some(existing) =
+                                        selection.iter().position(|&h| h == self.handle)
+                                    {
+                                        selection.remove(existing);
+                                    } else {
+                                        selection.push(self.handle);
+                                    }
+                                    Some(selection)
+                                } else if !self.is_selected {
+                                    Some(vec![self.handle()])
+                                } else {
+                                    None
+                                };
+                                if let Some(selection) = selection {
+                                    ui.send_message(TreeRootMessage::select(
+                                        tree_root_handle,
+                                        MessageDirection::ToWidget,
+                                        selection,
+                                    ));
+                                }
+                                message.set_handled(true);
                             }
-                            Some(selection)
-                        } else if !self.is_selected {
-                            Some(vec![self.handle()])
-                        } else {
-                            None
-                        };
-                        if let Some(selection) = selection {
-                            ui.send_message(TreeRootMessage::select(
-                                tree_root_handle,
-                                MessageDirection::ToWidget,
-                                selection,
-                            ));
                         }
-                        message.set_handled(true);
                     }
+                    WidgetMessage::DoubleClick { button } => {
+                        if *button == MouseButton::Left {
+                            ui.send_message(TreeMessage::expand(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                !self.is_expanded,
+                                TreeExpansionStrategy::Direct,
+                            ));
+
+                            message.set_handled(true);
+                        }
+                    }
+                    _ => (),
                 }
             }
         } else if let Some(msg) = message.data::<TreeMessage>() {
