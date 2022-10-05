@@ -799,27 +799,31 @@ impl Editor {
                 self.settings = settings;
 
                 Log::info("Editor settings were reloaded successfully!");
+            }
+            Err(e) => {
+                self.settings = Default::default();
 
-                self.menu
-                    .file_menu
-                    .update_recent_files_list(&mut self.engine.user_interface, &self.settings);
+                Log::info(format!(
+                    "Failed to load settings, fallback to default. Reason: {:?}",
+                    e
+                ))
+            }
+        }
 
-                match self
-                    .engine
-                    .renderer
-                    .set_quality_settings(&self.settings.graphics.quality)
-                {
-                    Ok(_) => {
-                        Log::info("Graphics settings were applied successfully!");
-                    }
-                    Err(e) => Log::info(format!(
-                        "Failed to apply graphics settings! Reason: {:?}",
-                        e
-                    )),
-                }
+        self.menu
+            .file_menu
+            .update_recent_files_list(&mut self.engine.user_interface, &self.settings);
+
+        match self
+            .engine
+            .renderer
+            .set_quality_settings(&self.settings.graphics.quality)
+        {
+            Ok(_) => {
+                Log::info("Graphics settings were applied successfully!");
             }
             Err(e) => Log::info(format!(
-                "Failed to load settings, fallback to default. Reason: {:?}",
+                "Failed to apply graphics settings! Reason: {:?}",
                 e
             )),
         }
