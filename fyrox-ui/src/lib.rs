@@ -1946,6 +1946,14 @@ impl UserInterface {
                         self.copy_node_with_limit(self.drag_context.drag_node, Some(30));
                     self.nodes[self.drag_context.drag_preview].set_opacity(Some(0.5));
 
+                    // Make preview nodes invisible for hit test.
+                    let mut stack = vec![self.drag_context.drag_preview];
+                    while let Some(handle) = stack.pop() {
+                        let preview_node = &mut self.nodes[handle];
+                        preview_node.hit_test_visibility = false;
+                        stack.extend_from_slice(preview_node.children());
+                    }
+
                     self.drag_context.is_dragging = true;
 
                     self.send_message(WidgetMessage::drag_started(
