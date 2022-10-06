@@ -67,6 +67,8 @@ impl InteractionMode for RotateInteractionMode {
                 handle != camera && handle != camera_pivot && handle != self.rotation_gizmo.origin
             },
             ignore_back_faces: settings.selection.ignore_back_faces,
+            use_picking_loop: true,
+            only_meshes: false,
         }) {
             if self
                 .rotation_gizmo
@@ -131,6 +133,8 @@ impl InteractionMode for RotateInteractionMode {
                     editor_only: false,
                     filter: |_, _| true,
                     ignore_back_faces: settings.selection.ignore_back_faces,
+                    use_picking_loop: true,
+                    only_meshes: false,
                 })
                 .map(|result| {
                     if let (Selection::Graph(selection), true) = (

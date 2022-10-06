@@ -75,6 +75,8 @@ where
     pub editor_only: bool,
     pub filter: F,
     pub ignore_back_faces: bool,
+    pub use_picking_loop: bool,
+    pub only_meshes: bool,
 }
 
 impl CameraController {
@@ -393,6 +395,8 @@ impl CameraController {
             editor_only,
             mut filter,
             ignore_back_faces,
+            use_picking_loop,
+            only_meshes,
         } = options;
 
         if let Some(camera) = graph[self.camera].cast::<Camera>() {
@@ -442,7 +446,7 @@ impl CameraController {
                                     toi: closest_distance,
                                 });
                             }
-                        } else {
+                        } else if !only_meshes {
                             // Hull-less objects (light sources, cameras, etc.) can still be selected
                             // by coarse intersection test results.
                             let da = points[0].metric_distance(&object_space_ray.origin);
@@ -466,24 +470,29 @@ impl CameraController {
                 .pick_list
                 .sort_by(|a, b| a.toi.partial_cmp(&b.toi).unwrap());
 
-            let mut hasher = DefaultHasher::new();
-            for result in context.pick_list.iter() {
-                result.node.hash(&mut hasher);
-            }
-            let selection_hash = hasher.finish();
-            if selection_hash == context.old_selection_hash && cursor_pos == context.old_cursor_pos
-            {
-                context.pick_index += 1;
+            if use_picking_loop {
+                let mut hasher = DefaultHasher::new();
+                for result in context.pick_list.iter() {
+                    result.node.hash(&mut hasher);
+                }
+                let selection_hash = hasher.finish();
+                if selection_hash == context.old_selection_hash
+                    && cursor_pos == context.old_cursor_pos
+                {
+                    context.pick_index += 1;
 
-                // Wrap picking loop.
-                if context.pick_index >= context.pick_list.len() {
+                    // Wrap picking loop.
+                    if context.pick_index >= context.pick_list.len() {
+                        context.pick_index = 0;
+                    }
+                } else {
+                    // Select is different, start from beginning.
                     context.pick_index = 0;
                 }
+                context.old_selection_hash = selection_hash;
             } else {
-                // Select is different, start from beginning.
                 context.pick_index = 0;
             }
-            context.old_selection_hash = selection_hash;
             context.old_cursor_pos = cursor_pos;
 
             if !context.pick_list.is_empty() {

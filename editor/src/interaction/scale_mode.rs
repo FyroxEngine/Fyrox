@@ -66,6 +66,8 @@ impl InteractionMode for ScaleInteractionMode {
                 editor_only: true,
                 filter: |handle, _| handle != camera && handle != camera_pivot,
                 ignore_back_faces: settings.selection.ignore_back_faces,
+                use_picking_loop: true,
+                only_meshes: false,
             }) {
                 if self
                     .scale_gizmo
@@ -127,6 +129,8 @@ impl InteractionMode for ScaleInteractionMode {
                     editor_only: false,
                     filter: |_, _| true,
                     ignore_back_faces: settings.selection.ignore_back_faces,
+                    use_picking_loop: true,
+                    only_meshes: false,
                 })
                 .map(|result| {
                     if let (Selection::Graph(selection), true) = (

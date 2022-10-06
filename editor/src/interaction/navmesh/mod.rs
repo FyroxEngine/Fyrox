@@ -389,6 +389,8 @@ impl InteractionMode for EditNavmeshMode {
                         handle != camera && handle != camera_pivot && handle != gizmo_origin
                     },
                     ignore_back_faces: settings.selection.ignore_back_faces,
+                    use_picking_loop: true,
+                    only_meshes: false,
                 })
                 .map(|r| r.node)
                 .unwrap_or_default();

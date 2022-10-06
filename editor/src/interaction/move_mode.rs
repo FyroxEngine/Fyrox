@@ -228,6 +228,8 @@ impl InteractionMode for MoveInteractionMode {
                 handle != camera && handle != camera_pivot && handle != self.move_gizmo.origin
             },
             ignore_back_faces: settings.selection.ignore_back_faces,
+            use_picking_loop: true,
+            only_meshes: false,
         }) {
             if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, graph) {
                 if let Selection::Graph(selection) = &editor_scene.selection {
@@ -300,6 +302,8 @@ impl InteractionMode for MoveInteractionMode {
                     editor_only: false,
                     filter: |_, _| true,
                     ignore_back_faces: settings.selection.ignore_back_faces,
+                    use_picking_loop: true,
+                    only_meshes: false,
                 })
                 .map(|result| {
                     if let (Selection::Graph(selection), true) = (

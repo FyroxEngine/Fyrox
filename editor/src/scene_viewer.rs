@@ -11,10 +11,11 @@ use fyrox::{
         algebra::{Vector2, Vector3},
         color::Color,
         make_relative_path,
-        math::Rect,
+        math::{plane::Plane, Rect},
         pool::Handle,
     },
     engine::Engine,
+    fxhash::FxHashSet,
     gui::{
         border::BorderBuilder,
         brush::{Brush, GradientPoint},
@@ -36,11 +37,22 @@ use fyrox::{
         BRUSH_BRIGHT_BLUE, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST,
         COLOR_LIGHTEST,
     },
-    resource::texture::{Texture, TextureState},
-    scene::camera::Projection,
+    resource::{
+        model::ModelInstance,
+        texture::{Texture, TextureState},
+    },
+    scene::{
+        camera::{Camera, Projection},
+        node::Node,
+    },
     utils::into_gui_texture,
 };
 use std::sync::mpsc::Sender;
+
+struct PreviewInstance {
+    instance: ModelInstance,
+    nodes: FxHashSet<Handle<Node>>,
+}
 
 pub struct SceneViewer {
     frame: Handle<UiNode>,
@@ -62,6 +74,7 @@ pub struct SceneViewer {
     interaction_mode_panel: Handle<UiNode>,
     contextual_actions: Handle<UiNode>,
     global_position_display: Handle<UiNode>,
+    preview_instance: Option<PreviewInstance>,
 }
 
 fn make_interaction_mode_button(
@@ -403,6 +416,7 @@ impl SceneViewer {
             contextual_actions,
             global_position_display,
             build_profile,
+            preview_instance: None,
         }
     }
 }
@@ -569,6 +583,103 @@ impl SceneViewer {
                     WidgetMessage::KeyDown(key) => {
                         if self.on_key_down(key, editor_scene, interaction_mode, engine) {
                             message.set_handled(true);
+                        }
+                    }
+                    WidgetMessage::MouseLeave => {
+                        if let Some(preview) = self.preview_instance.take() {
+                            let scene = &mut engine.scenes[editor_scene.scene];
+
+                            scene.graph.remove_node(preview.instance.root);
+
+                            for animation in preview.instance.animations {
+                                scene.animations.remove(animation);
+                            }
+                        }
+                    }
+                    WidgetMessage::DragOver(handle) => {
+                        match self.preview_instance.as_ref() {
+                            None => {
+                                if let Some(item) =
+                                    engine.user_interface.node(handle).cast::<AssetItem>()
+                                {
+                                    // Make sure all resources loaded with relative paths only.
+                                    // This will make scenes portable.
+                                    if let Ok(relative_path) = make_relative_path(&item.path) {
+                                        if let AssetKind::Model = item.kind {
+                                            // No model was loaded yet, do it.
+                                            if let Ok(model) =
+                                                fyrox::core::futures::executor::block_on(
+                                                    engine
+                                                        .resource_manager
+                                                        .request_model(&relative_path),
+                                                )
+                                            {
+                                                let scene = &mut engine.scenes[editor_scene.scene];
+
+                                                // Instantiate the model.
+                                                let instance = model.instantiate(scene);
+
+                                                for &animation in instance.animations.iter() {
+                                                    scene.animations[animation].set_enabled(true);
+                                                }
+
+                                                let nodes = scene
+                                                    .graph
+                                                    .traverse_handle_iter(instance.root)
+                                                    .collect::<FxHashSet<Handle<Node>>>();
+
+                                                self.preview_instance =
+                                                    Some(PreviewInstance { instance, nodes });
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Some(preview) => {
+                                let screen_bounds = self.frame_bounds(&engine.user_interface);
+                                let frame_size = screen_bounds.size;
+                                let cursor_pos = engine.user_interface.cursor_position();
+                                let rel_pos = cursor_pos - screen_bounds.position;
+                                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                                if let Some(result) =
+                                    editor_scene.camera_controller.pick(PickingOptions {
+                                        cursor_pos: rel_pos,
+                                        graph,
+                                        editor_objects_root: editor_scene.editor_objects_root,
+                                        screen_size: frame_size,
+                                        editor_only: false,
+                                        filter: |handle, _| !preview.nodes.contains(&handle),
+                                        ignore_back_faces: settings.selection.ignore_back_faces,
+                                        // We need info only about closest intersection.
+                                        use_picking_loop: false,
+                                        only_meshes: false,
+                                    })
+                                {
+                                    graph[preview.instance.root]
+                                        .local_transform_mut()
+                                        .set_position(result.position);
+                                } else {
+                                    // In case of empty space, check intersection with oXZ plane.
+                                    let plane = Plane::from_normal_and_point(
+                                        &Vector3::new(0.0, 1.0, 0.0),
+                                        &Default::default(),
+                                    )
+                                    .unwrap_or_default();
+
+                                    if let Some(camera) = graph
+                                        [editor_scene.camera_controller.camera]
+                                        .cast::<Camera>()
+                                    {
+                                        let ray = camera.make_ray(rel_pos, frame_size);
+
+                                        if let Some(point) = ray.plane_intersection_point(&plane) {
+                                            graph[preview.instance.root]
+                                                .local_transform_mut()
+                                                .set_position(point);
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     WidgetMessage::Drop(handle) => {
@@ -771,7 +882,7 @@ impl SceneViewer {
     }
 
     fn on_drop(
-        &self,
+        &mut self,
         handle: Handle<UiNode>,
         engine: &mut Engine,
         editor_scene: &mut EditorScene,
@@ -790,23 +901,15 @@ impl SceneViewer {
             if let Ok(relative_path) = make_relative_path(&item.path) {
                 match item.kind {
                     AssetKind::Model => {
-                        // No model was loaded yet, do it.
-                        if let Ok(model) = fyrox::core::futures::executor::block_on(
-                            engine.resource_manager.request_model(&item.path),
-                        ) {
+                        if let Some(preview) = self.preview_instance.take() {
                             let scene = &mut engine.scenes[editor_scene.scene];
-
-                            // Instantiate the model.
-                            let instance = model.instantiate(scene);
-                            // Enable instantiated animations.
-                            for &animation in instance.animations.iter() {
-                                scene.animations[animation].set_enabled(true);
-                            }
 
                             // Immediately after extract if from the scene to subgraph. This is required to not violate
                             // the rule of one place of execution, only commands allowed to modify the scene.
-                            let sub_graph = scene.graph.take_reserve_sub_graph(instance.root);
-                            let animations_container = instance
+                            let sub_graph =
+                                scene.graph.take_reserve_sub_graph(preview.instance.root);
+                            let animations_container = preview
+                                .instance
                                 .animations
                                 .iter()
                                 .map(|&anim| scene.animations.take_reserve(anim))
@@ -820,12 +923,12 @@ impl SceneViewer {
                                 // We also want to select newly instantiated model.
                                 SceneCommand::new(ChangeSelectionCommand::new(
                                     Selection::Graph(GraphSelection::single_or_empty(
-                                        instance.root,
+                                        preview.instance.root,
                                     )),
                                     editor_scene.selection.clone(),
                                 )),
                                 SceneCommand::new(ScaleNodeCommand::new(
-                                    instance.root,
+                                    preview.instance.root,
                                     Vector3::new(1.0, 1.0, 1.0),
                                     settings.model.instantiation_scale,
                                 )),
@@ -848,6 +951,8 @@ impl SceneViewer {
                             editor_only: false,
                             filter: |_, _| true,
                             ignore_back_faces: settings.selection.ignore_back_faces,
+                            use_picking_loop: true,
+                            only_meshes: false,
                         }) {
                             let tex = engine.resource_manager.request_texture(&relative_path);
                             let texture = tex.clone();
