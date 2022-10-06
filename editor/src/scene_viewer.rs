@@ -659,17 +659,26 @@ impl SceneViewer {
                                         .local_transform_mut()
                                         .set_position(result.position);
                                 } else {
-                                    // In case of empty space, check intersection with oXZ plane.
-                                    let plane = Plane::from_normal_and_point(
-                                        &Vector3::new(0.0, 1.0, 0.0),
-                                        &Default::default(),
-                                    )
-                                    .unwrap_or_default();
-
+                                    // In case of empty space, check intersection with oXZ plane (3D) or oXY (2D).
                                     if let Some(camera) = graph
                                         [editor_scene.camera_controller.camera]
                                         .cast::<Camera>()
                                     {
+                                        let normal = match camera.projection() {
+                                            Projection::Perspective(_) => {
+                                                Vector3::new(0.0, 1.0, 0.0)
+                                            }
+                                            Projection::Orthographic(_) => {
+                                                Vector3::new(0.0, 0.0, 1.0)
+                                            }
+                                        };
+
+                                        let plane = Plane::from_normal_and_point(
+                                            &normal,
+                                            &Default::default(),
+                                        )
+                                        .unwrap_or_default();
+
                                         let ray = camera.make_ray(rel_pos, frame_size);
 
                                         if let Some(point) = ray.plane_intersection_point(&plane) {
