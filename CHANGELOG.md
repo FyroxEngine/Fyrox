@@ -1,5 +1,25 @@
 # 0.28 (WIP)
 
+- Preview for prefab instantiation.
+- Drag preview nodes are now input-transparent.
+- Expand/collapse trees by double click.
+- Fixed move/rotate/scale gizmo behaviour for mouse events.
+- Fixed fallback to defaults when editor's config is corrupted. 
+- Save `Track Selection` option in the editor's config.
+- Clear breadcrumbs when changing scene in the editor.
+- Fixed 1-frame delay issues in the editor. 
+- Emit MouseUp message before Drop message.
+- Fixed UI "flashing" in the editor in some cases.
+- Do not silently discard UI messages from nodes that were already be deleted.
+- Show node handle in breadcrumbs in the editor.
+- Provide direct read-only access to current dragging context in UI.
+- Fixed crash when trying to select a node by invalid handle in the editor.
+- Highlight invalid handles in the Inspector.
+- Discard "leftover" debug geometry when undoing actions in the editor.
+- Some menus in the editor now more intuitive now.
+- Fixed critical bug with incorrect unpack alignment for RGB textures - this causes hard crash in some
+cases.
+- Do not try to reload a resource if it is already loading.
 - Ability to set desired frame rate for `Executor` (default is 60 FPS).
 - Ability to paste editor's clipboard content to selected node (paste-as-child functionality).
 - Ability to render into transparent window while keeping the transparency of untouched pixels (see
