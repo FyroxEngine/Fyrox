@@ -221,9 +221,14 @@ There are many examples covering various aspects of the engine. Also don't hesit
 
 ### Linux
 
+On Linux Fyrox needs the development files for the following libraries: `libxcb-shape0`, `libxcb-xfixes0`, `libxcb1`, `libxkbcommon`, `libasound2`.
+
+For Debian based distros like Ubuntu, they can be installed like below
+
 ```shell
 sudo apt install libxcb-shape0-dev libxcb-xfixes0-dev libxcb1-dev libxkbcommon-dev libasound2-dev
 ```
+
 
 ## Contributing
 
