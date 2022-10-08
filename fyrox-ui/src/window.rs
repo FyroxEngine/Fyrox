@@ -57,6 +57,11 @@ pub enum WindowMessage {
 
     /// Sets new window title.
     Title(WindowTitle),
+
+    /// Safe border size defines "part" of a window that should always be on screen when dragged.
+    /// It is used to prevent moving window outside of main application window bounds, to still
+    /// be able to drag it.  
+    SafeBorderSize(Option<Vector2<f32>>),
 }
 
 impl WindowMessage {
@@ -71,6 +76,7 @@ impl WindowMessage {
     define_constructor!(WindowMessage:Move => fn move_to(Vector2<f32>), layout: false);
     define_constructor!(WindowMessage:MoveEnd => fn move_end(), layout: false);
     define_constructor!(WindowMessage:Title => fn title(WindowTitle), layout: false);
+    define_constructor!(WindowMessage:SafeBorderSize => fn safe_border_size(Option<Vector2<f32>>), layout: false);
 }
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
@@ -95,6 +101,7 @@ pub struct Window {
     pub grips: RefCell<[Grip; 8]>,
     pub title: Handle<UiNode>,
     pub title_grid: Handle<UiNode>,
+    pub safe_border_size: Option<Vector2<f32>>,
 }
 
 const GRIP_SIZE: f32 = 6.0;
@@ -450,7 +457,20 @@ impl Control for Window {
                             ui.send_message(message.reverse());
                         }
                     }
-                    &WindowMessage::Move(new_pos) => {
+                    &WindowMessage::Move(mut new_pos) => {
+                        if let Some(safe_border) = self.safe_border_size {
+                            // Clamp new position in allowed bounds. This will prevent moving the window outside of main
+                            // application window, thus leaving an opportunity to drag window to some other place.
+                            new_pos.x = new_pos
+                                .x
+                                .min((ui.screen_size().x - safe_border.x).abs())
+                                .max(-(self.actual_local_size().x - safe_border.x).abs());
+                            new_pos.y = new_pos
+                                .y
+                                .max(0.0)
+                                .min((ui.screen_size().y - safe_border.y).abs());
+                        }
+
                         if self.is_dragging && self.desired_local_position() != new_pos {
                             ui.send_message(WidgetMessage::desired_position(
                                 self.handle(),
@@ -520,6 +540,12 @@ impl Control for Window {
                             }
                         }
                     }
+                    WindowMessage::SafeBorderSize(size) => {
+                        if &self.safe_border_size != size {
+                            self.safe_border_size = *size;
+                            ui.send_message(message.reverse());
+                        }
+                    }
                 }
             }
         }
@@ -569,6 +595,7 @@ pub struct WindowBuilder {
     // Warning: Any dependant builders must take this into account!
     pub modal: bool,
     pub can_resize: bool,
+    pub safe_border_size: Option<Vector2<f32>>,
 }
 
 /// Window title can be either text or node.
@@ -681,6 +708,7 @@ impl WindowBuilder {
             minimize_button: None,
             modal: false,
             can_resize: true,
+            safe_border_size: Some(Vector2::new(25.0, 20.0)),
         }
     }
 
@@ -726,6 +754,11 @@ impl WindowBuilder {
 
     pub fn can_resize(mut self, can_resize: bool) -> Self {
         self.can_resize = can_resize;
+        self
+    }
+
+    pub fn with_safe_border_size(mut self, size: Option<Vector2<f32>>) -> Self {
+        self.safe_border_size = size.map(|s| Vector2::new(s.x.abs(), s.y.abs()));
         self
     }
 
@@ -844,6 +877,7 @@ impl WindowBuilder {
             close_button,
             drag_delta: Default::default(),
             content: self.content,
+            safe_border_size: self.safe_border_size,
             grips: RefCell::new([
                 // Corners have priority
                 Grip::new(GripKind::LeftTopCorner, CursorIcon::NwResize),
