@@ -1,8 +1,7 @@
 use crate::{
     camera::PickingOptions, gui::make_dropdown_list_option,
-    gui::make_dropdown_list_option_with_height, load_image,
-    scene::commands::graph::ScaleNodeCommand, utils::enable_widget, AddModelCommand, AssetItem,
-    AssetKind, BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder,
+    gui::make_dropdown_list_option_with_height, load_image, utils::enable_widget, AddModelCommand,
+    AssetItem, AssetKind, BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder,
     EditorScene, GameEngine, GraphSelection, InteractionMode, InteractionModeKind, Message, Mode,
     SceneCommand, Selection, SetMeshTextureCommand, Settings,
 };
@@ -623,6 +622,10 @@ impl SceneViewer {
                                                     scene.animations[animation].set_enabled(true);
                                                 }
 
+                                                scene.graph[instance.root]
+                                                    .local_transform_mut()
+                                                    .set_scale(settings.model.instantiation_scale);
+
                                                 let nodes = scene
                                                     .graph
                                                     .traverse_handle_iter(instance.root)
@@ -935,11 +938,6 @@ impl SceneViewer {
                                         preview.instance.root,
                                     )),
                                     editor_scene.selection.clone(),
-                                )),
-                                SceneCommand::new(ScaleNodeCommand::new(
-                                    preview.instance.root,
-                                    Vector3::new(1.0, 1.0, 1.0),
-                                    settings.model.instantiation_scale,
                                 )),
                             ];
 
