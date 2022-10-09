@@ -1532,23 +1532,23 @@ impl PhysicsWorld {
             let body2_handle = joint.body2();
             let params = joint.params().clone();
 
-            // A native joint can be created iff both rigid bodies are correctly assigned.
+            // A native joint can be created iff both rigid bodies are correctly assigned and their respective
+            // native bodies exists.
             if let (Some(body1), Some(body2)) = (
-                nodes
-                    .try_borrow(body1_handle)
-                    .and_then(|n| n.cast::<scene::rigidbody::RigidBody>()),
-                nodes
-                    .try_borrow(body2_handle)
-                    .and_then(|n| n.cast::<scene::rigidbody::RigidBody>()),
+                nodes.try_borrow(body1_handle).and_then(|n| {
+                    n.cast::<scene::rigidbody::RigidBody>()
+                        .filter(|b| self.bodies.set.get(b.native.get()).is_some())
+                }),
+                nodes.try_borrow(body2_handle).and_then(|n| {
+                    n.cast::<scene::rigidbody::RigidBody>()
+                        .filter(|b| self.bodies.set.get(b.native.get()).is_some())
+                }),
             ) {
                 // Calculate local frames first.
                 let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
 
                 let native_body1 = body1.native.get();
                 let native_body2 = body2.native.get();
-
-                assert!(self.bodies.set.get(native_body1).is_some());
-                assert!(self.bodies.set.get(native_body2).is_some());
 
                 let mut native_joint = convert_joint_params(params, local_frame1, local_frame2);
                 native_joint.contacts_enabled = joint.is_contacts_enabled();
