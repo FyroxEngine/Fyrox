@@ -64,7 +64,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "0.27""#,
+fyrox = "0.28""#,
             name,
         ),
     );
@@ -176,7 +176,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "0.27"
+fyrox = "0.28"
 {} = {{ path = "../game" }}"#,
             name,
         ),
@@ -218,8 +218,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "0.27"
-fyroxed_base = "0.14"
+fyrox = "0.28"
+fyroxed_base = "0.15"
 {} = {{ path = "../game" }}"#,
             name,
         ),
