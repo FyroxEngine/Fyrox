@@ -316,7 +316,7 @@ impl CameraController {
                 }
 
                 if let Some(v) = move_vec.try_normalize(std::f32::EPSILON) {
-                    move_vec = v.scale(self.speed_factor * 10.0 * dt);
+                    move_vec = v.scale(self.speed_factor * settings.speed * dt);
                 }
 
                 move_vec += side * self.drag_side;
