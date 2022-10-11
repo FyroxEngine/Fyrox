@@ -52,10 +52,12 @@ pub struct PerspectiveProjection {
     /// "binocular" effect or scope effect.  
     #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1)]
     pub fov: f32,
-    /// Location of the near clipping plane.
+    /// Location of the near clipping plane. If it is larger than [`Self::z_far`] then it will be
+    /// treated like far clipping plane.
     #[inspect(min_value = 0.0, step = 0.1)]
     pub z_near: f32,
-    /// Location of the far clipping plane.
+    /// Location of the far clipping plane. If it is less than [`Self::z_near`] then it will be
+    /// treated like near clipping plane.
     #[inspect(min_value = 0.0, step = 0.1)]
     pub z_far: f32,
 }
@@ -74,11 +76,21 @@ impl PerspectiveProjection {
     /// Returns perspective projection matrix.
     #[inline]
     pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
+        let limit = 10.0 * f32::EPSILON;
+
+        let z_near = self.z_far.min(self.z_near);
+        let mut z_far = self.z_far.max(self.z_near);
+
+        // Prevent planes from superimposing which could cause panic.
+        if z_far - z_near < limit {
+            z_far += limit;
+        }
+
         Matrix4::new_perspective(
-            (frame_size.x / frame_size.y).max(10.0 * f32::EPSILON),
+            (frame_size.x / frame_size.y).max(limit),
             self.fov,
-            self.z_near,
-            self.z_far,
+            z_near,
+            z_far,
         )
     }
 }
@@ -87,14 +99,17 @@ impl PerspectiveProjection {
 /// used for 2D games.
 #[derive(Inspect, Reflect, Clone, Debug, PartialEq, Visit)]
 pub struct OrthographicProjection {
-    /// Location of the near clipping plane.
+    /// Location of the near clipping plane. If it is larger than [`Self::z_far`] then it will be
+    /// treated like far clipping plane.
     #[inspect(min_value = 0.0, step = 0.1)]
     pub z_near: f32,
-    /// Location of the far clipping plane.
+    /// Location of the far clipping plane. If it is less than [`Self::z_near`] then it will be
+    /// treated like near clipping plane.
     #[inspect(min_value = 0.0, step = 0.1)]
     pub z_far: f32,
     /// Vertical size of the "view box". Horizontal size is derived value and depends on the aspect
-    /// ratio of the viewport.
+    /// ratio of the viewport. Any values very close to zero (from both sides) will be clamped to
+    /// some minimal value to prevent singularities from occuring.
     #[inspect(step = 0.1)]
     pub vertical_size: f32,
 }
@@ -113,14 +128,37 @@ impl OrthographicProjection {
     /// Returns orthographic projection matrix.
     #[inline]
     pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
-        let aspect = (frame_size.x / frame_size.y).max(10.0 * f32::EPSILON);
-        let horizontal_size = aspect * self.vertical_size;
+        fn clamp_to_limit_signed(value: f32, limit: f32) -> f32 {
+            if value < 0.0 && -value < limit {
+                -limit
+            } else if value >= 0.0 && value < limit {
+                limit
+            } else {
+                value
+            }
+        }
+
+        let limit = 10.0 * f32::EPSILON;
+
+        let aspect = (frame_size.x / frame_size.y).max(limit);
+
+        // Prevent collapsing projection "box" into a point, which could cause panic.
+        let vertical_size = clamp_to_limit_signed(self.vertical_size, limit);
+        let horizontal_size = clamp_to_limit_signed(aspect * vertical_size, limit);
+
+        let z_near = self.z_far.min(self.z_near);
+        let mut z_far = self.z_far.max(self.z_near);
+
+        // Prevent planes from superimposing which could cause panic.
+        if z_far - z_near < limit {
+            z_far += limit;
+        }
 
         let left = -horizontal_size;
-        let top = self.vertical_size;
+        let top = vertical_size;
         let right = horizontal_size;
-        let bottom = -self.vertical_size;
-        Matrix4::new_orthographic(left, right, bottom, top, self.z_near, self.z_far)
+        let bottom = -vertical_size;
+        Matrix4::new_orthographic(left, right, bottom, top, z_near, z_far)
     }
 }
 
