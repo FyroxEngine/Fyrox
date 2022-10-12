@@ -91,11 +91,73 @@ impl Default for Event {
     }
 }
 
+/// Size of a sprite sheet frames container.
+#[derive(Visit, Reflect, Inspect, Clone, Debug, Default)]
+pub struct ContainerSize {
+    /// Amount of frames in X axis.
+    pub width_in_frames: u32,
+    /// Amount of frames in Y axis.
+    pub height_in_frames: u32,
+}
+
+/// Container for a sprite sheet animation frames.
+#[derive(Reflect, Inspect, Clone, Debug, Default)]
+pub struct SpriteSheetFramesContainer {
+    size: Option<ContainerSize>,
+    frames: Vec<FrameBounds>,
+}
+
+impl Visit for SpriteSheetFramesContainer {
+    // TODO: Remove backward compatibility after release of 0.29.
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        if visitor.is_reading() && self.frames.visit(name, visitor).is_ok() {
+            Ok(())
+        } else {
+            let mut guard = visitor.enter_region(name)?;
+            self.size.visit("Size", &mut guard)?;
+            self.frames.visit("Frames", &mut guard)?;
+            Ok(())
+        }
+    }
+}
+
+impl SpriteSheetFramesContainer {
+    /// Adds a frame to the container.
+    pub fn push(&mut self, bounds: FrameBounds) {
+        self.frames.push(bounds)
+    }
+
+    /// Removes a frame from the container.
+    pub fn remove(&mut self, index: usize) -> FrameBounds {
+        self.frames.remove(index)
+    }
+
+    /// Returns total amount of frames in the container.
+    pub fn len(&self) -> usize {
+        self.frames.len()
+    }
+
+    /// Returns `true` if the container is empty, `false` - otherwise.
+    pub fn is_empty(&self) -> bool {
+        self.frames.is_empty()
+    }
+
+    /// Tries to get a reference to a frame with given index.
+    pub fn get(&self, index: usize) -> Option<&FrameBounds> {
+        self.frames.get(index)
+    }
+
+    /// Returns size of the container.
+    pub fn size(&self) -> Option<&ContainerSize> {
+        self.size.as_ref()
+    }
+}
+
 /// Sprite sheet animation is an animation based on key frames, where each key frame is packed into single image. Usually, all key
 /// frames have the same size, but this is not mandatory.
 #[derive(Visit, Reflect, Inspect, Clone, Debug)]
 pub struct SpriteSheetAnimation {
-    frames: Vec<FrameBounds>,
+    frames: SpriteSheetFramesContainer,
     current_frame: f32,
     speed: f32,
     status: Status,
@@ -256,7 +318,13 @@ impl SpriteSheetAnimation {
             .collect::<Vec<_>>();
 
         Self {
-            frames,
+            frames: SpriteSheetFramesContainer {
+                frames,
+                size: Some(ContainerSize {
+                    width_in_frames: width_in_frames as u32,
+                    height_in_frames: height_in_frames as u32,
+                }),
+            },
             ..Default::default()
         }
     }
