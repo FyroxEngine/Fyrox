@@ -28,6 +28,9 @@ use std::{
 /// A source code of the standard shader.
 pub const STANDARD_SHADER_SRC: &str = include_str!("standard/standard.shader");
 
+/// A source code of the standard two-sides shader.
+pub const STANDARD_TWOSIDES_SHADER_SRC: &str = include_str!("standard/standard-two-sides.shader");
+
 /// A source code of the standard terrain shader.
 pub const STANDARD_TERRAIN_SHADER_SRC: &str = include_str!("standard/terrain.shader");
 
@@ -60,6 +63,8 @@ impl Visit for ShaderState {
                 self.definition = ShaderDefinition::from_str(STANDARD_SHADER_SRC).unwrap();
             } else if self.path == Path::new("StandardTerrain") {
                 self.definition = ShaderDefinition::from_str(STANDARD_TERRAIN_SHADER_SRC).unwrap();
+            } else if self.path == Path::new("StandardTwoSides") {
+                self.definition = ShaderDefinition::from_str(STANDARD_TWOSIDES_SHADER_SRC).unwrap();
             }
         }
 
@@ -540,9 +545,14 @@ impl Shader {
         STANDARD_TERRAIN.clone()
     }
 
+    /// Returns an instance of standard two-sides terrain shader.
+    pub fn standard_twosides() -> Self {
+        STANDARD_TWOSIDES.clone()
+    }
+
     /// Returns a list of standard shader.
     pub fn standard_shaders() -> Vec<Shader> {
-        vec![Self::standard(), Self::standard_terrain()]
+        vec![Self::standard(), Self::standard_terrain(), Self::standard_twosides()]
     }
 }
 
@@ -561,6 +571,12 @@ lazy_static! {
 lazy_static! {
     static ref STANDARD_TERRAIN: Shader = Shader(Resource::new(ResourceState::Ok(
         ShaderState::from_str(STANDARD_TERRAIN_SHADER_SRC, "StandardTerrain").unwrap(),
+    )));
+}
+
+lazy_static! {
+    static ref STANDARD_TWOSIDES: Shader = Shader(Resource::new(ResourceState::Ok(
+        ShaderState::from_str(STANDARD_TWOSIDES_SHADER_SRC, "StandardTwoSides").unwrap(),
     )));
 }
 

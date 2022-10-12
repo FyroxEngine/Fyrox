@@ -225,7 +225,7 @@
         (
             name: "Forward",
             draw_parameters: DrawParameters(
-                cull_face: Some(Back),
+                cull_face: None,
                 color_write: ColorMask(
                     red: true,
                     green: true,
@@ -313,7 +313,7 @@
             name: "DirectionalShadow",
 
             draw_parameters: DrawParameters (
-                cull_face: Some(Back),
+                cull_face: None,
                 color_write: ColorMask(
                     red: false,
                     green: false,
@@ -384,7 +384,7 @@
             name: "SpotShadow",
 
             draw_parameters: DrawParameters (
-                cull_face: Some(Back),
+                cull_face: None,
                 color_write: ColorMask(
                     red: false,
                     green: false,
@@ -455,7 +455,7 @@
             name: "PointShadow",
 
             draw_parameters: DrawParameters (
-                cull_face: Some(Back),
+                cull_face: None,
                 color_write: ColorMask(
                     red: true,
                     green: true,
