@@ -552,7 +552,11 @@ impl Shader {
 
     /// Returns a list of standard shader.
     pub fn standard_shaders() -> Vec<Shader> {
-        vec![Self::standard(), Self::standard_terrain(), Self::standard_twosides()]
+        vec![
+            Self::standard(),
+            Self::standard_terrain(),
+            Self::standard_twosides(),
+        ]
     }
 }
 
