@@ -92,7 +92,7 @@ impl Default for Event {
 }
 
 /// Size of a sprite sheet frames container.
-#[derive(Visit, Reflect, Inspect, Clone, Debug, Default)]
+#[derive(Visit, Reflect, Inspect, Clone, Debug, Default, PartialEq, Eq)]
 pub struct ContainerSize {
     /// Amount of frames in X axis.
     pub width_in_frames: u32,
@@ -101,9 +101,9 @@ pub struct ContainerSize {
 }
 
 /// Container for a sprite sheet animation frames.
-#[derive(Reflect, Inspect, Clone, Debug, Default)]
+#[derive(Reflect, Inspect, Clone, Debug, Default, PartialEq)]
 pub struct SpriteSheetFramesContainer {
-    size: Option<ContainerSize>,
+    size: ContainerSize,
     frames: Vec<FrameBounds>,
 }
 
@@ -148,8 +148,8 @@ impl SpriteSheetFramesContainer {
     }
 
     /// Returns size of the container.
-    pub fn size(&self) -> Option<&ContainerSize> {
-        self.size.as_ref()
+    pub fn size(&self) -> &ContainerSize {
+        &self.size
     }
 }
 
@@ -157,7 +157,8 @@ impl SpriteSheetFramesContainer {
 /// frames have the same size, but this is not mandatory.
 #[derive(Visit, Reflect, Inspect, Clone, Debug)]
 pub struct SpriteSheetAnimation {
-    frames: SpriteSheetFramesContainer,
+    #[visit(rename = "Frames")]
+    frames_container: SpriteSheetFramesContainer,
     current_frame: f32,
     speed: f32,
     status: Status,
@@ -172,7 +173,7 @@ pub struct SpriteSheetAnimation {
 impl Default for SpriteSheetAnimation {
     fn default() -> Self {
         Self {
-            frames: Default::default(),
+            frames_container: Default::default(),
             current_frame: 0.0,
             speed: 10.0,
             status: Default::default(),
@@ -318,12 +319,12 @@ impl SpriteSheetAnimation {
             .collect::<Vec<_>>();
 
         Self {
-            frames: SpriteSheetFramesContainer {
+            frames_container: SpriteSheetFramesContainer {
                 frames,
-                size: Some(ContainerSize {
+                size: ContainerSize {
                     width_in_frames: width_in_frames as u32,
                     height_in_frames: height_in_frames as u32,
-                }),
+                },
             },
             ..Default::default()
         }
@@ -331,14 +332,14 @@ impl SpriteSheetAnimation {
 
     /// Adds new frame.
     pub fn add_frame(&mut self, frame: FrameBounds) {
-        self.frames.push(frame);
+        self.frames_container.push(frame);
     }
 
     /// Remove a frame at given index.
     pub fn remove_frame(&mut self, index: usize) -> Option<FrameBounds> {
-        if index < self.frames.len() {
-            self.current_frame = self.current_frame.min(self.frames.len() as f32);
-            Some(self.frames.remove(index))
+        if index < self.frames_container.len() {
+            self.current_frame = self.current_frame.min(self.frames_container.len() as f32);
+            Some(self.frames_container.remove(index))
         } else {
             None
         }
@@ -350,7 +351,7 @@ impl SpriteSheetAnimation {
             return;
         }
 
-        if self.frames.is_empty() {
+        if self.frames_container.is_empty() {
             self.status = Status::Stopped;
             return;
         }
@@ -371,19 +372,19 @@ impl SpriteSheetAnimation {
         }
 
         self.current_frame = next_frame;
-        if self.current_frame >= self.frames.len() as f32 {
+        if self.current_frame >= self.frames_container.len() as f32 {
             if self.looping {
                 // Continue playing from beginning.
                 self.current_frame = 0.0;
             } else {
                 // Keep on last frame and stop.
-                self.current_frame = self.frames.len().saturating_sub(1) as f32;
+                self.current_frame = self.frames_container.len().saturating_sub(1) as f32;
                 self.status = Status::Stopped;
             }
         } else if self.current_frame <= 0.0 {
             if self.looping {
                 // Continue playing from end.
-                self.current_frame = self.frames.len().saturating_sub(1) as f32;
+                self.current_frame = self.frames_container.len().saturating_sub(1) as f32;
             } else {
                 // Keep on first frame and stop.
                 self.current_frame = 0.0;
@@ -399,12 +400,12 @@ impl SpriteSheetAnimation {
 
     /// Tries to fetch UV rectangle at current frame. Returns `None` if animation is empty.
     pub fn current_frame_uv_rect(&self) -> Option<&FrameBounds> {
-        self.frames.get(self.current_frame())
+        self.frames_container.get(self.current_frame())
     }
 
     /// Sets current frame of the animation. Input value will be clamped to [0; frame_count] range.
     pub fn set_current_frame(&mut self, current_frame: usize) {
-        self.current_frame = current_frame.min(self.frames.len()) as f32;
+        self.current_frame = current_frame.min(self.frames_container.len()) as f32;
     }
 
     /// Returns true if the animation is looping, false - otherwise.
@@ -435,7 +436,7 @@ impl SpriteSheetAnimation {
 
     /// Sets current frame index to the last frame in the animation.
     pub fn rewind_to_end(&mut self) {
-        self.current_frame = self.frames.len().saturating_sub(1) as f32;
+        self.current_frame = self.frames_container.len().saturating_sub(1) as f32;
     }
 
     /// Returns current status of the animation.
@@ -508,10 +509,22 @@ mod test {
             last_frame: 4,
             column_major: false,
         });
-        assert_eq!(animation.frames[0], FrameBounds::new(0.0, 0.0, 0.25, 0.25));
-        assert_eq!(animation.frames[1], FrameBounds::new(0.25, 0.0, 0.25, 0.25));
-        assert_eq!(animation.frames[2], FrameBounds::new(0.5, 0.0, 0.25, 0.25));
-        assert_eq!(animation.frames[3], FrameBounds::new(0.75, 0.0, 0.25, 0.25));
+        assert_eq!(
+            animation.frames_container.frames[0],
+            FrameBounds::new(0.0, 0.0, 0.25, 0.25)
+        );
+        assert_eq!(
+            animation.frames_container.frames[1],
+            FrameBounds::new(0.25, 0.0, 0.25, 0.25)
+        );
+        assert_eq!(
+            animation.frames_container.frames[2],
+            FrameBounds::new(0.5, 0.0, 0.25, 0.25)
+        );
+        assert_eq!(
+            animation.frames_container.frames[3],
+            FrameBounds::new(0.75, 0.0, 0.25, 0.25)
+        );
     }
 
     #[test]
@@ -525,10 +538,22 @@ mod test {
             last_frame: 4,
             column_major: true,
         });
-        assert_eq!(animation.frames[0], FrameBounds::new(0.0, 0.0, 0.25, 0.25));
-        assert_eq!(animation.frames[1], FrameBounds::new(0.0, 0.25, 0.25, 0.25));
-        assert_eq!(animation.frames[2], FrameBounds::new(0.0, 0.5, 0.25, 0.25));
-        assert_eq!(animation.frames[3], FrameBounds::new(0.0, 0.75, 0.25, 0.25));
+        assert_eq!(
+            animation.frames_container.frames[0],
+            FrameBounds::new(0.0, 0.0, 0.25, 0.25)
+        );
+        assert_eq!(
+            animation.frames_container.frames[1],
+            FrameBounds::new(0.0, 0.25, 0.25, 0.25)
+        );
+        assert_eq!(
+            animation.frames_container.frames[2],
+            FrameBounds::new(0.0, 0.5, 0.25, 0.25)
+        );
+        assert_eq!(
+            animation.frames_container.frames[3],
+            FrameBounds::new(0.0, 0.75, 0.25, 0.25)
+        );
     }
 
     #[test]
@@ -542,11 +567,20 @@ mod test {
             last_frame: 6,
             column_major: false,
         });
-        assert_eq!(animation.frames[0], FrameBounds::new(0.5, 0.0, 0.25, 0.25));
-        assert_eq!(animation.frames[1], FrameBounds::new(0.75, 0.0, 0.25, 0.25));
-        assert_eq!(animation.frames[2], FrameBounds::new(0.0, 0.25, 0.25, 0.25));
         assert_eq!(
-            animation.frames[3],
+            animation.frames_container.frames[0],
+            FrameBounds::new(0.5, 0.0, 0.25, 0.25)
+        );
+        assert_eq!(
+            animation.frames_container.frames[1],
+            FrameBounds::new(0.75, 0.0, 0.25, 0.25)
+        );
+        assert_eq!(
+            animation.frames_container.frames[2],
+            FrameBounds::new(0.0, 0.25, 0.25, 0.25)
+        );
+        assert_eq!(
+            animation.frames_container.frames[3],
             FrameBounds::new(0.25, 0.25, 0.25, 0.25)
         );
     }
@@ -562,11 +596,20 @@ mod test {
             last_frame: 6,
             column_major: true,
         });
-        assert_eq!(animation.frames[0], FrameBounds::new(0.0, 0.5, 0.25, 0.25));
-        assert_eq!(animation.frames[1], FrameBounds::new(0.0, 0.75, 0.25, 0.25));
-        assert_eq!(animation.frames[2], FrameBounds::new(0.25, 0.0, 0.25, 0.25));
         assert_eq!(
-            animation.frames[3],
+            animation.frames_container.frames[0],
+            FrameBounds::new(0.0, 0.5, 0.25, 0.25)
+        );
+        assert_eq!(
+            animation.frames_container.frames[1],
+            FrameBounds::new(0.0, 0.75, 0.25, 0.25)
+        );
+        assert_eq!(
+            animation.frames_container.frames[2],
+            FrameBounds::new(0.25, 0.0, 0.25, 0.25)
+        );
+        assert_eq!(
+            animation.frames_container.frames[3],
             FrameBounds::new(0.25, 0.25, 0.25, 0.25)
         );
     }
