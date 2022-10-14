@@ -92,7 +92,7 @@ impl Default for Event {
 }
 
 /// Size of a sprite sheet frames container.
-#[derive(Visit, Reflect, Inspect, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Visit, Reflect, Inspect, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ContainerSize {
     /// Amount of frames in X axis.
     pub width_in_frames: u32,
@@ -145,6 +145,11 @@ impl SpriteSheetFramesContainer {
     /// Tries to get a reference to a frame with given index.
     pub fn get(&self, index: usize) -> Option<&FrameBounds> {
         self.frames.get(index)
+    }
+
+    /// Sets new container size. It does not affect frames!
+    pub fn set_size(&mut self, size: ContainerSize) {
+        self.size = size;
     }
 
     /// Returns size of the container.

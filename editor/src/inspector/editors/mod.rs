@@ -2,15 +2,13 @@ use crate::{
     inspector::editors::{
         handle::NodeHandlePropertyEditorDefinition, material::MaterialPropertyEditorDefinition,
         resource::ResourceFieldPropertyEditorDefinition, script::ScriptPropertyEditorDefinition,
+        spritesheet::SpriteSheetFramesContainerEditorDefinition,
         texture::TexturePropertyEditorDefinition,
     },
     Message,
 };
 use fyrox::{
-    animation::{
-        machine::MachineInstantiationError,
-        spritesheet::{self, FrameBounds, SpriteSheetAnimation},
-    },
+    animation::{self, machine::MachineInstantiationError, spritesheet::FrameBounds},
     core::{
         futures::executor::block_on,
         parking_lot::Mutex,
@@ -76,6 +74,7 @@ pub mod handle;
 pub mod material;
 pub mod resource;
 pub mod script;
+pub mod spritesheet;
 pub mod texture;
 
 pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Status> {
@@ -130,18 +129,18 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
     container.insert(InheritablePropertyEditorDefinition::<Option<LodGroup>>::new());
 
-    container.register_inheritable_enum::<spritesheet::Status, _>();
+    container.register_inheritable_enum::<animation::spritesheet::Status, _>();
 
     container.register_inheritable_inspectable::<LodGroup>();
 
-    container.register_inheritable_inspectable::<SpriteSheetAnimation>();
-    container.register_inheritable_vec_collection::<SpriteSheetAnimation>();
+    container.register_inheritable_inspectable::<animation::spritesheet::SpriteSheetAnimation>();
+    container.register_inheritable_vec_collection::<animation::spritesheet::SpriteSheetAnimation>();
 
     container.register_inheritable_inspectable::<FrameBounds>();
     container.register_inheritable_vec_collection::<FrameBounds>();
 
-    container.register_inheritable_inspectable::<spritesheet::signal::Signal>();
-    container.register_inheritable_vec_collection::<spritesheet::signal::Signal>();
+    container.register_inheritable_inspectable::<animation::spritesheet::signal::Signal>();
+    container.register_inheritable_vec_collection::<animation::spritesheet::signal::Signal>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<
         Model,
@@ -267,7 +266,7 @@ pub fn make_property_editors_container(
     container.register_inheritable_inspectable::<HeightfieldShape>();
     container.register_inheritable_inspectable::<dim2::collider::HeightfieldShape>();
     container.register_inheritable_inspectable::<ConvexPolyhedronShape>();
-    container.register_inheritable_inspectable::<spritesheet::SpriteSheetFramesContainer>();
+    container.insert(SpriteSheetFramesContainerEditorDefinition);
 
     container
 }
