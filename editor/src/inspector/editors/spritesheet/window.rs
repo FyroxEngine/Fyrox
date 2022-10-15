@@ -19,6 +19,7 @@ use fyrox::{
         BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
         UiNode, UserInterface, VerticalAlignment,
     },
+    utils::into_gui_texture,
 };
 use std::{
     any::{Any, TypeId},
@@ -192,6 +193,7 @@ fn make_grid(
 
     let grid = GridBuilder::new(
         WidgetBuilder::new()
+            .with_margin(Thickness::uniform(1.0))
             .with_foreground(Brush::Solid(Color::opaque(127, 127, 127)))
             .with_children(cells.clone()),
     )
@@ -296,10 +298,18 @@ impl SpriteSheetFramesEditorWindow {
                             .with_child({
                                 preview_container = BorderBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
                                         .on_column(0)
                                         .on_row(1)
                                         .with_child(
-                                            ImageBuilder::new(WidgetBuilder::new()).build(ctx),
+                                            ImageBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(1.0)),
+                                            )
+                                            .with_opt_texture(
+                                                container.texture().map(into_gui_texture),
+                                            )
+                                            .build(ctx),
                                         )
                                         .with_child(grid),
                                 )
