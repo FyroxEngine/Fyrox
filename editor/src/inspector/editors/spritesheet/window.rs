@@ -6,7 +6,7 @@ use fyrox::{
         border::BorderBuilder,
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
-        check_box::CheckBoxBuilder,
+        check_box::{CheckBoxBuilder, CheckBoxMessage},
         draw::DrawingContext,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
@@ -23,6 +23,7 @@ use fyrox::{
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
+    rc::Rc,
     sync::mpsc::Sender,
 };
 
@@ -37,6 +38,7 @@ pub struct SpriteSheetFramesEditorWindow {
     height: Handle<UiNode>,
     grid: Handle<UiNode>,
     preview_container: Handle<UiNode>,
+    cells: Vec<Handle<UiNode>>,
 }
 
 impl Deref for SpriteSheetFramesEditorWindow {
@@ -124,6 +126,26 @@ impl Control for SpriteSheetFramesEditorWindow {
                 let width = self.container.size().x;
                 self.resize(Vector2::new(width, *value), ui);
             }
+        } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
+            if self.cells.contains(&message.destination())
+                && message.direction == MessageDirection::FromWidget
+            {
+                let cell_position = ui
+                    .node(message.destination())
+                    .user_data_ref::<Vector2<u32>>()
+                    .unwrap();
+
+                if *value {
+                    self.container.push(*cell_position);
+                } else {
+                    let position = self.container.iter().position(|p| p == cell_position);
+                    if let Some(i) = position {
+                        self.container.remove(i);
+                    }
+                }
+
+                self.container.sort_by_position();
+            }
         }
     }
 
@@ -141,11 +163,16 @@ impl Control for SpriteSheetFramesEditorWindow {
     }
 }
 
-fn make_grid(ctx: &mut BuildContext, width: u32, height: u32) -> Handle<UiNode> {
-    let mut children = Vec::new();
-    for i in 0..height {
-        for j in 0..width {
-            children.push(
+fn make_grid(
+    ctx: &mut BuildContext,
+    container: &SpriteSheetFramesContainer,
+) -> (Handle<UiNode>, Vec<Handle<UiNode>>) {
+    let mut cells = Vec::new();
+    for i in 0..container.size().y {
+        for j in 0..container.size().x {
+            let cell_position = Vector2::new(j, i);
+
+            cells.push(
                 CheckBoxBuilder::new(
                     WidgetBuilder::new()
                         .with_vertical_alignment(VerticalAlignment::Top)
@@ -154,22 +181,26 @@ fn make_grid(ctx: &mut BuildContext, width: u32, height: u32) -> Handle<UiNode> 
                         .with_width(16.0)
                         .with_height(16.0)
                         .on_row(i as usize)
-                        .on_column(j as usize),
+                        .on_column(j as usize)
+                        .with_user_data(Rc::new(cell_position)),
                 )
+                .checked(Some(container.iter().any(|pos| *pos == cell_position)))
                 .build(ctx),
             )
         }
     }
 
-    GridBuilder::new(
+    let grid = GridBuilder::new(
         WidgetBuilder::new()
             .with_foreground(Brush::Solid(Color::opaque(127, 127, 127)))
-            .with_children(children),
+            .with_children(cells.clone()),
     )
-    .add_columns((0..width).map(|_| Column::stretch()).collect())
-    .add_rows((0..height).map(|_| Row::stretch()).collect())
+    .add_columns((0..container.size().x).map(|_| Column::stretch()).collect())
+    .add_rows((0..container.size().y).map(|_| Row::stretch()).collect())
     .draw_border(true)
-    .build(ctx)
+    .build(ctx);
+
+    (grid, cells)
 }
 
 impl SpriteSheetFramesEditorWindow {
@@ -178,7 +209,10 @@ impl SpriteSheetFramesEditorWindow {
 
         ui.send_message(WidgetMessage::remove(self.grid, MessageDirection::ToWidget));
 
-        self.grid = make_grid(&mut ui.build_ctx(), size.x, size.y);
+        let (grid, cells) = make_grid(&mut ui.build_ctx(), &self.container);
+
+        self.grid = grid;
+        self.cells = cells;
 
         ui.send_message(WidgetMessage::link(
             self.grid,
@@ -196,8 +230,8 @@ impl SpriteSheetFramesEditorWindow {
         let cancel;
         let width;
         let height;
-        let grid;
         let preview_container;
+        let (grid, cells) = make_grid(ctx, &container);
         let editor = Self {
             window: WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .can_resize(true)
@@ -267,14 +301,7 @@ impl SpriteSheetFramesEditorWindow {
                                         .with_child(
                                             ImageBuilder::new(WidgetBuilder::new()).build(ctx),
                                         )
-                                        .with_child({
-                                            grid = make_grid(
-                                                ctx,
-                                                container.size().x,
-                                                container.size().y,
-                                            );
-                                            grid
-                                        }),
+                                        .with_child(grid),
                                 )
                                 .build(ctx);
                                 preview_container
@@ -328,6 +355,7 @@ impl SpriteSheetFramesEditorWindow {
             height,
             grid,
             preview_container,
+            cells,
         };
 
         ctx.add_node(UiNode::new(editor))
