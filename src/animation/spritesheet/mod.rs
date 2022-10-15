@@ -5,9 +5,12 @@
 
 use crate::{
     animation::spritesheet::signal::Signal,
-    core::{algebra::Vector2, inspect::prelude::*, reflect::Reflect, visitor::prelude::*},
+    core::{
+        algebra::Vector2, inspect::prelude::*, math::Rect, reflect::Reflect, visitor::prelude::*,
+    },
+    engine::resource_manager::ResourceManager,
+    resource::texture::Texture,
 };
-use fyrox_core::math::Rect;
 use std::collections::vec_deque::VecDeque;
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -60,10 +63,12 @@ impl Default for Event {
 }
 
 /// Container for a sprite sheet animation frames.
-#[derive(Reflect, Inspect, Visit, Clone, Debug, PartialEq)]
+#[derive(Reflect, Inspect, Visit, Clone, Debug, PartialEq, Eq)]
 pub struct SpriteSheetFramesContainer {
     size: Vector2<u32>,
     frames: Vec<Vector2<u32>>,
+    #[visit(optional)]
+    texture: Option<Texture>,
 }
 
 impl SpriteSheetFramesContainer {
@@ -118,6 +123,11 @@ impl SpriteSheetFramesContainer {
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Vector2<u32>> {
         self.frames.iter_mut()
     }
+
+    /// Returns current texture of the container. To set a texture use sprite sheet animation methods.
+    pub fn texture(&self) -> Option<Texture> {
+        self.texture.clone()
+    }
 }
 
 impl Default for SpriteSheetFramesContainer {
@@ -125,6 +135,7 @@ impl Default for SpriteSheetFramesContainer {
         Self {
             size: Vector2::new(1, 1),
             frames: vec![],
+            texture: None,
         }
     }
 }
@@ -140,6 +151,9 @@ pub struct SpriteSheetAnimation {
     status: Status,
     looping: bool,
     signals: Vec<Signal>,
+    #[visit(optional)]
+    #[reflect(setter = "set_texture")]
+    texture: Option<Texture>,
     #[reflect(hidden)]
     #[inspect(skip)]
     #[visit(skip)]
@@ -155,6 +169,7 @@ impl Default for SpriteSheetAnimation {
             status: Default::default(),
             looping: true,
             signals: Default::default(),
+            texture: None,
             events: Default::default(),
         }
     }
@@ -289,9 +304,32 @@ impl SpriteSheetAnimation {
             frames_container: SpriteSheetFramesContainer {
                 frames,
                 size: Vector2::new(width_in_frames, height_in_frames),
+                texture: None,
             },
             ..Default::default()
         }
+    }
+
+    /// Sets new texture for the animation.
+    pub fn set_texture(&mut self, texture: Option<Texture>) -> Option<Texture> {
+        self.frames_container.texture = texture.clone();
+        std::mem::replace(&mut self.texture, texture)
+    }
+
+    /// Returns current texture of the animation.
+    pub fn texture(&self) -> Option<Texture> {
+        self.texture.clone()
+    }
+
+    /// Tries to restore handles of internal resources, this method must be called after deserialization!
+    pub fn restore_resources(&mut self, resource_manager: &ResourceManager) {
+        resource_manager
+            .state()
+            .containers_mut()
+            .textures
+            .try_restore_optional_resource(&mut self.texture);
+
+        self.frames_container.texture = self.texture.clone();
     }
 
     /// Returns a shared reference to inner frames container.
