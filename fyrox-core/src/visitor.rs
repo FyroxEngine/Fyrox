@@ -17,8 +17,8 @@ pub mod prelude {
 
 use crate::{
     algebra::{
-        Complex, Matrix2, Matrix3, Matrix4, Quaternion, UnitComplex, UnitQuaternion, Vector2,
-        Vector3, Vector4,
+        Complex, Const, Matrix, Matrix2, Matrix3, Matrix4, Quaternion, RawStorage, RawStorageMut,
+        SVector, Scalar, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4, U1,
     },
     io::{self, FileLoadError},
     pool::{Handle, Pool},
@@ -27,22 +27,20 @@ use crate::{
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fxhash::FxHashMap;
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::time::Duration;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
-    collections::hash_map::Entry,
+    collections::{hash_map::Entry, HashMap},
     fmt::{Display, Formatter},
     fs::File,
     hash::Hash,
     io::{BufWriter, Cursor, Read, Write},
-    ops::{DerefMut, Range},
+    ops::{Deref, DerefMut, Range},
     path::{Path, PathBuf},
     rc::Rc,
     string::FromUtf8Error,
     sync::{Arc, Mutex, RwLock},
+    time::Duration,
 };
 use uuid::Uuid;
 
@@ -58,13 +56,10 @@ pub enum FieldKind {
     I64(i64),
     F32(f32),
     F64(f64),
-    Vector3(Vector3<f32>),
     UnitQuaternion(UnitQuaternion<f32>),
     Matrix4(Matrix4<f32>),
     Data(Vec<u8>),
     Matrix3(Matrix3<f32>),
-    Vector2(Vector2<f32>),
-    Vector4(Vector4<f32>),
     Uuid(Uuid),
     UnitComplex(UnitComplex<f32>),
     PodArray {
@@ -73,6 +68,46 @@ pub enum FieldKind {
         bytes: Vec<u8>,
     },
     Matrix2(Matrix2<f32>),
+
+    Vector2F32(Vector2<f32>),
+    Vector3F32(Vector3<f32>),
+    Vector4F32(Vector4<f32>),
+
+    Vector2F64(Vector2<f64>),
+    Vector3F64(Vector3<f64>),
+    Vector4F64(Vector4<f64>),
+
+    Vector2U8(Vector2<u8>),
+    Vector3U8(Vector3<u8>),
+    Vector4U8(Vector4<u8>),
+
+    Vector2I8(Vector2<i8>),
+    Vector3I8(Vector3<i8>),
+    Vector4I8(Vector4<i8>),
+
+    Vector2U16(Vector2<u16>),
+    Vector3U16(Vector3<u16>),
+    Vector4U16(Vector4<u16>),
+
+    Vector2I16(Vector2<i16>),
+    Vector3I16(Vector3<i16>),
+    Vector4I16(Vector4<i16>),
+
+    Vector2U32(Vector2<u32>),
+    Vector3U32(Vector3<u32>),
+    Vector4U32(Vector4<u32>),
+
+    Vector2I32(Vector2<i32>),
+    Vector3I32(Vector3<i32>),
+    Vector4I32(Vector4<i32>),
+
+    Vector2U64(Vector2<u64>),
+    Vector3U64(Vector3<u64>),
+    Vector4U64(Vector4<u64>),
+
+    Vector2I64(Vector2<i64>),
+    Vector3I64(Vector3<i64>),
+    Vector4I64(Vector4<i64>),
 }
 
 pub trait Pod: Copy {
@@ -220,7 +255,90 @@ impl FieldKind {
             Self::I64(data) => format!("<i64 = {}>, ", data),
             Self::F32(data) => format!("<f32 = {}>, ", data),
             Self::F64(data) => format!("<f64 = {}>, ", data),
-            Self::Vector3(data) => format!("<vec3 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::Vector2F32(data) => format!("<vec2f32 = {}; {}>, ", data.x, data.y),
+            Self::Vector3F32(data) => format!("<vec3f32 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::Vector4F32(data) => {
+                format!(
+                    "<vec4f32 = {}; {}; {}; {}>, ",
+                    data.x, data.y, data.z, data.w
+                )
+            }
+            Self::Vector2F64(data) => format!("<vec2f64 = {}; {}>, ", data.x, data.y),
+            Self::Vector3F64(data) => format!("<vec3f64 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::Vector4F64(data) => {
+                format!(
+                    "<vec4f64 = {}; {}; {}; {}>, ",
+                    data.x, data.y, data.z, data.w
+                )
+            }
+            Self::Vector2I8(data) => format!("<vec2i8 = {}; {}>, ", data.x, data.y),
+            Self::Vector3I8(data) => format!("<vec3i8 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::Vector4I8(data) => {
+                format!(
+                    "<vec4i8 = {}; {}; {}; {}>, ",
+                    data.x, data.y, data.z, data.w
+                )
+            }
+            Self::Vector2U8(data) => format!("<vec2u8 = {}; {}>, ", data.x, data.y),
+            Self::Vector3U8(data) => format!("<vec3u8 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::Vector4U8(data) => {
+                format!(
+                    "<vec4u8 = {}; {}; {}; {}>, ",
+                    data.x, data.y, data.z, data.w
+                )
+            }
+
+            Self::Vector2I16(data) => format!("<vec2i16 = {}; {}>, ", data.x, data.y),
+            Self::Vector3I16(data) => format!("<vec3i16 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::Vector4I16(data) => {
+                format!(
+                    "<vec4i16 = {}; {}; {}; {}>, ",
+                    data.x, data.y, data.z, data.w
+                )
+            }
+            Self::Vector2U16(data) => format!("<vec2u16 = {}; {}>, ", data.x, data.y),
+            Self::Vector3U16(data) => format!("<vec3u16 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::Vector4U16(data) => {
+                format!(
+                    "<vec4u16 = {}; {}; {}; {}>, ",
+                    data.x, data.y, data.z, data.w
+                )
+            }
+
+            Self::Vector2I32(data) => format!("<vec2i32 = {}; {}>, ", data.x, data.y),
+            Self::Vector3I32(data) => format!("<vec3i32 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::Vector4I32(data) => {
+                format!(
+                    "<vec4i32 = {}; {}; {}; {}>, ",
+                    data.x, data.y, data.z, data.w
+                )
+            }
+            Self::Vector2U32(data) => format!("<vec2u32 = {}; {}>, ", data.x, data.y),
+            Self::Vector3U32(data) => format!("<vec3u32 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::Vector4U32(data) => {
+                format!(
+                    "<vec4u32 = {}; {}; {}; {}>, ",
+                    data.x, data.y, data.z, data.w
+                )
+            }
+
+            Self::Vector2I64(data) => format!("<vec2i64 = {}; {}>, ", data.x, data.y),
+            Self::Vector3I64(data) => format!("<vec3i64 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::Vector4I64(data) => {
+                format!(
+                    "<vec4i64 = {}; {}; {}; {}>, ",
+                    data.x, data.y, data.z, data.w
+                )
+            }
+            Self::Vector2U64(data) => format!("<vec2u64 = {}; {}>, ", data.x, data.y),
+            Self::Vector3U64(data) => format!("<vec3u64 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::Vector4U64(data) => {
+                format!(
+                    "<vec4u64 = {}; {}; {}; {}>, ",
+                    data.x, data.y, data.z, data.w
+                )
+            }
+
             Self::UnitQuaternion(data) => {
                 format!("<quat = {}; {}; {}; {}>, ", data.i, data.j, data.k, data.w)
             }
@@ -245,10 +363,7 @@ impl FieldKind {
                 }
                 out
             }
-            Self::Vector2(data) => format!("<vec2 = {}; {}>, ", data.x, data.y),
-            Self::Vector4(data) => {
-                format!("<vec4 = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w)
-            }
+
             Self::Uuid(uuid) => uuid.to_string(),
             Self::UnitComplex(data) => {
                 format!("<complex = {}; {}>, ", data.re, data.im)
@@ -319,16 +434,53 @@ impl_field_data!(u8, FieldKind::U8);
 impl_field_data!(i8, FieldKind::I8);
 impl_field_data!(f32, FieldKind::F32);
 impl_field_data!(f64, FieldKind::F64);
-impl_field_data!(Vector3<f32>, FieldKind::Vector3);
 impl_field_data!(UnitQuaternion<f32>, FieldKind::UnitQuaternion);
 impl_field_data!(Matrix4<f32>, FieldKind::Matrix4);
 impl_field_data!(bool, FieldKind::Bool);
 impl_field_data!(Matrix3<f32>, FieldKind::Matrix3);
-impl_field_data!(Vector2<f32>, FieldKind::Vector2);
-impl_field_data!(Vector4<f32>, FieldKind::Vector4);
 impl_field_data!(Uuid, FieldKind::Uuid);
 impl_field_data!(UnitComplex<f32>, FieldKind::UnitComplex);
 impl_field_data!(Matrix2<f32>, FieldKind::Matrix2);
+
+impl_field_data!(Vector2<f32>, FieldKind::Vector2F32);
+impl_field_data!(Vector3<f32>, FieldKind::Vector3F32);
+impl_field_data!(Vector4<f32>, FieldKind::Vector4F32);
+
+impl_field_data!(Vector2<f64>, FieldKind::Vector2F64);
+impl_field_data!(Vector3<f64>, FieldKind::Vector3F64);
+impl_field_data!(Vector4<f64>, FieldKind::Vector4F64);
+
+impl_field_data!(Vector2<i8>, FieldKind::Vector2I8);
+impl_field_data!(Vector3<i8>, FieldKind::Vector3I8);
+impl_field_data!(Vector4<i8>, FieldKind::Vector4I8);
+
+impl_field_data!(Vector2<u8>, FieldKind::Vector2U8);
+impl_field_data!(Vector3<u8>, FieldKind::Vector3U8);
+impl_field_data!(Vector4<u8>, FieldKind::Vector4U8);
+
+impl_field_data!(Vector2<i16>, FieldKind::Vector2I16);
+impl_field_data!(Vector3<i16>, FieldKind::Vector3I16);
+impl_field_data!(Vector4<i16>, FieldKind::Vector4I16);
+
+impl_field_data!(Vector2<u16>, FieldKind::Vector2U16);
+impl_field_data!(Vector3<u16>, FieldKind::Vector3U16);
+impl_field_data!(Vector4<u16>, FieldKind::Vector4U16);
+
+impl_field_data!(Vector2<i32>, FieldKind::Vector2I32);
+impl_field_data!(Vector3<i32>, FieldKind::Vector3I32);
+impl_field_data!(Vector4<i32>, FieldKind::Vector4I32);
+
+impl_field_data!(Vector2<u32>, FieldKind::Vector2U32);
+impl_field_data!(Vector3<u32>, FieldKind::Vector3U32);
+impl_field_data!(Vector4<u32>, FieldKind::Vector4U32);
+
+impl_field_data!(Vector2<i64>, FieldKind::Vector2I64);
+impl_field_data!(Vector3<i64>, FieldKind::Vector3I64);
+impl_field_data!(Vector4<i64>, FieldKind::Vector4I64);
+
+impl_field_data!(Vector2<u64>, FieldKind::Vector2U64);
+impl_field_data!(Vector3<u64>, FieldKind::Vector3U64);
+impl_field_data!(Vector4<u64>, FieldKind::Vector4U64);
 
 impl<'a> Visit for Data<'a> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -449,6 +601,37 @@ impl From<FileLoadError> for VisitError {
 
 pub type VisitResult = Result<(), VisitError>;
 
+trait VisitableElementaryField {
+    fn write(&self, file: &mut dyn Write) -> VisitResult;
+    fn read(&mut self, file: &mut dyn Read) -> VisitResult;
+}
+
+macro_rules! impl_visitable_elementary_field {
+    ($ty:ty, $write:ident, $read:ident $(, $endian:ident)*) => {
+        impl VisitableElementaryField for $ty {
+            fn write(&self, file: &mut dyn Write) -> VisitResult {
+                file.$write::<$($endian)*>(*self)?;
+                Ok(())
+            }
+
+            fn read(&mut self, file: &mut dyn Read) -> VisitResult {
+                *self = file.$read::<$($endian)*>()?;
+                Ok(())
+            }
+        }
+    };
+}
+impl_visitable_elementary_field!(f64, write_f64, read_f64, LittleEndian);
+impl_visitable_elementary_field!(f32, write_f32, read_f32, LittleEndian);
+impl_visitable_elementary_field!(u8, write_u8, read_u8);
+impl_visitable_elementary_field!(i8, write_i8, read_i8);
+impl_visitable_elementary_field!(u16, write_u16, read_u16, LittleEndian);
+impl_visitable_elementary_field!(i16, write_i16, read_i16, LittleEndian);
+impl_visitable_elementary_field!(u32, write_u32, read_u32, LittleEndian);
+impl_visitable_elementary_field!(i32, write_i32, read_i32, LittleEndian);
+impl_visitable_elementary_field!(u64, write_u64, read_u64, LittleEndian);
+impl_visitable_elementary_field!(i64, write_i64, read_i64, LittleEndian);
+
 impl Field {
     pub fn new(name: &str, kind: FieldKind) -> Self {
         Self {
@@ -458,6 +641,21 @@ impl Field {
     }
 
     fn save(field: &Field, file: &mut dyn Write) -> VisitResult {
+        fn write_vec_n<T, const N: usize>(
+            file: &mut dyn Write,
+            type_id: u8,
+            vec: &SVector<T, N>,
+        ) -> VisitResult
+        where
+            T: VisitableElementaryField,
+        {
+            file.write_u8(type_id)?;
+            for v in vec.iter() {
+                v.write(file)?;
+            }
+            Ok(())
+        }
+
         let name = field.name.as_bytes();
         file.write_u32::<LittleEndian>(name.len() as u32)?;
         file.write_all(name)?;
@@ -502,11 +700,8 @@ impl Field {
                 file.write_u8(10)?;
                 file.write_f64::<LittleEndian>(*data)?;
             }
-            FieldKind::Vector3(data) => {
-                file.write_u8(11)?;
-                file.write_f32::<LittleEndian>(data.x)?;
-                file.write_f32::<LittleEndian>(data.y)?;
-                file.write_f32::<LittleEndian>(data.z)?;
+            FieldKind::Vector3F32(data) => {
+                write_vec_n(file, 11, data)?;
             }
             FieldKind::UnitQuaternion(data) => {
                 file.write_u8(12)?;
@@ -536,17 +731,11 @@ impl Field {
                     file.write_f32::<LittleEndian>(*f)?;
                 }
             }
-            FieldKind::Vector2(data) => {
-                file.write_u8(17)?;
-                file.write_f32::<LittleEndian>(data.x)?;
-                file.write_f32::<LittleEndian>(data.y)?;
+            FieldKind::Vector2F32(data) => {
+                write_vec_n(file, 17, data)?;
             }
-            FieldKind::Vector4(data) => {
-                file.write_u8(18)?;
-                file.write_f32::<LittleEndian>(data.x)?;
-                file.write_f32::<LittleEndian>(data.y)?;
-                file.write_f32::<LittleEndian>(data.z)?;
-                file.write_f32::<LittleEndian>(data.w)?;
+            FieldKind::Vector4F32(data) => {
+                write_vec_n(file, 18, data)?;
             }
             FieldKind::Uuid(uuid) => {
                 file.write_u8(19)?;
@@ -574,11 +763,114 @@ impl Field {
                     file.write_f32::<LittleEndian>(*f)?;
                 }
             }
+            FieldKind::Vector2F64(data) => {
+                write_vec_n(file, 23, data)?;
+            }
+            FieldKind::Vector3F64(data) => {
+                write_vec_n(file, 24, data)?;
+            }
+            FieldKind::Vector4F64(data) => {
+                write_vec_n(file, 25, data)?;
+            }
+
+            FieldKind::Vector2I8(data) => {
+                write_vec_n(file, 26, data)?;
+            }
+            FieldKind::Vector3I8(data) => {
+                write_vec_n(file, 27, data)?;
+            }
+            FieldKind::Vector4I8(data) => {
+                write_vec_n(file, 28, data)?;
+            }
+
+            FieldKind::Vector2U8(data) => {
+                write_vec_n(file, 29, data)?;
+            }
+            FieldKind::Vector3U8(data) => {
+                write_vec_n(file, 30, data)?;
+            }
+            FieldKind::Vector4U8(data) => {
+                write_vec_n(file, 31, data)?;
+            }
+
+            FieldKind::Vector2I16(data) => {
+                write_vec_n(file, 32, data)?;
+            }
+            FieldKind::Vector3I16(data) => {
+                write_vec_n(file, 33, data)?;
+            }
+            FieldKind::Vector4I16(data) => {
+                write_vec_n(file, 34, data)?;
+            }
+
+            FieldKind::Vector2U16(data) => {
+                write_vec_n(file, 35, data)?;
+            }
+            FieldKind::Vector3U16(data) => {
+                write_vec_n(file, 36, data)?;
+            }
+            FieldKind::Vector4U16(data) => {
+                write_vec_n(file, 37, data)?;
+            }
+
+            FieldKind::Vector2I32(data) => {
+                write_vec_n(file, 38, data)?;
+            }
+            FieldKind::Vector3I32(data) => {
+                write_vec_n(file, 39, data)?;
+            }
+            FieldKind::Vector4I32(data) => {
+                write_vec_n(file, 40, data)?;
+            }
+
+            FieldKind::Vector2U32(data) => {
+                write_vec_n(file, 41, data)?;
+            }
+            FieldKind::Vector3U32(data) => {
+                write_vec_n(file, 42, data)?;
+            }
+            FieldKind::Vector4U32(data) => {
+                write_vec_n(file, 43, data)?;
+            }
+
+            FieldKind::Vector2I64(data) => {
+                write_vec_n(file, 44, data)?;
+            }
+            FieldKind::Vector3I64(data) => {
+                write_vec_n(file, 45, data)?;
+            }
+            FieldKind::Vector4I64(data) => {
+                write_vec_n(file, 46, data)?;
+            }
+
+            FieldKind::Vector2U64(data) => {
+                write_vec_n(file, 47, data)?;
+            }
+            FieldKind::Vector3U64(data) => {
+                write_vec_n(file, 48, data)?;
+            }
+            FieldKind::Vector4U64(data) => {
+                write_vec_n(file, 49, data)?;
+            }
         }
         Ok(())
     }
 
     fn load(file: &mut dyn Read) -> Result<Field, VisitError> {
+        fn read_vec_n<T, S, const N: usize>(
+            file: &mut dyn Read,
+        ) -> Result<Matrix<T, Const<N>, U1, S>, VisitError>
+        where
+            T: VisitableElementaryField + Scalar + Default,
+            S: RawStorage<T, Const<N>> + RawStorageMut<T, Const<N>> + Default,
+        {
+            let mut vec = Matrix::<T, Const<N>, U1, S>::default();
+            for v in vec.iter_mut() {
+                v.read(file)?;
+            }
+            Ok(vec)
+        }
+
         let name_len = file.read_u32::<LittleEndian>()? as usize;
         let mut raw_name = vec![Default::default(); name_len];
         file.read_exact(raw_name.as_mut_slice())?;
@@ -596,7 +888,7 @@ impl Field {
                 8 => FieldKind::I64(file.read_i64::<LittleEndian>()?),
                 9 => FieldKind::F32(file.read_f32::<LittleEndian>()?),
                 10 => FieldKind::F64(file.read_f64::<LittleEndian>()?),
-                11 => FieldKind::Vector3({
+                11 => FieldKind::Vector3F32({
                     let x = file.read_f32::<LittleEndian>()?;
                     let y = file.read_f32::<LittleEndian>()?;
                     let z = file.read_f32::<LittleEndian>()?;
@@ -630,12 +922,12 @@ impl Field {
                     }
                     Matrix3::from_row_slice(&f)
                 }),
-                17 => FieldKind::Vector2({
+                17 => FieldKind::Vector2F32({
                     let x = file.read_f32::<LittleEndian>()?;
                     let y = file.read_f32::<LittleEndian>()?;
                     Vector2::new(x, y)
                 }),
-                18 => FieldKind::Vector4({
+                18 => FieldKind::Vector4F32({
                     let x = file.read_f32::<LittleEndian>()?;
                     let y = file.read_f32::<LittleEndian>()?;
                     let z = file.read_f32::<LittleEndian>()?;
@@ -671,6 +963,42 @@ impl Field {
                     }
                     Matrix2::from_row_slice(&f)
                 }),
+                23 => FieldKind::Vector2F64(read_vec_n(file)?),
+                24 => FieldKind::Vector3F64(read_vec_n(file)?),
+                25 => FieldKind::Vector4F64(read_vec_n(file)?),
+
+                26 => FieldKind::Vector2I8(read_vec_n(file)?),
+                27 => FieldKind::Vector3I8(read_vec_n(file)?),
+                28 => FieldKind::Vector4I8(read_vec_n(file)?),
+
+                29 => FieldKind::Vector2U8(read_vec_n(file)?),
+                30 => FieldKind::Vector3U8(read_vec_n(file)?),
+                31 => FieldKind::Vector4U8(read_vec_n(file)?),
+
+                32 => FieldKind::Vector2I16(read_vec_n(file)?),
+                33 => FieldKind::Vector3I16(read_vec_n(file)?),
+                34 => FieldKind::Vector4I16(read_vec_n(file)?),
+
+                35 => FieldKind::Vector2U16(read_vec_n(file)?),
+                36 => FieldKind::Vector3U16(read_vec_n(file)?),
+                37 => FieldKind::Vector4U16(read_vec_n(file)?),
+
+                38 => FieldKind::Vector2I32(read_vec_n(file)?),
+                39 => FieldKind::Vector3I32(read_vec_n(file)?),
+                40 => FieldKind::Vector4I32(read_vec_n(file)?),
+
+                41 => FieldKind::Vector2U32(read_vec_n(file)?),
+                42 => FieldKind::Vector3U32(read_vec_n(file)?),
+                43 => FieldKind::Vector4U32(read_vec_n(file)?),
+
+                44 => FieldKind::Vector2I64(read_vec_n(file)?),
+                45 => FieldKind::Vector3I64(read_vec_n(file)?),
+                46 => FieldKind::Vector4I64(read_vec_n(file)?),
+
+                47 => FieldKind::Vector2U64(read_vec_n(file)?),
+                48 => FieldKind::Vector3U64(read_vec_n(file)?),
+                49 => FieldKind::Vector4U64(read_vec_n(file)?),
+
                 _ => return Err(VisitError::UnknownFieldType(id)),
             },
         ))
