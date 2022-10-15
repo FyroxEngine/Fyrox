@@ -101,6 +101,23 @@ impl SpriteSheetFramesContainer {
     pub fn size(&self) -> Vector2<u32> {
         self.size
     }
+
+    /// Sorts frames by their position. `(x,y)` will be converted to index and then used for
+    /// sorting. This method ensures that the frames will be ordered from the left top corner
+    /// to right bottom corner line-by-line.
+    pub fn sort_by_position(&mut self) {
+        self.frames.sort_by_key(|p| p.y * self.size.x + p.x)
+    }
+
+    /// Returns an iterator that yields frames position.
+    pub fn iter(&self) -> impl Iterator<Item = &Vector2<u32>> {
+        self.frames.iter()
+    }
+
+    /// Returns an iterator that yields frames position.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Vector2<u32>> {
+        self.frames.iter_mut()
+    }
 }
 
 impl Default for SpriteSheetFramesContainer {
@@ -275,6 +292,16 @@ impl SpriteSheetAnimation {
             },
             ..Default::default()
         }
+    }
+
+    /// Returns a shared reference to inner frames container.
+    pub fn frames(&self) -> &SpriteSheetFramesContainer {
+        &self.frames_container
+    }
+
+    /// Returns a mutable reference to inner frames container.
+    pub fn frames_mut(&mut self) -> &mut SpriteSheetFramesContainer {
+        &mut self.frames_container
     }
 
     /// Adds new frame.
