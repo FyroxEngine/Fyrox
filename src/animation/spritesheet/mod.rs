@@ -5,14 +5,10 @@
 
 use crate::{
     animation::spritesheet::signal::Signal,
-    core::{
-        algebra::Vector2, inspect::prelude::*, math::Rect, reflect::Reflect, visitor::prelude::*,
-    },
+    core::{algebra::Vector2, inspect::prelude::*, reflect::Reflect, visitor::prelude::*},
 };
-use std::{
-    collections::vec_deque::VecDeque,
-    ops::{Deref, DerefMut},
-};
+use fyrox_core::math::Rect;
+use std::collections::vec_deque::VecDeque;
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 pub mod signal;
@@ -49,34 +45,6 @@ impl Default for Status {
     }
 }
 
-/// Frame bounds, represented in normalized coordinates (range [0; 1]). Normalized coordinates represents fractions of some
-/// other coordinates, which means `[0; 0]` corresponds to top-left corner of a texture and `[1; 1]` corresponds to right-bottom
-/// corner.
-#[derive(Visit, Reflect, Inspect, Default, Clone, Debug, PartialEq)]
-pub struct FrameBounds(pub Rect<f32>);
-
-impl FrameBounds {
-    /// Creates new frame bounds using given position and size.
-    #[inline]
-    pub fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
-        Self(Rect::new(x, y, w, h))
-    }
-}
-
-impl Deref for FrameBounds {
-    type Target = Rect<f32>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for FrameBounds {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 /// Some animation event.
 #[derive(Visit, Reflect, Inspect, Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -91,44 +59,21 @@ impl Default for Event {
     }
 }
 
-/// Size of a sprite sheet frames container.
-#[derive(Visit, Reflect, Inspect, Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ContainerSize {
-    /// Amount of frames in X axis.
-    pub width_in_frames: u32,
-    /// Amount of frames in Y axis.
-    pub height_in_frames: u32,
-}
-
 /// Container for a sprite sheet animation frames.
-#[derive(Reflect, Inspect, Clone, Debug, Default, PartialEq)]
+#[derive(Reflect, Inspect, Visit, Clone, Debug, PartialEq)]
 pub struct SpriteSheetFramesContainer {
-    size: ContainerSize,
-    frames: Vec<FrameBounds>,
-}
-
-impl Visit for SpriteSheetFramesContainer {
-    // TODO: Remove backward compatibility after release of 0.29.
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        if visitor.is_reading() && self.frames.visit(name, visitor).is_ok() {
-            Ok(())
-        } else {
-            let mut guard = visitor.enter_region(name)?;
-            self.size.visit("Size", &mut guard)?;
-            self.frames.visit("Frames", &mut guard)?;
-            Ok(())
-        }
-    }
+    size: Vector2<u32>,
+    frames: Vec<Vector2<u32>>,
 }
 
 impl SpriteSheetFramesContainer {
     /// Adds a frame to the container.
-    pub fn push(&mut self, bounds: FrameBounds) {
+    pub fn push(&mut self, bounds: Vector2<u32>) {
         self.frames.push(bounds)
     }
 
     /// Removes a frame from the container.
-    pub fn remove(&mut self, index: usize) -> FrameBounds {
+    pub fn remove(&mut self, index: usize) -> Vector2<u32> {
         self.frames.remove(index)
     }
 
@@ -143,18 +88,27 @@ impl SpriteSheetFramesContainer {
     }
 
     /// Tries to get a reference to a frame with given index.
-    pub fn get(&self, index: usize) -> Option<&FrameBounds> {
+    pub fn get(&self, index: usize) -> Option<&Vector2<u32>> {
         self.frames.get(index)
     }
 
     /// Sets new container size. It does not affect frames!
-    pub fn set_size(&mut self, size: ContainerSize) {
-        self.size = size;
+    pub fn set_size(&mut self, size: Vector2<u32>) {
+        self.size = Vector2::new(size.x.max(1), size.y.max(1));
     }
 
     /// Returns size of the container.
-    pub fn size(&self) -> &ContainerSize {
-        &self.size
+    pub fn size(&self) -> Vector2<u32> {
+        self.size
+    }
+}
+
+impl Default for SpriteSheetFramesContainer {
+    fn default() -> Self {
+        Self {
+            size: Vector2::new(1, 1),
+            frames: vec![],
+        }
     }
 }
 
@@ -194,22 +148,22 @@ impl Default for SpriteSheetAnimation {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ImageParameters {
     /// Width of an image in pixels.
-    pub width: usize,
+    pub width: u32,
 
     /// Height of an image in pixels.
-    pub height: usize,
+    pub height: u32,
 
     /// Width of every frame in an image.
-    pub frame_width: usize,
+    pub frame_width: u32,
 
     /// Height of every frame in an image.
-    pub frame_height: usize,
+    pub frame_height: u32,
 
     /// Index of a first frame at which a produced animation should start.
-    pub first_frame: usize,
+    pub first_frame: u32,
 
     /// Index of a last frame at which a produced animation should end.
-    pub last_frame: usize,
+    pub last_frame: u32,
 
     /// Defines how to interpret the image - is it pack in rows of frames or columns of frames.
     pub column_major: bool,
@@ -294,9 +248,6 @@ impl SpriteSheetAnimation {
             column_major,
         } = params;
 
-        let normalized_frame_width = frame_width as f32 / width as f32;
-        let normalized_frame_height = frame_height as f32 / height as f32;
-
         let width_in_frames = width / frame_width;
         let height_in_frames = height / frame_height;
 
@@ -313,35 +264,26 @@ impl SpriteSheetAnimation {
                     n / height_in_frames
                 };
 
-                FrameBounds(Rect {
-                    position: Vector2::new(
-                        x as f32 * normalized_frame_width,
-                        y as f32 * normalized_frame_height,
-                    ),
-                    size: Vector2::new(normalized_frame_width, normalized_frame_height),
-                })
+                Vector2::new(x, y)
             })
             .collect::<Vec<_>>();
 
         Self {
             frames_container: SpriteSheetFramesContainer {
                 frames,
-                size: ContainerSize {
-                    width_in_frames: width_in_frames as u32,
-                    height_in_frames: height_in_frames as u32,
-                },
+                size: Vector2::new(width_in_frames, height_in_frames),
             },
             ..Default::default()
         }
     }
 
     /// Adds new frame.
-    pub fn add_frame(&mut self, frame: FrameBounds) {
+    pub fn add_frame(&mut self, frame: Vector2<u32>) {
         self.frames_container.push(frame);
     }
 
     /// Remove a frame at given index.
-    pub fn remove_frame(&mut self, index: usize) -> Option<FrameBounds> {
+    pub fn remove_frame(&mut self, index: usize) -> Option<Vector2<u32>> {
         if index < self.frames_container.len() {
             self.current_frame = self.current_frame.min(self.frames_container.len() as f32);
             Some(self.frames_container.remove(index))
@@ -403,9 +345,26 @@ impl SpriteSheetAnimation {
         self.current_frame as usize
     }
 
+    /// Tries to fetch UV rectangle at given frame. Returns `None` if animation is empty.
+    pub fn frame_uv_rect(&self, i: usize) -> Option<Rect<f32>> {
+        assert_ne!(self.frames_container.size.x, 0);
+        assert_ne!(self.frames_container.size.y, 0);
+
+        self.frames_container.get(i).map(|pos| Rect {
+            position: Vector2::new(
+                pos.x as f32 / self.frames_container.size.x as f32,
+                pos.y as f32 / self.frames_container.size.y as f32,
+            ),
+            size: Vector2::new(
+                1.0 / self.frames_container.size.x as f32,
+                1.0 / self.frames_container.size.y as f32,
+            ),
+        })
+    }
+
     /// Tries to fetch UV rectangle at current frame. Returns `None` if animation is empty.
-    pub fn current_frame_uv_rect(&self) -> Option<&FrameBounds> {
-        self.frames_container.get(self.current_frame())
+    pub fn current_frame_uv_rect(&self) -> Option<Rect<f32>> {
+        self.frame_uv_rect(self.current_frame())
     }
 
     /// Sets current frame of the animation. Input value will be clamped to [0; frame_count] range.
@@ -498,10 +457,11 @@ impl SpriteSheetAnimation {
 
 #[cfg(test)]
 mod test {
-    use crate::animation::spritesheet::signal::Signal;
     use crate::animation::spritesheet::{
-        Event, FrameBounds, ImageParameters, SpriteSheetAnimation, Status,
+        signal::Signal, Event, ImageParameters, SpriteSheetAnimation, Status,
     };
+    use fyrox_core::algebra::Vector2;
+    use fyrox_core::math::Rect;
 
     #[test]
     fn test_sprite_sheet_one_row() {
@@ -515,20 +475,20 @@ mod test {
             column_major: false,
         });
         assert_eq!(
-            animation.frames_container.frames[0],
-            FrameBounds::new(0.0, 0.0, 0.25, 0.25)
+            animation.frame_uv_rect(0),
+            Some(Rect::new(0.0, 0.0, 0.25, 0.25))
         );
         assert_eq!(
-            animation.frames_container.frames[1],
-            FrameBounds::new(0.25, 0.0, 0.25, 0.25)
+            animation.frame_uv_rect(1),
+            Some(Rect::new(0.25, 0.0, 0.25, 0.25))
         );
         assert_eq!(
-            animation.frames_container.frames[2],
-            FrameBounds::new(0.5, 0.0, 0.25, 0.25)
+            animation.frame_uv_rect(2),
+            Some(Rect::new(0.5, 0.0, 0.25, 0.25))
         );
         assert_eq!(
-            animation.frames_container.frames[3],
-            FrameBounds::new(0.75, 0.0, 0.25, 0.25)
+            animation.frame_uv_rect(3),
+            Some(Rect::new(0.75, 0.0, 0.25, 0.25))
         );
     }
 
@@ -544,20 +504,20 @@ mod test {
             column_major: true,
         });
         assert_eq!(
-            animation.frames_container.frames[0],
-            FrameBounds::new(0.0, 0.0, 0.25, 0.25)
+            animation.frame_uv_rect(0),
+            Some(Rect::new(0.0, 0.0, 0.25, 0.25))
         );
         assert_eq!(
-            animation.frames_container.frames[1],
-            FrameBounds::new(0.0, 0.25, 0.25, 0.25)
+            animation.frame_uv_rect(1),
+            Some(Rect::new(0.0, 0.25, 0.25, 0.25))
         );
         assert_eq!(
-            animation.frames_container.frames[2],
-            FrameBounds::new(0.0, 0.5, 0.25, 0.25)
+            animation.frame_uv_rect(2),
+            Some(Rect::new(0.0, 0.5, 0.25, 0.25))
         );
         assert_eq!(
-            animation.frames_container.frames[3],
-            FrameBounds::new(0.0, 0.75, 0.25, 0.25)
+            animation.frame_uv_rect(3),
+            Some(Rect::new(0.0, 0.75, 0.25, 0.25))
         );
     }
 
@@ -573,20 +533,20 @@ mod test {
             column_major: false,
         });
         assert_eq!(
-            animation.frames_container.frames[0],
-            FrameBounds::new(0.5, 0.0, 0.25, 0.25)
+            animation.frame_uv_rect(0),
+            Some(Rect::new(0.5, 0.0, 0.25, 0.25))
         );
         assert_eq!(
-            animation.frames_container.frames[1],
-            FrameBounds::new(0.75, 0.0, 0.25, 0.25)
+            animation.frame_uv_rect(1),
+            Some(Rect::new(0.75, 0.0, 0.25, 0.25))
         );
         assert_eq!(
-            animation.frames_container.frames[2],
-            FrameBounds::new(0.0, 0.25, 0.25, 0.25)
+            animation.frame_uv_rect(2),
+            Some(Rect::new(0.0, 0.25, 0.25, 0.25))
         );
         assert_eq!(
-            animation.frames_container.frames[3],
-            FrameBounds::new(0.25, 0.25, 0.25, 0.25)
+            animation.frame_uv_rect(3),
+            Some(Rect::new(0.25, 0.25, 0.25, 0.25))
         );
     }
 
@@ -602,20 +562,20 @@ mod test {
             column_major: true,
         });
         assert_eq!(
-            animation.frames_container.frames[0],
-            FrameBounds::new(0.0, 0.5, 0.25, 0.25)
+            animation.frame_uv_rect(0),
+            Some(Rect::new(0.0, 0.5, 0.25, 0.25))
         );
         assert_eq!(
-            animation.frames_container.frames[1],
-            FrameBounds::new(0.0, 0.75, 0.25, 0.25)
+            animation.frame_uv_rect(1),
+            Some(Rect::new(0.0, 0.75, 0.25, 0.25))
         );
         assert_eq!(
-            animation.frames_container.frames[2],
-            FrameBounds::new(0.25, 0.0, 0.25, 0.25)
+            animation.frame_uv_rect(2),
+            Some(Rect::new(0.25, 0.0, 0.25, 0.25))
         );
         assert_eq!(
-            animation.frames_container.frames[3],
-            FrameBounds::new(0.25, 0.25, 0.25, 0.25)
+            animation.frame_uv_rect(3),
+            Some(Rect::new(0.25, 0.25, 0.25, 0.25))
         );
     }
 
@@ -641,13 +601,13 @@ mod test {
         assert_eq!(animation.status, Status::Playing);
 
         let expected_output = [
-            FrameBounds::new(0.0, 0.5, 0.25, 0.25),
-            FrameBounds::new(0.0, 0.75, 0.25, 0.25),
-            FrameBounds::new(0.25, 0.0, 0.25, 0.25),
-            FrameBounds::new(0.25, 0.25, 0.25, 0.25),
+            Rect::new(0.0, 0.5, 0.25, 0.25),
+            Rect::new(0.0, 0.75, 0.25, 0.25),
+            Rect::new(0.25, 0.0, 0.25, 0.25),
+            Rect::new(0.25, 0.25, 0.25, 0.25),
         ];
 
-        for expected_frame in &expected_output {
+        for &expected_frame in &expected_output {
             assert_eq!(animation.current_frame_uv_rect(), Some(expected_frame));
             animation.update(1.0);
         }
@@ -658,7 +618,7 @@ mod test {
 
         animation.play();
 
-        for expected_frame in expected_output.iter().rev() {
+        for &expected_frame in expected_output.iter().rev() {
             assert_eq!(animation.current_frame_uv_rect(), Some(expected_frame));
             animation.update(1.0);
         }
@@ -668,9 +628,9 @@ mod test {
     fn test_signals() {
         let mut animation = SpriteSheetAnimation::new();
 
-        animation.add_frame(FrameBounds::default());
-        animation.add_frame(FrameBounds::default());
-        animation.add_frame(FrameBounds::default());
+        animation.add_frame(Vector2::new(0, 0));
+        animation.add_frame(Vector2::new(1, 0));
+        animation.add_frame(Vector2::new(2, 0));
 
         animation.set_speed(1.0);
         animation.set_looping(false);

@@ -1,5 +1,6 @@
+use crate::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
 use fyrox::{
-    animation::spritesheet::{ContainerSize, SpriteSheetFramesContainer},
+    animation::spritesheet::SpriteSheetFramesContainer,
     core::{algebra::Vector2, color::Color, pool::Handle},
     gui::{
         border::BorderBuilder,
@@ -103,6 +104,12 @@ impl Control for SpriteSheetFramesEditorWindow {
                     self.handle,
                     MessageDirection::ToWidget,
                 ));
+
+                ui.send_message(SpriteSheetFramesPropertyEditorMessage::value(
+                    self.editor,
+                    MessageDirection::FromWidget,
+                    self.container.clone(),
+                ));
             } else if message.destination() == self.cancel {
                 ui.send_message(WindowMessage::close(
                     self.handle,
@@ -111,23 +118,11 @@ impl Control for SpriteSheetFramesEditorWindow {
             }
         } else if let Some(NumericUpDownMessage::Value(value)) = message.data() {
             if message.destination() == self.width {
-                let height = self.container.size().height_in_frames;
-                self.resize(
-                    ContainerSize {
-                        width_in_frames: *value,
-                        height_in_frames: height,
-                    },
-                    ui,
-                );
+                let height = self.container.size().y;
+                self.resize(Vector2::new(*value, height), ui);
             } else if message.destination() == self.height {
-                let width = self.container.size().width_in_frames;
-                self.resize(
-                    ContainerSize {
-                        width_in_frames: width,
-                        height_in_frames: *value,
-                    },
-                    ui,
-                );
+                let width = self.container.size().x;
+                self.resize(Vector2::new(width, *value), ui);
             }
         }
     }
@@ -178,16 +173,12 @@ fn make_grid(ctx: &mut BuildContext, width: u32, height: u32) -> Handle<UiNode> 
 }
 
 impl SpriteSheetFramesEditorWindow {
-    fn resize(&mut self, size: ContainerSize, ui: &mut UserInterface) {
+    fn resize(&mut self, size: Vector2<u32>, ui: &mut UserInterface) {
         self.container.set_size(size);
 
         ui.send_message(WidgetMessage::remove(self.grid, MessageDirection::ToWidget));
 
-        self.grid = make_grid(
-            &mut ui.build_ctx(),
-            size.width_in_frames,
-            size.height_in_frames,
-        );
+        self.grid = make_grid(&mut ui.build_ctx(), size.x, size.y);
 
         ui.send_message(WidgetMessage::link(
             self.grid,
@@ -234,7 +225,8 @@ impl SpriteSheetFramesEditorWindow {
                                             width = NumericUpDownBuilder::new(
                                                 WidgetBuilder::new().on_column(1).on_row(0),
                                             )
-                                            .with_value(container.size().width_in_frames)
+                                            .with_min_value(0)
+                                            .with_value(container.size().x)
                                             .build(ctx);
                                             width
                                         })
@@ -254,7 +246,8 @@ impl SpriteSheetFramesEditorWindow {
                                             height = NumericUpDownBuilder::new(
                                                 WidgetBuilder::new().on_column(3).on_row(0),
                                             )
-                                            .with_value(container.size().height_in_frames)
+                                            .with_min_value(0)
+                                            .with_value(container.size().y)
                                             .build(ctx);
                                             height
                                         }),
@@ -277,8 +270,8 @@ impl SpriteSheetFramesEditorWindow {
                                         .with_child({
                                             grid = make_grid(
                                                 ctx,
-                                                container.size().width_in_frames,
-                                                container.size().height_in_frames,
+                                                container.size().x,
+                                                container.size().y,
                                             );
                                             grid
                                         }),

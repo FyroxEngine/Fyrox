@@ -8,7 +8,7 @@ use crate::{
     Message,
 };
 use fyrox::{
-    animation::{self, machine::MachineInstantiationError, spritesheet::FrameBounds},
+    animation::{self, machine::MachineInstantiationError},
     core::{
         futures::executor::block_on,
         parking_lot::Mutex,
@@ -135,9 +135,6 @@ pub fn make_property_editors_container(
 
     container.register_inheritable_inspectable::<animation::spritesheet::SpriteSheetAnimation>();
     container.register_inheritable_vec_collection::<animation::spritesheet::SpriteSheetAnimation>();
-
-    container.register_inheritable_inspectable::<FrameBounds>();
-    container.register_inheritable_vec_collection::<FrameBounds>();
 
     container.register_inheritable_inspectable::<animation::spritesheet::signal::Signal>();
     container.register_inheritable_vec_collection::<animation::spritesheet::signal::Signal>();

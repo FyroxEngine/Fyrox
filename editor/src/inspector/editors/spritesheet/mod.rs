@@ -95,6 +95,7 @@ impl SpriteSheetFramesPropertyEditor {
                 .with_child({
                     edit_button = ButtonBuilder::new(
                         WidgetBuilder::new()
+                            .with_width(60.0)
                             .with_margin(Thickness::uniform(1.0))
                             .on_column(1),
                     )
