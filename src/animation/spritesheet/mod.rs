@@ -310,6 +310,14 @@ impl SpriteSheetAnimation {
         }
     }
 
+    /// Creates new animation with given frames container.
+    pub fn with_container(container: SpriteSheetFramesContainer) -> Self {
+        Self {
+            frames_container: container,
+            ..Default::default()
+        }
+    }
+
     /// Sets new texture for the animation.
     pub fn set_texture(&mut self, texture: Option<Texture>) -> Option<Texture> {
         self.frames_container.texture = texture.clone();
