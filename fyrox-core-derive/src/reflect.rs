@@ -126,7 +126,10 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
                 #prop_values => #set_fields,
             )*
             _ => {
-                self.set(value)
+                match self.field_mut(name) {
+                    Some(f) => f.set(value),
+                    None => Err(value),
+                }
             },
         }
     })
