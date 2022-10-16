@@ -7,6 +7,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::math::Rect;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -28,27 +29,10 @@ pub struct Image {
     pub widget: Widget,
     pub texture: Option<SharedTexture>,
     pub flip: bool,
+    pub uv_rect: Rect<f32>,
 }
 
 crate::define_widget_deref!(Image);
-
-impl Image {
-    pub fn new(widget: Widget) -> Self {
-        Self {
-            widget,
-            texture: None,
-            flip: false,
-        }
-    }
-
-    pub fn set_texture(&mut self, texture: SharedTexture) {
-        self.texture = Some(texture);
-    }
-
-    pub fn texture(&self) -> Option<SharedTexture> {
-        self.texture.clone()
-    }
-}
 
 impl Control for Image {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -63,13 +47,36 @@ impl Control for Image {
         let bounds = self.widget.bounding_rect();
         let tex_coords = if self.flip {
             Some([
-                Vector2::new(0.0, 0.0),
-                Vector2::new(1.0, 0.0),
-                Vector2::new(1.0, -1.0),
-                Vector2::new(0.0, -1.0),
+                Vector2::new(self.uv_rect.position.x, self.uv_rect.position.y),
+                Vector2::new(
+                    self.uv_rect.position.x + self.uv_rect.size.x,
+                    self.uv_rect.position.y,
+                ),
+                Vector2::new(
+                    self.uv_rect.position.x + self.uv_rect.size.x,
+                    self.uv_rect.position.y - self.uv_rect.size.y,
+                ),
+                Vector2::new(
+                    self.uv_rect.position.x,
+                    self.uv_rect.position.y - self.uv_rect.size.y,
+                ),
             ])
         } else {
-            None
+            Some([
+                Vector2::new(self.uv_rect.position.x, self.uv_rect.position.y),
+                Vector2::new(
+                    self.uv_rect.position.x + self.uv_rect.size.x,
+                    self.uv_rect.position.y,
+                ),
+                Vector2::new(
+                    self.uv_rect.position.x + self.uv_rect.size.x,
+                    self.uv_rect.position.y + self.uv_rect.size.y,
+                ),
+                Vector2::new(
+                    self.uv_rect.position.x,
+                    self.uv_rect.position.y + self.uv_rect.size.y,
+                ),
+            ])
         };
         drawing_context.push_rect_filled(&bounds, tex_coords.as_ref());
         let texture = self
@@ -101,6 +108,7 @@ pub struct ImageBuilder {
     widget_builder: WidgetBuilder,
     texture: Option<SharedTexture>,
     flip: bool,
+    uv_rect: Rect<f32>,
 }
 
 impl ImageBuilder {
@@ -109,6 +117,7 @@ impl ImageBuilder {
             widget_builder,
             texture: None,
             flip: false,
+            uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
         }
     }
 
@@ -127,6 +136,11 @@ impl ImageBuilder {
         self
     }
 
+    pub fn with_uv_rect(mut self, uv_rect: Rect<f32>) -> Self {
+        self.uv_rect = uv_rect;
+        self
+    }
+
     pub fn build_node(mut self) -> UiNode {
         if self.widget_builder.background.is_none() {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE))
@@ -136,6 +150,7 @@ impl ImageBuilder {
             widget: self.widget_builder.build(),
             texture: self.texture,
             flip: self.flip,
+            uv_rect: self.uv_rect,
         };
         UiNode::new(image)
     }

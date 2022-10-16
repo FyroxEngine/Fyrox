@@ -682,7 +682,8 @@ impl MaterialEditor {
                         .node(self.texture_context_menu.target)
                         .cast::<Image>()
                         .unwrap()
-                        .texture()
+                        .texture
+                        .clone()
                         .and_then(|t| {
                             t.0.downcast::<Mutex<TextureState>>()
                                 .map(|t| t.lock().path().to_path_buf())
