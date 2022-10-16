@@ -74,6 +74,12 @@ impl Control for SpriteSheetFramesPropertyEditor {
                     true,
                 ));
             }
+        } else if let Some(SpriteSheetFramesPropertyEditorMessage::Value(value)) = message.data() {
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::ToWidget
+            {
+                self.container = value.clone();
+            }
         }
     }
 }
