@@ -14,6 +14,7 @@ use fyrox::{
         numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
+        utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{Window, WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
@@ -248,11 +249,16 @@ impl SpriteSheetFramesEditorWindow {
                                         .with_child(
                                             TextBuilder::new(
                                                 WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(2.0))
                                                     .on_column(0)
                                                     .on_row(0)
                                                     .with_vertical_alignment(
                                                         VerticalAlignment::Center,
-                                                    ),
+                                                    )
+                                                    .with_tooltip(make_simple_tooltip(
+                                                        ctx,
+                                                        "Count of columns in the animation.",
+                                                    )),
                                             )
                                             .with_text("Width")
                                             .build(ctx),
@@ -269,11 +275,16 @@ impl SpriteSheetFramesEditorWindow {
                                         .with_child(
                                             TextBuilder::new(
                                                 WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(2.0))
                                                     .on_column(2)
                                                     .on_row(0)
                                                     .with_vertical_alignment(
                                                         VerticalAlignment::Center,
-                                                    ),
+                                                    )
+                                                    .with_tooltip(make_simple_tooltip(
+                                                        ctx,
+                                                        "Count of rows in the animation.",
+                                                    )),
                                             )
                                             .with_text("Height")
                                             .build(ctx),
@@ -319,6 +330,7 @@ impl SpriteSheetFramesEditorWindow {
                             .with_child(
                                 StackPanelBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(2.0))
                                         .on_column(0)
                                         .on_row(2)
                                         .with_horizontal_alignment(HorizontalAlignment::Right)
