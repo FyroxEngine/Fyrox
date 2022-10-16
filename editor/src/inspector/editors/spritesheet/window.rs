@@ -227,7 +227,7 @@ impl SpriteSheetFramesEditorWindow {
 
         ui.send_message(WidgetMessage::remove(self.grid, MessageDirection::ToWidget));
 
-        let (grid, cells) = make_grid(&mut ui.build_ctx(), &self.animation.frames());
+        let (grid, cells) = make_grid(&mut ui.build_ctx(), self.animation.frames());
 
         self.grid = grid;
         self.cells = cells;
