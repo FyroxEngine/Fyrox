@@ -17,11 +17,13 @@ use std::{
 pub enum ImageMessage {
     Texture(Option<SharedTexture>),
     Flip(bool),
+    UvRect(Rect<f32>),
 }
 
 impl ImageMessage {
     define_constructor!(ImageMessage:Texture => fn texture(Option<SharedTexture>), layout: false);
     define_constructor!(ImageMessage:Flip => fn flip(bool), layout: false);
+    define_constructor!(ImageMessage:UvRect => fn uv_rect(Rect<f32>), layout: false);
 }
 
 #[derive(Clone)]
@@ -97,6 +99,9 @@ impl Control for Image {
                     }
                     &ImageMessage::Flip(flip) => {
                         self.flip = flip;
+                    }
+                    ImageMessage::UvRect(uv_rect) => {
+                        self.uv_rect = *uv_rect;
                     }
                 }
             }
