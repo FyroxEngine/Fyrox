@@ -124,6 +124,8 @@ pub struct Graph {
     pub physics2d: dim2::physics::PhysicsWorld,
 
     /// Backing sound context. It is responsible for sound rendering.
+    #[inspect(skip)]
+    #[reflect(hidden)]
     pub sound_context: SoundContext,
 
     /// Performance statistics of a last [`Graph::update`] call.
@@ -133,11 +135,14 @@ pub struct Graph {
 
     /// Allows you to "subscribe" for graph events.
     #[reflect(hidden)]
+    #[inspect(skip)]
     pub event_broadcaster: GraphEventBroadcaster,
 
     #[reflect(hidden)]
+    #[inspect(skip)]
     pub(crate) script_message_sender: Sender<ScriptMessage>,
     #[reflect(hidden)]
+    #[inspect(skip)]
     pub(crate) script_message_receiver: Receiver<ScriptMessage>,
 }
 

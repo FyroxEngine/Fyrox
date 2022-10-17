@@ -61,7 +61,9 @@ use crate::{
             graph::AddModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
             ChangeSelectionCommand, CommandGroup, PasteCommand, SceneCommand, SceneContext,
         },
-        is_scene_needs_to_be_saved, EditorScene, Selection,
+        is_scene_needs_to_be_saved,
+        settings::SceneSettingsWindow,
+        EditorScene, Selection,
     },
     scene_viewer::SceneViewer,
     settings::{camera::SceneCameraSettings, Settings},
@@ -473,6 +475,7 @@ pub struct Editor {
     mode: Mode,
     build_window: BuildWindow,
     build_profile: BuildProfile,
+    scene_settings: SceneSettingsWindow,
 }
 
 impl Editor {
@@ -715,6 +718,8 @@ impl Editor {
 
         let build_window = BuildWindow::new(ctx);
 
+        let scene_settings = SceneSettingsWindow::new(ctx, message_sender.clone());
+
         let absm_editor = AbsmEditor::new(&mut engine, message_sender.clone());
 
         let material_editor = MaterialEditor::new(&mut engine);
@@ -756,6 +761,7 @@ impl Editor {
             absm_editor,
             build_window,
             build_profile: BuildProfile::Debug,
+            scene_settings,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move));
@@ -1083,6 +1089,7 @@ impl Editor {
                     curve_editor: &self.curve_editor,
                     absm_editor: &self.absm_editor,
                     command_stack_panel: self.command_stack_viewer.window,
+                    scene_settings: &self.scene_settings,
                 },
                 settings: &mut self.settings,
             },
@@ -1114,6 +1121,9 @@ impl Editor {
         if let Some(editor_scene) = self.scene.as_mut() {
             self.audio_panel
                 .handle_ui_message(message, editor_scene, &self.message_sender, engine);
+
+            self.scene_settings
+                .handle_ui_message(message, &self.message_sender);
 
             self.navmesh_panel.handle_message(
                 message,
@@ -1318,6 +1328,7 @@ impl Editor {
             .sync_to_model(self.scene.as_ref(), &mut engine.user_interface);
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.scene_settings.sync_to_model(editor_scene, engine);
             self.scene_viewer.sync_to_model(editor_scene, engine);
             self.inspector.sync_to_model(editor_scene, engine);
             self.navmesh_panel.sync_to_model(editor_scene, engine);

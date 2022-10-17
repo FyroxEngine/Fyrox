@@ -3,7 +3,7 @@ use crate::{
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     scene::{is_scene_needs_to_be_saved, EditorScene},
     settings::{recent::RecentFiles, Settings, SettingsWindow},
-    GameEngine, Message, Mode, SaveSceneConfirmationDialogAction,
+    GameEngine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
 use fyrox::{
     core::pool::Handle,
@@ -35,6 +35,7 @@ pub struct FileMenu {
     pub settings: SettingsWindow,
     pub recent_files_container: Handle<UiNode>,
     pub recent_files: Vec<Handle<UiNode>>,
+    pub open_scene_settings: Handle<UiNode>,
 }
 
 fn make_recent_files_items(
@@ -56,6 +57,7 @@ impl FileMenu {
         let close_scene;
         let load;
         let open_settings;
+        let open_scene_settings;
         let configure;
         let exit;
         let recent_files_container;
@@ -98,8 +100,12 @@ impl FileMenu {
                     close_scene
                 },
                 {
-                    open_settings = create_menu_item("Settings...", vec![], ctx);
+                    open_settings = create_menu_item("Editor Settings...", vec![], ctx);
                     open_settings
+                },
+                {
+                    open_scene_settings = create_menu_item("Scene Settings...", vec![], ctx);
+                    open_scene_settings
                 },
                 {
                     configure = create_menu_item("Configure...", vec![], ctx);
@@ -144,6 +150,7 @@ impl FileMenu {
             settings: SettingsWindow::new(engine),
             recent_files_container,
             recent_files,
+            open_scene_settings,
         }
     }
 
@@ -189,7 +196,7 @@ impl FileMenu {
         editor_scene: &Option<&mut EditorScene>,
         engine: &mut GameEngine,
         settings: &mut Settings,
-        configurator_window: Handle<UiNode>,
+        panels: &Panels,
     ) {
         self.settings
             .handle_message(message, engine, settings, sender);
@@ -273,7 +280,7 @@ impl FileMenu {
                     engine
                         .user_interface
                         .send_message(WindowMessage::open_modal(
-                            configurator_window,
+                            panels.configurator_window,
                             MessageDirection::ToWidget,
                             true,
                         ));
@@ -288,6 +295,8 @@ impl FileMenu {
             } else if message.destination() == self.open_settings {
                 self.settings
                     .open(&mut engine.user_interface, settings, sender);
+            } else if message.destination() == self.open_scene_settings {
+                panels.scene_settings.open(&engine.user_interface);
             } else if let Some(recent_file) = self
                 .recent_files
                 .iter()

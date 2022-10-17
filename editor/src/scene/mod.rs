@@ -39,6 +39,7 @@ use fyrox::{
 use std::{collections::HashMap, fmt::Write, path::PathBuf};
 
 pub mod clipboard;
+pub mod settings;
 
 #[macro_use]
 pub mod commands;

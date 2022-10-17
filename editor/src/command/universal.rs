@@ -100,9 +100,7 @@ macro_rules! define_universal_commands {
             }
 
             fn swap(&mut $self, $ctx_ident: &mut $ctx) {
-                let entity = $entity_getter;
-
-                match $crate::command::universal::set_entity_field(entity, &$self.path, $self.value.take().unwrap()) {
+                match $crate::command::universal::set_entity_field($entity_getter, &$self.path, $self.value.take().unwrap()) {
                     Ok(old_value) => {
                         $self.value = Some(old_value);
                     }
@@ -155,8 +153,7 @@ macro_rules! define_universal_commands {
             }
 
             fn execute(&mut $self, $ctx_ident: &mut $ctx) {
-                let entity = $entity_getter;
-                try_modify_property(entity, &$self.path, |field| {
+                try_modify_property($entity_getter, &$self.path, |field| {
                     if let Some(list) = field.as_list_mut() {
                         if let Err(item) = list.reflect_push($self.item.take().unwrap()) {
                             $self.item = Some(item);
@@ -172,8 +169,7 @@ macro_rules! define_universal_commands {
             }
 
             fn revert(&mut $self, $ctx_ident: &mut $ctx) {
-                let entity = $entity_getter;
-                try_modify_property(entity, &$self.path, |field| {
+                try_modify_property($entity_getter, &$self.path, |field| {
                     if let Some(list) = field.as_list_mut() {
                         if let Some(item) = list.reflect_pop() {
                             $self.item = Some(item);
@@ -213,8 +209,7 @@ macro_rules! define_universal_commands {
             }
 
             fn execute(&mut $self, $ctx_ident: &mut $ctx) {
-                let entity = $entity_getter;
-                try_modify_property(entity, &$self.path, |field| {
+                try_modify_property($entity_getter, &$self.path, |field| {
                     if let Some(list) = field.as_list_mut() {
                         $self.value = list.reflect_remove($self.index);
                     } else {
@@ -224,8 +219,7 @@ macro_rules! define_universal_commands {
             }
 
             fn revert(&mut $self, $ctx_ident: &mut $ctx) {
-                let entity = $entity_getter;
-                try_modify_property(entity, &$self.path, |field| {
+                try_modify_property($entity_getter, &$self.path, |field| {
                     if let Some(list) = field.as_list_mut() {
                         if let Err(item) =
                             list.reflect_insert($self.index, $self.value.take().unwrap())

@@ -6,7 +6,7 @@ use crate::{
     scene::EditorScene,
     send_sync_message,
     settings::Settings,
-    AbsmEditor, CurveEditorWindow, GameEngine, Message, Mode,
+    AbsmEditor, CurveEditorWindow, GameEngine, Message, Mode, SceneSettingsWindow,
 };
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
@@ -51,6 +51,7 @@ pub struct Panels<'b> {
     pub path_fixer: Handle<UiNode>,
     pub curve_editor: &'b CurveEditorWindow,
     pub absm_editor: &'b AbsmEditor,
+    pub scene_settings: &'b SceneSettingsWindow,
 }
 
 pub struct MenuContext<'a, 'b> {
@@ -145,6 +146,7 @@ impl Menu {
             self.file_menu.save_as,
             self.create_entity_menu.menu,
             self.edit_menu.menu,
+            self.file_menu.open_scene_settings,
         ]
         .iter()
         {
@@ -181,7 +183,7 @@ impl Menu {
             &ctx.editor_scene,
             ctx.engine,
             ctx.settings,
-            ctx.panels.configurator_window,
+            &ctx.panels,
         );
         self.view_menu
             .handle_ui_message(message, &ctx.engine.user_interface, &ctx.panels);
