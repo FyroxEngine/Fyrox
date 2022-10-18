@@ -983,7 +983,9 @@ impl PartialEq for Surface {
 impl Default for Surface {
     fn default() -> Self {
         Self {
-            data: None,
+            data: Some(Arc::new(Mutex::new(SurfaceData::make_cube(
+                Matrix4::identity(),
+            )))),
             material: Arc::new(Mutex::new(Material::standard())),
             vertex_weights: Default::default(),
             bones: Default::default(),
