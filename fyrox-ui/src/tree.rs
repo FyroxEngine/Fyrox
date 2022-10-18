@@ -178,11 +178,11 @@ impl Control for Tree {
                     }
                     WidgetMessage::DoubleClick { button } => {
                         if *button == MouseButton::Left {
-                            ui.send_message(TreeMessage::expand(
-                                self.handle(),
+                            // Mimic click on expander button to have uniform behavior.
+                            ui.send_message(CheckBoxMessage::checked(
+                                self.expander,
                                 MessageDirection::ToWidget,
-                                !self.is_expanded,
-                                TreeExpansionStrategy::Direct,
+                                Some(!self.is_expanded),
                             ));
 
                             message.set_handled(true);
