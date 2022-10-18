@@ -1,37 +1,54 @@
-use crate::Message;
-use fyrox::gui::inspector::editors::PropertyEditorTranslationContext;
+use crate::{Message, MessageDirection};
 use fyrox::{
     asset::core::pool::Handle,
     core::parking_lot::Mutex,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
+        define_constructor,
         grid::{Column, GridBuilder, Row},
         inspector::{
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-                PropertyEditorMessageContext,
+                PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
             InspectorError, PropertyChanged,
         },
         message::UiMessage,
-        text::TextBuilder,
+        text::{TextBuilder, TextMessage},
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
     material::Material,
 };
 use std::{
-    any::Any,
-    any::TypeId,
+    any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     sync::{mpsc::Sender, Arc},
 };
 
+#[derive(Debug, Clone)]
+pub enum MaterialFieldMessage {
+    Material(Arc<Mutex<Material>>),
+}
+
+impl PartialEq for MaterialFieldMessage {
+    fn eq(&self, other: &Self) -> bool {
+        let (MaterialFieldMessage::Material(lhs), MaterialFieldMessage::Material(rhs)) =
+            (self, other);
+        Arc::ptr_eq(lhs, rhs)
+    }
+}
+
+impl MaterialFieldMessage {
+    define_constructor!(MaterialFieldMessage:Material => fn material(Arc<Mutex<Material>>), layout: false);
+}
+
 #[derive(Clone)]
 pub struct MaterialFieldEditor {
     widget: Widget,
     sender: Sender<Message>,
+    text: Handle<UiNode>,
     edit: Handle<UiNode>,
     material: Arc<Mutex<Material>>,
 }
@@ -75,11 +92,28 @@ impl Control for MaterialFieldEditor {
                     .unwrap();
             }
         }
+
+        if let Some(MaterialFieldMessage::Material(material)) = message.data() {
+            if message.destination() == self.handle {
+                self.material = material.clone();
+
+                ui.send_message(TextMessage::text(
+                    self.text,
+                    MessageDirection::ToWidget,
+                    make_name(&self.material),
+                ));
+            }
+        }
     }
 }
 
 pub struct MaterialFieldEditorBuilder {
     widget_builder: WidgetBuilder,
+}
+
+fn make_name(material: &Arc<Mutex<Material>>) -> String {
+    let name = material.lock().shader().data_ref().definition.name.clone();
+    format!("{} - {} uses", name, Arc::strong_count(material))
 }
 
 impl MaterialFieldEditorBuilder {
@@ -93,9 +127,8 @@ impl MaterialFieldEditorBuilder {
         sender: Sender<Message>,
         material: Arc<Mutex<Material>>,
     ) -> Handle<UiNode> {
-        let name = material.lock().shader().data_ref().definition.name.clone();
-
         let edit;
+        let text;
         let editor = MaterialFieldEditor {
             widget: self
                 .widget_builder
@@ -103,14 +136,15 @@ impl MaterialFieldEditorBuilder {
                     GridBuilder::new(
                         WidgetBuilder::new()
                             .with_height(26.0)
-                            .with_child(
-                                TextBuilder::new(
+                            .with_child({
+                                text = TextBuilder::new(
                                     WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_text(name)
+                                .with_text(make_name(&material))
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .build(ctx),
-                            )
+                                .build(ctx);
+                                text
+                            })
                             .with_child({
                                 edit = ButtonBuilder::new(
                                     WidgetBuilder::new().with_width(32.0).on_column(1),
@@ -129,6 +163,7 @@ impl MaterialFieldEditorBuilder {
             edit,
             sender,
             material,
+            text,
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -161,9 +196,14 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
 
     fn create_message(
         &self,
-        _ctx: PropertyEditorMessageContext,
+        ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        Ok(None)
+        let value = ctx.property_info.cast_value::<Arc<Mutex<Material>>>()?;
+        Ok(Some(MaterialFieldMessage::material(
+            ctx.instance,
+            MessageDirection::ToWidget,
+            value.clone(),
+        )))
     }
 
     fn translate_message(&self, _ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
