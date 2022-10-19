@@ -7,6 +7,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::material::SharedMaterial;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -41,7 +42,7 @@ use std::sync::Arc;
 
 struct Game {
     debug_text: Handle<UiNode>,
-    material: Arc<Mutex<Material>>,
+    material: SharedMaterial,
     time: f32,
 }
 
@@ -68,7 +69,7 @@ impl Plugin for Game {
     }
 }
 
-fn create_custom_material(resource_manager: ResourceManager) -> Arc<Mutex<Material>> {
+fn create_custom_material(resource_manager: ResourceManager) -> SharedMaterial {
     let shader =
         block_on(resource_manager.request_shader("examples/data/shaders/custom.shader")).unwrap();
 
@@ -84,7 +85,7 @@ fn create_custom_material(resource_manager: ResourceManager) -> Arc<Mutex<Materi
         )
         .unwrap();
 
-    Arc::new(Mutex::new(material))
+    SharedMaterial::new(material)
 }
 
 struct GameConstructor;

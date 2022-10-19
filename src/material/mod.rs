@@ -3,7 +3,8 @@
 //! See [Material struct docs](self::Material) for more info.
 
 #![warn(missing_docs)]
-
+use crate::core::inspect::prelude::*;
+use crate::core::reflect::Reflect;
 use crate::{
     asset::ResourceState,
     core::{
@@ -18,7 +19,9 @@ use crate::{
     resource::texture::Texture,
 };
 use fxhash::FxHashMap;
+use fyrox_core::parking_lot::{Mutex, MutexGuard};
 use std::ops::Deref;
+use std::sync::Arc;
 
 pub mod shader;
 
@@ -663,5 +666,54 @@ impl Material {
     /// Returns immutable reference to internal property storage.
     pub fn properties(&self) -> &FxHashMap<ImmutableString, PropertyValue> {
         &self.properties
+    }
+}
+
+/// Shared material is a material instance that can be used across multiple objects. It is useful
+/// when you need to have multiple objects that have the same material.
+///
+/// Shared material is also tells a renderer that this material can be used for efficient rendering -
+/// the renderer will be able to optimize rendering when it knows that multiple objects share the
+/// same material.
+#[derive(Reflect, Inspect, Clone, Debug)]
+pub struct SharedMaterial(#[reflect(hidden)] Arc<Mutex<Material>>);
+
+impl Default for SharedMaterial {
+    fn default() -> Self {
+        Self::new(Material::standard())
+    }
+}
+
+impl PartialEq for SharedMaterial {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Visit for SharedMaterial {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
+impl SharedMaterial {
+    /// Creates new shared material from a material instance.
+    pub fn new(material: Material) -> Self {
+        Self(Arc::new(Mutex::new(material)))
+    }
+
+    /// Provides access to inner material.
+    pub fn lock(&self) -> MutexGuard<'_, Material> {
+        self.0.lock()
+    }
+
+    /// Returns unique id of the material. The id is not stable across multiple runs of an application!
+    pub fn key(&self) -> u64 {
+        &*self.0 as *const _ as u64
+    }
+
+    /// Returns total use count of the material.
+    pub fn use_count(&self) -> usize {
+        Arc::strong_count(&self.0)
     }
 }

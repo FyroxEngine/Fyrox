@@ -75,7 +75,6 @@ use fyrox::{
         algebra::{Matrix3, Vector2},
         color::Color,
         futures::executor::block_on,
-        parking_lot::Mutex,
         pool::{ErasedHandle, Handle},
         scope_profile,
         sstorage::ImmutableString,
@@ -100,6 +99,7 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface, VerticalAlignment,
     },
+    material::SharedMaterial,
     material::{shader::Shader, Material, PropertyValue},
     plugin::PluginConstructor,
     resource::texture::{CompressionOptions, Texture, TextureKind},
@@ -155,7 +155,7 @@ lazy_static! {
     };
 }
 
-pub fn make_color_material(color: Color) -> Arc<Mutex<Material>> {
+pub fn make_color_material(color: Color) -> SharedMaterial {
     let mut material = Material::from_shader(GIZMO_SHADER.clone(), None);
     material
         .set_property(
@@ -163,7 +163,7 @@ pub fn make_color_material(color: Color) -> Arc<Mutex<Material>> {
             PropertyValue::Color(color),
         )
         .unwrap();
-    Arc::new(Mutex::new(material))
+    SharedMaterial::new(material)
 }
 
 pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
@@ -179,7 +179,7 @@ pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
     }
 }
 
-pub fn create_terrain_layer_material() -> Arc<Mutex<Material>> {
+pub fn create_terrain_layer_material() -> SharedMaterial {
     let mut material = Material::standard_terrain();
     material
         .set_property(
@@ -187,7 +187,7 @@ pub fn create_terrain_layer_material() -> Arc<Mutex<Material>> {
             PropertyValue::Vector2(Vector2::new(10.0, 10.0)),
         )
         .unwrap();
-    Arc::new(Mutex::new(material))
+    SharedMaterial::new(material)
 }
 
 #[derive(Debug)]
@@ -215,7 +215,7 @@ pub enum Message {
         force: bool,
     },
     OpenSettings,
-    OpenMaterialEditor(Arc<Mutex<Material>>),
+    OpenMaterialEditor(SharedMaterial),
     ShowInAssetBrowser(PathBuf),
     SetWorldViewerFilter(String),
     LocateObject {
@@ -1615,7 +1615,7 @@ impl Editor {
         }
     }
 
-    fn open_material_editor(&mut self, material: Arc<Mutex<Material>>) {
+    fn open_material_editor(&mut self, material: SharedMaterial) {
         let engine = &mut self.engine;
 
         self.material_editor.set_material(Some(material), engine);

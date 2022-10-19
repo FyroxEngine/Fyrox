@@ -60,10 +60,11 @@ use std::ops::{Deref, DerefMut};
 ///     },
 /// };
 /// use std::sync::Arc;
+/// use fyrox::material::SharedMaterial;
 ///
 /// fn create_rect_with_custom_material(
 ///     graph: &mut Graph,
-///     material: Arc<Mutex<Material>>,
+///     material: SharedMaterial,
 /// ) -> Handle<Node> {
 ///     MeshBuilder::new(
 ///         BaseBuilder::new().with_local_transform(

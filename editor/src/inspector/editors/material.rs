@@ -18,30 +18,22 @@ use fyrox::{
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    material::Material,
+    material::SharedMaterial,
 };
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::{mpsc::Sender, Arc},
+    sync::mpsc::Sender,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MaterialFieldMessage {
-    Material(Arc<Mutex<Material>>),
-}
-
-impl PartialEq for MaterialFieldMessage {
-    fn eq(&self, other: &Self) -> bool {
-        let (MaterialFieldMessage::Material(lhs), MaterialFieldMessage::Material(rhs)) =
-            (self, other);
-        Arc::ptr_eq(lhs, rhs)
-    }
+    Material(SharedMaterial),
 }
 
 impl MaterialFieldMessage {
-    define_constructor!(MaterialFieldMessage:Material => fn material(Arc<Mutex<Material>>), layout: false);
+    define_constructor!(MaterialFieldMessage:Material => fn material(SharedMaterial), layout: false);
 }
 
 #[derive(Clone)]
@@ -50,7 +42,7 @@ pub struct MaterialFieldEditor {
     sender: Sender<Message>,
     text: Handle<UiNode>,
     edit: Handle<UiNode>,
-    material: Arc<Mutex<Material>>,
+    material: SharedMaterial,
 }
 
 impl Debug for MaterialFieldEditor {
@@ -111,9 +103,9 @@ pub struct MaterialFieldEditorBuilder {
     widget_builder: WidgetBuilder,
 }
 
-fn make_name(material: &Arc<Mutex<Material>>) -> String {
+fn make_name(material: &SharedMaterial) -> String {
     let name = material.lock().shader().data_ref().definition.name.clone();
-    format!("{} - {} uses", name, Arc::strong_count(material))
+    format!("{} - {} uses", name, material.use_count())
 }
 
 impl MaterialFieldEditorBuilder {
@@ -125,7 +117,7 @@ impl MaterialFieldEditorBuilder {
         self,
         ctx: &mut BuildContext,
         sender: Sender<Message>,
-        material: Arc<Mutex<Material>>,
+        material: SharedMaterial,
     ) -> Handle<UiNode> {
         let edit;
         let text;
@@ -177,14 +169,14 @@ pub struct MaterialPropertyEditorDefinition {
 
 impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
-        TypeId::of::<Arc<Mutex<Material>>>()
+        TypeId::of::<SharedMaterial>()
     }
 
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        let value = ctx.property_info.cast_value::<Arc<Mutex<Material>>>()?;
+        let value = ctx.property_info.cast_value::<SharedMaterial>()?;
         Ok(PropertyEditorInstance::Simple {
             editor: MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
                 ctx.build_context,
@@ -198,7 +190,7 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        let value = ctx.property_info.cast_value::<Arc<Mutex<Material>>>()?;
+        let value = ctx.property_info.cast_value::<SharedMaterial>()?;
         Ok(Some(MaterialFieldMessage::material(
             ctx.instance,
             MessageDirection::ToWidget,

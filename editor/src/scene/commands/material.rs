@@ -1,24 +1,18 @@
 use crate::{command::Command, scene::commands::SceneContext};
-use fyrox::core::sstorage::ImmutableString;
 use fyrox::{
-    core::parking_lot::Mutex,
-    material::{shader::Shader, Material, PropertyValue},
+    core::sstorage::ImmutableString,
+    material::{shader::Shader, Material, PropertyValue, SharedMaterial},
 };
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct SetMaterialPropertyValueCommand {
-    material: Arc<Mutex<Material>>,
+    material: SharedMaterial,
     name: ImmutableString,
     value: PropertyValue,
 }
 
 impl SetMaterialPropertyValueCommand {
-    pub fn new(
-        material: Arc<Mutex<Material>>,
-        name: ImmutableString,
-        value: PropertyValue,
-    ) -> Self {
+    pub fn new(material: SharedMaterial, name: ImmutableString, value: PropertyValue) -> Self {
         Self {
             material,
             name,
@@ -61,12 +55,12 @@ enum SetMaterialShaderCommandState {
 
 #[derive(Debug)]
 pub struct SetMaterialShaderCommand {
-    material: Arc<Mutex<Material>>,
+    material: SharedMaterial,
     state: SetMaterialShaderCommandState,
 }
 
 impl SetMaterialShaderCommand {
-    pub fn new(material: Arc<Mutex<Material>>, shader: Shader) -> Self {
+    pub fn new(material: SharedMaterial, shader: Shader) -> Self {
         Self {
             material,
             state: SetMaterialShaderCommandState::NonExecuted { new_shader: shader },

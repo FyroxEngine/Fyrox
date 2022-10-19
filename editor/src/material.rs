@@ -5,6 +5,7 @@ use crate::{
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, GameEngine, Message,
 };
+use fyrox::material::SharedMaterial;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
@@ -87,7 +88,7 @@ pub struct MaterialEditor {
     properties_panel: Handle<UiNode>,
     properties: BiDirHashMap<ImmutableString, Handle<UiNode>>,
     preview: PreviewPanel,
-    material: Option<Arc<Mutex<Material>>>,
+    material: Option<SharedMaterial>,
     available_shaders: Handle<UiNode>,
     shaders_list: Vec<Shader>,
     texture_context_menu: TextureContextMenu,
@@ -372,11 +373,7 @@ impl MaterialEditor {
         )
     }
 
-    pub fn set_material(
-        &mut self,
-        material: Option<Arc<Mutex<Material>>>,
-        engine: &mut GameEngine,
-    ) {
+    pub fn set_material(&mut self, material: Option<SharedMaterial>, engine: &mut GameEngine) {
         self.material = material;
 
         if let Some(material) = self.material.clone() {

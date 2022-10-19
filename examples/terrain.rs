@@ -3,11 +3,11 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::material::SharedMaterial;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
-        parking_lot::Mutex,
         pool::Handle,
         rand::Rng,
         sstorage::ImmutableString,
@@ -34,7 +34,6 @@ use fyrox::{
         Scene,
     },
 };
-use std::sync::Arc;
 
 struct SceneLoader {
     scene: Scene,
@@ -100,7 +99,7 @@ impl SceneLoader {
                             "examples/data/Grass_DiffuseColor.jpg",
                             "examples/data/Grass_NormalColor.jpg",
                         );
-                        Arc::new(Mutex::new(material))
+                        SharedMaterial::new(material)
                     },
                     mask_property_name: "maskTexture".to_string(),
                 },
@@ -113,7 +112,7 @@ impl SceneLoader {
                             "examples/data/Rock_DiffuseColor.jpg",
                             "examples/data/Rock_Normal.jpg",
                         );
-                        Arc::new(Mutex::new(material))
+                        SharedMaterial::new(material)
                     },
                     mask_property_name: "maskTexture".to_string(),
                 },

@@ -44,6 +44,7 @@ use fyrox::{
     utils::navmesh::NavmeshAgent,
 };
 
+use fyrox::material::SharedMaterial;
 use std::sync::Arc;
 
 fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
@@ -96,7 +97,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
             SurfaceData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
         )))
-        .with_material(Arc::new(Mutex::new(cursor_material)))
+        .with_material(SharedMaterial::new(cursor_material))
         .build()])
         .build(&mut scene.graph);
 
@@ -118,7 +119,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
         SurfaceData::make_sphere(10, 10, 0.2, &Matrix4::identity()),
     )))
-    .with_material(Arc::new(Mutex::new(agent_material)))
+    .with_material(SharedMaterial::new(agent_material))
     .build()])
     .build(&mut scene.graph);
 

@@ -5,7 +5,7 @@ use crate::{
         algebra::Matrix4, arrayvec::ArrayVec, parking_lot::Mutex, pool::Handle, scope_profile,
         sstorage::ImmutableString,
     },
-    material::{Material, PropertyValue},
+    material::{PropertyValue, SharedMaterial},
     scene::{
         graph::Graph,
         mesh::{surface::SurfaceData, Mesh, RenderPath},
@@ -84,7 +84,7 @@ pub struct Batch {
     /// A set of instances.
     pub instances: Vec<SurfaceInstance>,
     /// A material that is shared across all instances.
-    pub material: Arc<Mutex<Material>>,
+    pub material: SharedMaterial,
     /// Whether the batch is using GPU skinning or not.
     pub is_skinned: bool,
     /// A render path of the batch.
@@ -203,11 +203,11 @@ impl BatchStorage {
                             },
                         ) {
                             Ok(_) => {
-                                let material = Arc::new(Mutex::new(material));
+                                let material = SharedMaterial::new(material);
 
                                 let mut hasher = FxHasher::default();
 
-                                hasher.write_u64(&*material as *const _ as u64);
+                                hasher.write_u64(material.key());
                                 hasher.write_u64(data_key);
 
                                 let key = hasher.finish();

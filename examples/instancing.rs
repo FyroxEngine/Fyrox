@@ -8,6 +8,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::material::SharedMaterial;
 use fyrox::{
     animation::Animation,
     core::{
@@ -157,7 +158,7 @@ impl SceneLoader {
                 300.0, 0.25, 300.0,
             ))),
         )))
-        .with_material(Arc::new(Mutex::new(material)))
+        .with_material(SharedMaterial::new(material))
         .build()])
         .build(&mut scene.graph);
 

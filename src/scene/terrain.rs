@@ -1,5 +1,6 @@
 //! Everything related to terrains.
 
+use crate::material::SharedMaterial;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -16,7 +17,6 @@ use crate::{
         visitor::{prelude::*, PodVecView},
     },
     engine::resource_manager::ResourceManager,
-    material::Material,
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
@@ -44,7 +44,7 @@ use std::{
 pub struct Layer {
     /// Material of the layer.
     #[reflect(hidden)]
-    pub material: Arc<Mutex<Material>>,
+    pub material: SharedMaterial,
 
     /// Name of the mask sampler in the material.
     ///
@@ -62,7 +62,7 @@ impl PartialEq for Layer {
     fn eq(&self, other: &Self) -> bool {
         self.mask_property_name == other.mask_property_name
             && self.chunk_masks == other.chunk_masks
-            && Arc::ptr_eq(&self.material, &other.material)
+            && self.material == other.material
     }
 }
 
@@ -603,7 +603,7 @@ impl Terrain {
     pub fn create_layer(
         &self,
         value: u8,
-        material: Arc<Mutex<Material>>,
+        material: SharedMaterial,
         mask_property_name: String,
     ) -> Layer {
         Layer {
@@ -745,7 +745,7 @@ pub struct Brush {
 /// Layer definition for a terrain builder.
 pub struct LayerDefinition {
     /// Material of the layer.
-    pub material: Arc<Mutex<Material>>,
+    pub material: SharedMaterial,
 
     /// Name of the mask sampler in the material. It should be `maskTexture` if standard material shader
     /// is used.

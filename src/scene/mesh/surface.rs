@@ -4,6 +4,7 @@
 //! Surfaces can use the same data source across many instances, this is a memory optimization for
 //! being able to re-use data when you need to draw the same mesh in many places.
 
+use crate::material::SharedMaterial;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -947,8 +948,7 @@ pub struct Surface {
     #[reflect(hidden)]
     #[inspect(skip)]
     data: Option<Arc<Mutex<SurfaceData>>>,
-    #[reflect(hidden)]
-    material: Arc<Mutex<Material>>,
+    material: SharedMaterial,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be
     /// sent to GPU. The idea is very simple: GPU needs to know only indices of matrices of
@@ -971,12 +971,10 @@ impl PartialEq for Surface {
             _ => false,
         };
 
-        let material_equal = Arc::ptr_eq(&self.material, &other.material);
-
         self.bones == other.bones
             && self.vertex_weights == other.vertex_weights
             && data_equal
-            && material_equal
+            && self.material == other.material
     }
 }
 
@@ -986,7 +984,7 @@ impl Default for Surface {
             data: Some(Arc::new(Mutex::new(SurfaceData::make_cube(
                 Matrix4::identity(),
             )))),
-            material: Arc::new(Mutex::new(Material::standard())),
+            material: SharedMaterial::new(Material::standard()),
             vertex_weights: Default::default(),
             bones: Default::default(),
         }
@@ -1005,7 +1003,7 @@ impl Surface {
 
     /// Calculates material id.
     pub fn material_id(&self) -> u64 {
-        &*self.material as *const _ as u64
+        self.material.key()
     }
 
     /// Calculates batch id.
@@ -1023,12 +1021,12 @@ impl Surface {
     }
 
     /// Returns current material of the surface.
-    pub fn material(&self) -> &Arc<Mutex<Material>> {
+    pub fn material(&self) -> &SharedMaterial {
         &self.material
     }
 
     /// Sets new material for the surface.
-    pub fn set_material(&mut self, material: Arc<Mutex<Material>>) {
+    pub fn set_material(&mut self, material: SharedMaterial) {
         self.material = material;
     }
 
@@ -1042,7 +1040,7 @@ impl Surface {
 /// Surface builder allows you to create surfaces in declarative manner.
 pub struct SurfaceBuilder {
     data: Arc<Mutex<SurfaceData>>,
-    material: Option<Arc<Mutex<Material>>>,
+    material: Option<SharedMaterial>,
     bones: Vec<Handle<Node>>,
 }
 
@@ -1057,7 +1055,7 @@ impl SurfaceBuilder {
     }
 
     /// Sets desired diffuse texture.
-    pub fn with_material(mut self, material: Arc<Mutex<Material>>) -> Self {
+    pub fn with_material(mut self, material: SharedMaterial) -> Self {
         self.material = Some(material);
         self
     }
@@ -1074,7 +1072,7 @@ impl SurfaceBuilder {
             data: Some(self.data),
             material: self
                 .material
-                .unwrap_or_else(|| Arc::new(Mutex::new(Material::standard()))),
+                .unwrap_or_else(|| SharedMaterial::new(Material::standard())),
             vertex_weights: Default::default(),
             bones: self.bones,
         }
