@@ -716,4 +716,11 @@ impl SharedMaterial {
     pub fn use_count(&self) -> usize {
         Arc::strong_count(&self.0)
     }
+
+    /// Creates a deep copy of shared material, making "unique" clone of the underlying material.
+    /// It is useful when you need to create unique version of a material and set its properties
+    /// to some specific values and assign it to an object.
+    pub fn deep_copy(&self) -> Self {
+        Self::new(self.0.lock().clone())
+    }
 }

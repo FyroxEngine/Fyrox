@@ -11,10 +11,11 @@ use fyrox::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                 PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
-            InspectorError, PropertyChanged,
+            FieldKind, InspectorError, PropertyChanged,
         },
         message::UiMessage,
         text::{TextBuilder, TextMessage},
+        utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
@@ -77,23 +78,31 @@ impl Control for MaterialFieldEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination() == self.edit {
-            if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.edit {
                 self.sender
                     .send(Message::OpenMaterialEditor(self.material.clone()))
                     .unwrap();
-            }
-        }
+            } else if message.destination() == self.make_unique {
+                let deep_copy = self.material.lock().clone();
 
-        if let Some(MaterialFieldMessage::Material(material)) = message.data() {
-            if message.destination() == self.handle {
-                self.material = material.clone();
-
-                ui.send_message(TextMessage::text(
-                    self.text,
+                ui.send_message(MaterialFieldMessage::material(
+                    self.handle,
                     MessageDirection::ToWidget,
-                    make_name(&self.material),
+                    Arc::new(Mutex::new(deep_copy)),
                 ));
+            }
+        } else if let Some(MaterialFieldMessage::Material(material)) = message.data() {
+            if message.destination() == self.handle {
+                if !Arc::ptr_eq(&self.material, material) {
+                    self.material = material.clone();
+
+                    ui.send_message(TextMessage::text(
+                        self.text,
+                        MessageDirection::ToWidget,
+                        make_name(&self.material),
+                    ));
+                }
             }
         }
     }
@@ -121,13 +130,16 @@ impl MaterialFieldEditorBuilder {
     ) -> Handle<UiNode> {
         let edit;
         let text;
+        let make_unique;
+        let make_unique_tooltip = "Creates a deep copy of the material, making a separate version of the material. \
+        Useful when you need to change some properties in the material, but only on some nodes that uses the material.";
+
         let editor = MaterialFieldEditor {
             widget: self
                 .widget_builder
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
-                            .with_height(26.0)
                             .with_child({
                                 text = TextBuilder::new(
                                     WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
@@ -137,17 +149,43 @@ impl MaterialFieldEditorBuilder {
                                 .build(ctx);
                                 text
                             })
-                            .with_child({
-                                edit = ButtonBuilder::new(
-                                    WidgetBuilder::new().with_width(32.0).on_column(1),
+                            .with_child(
+                                GridBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_row(1)
+                                        .with_child({
+                                            edit = ButtonBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_width(40.0)
+                                                    .with_margin(Thickness::uniform(1.0)),
+                                            )
+                                            .with_text("Edit...")
+                                            .build(ctx);
+                                            edit
+                                        })
+                                        .with_child({
+                                            make_unique = ButtonBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(1.0))
+                                                    .on_column(1)
+                                                    .with_tooltip(make_simple_tooltip(
+                                                        ctx,
+                                                        make_unique_tooltip,
+                                                    )),
+                                            )
+                                            .with_text("Make Unique")
+                                            .build(ctx);
+                                            make_unique
+                                        }),
                                 )
-                                .with_text("...")
-                                .build(ctx);
-                                edit
-                            }),
+                                .add_row(Row::strict(20.0))
+                                .add_column(Column::auto())
+                                .add_column(Column::stretch())
+                                .build(ctx),
+                            ),
                     )
-                    .add_row(Row::stretch())
-                    .add_column(Column::stretch())
+                    .add_row(Row::auto())
+                    .add_row(Row::auto())
                     .add_column(Column::auto())
                     .build(ctx),
                 )
@@ -156,6 +194,7 @@ impl MaterialFieldEditorBuilder {
             sender,
             material,
             text,
+            make_unique,
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -198,7 +237,16 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
         )))
     }
 
-    fn translate_message(&self, _ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if ctx.message.direction() == MessageDirection::FromWidget {
+            if let Some(MaterialFieldMessage::Material(value)) = ctx.message.data() {
+                return Some(PropertyChanged {
+                    name: ctx.name.to_string(),
+                    owner_type_id: ctx.owner_type_id,
+                    value: FieldKind::object(value.clone()),
+                });
+            }
+        }
         None
     }
 }
