@@ -4,8 +4,6 @@
 //!
 //! Warning - Work in progress!
 
-use fyrox::engine::{EngineInitParams, SerializationContext};
-use fyrox::scene::sound::{SoundBuilder, Status};
 use fyrox::{
     animation::Animation,
     core::{
@@ -17,7 +15,7 @@ use fyrox::{
         wasm_bindgen::{self, prelude::*},
     },
     dpi::LogicalSize,
-    engine::{resource_manager::ResourceManager, Engine},
+    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -26,7 +24,7 @@ use fyrox::{
         widget::WidgetBuilder,
     },
     gui::{BuildContext, UiNode},
-    material::{shader::SamplerFallback, Material, PropertyValue},
+    material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
     resource::texture::TextureWrapMode,
     scene::{
         base::BaseBuilder,
@@ -38,6 +36,7 @@ use fyrox::{
             MeshBuilder,
         },
         node::Node,
+        sound::{SoundBuilder, Status},
         transform::TransformBuilder,
         Scene,
     },
@@ -254,7 +253,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
             25.0, 0.25, 25.0,
         ))),
     )))
-    .with_material(Arc::new(Mutex::new(material)))
+    .with_material(SharedMaterial::new(material))
     .build()])
     .build(&mut scene.graph);
 
