@@ -43,6 +43,7 @@ pub struct MaterialFieldEditor {
     sender: Sender<Message>,
     text: Handle<UiNode>,
     edit: Handle<UiNode>,
+    make_unique: Handle<UiNode>,
     material: SharedMaterial,
 }
 
@@ -84,17 +85,17 @@ impl Control for MaterialFieldEditor {
                     .send(Message::OpenMaterialEditor(self.material.clone()))
                     .unwrap();
             } else if message.destination() == self.make_unique {
-                let deep_copy = self.material.lock().clone();
-
                 ui.send_message(MaterialFieldMessage::material(
                     self.handle,
                     MessageDirection::ToWidget,
-                    Arc::new(Mutex::new(deep_copy)),
+                    self.material.deep_copy(),
                 ));
             }
         } else if let Some(MaterialFieldMessage::Material(material)) = message.data() {
-            if message.destination() == self.handle {
-                if !Arc::ptr_eq(&self.material, material) {
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::ToWidget
+            {
+                if &self.material != material {
                     self.material = material.clone();
 
                     ui.send_message(TextMessage::text(
@@ -102,6 +103,8 @@ impl Control for MaterialFieldEditor {
                         MessageDirection::ToWidget,
                         make_name(&self.material),
                     ));
+
+                    ui.send_message(message.reverse());
                 }
             }
         }
