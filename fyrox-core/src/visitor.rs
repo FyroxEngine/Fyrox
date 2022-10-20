@@ -1310,6 +1310,7 @@ where
         len.visit("Length", &mut region)?;
 
         if region.reading {
+            self.clear();
             for index in 0..len {
                 let region_name = format!("Item{}", index);
                 let mut region = region.enter_region(region_name.as_str())?;
@@ -1668,6 +1669,7 @@ where
         count.visit("Count", &mut region)?;
 
         if region.is_reading() {
+            self.clear();
             for i in 0..(count as usize) {
                 let name = format!("Item{}", i);
 
@@ -1710,6 +1712,7 @@ where
         count.visit("Count", &mut region)?;
 
         if region.is_reading() {
+            self.clear();
             for i in 0..(count as usize) {
                 let name = format!("Item{}", i);
 
