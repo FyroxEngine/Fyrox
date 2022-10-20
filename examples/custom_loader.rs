@@ -10,12 +10,12 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use fyrox::material::SharedMaterial;
+use fyrox::scene::mesh::surface::SurfaceSharedData;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector3},
         color::Color,
         instant::Instant,
-        parking_lot::Mutex,
         sstorage::ImmutableString,
     },
     engine::{
@@ -163,11 +163,11 @@ impl GameSceneLoader {
                     .build(),
             ),
         )
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
             SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                 25.0, 0.25, 25.0,
             ))),
-        )))
+        ))
         .with_material(SharedMaterial::new(material))
         .build()])
         .build(&mut scene.graph);

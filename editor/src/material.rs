@@ -5,7 +5,6 @@ use crate::{
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, GameEngine, Message,
 };
-use fyrox::material::SharedMaterial;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
@@ -41,18 +40,18 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    material::{shader::Shader, Material, PropertyValue},
+    material::{shader::Shader, Material, PropertyValue, SharedMaterial},
     resource::texture::TextureState,
     scene::{
         base::BaseBuilder,
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder,
         },
     },
     utils::into_gui_texture,
 };
-use std::sync::{mpsc::Sender, Arc};
+use std::sync::mpsc::Sender;
 
 struct TextureContextMenu {
     popup: Handle<UiNode>,
@@ -240,9 +239,9 @@ impl MaterialEditor {
 
         let graph = &mut engine.scenes[preview.scene()].graph;
         let sphere = MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+            .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
                 SurfaceData::make_sphere(30, 30, 1.0, &Matrix4::identity()),
-            )))
+            ))
             .build()])
             .build(graph);
         preview.set_model(sphere, engine);

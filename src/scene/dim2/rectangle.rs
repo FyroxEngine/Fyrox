@@ -61,6 +61,7 @@ use std::ops::{Deref, DerefMut};
 /// };
 /// use std::sync::Arc;
 /// use fyrox::material::SharedMaterial;
+/// use fyrox::scene::mesh::surface::SurfaceSharedData;
 ///
 /// fn create_rect_with_custom_material(
 ///     graph: &mut Graph,
@@ -73,9 +74,9 @@ use std::ops::{Deref, DerefMut};
 ///                 .build(),
 ///         ),
 ///     )
-///     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+///     .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
 ///         SurfaceData::make_quad(&Matrix4::identity()),
-///     )))
+///     ))
 ///     .with_material(material)
 ///     .build()])
 ///     .with_render_path(RenderPath::Forward)

@@ -441,8 +441,7 @@ impl Scene {
                 if let Some(mesh) = self.graph[handle].cast_mut::<Mesh>() {
                     for surface in mesh.surfaces() {
                         let data = surface.data();
-                        let key = &*data as *const _ as u64;
-                        unique_data_set.entry(key).or_insert(data);
+                        unique_data_set.entry(data.key()).or_insert(data);
                     }
                 }
             }

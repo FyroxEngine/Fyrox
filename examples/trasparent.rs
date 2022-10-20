@@ -1,8 +1,8 @@
+use fyrox::scene::mesh::surface::SurfaceSharedData;
 use fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
-        parking_lot::Mutex,
         pool::Handle,
     },
     engine::executor::Executor,
@@ -21,7 +21,6 @@ use fyrox::{
     },
     window::WindowBuilder,
 };
-use std::sync::Arc;
 
 struct Game {
     scene: Handle<Scene>,
@@ -66,9 +65,9 @@ impl PluginConstructor for GameConstructor {
         .build(&mut scene.graph);
 
         let cube = MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+            .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
                 SurfaceData::make_cube(Matrix4::identity()),
-            )))
+            ))
             .build()])
             .build(&mut scene.graph);
 

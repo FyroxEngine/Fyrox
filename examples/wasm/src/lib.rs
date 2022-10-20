@@ -26,6 +26,7 @@ use fyrox::{
     gui::{BuildContext, UiNode},
     material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
     resource::texture::TextureWrapMode,
+    scene::mesh::surface::SurfaceSharedData,
     scene::{
         base::BaseBuilder,
         camera::{CameraBuilder, SkyBoxBuilder},
@@ -248,11 +249,11 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
                 .build(),
         ),
     )
-    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+    .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
         SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
             25.0, 0.25, 25.0,
         ))),
-    )))
+    ))
     .with_material(SharedMaterial::new(material))
     .build()])
     .build(&mut scene.graph);

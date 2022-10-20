@@ -8,13 +8,12 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::material::SharedMaterial;
+use fyrox::scene::mesh::surface::SurfaceSharedData;
 use fyrox::{
     animation::Animation,
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
-        parking_lot::Mutex,
         pool::Handle,
         sstorage::ImmutableString,
     },
@@ -27,6 +26,7 @@ use fyrox::{
         widget::WidgetBuilder,
         UiNode,
     },
+    material::SharedMaterial,
     material::{shader::SamplerFallback, Material, PropertyValue},
     plugin::{Plugin, PluginConstructor, PluginContext},
     rand::Rng,
@@ -43,7 +43,6 @@ use fyrox::{
         Scene,
     },
 };
-use std::sync::Arc;
 
 struct SceneLoader {
     scene: Scene,
@@ -153,11 +152,11 @@ impl SceneLoader {
                     .build(),
             ),
         )
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
             SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                 300.0, 0.25, 300.0,
             ))),
-        )))
+        ))
         .with_material(SharedMaterial::new(material))
         .build()])
         .build(&mut scene.graph);

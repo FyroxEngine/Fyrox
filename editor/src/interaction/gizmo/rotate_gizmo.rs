@@ -7,21 +7,19 @@ use fyrox::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,
         math::{plane::Plane, Matrix4Ext},
-        parking_lot::Mutex,
         pool::Handle,
     },
     scene::{
         base::BaseBuilder,
         graph::Graph,
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder, RenderPath,
         },
         node::Node,
         transform::TransformBuilder,
     },
 };
-use std::sync::Arc;
 
 pub enum RotateGizmoMode {
     Pitch,
@@ -54,7 +52,7 @@ fn make_rotation_ribbon(
             ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+    .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
         SurfaceData::make_torus(
             0.5,
             0.025,
@@ -62,7 +60,7 @@ fn make_rotation_ribbon(
             32,
             &Matrix4::new_translation(&Vector3::new(0.0, -0.05, 0.0)),
         ),
-    )))
+    ))
     .with_material(make_color_material(color))
     .build()])
     .build(graph)
@@ -80,9 +78,9 @@ impl RotationGizmo {
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
             SurfaceData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
-        )))
+        ))
         .with_material(make_color_material(Color::opaque(100, 100, 100)))
         .build()])
         .build(graph);

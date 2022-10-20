@@ -8,14 +8,12 @@ use crate::{
     settings::Settings,
     GameEngine, Message, MSG_SYNC_FLAG,
 };
-use fyrox::scene::camera::Camera;
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         arrayvec::ArrayVec,
         color::Color,
         math::vector_to_quat,
-        parking_lot::Mutex,
         pool::Handle,
     },
     engine::Engine,
@@ -33,9 +31,10 @@ use fyrox::{
     },
     scene::{
         base::BaseBuilder,
+        camera::Camera,
         graph::Graph,
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder, RenderPath,
         },
         node::Node,
@@ -43,10 +42,7 @@ use fyrox::{
     },
     utils::log::{Log, MessageKind},
 };
-use std::{
-    rc::Rc,
-    sync::{mpsc::Sender, Arc},
-};
+use std::{rc::Rc, sync::mpsc::Sender};
 
 pub struct TerrainInteractionMode {
     heightmaps: Vec<Vec<f32>>,
@@ -101,9 +97,9 @@ impl BrushGizmo {
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
             SurfaceData::make_quad(&Matrix4::identity()),
-        )))
+        ))
         .with_material(make_color_material(Color::from_rgba(0, 255, 0, 130)))
         .build()])
         .build(graph);

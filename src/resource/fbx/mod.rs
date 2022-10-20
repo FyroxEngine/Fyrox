@@ -10,9 +10,6 @@ mod document;
 pub mod error;
 mod scene;
 
-use crate::resource::model::{MaterialSearchOptions, ModelImportOptions};
-use crate::scene::mesh::Mesh;
-use crate::scene::pivot::PivotBuilder;
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
     core::{
@@ -20,7 +17,6 @@ use crate::{
         instant::Instant,
         io,
         math::{self, triangulator::triangulate, RotationOrder},
-        parking_lot::Mutex,
         pool::Handle,
         sstorage::ImmutableString,
     },
@@ -34,16 +30,19 @@ use crate::{
             FbxComponent, FbxMapping, FbxScene,
         },
     },
+    resource::model::{MaterialSearchOptions, ModelImportOptions},
     scene::{
         base::BaseBuilder,
         graph::Graph,
         mesh::{
             buffer::{VertexAttributeUsage, VertexWriteTrait},
+            surface::SurfaceSharedData,
             surface::{Surface, SurfaceData, VertexWeightSet},
             vertex::{AnimatedVertex, StaticVertex},
-            MeshBuilder,
+            Mesh, MeshBuilder,
         },
         node::Node,
+        pivot::PivotBuilder,
         transform::TransformBuilder,
         Scene,
     },
@@ -53,7 +52,7 @@ use crate::{
     },
 };
 use fxhash::{FxHashMap, FxHashSet};
-use std::{cmp::Ordering, path::Path, sync::Arc};
+use std::{cmp::Ordering, path::Path};
 use walkdir::WalkDir;
 
 /// Input angles in degrees
@@ -259,13 +258,13 @@ async fn create_surfaces(
     if model.materials.is_empty() {
         assert_eq!(data_set.len(), 1);
         let data = data_set.into_iter().next().unwrap();
-        let mut surface = Surface::new(Arc::new(Mutex::new(data.builder.build())));
+        let mut surface = Surface::new(SurfaceSharedData::new(data.builder.build()));
         surface.vertex_weights = data.skin_data;
         surfaces.push(surface);
     } else {
         assert_eq!(data_set.len(), model.materials.len());
         for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
-            let mut surface = Surface::new(Arc::new(Mutex::new(data.builder.build())));
+            let mut surface = Surface::new(SurfaceSharedData::new(data.builder.build()));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
             if let Err(e) = surface.material().lock().set_property(

@@ -2,13 +2,13 @@
 
 use crate::{
     core::{
-        algebra::Matrix4, arrayvec::ArrayVec, parking_lot::Mutex, pool::Handle, scope_profile,
-        sstorage::ImmutableString,
+        algebra::Matrix4, arrayvec::ArrayVec, math::aabb::AxisAlignedBoundingBox, pool::Handle,
+        scope_profile, sstorage::ImmutableString,
     },
     material::{PropertyValue, SharedMaterial},
     scene::{
         graph::Graph,
-        mesh::{surface::SurfaceData, Mesh, RenderPath},
+        mesh::{surface::SurfaceSharedData, Mesh, RenderPath},
         node::Node,
         terrain::Terrain,
     },
@@ -16,11 +16,9 @@ use crate::{
 };
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHasher};
-use fyrox_core::math::aabb::AxisAlignedBoundingBox;
 use std::{
     fmt::{Debug, Formatter},
     hash::Hasher,
-    sync::Arc,
 };
 
 /// Maximum amount of bone matrices per instance.
@@ -80,7 +78,7 @@ pub struct SurfaceInstance {
 pub struct Batch {
     id: u64,
     /// A pointer to shared surface data.
-    pub data: Arc<Mutex<SurfaceData>>,
+    pub data: SurfaceSharedData,
     /// A set of instances.
     pub instances: Vec<SurfaceInstance>,
     /// A material that is shared across all instances.
@@ -99,7 +97,7 @@ impl Debug for Batch {
         write!(
             f,
             "Batch {}: {} instances",
-            &*self.data as *const _ as u64,
+            self.data.key(),
             self.instances.len()
         )
     }
@@ -192,7 +190,7 @@ impl BatchStorage {
                 for (layer_index, layer) in terrain.layers().iter().enumerate() {
                     for (chunk_index, chunk) in terrain.chunks_ref().iter().enumerate() {
                         let data = chunk.data();
-                        let data_key = &*data as *const _ as u64;
+                        let data_key = data.key();
 
                         let mut material = (*layer.material.lock()).clone();
                         match material.set_property(

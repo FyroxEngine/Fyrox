@@ -7,21 +7,19 @@ use fyrox::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,
         math::{plane::Plane, Matrix4Ext},
-        parking_lot::Mutex,
         pool::Handle,
     },
     scene::{
         base::BaseBuilder,
         graph::Graph,
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder, RenderPath,
         },
         node::Node,
         transform::TransformBuilder,
     },
 };
-use std::sync::Arc;
 
 pub enum ScaleGizmoMode {
     None,
@@ -64,11 +62,11 @@ fn make_scale_axis(
                         ),
                 )
                 .with_render_path(RenderPath::Forward)
-                .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
                     SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                         0.1, 0.1, 0.1,
                     ))),
-                )))
+                ))
                 .with_material(make_color_material(color))
                 .build()])
                 .build(graph);
@@ -82,9 +80,9 @@ fn make_scale_axis(
             ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+    .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
         SurfaceData::make_cylinder(10, 0.015, 1.0, true, &Matrix4::identity()),
-    )))
+    ))
     .with_material(make_color_material(color))
     .build()])
     .build(graph);
@@ -104,11 +102,11 @@ impl ScaleGizmo {
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
             SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                 0.1, 0.1, 0.1,
             ))),
-        )))
+        ))
         .with_material(make_color_material(Color::opaque(0, 255, 255)))
         .build()])
         .build(graph);

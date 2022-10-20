@@ -1,7 +1,5 @@
-use crate::core::parking_lot::Mutex;
-use crate::core::sparse::SparseBuffer;
 use crate::{
-    core::scope_profile,
+    core::{scope_profile, sparse::SparseBuffer},
     engine::resource_manager::container::entry::DEFAULT_RESOURCE_LIFETIME,
     renderer::{
         cache::CacheEntry,
@@ -10,9 +8,8 @@ use crate::{
             state::PipelineState,
         },
     },
-    scene::mesh::surface::SurfaceData,
+    scene::mesh::surface::SurfaceSharedData,
 };
-use std::sync::Arc;
 
 #[derive(Default)]
 pub struct GeometryCache {
@@ -23,7 +20,7 @@ impl GeometryCache {
     pub fn get<'a>(
         &'a mut self,
         state: &mut PipelineState,
-        data: &Arc<Mutex<SurfaceData>>,
+        data: &SurfaceSharedData,
     ) -> &'a mut GeometryBuffer {
         scope_profile!();
 

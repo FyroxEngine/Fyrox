@@ -7,13 +7,13 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
         arrayvec::ArrayVec,
         color::Color,
         math::PositionProvider,
-        parking_lot::Mutex,
         pool::Handle,
         sstorage::ImmutableString,
     },
@@ -27,8 +27,10 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, UiNode,
     },
+    material::SharedMaterial,
     material::{Material, PropertyValue},
     plugin::{Plugin, PluginConstructor, PluginContext},
+    scene::mesh::surface::SurfaceSharedData,
     scene::{
         base::BaseBuilder,
         debug::Line,
@@ -43,9 +45,6 @@ use fyrox::{
     },
     utils::navmesh::NavmeshAgent,
 };
-
-use fyrox::material::SharedMaterial;
-use std::sync::Arc;
 
 fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
     TextBuilder::new(WidgetBuilder::new()).build(ctx)
@@ -94,9 +93,9 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         .unwrap();
 
     let cursor = MeshBuilder::new(BaseBuilder::new())
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
             SurfaceData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
-        )))
+        ))
         .with_material(SharedMaterial::new(cursor_material))
         .build()])
         .build(&mut scene.graph);
@@ -116,9 +115,9 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
                 .build(),
         ),
     )
-    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+    .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
         SurfaceData::make_sphere(10, 10, 0.2, &Matrix4::identity()),
-    )))
+    ))
     .with_material(SharedMaterial::new(agent_material))
     .build()])
     .build(&mut scene.graph);

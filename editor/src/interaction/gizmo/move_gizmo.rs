@@ -4,29 +4,26 @@ use crate::{
     scene::{EditorScene, Selection},
     set_mesh_diffuse_color, GameEngine,
 };
-use fyrox::scene::pivot::PivotBuilder;
-use fyrox::scene::transform::Transform;
 use fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,
         math::Matrix4Ext,
-        parking_lot::Mutex,
         pool::Handle,
     },
     scene::{
         base::BaseBuilder,
         graph::Graph,
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder, RenderPath,
         },
         node::Node,
-        transform::TransformBuilder,
+        pivot::PivotBuilder,
+        transform::{Transform, TransformBuilder},
         Scene,
     },
 };
-use std::sync::Arc;
 
 pub struct MoveGizmo {
     pub origin: Handle<Node>,
@@ -63,9 +60,9 @@ fn make_move_axis(
                         ),
                 )
                 .with_render_path(RenderPath::Forward)
-                .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
                     SurfaceData::make_cone(10, 0.05, 0.1, &Matrix4::identity()),
-                )))
+                ))
                 .with_material(make_color_material(color))
                 .build()])
                 .build(graph);
@@ -79,9 +76,9 @@ fn make_move_axis(
             ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+    .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
         SurfaceData::make_cylinder(10, 0.015, 1.0, true, &Matrix4::identity()),
-    )))
+    ))
     .with_material(make_color_material(color))
     .build()])
     .build(graph);
@@ -107,11 +104,11 @@ fn create_quad_plane(
     )
     .with_render_path(RenderPath::Forward)
     .with_surfaces(vec![{
-        SurfaceBuilder::new(Arc::new(Mutex::new(SurfaceData::make_quad(
+        SurfaceBuilder::new(SurfaceSharedData::new(SurfaceData::make_quad(
             &(transform
                 * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
                     .to_homogeneous()),
-        ))))
+        )))
         .with_material(make_color_material(color))
         .build()
     }])

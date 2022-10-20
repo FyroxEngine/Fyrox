@@ -1,6 +1,5 @@
 //! Everything related to terrains.
 
-use crate::material::SharedMaterial;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -9,7 +8,6 @@ use crate::{
         math::{
             aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect, TriangleDefinition,
         },
-        parking_lot::Mutex,
         pool::Handle,
         reflect::Reflect,
         uuid::{uuid, Uuid},
@@ -17,13 +15,14 @@ use crate::{
         visitor::{prelude::*, PodVecView},
     },
     engine::resource_manager::ResourceManager,
+    material::SharedMaterial,
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         mesh::{
             buffer::{TriangleBuffer, VertexBuffer},
-            surface::SurfaceData,
+            surface::{SurfaceData, SurfaceSharedData},
             vertex::StaticVertex,
         },
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
@@ -33,7 +32,6 @@ use std::{
     cell::Cell,
     cmp::Ordering,
     ops::{Deref, DerefMut},
-    sync::Arc,
 };
 
 /// Layers is a set of textures for rendering + mask texture to exclude some pixels from
@@ -86,7 +84,7 @@ pub struct Chunk {
     length: f32,
     width_point_count: u32,
     length_point_count: u32,
-    surface_data: Arc<Mutex<SurfaceData>>,
+    surface_data: SurfaceSharedData,
     dirty: Cell<bool>,
 }
 
@@ -209,7 +207,7 @@ impl Chunk {
     }
 
     /// Returns data for rendering (vertex and index buffers).
-    pub fn data(&self) -> Arc<Mutex<SurfaceData>> {
+    pub fn data(&self) -> SurfaceSharedData {
         self.surface_data.clone()
     }
 
@@ -795,12 +793,12 @@ fn create_layer_mask(width: u32, height: u32, value: u8) -> Texture {
     mask
 }
 
-fn make_surface_data() -> Arc<Mutex<SurfaceData>> {
-    Arc::new(Mutex::new(SurfaceData::new(
+fn make_surface_data() -> SurfaceSharedData {
+    SurfaceSharedData::new(SurfaceData::new(
         VertexBuffer::new::<StaticVertex>(0, StaticVertex::layout(), vec![]).unwrap(),
         TriangleBuffer::default(),
         false,
-    )))
+    ))
 }
 
 impl TerrainBuilder {

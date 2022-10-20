@@ -8,12 +8,12 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use fyrox::material::SharedMaterial;
+use fyrox::scene::mesh::surface::SurfaceSharedData;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector3},
         color::Color,
         futures::executor::block_on,
-        parking_lot::Mutex,
         pool::Handle,
         sstorage::ImmutableString,
     },
@@ -38,7 +38,6 @@ use fyrox::{
         Scene,
     },
 };
-use std::sync::Arc;
 
 struct Game {
     debug_text: Handle<UiNode>,
@@ -123,9 +122,9 @@ impl PluginConstructor for GameConstructor {
 
         // Add cylinder with custom shader.
         MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+            .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
                 SurfaceData::make_cylinder(20, 0.75, 2.0, true, &Matrix4::identity()),
-            )))
+            ))
             .with_material(material.clone())
             .build()])
             .build(&mut scene.graph);

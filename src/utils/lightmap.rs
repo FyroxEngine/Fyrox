@@ -9,10 +9,6 @@
 
 #![forbid(unsafe_code)]
 
-use crate::scene::light::directional::DirectionalLight;
-use crate::scene::light::point::PointLight;
-use crate::scene::light::spot::SpotLight;
-use crate::scene::mesh::Mesh;
 use crate::{
     asset::Resource,
     core::{
@@ -20,16 +16,17 @@ use crate::{
         arrayvec::ArrayVec,
         math::{self, ray::Ray, Matrix4Ext, Rect, TriangleDefinition, Vector2Ext},
         octree::{Octree, OctreeNode},
-        parking_lot::Mutex,
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::{ResourceManager, TextureRegistrationError},
     resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
     scene::{
+        light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         mesh::{
             buffer::{VertexAttributeUsage, VertexFetchError, VertexReadTrait},
-            surface::SurfaceData,
+            surface::SurfaceSharedData,
+            Mesh,
         },
         node::Node,
         Scene,
@@ -89,7 +86,7 @@ struct InstanceData {
 
 struct Instance {
     owner: Handle<Node>,
-    source_data: Arc<Mutex<SurfaceData>>,
+    source_data: SurfaceSharedData,
     data: Option<InstanceData>,
     transform: Matrix4<f32>,
 }
@@ -872,11 +869,9 @@ fn generate_lightmap(
 
 #[cfg(test)]
 mod test {
+    use crate::scene::mesh::surface::SurfaceSharedData;
     use crate::{
-        core::{
-            algebra::{Matrix4, Vector3},
-            parking_lot::Mutex,
-        },
+        core::algebra::{Matrix4, Vector3},
         scene::{
             base::BaseBuilder,
             light::{point::PointLightBuilder, BaseLightBuilder},
@@ -889,7 +884,6 @@ mod test {
         },
         utils::lightmap::Lightmap,
     };
-    use std::sync::Arc;
 
     #[test]
     fn test_generate_lightmap() {
@@ -903,7 +897,9 @@ mod test {
         );
 
         MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(data))).build()])
+            .with_surfaces(vec![
+                SurfaceBuilder::new(SurfaceSharedData::new(data)).build()
+            ])
             .build(&mut scene.graph);
 
         PointLightBuilder::new(BaseLightBuilder::new(
