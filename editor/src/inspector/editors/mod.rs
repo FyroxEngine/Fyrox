@@ -18,7 +18,10 @@ use fyrox::{
         bit::BitFieldPropertyEditorDefinition, enumeration::EnumPropertyEditorDefinition,
         inherit::InheritablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
-    material::shader::{Shader, ShaderError, ShaderState},
+    material::{
+        shader::{Shader, ShaderError, ShaderState},
+        SharedMaterial,
+    },
     resource::{
         absm::{AbsmResource, AbsmResourceState},
         curve::{CurveResource, CurveResourceError, CurveResourceState},
@@ -108,6 +111,7 @@ pub fn make_property_editors_container(
     container.insert(MaterialPropertyEditorDefinition {
         sender: Mutex::new(sender.clone()),
     });
+    container.insert(InheritablePropertyEditorDefinition::<SharedMaterial>::new());
 
     container.register_inheritable_vec_collection::<Handle<Node>>();
     container.insert(NodeHandlePropertyEditorDefinition::new(sender));

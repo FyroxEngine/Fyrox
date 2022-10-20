@@ -4,20 +4,20 @@
 //! Surfaces can use the same data source across many instances, this is a memory optimization for
 //! being able to re-use data when you need to draw the same mesh in many places.
 
-use crate::material::SharedMaterial;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         hash_combine,
         inspect::{Inspect, PropertyInfo},
         math::TriangleDefinition,
-        parking_lot::Mutex,
+        parking_lot::{Mutex, MutexGuard},
         pool::{ErasedHandle, Handle},
         reflect::Reflect,
         sparse::AtomicIndex,
+        variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
-    material::Material,
+    material::{Material, SharedMaterial},
     renderer::{cache::CacheEntry, framework},
     scene::{
         mesh::{
@@ -32,7 +32,6 @@ use crate::{
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
 use fxhash::FxHasher;
-use fyrox_core::parking_lot::MutexGuard;
 use std::{hash::Hasher, sync::Arc};
 
 /// Data source of a surface. Each surface can share same data source, this is used
@@ -978,15 +977,14 @@ impl SurfaceSharedData {
 }
 
 /// See module docs.
-#[derive(Debug, Clone, Inspect, Reflect, Visit, PartialEq)]
+#[derive(Debug, Clone, Inspect, Reflect, PartialEq)]
 pub struct Surface {
-    // Wrapped into option to be able to implement Default for serialization.
-    // In normal conditions it must never be None!
-    data: Option<SurfaceSharedData>,
-    material: SharedMaterial,
+    data: InheritableVariable<SurfaceSharedData>,
 
-    /// Array of handle to scene nodes which are used as bones.
-    pub bones: Vec<Handle<Node>>,
+    material: InheritableVariable<SharedMaterial>,
+
+    /// Array of handles to scene nodes which are used as bones.
+    pub bones: InheritableVariable<Vec<Handle<Node>>>,
 
     // Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     // and will be used to fill actual bone indices and weight in vertices that will be
@@ -995,18 +993,48 @@ pub struct Surface {
     // like so: iterate over all vertices and weight data and calculate index of node handle that
     // associated with vertex in `bones` array and store it as bone index in vertex.
     #[inspect(skip)]
-    #[visit(skip)]
     #[reflect(hidden)]
     pub(crate) vertex_weights: Vec<VertexWeightSet>,
+}
+
+impl Visit for Surface {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        if region.is_reading() {
+            // TODO: Remove in 0.30+.
+            if self.data.visit("Data", &mut region).is_err() {
+                let mut old_data: Option<SurfaceSharedData> = None;
+                old_data.visit("Data", &mut region)?;
+                self.data.set_silent(old_data.unwrap());
+            }
+
+            if self.material.visit("Material", &mut region).is_err() {
+                let mut old_material: SharedMaterial = Default::default();
+                old_material.visit("Material", &mut region)?;
+                self.material.set_silent(old_material);
+            }
+
+            if self.bones.visit("Bones", &mut region).is_err() {
+                let mut old_bones: Vec<Handle<Node>> = Default::default();
+                old_bones.visit("Bones", &mut region)?;
+                self.bones.set_silent(old_bones);
+            }
+        } else {
+            self.data.visit("Data", &mut region)?;
+            self.material.visit("Material", &mut region)?;
+            self.bones.visit("Bones", &mut region)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for Surface {
     fn default() -> Self {
         Self {
-            data: Some(SurfaceSharedData::new(SurfaceData::make_cube(
-                Matrix4::identity(),
-            ))),
-            material: SharedMaterial::new(Material::standard()),
+            data: SurfaceSharedData::new(SurfaceData::make_cube(Matrix4::identity())).into(),
+            material: SharedMaterial::new(Material::standard()).into(),
             vertex_weights: Default::default(),
             bones: Default::default(),
         }
@@ -1018,7 +1046,7 @@ impl Surface {
     #[inline]
     pub fn new(data: SurfaceSharedData) -> Self {
         Self {
-            data: Some(data),
+            data: data.into(),
             ..Default::default()
         }
     }
@@ -1032,14 +1060,14 @@ impl Surface {
     pub fn batch_id(&self) -> u64 {
         let mut hasher = FxHasher::default();
         hasher.write_u64(self.material_id());
-        hasher.write_u64(self.data.as_ref().unwrap().key());
+        hasher.write_u64(self.data.key());
         hasher.finish()
     }
 
     /// Returns current data used by surface.
     #[inline]
     pub fn data(&self) -> SurfaceSharedData {
-        self.data.as_ref().unwrap().clone()
+        (*self.data).clone()
     }
 
     /// Returns current material of the surface.
@@ -1049,7 +1077,7 @@ impl Surface {
 
     /// Sets new material for the surface.
     pub fn set_material(&mut self, material: SharedMaterial) {
-        self.material = material;
+        self.material.set(material);
     }
 
     /// Returns list of bones that affects the surface.
@@ -1091,12 +1119,13 @@ impl SurfaceBuilder {
     /// Creates new instance of surface.
     pub fn build(self) -> Surface {
         Surface {
-            data: Some(self.data),
+            data: self.data.into(),
             material: self
                 .material
-                .unwrap_or_else(|| SharedMaterial::new(Material::standard())),
+                .unwrap_or_else(|| SharedMaterial::new(Material::standard()))
+                .into(),
             vertex_weights: Default::default(),
-            bones: self.bones,
+            bones: self.bones.into(),
         }
     }
 }
