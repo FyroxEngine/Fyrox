@@ -419,6 +419,19 @@ pub fn try_inherit_properties(
             inheritable_child.inner_value_mut(),
             inheritable_parent.inner_value_ref(),
         )
+    } else if let (Some(child_collection), Some(parent_collection)) =
+        (child.as_array_mut(), parent.as_array())
+    {
+        if child_collection.reflect_len() == parent_collection.reflect_len() {
+            for i in 0..child_collection.reflect_len() {
+                let child_item = child_collection.reflect_index_mut(i).unwrap();
+                let parent_item = parent_collection.reflect_index(i).unwrap();
+
+                try_inherit_properties(child_item, parent_item)?;
+            }
+        }
+
+        Ok(())
     } else {
         for (child_field, parent_field) in child.fields_mut().iter_mut().zip(parent.fields()) {
             // If both fields are InheritableVariable<T>, try to inherit.
