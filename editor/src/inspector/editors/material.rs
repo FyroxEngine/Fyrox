@@ -94,18 +94,17 @@ impl Control for MaterialFieldEditor {
         } else if let Some(MaterialFieldMessage::Material(material)) = message.data() {
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
+                && &self.material != material
             {
-                if &self.material != material {
-                    self.material = material.clone();
+                self.material = material.clone();
 
-                    ui.send_message(TextMessage::text(
-                        self.text,
-                        MessageDirection::ToWidget,
-                        make_name(&self.material),
-                    ));
+                ui.send_message(TextMessage::text(
+                    self.text,
+                    MessageDirection::ToWidget,
+                    make_name(&self.material),
+                ));
 
-                    ui.send_message(message.reverse());
-                }
+                ui.send_message(message.reverse());
             }
         }
     }
