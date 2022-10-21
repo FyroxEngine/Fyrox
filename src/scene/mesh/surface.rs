@@ -974,6 +974,16 @@ impl SurfaceSharedData {
     pub fn key(&self) -> u64 {
         &*self.0 as *const _ as u64
     }
+
+    /// Creates a deep clone of the data.
+    pub fn deep_clone(&self) -> Self {
+        Self::new(self.lock().clone())
+    }
+
+    /// Returns total amount of uses of the shared data.
+    pub fn use_count(&self) -> usize {
+        Arc::strong_count(&self.0)
+    }
 }
 
 /// See module docs.
