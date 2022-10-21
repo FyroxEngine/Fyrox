@@ -3,7 +3,7 @@ use crate::{
         handle::NodeHandlePropertyEditorDefinition, material::MaterialPropertyEditorDefinition,
         resource::ResourceFieldPropertyEditorDefinition, script::ScriptPropertyEditorDefinition,
         spritesheet::SpriteSheetFramesContainerEditorDefinition,
-        texture::TexturePropertyEditorDefinition,
+        surface::SurfaceDataPropertyEditorDefinition, texture::TexturePropertyEditorDefinition,
     },
     Message,
 };
@@ -51,7 +51,10 @@ use fyrox::{
             directional::{CsmOptions, FrustumSplitOptions},
             BaseLight,
         },
-        mesh::{surface::Surface, RenderPath},
+        mesh::{
+            surface::{Surface, SurfaceSharedData},
+            RenderPath,
+        },
         node::{Node, NodeHandle},
         particle_system::{
             emitter::{
@@ -78,6 +81,7 @@ pub mod material;
 pub mod resource;
 pub mod script;
 pub mod spritesheet;
+pub mod surface;
 pub mod texture;
 
 pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Status> {
@@ -268,6 +272,9 @@ pub fn make_property_editors_container(
     container.register_inheritable_inspectable::<dim2::collider::HeightfieldShape>();
     container.register_inheritable_inspectable::<ConvexPolyhedronShape>();
     container.insert(SpriteSheetFramesContainerEditorDefinition);
+
+    container.insert(SurfaceDataPropertyEditorDefinition);
+    container.insert(InheritablePropertyEditorDefinition::<SurfaceSharedData>::new());
 
     container
 }
