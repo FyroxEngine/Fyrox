@@ -319,7 +319,7 @@ async fn create_surfaces(
                     if let Some(texture_path) = texture_path {
                         let texture = resource_manager.request_texture(texture_path.as_path());
 
-                        // Make up your mind, Autodesk.
+                        // Make up your mind, Autodesk and Blender.
                         // Handle all possible combinations of links to auto-import materials.
                         let name_usage = if name.contains("AmbientColor")
                             || name.contains("ambient_color")
@@ -327,9 +327,16 @@ async fn create_surfaces(
                             Some(("aoTexture", SamplerFallback::White))
                         } else if name.contains("DiffuseColor") || name.contains("diffuse_color") {
                             Some(("diffuseTexture", SamplerFallback::White))
-                        } else if name.contains("MetalnessMap") || name.contains("metalness_map") {
+                        } else if name.contains("MetalnessMap")
+                            || name.contains("metalness_map")
+                            || name.contains("ReflectionFactor")
+                        {
                             Some(("metallicTexture", SamplerFallback::Black))
-                        } else if name.contains("RoughnessMap") || name.contains("roughness_map") {
+                        } else if name.contains("RoughnessMap")
+                            || name.contains("roughness_map")
+                            || name.contains("Shininess")
+                            || name.contains("ShininessExponent")
+                        {
                             Some(("roughnessTexture", SamplerFallback::White))
                         } else if name.contains("Bump")
                             || name.contains("bump_map")
