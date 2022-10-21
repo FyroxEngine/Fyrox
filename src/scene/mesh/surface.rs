@@ -845,6 +845,17 @@ impl SurfaceData {
         self.geometry_buffer.modify().clear();
         self.vertex_buffer.modify().clear();
     }
+
+    /// Marks surface's content as procedural (created from code) or not. Content of procedural surfaces will
+    /// be serialized. It is useful if you need to save procedural surfaces to disk or some other storage.
+    pub fn set_procedural(&mut self, procedural: bool) {
+        self.is_procedural = procedural;
+    }
+
+    /// Returns `true` if surface's content was created from code (procedural), `false` - otherwise.
+    pub fn is_procedural(&self) -> bool {
+        self.is_procedural
+    }
 }
 
 impl Visit for SurfaceData {
