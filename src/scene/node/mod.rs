@@ -4,6 +4,7 @@
 
 #![warn(missing_docs)]
 
+use crate::scene::Scene;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -161,21 +162,38 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Inspect + Visit {
 
     /// Gives an opportunity to perform clean up after the node was extracted from the scene graph
     /// (or deleted).
-    fn clean_up(&mut self, _graph: &mut Graph) {}
+    fn clean_up(&mut self, #[allow(unused_variables)] graph: &mut Graph) {}
 
     /// Synchronizes internal state of the node with components of scene graph. It has limited usage
     /// and mostly allows you to sync the state of backing entity with the state of the node.
     /// For example the engine use it to sync native rigid body properties after some property was
     /// changed in the [`crate::scene::rigidbody::RigidBody`] node.  
-    fn sync_native(&self, _self_handle: Handle<Node>, _context: &mut SyncContext) {}
+    fn sync_native(
+        &self,
+        #[allow(unused_variables)] self_handle: Handle<Node>,
+        #[allow(unused_variables)] context: &mut SyncContext,
+    ) {
+    }
 
     /// Called when node's global transform changes.
-    fn sync_transform(&self, _new_global_transform: &Matrix4<f32>, _context: &mut SyncContext) {}
+    fn sync_transform(
+        &self,
+        #[allow(unused_variables)] new_global_transform: &Matrix4<f32>,
+        _context: &mut SyncContext,
+    ) {
+    }
 
     /// Updates internal state of the node and returns true if the node is still alive,
     /// or false - otherwise. "Dead" nodes automatically removed from the parent graph.
     fn update(&mut self, context: &mut UpdateContext) -> bool {
         self.deref_mut().update_lifetime(context.dt)
+    }
+
+    /// Validates internal state of a scene node. It can check handles validity, if a handle "points"
+    /// to a node of particular type, if node's parameters are in range, etc. It's main usage is to
+    /// provide centralized diagnostics for scene graph.
+    fn validate(&self, #[allow(unused_variables)] scene: &Scene) -> Result<(), String> {
+        Ok(())
     }
 }
 

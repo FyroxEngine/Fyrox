@@ -16,6 +16,8 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
+        rigidbody::RigidBody,
+        Scene,
     },
     utils::log::Log,
 };
@@ -321,6 +323,34 @@ impl NodeTrait for Joint {
         if !m4x4_approx_eq(new_global_transform, &self.global_transform()) {
             self.need_rebind.set(true);
         }
+    }
+
+    fn validate(&self, scene: &Scene) -> Result<(), String> {
+        if let Some(body1) = scene.graph.try_get(self.body1()) {
+            if body1.query_component_ref::<RigidBody>().is_none() {
+                return Err("First body of 3D Joint must be an \
+                    instance of 3D Rigid Body!"
+                    .to_string());
+            }
+        } else {
+            return Err("3D Joint has invalid or unassigned handle to a \
+            first body, the joint will not operate!"
+                .to_string());
+        }
+
+        if let Some(body2) = scene.graph.try_get(self.body2()) {
+            if body2.query_component_ref::<RigidBody>().is_none() {
+                return Err("Second body of 3D Joint must be an instance \
+                    of 3D Rigid Body!"
+                    .to_string());
+            }
+        } else {
+            return Err("3D Joint has invalid or unassigned handle to a \
+            second body, the joint will not operate!"
+                .to_string());
+        }
+
+        Ok(())
     }
 }
 

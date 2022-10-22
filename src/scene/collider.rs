@@ -21,6 +21,8 @@ use crate::{
             Graph,
         },
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
+        rigidbody::RigidBody,
+        Scene,
     },
     utils::log::Log,
 };
@@ -781,6 +783,23 @@ impl NodeTrait for Collider {
         context
             .physics
             .sync_to_collider_node(context.nodes, self_handle, self);
+    }
+
+    fn validate(&self, scene: &Scene) -> Result<(), String> {
+        if scene
+            .graph
+            .try_get(self.parent())
+            .and_then(|p| p.query_component_ref::<RigidBody>())
+            .is_none()
+        {
+            Err(
+                "3D Collider must be a direct child of a 3D Rigid Body node, \
+            otherwise it will not have any effect!"
+                    .to_string(),
+            )
+        } else {
+            Ok(())
+        }
     }
 }
 

@@ -16,9 +16,13 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         collider::InteractionGroups,
-        dim2::physics::{ContactPair, PhysicsWorld},
+        dim2::{
+            physics::{ContactPair, PhysicsWorld},
+            rigidbody::RigidBody,
+        },
         graph::{physics::CoefficientCombineRule, Graph},
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
+        Scene,
     },
     utils::log::Log,
 };
@@ -555,6 +559,23 @@ impl NodeTrait for Collider {
         context
             .physics2d
             .sync_to_collider_node(context.nodes, self_handle, self);
+    }
+
+    fn validate(&self, scene: &Scene) -> Result<(), String> {
+        if scene
+            .graph
+            .try_get(self.parent())
+            .and_then(|p| p.query_component_ref::<RigidBody>())
+            .is_none()
+        {
+            Err(
+                "2D Collider must be a direct child of a 3D Rigid Body node, \
+            otherwise it will not have any effect!"
+                    .to_string(),
+            )
+        } else {
+            Ok(())
+        }
     }
 }
 
