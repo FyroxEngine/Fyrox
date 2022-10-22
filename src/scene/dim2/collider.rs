@@ -705,13 +705,18 @@ impl ColliderBuilder {
 #[cfg(test)]
 mod test {
 
-    use crate::core::reflect::Reflect;
     use crate::core::variable::try_inherit_properties;
+    use crate::core::{algebra::Vector2, reflect::Reflect};
     use crate::scene::collider::BitMask;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
-        dim2::collider::{Collider, ColliderBuilder, ColliderShape, InteractionGroups},
+        dim2::{
+            collider::{Collider, ColliderBuilder, ColliderShape, InteractionGroups},
+            rigidbody::RigidBodyBuilder,
+        },
         graph::physics::CoefficientCombineRule,
+        graph::Graph,
+        rigidbody::RigidBodyType,
     };
 
     #[test]
@@ -736,5 +741,63 @@ mod test {
 
         check_inheritable_properties_equality(&child.base, &parent.base);
         check_inheritable_properties_equality(&child, parent);
+    }
+
+    #[test]
+    fn test_collider_2d_intersect() {
+        let mut graph = Graph::new();
+
+        let mut create_rigid_body = |is_sensor| {
+            let cube_half_size = 0.5;
+            let collider_sensor = ColliderBuilder::new(BaseBuilder::new())
+                .with_shape(ColliderShape::cuboid(cube_half_size, cube_half_size))
+                .with_sensor(is_sensor)
+                .build(&mut graph);
+
+            RigidBodyBuilder::new(BaseBuilder::new().with_children(&[collider_sensor]))
+                .with_body_type(RigidBodyType::Static)
+                .build(&mut graph);
+
+            collider_sensor
+        };
+
+        let collider_sensor = create_rigid_body(true);
+        let collider_non_sensor = create_rigid_body(false);
+
+        // need to call two times for the physics engine to execute
+        graph.update(Vector2::new(800.0, 600.0), 1.0);
+        graph.update(Vector2::new(800.0, 600.0), 1.0);
+
+        // we don't expect contact between regular body and sensor
+        assert_eq!(
+            0,
+            graph[collider_sensor]
+                .as_collider2d()
+                .contacts(&graph.physics2d)
+                .count()
+        );
+        assert_eq!(
+            0,
+            graph[collider_non_sensor]
+                .as_collider2d()
+                .contacts(&graph.physics2d)
+                .count()
+        );
+
+        // we expect intersection between regular body and sensor
+        assert_eq!(
+            1,
+            graph[collider_sensor]
+                .as_collider2d()
+                .intersects(&graph.physics2d)
+                .count()
+        );
+        assert_eq!(
+            1,
+            graph[collider_non_sensor]
+                .as_collider2d()
+                .intersects(&graph.physics2d)
+                .count()
+        );
     }
 }
