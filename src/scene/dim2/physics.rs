@@ -988,6 +988,31 @@ impl PhysicsWorld {
         }
     }
 
+    /// Intersections checks between regular colliders and sensor colliders
+    pub(crate) fn intersections_with(
+        &self,
+        collider: ColliderHandle,
+    ) -> impl Iterator<Item = IntersectionPair> + '_ {
+        self.narrow_phase.intersections_with(collider).map(
+            |(collider1, collider2, intersecting)| IntersectionPair {
+                collider1: self
+                    .colliders
+                    .map
+                    .value_of(&collider1)
+                    .cloned()
+                    .unwrap_or_default(),
+                collider2: self
+                    .colliders
+                    .map
+                    .value_of(&collider2)
+                    .cloned()
+                    .unwrap_or_default(),
+                has_any_active_contact: intersecting,
+            },
+        )
+    }
+
+    /// Contacts checks between two regular colliders
     pub(crate) fn contacts_with(
         &self,
         collider: ColliderHandle,
