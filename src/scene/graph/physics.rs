@@ -1576,11 +1576,38 @@ impl PhysicsWorld {
         }
     }
 
+    /// Intersections checks between regular colliders and sensor colliders
+    pub(crate) fn intersections_with(
+        &self,
+        collider: ColliderHandle,
+    ) -> impl Iterator<Item = IntersectionPair> + '_ {
+        self.narrow_phase.intersections_with(collider).map(
+            |(collider1, collider2, intersecting)| IntersectionPair {
+                collider1: self
+                    .colliders
+                    .map
+                    .value_of(&collider1)
+                    .cloned()
+                    .unwrap_or_default(),
+                collider2: self
+                    .colliders
+                    .map
+                    .value_of(&collider2)
+                    .cloned()
+                    .unwrap_or_default(),
+                has_any_active_contact: intersecting,
+            },
+        )
+    }
+
+    /// Contacts checks between two regular colliders
     pub(crate) fn contacts_with(
         &self,
         collider: ColliderHandle,
     ) -> impl Iterator<Item = ContactPair> + '_ {
         self.narrow_phase
+            // Note: contacts with will only return the interaction between 2 non-sensor nodes
+            // https://rapier.rs/docs/user_guides/rust/advanced_collision_detection/#the-contact-graph
             .contacts_with(collider)
             .map(|c| ContactPair {
                 collider1: self
