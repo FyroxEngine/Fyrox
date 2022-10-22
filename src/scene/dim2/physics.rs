@@ -191,6 +191,16 @@ pub struct ContactPair {
     pub has_any_active_contact: bool,
 }
 
+/// Intersection info for pair of colliders.
+pub struct IntersectionPair {
+    /// The first collider involved in the contact pair.
+    pub collider1: Handle<Node>,
+    /// The second collider involved in the contact pair.
+    pub collider2: Handle<Node>,
+    /// Is there any active contact in this contact pair?
+    pub has_any_active_contact: bool,
+}
+
 pub(super) struct Container<S, A>
 where
     A: Hash + Eq + Clone,
