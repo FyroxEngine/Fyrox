@@ -22,12 +22,10 @@ use fyrox::{
         canvas::CanvasBuilder,
         decorator::{DecoratorBuilder, DecoratorMessage},
         dropdown_list::DropdownListMessage,
-        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::{ImageBuilder, ImageMessage},
         message::{KeyCode, MessageDirection, MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
         utils::make_simple_tooltip,
         vec::vec3::{Vec3EditorBuilder, Vec3EditorMessage},
         widget::{WidgetBuilder, WidgetMessage},
@@ -84,22 +82,7 @@ fn make_interaction_mode_button(
 ) -> Handle<UiNode> {
     ButtonBuilder::new(
         WidgetBuilder::new()
-            .with_tooltip(
-                BorderBuilder::new(
-                    WidgetBuilder::new()
-                        .with_max_size(Vector2::new(300.0, f32::MAX))
-                        .with_visibility(false)
-                        .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
-                            )
-                            .with_wrap(WrapMode::Word)
-                            .with_text(tooltip)
-                            .build(ctx),
-                        ),
-                )
-                .build(ctx),
-            )
+            .with_tooltip(make_simple_tooltip(ctx, tooltip))
             .with_margin(Thickness::uniform(1.0)),
     )
     .with_back(

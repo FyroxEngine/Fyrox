@@ -5,9 +5,10 @@ use crate::{
     text::TextBuilder,
     vector_image::{Primitive, VectorImageBuilder},
     widget::WidgetBuilder,
-    Brush, BuildContext, HorizontalAlignment, UiNode, VerticalAlignment, BRUSH_BRIGHT,
+    Brush, BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment, BRUSH_BRIGHT,
 };
 use fyrox_core::color::Color;
+use std::rc::Rc;
 
 pub enum ArrowDirection {
     Top,
@@ -64,18 +65,20 @@ pub fn make_arrow(
     .build(ctx)
 }
 
-pub fn make_simple_tooltip(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
-    BorderBuilder::new(
-        WidgetBuilder::new()
-            .with_visibility(false)
-            .with_foreground(Brush::Solid(Color::opaque(160, 160, 160)))
-            .with_max_size(Vector2::new(250.0, f32::INFINITY))
-            .with_child(
-                TextBuilder::new(WidgetBuilder::new())
-                    .with_wrap(WrapMode::Word)
-                    .with_text(text)
-                    .build(ctx),
-            ),
+pub fn make_simple_tooltip(ctx: &mut BuildContext, text: &str) -> Rc<Handle<UiNode>> {
+    Rc::new(
+        BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_visibility(false)
+                .with_foreground(Brush::Solid(Color::opaque(160, 160, 160)))
+                .with_max_size(Vector2::new(300.0, f32::INFINITY))
+                .with_child(
+                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
+                        .with_wrap(WrapMode::Word)
+                        .with_text(text)
+                        .build(ctx),
+                ),
+        )
+        .build(ctx),
     )
-    .build(ctx)
 }

@@ -1,5 +1,5 @@
 use fyrox::{
-    core::{algebra::Vector2, color::Color, pool::Handle},
+    core::{color::Color, pool::Handle},
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -7,10 +7,10 @@ use fyrox::{
         decorator::DecoratorBuilder,
         define_constructor,
         draw::SharedTexture,
-        formatted_text::WrapMode,
         image::ImageBuilder,
         message::{MessageDirection, UiMessage},
         text::TextBuilder,
+        utils::make_simple_tooltip,
         widget::WidgetBuilder,
         BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
@@ -64,22 +64,7 @@ pub fn make_image_button_with_tooltip(
 ) -> Handle<UiNode> {
     ButtonBuilder::new(
         WidgetBuilder::new()
-            .with_tooltip(
-                BorderBuilder::new(
-                    WidgetBuilder::new()
-                        .with_max_size(Vector2::new(300.0, f32::MAX))
-                        .with_visibility(false)
-                        .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
-                            )
-                            .with_wrap(WrapMode::Word)
-                            .with_text(tooltip)
-                            .build(ctx),
-                        ),
-                )
-                .build(ctx),
-            )
+            .with_tooltip(make_simple_tooltip(ctx, tooltip))
             .with_margin(Thickness::uniform(1.0)),
     )
     .with_content(

@@ -466,9 +466,9 @@ fn create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Hand
         .build(ctx)
 }
 
-fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
+fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Rc<Handle<UiNode>> {
     if text.is_empty() {
-        Handle::NONE
+        Rc::new(Handle::NONE)
     } else {
         make_simple_tooltip(ctx, text)
     }

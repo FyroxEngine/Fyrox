@@ -78,6 +78,7 @@ use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_core::algebra::Matrix3;
 use std::collections::hash_map::Entry;
+use std::rc::Rc;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
@@ -542,7 +543,7 @@ pub struct RestrictionEntry {
 }
 
 struct TooltipEntry {
-    tooltip: Handle<UiNode>,
+    tooltip: Rc<Handle<UiNode>>,
     /// Time remaining until this entry should disappear (in seconds).
     time: f32,
     /// Maximum time that it should be kept for
@@ -552,7 +553,7 @@ struct TooltipEntry {
     max_time: f32,
 }
 impl TooltipEntry {
-    fn new(tooltip: Handle<UiNode>, time: f32) -> TooltipEntry {
+    fn new(tooltip: Rc<Handle<UiNode>>, time: f32) -> TooltipEntry {
         Self {
             tooltip,
             time,
@@ -1676,40 +1677,40 @@ impl UserInterface {
         self.node(self.root()).screen_to_local(position)
     }
 
-    fn show_tooltip(&self, tooltip: Handle<UiNode>) {
+    fn show_tooltip(&self, tooltip: Rc<Handle<UiNode>>) {
         self.send_message(WidgetMessage::visibility(
-            tooltip,
+            *tooltip,
             MessageDirection::ToWidget,
             true,
         ));
-        self.send_message(WidgetMessage::topmost(tooltip, MessageDirection::ToWidget));
+        self.send_message(WidgetMessage::topmost(*tooltip, MessageDirection::ToWidget));
         self.send_message(WidgetMessage::desired_position(
-            tooltip,
+            *tooltip,
             MessageDirection::ToWidget,
             self.screen_to_root_canvas_space(self.cursor_position() + Vector2::new(0.0, 16.0)),
         ));
     }
 
-    fn replace_or_update_tooltip(&mut self, tooltip: Handle<UiNode>, time: f32) {
+    fn replace_or_update_tooltip(&mut self, tooltip: Rc<Handle<UiNode>>, time: f32) {
         if let Some(entry) = self.active_tooltip.as_mut() {
             if entry.tooltip == tooltip {
                 // Keep current visible.
                 entry.time = time;
             } else {
-                let old_tooltip = entry.tooltip;
+                let old_tooltip = entry.tooltip.clone();
 
-                entry.tooltip = tooltip;
+                entry.tooltip = tooltip.clone();
                 self.show_tooltip(tooltip);
 
                 // Hide previous.
                 self.send_message(WidgetMessage::visibility(
-                    old_tooltip,
+                    *old_tooltip,
                     MessageDirection::ToWidget,
                     false,
                 ));
             }
         } else {
-            self.show_tooltip(tooltip);
+            self.show_tooltip(tooltip.clone());
             self.active_tooltip = Some(TooltipEntry::new(tooltip, time));
         }
     }
@@ -1725,7 +1726,7 @@ impl UserInterface {
                 // visible_tooltips
                 sender
                     .send(WidgetMessage::visibility(
-                        entry.tooltip,
+                        *entry.tooltip,
                         MessageDirection::ToWidget,
                         false,
                     ))
@@ -1749,7 +1750,7 @@ impl UserInterface {
                 self.replace_or_update_tooltip(tooltip, tooltip_time);
                 break;
             } else if let Some(entry) = self.active_tooltip.as_mut() {
-                if entry.tooltip == handle {
+                if *entry.tooltip == handle {
                     // The current node was a tooltip.
                     // We refresh the timer back to the stored max time.
                     entry.time = entry.max_time;
@@ -2162,8 +2163,8 @@ impl UserInterface {
 
             // We also must delete tooltips, since they're not in the tree of the widget they
             // won't be deleted automatically.
-            if node_ref.tooltip().is_some() {
-                tooltips.push(node_ref.tooltip());
+            if node_ref.tooltip.is_some() && Rc::strong_count(&node_ref.tooltip) == 1 {
+                tooltips.push(node_ref.tooltip.clone());
             }
 
             // Notify node that it is about to be deleted so it will have a chance to remove
@@ -2174,7 +2175,7 @@ impl UserInterface {
         }
 
         for tooltip in tooltips {
-            self.remove_node(tooltip);
+            self.remove_node(*tooltip);
         }
 
         self.preview_set.remove(&node);
