@@ -17,7 +17,7 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::{
-            physics::{CoefficientCombineRule, ContactPair, PhysicsWorld},
+            physics::{CoefficientCombineRule, ContactPair, IntersectionPair, PhysicsWorld},
             Graph,
         },
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
@@ -730,11 +730,21 @@ impl Collider {
     }
 
     /// Returns an iterator that yields contact information for the collider.
+    /// Contacts checks between two regular colliders
     pub fn contacts<'a>(
         &self,
         physics: &'a PhysicsWorld,
     ) -> impl Iterator<Item = ContactPair> + 'a {
         physics.contacts_with(self.native.get())
+    }
+
+    /// Returns an iterator that yields intersection information for the collider.
+    /// Intersections checks between regular colliders and sensor colliders
+    pub fn intersects<'a>(
+        &self,
+        physics: &'a PhysicsWorld,
+    ) -> impl Iterator<Item = IntersectionPair> + 'a {
+        physics.intersections_with(self.native.get())
     }
 
     pub(crate) fn needs_sync_model(&self) -> bool {
