@@ -319,6 +319,8 @@ impl WorldViewer {
         let ui = &mut engine.user_interface;
 
         self.sync_graph(ui, editor_scene, graph);
+
+        self.validate(editor_scene, engine);
     }
 
     fn build_breadcrumb(
@@ -803,6 +805,31 @@ impl WorldViewer {
             MessageDirection::ToWidget,
             mode.is_edit(),
         ));
+    }
+
+    pub fn validate(&self, editor_scene: &EditorScene, engine: &Engine) {
+        let scene = &engine.scenes[editor_scene.scene];
+        let graph = &scene.graph;
+        for (node_handle, node) in graph.pair_iter() {
+            if let Some(view) = self.node_to_view_map.get(&node_handle) {
+                let result = node.validate(scene);
+
+                let view_ref = engine
+                    .user_interface
+                    .node(*view)
+                    .query_component::<SceneItem<Node>>()
+                    .unwrap();
+
+                if view_ref.warning_icon.is_none() && result.is_err()
+                    || view_ref.warning_icon.is_some() && result.is_ok()
+                {
+                    send_sync_message(
+                        &engine.user_interface,
+                        SceneItemMessage::validate(*view, MessageDirection::ToWidget, result),
+                    );
+                }
+            }
+        }
     }
 }
 
