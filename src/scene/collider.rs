@@ -17,7 +17,7 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::{
-            physics::{CoefficientCombineRule, ContactPair, PhysicsWorld},
+            physics::{CoefficientCombineRule, ContactPair, IntersectionPair, PhysicsWorld},
             Graph,
         },
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
@@ -730,11 +730,21 @@ impl Collider {
     }
 
     /// Returns an iterator that yields contact information for the collider.
+    /// Contacts checks between two regular colliders
     pub fn contacts<'a>(
         &self,
         physics: &'a PhysicsWorld,
     ) -> impl Iterator<Item = ContactPair> + 'a {
         physics.contacts_with(self.native.get())
+    }
+
+    /// Returns an iterator that yields intersection information for the collider.
+    /// Intersections checks between regular colliders and sensor colliders
+    pub fn intersects<'a>(
+        &self,
+        physics: &'a PhysicsWorld,
+    ) -> impl Iterator<Item = IntersectionPair> + 'a {
+        physics.intersections_with(self.native.get())
     }
 
     pub(crate) fn needs_sync_model(&self) -> bool {
@@ -918,12 +928,14 @@ impl ColliderBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::core::reflect::Reflect;
+    use crate::core::{algebra::Vector2, reflect::Reflect};
     use crate::scene::collider::BitMask;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         collider::{Collider, ColliderBuilder, ColliderShape, InteractionGroups},
         graph::physics::CoefficientCombineRule,
+        graph::Graph,
+        rigidbody::{RigidBodyBuilder, RigidBodyType},
     };
     use fyrox_core::variable::try_inherit_properties;
 
@@ -949,5 +961,67 @@ mod test {
 
         check_inheritable_properties_equality(&child.base, &parent.base);
         check_inheritable_properties_equality(&child, parent);
+    }
+
+    #[test]
+    fn test_collider_intersect() {
+        let mut graph = Graph::new();
+
+        let mut create_rigid_body = |is_sensor| {
+            let cube_half_size = 0.5;
+            let collider_sensor = ColliderBuilder::new(BaseBuilder::new())
+                .with_shape(ColliderShape::cuboid(
+                    cube_half_size,
+                    cube_half_size,
+                    cube_half_size,
+                ))
+                .with_sensor(is_sensor)
+                .build(&mut graph);
+
+            RigidBodyBuilder::new(BaseBuilder::new().with_children(&[collider_sensor]))
+                .with_body_type(RigidBodyType::Static)
+                .build(&mut graph);
+
+            collider_sensor
+        };
+
+        let collider_sensor = create_rigid_body(true);
+        let collider_non_sensor = create_rigid_body(false);
+
+        // need to call two times for the physics engine to execute
+        graph.update(Vector2::new(800.0, 600.0), 1.0);
+        graph.update(Vector2::new(800.0, 600.0), 1.0);
+
+        // we don't expect contact between regular body and sensor
+        assert_eq!(
+            0,
+            graph[collider_sensor]
+                .as_collider()
+                .contacts(&graph.physics)
+                .count()
+        );
+        assert_eq!(
+            0,
+            graph[collider_non_sensor]
+                .as_collider()
+                .contacts(&graph.physics)
+                .count()
+        );
+
+        // we expect intersection between regular body and sensor
+        assert_eq!(
+            1,
+            graph[collider_sensor]
+                .as_collider()
+                .intersects(&graph.physics)
+                .count()
+        );
+        assert_eq!(
+            1,
+            graph[collider_non_sensor]
+                .as_collider()
+                .intersects(&graph.physics)
+                .count()
+        );
     }
 }
