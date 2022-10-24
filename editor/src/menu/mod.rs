@@ -1,4 +1,5 @@
 use crate::{
+    animation::AnimationEditor,
     menu::{
         create::CreateEntityRootMenu, edit::EditMenu, file::FileMenu, utils::UtilsMenu,
         view::ViewMenu,
@@ -52,6 +53,7 @@ pub struct Panels<'b> {
     pub curve_editor: &'b CurveEditorWindow,
     pub absm_editor: &'b AbsmEditor,
     pub scene_settings: &'b SceneSettingsWindow,
+    pub animation_editor: &'b AnimationEditor,
 }
 
 pub struct MenuContext<'a, 'b> {

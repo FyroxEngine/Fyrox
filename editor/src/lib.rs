@@ -11,6 +11,7 @@
 extern crate lazy_static;
 
 mod absm;
+mod animation;
 mod asset;
 mod audio;
 mod build;
@@ -35,6 +36,7 @@ mod world;
 
 use crate::{
     absm::AbsmEditor,
+    animation::AnimationEditor,
     asset::{item::AssetItem, item::AssetKind, AssetBrowser},
     audio::AudioPanel,
     build::BuildWindow,
@@ -476,6 +478,7 @@ pub struct Editor {
     build_window: BuildWindow,
     build_profile: BuildProfile,
     scene_settings: SceneSettingsWindow,
+    animation_editor: AnimationEditor,
 }
 
 impl Editor {
@@ -720,11 +723,14 @@ impl Editor {
 
         let scene_settings = SceneSettingsWindow::new(ctx, message_sender.clone());
 
+        let animation_editor = AnimationEditor::new(ctx);
+
         let absm_editor = AbsmEditor::new(&mut engine, message_sender.clone());
 
         let material_editor = MaterialEditor::new(&mut engine);
 
         let mut editor = Self {
+            animation_editor,
             engine,
             navmesh_panel,
             scene_viewer,
@@ -1090,6 +1096,7 @@ impl Editor {
                     absm_editor: &self.absm_editor,
                     command_stack_panel: self.command_stack_viewer.window,
                     scene_settings: &self.scene_settings,
+                    animation_editor: &self.animation_editor,
                 },
                 settings: &mut self.settings,
             },
