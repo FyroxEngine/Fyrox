@@ -208,7 +208,7 @@ impl Animation {
         }
     }
 
-    pub fn get_tracks(&self) -> &[Track] {
+    pub fn tracks(&self) -> &[Track] {
         &self.tracks
     }
 
@@ -249,8 +249,8 @@ impl Animation {
     fn tick(&mut self, dt: f32) {
         self.update_pose();
 
-        let current_time_position = self.get_time_position();
-        let new_time_position = current_time_position + dt * self.get_speed();
+        let current_time_position = self.time_position();
+        let new_time_position = current_time_position + dt * self.speed();
 
         for signal in self.signals.iter_mut().filter(|s| s.enabled) {
             if self.speed >= 0.0
@@ -274,11 +274,11 @@ impl Animation {
         self.events.pop_front()
     }
 
-    pub fn get_time_position(&self) -> f32 {
+    pub fn time_position(&self) -> f32 {
         self.time_position
     }
 
-    pub fn get_speed(&self) -> f32 {
+    pub fn speed(&self) -> f32 {
         self.speed
     }
 
@@ -309,11 +309,11 @@ impl Animation {
         self
     }
 
-    pub fn get_tracks_mut(&mut self) -> &mut [Track] {
+    pub fn tracks_mut(&mut self) -> &mut [Track] {
         &mut self.tracks
     }
 
-    pub fn get_resource(&self) -> Option<Model> {
+    pub fn resource(&self) -> Option<Model> {
         self.resource.clone()
     }
 
@@ -399,7 +399,7 @@ impl Animation {
                 ResourceState::Ok(ref data) => {
                     // TODO: Here we assume that resource contains only *one* animation.
                     if let Some(ref_animation) = data.get_scene().animations.pool.at(0) {
-                        for track in self.get_tracks_mut() {
+                        for track in self.tracks_mut() {
                             // This may panic if animation has track that refers to a deleted node,
                             // it can happen if you deleted a node but forgot to remove animation
                             // that uses this node.
@@ -416,7 +416,7 @@ impl Animation {
                             // instantiated model, which is essentially copies key frames to new
                             // animation targeted to character instance.
                             let mut found = false;
-                            for ref_track in ref_animation.get_tracks().iter() {
+                            for ref_track in ref_animation.tracks().iter() {
                                 if track_node.name()
                                     == data.get_scene().graph[ref_track.node()].name()
                                 {
@@ -479,7 +479,7 @@ impl Animation {
         }
     }
 
-    pub fn get_pose(&self) -> &AnimationPose {
+    pub fn pose(&self) -> &AnimationPose {
         &self.pose
     }
 }

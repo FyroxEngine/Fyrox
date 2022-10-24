@@ -167,7 +167,7 @@ impl Model {
             // Remap animation track nodes from resource to instance. This is required
             // because we've made a plain copy and it has tracks with node handles mapped
             // to nodes of internal scene.
-            for (i, ref_track) in ref_anim.get_tracks().iter().enumerate() {
+            for (i, ref_track) in ref_anim.tracks().iter().enumerate() {
                 let ref_node = &data.scene.graph[ref_track.node()];
                 // Find instantiated node that corresponds to node in resource
                 let instance_node = graph.find_by_name(root, ref_node.name());
@@ -182,7 +182,7 @@ impl Model {
                     );
                 }
                 // One-to-one track mapping so there is [i] indexing.
-                anim_copy.get_tracks_mut()[i].set_node(instance_node);
+                anim_copy.tracks_mut()[i].set_node(instance_node);
             }
 
             animation_handles.push(animations.add(anim_copy));

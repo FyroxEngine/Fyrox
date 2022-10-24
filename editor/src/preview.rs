@@ -357,7 +357,7 @@ impl PreviewPanel {
         if self.allow_animations {
             for animation in scene.animations.iter_mut() {
                 animation.set_enabled(true);
-                animation.get_pose().apply(&mut scene.graph);
+                animation.pose().apply(&mut scene.graph);
             }
         }
 

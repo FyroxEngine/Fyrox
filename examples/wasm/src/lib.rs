@@ -349,7 +349,7 @@ pub fn main_js() {
                         scene
                             .animations
                             .get_mut(walk_animation)
-                            .get_pose()
+                            .pose()
                             .apply(&mut scene.graph);
 
                         // Rotate model according to input controller state.

@@ -195,7 +195,7 @@ impl Plugin for Game {
             scene
                 .animations
                 .get_mut(animation)
-                .get_pose()
+                .pose()
                 .apply(&mut scene.graph);
         }
 

@@ -407,7 +407,7 @@ impl Scene {
         for descendant in self.graph.traverse_handle_iter(handle) {
             // Remove all associated animations.
             self.animations.retain(|animation| {
-                for track in animation.get_tracks() {
+                for track in animation.tracks() {
                     if track.node() == descendant {
                         return false;
                     }
@@ -587,7 +587,7 @@ impl Scene {
             // Remove all tracks for nodes that were filtered out.
             animation.retain_tracks(|track| old_new_map.map.contains_key(&track.node()));
             // Remap track nodes.
-            for track in animation.get_tracks_mut() {
+            for track in animation.tracks_mut() {
                 track.set_node(old_new_map.map[&track.node()]);
             }
         }

@@ -394,7 +394,7 @@ fn main() {
                     scene
                         .animations
                         .get_mut(walk_animation)
-                        .get_pose()
+                        .pose()
                         .apply(&mut scene.graph);
 
                     scene.graph[model_handle]

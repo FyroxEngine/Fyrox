@@ -101,7 +101,7 @@ impl EvaluatePose for PlayAnimation {
     ) -> Ref<AnimationPose> {
         if let Some(animation) = animations.try_get(self.animation) {
             animation
-                .get_pose()
+                .pose()
                 .clone_into(&mut self.output_pose.borrow_mut());
         }
         self.output_pose.borrow()

@@ -188,7 +188,7 @@ fn main() {
                     scene
                         .animations
                         .get_mut(walk_animation)
-                        .get_pose()
+                        .pose()
                         .apply(&mut scene.graph);
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
