@@ -1,7 +1,7 @@
 use crate::{
+    animation::{track::Track, value::BoundValueCollection},
     asset::ResourceState,
     core::{
-        algebra::{UnitQuaternion, Vector3},
         math::wrapf,
         pool::{Handle, Pool, Ticket},
         visitor::{Visit, VisitResult, Visitor},
@@ -18,310 +18,11 @@ use std::{
     ops::{Index, IndexMut, Range},
 };
 
+pub mod container;
 pub mod machine;
 pub mod spritesheet;
-
-#[derive(Clone, Visit, Debug)]
-pub enum TrackBinding {
-    Position,
-    Scale,
-    Rotation,
-    Property(String),
-}
-
-pub trait Value: Sized + Visit + Clone + Default + Debug {
-    fn interpolate(&self, other: &Self, t: f32) -> Self;
-}
-
-impl Value for Vector3<f32> {
-    fn interpolate(&self, other: &Self, t: f32) -> Self {
-        self.lerp(other, t)
-    }
-}
-
-impl Value for UnitQuaternion<f32> {
-    fn interpolate(&self, other: &Self, t: f32) -> Self {
-        self.nlerp(other, t)
-    }
-}
-
-#[derive(Default, Visit, Debug, Clone)]
-pub struct Frame<T: Value> {
-    value: T,
-    time: f32,
-}
-
-#[derive(Default, Visit, Debug, Clone)]
-pub struct GenericTrackFramesContainer<T: Value> {
-    frames: Vec<Frame<T>>,
-    max_time: f32,
-}
-
-impl<T: Value> GenericTrackFramesContainer<T> {
-    pub fn add_key_frame(&mut self, frame: Frame<T>) {
-        if frame.time > self.max_time {
-            self.max_time = frame.time;
-            self.frames.push(frame);
-        } else {
-            // Find a place to insert
-            let mut index = 0;
-            for (i, other_frame) in self.frames.iter().enumerate() {
-                if frame.time < other_frame.time {
-                    index = i;
-                    break;
-                }
-            }
-            self.frames.insert(index, frame)
-        }
-    }
-
-    pub fn set_frames(&mut self, frames: Vec<Frame<T>>) {
-        self.frames = frames;
-        self.max_time = 0.0;
-
-        for frame in self.frames.iter() {
-            if frame.time > self.max_time {
-                self.max_time = frame.time;
-            }
-        }
-    }
-
-    pub fn fetch(&self, mut time: f32) -> Option<T> {
-        if self.frames.is_empty() {
-            return None;
-        }
-
-        if time >= self.max_time {
-            return self.frames.last().map(|k| k.value.clone());
-        }
-
-        time = time.clamp(0.0, self.max_time);
-
-        let mut right_index = 0;
-        for (i, keyframe) in self.frames.iter().enumerate() {
-            if keyframe.time >= time {
-                right_index = i;
-                break;
-            }
-        }
-
-        if right_index == 0 {
-            self.frames.first().map(|k| k.value.clone())
-        } else {
-            let left = &self.frames[right_index - 1];
-            let right = &self.frames[right_index];
-            let interpolator = (time - left.time) / (right.time - left.time);
-            Some(left.value.interpolate(&right.value, interpolator))
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum TrackValue {
-    Vector3(Vector3<f32>),
-    UnitQuaternion(UnitQuaternion<f32>),
-}
-
-impl TrackValue {
-    pub fn weighted_clone(&self, weight: f32) -> Self {
-        match self {
-            TrackValue::Vector3(v) => TrackValue::Vector3(v.scale(weight)),
-            TrackValue::UnitQuaternion(v) => TrackValue::UnitQuaternion(*v),
-        }
-    }
-
-    pub fn blend_with(&mut self, other: &Self, weight: f32) {
-        match (self, other) {
-            (Self::Vector3(a), Self::Vector3(b)) => *a += b.scale(weight),
-            (Self::UnitQuaternion(a), Self::UnitQuaternion(b)) => *a = a.nlerp(b, weight),
-            _ => (),
-        }
-    }
-
-    pub fn interpolate(&self, other: &Self, t: f32) -> Option<Self> {
-        match (self, other) {
-            (Self::Vector3(a), Self::Vector3(b)) => Some(Self::Vector3(a.interpolate(b, t))),
-            (Self::UnitQuaternion(a), Self::UnitQuaternion(b)) => {
-                Some(Self::UnitQuaternion(a.interpolate(b, t)))
-            }
-            _ => None,
-        }
-    }
-}
-
-#[derive(Visit, Debug, Clone)]
-pub enum TrackFramesContainer {
-    Vector3(GenericTrackFramesContainer<Vector3<f32>>),
-    UnitQuaternion(GenericTrackFramesContainer<UnitQuaternion<f32>>),
-}
-
-impl TrackFramesContainer {
-    pub fn add(&mut self, time: f32, value: TrackValue) {
-        match (self, value) {
-            (Self::Vector3(container), TrackValue::Vector3(value)) => {
-                container.add_key_frame(Frame { time, value })
-            }
-            (Self::UnitQuaternion(container), TrackValue::UnitQuaternion(value)) => {
-                container.add_key_frame(Frame { time, value })
-            }
-            _ => (),
-        }
-    }
-
-    pub fn fetch(&self, time: f32) -> Option<TrackValue> {
-        match self {
-            TrackFramesContainer::Vector3(vec3) => vec3.fetch(time).map(TrackValue::Vector3),
-            TrackFramesContainer::UnitQuaternion(quat) => {
-                quat.fetch(time).map(TrackValue::UnitQuaternion)
-            }
-        }
-    }
-
-    pub fn time_length(&self) -> f32 {
-        match self {
-            TrackFramesContainer::Vector3(v) => v.max_time,
-            TrackFramesContainer::UnitQuaternion(v) => v.max_time,
-        }
-    }
-}
-
-#[derive(Debug, Visit, Clone)]
-pub struct Track {
-    #[visit(optional)] // Backward compatibility
-    binding: TrackBinding,
-    #[visit(skip)] // TODO: Use a switch to enable/disable frames serialization.
-    frames: TrackFramesContainer,
-    enabled: bool,
-    node: Handle<Node>,
-}
-
-impl Default for Track {
-    fn default() -> Self {
-        Self {
-            binding: TrackBinding::Position,
-            frames: TrackFramesContainer::Vector3(Default::default()),
-            enabled: true,
-            node: Default::default(),
-        }
-    }
-}
-
-impl Track {
-    pub fn new(container: TrackFramesContainer) -> Track {
-        Self {
-            frames: container,
-            ..Default::default()
-        }
-    }
-
-    pub fn set_binding(&mut self, binding: TrackBinding) {
-        self.binding = binding;
-    }
-
-    pub fn binding(&self) -> &TrackBinding {
-        &self.binding
-    }
-
-    pub fn set_node(&mut self, node: Handle<Node>) {
-        self.node = node;
-    }
-
-    pub fn get_node(&self) -> Handle<Node> {
-        self.node
-    }
-
-    pub fn frames_container(&self) -> &TrackFramesContainer {
-        &self.frames
-    }
-
-    pub fn frames_container_mut(&mut self) -> &mut TrackFramesContainer {
-        &mut self.frames
-    }
-
-    pub fn fetch(&self, time: f32) -> Option<BoundValue> {
-        self.frames.fetch(time).map(|v| BoundValue {
-            binding: self.binding.clone(),
-            value: v,
-        })
-    }
-
-    pub fn enable(&mut self, enabled: bool) {
-        self.enabled = enabled;
-    }
-
-    pub fn time_length(&self) -> f32 {
-        self.frames.time_length()
-    }
-
-    pub fn is_enabled(&self) -> bool {
-        self.enabled
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct BoundValue {
-    binding: TrackBinding,
-    value: TrackValue,
-}
-
-impl BoundValue {
-    pub fn weighted_clone(&self, weight: f32) -> Self {
-        Self {
-            binding: self.binding.clone(),
-            value: self.value.weighted_clone(weight),
-        }
-    }
-
-    pub fn blend_with(&mut self, other: &Self, weight: f32) {
-        self.value.blend_with(&other.value, weight);
-    }
-
-    pub fn interpolate(&self, other: &BoundValue, t: f32) -> Option<BoundValue> {
-        self.value
-            .interpolate(&other.value, t)
-            .map(|value| BoundValue {
-                binding: self.binding.clone(),
-                value,
-            })
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct BoundValueCollection {
-    values: Vec<BoundValue>,
-}
-
-impl BoundValueCollection {
-    pub fn weighted_clone(&self, weight: f32) -> Self {
-        Self {
-            values: self
-                .values
-                .iter()
-                .map(|v| BoundValue {
-                    binding: v.binding.clone(),
-                    value: v.value.weighted_clone(weight),
-                })
-                .collect::<Vec<_>>(),
-        }
-    }
-
-    pub fn blend_with(&mut self, other: &Self, weight: f32) {
-        for (a, b) in self.values.iter_mut().zip(other.values.iter()) {
-            a.blend_with(b, weight)
-        }
-    }
-
-    pub fn interpolate(&self, other: &Self, t: f32) -> Self {
-        Self {
-            values: self
-                .values
-                .iter()
-                .zip(&other.values)
-                .filter_map(|(a, b)| a.interpolate(b, t))
-                .collect(),
-        }
-    }
-}
+pub mod track;
+pub mod value;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct AnimationEvent {
@@ -457,29 +158,7 @@ impl AnimationPose {
             if node.is_none() {
                 Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
             } else {
-                let node_ref = &mut graph[*node];
-                for bound_value in local_pose.values.values.iter() {
-                    match bound_value.binding {
-                        TrackBinding::Position => {
-                            if let TrackValue::Vector3(v) = bound_value.value {
-                                node_ref.local_transform_mut().set_position(v);
-                            }
-                        }
-                        TrackBinding::Scale => {
-                            if let TrackValue::Vector3(v) = bound_value.value {
-                                node_ref.local_transform_mut().set_scale(v);
-                            }
-                        }
-                        TrackBinding::Rotation => {
-                            if let TrackValue::UnitQuaternion(v) = bound_value.value {
-                                node_ref.local_transform_mut().set_rotation(v);
-                            }
-                        }
-                        TrackBinding::Property(_) => {
-                            // TODO
-                        }
-                    }
-                }
+                local_pose.values.apply(&mut graph[*node]);
             }
         }
     }
@@ -676,8 +355,8 @@ impl Animation {
         let mut stack = vec![handle];
         while let Some(node) = stack.pop() {
             for track in self.tracks.iter_mut() {
-                if track.node == node {
-                    track.enabled = enabled;
+                if track.node() == node {
+                    track.enable(enabled);
                     break;
                 }
             }
@@ -689,18 +368,18 @@ impl Animation {
 
     pub fn set_node_track_enabled(&mut self, handle: Handle<Node>, enabled: bool) {
         for track in self.tracks.iter_mut() {
-            if track.node == handle {
-                track.enabled = enabled;
+            if track.node() == handle {
+                track.enable(enabled);
             }
         }
     }
 
     pub fn track_of(&self, handle: Handle<Node>) -> Option<&Track> {
-        self.tracks.iter().find(|&track| track.node == handle)
+        self.tracks.iter().find(|&track| track.node() == handle)
     }
 
     pub fn track_of_mut(&mut self, handle: Handle<Node>) -> Option<&mut Track> {
-        self.tracks.iter_mut().find(|track| track.node == handle)
+        self.tracks.iter_mut().find(|track| track.node() == handle)
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
@@ -724,7 +403,7 @@ impl Animation {
                             // This may panic if animation has track that refers to a deleted node,
                             // it can happen if you deleted a node but forgot to remove animation
                             // that uses this node.
-                            let track_node = &graph[track.get_node()];
+                            let track_node = &graph[track.node()];
 
                             // Find corresponding track in resource using names of nodes, not
                             // original handles of instantiated nodes. We can't use original
@@ -739,9 +418,10 @@ impl Animation {
                             let mut found = false;
                             for ref_track in ref_animation.get_tracks().iter() {
                                 if track_node.name()
-                                    == data.get_scene().graph[ref_track.get_node()].name()
+                                    == data.get_scene().graph[ref_track.node()].name()
                                 {
-                                    track.frames = ref_track.frames.clone();
+                                    track
+                                        .set_frames_container(ref_track.frames_container().clone());
                                     found = true;
                                     break;
                                 }
@@ -781,13 +461,13 @@ impl Animation {
         for track in self.tracks.iter() {
             if track.is_enabled() {
                 if let Some(bound_value) = track.fetch(self.time_position) {
-                    match self.pose.local_poses.entry(track.node) {
+                    match self.pose.local_poses.entry(track.node()) {
                         Entry::Occupied(entry) => {
                             entry.into_mut().values.values.push(bound_value);
                         }
                         Entry::Vacant(entry) => {
                             entry.insert(LocalPose {
-                                node: track.node,
+                                node: track.node(),
                                 values: BoundValueCollection {
                                     values: vec![bound_value],
                                 },
