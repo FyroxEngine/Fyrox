@@ -1,8 +1,11 @@
-use crate::core::{
-    algebra::{UnitQuaternion, Vector3},
-    visitor::prelude::*,
+use crate::{
+    core::{
+        algebra::{UnitQuaternion, Vector3},
+        reflect::{Reflect, ResolvePath},
+        visitor::prelude::*,
+    },
+    scene::node::Node,
 };
-use crate::scene::node::Node;
 use std::fmt::Debug;
 
 pub trait Value: Sized + Visit + Clone + Default + Debug {
@@ -52,6 +55,13 @@ impl TrackValue {
             _ => None,
         }
     }
+
+    pub fn boxed_value(&self) -> Box<dyn Reflect> {
+        match self {
+            TrackValue::Vector3(v) => Box::new(*v),
+            TrackValue::UnitQuaternion(v) => Box::new(*v),
+        }
+    }
 }
 
 #[derive(Clone, Visit, Debug)]
@@ -87,6 +97,10 @@ impl BoundValue {
                 binding: self.binding.clone(),
                 value,
             })
+    }
+
+    pub fn boxed_value(&self) -> Box<dyn Reflect> {
+        self.value.boxed_value()
     }
 }
 
@@ -144,8 +158,11 @@ impl BoundValueCollection {
                         node_ref.local_transform_mut().set_rotation(v);
                     }
                 }
-                ValueBinding::Property(_) => {
-                    // TODO
+                ValueBinding::Property(ref property_name) => {
+                    if let Ok(property) = node_ref.as_reflect_mut().resolve_path_mut(property_name)
+                    {
+                        let _ = property.set(bound_value.boxed_value());
+                    }
                 }
             }
         }
