@@ -10,8 +10,9 @@ mod document;
 pub mod error;
 mod scene;
 
+use crate::animation::{TrackBinding, TrackFramesContainer, TrackValue};
 use crate::{
-    animation::{Animation, AnimationContainer, KeyFrame, Track},
+    animation::{Animation, AnimationContainer, Track},
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3, Vector4},
         instant::Instant,
@@ -565,26 +566,49 @@ async fn convert_model(
         }
 
         // Convert to engine format
-        let mut track = Track::new();
-        track.set_node(node_handle);
+        let mut translation_track = Track::new(TrackFramesContainer::Vector3(Default::default()));
+        translation_track.set_node(node_handle);
+        translation_track.set_binding(TrackBinding::Position);
+
+        let mut rotation_track =
+            Track::new(TrackFramesContainer::UnitQuaternion(Default::default()));
+        rotation_track.set_node(node_handle);
+        rotation_track.set_binding(TrackBinding::Rotation);
+
+        let mut scale_track = Track::new(TrackFramesContainer::Vector3(Default::default()));
+        scale_track.set_binding(TrackBinding::Scale);
+        scale_track.set_node(node_handle);
 
         let node_local_rotation = quat_from_euler(model.rotation);
 
         let mut time = 0.0;
         loop {
-            let translation = lcl_translation
-                .map(|curve| curve.eval_vec3(fbx_scene, model.translation, time))
-                .unwrap_or(model.translation);
+            translation_track.frames_container_mut().add(
+                time,
+                TrackValue::Vector3(
+                    lcl_translation
+                        .map(|curve| curve.eval_vec3(fbx_scene, model.translation, time))
+                        .unwrap_or(model.translation),
+                ),
+            );
 
-            let rotation = lcl_rotation
-                .map(|curve| curve.eval_quat(fbx_scene, model.rotation, time))
-                .unwrap_or(node_local_rotation);
+            rotation_track.frames_container_mut().add(
+                time,
+                TrackValue::UnitQuaternion(
+                    lcl_rotation
+                        .map(|curve| curve.eval_quat(fbx_scene, model.rotation, time))
+                        .unwrap_or(node_local_rotation),
+                ),
+            );
 
-            let scale = lcl_scale
-                .map(|curve| curve.eval_vec3(fbx_scene, model.scale, time))
-                .unwrap_or(model.scale);
-
-            track.add_key_frame(KeyFrame::new(time, translation, scale, rotation));
+            scale_track.frames_container_mut().add(
+                time,
+                TrackValue::Vector3(
+                    lcl_scale
+                        .map(|curve| curve.eval_vec3(fbx_scene, model.scale, time))
+                        .unwrap_or(model.scale),
+                ),
+            );
 
             let mut next_time = f32::MAX;
             for node in [lcl_translation, lcl_rotation, lcl_scale].iter().flatten() {
@@ -610,7 +634,10 @@ async fn convert_model(
             time = next_time;
         }
 
-        animations.get_mut(animation_handle).add_track(track);
+        let animation = animations.get_mut(animation_handle);
+        animation.add_track(translation_track);
+        animation.add_track(rotation_track);
+        animation.add_track(scale_track);
     }
 
     Ok(node_handle)

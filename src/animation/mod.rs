@@ -13,158 +13,86 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use std::{
-    collections::VecDeque,
+    collections::{hash_map::Entry, VecDeque},
+    fmt::Debug,
     ops::{Index, IndexMut, Range},
 };
 
 pub mod machine;
 pub mod spritesheet;
 
-#[derive(Copy, Clone, Debug, Visit)]
-pub struct KeyFrame {
-    pub position: Vector3<f32>,
-    pub scale: Vector3<f32>,
-    pub rotation: UnitQuaternion<f32>,
-    pub time: f32,
+#[derive(Clone, Visit, Debug)]
+pub enum TrackBinding {
+    Position,
+    Scale,
+    Rotation,
+    Property(String),
 }
 
-impl KeyFrame {
-    pub fn new(
-        time: f32,
-        position: Vector3<f32>,
-        scale: Vector3<f32>,
-        rotation: UnitQuaternion<f32>,
-    ) -> Self {
-        Self {
-            position,
-            scale,
-            rotation,
-            time,
-        }
+pub trait Value: Sized + Visit + Clone + Default + Debug {
+    fn interpolate(&self, other: &Self, t: f32) -> Self;
+}
+
+impl Value for Vector3<f32> {
+    fn interpolate(&self, other: &Self, t: f32) -> Self {
+        self.lerp(other, t)
     }
 }
 
-impl Default for KeyFrame {
-    fn default() -> Self {
-        Self {
-            position: Default::default(),
-            scale: Default::default(),
-            rotation: Default::default(),
-            time: 0.0,
-        }
+impl Value for UnitQuaternion<f32> {
+    fn interpolate(&self, other: &Self, t: f32) -> Self {
+        self.nlerp(other, t)
     }
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit)]
-pub struct PoseEvaluationFlags {
-    pub ignore_position: bool,
-    pub ignore_rotation: bool,
-    pub ignore_scale: bool,
+#[derive(Default, Visit, Debug, Clone)]
+pub struct Frame<T: Value> {
+    value: T,
+    time: f32,
 }
 
-#[derive(Debug, Visit)]
-pub struct Track {
-    // Frames are not serialized, because it makes no sense to store them in save file,
-    // they will be taken from resource on Resolve stage.
-    #[visit(skip)]
-    frames: Vec<KeyFrame>,
-    enabled: bool,
+#[derive(Default, Visit, Debug, Clone)]
+pub struct GenericTrackFramesContainer<T: Value> {
+    frames: Vec<Frame<T>>,
     max_time: f32,
-    node: Handle<Node>,
-    flags: PoseEvaluationFlags,
 }
 
-impl Clone for Track {
-    fn clone(&self) -> Self {
-        Self {
-            frames: self.frames.clone(),
-            enabled: self.enabled,
-            max_time: self.max_time,
-            node: self.node,
-            flags: self.flags,
-        }
-    }
-}
-
-impl Default for Track {
-    fn default() -> Self {
-        Self {
-            frames: Vec::new(),
-            enabled: true,
-            max_time: 0.0,
-            node: Default::default(),
-            flags: Default::default(),
-        }
-    }
-}
-
-impl Track {
-    pub fn new() -> Track {
-        Default::default()
-    }
-
-    pub fn set_node(&mut self, node: Handle<Node>) {
-        self.node = node;
-    }
-
-    pub fn get_node(&self) -> Handle<Node> {
-        self.node
-    }
-
-    pub fn add_key_frame(&mut self, key_frame: KeyFrame) {
-        if key_frame.time > self.max_time {
-            self.frames.push(key_frame);
-
-            self.max_time = key_frame.time;
+impl<T: Value> GenericTrackFramesContainer<T> {
+    pub fn add_key_frame(&mut self, frame: Frame<T>) {
+        if frame.time > self.max_time {
+            self.max_time = frame.time;
+            self.frames.push(frame);
         } else {
             // Find a place to insert
             let mut index = 0;
-            for (i, other_key_frame) in self.frames.iter().enumerate() {
-                if key_frame.time < other_key_frame.time {
+            for (i, other_frame) in self.frames.iter().enumerate() {
+                if frame.time < other_frame.time {
                     index = i;
                     break;
                 }
             }
-
-            self.frames.insert(index, key_frame)
+            self.frames.insert(index, frame)
         }
     }
 
-    pub fn enable(&mut self, enabled: bool) {
-        self.enabled = enabled;
-    }
-
-    pub fn is_enabled(&self) -> bool {
-        self.enabled
-    }
-
-    pub fn set_key_frames(&mut self, key_frames: &[KeyFrame]) {
-        self.frames = key_frames.to_vec();
+    pub fn set_frames(&mut self, frames: Vec<Frame<T>>) {
+        self.frames = frames;
         self.max_time = 0.0;
 
-        for key_frame in self.frames.iter() {
-            if key_frame.time > self.max_time {
-                self.max_time = key_frame.time;
+        for frame in self.frames.iter() {
+            if frame.time > self.max_time {
+                self.max_time = frame.time;
             }
         }
     }
 
-    pub fn get_key_frames(&self) -> &[KeyFrame] {
-        &self.frames
-    }
-
-    pub fn get_local_pose(&self, mut time: f32) -> Option<LocalPose> {
+    pub fn fetch(&self, mut time: f32) -> Option<T> {
         if self.frames.is_empty() {
             return None;
         }
 
         if time >= self.max_time {
-            return self.frames.last().map(|k| LocalPose {
-                node: self.node,
-                position: k.position,
-                scale: k.scale,
-                rotation: k.rotation,
-            });
+            return self.frames.last().map(|k| k.value.clone());
         }
 
         time = time.clamp(0.0, self.max_time);
@@ -178,44 +106,220 @@ impl Track {
         }
 
         if right_index == 0 {
-            self.frames.first().map(|k| LocalPose {
-                node: self.node,
-                position: k.position,
-                scale: k.scale,
-                rotation: k.rotation,
-            })
+            self.frames.first().map(|k| k.value.clone())
         } else {
             let left = &self.frames[right_index - 1];
             let right = &self.frames[right_index];
             let interpolator = (time - left.time) / (right.time - left.time);
+            Some(left.value.interpolate(&right.value, interpolator))
+        }
+    }
+}
 
-            Some(LocalPose {
-                node: self.node,
-                position: if self.flags.ignore_position {
-                    Vector3::new(0.0, 0.0, 0.0)
-                } else {
-                    left.position.lerp(&right.position, interpolator)
-                },
-                scale: if self.flags.ignore_scale {
-                    Vector3::new(1.0, 1.0, 1.0)
-                } else {
-                    left.scale.lerp(&right.scale, interpolator)
-                },
-                rotation: if self.flags.ignore_rotation {
-                    UnitQuaternion::default()
-                } else {
-                    left.rotation.nlerp(&right.rotation, interpolator)
-                },
-            })
+#[derive(Clone, Debug)]
+pub enum TrackValue {
+    Vector3(Vector3<f32>),
+    UnitQuaternion(UnitQuaternion<f32>),
+}
+
+impl TrackValue {
+    pub fn weighted_clone(&self, weight: f32) -> Self {
+        match self {
+            TrackValue::Vector3(v) => TrackValue::Vector3(v.scale(weight)),
+            TrackValue::UnitQuaternion(v) => TrackValue::UnitQuaternion(*v),
         }
     }
 
-    pub fn flags(&self) -> PoseEvaluationFlags {
-        self.flags
+    pub fn blend_with(&mut self, other: &Self, weight: f32) {
+        match (self, other) {
+            (Self::Vector3(a), Self::Vector3(b)) => *a += b.scale(weight),
+            (Self::UnitQuaternion(a), Self::UnitQuaternion(b)) => *a = a.nlerp(b, weight),
+            _ => (),
+        }
     }
 
-    pub fn set_flags(&mut self, flags: PoseEvaluationFlags) {
-        self.flags = flags;
+    pub fn interpolate(&self, other: &Self, t: f32) -> Option<Self> {
+        match (self, other) {
+            (Self::Vector3(a), Self::Vector3(b)) => Some(Self::Vector3(a.interpolate(b, t))),
+            (Self::UnitQuaternion(a), Self::UnitQuaternion(b)) => {
+                Some(Self::UnitQuaternion(a.interpolate(b, t)))
+            }
+            _ => None,
+        }
+    }
+}
+
+#[derive(Visit, Debug, Clone)]
+pub enum TrackFramesContainer {
+    Vector3(GenericTrackFramesContainer<Vector3<f32>>),
+    UnitQuaternion(GenericTrackFramesContainer<UnitQuaternion<f32>>),
+}
+
+impl TrackFramesContainer {
+    pub fn add(&mut self, time: f32, value: TrackValue) {
+        match (self, value) {
+            (Self::Vector3(container), TrackValue::Vector3(value)) => {
+                container.add_key_frame(Frame { time, value })
+            }
+            (Self::UnitQuaternion(container), TrackValue::UnitQuaternion(value)) => {
+                container.add_key_frame(Frame { time, value })
+            }
+            _ => (),
+        }
+    }
+
+    pub fn fetch(&self, time: f32) -> Option<TrackValue> {
+        match self {
+            TrackFramesContainer::Vector3(vec3) => vec3.fetch(time).map(TrackValue::Vector3),
+            TrackFramesContainer::UnitQuaternion(quat) => {
+                quat.fetch(time).map(TrackValue::UnitQuaternion)
+            }
+        }
+    }
+
+    pub fn time_length(&self) -> f32 {
+        match self {
+            TrackFramesContainer::Vector3(v) => v.max_time,
+            TrackFramesContainer::UnitQuaternion(v) => v.max_time,
+        }
+    }
+}
+
+#[derive(Debug, Visit, Clone)]
+pub struct Track {
+    #[visit(optional)] // Backward compatibility
+    binding: TrackBinding,
+    #[visit(skip)] // TODO: Use a switch to enable/disable frames serialization.
+    frames: TrackFramesContainer,
+    enabled: bool,
+    node: Handle<Node>,
+}
+
+impl Default for Track {
+    fn default() -> Self {
+        Self {
+            binding: TrackBinding::Position,
+            frames: TrackFramesContainer::Vector3(Default::default()),
+            enabled: true,
+            node: Default::default(),
+        }
+    }
+}
+
+impl Track {
+    pub fn new(container: TrackFramesContainer) -> Track {
+        Self {
+            frames: container,
+            ..Default::default()
+        }
+    }
+
+    pub fn set_binding(&mut self, binding: TrackBinding) {
+        self.binding = binding;
+    }
+
+    pub fn binding(&self) -> &TrackBinding {
+        &self.binding
+    }
+
+    pub fn set_node(&mut self, node: Handle<Node>) {
+        self.node = node;
+    }
+
+    pub fn get_node(&self) -> Handle<Node> {
+        self.node
+    }
+
+    pub fn frames_container(&self) -> &TrackFramesContainer {
+        &self.frames
+    }
+
+    pub fn frames_container_mut(&mut self) -> &mut TrackFramesContainer {
+        &mut self.frames
+    }
+
+    pub fn fetch(&self, time: f32) -> Option<BoundValue> {
+        self.frames.fetch(time).map(|v| BoundValue {
+            binding: self.binding.clone(),
+            value: v,
+        })
+    }
+
+    pub fn enable(&mut self, enabled: bool) {
+        self.enabled = enabled;
+    }
+
+    pub fn time_length(&self) -> f32 {
+        self.frames.time_length()
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BoundValue {
+    binding: TrackBinding,
+    value: TrackValue,
+}
+
+impl BoundValue {
+    pub fn weighted_clone(&self, weight: f32) -> Self {
+        Self {
+            binding: self.binding.clone(),
+            value: self.value.weighted_clone(weight),
+        }
+    }
+
+    pub fn blend_with(&mut self, other: &Self, weight: f32) {
+        self.value.blend_with(&other.value, weight);
+    }
+
+    pub fn interpolate(&self, other: &BoundValue, t: f32) -> Option<BoundValue> {
+        self.value
+            .interpolate(&other.value, t)
+            .map(|value| BoundValue {
+                binding: self.binding.clone(),
+                value,
+            })
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct BoundValueCollection {
+    values: Vec<BoundValue>,
+}
+
+impl BoundValueCollection {
+    pub fn weighted_clone(&self, weight: f32) -> Self {
+        Self {
+            values: self
+                .values
+                .iter()
+                .map(|v| BoundValue {
+                    binding: v.binding.clone(),
+                    value: v.value.weighted_clone(weight),
+                })
+                .collect::<Vec<_>>(),
+        }
+    }
+
+    pub fn blend_with(&mut self, other: &Self, weight: f32) {
+        for (a, b) in self.values.iter_mut().zip(other.values.iter()) {
+            a.blend_with(b, weight)
+        }
+    }
+
+    pub fn interpolate(&self, other: &Self, t: f32) -> Self {
+        Self {
+            values: self
+                .values
+                .iter()
+                .zip(&other.values)
+                .filter_map(|(a, b)| a.interpolate(b, t))
+                .collect(),
+        }
     }
 }
 
@@ -287,22 +391,17 @@ pub struct Animation {
     events: VecDeque<AnimationEvent>,
 }
 
-/// Snapshot of scene node local transform state.
 #[derive(Clone, Debug)]
 pub struct LocalPose {
     node: Handle<Node>,
-    position: Vector3<f32>,
-    scale: Vector3<f32>,
-    rotation: UnitQuaternion<f32>,
+    values: BoundValueCollection,
 }
 
 impl Default for LocalPose {
     fn default() -> Self {
         Self {
             node: Handle::NONE,
-            position: Vector3::default(),
-            scale: Vector3::new(1.0, 1.0, 1.0),
-            rotation: UnitQuaternion::identity(),
+            values: Default::default(),
         }
     }
 }
@@ -311,28 +410,12 @@ impl LocalPose {
     fn weighted_clone(&self, weight: f32) -> Self {
         Self {
             node: self.node,
-            position: self.position.scale(weight),
-            rotation: self.rotation.nlerp(&self.rotation, weight),
-            scale: self.scale.scale(weight),
+            values: self.values.weighted_clone(weight),
         }
     }
 
     pub fn blend_with(&mut self, other: &LocalPose, weight: f32) {
-        self.position += other.position.scale(weight);
-        self.rotation = self.rotation.nlerp(&other.rotation, weight);
-        self.scale += other.scale.scale(weight);
-    }
-
-    pub fn position(&self) -> Vector3<f32> {
-        self.position
-    }
-
-    pub fn scale(&self) -> Vector3<f32> {
-        self.scale
-    }
-
-    pub fn rotation(&self) -> UnitQuaternion<f32> {
-        self.rotation
+        self.values.blend_with(&other.values, weight)
     }
 }
 
@@ -374,11 +457,29 @@ impl AnimationPose {
             if node.is_none() {
                 Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
             } else {
-                graph[*node]
-                    .local_transform_mut()
-                    .set_position(local_pose.position)
-                    .set_rotation(local_pose.rotation)
-                    .set_scale(local_pose.scale);
+                let node_ref = &mut graph[*node];
+                for bound_value in local_pose.values.values.iter() {
+                    match bound_value.binding {
+                        TrackBinding::Position => {
+                            if let TrackValue::Vector3(v) = bound_value.value {
+                                node_ref.local_transform_mut().set_position(v);
+                            }
+                        }
+                        TrackBinding::Scale => {
+                            if let TrackValue::Vector3(v) = bound_value.value {
+                                node_ref.local_transform_mut().set_scale(v);
+                            }
+                        }
+                        TrackBinding::Rotation => {
+                            if let TrackValue::UnitQuaternion(v) = bound_value.value {
+                                node_ref.local_transform_mut().set_rotation(v);
+                            }
+                        }
+                        TrackBinding::Property(_) => {
+                            // TODO
+                        }
+                    }
+                }
             }
         }
     }
@@ -422,8 +523,8 @@ impl Animation {
         self.tracks.push(track);
 
         for track in self.tracks.iter_mut() {
-            if track.max_time > self.length {
-                self.length = track.max_time;
+            if track.time_length() > self.length {
+                self.length = track.time_length();
             }
         }
     }
@@ -640,7 +741,7 @@ impl Animation {
                                 if track_node.name()
                                     == data.get_scene().graph[ref_track.get_node()].name()
                                 {
-                                    track.set_key_frames(ref_track.get_key_frames());
+                                    track.frames = ref_track.frames.clone();
                                     found = true;
                                     break;
                                 }
@@ -679,8 +780,20 @@ impl Animation {
         self.pose.reset();
         for track in self.tracks.iter() {
             if track.is_enabled() {
-                if let Some(local_pose) = track.get_local_pose(self.time_position) {
-                    self.pose.add_local_pose(local_pose);
+                if let Some(bound_value) = track.fetch(self.time_position) {
+                    match self.pose.local_poses.entry(track.node) {
+                        Entry::Occupied(entry) => {
+                            entry.into_mut().values.values.push(bound_value);
+                        }
+                        Entry::Vacant(entry) => {
+                            entry.insert(LocalPose {
+                                node: track.node,
+                                values: BoundValueCollection {
+                                    values: vec![bound_value],
+                                },
+                            });
+                        }
+                    }
                 }
             }
         }
