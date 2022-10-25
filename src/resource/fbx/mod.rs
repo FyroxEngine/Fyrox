@@ -587,17 +587,17 @@ async fn convert_model(
 
         // Convert to engine format
         let mut translation_track = Track::new(TrackFramesContainer::Vector3(Default::default()));
-        translation_track.set_node(node_handle);
+        translation_track.set_target(node_handle);
         translation_track.set_binding(ValueBinding::Position);
 
         let mut rotation_track =
             Track::new(TrackFramesContainer::UnitQuaternion(Default::default()));
-        rotation_track.set_node(node_handle);
+        rotation_track.set_target(node_handle);
         rotation_track.set_binding(ValueBinding::Rotation);
 
         let mut scale_track = Track::new(TrackFramesContainer::Vector3(Default::default()));
         scale_track.set_binding(ValueBinding::Scale);
-        scale_track.set_node(node_handle);
+        scale_track.set_target(node_handle);
 
         let node_local_rotation = quat_from_euler(model.rotation);
 

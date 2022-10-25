@@ -4,32 +4,48 @@ use crate::{
         value::{BoundValue, ValueBinding},
     },
     core::{pool::Handle, visitor::prelude::*},
-    scene::node::Node,
+    scene::{base::InstanceId, node::Node},
 };
+use std::fmt::Debug;
+
+pub trait TrackTarget: Visit + Debug + Copy + Clone + Default {}
+
+impl TrackTarget for Handle<Node> {}
+impl TrackTarget for InstanceId {}
 
 #[derive(Debug, Visit, Clone)]
-pub struct Track {
+pub struct Track<T>
+where
+    T: TrackTarget,
+{
     #[visit(optional)] // Backward compatibility
     binding: ValueBinding,
     #[visit(skip)] // TODO: Use a switch to enable/disable frames serialization.
     frames: TrackFramesContainer,
     enabled: bool,
-    node: Handle<Node>,
+    #[visit(rename = "Node")]
+    target: T,
 }
 
-impl Default for Track {
+impl<T> Default for Track<T>
+where
+    T: TrackTarget,
+{
     fn default() -> Self {
         Self {
             binding: ValueBinding::Position,
             frames: TrackFramesContainer::Vector3(Default::default()),
             enabled: true,
-            node: Default::default(),
+            target: Default::default(),
         }
     }
 }
 
-impl Track {
-    pub fn new(container: TrackFramesContainer) -> Track {
+impl<T> Track<T>
+where
+    T: TrackTarget,
+{
+    pub fn new(container: TrackFramesContainer) -> Self {
         Self {
             frames: container,
             ..Default::default()
@@ -44,12 +60,12 @@ impl Track {
         &self.binding
     }
 
-    pub fn set_node(&mut self, node: Handle<Node>) {
-        self.node = node;
+    pub fn set_target(&mut self, target: T) {
+        self.target = target;
     }
 
-    pub fn node(&self) -> Handle<Node> {
-        self.node
+    pub fn target(&self) -> T {
+        self.target
     }
 
     pub fn frames_container(&self) -> &TrackFramesContainer {

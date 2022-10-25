@@ -408,7 +408,7 @@ impl Scene {
             // Remove all associated animations.
             self.animations.retain(|animation| {
                 for track in animation.tracks() {
-                    if track.node() == descendant {
+                    if track.target() == descendant {
                         return false;
                     }
                 }
@@ -585,10 +585,10 @@ impl Scene {
         let mut animations = self.animations.clone();
         for animation in animations.iter_mut() {
             // Remove all tracks for nodes that were filtered out.
-            animation.retain_tracks(|track| old_new_map.map.contains_key(&track.node()));
+            animation.retain_tracks(|track| old_new_map.map.contains_key(&track.target()));
             // Remap track nodes.
             for track in animation.tracks_mut() {
-                track.set_node(old_new_map.map[&track.node()]);
+                track.set_target(old_new_map.map[&track.target()]);
             }
         }
 

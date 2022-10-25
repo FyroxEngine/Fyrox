@@ -8,7 +8,7 @@ use crate::{
     },
     engine::resource_manager::ResourceManager,
     resource::model::Model,
-    scene::{graph::Graph, node::Node},
+    scene::{base::InstanceId, graph::Graph, node::Node},
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
@@ -72,14 +72,18 @@ impl Default for AnimationSignal {
     }
 }
 
+pub type ResourceTrack = Track<InstanceId>;
+
 #[derive(Visit, Default, Debug)]
 pub struct AnimationDefinition {
-    tracks: Vec<Track>,
+    tracks: Vec<ResourceTrack>,
 }
+
+pub type NodeTrack = Track<Handle<Node>>;
 
 #[derive(Debug, Visit)]
 pub struct Animation {
-    tracks: Vec<Track>,
+    tracks: Vec<NodeTrack>,
     length: f32,
     time_position: f32,
     #[visit(optional)] // Backward compatibility
@@ -201,7 +205,7 @@ impl Clone for Animation {
 }
 
 impl Animation {
-    pub fn add_track(&mut self, track: Track) {
+    pub fn add_track(&mut self, track: NodeTrack) {
         self.tracks.push(track);
 
         for track in self.tracks.iter_mut() {
@@ -211,7 +215,7 @@ impl Animation {
         }
     }
 
-    pub fn tracks(&self) -> &[Track] {
+    pub fn tracks(&self) -> &[NodeTrack] {
         &self.tracks
     }
 
@@ -312,7 +316,7 @@ impl Animation {
         self
     }
 
-    pub fn tracks_mut(&mut self) -> &mut [Track] {
+    pub fn tracks_mut(&mut self) -> &mut [NodeTrack] {
         &mut self.tracks
     }
 
@@ -326,7 +330,7 @@ impl Animation {
 
     pub fn retain_tracks<F>(&mut self, filter: F)
     where
-        F: FnMut(&Track) -> bool,
+        F: FnMut(&NodeTrack) -> bool,
     {
         self.tracks.retain(filter)
     }
@@ -358,7 +362,7 @@ impl Animation {
         let mut stack = vec![handle];
         while let Some(node) = stack.pop() {
             for track in self.tracks.iter_mut() {
-                if track.node() == node {
+                if track.target() == node {
                     track.enable(enabled);
                     break;
                 }
@@ -371,18 +375,20 @@ impl Animation {
 
     pub fn set_node_track_enabled(&mut self, handle: Handle<Node>, enabled: bool) {
         for track in self.tracks.iter_mut() {
-            if track.node() == handle {
+            if track.target() == handle {
                 track.enable(enabled);
             }
         }
     }
 
-    pub fn track_of(&self, handle: Handle<Node>) -> Option<&Track> {
-        self.tracks.iter().find(|&track| track.node() == handle)
+    pub fn track_of(&self, handle: Handle<Node>) -> Option<&NodeTrack> {
+        self.tracks.iter().find(|&track| track.target() == handle)
     }
 
-    pub fn track_of_mut(&mut self, handle: Handle<Node>) -> Option<&mut Track> {
-        self.tracks.iter_mut().find(|track| track.node() == handle)
+    pub fn track_of_mut(&mut self, handle: Handle<Node>) -> Option<&mut NodeTrack> {
+        self.tracks
+            .iter_mut()
+            .find(|track| track.target() == handle)
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
@@ -406,7 +412,7 @@ impl Animation {
                             // This may panic if animation has track that refers to a deleted node,
                             // it can happen if you deleted a node but forgot to remove animation
                             // that uses this node.
-                            let track_node = &graph[track.node()];
+                            let track_node = &graph[track.target()];
 
                             // Find corresponding track in resource using names of nodes, not
                             // original handles of instantiated nodes. We can't use original
@@ -421,7 +427,7 @@ impl Animation {
                             let mut found = false;
                             for ref_track in ref_animation.tracks().iter() {
                                 if track_node.name()
-                                    == data.get_scene().graph[ref_track.node()].name()
+                                    == data.get_scene().graph[ref_track.target()].name()
                                 {
                                     track
                                         .set_frames_container(ref_track.frames_container().clone());
@@ -464,13 +470,13 @@ impl Animation {
         for track in self.tracks.iter() {
             if track.is_enabled() {
                 if let Some(bound_value) = track.fetch(self.time_position) {
-                    match self.pose.local_poses.entry(track.node()) {
+                    match self.pose.local_poses.entry(track.target()) {
                         Entry::Occupied(entry) => {
                             entry.into_mut().values.values.push(bound_value);
                         }
                         Entry::Vacant(entry) => {
                             entry.insert(LocalPose {
-                                node: track.node(),
+                                node: track.target(),
                                 values: BoundValueCollection {
                                     values: vec![bound_value],
                                 },
