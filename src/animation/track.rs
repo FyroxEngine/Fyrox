@@ -13,18 +13,37 @@ pub trait TrackTarget: Visit + Debug + Copy + Clone + Default {}
 impl TrackTarget for Handle<Node> {}
 impl TrackTarget for InstanceId {}
 
-#[derive(Debug, Visit, Clone)]
+#[derive(Debug, Clone)]
 pub struct Track<T>
 where
     T: TrackTarget,
 {
-    #[visit(optional)] // Backward compatibility
     binding: ValueBinding,
-    #[visit(skip)] // TODO: Use a switch to enable/disable frames serialization.
     frames: TrackFramesContainer,
     enabled: bool,
-    #[visit(rename = "Node")]
+    serialize_frames: bool,
     target: T,
+}
+
+impl<T> Visit for Track<T>
+where
+    T: TrackTarget,
+{
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        self.target.visit("Node", &mut region)?;
+        self.enabled.visit("Enabled", &mut region)?;
+
+        let _ = self.binding.visit("Binding", &mut region); // Backward compatibility
+        let _ = self.serialize_frames.visit("SerializeFrames", &mut region); // Backward compatibility
+
+        if self.serialize_frames {
+            self.frames.visit("Frames", &mut region)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl<T> Default for Track<T>
@@ -36,6 +55,9 @@ where
             binding: ValueBinding::Position,
             frames: TrackFramesContainer::Vector3(Default::default()),
             enabled: true,
+            // Keep existing logic: animation instances do not save their frames on serialization,
+            // instead they're restoring it from respective animation resource.
+            serialize_frames: false,
             target: Default::default(),
         }
     }
@@ -100,5 +122,13 @@ where
 
     pub fn is_enabled(&self) -> bool {
         self.enabled
+    }
+
+    pub fn set_serialize_frames(&mut self, state: bool) {
+        self.serialize_frames = state;
+    }
+
+    pub fn is_serializing_frames(&self) -> bool {
+        self.serialize_frames
     }
 }
