@@ -18,6 +18,7 @@ use crate::{
     script::{Script, ScriptTrait},
     utils::log::Log,
 };
+use fyrox_core::uuid::Uuid;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -276,6 +277,20 @@ pub enum ScriptMessage {
     },
 }
 
+/// Unique id of the node. It can be shared across multiple resources (read - prefabs), to preserve parent-child
+/// links. It is useful to create various resources that can bind to any instance of the node. For example, an
+/// animation resource could be made for a specific node, but with the `instance_id` it can be retargetted to any
+/// instance of the node. Instance here means: any copy of the node in any resource (including nested prefabs).
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd, Default, Debug)]
+#[repr(transparent)]
+pub struct InstanceId(pub Uuid);
+
+impl Visit for InstanceId {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -387,6 +402,10 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) original_handle_in_resource: Handle<Node>,
 
+    #[inspect(read_only)]
+    #[reflect(hidden)]
+    pub(crate) instance_id: InstanceId,
+
     // Current script of the scene node.
     //
     // # Important notes
@@ -426,6 +445,7 @@ impl Clone for Base {
             depth_offset: self.depth_offset.clone(),
             cast_shadows: self.cast_shadows.clone(),
             script: self.script.clone(),
+            instance_id: self.instance_id,
 
             // Rest of data is *not* copied!
             parent: Default::default(),
@@ -732,6 +752,22 @@ impl Base {
         self.cast_shadows.set(cast_shadows)
     }
 
+    /// Sets instance id of the node. See [`InstanceId`] for more info.
+    ///
+    /// ## Important notes
+    ///
+    /// Do not change instance id unless you're know for sure what you're doing! Changing the id could result in
+    /// broken parent-child relation between prefabs. This method has very limited usage when you need to override
+    /// the id with some hand-made value.
+    pub fn set_instance_id(&mut self, id: InstanceId) {
+        self.instance_id = id;
+    }
+
+    /// Returns current instance id.
+    pub fn instance_id(&self) -> InstanceId {
+        self.instance_id
+    }
+
     fn remove_script(&mut self) {
         // Send script to the graph to destroy script instances correctly.
         if let Some(script) = self.script.take() {
@@ -902,6 +938,7 @@ impl Visit for Base {
         let _ = self.properties.visit("Properties", &mut region);
         let _ = self.frustum_culling.visit("FrustumCulling", &mut region);
         let _ = self.cast_shadows.visit("CastShadows", &mut region);
+        let _ = self.instance_id.visit("InstanceId", &mut region);
 
         // Script visiting may fail for various reasons:
         //
@@ -938,6 +975,7 @@ pub struct BaseBuilder {
     frustum_culling: bool,
     cast_shadows: bool,
     script: Option<Script>,
+    instance_id: InstanceId,
 }
 
 impl Default for BaseBuilder {
@@ -964,6 +1002,7 @@ impl BaseBuilder {
             frustum_culling: true,
             cast_shadows: true,
             script: None,
+            instance_id: InstanceId(Uuid::new_v4()),
         }
     }
 
@@ -1065,6 +1104,12 @@ impl BaseBuilder {
         self
     }
 
+    /// Sets new instance id.
+    pub fn with_instance_id(mut self, id: InstanceId) -> Self {
+        self.instance_id = id;
+        self
+    }
+
     /// Creates an instance of [`Base`].
     #[inline]
     pub fn build_base(self) -> Base {
@@ -1092,6 +1137,7 @@ impl BaseBuilder {
             frustum_culling: self.frustum_culling.into(),
             cast_shadows: self.cast_shadows.into(),
             script: self.script,
+            instance_id: InstanceId(Uuid::new_v4()),
         }
     }
 }

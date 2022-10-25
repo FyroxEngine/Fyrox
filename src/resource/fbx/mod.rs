@@ -11,6 +11,7 @@ pub mod error;
 mod scene;
 
 use crate::animation::track::Track;
+use crate::scene::base::InstanceId;
 use crate::{
     animation::{
         container::TrackFramesContainer,
@@ -57,6 +58,9 @@ use crate::{
     },
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_core::uuid::Uuid;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::{cmp::Ordering, path::Path};
 use walkdir::WalkDir;
 
@@ -502,9 +506,21 @@ async fn convert_mesh(
 }
 
 fn convert_model_to_base(model: &FbxModel) -> BaseBuilder {
+    // Dirty hack: use name of the model to generate instance id. This is necessary evil, because FBX does
+    // not provide any stable unique id per model. We need stable unique id, to not break parent-child
+    // relations between prefabs. Using the name for this purpose is unideal, because one could easily change
+    // it and it will point to other object. What is much worse, is the fact that pretty much all 3D modelling
+    // software allows to have multiple objects with the same name. This FBX importer has validation layer
+    // for such situations and it will give warnings about duplicate names.
+    let mut hasher = DefaultHasher::new();
+    model.name.hash(&mut hasher);
+    let hash = hasher.finish();
+    let instance_id = InstanceId(Uuid::from_u64_pair(hash, hash));
+
     BaseBuilder::new()
         .with_inv_bind_pose_transform(model.inv_bind_transform)
         .with_name(model.name.as_str())
+        .with_instance_id(instance_id)
         .with_local_transform(
             TransformBuilder::new()
                 .with_local_rotation(quat_from_euler(model.rotation))
