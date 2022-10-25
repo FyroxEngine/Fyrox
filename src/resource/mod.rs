@@ -3,6 +3,7 @@
 #![warn(missing_docs)]
 
 pub mod absm;
+pub mod animation;
 pub mod curve;
 pub mod fbx;
 pub mod model;

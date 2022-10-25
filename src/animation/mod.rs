@@ -72,15 +72,18 @@ impl Default for AnimationSignal {
     }
 }
 
+#[derive(Visit, Default, Debug)]
+pub struct AnimationDefinition {
+    tracks: Vec<Track>,
+}
+
 #[derive(Debug, Visit)]
 pub struct Animation {
-    // TODO: Extract into separate struct AnimationTimeline
     tracks: Vec<Track>,
     length: f32,
     time_position: f32,
     #[visit(optional)] // Backward compatibility
     time_slice: Option<Range<f32>>,
-    ///////////////////////////////////////////////////////
     speed: f32,
     looped: bool,
     enabled: bool,
