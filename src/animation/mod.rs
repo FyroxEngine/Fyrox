@@ -8,7 +8,7 @@ use crate::{
     },
     engine::resource_manager::ResourceManager,
     resource::model::Model,
-    scene::{base::InstanceId, graph::Graph, node::Node},
+    scene::{graph::Graph, node::Node},
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
@@ -19,6 +19,7 @@ use std::{
 };
 
 pub mod container;
+pub mod definition;
 pub mod machine;
 pub mod spritesheet;
 pub mod track;
@@ -70,13 +71,6 @@ impl Default for AnimationSignal {
             enabled: true,
         }
     }
-}
-
-pub type ResourceTrack = Track<InstanceId>;
-
-#[derive(Visit, Default, Debug)]
-pub struct AnimationDefinition {
-    tracks: Vec<ResourceTrack>,
 }
 
 pub type NodeTrack = Track<Handle<Node>>;

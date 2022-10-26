@@ -1,10 +1,11 @@
 //! Animation resource is a container for animation data.
 
 use crate::{
-    animation::AnimationDefinition,
+    animation::{definition::AnimationDefinition, Animation},
     asset::{define_new_resource, Resource, ResourceData},
-    core::{io::FileLoadError, reflect::Reflect, visitor::prelude::*},
+    core::{io::FileLoadError, pool::Handle, reflect::Reflect, visitor::prelude::*},
     engine::resource_manager::options::ImportOptions,
+    scene::{node::Node, Scene},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -79,3 +80,12 @@ define_new_resource!(
 pub struct AnimationImportOptions {}
 
 impl ImportOptions for AnimationImportOptions {}
+
+impl AnimationResource {
+    /// Creates an instance of animation resource.
+    pub fn instantiate(&self, root: Handle<Node>, scene: &mut Scene) -> Handle<Animation> {
+        self.data_ref()
+            .animation_definition
+            .instantiate(root, scene)
+    }
+}
