@@ -1,3 +1,4 @@
+use crate::resource::animation::AnimationResource;
 use crate::{
     animation::{track::Track, value::BoundValueCollection},
     asset::ResourceState,
@@ -75,22 +76,69 @@ impl Default for AnimationSignal {
 
 pub type NodeTrack = Track<Handle<Node>>;
 
-#[derive(Debug, Visit)]
+/// Animation data source. There's two main sources of animation - external models (FBX) and engine
+/// animation resources.
+#[derive(Debug, Clone, Visit, PartialEq, Eq)]
+pub enum AnimationHolder {
+    /// Model resources can contain animations. For example, an FBX model could store a skeletal
+    /// animation which contains a set of tracks for some bones.
+    Model(Option<Model>),
+    /// Standard engine animation.
+    Animation(Option<AnimationResource>),
+}
+
+impl Default for AnimationHolder {
+    fn default() -> Self {
+        Self::Animation(None)
+    }
+}
+
+#[derive(Debug)]
 pub struct Animation {
     tracks: Vec<NodeTrack>,
     length: f32,
     time_position: f32,
-    #[visit(optional)] // Backward compatibility
     time_slice: Option<Range<f32>>,
     speed: f32,
     looped: bool,
     enabled: bool,
-    pub(crate) resource: Option<Model>,
-    #[visit(skip)]
-    pose: AnimationPose,
+    pub(crate) resource: AnimationHolder,
     signals: Vec<AnimationSignal>,
-    #[visit(skip)]
+    // Handle of a root node of a hierarchy of nodes to which the animation is applied to.
+    root: Handle<Node>,
+
+    // Non-serialized
+    pose: AnimationPose,
+    // Non-serialized
     events: VecDeque<AnimationEvent>,
+}
+
+impl Visit for Animation {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        self.tracks.visit("Tracks", &mut region)?;
+        self.length.visit("Length", &mut region)?;
+        self.time_position.visit("TimePosition", &mut region)?;
+        let _ = self.time_slice.visit("TimeSlice", &mut region);
+        self.speed.visit("Speed", &mut region)?;
+        self.looped.visit("Looped", &mut region)?;
+        self.enabled.visit("Enabled", &mut region)?;
+        self.signals.visit("Signals", &mut region)?;
+        let _ = self.root.visit("Root", &mut region);
+
+        if region.is_reading() {
+            if self.resource.visit("Resource", &mut region).is_err() {
+                // Backward compatibility
+                let mut resource: Option<Model> = None;
+                resource.visit("Resource", &mut region)?;
+                self.resource = AnimationHolder::Model(resource);
+            }
+        } else {
+            self.resource.visit("Resource", &mut region)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -194,6 +242,7 @@ impl Clone for Animation {
             signals: self.signals.clone(),
             events: Default::default(),
             time_slice: self.time_slice.clone(),
+            root: self.root,
         }
     }
 }
@@ -245,6 +294,14 @@ impl Animation {
 
     pub fn length(&self) -> f32 {
         self.length
+    }
+
+    pub fn set_root(&mut self, root: Handle<Node>) {
+        self.root = root;
+    }
+
+    pub fn root(&self) -> Handle<Node> {
+        self.root
     }
 
     fn tick(&mut self, dt: f32) {
@@ -314,7 +371,7 @@ impl Animation {
         &mut self.tracks
     }
 
-    pub fn resource(&self) -> Option<Model> {
+    pub fn resource(&self) -> AnimationHolder {
         self.resource.clone()
     }
 
@@ -386,9 +443,19 @@ impl Animation {
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        if let Some(resource) = self.resource.as_mut() {
-            let new_resource = resource_manager.request_model(resource.state().path());
-            *resource = new_resource;
+        match self.resource {
+            AnimationHolder::Model(ref mut model) => {
+                if let Some(resource) = model.as_mut() {
+                    let new_resource = resource_manager.request_model(resource.state().path());
+                    *resource = new_resource;
+                }
+            }
+            AnimationHolder::Animation(ref mut animation) => {
+                if let Some(resource) = animation.as_mut() {
+                    let new_resource = resource_manager.request_animation(resource.state().path());
+                    *resource = new_resource;
+                }
+            }
         }
     }
 
@@ -396,67 +463,93 @@ impl Animation {
         // Copy key frames from resource for each animation. This is needed because we
         // do not store key frames in save file, but just keep reference to resource
         // from which key frames should be taken on load.
-        if let Some(resource) = self.resource.clone() {
-            let resource = resource.state();
-            match *resource {
-                ResourceState::Ok(ref data) => {
-                    // TODO: Here we assume that resource contains only *one* animation.
-                    if let Some(ref_animation) = data.get_scene().animations.pool.at(0) {
-                        for track in self.tracks_mut() {
-                            // This may panic if animation has track that refers to a deleted node,
-                            // it can happen if you deleted a node but forgot to remove animation
-                            // that uses this node.
-                            let track_node = &graph[track.target()];
+        match self.resource.clone() {
+            AnimationHolder::Model(model) => {
+                if let Some(resource) = model {
+                    let resource = resource.state();
+                    match *resource {
+                        ResourceState::Ok(ref data) => {
+                            // TODO: Here we assume that resource contains only *one* animation.
+                            if let Some(ref_animation) = data.get_scene().animations.pool.at(0) {
+                                for track in self.tracks_mut() {
+                                    // This may panic if animation has track that refers to a deleted node,
+                                    // it can happen if you deleted a node but forgot to remove animation
+                                    // that uses this node.
+                                    let track_node = &graph[track.target()];
 
-                            // Find corresponding track in resource using names of nodes, not
-                            // original handles of instantiated nodes. We can't use original
-                            // handles here because animation can be targeted to a node that
-                            // wasn't instantiated from animation resource. It can be instantiated
-                            // from some other resource. For example you have a character with
-                            // multiple animations. Character "lives" in its own file without animations
-                            // but with skin. Each animation "lives" in its own file too, then
-                            // you did animation retargeting from animation resource to your character
-                            // instantiated model, which is essentially copies key frames to new
-                            // animation targeted to character instance.
-                            let mut found = false;
-                            for ref_track in ref_animation.tracks().iter() {
-                                if track_node.name()
-                                    == data.get_scene().graph[ref_track.target()].name()
-                                {
-                                    track
-                                        .set_frames_container(ref_track.frames_container().clone());
-                                    found = true;
-                                    break;
+                                    // Find corresponding track in resource using names of nodes, not
+                                    // original handles of instantiated nodes. We can't use original
+                                    // handles here because animation can be targeted to a node that
+                                    // wasn't instantiated from animation resource. It can be instantiated
+                                    // from some other resource. For example you have a character with
+                                    // multiple animations. Character "lives" in its own file without animations
+                                    // but with skin. Each animation "lives" in its own file too, then
+                                    // you did animation retargeting from animation resource to your character
+                                    // instantiated model, which is essentially copies key frames to new
+                                    // animation targeted to character instance.
+                                    let mut found = false;
+                                    for ref_track in ref_animation.tracks().iter() {
+                                        if track_node.name()
+                                            == data.get_scene().graph[ref_track.target()].name()
+                                        {
+                                            track.set_frames_container(
+                                                ref_track.frames_container().clone(),
+                                            );
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                    if !found {
+                                        Log::write(
+                                            MessageKind::Error,
+                                            format!(
+                                                "Failed to copy key frames for node {}!",
+                                                track_node.name()
+                                            ),
+                                        );
+                                    }
                                 }
                             }
-                            if !found {
-                                Log::write(
-                                    MessageKind::Error,
-                                    format!(
-                                        "Failed to copy key frames for node {}!",
-                                        track_node.name()
-                                    ),
-                                );
-                            }
+                        }
+                        ResourceState::LoadError {
+                            ref path,
+                            ref error,
+                        } => Log::err(format!(
+                            "Unable to restore animation key frames from {} resource. Reason: {:?}",
+                            path.display(),
+                            error
+                        )),
+                        ResourceState::Pending { ref path, .. } => {
+                            panic!(
+                                "Animation resource {} must be fully loaded before resolving!",
+                                path.display()
+                            )
                         }
                     }
                 }
-                ResourceState::LoadError {
-                    ref path,
-                    ref error,
-                } => Log::err(format!(
-                    "Unable to restore animation key frames from {} resource. Reason: {:?}",
-                    path.display(),
-                    error
-                )),
-                ResourceState::Pending { ref path, .. } => {
-                    panic!(
-                        "Animation resource {} must be fully loaded before resolving!",
-                        path.display()
-                    )
+            }
+            AnimationHolder::Animation(animation) => {
+                if let Some(animation) = animation {
+                    self.remove_tracks();
+
+                    for track in animation.data_ref().animation_definition.tracks() {
+                        let mut node_track = NodeTrack::new(track.frames_container().clone());
+
+                        node_track.set_binding(track.binding().clone());
+                        node_track.set_target(
+                            graph.find(self.root, &mut |n| n.instance_id() == track.target()),
+                        );
+
+                        self.add_track(node_track);
+                    }
                 }
             }
         }
+    }
+
+    pub fn remove_tracks(&mut self) {
+        self.tracks.clear();
+        self.length = 0.0;
     }
 
     fn update_pose(&mut self) {
@@ -501,6 +594,7 @@ impl Default for Animation {
             signals: Default::default(),
             events: Default::default(),
             time_slice: Default::default(),
+            root: Default::default(),
         }
     }
 }

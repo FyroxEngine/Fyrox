@@ -92,6 +92,9 @@ use fxhash::FxHashMap;
 use std::cmp::Ordering;
 use std::sync::Arc;
 
+use crate::animation::{Animation, AnimationHolder};
+use crate::resource::animation::AnimationResource;
+use crate::resource::model::Model;
 use crate::{
     animation::{
         machine::{
@@ -111,10 +114,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    resource::{
-        absm::AbsmResource,
-        model::{Model, ModelLoadError},
-    },
+    resource::{absm::AbsmResource, model::ModelLoadError},
     scene::{graph::Graph, node::Node, Scene},
     utils::log::{Log, MessageKind},
 };
@@ -204,29 +204,50 @@ impl From<Option<Arc<ModelLoadError>>> for MachineInstantiationError {
     }
 }
 
+fn instantiate_animation_holder(
+    holder: &AnimationHolder,
+    root: Handle<Node>,
+    graph: &Graph,
+    animations: &mut AnimationContainer,
+) -> Handle<Animation> {
+    match holder {
+        AnimationHolder::Model(model) => {
+            if let Some(model) = model {
+                model
+                    .retarget_animations_internal(root, graph, animations)
+                    .first()
+                    .cloned()
+                    .unwrap_or_default()
+            } else {
+                Handle::NONE
+            }
+        }
+        AnimationHolder::Animation(animation) => {
+            if let Some(animation) = animation {
+                animation.instantiate(root, graph, animations)
+            } else {
+                Handle::NONE
+            }
+        }
+    }
+}
+
 fn instantiate_node(
     node_definition: &PoseNodeDefinition,
     definition_handle: Handle<PoseNodeDefinition>,
     animations_pack: &AnimationsPack,
     root: Handle<Node>,
-    graph: &mut Graph,
+    graph: &Graph,
     animations: &mut AnimationContainer,
 ) -> Result<PoseNode, MachineInstantiationError> {
     let mut node = match node_definition {
         PoseNodeDefinition::PlayAnimation(play_animation) => {
             let resource = animations_pack
-                .animations()
+                .sources()
                 .get(&play_animation.animation)
                 .unwrap();
 
-            let animation = if matches!(*resource.state(), ResourceState::Ok(_)) {
-                *resource
-                    .retarget_animations_internal(root, graph, animations)
-                    .first()
-                    .ok_or(MachineInstantiationError::InvalidAnimation)?
-            } else {
-                Handle::NONE
-            };
+            let animation = instantiate_animation_holder(resource, root, graph, animations);
 
             if let Some(animation) = animations.try_get_mut(animation) {
                 animation
@@ -271,23 +292,43 @@ fn instantiate_node(
 }
 
 pub struct AnimationsPack {
-    animations: FxHashMap<String, Model>,
+    sources: FxHashMap<String, AnimationHolder>,
 }
 
 impl AnimationsPack {
     pub async fn load(paths: &[String], resource_manager: ResourceManager) -> Self {
-        let animations = paths
+        let models = paths
             .iter()
             .map(|path| (path.clone(), resource_manager.request_model(path)))
-            .collect::<FxHashMap<_, _>>();
+            .collect::<FxHashMap<_, Model>>();
+
+        let animations = paths
+            .iter()
+            .map(|path| (path.clone(), resource_manager.request_animation(path)))
+            .collect::<FxHashMap<_, AnimationResource>>();
 
         join_all(animations.values().cloned()).await;
+        join_all(models.values().cloned()).await;
 
-        Self { animations }
+        let mut sources = FxHashMap::default();
+
+        for (path, animation) in animations {
+            if matches!(*animation.state(), ResourceState::Ok(_)) {
+                sources.insert(path, AnimationHolder::Animation(Some(animation)));
+            }
+        }
+
+        for (path, model) in models {
+            if matches!(*model.state(), ResourceState::Ok(_)) {
+                sources.insert(path, AnimationHolder::Model(Some(model)));
+            }
+        }
+
+        Self { sources }
     }
 
-    pub fn animations(&self) -> &FxHashMap<String, Model> {
-        &self.animations
+    pub fn sources(&self) -> &FxHashMap<String, AnimationHolder> {
+        &self.sources
     }
 }
 
@@ -350,7 +391,7 @@ impl MachineDefinition {
                 definition_handle,
                 &animations,
                 root,
-                &mut scene.graph,
+                &scene.graph,
                 &mut scene.animations,
             )?);
 
@@ -626,7 +667,7 @@ impl Machine {
     pub fn resolve(
         &mut self,
         animations_pack: &AnimationsPack,
-        graph: &mut Graph,
+        graph: &Graph,
         animations: &mut AnimationContainer,
     ) {
         if let Some(resource) = self.resource.clone() {
@@ -794,35 +835,29 @@ impl Machine {
                             node_definition
                         {
                             let definition_animation = animations_pack
-                                .animations()
+                                .sources()
                                 .get(&play_animation_definition.animation);
 
                             if animations.try_get(play_animation.animation).map_or(
                                 true,
                                 |current_animation| {
-                                    definition_animation != current_animation.resource.as_ref()
+                                    definition_animation
+                                        .map_or(true, |a| a != &current_animation.resource)
                                 },
                             ) {
                                 animations.remove(play_animation.animation);
 
-                                let new_animation = if let Some(definition_animation) =
-                                    definition_animation
-                                {
-                                    if matches!(*definition_animation.state(), ResourceState::Ok(_))
-                                    {
-                                        definition_animation
-                                            .retarget_animations_internal(
-                                                self.root, graph, animations,
-                                            )
-                                            .first()
-                                            .cloned()
-                                            .unwrap_or_default()
+                                let new_animation =
+                                    if let Some(definition_animation) = definition_animation {
+                                        instantiate_animation_holder(
+                                            definition_animation,
+                                            self.root,
+                                            graph,
+                                            animations,
+                                        )
                                     } else {
                                         Handle::NONE
-                                    }
-                                } else {
-                                    Handle::NONE
-                                };
+                                    };
 
                                 *play_animation = PlayAnimation {
                                     base: BasePoseNode {

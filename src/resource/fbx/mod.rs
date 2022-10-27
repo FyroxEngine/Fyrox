@@ -674,7 +674,9 @@ async fn convert(
     model_import_options: &ModelImportOptions,
 ) -> Result<(), FbxError> {
     let root = scene.graph.get_root();
-    let animation_handle = scene.animations.add(Animation::default());
+    let mut animation = Animation::default();
+    animation.set_root(root);
+    let animation_handle = scene.animations.add(animation);
     let mut fbx_model_to_node_map = FxHashMap::default();
     for (component_handle, component) in fbx_scene.pair_iter() {
         if let FbxComponent::Model(model) = component {

@@ -17,6 +17,7 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native Fyroxed format) formats are supported.
+use crate::animation::AnimationHolder;
 use crate::{
     animation::{Animation, AnimationContainer},
     asset::{define_new_resource, Resource, ResourceData},
@@ -151,7 +152,7 @@ impl Model {
     pub(crate) fn retarget_animations_internal(
         &self,
         root: Handle<Node>,
-        graph: &mut Graph,
+        graph: &Graph,
         animations: &mut AnimationContainer,
     ) -> Vec<Handle<Animation>> {
         let data = self.data_ref();
@@ -160,9 +161,11 @@ impl Model {
         for ref_anim in data.scene.animations.iter() {
             let mut anim_copy = ref_anim.clone();
 
+            anim_copy.set_root(root);
+
             // Keep reference to resource from which this animation was taken from. This will help
             // us to correctly reload keyframes for each track when we'll be loading a save file.
-            anim_copy.resource = Some(self.clone());
+            anim_copy.resource = AnimationHolder::Model(Some(self.clone()));
 
             // Remap animation track nodes from resource to instance. This is required
             // because we've made a plain copy and it has tracks with node handles mapped
@@ -217,7 +220,7 @@ impl Model {
         root: Handle<Node>,
         dest_scene: &mut Scene,
     ) -> Vec<Handle<Animation>> {
-        self.retarget_animations_internal(root, &mut dest_scene.graph, &mut dest_scene.animations)
+        self.retarget_animations_internal(root, &dest_scene.graph, &mut dest_scene.animations)
     }
 }
 

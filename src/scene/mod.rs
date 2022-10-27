@@ -25,6 +25,7 @@ pub mod terrain;
 pub mod transform;
 pub mod visibility;
 
+use crate::animation::AnimationHolder;
 use crate::{
     animation::{machine::container::AnimationMachineContainer, AnimationContainer},
     core::{
@@ -349,13 +350,21 @@ impl SceneLoader {
         join_all(skybox_textures).await;
 
         let mut animation_resources = Vec::new();
+        let mut model_resources = Vec::new();
+
         for animation in scene.animations.iter_mut() {
             animation.restore_resources(resource_manager.clone());
-            if let Some(resource) = animation.resource.as_ref() {
-                animation_resources.push(resource.clone());
+            match animation.resource {
+                AnimationHolder::Model(Some(ref model)) => model_resources.push(model.clone()),
+                AnimationHolder::Animation(Some(ref animation)) => {
+                    animation_resources.push(animation.clone())
+                }
+                _ => (),
             }
         }
+
         join_all(animation_resources).await;
+        join_all(model_resources).await;
 
         let mut animation_machines = Vec::new();
         for machine in scene.animation_machines.iter_mut() {
