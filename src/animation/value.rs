@@ -48,7 +48,7 @@ impl TrackValue {
     }
 }
 
-#[derive(Clone, Visit, Debug)]
+#[derive(Clone, Visit, Debug, PartialEq, Eq)]
 pub enum ValueBinding {
     Position,
     Scale,

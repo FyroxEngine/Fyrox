@@ -167,6 +167,10 @@ impl LocalPose {
     pub fn blend_with(&mut self, other: &LocalPose, weight: f32) {
         self.values.blend_with(&other.values, weight)
     }
+
+    pub fn values(&self) -> &BoundValueCollection {
+        &self.values
+    }
 }
 
 #[derive(Default, Debug, Clone)]
