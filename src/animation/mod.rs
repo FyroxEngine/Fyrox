@@ -432,14 +432,16 @@ impl Animation {
         }
     }
 
-    pub fn track_of(&self, handle: Handle<Node>) -> Option<&NodeTrack> {
-        self.tracks.iter().find(|&track| track.target() == handle)
+    pub fn tracks_of(&self, handle: Handle<Node>) -> impl Iterator<Item = &NodeTrack> {
+        self.tracks
+            .iter()
+            .filter(move |track| track.target() == handle)
     }
 
-    pub fn track_of_mut(&mut self, handle: Handle<Node>) -> Option<&mut NodeTrack> {
+    pub fn tracks_of_mut(&mut self, handle: Handle<Node>) -> impl Iterator<Item = &mut NodeTrack> {
         self.tracks
             .iter_mut()
-            .find(|track| track.target() == handle)
+            .filter(move |track| track.target() == handle)
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
