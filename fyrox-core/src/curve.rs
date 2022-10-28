@@ -171,6 +171,11 @@ impl Curve {
     }
 
     #[inline]
+    pub fn max_location(&self) -> f32 {
+        self.keys.last().map(|k| k.location).unwrap_or_default()
+    }
+
+    #[inline]
     pub fn value_at(&self, location: f32) -> f32 {
         if self.keys.is_empty() {
             // Stub - zero
