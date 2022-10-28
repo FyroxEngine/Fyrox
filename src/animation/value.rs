@@ -8,22 +8,6 @@ use crate::{
 };
 use std::fmt::Debug;
 
-pub trait Value: Sized + Visit + Clone + Default + Debug {
-    fn interpolate(&self, other: &Self, t: f32) -> Self;
-}
-
-impl Value for Vector3<f32> {
-    fn interpolate(&self, other: &Self, t: f32) -> Self {
-        self.lerp(other, t)
-    }
-}
-
-impl Value for UnitQuaternion<f32> {
-    fn interpolate(&self, other: &Self, t: f32) -> Self {
-        self.nlerp(other, t)
-    }
-}
-
 #[derive(Clone, Debug)]
 pub enum TrackValue {
     Vector3(Vector3<f32>),
@@ -48,9 +32,9 @@ impl TrackValue {
 
     pub fn interpolate(&self, other: &Self, t: f32) -> Option<Self> {
         match (self, other) {
-            (Self::Vector3(a), Self::Vector3(b)) => Some(Self::Vector3(a.interpolate(b, t))),
+            (Self::Vector3(a), Self::Vector3(b)) => Some(Self::Vector3(a.lerp(b, t))),
             (Self::UnitQuaternion(a), Self::UnitQuaternion(b)) => {
-                Some(Self::UnitQuaternion(a.interpolate(b, t)))
+                Some(Self::UnitQuaternion(a.nlerp(b, t)))
             }
             _ => None,
         }
