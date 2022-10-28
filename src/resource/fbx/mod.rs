@@ -10,40 +10,39 @@ mod document;
 pub mod error;
 mod scene;
 
-use crate::animation::track::Track;
-use crate::scene::base::InstanceId;
 use crate::{
-    animation::{
-        container::TrackFramesContainer,
-        value::{TrackValue, ValueBinding},
-        Animation, AnimationContainer,
-    },
+    animation::{track::Track, Animation, AnimationContainer, NodeTrack},
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3, Vector4},
+        curve::{CurveKey, CurveKeyKind},
         instant::Instant,
         io,
         math::{self, triangulator::triangulate, RotationOrder},
         pool::Handle,
         sstorage::ImmutableString,
+        uuid::Uuid,
     },
     engine::resource_manager::ResourceManager,
     material::{shader::SamplerFallback, PropertyValue},
-    resource::fbx::{
-        document::FbxDocument,
-        error::FbxError,
-        scene::{
-            animation::FbxAnimationCurveNodeType, geometry::FbxGeometry, model::FbxModel,
-            FbxComponent, FbxMapping, FbxScene,
+    resource::{
+        fbx::{
+            document::FbxDocument,
+            error::FbxError,
+            scene::{
+                animation::{FbxAnimationCurveNode, FbxAnimationCurveNodeType},
+                geometry::FbxGeometry,
+                model::FbxModel,
+                FbxComponent, FbxMapping, FbxScene,
+            },
         },
+        model::{MaterialSearchOptions, ModelImportOptions},
     },
-    resource::model::{MaterialSearchOptions, ModelImportOptions},
     scene::{
-        base::BaseBuilder,
+        base::{BaseBuilder, InstanceId},
         graph::Graph,
         mesh::{
             buffer::{VertexAttributeUsage, VertexWriteTrait},
-            surface::SurfaceSharedData,
-            surface::{Surface, SurfaceData, VertexWeightSet},
+            surface::{Surface, SurfaceData, SurfaceSharedData, VertexWeightSet},
             vertex::{AnimatedVertex, StaticVertex},
             Mesh, MeshBuilder,
         },
@@ -58,10 +57,12 @@ use crate::{
     },
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::uuid::Uuid;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use std::{cmp::Ordering, path::Path};
+use std::{
+    cmp::Ordering,
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    path::Path,
+};
 use walkdir::WalkDir;
 
 /// Input angles in degrees
@@ -585,73 +586,97 @@ async fn convert_model(
             }
         }
 
-        // Convert to engine format
-        let mut translation_track = Track::new(TrackFramesContainer::Vector3(Default::default()));
-        translation_track.set_target(node_handle);
-        translation_track.set_binding(ValueBinding::Position);
+        fn fill_track<F: Fn(f32) -> f32>(
+            track: &mut NodeTrack,
+            fbx_scene: &FbxScene,
+            fbx_track: &FbxAnimationCurveNode,
+            default: Vector3<f32>,
+            transform_value: F,
+        ) {
+            let curves = track.frames_container_mut().curves_mut();
 
-        let mut rotation_track =
-            Track::new(TrackFramesContainer::UnitQuaternion(Default::default()));
-        rotation_track.set_target(node_handle);
-        rotation_track.set_binding(ValueBinding::Rotation);
+            if !fbx_track.curves.contains_key("d|X") {
+                curves[0].add_key(CurveKey::new(0.0, default.x, CurveKeyKind::Constant));
+            }
+            if !fbx_track.curves.contains_key("d|Y") {
+                curves[1].add_key(CurveKey::new(0.0, default.y, CurveKeyKind::Constant));
+            }
+            if !fbx_track.curves.contains_key("d|Z") {
+                curves[2].add_key(CurveKey::new(0.0, default.z, CurveKeyKind::Constant));
+            }
 
-        let mut scale_track = Track::new(TrackFramesContainer::Vector3(Default::default()));
-        scale_track.set_binding(ValueBinding::Scale);
-        scale_track.set_target(node_handle);
+            for (id, curve_handle) in fbx_track.curves.iter() {
+                let index = match id.as_str() {
+                    "d|X" => Some(0),
+                    "d|Y" => Some(1),
+                    "d|Z" => Some(2),
+                    _ => None,
+                };
 
-        let node_local_rotation = quat_from_euler(model.rotation);
-
-        let mut time = 0.0;
-        loop {
-            translation_track.frames_container_mut().add(
-                time,
-                TrackValue::Vector3(
-                    lcl_translation
-                        .map(|curve| curve.eval_vec3(fbx_scene, model.translation, time))
-                        .unwrap_or(model.translation),
-                ),
-            );
-
-            rotation_track.frames_container_mut().add(
-                time,
-                TrackValue::UnitQuaternion(
-                    lcl_rotation
-                        .map(|curve| curve.eval_quat(fbx_scene, model.rotation, time))
-                        .unwrap_or(node_local_rotation),
-                ),
-            );
-
-            scale_track.frames_container_mut().add(
-                time,
-                TrackValue::Vector3(
-                    lcl_scale
-                        .map(|curve| curve.eval_vec3(fbx_scene, model.scale, time))
-                        .unwrap_or(model.scale),
-                ),
-            );
-
-            let mut next_time = f32::MAX;
-            for node in [lcl_translation, lcl_rotation, lcl_scale].iter().flatten() {
-                for &curve_handle in node.curves.values() {
-                    let curve_component = fbx_scene.get(curve_handle);
-                    if let FbxComponent::AnimationCurve(curve) = curve_component {
-                        for key in curve.keys.iter() {
-                            if key.time > time {
-                                let distance = key.time - time;
-                                if distance < next_time - key.time {
-                                    next_time = key.time;
-                                }
+                if let Some(index) = index {
+                    if let FbxComponent::AnimationCurve(fbx_curve) = fbx_scene.get(*curve_handle) {
+                        if fbx_curve.keys.is_empty() {
+                            curves[index].add_key(CurveKey::new(
+                                0.0,
+                                default[index],
+                                CurveKeyKind::Constant,
+                            ));
+                        } else {
+                            for pair in fbx_curve.keys.iter() {
+                                curves[index].add_key(CurveKey::new(
+                                    pair.time,
+                                    transform_value(pair.value),
+                                    CurveKeyKind::Linear,
+                                ))
                             }
                         }
                     }
                 }
             }
+        }
 
-            if next_time >= f32::MAX {
-                break;
-            }
+        fn add_vec3_key(track: &mut NodeTrack, value: Vector3<f32>) {
+            let curves = track.frames_container_mut().curves_mut();
+            curves[0].add_key(CurveKey::new(0.0, value.x, CurveKeyKind::Constant));
+            curves[1].add_key(CurveKey::new(0.0, value.y, CurveKeyKind::Constant));
+            curves[2].add_key(CurveKey::new(0.0, value.z, CurveKeyKind::Constant));
+        }
 
-            time = next_time;
+        // Convert to engine format
+        let mut translation_track = Track::new_position();
+        translation_track.set_target(node_handle);
+        if let Some(lcl_translation) = lcl_translation {
+            fill_track(
+                &mut translation_track,
+                fbx_scene,
+                lcl_translation,
+                model.translation,
+                |v| v,
+            );
+        } else {
+            add_vec3_key(&mut translation_track, model.translation);
+        }
+
+        let mut rotation_track = Track::new_rotation();
+        rotation_track.set_target(node_handle);
+        if let Some(lcl_rotation) = lcl_rotation {
+            fill_track(
+                &mut rotation_track,
+                fbx_scene,
+                lcl_rotation,
+                model.rotation,
+                |v| v.to_radians(),
+            );
+        } else {
+            add_vec3_key(&mut rotation_track, model.rotation);
+        }
+
+        let mut scale_track = Track::new_scale();
+        scale_track.set_target(node_handle);
+        if let Some(lcl_scale) = lcl_scale {
+            fill_track(&mut scale_track, fbx_scene, lcl_scale, model.scale, |v| v);
+        } else {
+            add_vec3_key(&mut scale_track, model.scale);
         }
 
         let animation = animations.get_mut(animation_handle);

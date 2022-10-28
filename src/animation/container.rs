@@ -1,112 +1,88 @@
 use crate::{
-    animation::value::{TrackValue, Value},
-    core::algebra::{UnitQuaternion, Vector3},
-    core::visitor::prelude::*,
+    animation::value::TrackValue,
+    core::{
+        algebra::Vector3,
+        curve::Curve,
+        math::{quat_from_euler, RotationOrder},
+        visitor::prelude::*,
+    },
 };
 
-#[derive(Default, Visit, Debug, Clone)]
-pub struct Frame<T: Value> {
-    value: T,
-    time: f32,
+#[derive(Clone, Debug, Visit)]
+pub enum TrackValueKind {
+    Vector3,
+    UnitQuaternion,
 }
 
-#[derive(Default, Visit, Debug, Clone)]
-pub struct GenericTrackFramesContainer<T: Value> {
-    frames: Vec<Frame<T>>,
-    max_time: f32,
-}
-
-impl<T: Value> GenericTrackFramesContainer<T> {
-    pub fn add_key_frame(&mut self, frame: Frame<T>) {
-        if frame.time > self.max_time {
-            self.max_time = frame.time;
-            self.frames.push(frame);
-        } else {
-            // Find a place to insert
-            let mut index = 0;
-            for (i, other_frame) in self.frames.iter().enumerate() {
-                if frame.time < other_frame.time {
-                    index = i;
-                    break;
-                }
-            }
-            self.frames.insert(index, frame)
-        }
-    }
-
-    pub fn set_frames(&mut self, frames: Vec<Frame<T>>) {
-        self.frames = frames;
-        self.max_time = 0.0;
-
-        for frame in self.frames.iter() {
-            if frame.time > self.max_time {
-                self.max_time = frame.time;
-            }
-        }
-    }
-
-    pub fn fetch(&self, mut time: f32) -> Option<T> {
-        if self.frames.is_empty() {
-            return None;
-        }
-
-        if time >= self.max_time {
-            return self.frames.last().map(|k| k.value.clone());
-        }
-
-        time = time.clamp(0.0, self.max_time);
-
-        let mut right_index = 0;
-        for (i, keyframe) in self.frames.iter().enumerate() {
-            if keyframe.time >= time {
-                right_index = i;
-                break;
-            }
-        }
-
-        if right_index == 0 {
-            self.frames.first().map(|k| k.value.clone())
-        } else {
-            let left = &self.frames[right_index - 1];
-            let right = &self.frames[right_index];
-            let interpolator = (time - left.time) / (right.time - left.time);
-            Some(left.value.interpolate(&right.value, interpolator))
-        }
+impl Default for TrackValueKind {
+    fn default() -> Self {
+        Self::Vector3
     }
 }
 
-#[derive(Visit, Debug, Clone)]
-pub enum TrackFramesContainer {
-    Vector3(GenericTrackFramesContainer<Vector3<f32>>),
-    UnitQuaternion(GenericTrackFramesContainer<UnitQuaternion<f32>>),
+#[derive(Visit, Debug, Clone, Default)]
+pub struct TrackFramesContainer {
+    curves: Vec<Curve>,
+    kind: TrackValueKind,
 }
 
 impl TrackFramesContainer {
-    pub fn add(&mut self, time: f32, value: TrackValue) {
-        match (self, value) {
-            (Self::Vector3(container), TrackValue::Vector3(value)) => {
-                container.add_key_frame(Frame { time, value })
-            }
-            (Self::UnitQuaternion(container), TrackValue::UnitQuaternion(value)) => {
-                container.add_key_frame(Frame { time, value })
-            }
-            _ => (),
+    pub fn with_n_curves(kind: TrackValueKind, curve_count: usize) -> Self {
+        Self {
+            kind,
+            curves: vec![Default::default(); curve_count],
         }
     }
 
+    pub fn add_curve(&mut self, curve: Curve) {
+        self.curves.push(curve)
+    }
+
+    pub fn curve(&self, index: usize) -> Option<&Curve> {
+        self.curves.get(index)
+    }
+
+    pub fn curve_mut(&mut self, index: usize) -> Option<&mut Curve> {
+        self.curves.get_mut(index)
+    }
+
+    pub fn curves_ref(&self) -> &[Curve] {
+        &self.curves
+    }
+
+    pub fn curves_mut(&mut self) -> &mut [Curve] {
+        &mut self.curves
+    }
+
     pub fn fetch(&self, time: f32) -> Option<TrackValue> {
-        match self {
-            TrackFramesContainer::Vector3(vec3) => vec3.fetch(time).map(TrackValue::Vector3),
-            TrackFramesContainer::UnitQuaternion(quat) => {
-                quat.fetch(time).map(TrackValue::UnitQuaternion)
+        match self.kind {
+            TrackValueKind::Vector3 => Some(TrackValue::Vector3(Vector3::new(
+                self.curves.get(0)?.value_at(time),
+                self.curves.get(1)?.value_at(time),
+                self.curves.get(2)?.value_at(time),
+            ))),
+            TrackValueKind::UnitQuaternion => {
+                // Convert Euler angles to quaternion
+                let x = self.curves.get(0)?.value_at(time);
+                let y = self.curves.get(1)?.value_at(time);
+                let z = self.curves.get(2)?.value_at(time);
+
+                Some(TrackValue::UnitQuaternion(quat_from_euler(
+                    Vector3::new(x, y, z),
+                    RotationOrder::XYZ,
+                )))
             }
         }
     }
 
     pub fn time_length(&self) -> f32 {
-        match self {
-            TrackFramesContainer::Vector3(v) => v.max_time,
-            TrackFramesContainer::UnitQuaternion(v) => v.max_time,
+        let mut length = 0.0;
+        for curve in self.curves.iter() {
+            let max_location = curve.max_location();
+            if max_location > length {
+                length = max_location;
+            }
         }
+        length
     }
 }

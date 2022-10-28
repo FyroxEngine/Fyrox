@@ -1,6 +1,6 @@
 use crate::{
     animation::{
-        container::TrackFramesContainer,
+        container::{TrackFramesContainer, TrackValueKind},
         value::{BoundValue, ValueBinding},
     },
     core::{pool::Handle, visitor::prelude::*},
@@ -53,7 +53,7 @@ where
     fn default() -> Self {
         Self {
             binding: ValueBinding::Position,
-            frames: TrackFramesContainer::Vector3(Default::default()),
+            frames: TrackFramesContainer::default(),
             enabled: true,
             // Keep existing logic: animation instances do not save their frames on serialization,
             // instead they're restoring it from respective animation resource.
@@ -70,6 +70,30 @@ where
     pub fn new(container: TrackFramesContainer) -> Self {
         Self {
             frames: container,
+            ..Default::default()
+        }
+    }
+
+    pub fn new_position() -> Self {
+        Self {
+            frames: TrackFramesContainer::with_n_curves(TrackValueKind::Vector3, 3),
+            binding: ValueBinding::Position,
+            ..Default::default()
+        }
+    }
+
+    pub fn new_rotation() -> Self {
+        Self {
+            frames: TrackFramesContainer::with_n_curves(TrackValueKind::UnitQuaternion, 3),
+            binding: ValueBinding::Rotation,
+            ..Default::default()
+        }
+    }
+
+    pub fn new_scale() -> Self {
+        Self {
+            frames: TrackFramesContainer::with_n_curves(TrackValueKind::Vector3, 3),
+            binding: ValueBinding::Scale,
             ..Default::default()
         }
     }
