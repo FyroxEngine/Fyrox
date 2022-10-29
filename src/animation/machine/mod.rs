@@ -242,12 +242,12 @@ fn instantiate_node(
 ) -> Result<PoseNode, MachineInstantiationError> {
     let mut node = match node_definition {
         PoseNodeDefinition::PlayAnimation(play_animation) => {
-            let resource = animations_pack
-                .sources()
-                .get(&play_animation.animation)
-                .unwrap();
-
-            let animation = instantiate_animation_holder(resource, root, graph, animations);
+            let animation =
+                if let Some(resource) = animations_pack.sources().get(&play_animation.animation) {
+                    instantiate_animation_holder(resource, root, graph, animations)
+                } else {
+                    Handle::NONE
+                };
 
             if let Some(animation) = animations.try_get_mut(animation) {
                 animation
