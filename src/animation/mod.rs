@@ -495,7 +495,8 @@ impl Animation {
                                     // animation targeted to character instance.
                                     let mut found = false;
                                     for ref_track in ref_animation.tracks().iter() {
-                                        if track_node.name()
+                                        if ref_track.binding() == track.binding()
+                                            && track_node.name()
                                             == data.get_scene().graph[ref_track.target()].name()
                                         {
                                             track.set_frames_container(
