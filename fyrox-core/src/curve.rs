@@ -177,50 +177,72 @@ impl Curve {
 
     #[inline]
     pub fn value_at(&self, location: f32) -> f32 {
-        if self.keys.is_empty() {
-            // Stub - zero
-            return Default::default();
-        } else if self.keys.len() == 1 {
-            // Single key - just return its value
-            return self.keys.first().unwrap().value;
-        } else if self.keys.len() == 2 {
-            // Special case for two keys (much faster than generic)
-            let pt_a = self.keys.get(0).unwrap();
-            let pt_b = self.keys.get(1).unwrap();
-            if location >= pt_a.location && location <= pt_b.location {
-                let span = pt_b.location - pt_a.location;
-                let t = (location - pt_a.location) / span;
-                return pt_a.interpolate(pt_b, t);
-            } else if location < pt_a.location {
-                return pt_a.value;
-            } else {
-                return pt_b.value;
-            }
-        }
-
         // Generic case - check for out-of-bounds
-        let first = self.keys.first().unwrap();
-        let last = self.keys.last().unwrap();
-        if location <= first.location {
-            first.value
-        } else if location >= last.location {
-            last.value
-        } else {
-            // Find span first
-            let mut pt_a_index = 0;
-            for (i, pt) in self.keys.iter().enumerate() {
-                if location >= pt.location {
-                    pt_a_index = i;
-                }
+        if let (Some(first), Some(last)) = (self.keys.first(), self.keys.last()) {
+            if location <= first.location {
+                first.value
+            } else if location >= last.location {
+                last.value
+            } else {
+                // Use binary search for multiple spans.
+                let pos = self
+                    .keys
+                    .partition_point(|k| k.location < location)
+                    .saturating_sub(1);
+                let left = self.keys.get(pos).unwrap();
+                let right = self.keys.get(pos + 1).unwrap();
+                left.interpolate(
+                    right,
+                    (location - left.location) / (right.location - left.location),
+                )
             }
-            let pt_b_index = pt_a_index + 1;
-
-            let pt_a = self.keys.get(pt_a_index).unwrap();
-            let pt_b = self.keys.get(pt_b_index).unwrap();
-
-            let span = pt_b.location - pt_a.location;
-            let t = (location - pt_a.location) / span;
-            pt_a.interpolate(pt_b, t)
+        } else {
+            0.0
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::curve::{Curve, CurveKey, CurveKeyKind};
+
+    #[test]
+    fn test_curve() {
+        let mut curve = Curve::default();
+
+        // Test fetching from empty curve.
+        assert_eq!(curve.value_at(0.0), 0.0);
+
+        curve.add_key(CurveKey::new(0.0, 1.0, CurveKeyKind::Linear));
+
+        // One-key curves must always return its single key value.
+        assert_eq!(curve.value_at(-1.0), 1.0);
+        assert_eq!(curve.value_at(1.0), 1.0);
+        assert_eq!(curve.value_at(0.0), 1.0);
+
+        curve.add_key(CurveKey::new(1.0, 0.0, CurveKeyKind::Linear));
+
+        // Two-key curves must always use interpolation.
+        assert_eq!(curve.value_at(-1.0), 1.0);
+        assert_eq!(curve.value_at(2.0), 0.0);
+        assert_eq!(curve.value_at(0.5), 0.5);
+
+        // Add one more key and do more checks.
+        curve.add_key(CurveKey::new(2.0, 1.0, CurveKeyKind::Linear));
+
+        // Check order of the keys.
+        assert!(curve.keys[0].location <= curve.keys[1].location);
+        assert!(curve.keys[1].location <= curve.keys[2].location);
+
+        // Check generic out-of-bounds fetching.
+        assert_eq!(curve.value_at(-1.0), 1.0); // Left side oob
+        assert_eq!(curve.value_at(3.0), 1.0); // Right side oob.
+
+        // Check edge cases.
+        assert_eq!(curve.value_at(0.0), 1.0); // Left edge.
+        assert_eq!(curve.value_at(2.0), 1.0); // Right edge.
+
+        // Check interpolation.
+        assert_eq!(curve.value_at(0.5), 0.5);
     }
 }
