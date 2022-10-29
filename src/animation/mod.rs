@@ -210,8 +210,8 @@ impl AnimationPose {
         for (node, local_pose) in self.local_poses.iter() {
             if node.is_none() {
                 Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else {
-                local_pose.values.apply(&mut graph[*node]);
+            } else if let Some(node) = graph.try_get_mut(*node) {
+                local_pose.values.apply(node);
             }
         }
     }
@@ -225,8 +225,8 @@ impl AnimationPose {
         for (node, local_pose) in self.local_poses.iter() {
             if node.is_none() {
                 Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else {
-                callback(&mut graph[*node], *node, local_pose);
+            } else if let Some(node_ref) = graph.try_get_mut(*node) {
+                callback(node_ref, *node, local_pose);
             }
         }
     }
@@ -497,7 +497,7 @@ impl Animation {
                                     for ref_track in ref_animation.tracks().iter() {
                                         if ref_track.binding() == track.binding()
                                             && track_node.name()
-                                            == data.get_scene().graph[ref_track.target()].name()
+                                                == data.get_scene().graph[ref_track.target()].name()
                                         {
                                             track.set_frames_container(
                                                 ref_track.frames_container().clone(),
