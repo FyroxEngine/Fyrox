@@ -158,8 +158,8 @@ impl Curve {
 
     #[inline]
     pub fn add_key(&mut self, new_key: CurveKey) {
-        self.keys.push(new_key);
-        sort_keys(&mut self.keys);
+        let pos = self.keys.partition_point(|k| k.location < new_key.location);
+        self.keys.insert(pos, new_key);
     }
 
     #[inline]
@@ -177,7 +177,6 @@ impl Curve {
 
     #[inline]
     pub fn value_at(&self, location: f32) -> f32 {
-        // Generic case - check for out-of-bounds
         if let (Some(first), Some(last)) = (self.keys.first(), self.keys.last()) {
             if location <= first.location {
                 first.value
@@ -185,12 +184,9 @@ impl Curve {
                 last.value
             } else {
                 // Use binary search for multiple spans.
-                let pos = self
-                    .keys
-                    .partition_point(|k| k.location < location)
-                    .saturating_sub(1);
-                let left = self.keys.get(pos).unwrap();
-                let right = self.keys.get(pos + 1).unwrap();
+                let pos = self.keys.partition_point(|k| k.location < location);
+                let left = self.keys.get(pos.saturating_sub(1)).unwrap();
+                let right = self.keys.get(pos).unwrap();
                 left.interpolate(
                     right,
                     (location - left.location) / (right.location - left.location),
@@ -205,6 +201,25 @@ impl Curve {
 #[cfg(test)]
 mod test {
     use crate::curve::{Curve, CurveKey, CurveKeyKind};
+
+    #[test]
+    fn test_curve_key_insertion_order() {
+        let mut curve = Curve::default();
+
+        // Insert keys in arbitrary order with arbitrary location.
+        curve.add_key(CurveKey::new(0.0, 0.0, CurveKeyKind::Constant));
+        curve.add_key(CurveKey::new(-1.0, 0.0, CurveKeyKind::Constant));
+        curve.add_key(CurveKey::new(3.0, 0.0, CurveKeyKind::Constant));
+        curve.add_key(CurveKey::new(2.0, 0.0, CurveKeyKind::Constant));
+        curve.add_key(CurveKey::new(-5.0, 0.0, CurveKeyKind::Constant));
+
+        // Ensure that keys are sorted by their location.
+        assert_eq!(curve.keys[0].location, -5.0);
+        assert_eq!(curve.keys[1].location, -1.0);
+        assert_eq!(curve.keys[2].location, 0.0);
+        assert_eq!(curve.keys[3].location, 2.0);
+        assert_eq!(curve.keys[4].location, 3.0);
+    }
 
     #[test]
     fn test_curve() {
