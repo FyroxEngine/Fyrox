@@ -8,7 +8,7 @@ use crate::{
     },
 };
 
-#[derive(Clone, Debug, Visit)]
+#[derive(Clone, Copy, Debug, Visit, PartialEq, Eq)]
 pub enum TrackValueKind {
     Vector3,
     UnitQuaternion,
@@ -52,6 +52,14 @@ impl TrackFramesContainer {
 
     pub fn curves_mut(&mut self) -> &mut [Curve] {
         &mut self.curves
+    }
+
+    pub fn set_value_kind(&mut self, kind: TrackValueKind) {
+        self.kind = kind;
+    }
+
+    pub fn value_kind(&self) -> TrackValueKind {
+        self.kind
     }
 
     pub fn fetch(&self, time: f32) -> Option<TrackValue> {
