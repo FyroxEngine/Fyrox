@@ -419,7 +419,6 @@ impl Animation {
             for track in self.tracks.iter_mut() {
                 if track.target() == node {
                     track.enable(enabled);
-                    break;
                 }
             }
             for child in graph[node].children() {
