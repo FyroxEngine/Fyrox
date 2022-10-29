@@ -5,6 +5,7 @@ use crate::{
         visitor::prelude::*,
     },
     scene::node::Node,
+    utils::log::Log,
 };
 use std::fmt::Debug;
 
@@ -130,22 +131,42 @@ impl BoundValueCollection {
                 ValueBinding::Position => {
                     if let TrackValue::Vector3(v) = bound_value.value {
                         node_ref.local_transform_mut().set_position(v);
+                    } else {
+                        Log::err(
+                            "Unable to apply position, because underlying type is not Vector3!",
+                        )
                     }
                 }
                 ValueBinding::Scale => {
                     if let TrackValue::Vector3(v) = bound_value.value {
                         node_ref.local_transform_mut().set_scale(v);
+                    } else {
+                        Log::err("Unable to apply scaling, because underlying type is not Vector3!")
                     }
                 }
                 ValueBinding::Rotation => {
                     if let TrackValue::UnitQuaternion(v) = bound_value.value {
                         node_ref.local_transform_mut().set_rotation(v);
+                    } else {
+                        Log::err("Unable to apply rotation, because underlying type is not UnitQuaternion!")
                     }
                 }
                 ValueBinding::Property(ref property_name) => {
-                    if let Ok(property) = node_ref.as_reflect_mut().resolve_path_mut(property_name)
-                    {
-                        let _ = property.set(bound_value.boxed_value());
+                    match node_ref.as_reflect_mut().resolve_path_mut(property_name) {
+                        Ok(property) => {
+                            if property.set(bound_value.boxed_value()).is_err() {
+                                Log::err(format!(
+                                    "Failed to set property {}! Types mismatch.",
+                                    property_name
+                                ));
+                            }
+                        }
+                        Err(err) => {
+                            Log::err(format!(
+                                "Unable to find property {}! Reason: {:?}",
+                                property_name, err
+                            ));
+                        }
                     }
                 }
             }
