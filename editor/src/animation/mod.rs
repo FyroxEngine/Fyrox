@@ -7,8 +7,8 @@ use fyrox::{
         curve::CurveEditorBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
-        menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
-        message::MessageDirection,
+        menu::{MenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
+        message::{MessageDirection, UiMessage},
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -20,6 +20,9 @@ use fyrox::{
 struct Menu {
     menu: Handle<UiNode>,
     new: Handle<UiNode>,
+    load: Handle<UiNode>,
+    save: Handle<UiNode>,
+    save_as: Handle<UiNode>,
     exit: Handle<UiNode>,
     undo: Handle<UiNode>,
     redo: Handle<UiNode>,
@@ -28,6 +31,9 @@ struct Menu {
 impl Menu {
     fn new(ctx: &mut BuildContext) -> Self {
         let new;
+        let load;
+        let save;
+        let save_as;
         let exit;
         let undo;
         let redo;
@@ -41,6 +47,24 @@ impl Menu {
                                 .with_content(MenuItemContent::text_no_arrow("New"))
                                 .build(ctx);
                             new
+                        },
+                        {
+                            load = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text_no_arrow("Load..."))
+                                .build(ctx);
+                            load
+                        },
+                        {
+                            save = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text_no_arrow("Save"))
+                                .build(ctx);
+                            save
+                        },
+                        {
+                            save_as = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text_no_arrow("Save As..."))
+                                .build(ctx);
+                            save_as
                         },
                         {
                             exit = MenuItemBuilder::new(WidgetBuilder::new())
@@ -73,6 +97,9 @@ impl Menu {
         Self {
             menu,
             new,
+            load,
+            save,
+            save_as,
             exit,
             undo,
             redo,
@@ -200,5 +227,16 @@ impl AnimationEditor {
             MessageDirection::ToWidget,
             true,
         ));
+    }
+
+    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
+        if let Some(MenuItemMessage::Click) = message.data() {
+            if message.destination() == self.menu.exit {
+                ui.send_message(WindowMessage::close(
+                    self.window,
+                    MessageDirection::ToWidget,
+                ));
+            }
+        }
     }
 }

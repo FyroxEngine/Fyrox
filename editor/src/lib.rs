@@ -580,6 +580,7 @@ impl Editor {
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
         let log = LogPanel::new(ctx, log_message_receiver);
         let inspector = Inspector::new(ctx, message_sender.clone());
+        let animation_editor = AnimationEditor::new(ctx);
 
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()
@@ -682,6 +683,7 @@ impl Editor {
                             })
                             .build(ctx)
                     }))
+                    .with_floating_windows(vec![animation_editor.window])
                     .build(ctx),
                 ),
         )
@@ -722,8 +724,6 @@ impl Editor {
         let build_window = BuildWindow::new(ctx);
 
         let scene_settings = SceneSettingsWindow::new(ctx, message_sender.clone());
-
-        let animation_editor = AnimationEditor::new(ctx);
 
         let absm_editor = AbsmEditor::new(&mut engine, message_sender.clone());
 
@@ -1124,6 +1124,8 @@ impl Editor {
             &self.settings,
             &self.mode,
         );
+        self.animation_editor
+            .handle_ui_message(message, &mut engine.user_interface);
 
         if let Some(editor_scene) = self.scene.as_mut() {
             self.audio_panel
