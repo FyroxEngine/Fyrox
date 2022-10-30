@@ -72,16 +72,16 @@ impl BoundValue {
     }
 
     pub fn blend_with(&mut self, other: &Self, weight: f32) {
+        assert_eq!(self.binding, other.binding);
         self.value.blend_with(&other.value, weight);
     }
 
-    pub fn interpolate(&self, other: &BoundValue, t: f32) -> Option<BoundValue> {
-        self.value
-            .interpolate(&other.value, t)
-            .map(|value| BoundValue {
-                binding: self.binding.clone(),
-                value,
-            })
+    pub fn interpolate(&self, other: &Self, t: f32) -> Option<Self> {
+        assert_eq!(self.binding, other.binding);
+        self.value.interpolate(&other.value, t).map(|value| Self {
+            binding: self.binding.clone(),
+            value,
+        })
     }
 
     pub fn boxed_value(&self) -> Box<dyn Reflect> {
@@ -100,29 +100,28 @@ impl BoundValueCollection {
             values: self
                 .values
                 .iter()
-                .map(|v| BoundValue {
-                    binding: v.binding.clone(),
-                    value: v.value.weighted_clone(weight),
-                })
+                .map(|v| v.weighted_clone(weight))
                 .collect::<Vec<_>>(),
         }
     }
 
     pub fn blend_with(&mut self, other: &Self, weight: f32) {
-        for (a, b) in self.values.iter_mut().zip(other.values.iter()) {
-            a.blend_with(b, weight)
+        for value in self.values.iter_mut() {
+            if let Some(other_value) = other.values.iter().find(|v| v.binding == value.binding) {
+                value.blend_with(other_value, weight);
+            }
         }
     }
 
     pub fn interpolate(&self, other: &Self, t: f32) -> Self {
-        Self {
-            values: self
-                .values
-                .iter()
-                .zip(&other.values)
-                .filter_map(|(a, b)| a.interpolate(b, t))
-                .collect(),
+        let mut new_values = Vec::new();
+        for value in self.values.iter() {
+            if let Some(other_value) = other.values.iter().find(|v| v.binding == value.binding) {
+                new_values.push(value.interpolate(other_value, t).unwrap());
+            }
         }
+
+        Self { values: new_values }
     }
 
     pub fn apply(&self, node_ref: &mut Node) {
