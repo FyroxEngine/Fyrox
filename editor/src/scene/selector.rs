@@ -338,6 +338,16 @@ impl Control for NodeSelectorWindow {
 
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
+                ui.send_message(NodeSelectorMessage::selection(
+                    self.handle,
+                    MessageDirection::FromWidget,
+                    ui.node(self.selector)
+                        .query_component::<NodeSelector>()
+                        .unwrap()
+                        .selected
+                        .clone(),
+                ));
+
                 ui.send_message(WindowMessage::close(
                     self.handle,
                     MessageDirection::ToWidget,
@@ -355,15 +365,6 @@ impl Control for NodeSelectorWindow {
             {
                 let mut msg = message.clone();
                 msg.destination = self.selector;
-                ui.send_message(msg);
-            }
-
-            // Re-cast messages from inner selector as messages from the window.
-            if message.destination() == self.selector
-                && message.direction() == MessageDirection::FromWidget
-            {
-                let mut msg = message.clone();
-                msg.destination = self.handle;
                 ui.send_message(msg);
             }
         }
