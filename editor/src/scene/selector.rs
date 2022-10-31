@@ -34,7 +34,11 @@ pub struct HierarchyNode {
 }
 
 impl HierarchyNode {
-    pub fn from_scene_node(node_handle: Handle<Node>, graph: &Graph) -> Self {
+    pub fn from_scene_node(
+        node_handle: Handle<Node>,
+        ignored_node: Handle<Node>,
+        graph: &Graph,
+    ) -> Self {
         let node = &graph[node_handle];
 
         Self {
@@ -43,7 +47,13 @@ impl HierarchyNode {
             children: node
                 .children()
                 .iter()
-                .map(|c| HierarchyNode::from_scene_node(*c, graph))
+                .filter_map(|c| {
+                    if *c == ignored_node {
+                        None
+                    } else {
+                        Some(HierarchyNode::from_scene_node(*c, ignored_node, graph))
+                    }
+                })
                 .collect(),
         }
     }

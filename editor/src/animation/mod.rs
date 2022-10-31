@@ -187,6 +187,7 @@ impl TrackList {
                     )
                     .with_hierarchy(HierarchyNode::from_scene_node(
                         scene.graph.get_root(),
+                        editor_scene.editor_objects_root,
                         &scene.graph,
                     ))
                     .build(&mut ui.build_ctx());
