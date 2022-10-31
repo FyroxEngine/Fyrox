@@ -1125,7 +1125,7 @@ impl Editor {
             &self.mode,
         );
         self.animation_editor
-            .handle_ui_message(message, &mut engine.user_interface);
+            .handle_ui_message(message, self.scene.as_ref(), engine);
 
         if let Some(editor_scene) = self.scene.as_mut() {
             self.audio_panel

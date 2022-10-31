@@ -1,16 +1,21 @@
 #![allow(dead_code)] // TODO
 
+use crate::scene::{
+    selector::{HierarchyNode, NodeSelectorWindowBuilder},
+    EditorScene,
+};
 use fyrox::{
     core::pool::Handle,
+    engine::Engine,
     gui::{
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         curve::CurveEditorBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
         message::{MessageDirection, UiMessage},
         stack_panel::StackPanelBuilder,
-        widget::WidgetBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface,
     },
@@ -111,6 +116,7 @@ struct TrackList {
     panel: Handle<UiNode>,
     list: Handle<UiNode>,
     add_track: Handle<UiNode>,
+    node_selector: Handle<UiNode>,
 }
 
 impl TrackList {
@@ -156,6 +162,49 @@ impl TrackList {
             panel,
             list,
             add_track,
+            node_selector: Default::default(),
+        }
+    }
+
+    fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        editor_scene: Option<&EditorScene>,
+        engine: &mut Engine,
+    ) {
+        let ui = &mut engine.user_interface;
+
+        if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.add_track {
+                if let Some(editor_scene) = editor_scene {
+                    let scene = &engine.scenes[editor_scene.scene];
+
+                    self.node_selector = NodeSelectorWindowBuilder::new(
+                        WindowBuilder::new(
+                            WidgetBuilder::new().with_width(300.0).with_height(400.0),
+                        )
+                        .with_title(WindowTitle::text("Select a Node")),
+                    )
+                    .with_hierarchy(HierarchyNode::from_scene_node(
+                        scene.graph.get_root(),
+                        &scene.graph,
+                    ))
+                    .build(&mut ui.build_ctx());
+
+                    ui.send_message(WindowMessage::open_modal(
+                        self.node_selector,
+                        MessageDirection::ToWidget,
+                        true,
+                    ));
+                }
+            }
+        } else if let Some(WindowMessage::Close) = message.data() {
+            if message.destination() == self.node_selector {
+                ui.send_message(WidgetMessage::remove(
+                    self.node_selector,
+                    MessageDirection::ToWidget,
+                ));
+            }
         }
     }
 }
@@ -229,10 +278,18 @@ impl AnimationEditor {
         ));
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        editor_scene: Option<&EditorScene>,
+        engine: &mut Engine,
+    ) {
+        self.track_list
+            .handle_ui_message(message, editor_scene, engine);
+
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.menu.exit {
-                ui.send_message(WindowMessage::close(
+                engine.user_interface.send_message(WindowMessage::close(
                     self.window,
                     MessageDirection::ToWidget,
                 ));

@@ -1,4 +1,5 @@
 use crate::load_image;
+use crate::utils::make_node_name;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     gui::{
@@ -120,12 +121,7 @@ impl<T: 'static> Control for SceneItem<T> {
 
         if let Some(SceneItemMessage::Name(name)) = message.data() {
             if message.destination() == self.handle() {
-                self.name_value = format!(
-                    "{} ({}:{})",
-                    name,
-                    self.entity_handle.index(),
-                    self.entity_handle.generation()
-                );
+                self.name_value = make_node_name(name, self.entity_handle.into());
 
                 ui.send_message(TextMessage::text(
                     self.text_name,

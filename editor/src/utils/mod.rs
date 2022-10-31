@@ -1,5 +1,5 @@
 use fyrox::{
-    core::{algebra::Vector2, pool::Handle},
+    core::{algebra::Vector2, pool::ErasedHandle, pool::Handle},
     gui::{
         file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
         message::MessageDirection,
@@ -124,4 +124,8 @@ pub fn built_in_skybox() -> SkyBox {
     }
     .build()
     .unwrap()
+}
+
+pub fn make_node_name(name: &str, handle: ErasedHandle) -> String {
+    format!("{} ({}:{})", name, handle.index(), handle.generation())
 }
