@@ -386,7 +386,7 @@ where
         let container = make_expander_container(
             ctx.layer_index,
             ctx.property_info.display_name,
-            ctx.property_info.description.as_ref(),
+            ctx.property_info.description,
             add,
             {
                 editor = CollectionEditorBuilder::new(

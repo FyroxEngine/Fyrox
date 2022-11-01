@@ -204,7 +204,7 @@ where
         max_value: property_info.max_value,
         step: property_info.step,
         precision: property_info.precision,
-        description: property_info.description.clone(),
+        description: property_info.description,
     })
 }
 
