@@ -38,6 +38,7 @@ pub fn impl_prop_constants(ty_args: &args::TypeArgs) -> TokenStream2 {
 
 pub fn gen_fields_metadata_body(
     props: &[Property],
+    field_getters: &[TokenStream2],
     field_args: &ast::Fields<args::FieldArgs>,
 ) -> TokenStream2 {
     // `inspect` function body, consisting of a sequence of quotes
@@ -48,8 +49,10 @@ pub fn gen_fields_metadata_body(
         .iter()
         .enumerate()
         .filter(|(_i, f)| !f.hidden)
-        .zip(props)
-        .map(|((i, field), prop)| self::quote_field_prop(&prop.value, i, field));
+        .zip(props.iter().zip(field_getters))
+        .map(|((i, field), (prop, field_getter))| {
+            self::quote_field_prop(&prop.value, i, field_getter, field)
+        });
 
     quotes.push(quote! {
         let mut props = Vec::new();
@@ -67,6 +70,7 @@ pub fn gen_fields_metadata_body(
 fn quote_field_prop(
     prop_key_name: &str,
     nth_field: usize,
+    field_getter: &TokenStream2,
     field: &args::FieldArgs,
 ) -> TokenStream2 {
     let field_ident = match &field.ident {
@@ -115,6 +119,7 @@ fn quote_field_prop(
             read_only: #read_only,
             min_value: #min_value,
             max_value: #max_value,
+            value: #field_getter,
             step: #step,
             precision: #precision,
             description: #description,
@@ -134,11 +139,12 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
             (quote!(&self.#quote), quote!(&mut self.#quote))
         })
         .unzip();
+
+    let metadata = gen_fields_metadata_body(&props, &fields, field_args);
+
     let (fields, field_muts) = self::collect_field_refs(&props, &fields, &field_muts);
     let fields = fields.collect::<Vec<_>>();
     let field_muts = field_muts.collect::<Vec<_>>();
-
-    let metadata = gen_fields_metadata_body(&props, field_args);
 
     let field_body = quote! {
         match name {
@@ -246,8 +252,6 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                 .map(|(i, f)| prop::enum_prop(v, *i, f))
                 .collect::<Vec<_>>();
 
-            let metadata = gen_fields_metadata_body(&props, &v.fields);
-
             let prop_values = props.iter().map(|p| &p.value).collect::<Vec<_>>();
 
             let syntax = syntax::VariantSyntax::new(ty_args.ident.clone(), v);
@@ -260,6 +264,9 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                     (quote!(#field_quote), quote!(#field_quote))
                 })
                 .unzip();
+
+            let metadata = gen_fields_metadata_body(&props, &fields, &v.fields);
+
             let (fields, field_muts) = self::collect_field_refs(&props, &fields, &field_muts);
             let fields = fields.collect::<Vec<_>>();
             let field_muts = field_muts.collect::<Vec<_>>();

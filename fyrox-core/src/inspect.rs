@@ -17,12 +17,12 @@ pub mod prelude {
 }
 
 /// A value of a property.
-pub trait PropertyValue: Any + Debug + 'static {
+pub trait PropertyValue: Any + 'static {
     /// Casts `self` to a `&dyn Any`
     fn as_any(&self) -> &dyn Any;
 }
 
-impl<T: Debug + 'static> PropertyValue for T {
+impl<T: 'static> PropertyValue for T {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -77,7 +77,7 @@ pub struct PropertyInfo<'a> {
     pub description: String,
 }
 
-impl<'a> PartialEq<Self> for PropertyInfo<'a> {
+impl<'a> PartialEq<Self> for FieldInfo<'a> {
     fn eq(&self, other: &Self) -> bool {
         let value_ptr_a = self.value as *const _ as *const ();
         let value_ptr_b = other.value as *const _ as *const ();
@@ -92,6 +92,23 @@ impl<'a> PartialEq<Self> for PropertyInfo<'a> {
             && self.step == other.step
             && self.precision == other.precision
             && self.description == other.description
+    }
+}
+
+impl<'a> fmt::Debug for FieldInfo<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PropertyInfo")
+            .field("owner_type_id", &self.owner_type_id)
+            .field("name", &self.name)
+            .field("display_name", &self.display_name)
+            .field("value", &format_args!("{:?}", self.value as *const _))
+            .field("read_only", &self.read_only)
+            .field("min_value", &self.min_value)
+            .field("max_value", &self.max_value)
+            .field("step", &self.step)
+            .field("precision", &self.precision)
+            .field("description", &self.description)
+            .finish()
     }
 }
 
@@ -222,4 +239,5 @@ impl_simple_inspect!(Vector3<f32>);
 impl_simple_inspect!(Vector4<f32>);
 impl_simple_inspect!(UnitQuaternion<f32>);
 
+use crate::reflect::FieldInfo;
 pub use fyrox_core_derive::Inspect;

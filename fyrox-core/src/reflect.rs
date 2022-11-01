@@ -5,20 +5,45 @@ mod std_impls;
 
 pub use fyrox_core_derive::Reflect;
 
-use std::fmt::Debug;
 use std::{
     any::{Any, TypeId},
-    fmt,
+    fmt::{self, Debug},
 };
 use thiserror::Error;
 
 pub mod prelude {
-    pub use super::FieldInfo;
-    pub use super::Reflect;
+    pub use super::{FieldInfo, Reflect};
 }
 
-#[derive(PartialEq, Debug)]
-pub struct FieldInfo {
+/// A value of a field..
+pub trait FieldValue: Any + 'static {
+    /// Casts `self` to a `&dyn Any`
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T: 'static> FieldValue for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+/// An error that can occur during "type casting"
+#[derive(Debug)]
+pub enum CastError {
+    /// Given type does not match expected.
+    TypeMismatch {
+        /// A name of the field.
+        property_name: String,
+
+        /// Expected type identifier.
+        expected_type_id: TypeId,
+
+        /// Actual type identifier.
+        actual_type_id: TypeId,
+    },
+}
+
+pub struct FieldInfo<'a> {
     /// A type id of the owner of the property.
     pub owner_type_id: TypeId,
 
@@ -30,6 +55,11 @@ pub struct FieldInfo {
 
     /// Description of the property.
     pub description: &'static str,
+
+    /// An reference to the actual value of the property. This is "non-mangled" reference, which
+    /// means that while `field/fields/field_mut/fields_mut` might return a reference to other value,
+    /// than the actual field, the `value` is guaranteed to be a reference to the real value.
+    pub value: &'a dyn FieldValue,
 
     /// A property is not meant to be edited.
     pub read_only: bool,
@@ -45,6 +75,24 @@ pub struct FieldInfo {
 
     /// Maximum amount of decimal places for a numeric property.
     pub precision: Option<usize>,
+}
+
+impl<'a> PartialEq<Self> for PropertyInfo<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        let value_ptr_a = self.value as *const _ as *const ();
+        let value_ptr_b = other.value as *const _ as *const ();
+
+        self.owner_type_id == other.owner_type_id
+            && self.name == other.name
+            && self.display_name == other.display_name
+            && std::ptr::eq(value_ptr_a, value_ptr_b)
+            && self.read_only == other.read_only
+            && self.min_value == other.min_value
+            && self.max_value == other.max_value
+            && self.step == other.step
+            && self.precision == other.precision
+            && self.description == other.description
+    }
 }
 
 /// Trait for runtime reflection
@@ -557,6 +605,7 @@ macro_rules! delegate_reflect {
     };
 }
 
+use crate::inspect::PropertyInfo;
 use crate::variable::{InheritError, VariableFlags};
 pub use blank_reflect;
 pub use delegate_reflect;

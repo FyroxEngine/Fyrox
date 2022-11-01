@@ -280,10 +280,11 @@ fn reflect_fields_list_of_enum() {
     );
 }
 
-fn default_prop() -> FieldInfo {
+fn default_prop() -> FieldInfo<'static> {
     FieldInfo {
         owner_type_id: TypeId::of::<()>(),
         name: "",
+        value: &(),
         display_name: "",
         read_only: false,
         min_value: None,
@@ -309,12 +310,14 @@ fn inspect_default() {
             owner_type_id: TypeId::of::<Data>(),
             name: "the_field",
             display_name: "The Field",
+            value: &data.the_field,
             ..default_prop()
         },
         FieldInfo {
             owner_type_id: TypeId::of::<Data>(),
             name: "another_field",
             display_name: "Another Field",
+            value: &data.another_field,
             ..default_prop()
         },
     ];
@@ -355,12 +358,14 @@ fn inspect_attributes() {
             owner_type_id: TypeId::of::<Data>(),
             name: "x",
             display_name: "Super X",
+            value: &data.x,
             ..default_prop()
         },
         FieldInfo {
             owner_type_id: TypeId::of::<Data>(),
             name: "y",
             display_name: "Y",
+            value: &data.y,
             read_only: true,
             min_value: Some(0.1),
             max_value: Some(1.1),
@@ -386,12 +391,14 @@ fn inspect_struct() {
                 owner_type_id: TypeId::of::<Tuple>(),
                 name: "0",
                 display_name: "0",
+                value: &x.0,
                 ..default_prop()
             },
             FieldInfo {
                 owner_type_id: TypeId::of::<Tuple>(),
                 name: "1",
                 display_name: "1",
+                value: &x.1,
                 ..default_prop()
             },
         ]
@@ -431,18 +438,30 @@ fn inspect_enum() {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "Named@x",
                 display_name: "X",
+                value: match data {
+                    Data::Named { ref x, .. } => x,
+                    _ => unreachable!(),
+                },
                 ..default_prop()
             },
             FieldInfo {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "Named@y",
                 display_name: "Y",
+                value: match data {
+                    Data::Named { ref y, .. } => y,
+                    _ => unreachable!(),
+                },
                 ..default_prop()
             },
             FieldInfo {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "Named@z",
                 display_name: "Z",
+                value: match data {
+                    Data::Named { ref z, .. } => z,
+                    _ => unreachable!(),
+                },
                 ..default_prop()
             },
         ]
@@ -457,12 +476,20 @@ fn inspect_enum() {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "Tuple@0",
                 display_name: "0",
+                value: match data {
+                    Data::Tuple(ref f0, ref _f1) => f0,
+                    _ => unreachable!(),
+                },
                 ..default_prop()
             },
             FieldInfo {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "Tuple@1",
                 display_name: "1",
+                value: match data {
+                    Data::Tuple(ref _f0, ref f1) => f1,
+                    _ => unreachable!(),
+                },
                 ..default_prop()
             },
         ]
