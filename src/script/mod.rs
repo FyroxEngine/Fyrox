@@ -16,7 +16,7 @@ use crate::{
     scene::{node::Node, Scene},
     utils::{component::ComponentProvider, log::Log},
 };
-use fyrox_core::reflect::Metadata;
+use fyrox_core::reflect::FieldInfo;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -257,8 +257,8 @@ impl Reflect for Script {
         self.instance.deref_mut().fields_mut()
     }
 
-    fn fields_metadata(&self) -> Vec<Metadata> {
-        self.instance.fields_metadata()
+    fn fields_info(&self) -> Vec<FieldInfo> {
+        self.instance.fields_info()
     }
 }
 

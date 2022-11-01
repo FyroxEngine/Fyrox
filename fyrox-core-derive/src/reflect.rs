@@ -108,7 +108,7 @@ fn quote_field_prop(
     let description = field.description.clone().unwrap_or_default();
 
     quote! {
-        Metadata {
+        FieldInfo {
             owner_type_id: std::any::TypeId::of::<Self>(),
             name: #prop_key_name,
             display_name: #display_name,
@@ -230,7 +230,7 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
 fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
     let mut fields_list = Vec::new();
     let mut fields_list_mut = Vec::new();
-    let mut fields_metadata = Vec::new();
+    let mut fields_info = Vec::new();
     let (fields, field_muts): (Vec<_>, Vec<_>) = variant_args
         .iter()
         .map(|v| {
@@ -308,7 +308,7 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                 }
             });
 
-            fields_metadata.push(quote! {
+            fields_info.push(quote! {
                 match self {
                     #matcher => return  { #metadata },
                     _ => (),
@@ -366,7 +366,7 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
 
         let fields_metadata_body = quote! {
             #(
-                #fields_metadata
+                #fields_info
             )*
 
             vec![]
@@ -411,7 +411,7 @@ fn gen_impl(
     quote! {
         #[allow(warnings)]
         impl #impl_generics Reflect for #ty_ident #ty_generics #where_clause {
-            fn fields_metadata(&self) -> Vec<Metadata> {
+            fn fields_info(&self) -> Vec<FieldInfo> {
                 #metadata
             }
 

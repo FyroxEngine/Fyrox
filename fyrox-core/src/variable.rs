@@ -254,8 +254,8 @@ impl<T> Reflect for InheritableVariable<T>
 where
     T: Reflect + Clone + PartialEq + Debug,
 {
-    fn fields_metadata(&self) -> Vec<Metadata> {
-        self.value.fields_metadata()
+    fn fields_info(&self) -> Vec<FieldInfo> {
+        self.value.fields_info()
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {

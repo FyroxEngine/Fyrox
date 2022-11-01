@@ -13,12 +13,12 @@ use std::{
 use thiserror::Error;
 
 pub mod prelude {
-    pub use super::Metadata;
+    pub use super::FieldInfo;
     pub use super::Reflect;
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Metadata {
+pub struct FieldInfo {
     /// A type id of the owner of the property.
     pub owner_type_id: TypeId,
 
@@ -60,7 +60,7 @@ pub struct Metadata {
 /// - `#[reflect(field = <method call>)]
 /// - `#[reflect(field_mut = <method call>)]
 pub trait Reflect: Any {
-    fn fields_metadata(&self) -> Vec<Metadata>;
+    fn fields_info(&self) -> Vec<FieldInfo>;
 
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
@@ -453,7 +453,7 @@ impl fmt::Debug for dyn Reflect + 'static + Send {
 #[macro_export]
 macro_rules! blank_reflect {
     () => {
-        fn fields_metadata(&self) -> Vec<Metadata> {
+        fn fields_info(&self) -> Vec<FieldInfo> {
             vec![]
         }
 
@@ -503,8 +503,8 @@ macro_rules! blank_reflect {
 #[macro_export]
 macro_rules! delegate_reflect {
     () => {
-        fn fields_metadata(&self) -> Vec<Metadata> {
-            self.deref().fields_metadata()
+        fn fields_info(&self) -> Vec<FieldInfo> {
+            self.deref().fields_info()
         }
 
         fn into_any(self: Box<Self>) -> Box<dyn Any> {

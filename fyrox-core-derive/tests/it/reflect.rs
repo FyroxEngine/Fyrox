@@ -280,8 +280,8 @@ fn reflect_fields_list_of_enum() {
     );
 }
 
-fn default_prop() -> Metadata {
-    Metadata {
+fn default_prop() -> FieldInfo {
+    FieldInfo {
         owner_type_id: TypeId::of::<()>(),
         name: "",
         display_name: "",
@@ -305,13 +305,13 @@ fn inspect_default() {
     let data = Data::default();
 
     let expected = vec![
-        Metadata {
+        FieldInfo {
             owner_type_id: TypeId::of::<Data>(),
             name: "the_field",
             display_name: "The Field",
             ..default_prop()
         },
-        Metadata {
+        FieldInfo {
             owner_type_id: TypeId::of::<Data>(),
             name: "another_field",
             display_name: "Another Field",
@@ -319,7 +319,7 @@ fn inspect_default() {
         },
     ];
 
-    assert_eq!(data.fields_metadata(), expected);
+    assert_eq!(data.fields_info(), expected);
 }
 
 #[test]
@@ -351,13 +351,13 @@ fn inspect_attributes() {
     let data = Data::default();
 
     let expected = vec![
-        Metadata {
+        FieldInfo {
             owner_type_id: TypeId::of::<Data>(),
             name: "x",
             display_name: "Super X",
             ..default_prop()
         },
-        Metadata {
+        FieldInfo {
             owner_type_id: TypeId::of::<Data>(),
             name: "y",
             display_name: "Y",
@@ -370,7 +370,7 @@ fn inspect_attributes() {
         },
     ];
 
-    assert_eq!(data.fields_metadata()[0..2], expected);
+    assert_eq!(data.fields_info()[0..2], expected);
 }
 
 #[test]
@@ -380,15 +380,15 @@ fn inspect_struct() {
 
     let x = Tuple::default();
     assert_eq!(
-        x.fields_metadata(),
+        x.fields_info(),
         vec![
-            Metadata {
+            FieldInfo {
                 owner_type_id: TypeId::of::<Tuple>(),
                 name: "0",
                 display_name: "0",
                 ..default_prop()
             },
-            Metadata {
+            FieldInfo {
                 owner_type_id: TypeId::of::<Tuple>(),
                 name: "1",
                 display_name: "1",
@@ -401,7 +401,7 @@ fn inspect_struct() {
     struct Unit;
 
     let x = Unit::default();
-    assert_eq!(x.fields_metadata(), vec![]);
+    assert_eq!(x.fields_info(), vec![]);
 }
 
 #[test]
@@ -425,21 +425,21 @@ fn inspect_enum() {
     };
 
     assert_eq!(
-        data.fields_metadata(),
+        data.fields_info(),
         vec![
-            Metadata {
+            FieldInfo {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "Named@x",
                 display_name: "X",
                 ..default_prop()
             },
-            Metadata {
+            FieldInfo {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "Named@y",
                 display_name: "Y",
                 ..default_prop()
             },
-            Metadata {
+            FieldInfo {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "Named@z",
                 display_name: "Z",
@@ -451,15 +451,15 @@ fn inspect_enum() {
     let data = Data::Tuple(10.0, 20.0);
 
     assert_eq!(
-        data.fields_metadata(),
+        data.fields_info(),
         vec![
-            Metadata {
+            FieldInfo {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "Tuple@0",
                 display_name: "0",
                 ..default_prop()
             },
-            Metadata {
+            FieldInfo {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "Tuple@1",
                 display_name: "1",
@@ -470,7 +470,7 @@ fn inspect_enum() {
 
     // unit variants don't have fields
     let data = Data::Unit;
-    assert_eq!(data.fields_metadata(), vec![]);
+    assert_eq!(data.fields_info(), vec![]);
 }
 
 #[test]
@@ -502,11 +502,11 @@ fn inspect_prop_key_constants() {
     }
 
     assert_eq!(E::TUPLE_F_0, "Tuple@0");
-    assert_eq!(E::TUPLE_F_0, E::Tuple(0).fields_metadata()[0].name);
+    assert_eq!(E::TUPLE_F_0, E::Tuple(0).fields_info()[0].name);
 
     assert_eq!(E::STRUCT_FIELD, "Struct@field");
     assert_eq!(
         E::STRUCT_FIELD,
-        E::Struct { field: 0 }.fields_metadata()[0].name
+        E::Struct { field: 0 }.fields_info()[0].name
     );
 }
