@@ -1,6 +1,6 @@
 use crate::asset::inspector::handlers::ImportOptionsHandler;
 use fyrox::{
-    core::{append_extension, futures::executor::block_on, inspect::Inspect},
+    core::{append_extension, futures::executor::block_on, reflect::prelude::*},
     engine::resource_manager::{
         loader::sound::SoundBufferImportOptions,
         options::{try_get_import_settings, ImportOptions},
@@ -42,7 +42,7 @@ impl ImportOptionsHandler for SoundBufferImportOptionsHandler {
         self.options = block_on(try_get_import_settings(&self.resource_path)).unwrap_or_default();
     }
 
-    fn value(&self) -> &dyn Inspect {
+    fn value(&self) -> &dyn Reflect {
         &self.options
     }
 

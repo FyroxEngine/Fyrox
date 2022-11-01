@@ -3,11 +3,7 @@
 
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
-    core::{
-        inspect::{PropertyInfo, PropertyValue},
-        pool::Handle,
-        variable::InheritableVariable,
-    },
+    core::{pool::Handle, reflect::prelude::*, variable::InheritableVariable},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     inspector::{
@@ -24,6 +20,7 @@ use crate::{
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
     Widget, WidgetMessage,
 };
+use fyrox_core::reflect::FieldValue;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -165,14 +162,14 @@ impl InheritablePropertyEditorBuilder {
 
 pub struct InheritablePropertyEditorDefinition<T>
 where
-    T: PropertyValue,
+    T: FieldValue,
 {
     phantom: PhantomData<T>,
 }
 
 impl<T> InheritablePropertyEditorDefinition<T>
 where
-    T: PropertyValue,
+    T: FieldValue,
 {
     pub fn new() -> Self {
         Self {
@@ -183,23 +180,21 @@ where
 
 impl<T> Debug for InheritablePropertyEditorDefinition<T>
 where
-    T: PropertyValue,
+    T: FieldValue,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "InheritablePropertyEditorDefinition")
     }
 }
 
-fn make_proxy<'a, 'b, T>(
-    property_info: &'b PropertyInfo<'a>,
-) -> Result<PropertyInfo<'a>, InspectorError>
+fn make_proxy<'a, 'b, T>(property_info: &'b FieldInfo<'a>) -> Result<FieldInfo<'a>, InspectorError>
 where
-    T: PropertyValue,
+    T: FieldValue,
     'b: 'a,
 {
     let value = property_info.cast_value::<InheritableVariable<T>>()?;
 
-    Ok(PropertyInfo {
+    Ok(FieldInfo {
         owner_type_id: TypeId::of::<T>(),
         name: property_info.name,
         display_name: property_info.display_name,
@@ -215,7 +210,7 @@ where
 
 impl<T> PropertyEditorDefinition for InheritablePropertyEditorDefinition<T>
 where
-    T: PropertyValue,
+    T: FieldValue,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<InheritableVariable<T>>()

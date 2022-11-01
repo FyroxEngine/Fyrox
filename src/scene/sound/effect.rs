@@ -2,11 +2,7 @@
 
 use crate::{
     core::{
-        define_is_as,
-        inspect::{Inspect, PropertyInfo},
-        pool::Handle,
-        reflect::Reflect,
-        variable::InheritableVariable,
+        define_is_as, pool::Handle, reflect::prelude::*, variable::InheritableVariable,
         visitor::prelude::*,
     },
     define_with,
@@ -22,7 +18,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 const DEFAULT_FC: f32 = 0.25615; // 11296 Hz at 44100 Hz sample rate
 
 /// Effect input allows you to setup a source of samples for an effect with an optional filtering.
-#[derive(Visit, Inspect, Reflect, Debug, Default, Clone, PartialEq)]
+#[derive(Visit, Reflect, Debug, Default, Clone, PartialEq)]
 pub struct EffectInput {
     /// A sound node that will be the source of samples for the effect.
     pub sound: Handle<Node>,
@@ -31,7 +27,7 @@ pub struct EffectInput {
 }
 
 /// Base effect contains common properties for every effect (gain, inputs, etc.)
-#[derive(Visit, Inspect, Reflect, Debug, Clone)]
+#[derive(Visit, Reflect, Debug, Clone)]
 pub struct BaseEffect {
     #[reflect(setter = "set_name_internal")]
     pub(crate) name: InheritableVariable<String>,
@@ -43,7 +39,6 @@ pub struct BaseEffect {
     pub(crate) inputs: InheritableVariable<Vec<EffectInput>>,
 
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub(crate) native: Cell<Handle<fyrox_sound::effects::Effect>>,
 }
@@ -106,7 +101,7 @@ impl Default for BaseEffect {
 }
 
 /// All possible effects in the engine.
-#[derive(Visit, Reflect, Inspect, Debug, AsRefStr, EnumString, EnumVariantNames, Clone)]
+#[derive(Visit, Reflect, Debug, AsRefStr, EnumString, EnumVariantNames, Clone)]
 pub enum Effect {
     /// See [`ReverbEffect`] docs.
     Reverb(ReverbEffect),
@@ -190,7 +185,7 @@ impl BaseEffectBuilder {
 }
 
 /// Reverb effect gives you multiple echoes.
-#[derive(Visit, Inspect, Reflect, Debug, Clone)]
+#[derive(Visit, Reflect, Debug, Clone)]
 pub struct ReverbEffect {
     pub(crate) base: BaseEffect,
 

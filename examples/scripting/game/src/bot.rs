@@ -6,9 +6,8 @@ use fyrox::{
     },
     core::{
         algebra::{UnitQuaternion, Vector3},
-        inspect::{Inspect, PropertyInfo},
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -23,13 +22,12 @@ use fyrox::{
     script::{ScriptContext, ScriptTrait},
 };
 
-#[derive(Visit, Inspect, Reflect, Default, Debug)]
+#[derive(Visit, Reflect, Default, Debug)]
 pub struct Bot {
     collider: Handle<Node>,
     follow_target: bool,
     target: Vector3<f32>,
 
-    #[inspect(skip)]
     #[reflect(hidden)]
     machine: Option<BotAnimationMachine>,
 }

@@ -1,10 +1,7 @@
-use fyrox::core::{
-    inspect::{Inspect, PropertyInfo},
-    reflect::Reflect,
-};
+use fyrox::core::reflect::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Inspect, Reflect, Eq)]
+#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect, Eq)]
 pub struct DebuggingSettings {
     pub show_physics: bool,
     pub show_bounds: bool,

@@ -14,9 +14,8 @@ use crate::{
     },
     core::{
         algebra::Vector2,
-        inspect::{Inspect, PropertyInfo},
         pool::{Handle, Pool},
-        reflect::Reflect,
+        reflect::prelude::*,
         visitor::prelude::*,
     },
 };
@@ -124,14 +123,14 @@ impl EvaluatePose for PoseNode {
     }
 }
 
-#[derive(Default, Debug, Visit, Clone, Inspect, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct BasePoseNodeDefinition {
     pub position: Vector2<f32>,
-    #[inspect(skip)]
+    #[reflect(hidden)]
     pub parent_state: Handle<StateDefinition>,
 }
 
-#[derive(Debug, Visit, Clone, Inspect, Reflect)]
+#[derive(Debug, Visit, Clone, Reflect)]
 pub enum PoseNodeDefinition {
     PlayAnimation(PlayAnimationDefinition),
     BlendAnimations(BlendAnimationsDefinition),

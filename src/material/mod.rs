@@ -3,10 +3,10 @@
 //! See [Material struct docs](self::Material) for more info.
 
 #![warn(missing_docs)]
-use crate::core::inspect::prelude::*;
-use crate::core::reflect::Reflect;
+
 use crate::{
     asset::ResourceState,
+    core::reflect::prelude::*,
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
@@ -675,7 +675,7 @@ impl Material {
 /// Shared material is also tells a renderer that this material can be used for efficient rendering -
 /// the renderer will be able to optimize rendering when it knows that multiple objects share the
 /// same material.
-#[derive(Reflect, Inspect, Clone, Debug)]
+#[derive(Reflect, Clone, Debug)]
 pub struct SharedMaterial(#[reflect(hidden)] Arc<Mutex<Material>>);
 
 impl Default for SharedMaterial {

@@ -20,8 +20,7 @@ use crate::{
     core::{
         algebra::Vector3,
         color::Color,
-        inspect::{Inspect, PropertyInfo},
-        reflect::Reflect,
+        reflect::prelude::*,
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -49,7 +48,7 @@ pub const DEFAULT_SCATTER_B: f32 = 0.03;
 /// Light scene node. It contains common properties of light such as color,
 /// scattering factor (per color channel) and other useful properties. Exact
 /// behavior defined by specific light kind.
-#[derive(Debug, Inspect, Reflect, Clone, Visit)]
+#[derive(Debug, Reflect, Clone, Visit)]
 pub struct BaseLight {
     base: Base,
 
@@ -66,7 +65,7 @@ pub struct BaseLight {
     #[reflect(setter = "enable_scatter")]
     scatter_enabled: InheritableVariable<bool>,
 
-    #[inspect(min_value = 0.0, step = 0.1)]
+    #[reflect(min_value = 0.0, step = 0.1)]
     #[reflect(setter = "set_intensity")]
     intensity: InheritableVariable<f32>,
 }

@@ -19,10 +19,9 @@
 
 use crate::{
     core::{
-        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
@@ -38,15 +37,15 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug, Inspect, Reflect, Clone, Visit)]
+#[derive(Debug, Reflect, Clone, Visit)]
 pub struct PointLight {
     base_light: BaseLight,
 
-    #[inspect(min_value = 0.0, step = 0.001)]
+    #[reflect(min_value = 0.0, step = 0.001)]
     #[reflect(setter = "set_shadow_bias")]
     shadow_bias: InheritableVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.1)]
+    #[reflect(min_value = 0.0, step = 0.1)]
     #[reflect(setter = "set_radius")]
     radius: InheritableVariable<f32>,
 }

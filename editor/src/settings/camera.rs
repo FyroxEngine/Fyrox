@@ -1,5 +1,5 @@
 use crate::camera;
-use fyrox::core::{algebra::Vector3, inspect::prelude::*, reflect::Reflect};
+use fyrox::core::{algebra::Vector3, reflect::prelude::*};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 
@@ -20,12 +20,11 @@ impl Default for SceneCameraSettings {
     }
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Inspect, Reflect)]
+#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
 pub struct CameraSettings {
     pub speed: f32,
     pub invert_dragging: bool,
     pub drag_speed: f32,
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub camera_settings: HashMap<PathBuf, SceneCameraSettings>,
 }

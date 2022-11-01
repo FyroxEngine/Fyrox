@@ -13,7 +13,7 @@ use crate::{
 };
 use fyrox::engine::SerializationContext;
 use fyrox::{
-    core::{color::Color, inspect::Inspect, pool::Handle},
+    core::{color::Color, pool::Handle, reflect::prelude::*},
     engine::resource_manager::ResourceManager,
     gui::{
         grid::{Column, GridBuilder, Row},
@@ -158,7 +158,7 @@ impl Inspector {
         }
     }
 
-    fn sync_to(&mut self, obj: &dyn Inspect, ui: &mut UserInterface) {
+    fn sync_to(&mut self, obj: &dyn Reflect, ui: &mut UserInterface) {
         let ctx = ui
             .node(self.inspector)
             .cast::<fyrox::gui::inspector::Inspector>()
@@ -181,17 +181,17 @@ impl Inspector {
 
         if self.needs_sync {
             if editor_scene.selection.is_single_selection() {
-                let obj: Option<&dyn Inspect> = match &editor_scene.selection {
+                let obj: Option<&dyn Reflect> = match &editor_scene.selection {
                     Selection::Graph(selection) => scene
                         .graph
                         .try_get(selection.nodes()[0])
-                        .map(|n| n as &dyn Inspect),
-                    Selection::SoundContext => Some(&scene.graph.sound_context as &dyn Inspect),
+                        .map(|n| n.as_reflect()),
+                    Selection::SoundContext => Some(&scene.graph.sound_context as &dyn Reflect),
                     Selection::Effect(selection) => scene
                         .graph
                         .sound_context
                         .try_get_effect(selection.effects[0])
-                        .map(|e| e as &dyn Inspect),
+                        .map(|e| e as &dyn Reflect),
                     _ => None,
                 };
 
@@ -206,7 +206,7 @@ impl Inspector {
 
     fn change_context(
         &mut self,
-        obj: &dyn Inspect,
+        obj: &dyn Reflect,
         ui: &mut UserInterface,
         resource_manager: ResourceManager,
         serialization_context: Arc<SerializationContext>,
@@ -252,17 +252,17 @@ impl Inspector {
                 ));
 
             if !editor_scene.selection.is_empty() {
-                let obj: Option<&dyn Inspect> = match &editor_scene.selection {
+                let obj: Option<&dyn Reflect> = match &editor_scene.selection {
                     Selection::Graph(selection) => scene
                         .graph
                         .try_get(selection.nodes()[0])
-                        .map(|n| n as &dyn Inspect),
-                    Selection::SoundContext => Some(&scene.graph.sound_context as &dyn Inspect),
+                        .map(|n| n.as_reflect()),
+                    Selection::SoundContext => Some(&scene.graph.sound_context as &dyn Reflect),
                     Selection::Effect(selection) => scene
                         .graph
                         .sound_context
                         .try_get_effect(selection.effects[0])
-                        .map(|e| e as &dyn Inspect),
+                        .map(|e| e as &dyn Reflect),
                     _ => None,
                 };
 

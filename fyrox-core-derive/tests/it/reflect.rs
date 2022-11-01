@@ -2,6 +2,7 @@
 
 #![allow(clippy::blacklisted_name)] // Useless in tests
 
+use std::any::TypeId;
 use std::ops::{Deref, DerefMut};
 
 use fyrox_core::reflect::*;
@@ -276,5 +277,263 @@ fn reflect_fields_list_of_enum() {
     assert_eq!(
         baz_variant.fields()[1].downcast_ref::<String>().cloned(),
         Some("Foobar".to_string())
+    );
+}
+
+fn default_prop() -> FieldInfo<'static> {
+    FieldInfo {
+        owner_type_id: TypeId::of::<()>(),
+        name: "",
+        value: &(),
+        display_name: "",
+        read_only: false,
+        min_value: None,
+        max_value: None,
+        step: None,
+        precision: None,
+        description: "",
+    }
+}
+
+#[test]
+fn inspect_default() {
+    #[derive(Debug, Default, Reflect)]
+    pub struct Data {
+        the_field: String,
+        another_field: f32,
+    }
+
+    let data = Data::default();
+
+    let expected = vec![
+        FieldInfo {
+            owner_type_id: TypeId::of::<Data>(),
+            name: "the_field",
+            display_name: "The Field",
+            value: &data.the_field,
+            ..default_prop()
+        },
+        FieldInfo {
+            owner_type_id: TypeId::of::<Data>(),
+            name: "another_field",
+            display_name: "Another Field",
+            value: &data.another_field,
+            ..default_prop()
+        },
+    ];
+
+    assert_eq!(data.fields_info(), expected);
+}
+
+#[test]
+fn inspect_attributes() {
+    #[derive(Debug, Default, Reflect)]
+    pub struct AarGee {
+        aar: u32,
+        gee: u32,
+    }
+
+    #[derive(Debug, Default, Reflect)]
+    pub struct Data {
+        // NOTE: Even though this field is skipped, the next field is given index `1` for simplicity
+        #[reflect(hidden)]
+        _skipped: u32,
+        #[reflect(display_name = "Super X")]
+        x: f32,
+        #[reflect(
+            read_only,
+            min_value = 0.1,
+            max_value = 1.1,
+            step = 0.1,
+            precision = 3,
+            description = "This is a property description."
+        )]
+        y: f32,
+    }
+
+    let data = Data::default();
+
+    let expected = vec![
+        FieldInfo {
+            owner_type_id: TypeId::of::<Data>(),
+            name: "x",
+            display_name: "Super X",
+            value: &data.x,
+            ..default_prop()
+        },
+        FieldInfo {
+            owner_type_id: TypeId::of::<Data>(),
+            name: "y",
+            display_name: "Y",
+            value: &data.y,
+            read_only: true,
+            min_value: Some(0.1),
+            max_value: Some(1.1),
+            step: Some(0.1),
+            precision: Some(3),
+            description: "This is a property description.",
+        },
+    ];
+
+    assert_eq!(data.fields_info()[0..2], expected);
+}
+
+#[test]
+fn inspect_struct() {
+    #[derive(Debug, Default, Reflect)]
+    struct Tuple(f32, f32);
+
+    let x = Tuple::default();
+    assert_eq!(
+        x.fields_info(),
+        vec![
+            FieldInfo {
+                owner_type_id: TypeId::of::<Tuple>(),
+                name: "0",
+                display_name: "0",
+                value: &x.0,
+                ..default_prop()
+            },
+            FieldInfo {
+                owner_type_id: TypeId::of::<Tuple>(),
+                name: "1",
+                display_name: "1",
+                value: &x.1,
+                ..default_prop()
+            },
+        ]
+    );
+
+    #[derive(Debug, Default, Reflect)]
+    struct Unit;
+
+    let x = Unit::default();
+    assert_eq!(x.fields_info(), vec![]);
+}
+
+#[test]
+fn inspect_enum() {
+    #[derive(Debug, Reflect)]
+    pub struct NonCopy {
+        inner: u32,
+    }
+
+    #[derive(Debug, Reflect)]
+    pub enum Data {
+        Named { x: u32, y: u32, z: NonCopy },
+        Tuple(f32, f32),
+        Unit,
+    }
+
+    let data = Data::Named {
+        x: 0,
+        y: 1,
+        z: NonCopy { inner: 10 },
+    };
+
+    assert_eq!(
+        data.fields_info(),
+        vec![
+            FieldInfo {
+                owner_type_id: TypeId::of::<Data>(),
+                name: "Named@x",
+                display_name: "X",
+                value: match data {
+                    Data::Named { ref x, .. } => x,
+                    _ => unreachable!(),
+                },
+                ..default_prop()
+            },
+            FieldInfo {
+                owner_type_id: TypeId::of::<Data>(),
+                name: "Named@y",
+                display_name: "Y",
+                value: match data {
+                    Data::Named { ref y, .. } => y,
+                    _ => unreachable!(),
+                },
+                ..default_prop()
+            },
+            FieldInfo {
+                owner_type_id: TypeId::of::<Data>(),
+                name: "Named@z",
+                display_name: "Z",
+                value: match data {
+                    Data::Named { ref z, .. } => z,
+                    _ => unreachable!(),
+                },
+                ..default_prop()
+            },
+        ]
+    );
+
+    let data = Data::Tuple(10.0, 20.0);
+
+    assert_eq!(
+        data.fields_info(),
+        vec![
+            FieldInfo {
+                owner_type_id: TypeId::of::<Data>(),
+                name: "Tuple@0",
+                display_name: "0",
+                value: match data {
+                    Data::Tuple(ref f0, ref _f1) => f0,
+                    _ => unreachable!(),
+                },
+                ..default_prop()
+            },
+            FieldInfo {
+                owner_type_id: TypeId::of::<Data>(),
+                name: "Tuple@1",
+                display_name: "1",
+                value: match data {
+                    Data::Tuple(ref _f0, ref f1) => f1,
+                    _ => unreachable!(),
+                },
+                ..default_prop()
+            },
+        ]
+    );
+
+    // unit variants don't have fields
+    let data = Data::Unit;
+    assert_eq!(data.fields_info(), vec![]);
+}
+
+#[test]
+fn inspect_prop_key_constants() {
+    #[allow(dead_code)]
+    #[derive(Reflect)]
+    pub struct SStruct {
+        field: usize,
+        #[reflect(hidden)]
+        hidden: usize,
+    }
+
+    // NOTE: property names are in snake_case (not Title Case)
+    assert_eq!(SStruct::FIELD, "field");
+
+    // hidden properties
+    // assert_eq!(SStruct::HIDDEN, "hidden");
+
+    #[derive(Reflect)]
+    pub struct STuple(usize);
+    assert_eq!(STuple::F_0, "0");
+
+    #[derive(Reflect)]
+    #[allow(unused)]
+    pub enum E {
+        Tuple(usize),
+        Struct { field: usize },
+        Unit,
+    }
+
+    assert_eq!(E::TUPLE_F_0, "Tuple@0");
+    assert_eq!(E::TUPLE_F_0, E::Tuple(0).fields_info()[0].name);
+
+    assert_eq!(E::STRUCT_FIELD, "Struct@field");
+    assert_eq!(
+        E::STRUCT_FIELD,
+        E::Struct { field: 0 }.fields_info()[0].name
     );
 }

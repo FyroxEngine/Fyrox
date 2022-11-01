@@ -987,9 +987,7 @@ impl Drop for Engine {
 #[cfg(test)]
 mod test {
     use crate::{
-        core::{
-            inspect::prelude::*, pool::Handle, reflect::Reflect, uuid::Uuid, visitor::prelude::*,
-        },
+        core::{pool::Handle, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
         engine::{resource_manager::ResourceManager, ScriptProcessor},
         impl_component_provider,
         scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene, SceneContainer},
@@ -1005,10 +1003,9 @@ mod test {
         Destroyed(Handle<Node>),
     }
 
-    #[derive(Debug, Clone, Reflect, Inspect, Visit)]
+    #[derive(Debug, Clone, Reflect, Visit)]
     struct MyScript {
         #[reflect(hidden)]
-        #[inspect(skip)]
         #[visit(skip)]
         sender: Sender<Event>,
         spawned: bool,
@@ -1064,10 +1061,9 @@ mod test {
         }
     }
 
-    #[derive(Debug, Clone, Reflect, Inspect, Visit)]
+    #[derive(Debug, Clone, Reflect, Visit)]
     struct MySubScript {
         #[reflect(hidden)]
-        #[inspect(skip)]
         #[visit(skip)]
         sender: Sender<Event>,
     }

@@ -3,7 +3,7 @@
 use fyrox_core_derive::impl_reflect;
 use nalgebra::*;
 
-use crate::reflect::Reflect;
+use crate::reflect::prelude::*;
 
 impl_reflect! {
     pub struct Matrix<T: 'static, R: 'static, C: 'static, S: 'static> {

@@ -7,12 +7,11 @@ use crate::{
             UnitComplex, UnitQuaternion, Vector2, Vector3,
         },
         arrayvec::ArrayVec,
-        inspect::{Inspect, PropertyInfo},
         instant,
         math::Matrix4Ext,
         parking_lot::Mutex,
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         variable::VariableFlags,
         visitor::prelude::*,
         BiDirHashMap,
@@ -288,7 +287,7 @@ fn isometry2_to_mat4(isometry: &Isometry2<f32>) -> Matrix4<f32> {
 /// Physics world is responsible for physics simulation in the engine. There is a very few public
 /// methods, mostly for ray casting. You should add physical entities using scene graph nodes, such
 /// as RigidBody, Collider, Joint.
-#[derive(Visit, Inspect, Reflect)]
+#[derive(Visit, Reflect)]
 pub struct PhysicsWorld {
     /// A flag that defines whether physics simulation is enabled or not.
     pub enabled: bool,
@@ -301,67 +300,54 @@ pub struct PhysicsWorld {
 
     /// Performance statistics of a single simulation step.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub performance_statistics: PhysicsPerformanceStatistics,
 
     // Current physics pipeline.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     pipeline: PhysicsPipeline,
     // Broad phase performs rough intersection checks.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     broad_phase: BroadPhase,
     // Narrow phase is responsible for precise contact generation.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     narrow_phase: NarrowPhase,
     // A continuous collision detection solver.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     ccd_solver: CCDSolver,
     // Structure responsible for maintaining the set of active rigid-bodies, and putting non-moving
     // rigid-bodies to sleep to save computation times.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     islands: IslandManager,
     // A container of rigid bodies.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     bodies: Container<RigidBodySet, RigidBodyHandle>,
     // A container of colliders.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     colliders: Container<ColliderSet, ColliderHandle>,
     // A container of impulse joints.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     joints: Container<ImpulseJointSet, ImpulseJointHandle>,
     // A container of multibody joints.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     multibody_joints: Container<MultibodyJointSet, MultibodyJointHandle>,
     // Event handler collects info about contacts and proximity events.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     event_handler: Box<dyn EventHandler>,
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     query: RefCell<QueryPipeline>,
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     debug_render_pipeline: Mutex<DebugRenderPipeline>,
 }

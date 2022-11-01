@@ -4,12 +4,11 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         arrayvec::ArrayVec,
-        inspect::{Inspect, PropertyInfo},
         math::{
             aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect, TriangleDefinition,
         },
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{prelude::*, PodVecView},
@@ -38,7 +37,7 @@ use std::{
 /// rendering. Terrain can have as many layers as you want, but each layer slightly decreases
 /// performance, so keep amount of layers on reasonable level (1 - 5 should be enough for most
 /// cases).
-#[derive(Default, Debug, Clone, Visit, Inspect, Reflect)]
+#[derive(Default, Debug, Clone, Visit, Reflect)]
 pub struct Layer {
     /// Material of the layer.
     #[reflect(hidden)]
@@ -51,7 +50,6 @@ pub struct Layer {
     /// It will be used in the renderer to set appropriate chunk mask to the copy of the material.
     pub mask_property_name: String,
 
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub(crate) chunk_masks: Vec<Texture>,
 }
@@ -250,7 +248,7 @@ pub struct TerrainRayCastResult {
 /// are inheritable. You cannot inherit width, height, chunks and other things because these cannot
 /// be modified at runtime because changing width (for example) will invalidate the entire height
 /// map which makes runtime modification useless.  
-#[derive(Visit, Debug, Default, Inspect, Reflect, Clone)]
+#[derive(Visit, Debug, Default, Reflect, Clone)]
 pub struct Terrain {
     base: Base,
 
@@ -260,39 +258,36 @@ pub struct Terrain {
     #[reflect(setter = "set_decal_layer_index")]
     decal_layer_index: InheritableVariable<u8>,
 
-    #[inspect(read_only)]
+    #[reflect(read_only)]
     #[reflect(hidden)]
     width: f32,
 
-    #[inspect(read_only)]
+    #[reflect(read_only)]
     #[reflect(hidden)]
     length: f32,
 
-    #[inspect(read_only)]
+    #[reflect(read_only)]
     #[reflect(hidden)]
     mask_resolution: f32,
 
-    #[inspect(read_only)]
+    #[reflect(read_only)]
     #[reflect(hidden)]
     height_map_resolution: f32,
 
-    #[inspect(skip)]
     #[reflect(hidden)]
     chunks: Vec<Chunk>,
 
-    #[inspect(read_only)]
+    #[reflect(read_only)]
     #[reflect(hidden)]
     width_chunks: u32,
 
-    #[inspect(read_only)]
+    #[reflect(read_only)]
     #[reflect(hidden)]
     length_chunks: u32,
 
-    #[inspect(skip)]
     #[reflect(hidden)]
     bounding_box_dirty: Cell<bool>,
 
-    #[inspect(skip)]
     #[reflect(hidden)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
 }
@@ -679,7 +674,7 @@ impl NodeTrait for Terrain {
 }
 
 /// Shape of a brush.
-#[derive(Copy, Clone, Inspect, Reflect, Debug)]
+#[derive(Copy, Clone, Reflect, Debug)]
 pub enum BrushShape {
     /// Circle with given radius.
     Circle {
@@ -711,7 +706,7 @@ impl BrushShape {
 }
 
 /// Paint mode of a brush. It defines operation that will be performed on the terrain.
-#[derive(Clone, PartialEq, PartialOrd, Inspect, Reflect, Debug)]
+#[derive(Clone, PartialEq, PartialOrd, Reflect, Debug)]
 pub enum BrushMode {
     /// Modifies height map.
     ModifyHeightMap {
@@ -729,10 +724,10 @@ pub enum BrushMode {
 }
 
 /// Brush is used to modify terrain. It supports multiple shapes and modes.
-#[derive(Clone, Inspect, Reflect, Debug)]
+#[derive(Clone, Reflect, Debug)]
 pub struct Brush {
     /// Center of the brush.
-    #[inspect(skip)]
+    #[reflect(hidden)]
     pub center: Vector3<f32>,
     /// Shape of the brush.
     pub shape: BrushShape,

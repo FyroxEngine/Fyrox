@@ -22,9 +22,8 @@ use crate::{
     animation::{Animation, AnimationContainer},
     asset::{define_new_resource, Resource, ResourceData},
     core::{
-        inspect::{Inspect, PropertyInfo},
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::{
@@ -263,7 +262,6 @@ impl Default for ModelData {
     Eq,
     Deserialize,
     Serialize,
-    Inspect,
     Reflect,
     AsRefStr,
     EnumString,
@@ -333,7 +331,7 @@ impl MaterialSearchOptions {
 /// ```
 ///
 /// Check documentation of the field of the structure for more info about each parameter.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, Inspect, Reflect, Eq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, Reflect, Eq)]
 pub struct ModelImportOptions {
     /// See [`MaterialSearchOptions`] docs for more info.
     #[serde(default)]

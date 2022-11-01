@@ -2,7 +2,7 @@
 
 use crate::{
     asset::{define_new_resource, Resource, ResourceData},
-    core::reflect::Reflect,
+    core::reflect::prelude::*,
     core::{curve::Curve, io::FileLoadError, visitor::prelude::*},
     engine::resource_manager::options::ImportOptions,
 };

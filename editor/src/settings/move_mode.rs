@@ -1,10 +1,7 @@
-use fyrox::core::{
-    inspect::{Inspect, PropertyInfo},
-    reflect::Reflect,
-};
+use fyrox::core::reflect::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Inspect, Reflect)]
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Reflect)]
 pub struct MoveInteractionModeSettings {
     pub grid_snapping: bool,
     pub x_snap_step: f32,

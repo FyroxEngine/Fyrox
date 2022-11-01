@@ -11,11 +11,10 @@
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
-        inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         parking_lot::Mutex,
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
@@ -39,18 +38,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// A set of possible types of rigid body.
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    Inspect,
-    Reflect,
-    Visit,
-    PartialEq,
-    Eq,
-    Hash,
-    AsRefStr,
-    EnumString,
-    EnumVariantNames,
+    Copy, Clone, Debug, Reflect, Visit, PartialEq, Eq, Hash, AsRefStr, EnumString, EnumVariantNames,
 )]
 #[repr(u32)]
 pub enum RigidBodyType {
@@ -137,7 +125,7 @@ pub(crate) enum ApplyAction {
 ///
 /// Rigid body that does not move for some time will go asleep. This means that the body will not
 /// move unless it is woken up by some other moving body. This feature allows to save CPU resources.
-#[derive(Visit, Inspect, Reflect)]
+#[derive(Visit, Reflect)]
 pub struct RigidBody {
     base: Base,
 
@@ -156,7 +144,7 @@ pub struct RigidBody {
     #[reflect(setter = "set_body_type")]
     pub(crate) body_type: InheritableVariable<RigidBodyType>,
 
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_mass")]
     pub(crate) mass: InheritableVariable<f32>,
 
@@ -185,15 +173,12 @@ pub struct RigidBody {
     pub(crate) gravity_scale: InheritableVariable<f32>,
 
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub(crate) sleeping: bool,
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub(crate) native: Cell<RigidBodyHandle>,
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub(crate) actions: Mutex<VecDeque<ApplyAction>>,
 }

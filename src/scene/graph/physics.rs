@@ -8,11 +8,10 @@ use crate::{
             Vector2, Vector3,
         },
         arrayvec::ArrayVec,
-        inspect::{Inspect, PropertyInfo},
         instant,
         math::Matrix4Ext,
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         variable::VariableFlags,
         visitor::prelude::*,
         BiDirHashMap,
@@ -103,17 +102,7 @@ impl From<rapier2d::geometry::FeatureId> for FeatureId {
 /// between two colliders. Each collider has its combination rule of type `CoefficientCombineRule`,
 /// the rule actually used is given by `max(first_combine_rule, second_combine_rule)`.
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Visit,
-    Inspect,
-    Reflect,
-    EnumVariantNames,
-    EnumString,
-    AsRefStr,
+    Copy, Clone, Debug, PartialEq, Eq, Visit, Reflect, EnumVariantNames, EnumString, AsRefStr,
 )]
 #[repr(u32)]
 pub enum CoefficientCombineRule {
@@ -686,11 +675,11 @@ fn collider_shape_into_native_shape(
 ///
 /// This is almost one-to-one copy of Rapier's integration parameters with custom attributes for
 /// each parameter.
-#[derive(Copy, Clone, Visit, Inspect, Reflect, Debug)]
+#[derive(Copy, Clone, Visit, Reflect, Debug)]
 pub struct IntegrationParameters {
     /// The time step length, default is None - this means that physics simulation will use engine's
     /// time step.
-    #[inspect(min_value = 0.0, description = "The time step length (default: None)")]
+    #[reflect(min_value = 0.0, description = "The time step length (default: None)")]
     #[visit(optional)]
     pub dt: Option<f32>,
 
@@ -702,7 +691,7 @@ pub struct IntegrationParameters {
     /// Setting this to a large value will reduce the opportunity to performing CCD substepping,
     /// resulting in potentially more time dropped by the motion-clamping mechanism. Setting this
     /// to an very small value may lead to numerical instabilities.
-    #[inspect(
+    #[reflect(
         min_value = 0.0,
         description = "Minimum timestep size when using CCD with multiple\
          substeps (default `1.0 / 60.0 / 100.0`)"
@@ -711,7 +700,7 @@ pub struct IntegrationParameters {
 
     /// The Error Reduction Parameter in `[0, 1]` is the proportion of the positional error to be
     /// corrected at each time step (default: `0.2`).
-    #[inspect(
+    #[reflect(
         min_value = 0.0,
         max_value = 1.0,
         description = "The Error Reduction Parameter in `[0, 1]` is the proportion of the \
@@ -723,7 +712,7 @@ pub struct IntegrationParameters {
     /// Lower values make the constraints more compliant (more "springy", allowing more visible penetrations
     /// before stabilization).
     /// (default `0.25`).
-    #[inspect(
+    #[reflect(
         min_value = 0.0,
         max_value = 1.0,
         description = "The damping ratio used by the springs in `[0, 1]` Lower values make the constraints more \
@@ -733,7 +722,7 @@ pub struct IntegrationParameters {
 
     /// The Error Reduction Parameter for joints in `[0, 1]` is the proportion of the positional
     /// error to be corrected at each time step (default: `0.2`).
-    #[inspect(
+    #[reflect(
         min_value = 0.0,
         max_value = 1.0,
         description = "The Error Reduction Parameter for joints in `[0, 1]` is the proportion \
@@ -743,7 +732,7 @@ pub struct IntegrationParameters {
 
     /// The fraction of critical damping applied to the joint for constraints regularization.
     /// (default `0.25`).
-    #[inspect(
+    #[reflect(
         min_value = 0.0,
         description = "The fraction of critical damping applied to the joint for \
         constraints regularization (default: `0.25`)."
@@ -751,21 +740,21 @@ pub struct IntegrationParameters {
     pub joint_damping_ratio: f32,
 
     /// Amount of penetration the engine wont attempt to correct (default: `0.005m`).
-    #[inspect(
+    #[reflect(
         min_value = 0.0,
         description = "Amount of penetration the engine wont attempt to correct (default: `0.005m`)."
     )]
     pub allowed_linear_error: f32,
 
     /// Maximum amount of penetration the solver will attempt to resolve in one timestep.
-    #[inspect(
+    #[reflect(
         min_value = 0.0,
         description = "Maximum amount of penetration the solver will attempt to resolve in one timestep."
     )]
     pub max_penetration_correction: f32,
 
     /// The maximal distance separating two objects that will generate predictive contacts (default: `0.002`).
-    #[inspect(
+    #[reflect(
         min_value = 0.0,
         description = "The maximal distance separating two objects that will generate \
         predictive contacts (default: `0.002`)."
@@ -773,7 +762,7 @@ pub struct IntegrationParameters {
     pub prediction_distance: f32,
 
     /// Maximum number of iterations performed by the velocity constraints solver (default: `4`).
-    #[inspect(
+    #[reflect(
         min_value = 0.0,
         description = "Maximum number of iterations performed by the \
     velocity constraints solver (default: `4`)."
@@ -781,14 +770,14 @@ pub struct IntegrationParameters {
     pub max_velocity_iterations: u32,
 
     /// Maximum number of iterations performed to solve friction constraints (default: `8`).
-    #[inspect(
+    #[reflect(
         min_value = 0.0,
         description = "Maximum number of iterations performed to solve friction constraints (default: `8`)"
     )]
     pub max_velocity_friction_iterations: u32,
 
     /// Maximum number of iterations performed to remove the energy introduced by penetration corrections  (default: `1`).
-    #[inspect(
+    #[reflect(
         min_value = 0.0,
         description = "Maximum number of iterations performed to remove the energy introduced by penetration corrections  (default: `1`)."
     )]
@@ -796,21 +785,21 @@ pub struct IntegrationParameters {
 
     /// If `false`, friction and non-penetration constraints will be solved in the same loop. Otherwise,
     /// non-penetration constraints are solved first, and friction constraints are solved after (default: `true`).
-    #[inspect(
+    #[reflect(
         description = "If `false`, friction and non-penetration constraints will be solved in the same loop. Otherwise, \
         non-penetration constraints are solved first, and friction constraints are solved after (default: `true`)."
     )]
     pub interleave_restitution_and_friction_resolution: bool,
 
     /// Minimum number of dynamic bodies in each active island (default: `128`).
-    #[inspect(
+    #[reflect(
         min_value = 0.0,
         description = "Minimum number of dynamic bodies in each active island (default: `128`)."
     )]
     pub min_island_size: u32,
 
     /// Maximum number of substeps performed by the  solver (default: `1`).
-    #[inspect(
+    #[reflect(
         min_value = 0.0,
         description = "Maximum number of substeps performed by the  solver (default: `1`)."
     )]
@@ -842,7 +831,7 @@ impl Default for IntegrationParameters {
 /// Physics world is responsible for physics simulation in the engine. There is a very few public
 /// methods, mostly for ray casting. You should add physical entities using scene graph nodes, such
 /// as RigidBody, Collider, Joint.
-#[derive(Visit, Inspect, Reflect)]
+#[derive(Visit, Reflect)]
 pub struct PhysicsWorld {
     /// A flag that defines whether physics simulation is enabled or not.
     pub enabled: bool,
@@ -855,67 +844,54 @@ pub struct PhysicsWorld {
 
     /// Performance statistics of a single simulation step.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub performance_statistics: PhysicsPerformanceStatistics,
 
     // Current physics pipeline.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     pipeline: PhysicsPipeline,
     // Broad phase performs rough intersection checks.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     broad_phase: BroadPhase,
     // Narrow phase is responsible for precise contact generation.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     narrow_phase: NarrowPhase,
     // A continuous collision detection solver.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     ccd_solver: CCDSolver,
     // Structure responsible for maintaining the set of active rigid-bodies, and putting non-moving
     // rigid-bodies to sleep to save computation times.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     islands: IslandManager,
     // A container of rigid bodies.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     bodies: Container<RigidBodySet, RigidBodyHandle>,
     // A container of colliders.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     colliders: Container<ColliderSet, ColliderHandle>,
     // A container of impulse joints.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     joints: Container<ImpulseJointSet, ImpulseJointHandle>,
     // A container of multibody joints.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     multibody_joints: Container<MultibodyJointSet, MultibodyJointHandle>,
     // Event handler collects info about contacts and proximity events.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     event_handler: Box<dyn EventHandler>,
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     query: RefCell<QueryPipeline>,
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     debug_render_pipeline: Mutex<DebugRenderPipeline>,
 }

@@ -30,7 +30,6 @@ use std::{
 pub mod color;
 pub mod color_gradient;
 pub mod curve;
-pub mod inspect;
 pub mod io;
 pub mod math;
 pub mod numeric_range;

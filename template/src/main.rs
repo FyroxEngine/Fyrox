@@ -320,7 +320,7 @@ use fyrox::{{
     script::{{ScriptContext, ScriptDeinitContext, ScriptTrait}},
 }};
 
-#[derive(Visit, Reflect, Inspect, Default, Debug, Clone)]
+#[derive(Visit, Reflect, Default, Debug, Clone)]
 pub struct {name} {{
     // Add fields here.
 }}

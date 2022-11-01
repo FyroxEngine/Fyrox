@@ -1,6 +1,6 @@
 use crate::{define_universal_commands, scene::commands::SceneCommand, Command, SceneContext};
 use fyrox::{
-    core::reflect::Reflect,
+    core::reflect::prelude::*,
     core::{
         pool::{Handle, Ticket},
         reflect::ResolvePath,

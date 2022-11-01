@@ -1,6 +1,6 @@
 use crate::{
     color::Color,
-    reflect::Reflect,
+    reflect::prelude::*,
     visitor::{Visit, VisitResult, Visitor},
 };
 use std::cmp::Ordering;

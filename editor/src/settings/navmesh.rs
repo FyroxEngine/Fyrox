@@ -1,17 +1,14 @@
-use fyrox::core::{
-    inspect::{Inspect, PropertyInfo},
-    reflect::Reflect,
-};
+use fyrox::core::reflect::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Inspect, Reflect)]
+#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
 pub struct NavmeshSettings {
-    #[inspect(
+    #[reflect(
         description = "Show all navigational meshes in scene. With this function turned off, only currently edited navmesh will be shown."
     )]
     pub draw_all: bool,
 
-    #[inspect(description = "Radius of a nav mesh vertex.")]
+    #[reflect(description = "Radius of a nav mesh vertex.")]
     pub vertex_radius: f32,
 }
 

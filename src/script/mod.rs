@@ -4,7 +4,6 @@
 
 use crate::{
     core::{
-        inspect::{Inspect, PropertyInfo},
         pool::Handle,
         reflect::{Reflect, ReflectArray, ReflectList},
         uuid::Uuid,
@@ -16,6 +15,7 @@ use crate::{
     scene::{node::Node, Scene},
     utils::{component::ComponentProvider, log::Log},
 };
+use fyrox_core::reflect::FieldInfo;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -25,7 +25,7 @@ use std::{
 pub mod constructor;
 
 /// Base script trait is used to automatically implement some trait to reduce amount of boilerplate code.
-pub trait BaseScript: Visit + Inspect + Reflect + Send + Debug + 'static {
+pub trait BaseScript: Visit + Reflect + Send + Debug + 'static {
     /// Creates exact copy of the script.
     fn clone_box(&self) -> Box<dyn ScriptTrait>;
 }
@@ -160,14 +160,13 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// use fyrox::{
     ///     scene::node::TypeUuidProvider,
     ///     core::visitor::prelude::*,
-    ///     core::inspect::{Inspect, PropertyInfo},
-    ///     core::reflect::Reflect,
+    ///     core::reflect::prelude::*,
     ///     core::uuid::Uuid,
     ///     script::ScriptTrait,
     ///     core::uuid::uuid, impl_component_provider
     /// };
     ///
-    /// #[derive(Inspect, Reflect, Visit, Debug, Clone)]
+    /// #[derive(Reflect, Visit, Debug, Clone)]
     /// struct MyScript { }
     ///
     /// // Implement TypeUuidProvider trait that will return type uuid of the type.
@@ -200,6 +199,10 @@ pub struct Script {
 }
 
 impl Reflect for Script {
+    fn fields_info(&self) -> Vec<FieldInfo> {
+        self.instance.fields_info()
+    }
+
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
         self.instance.into_any()
     }
@@ -222,6 +225,14 @@ impl Reflect for Script {
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         self.instance.deref_mut().set(value)
+    }
+
+    fn fields(&self) -> Vec<&dyn Reflect> {
+        self.instance.deref().fields()
+    }
+
+    fn fields_mut(&mut self) -> Vec<&mut dyn Reflect> {
+        self.instance.deref_mut().fields_mut()
     }
 
     fn field(&self, name: &str) -> Option<&dyn Reflect> {
@@ -247,14 +258,6 @@ impl Reflect for Script {
     fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
         self.instance.deref_mut().as_list_mut()
     }
-
-    fn fields(&self) -> Vec<&dyn Reflect> {
-        self.instance.deref().fields()
-    }
-
-    fn fields_mut(&mut self) -> Vec<&mut dyn Reflect> {
-        self.instance.deref_mut().fields_mut()
-    }
 }
 
 impl Deref for Script {
@@ -268,12 +271,6 @@ impl Deref for Script {
 impl DerefMut for Script {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut *self.instance
-    }
-}
-
-impl Inspect for Script {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        self.instance.properties()
     }
 }
 
@@ -361,7 +358,7 @@ impl Script {
 mod test {
     use crate::{
         core::{
-            inspect::prelude::*, reflect::Reflect, uuid::Uuid, variable::try_inherit_properties,
+            reflect::prelude::*, uuid::Uuid, variable::try_inherit_properties,
             variable::InheritableVariable, visitor::prelude::*,
         },
         impl_component_provider,
@@ -369,7 +366,7 @@ mod test {
         script::{Script, ScriptTrait},
     };
 
-    #[derive(Reflect, Inspect, Visit, Debug, Clone, Default)]
+    #[derive(Reflect, Visit, Debug, Clone, Default)]
     struct MyScript {
         field: InheritableVariable<f32>,
     }

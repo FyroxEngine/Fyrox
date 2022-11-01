@@ -1,10 +1,9 @@
 //! A simplest possible node which represents point in space.
 use crate::{
     core::{
-        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -18,7 +17,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// A simplest possible node which represents point in space.
-#[derive(Clone, Inspect, Reflect, Default, Debug)]
+#[derive(Clone, Reflect, Default, Debug)]
 pub struct Pivot {
     base: Base,
 }
