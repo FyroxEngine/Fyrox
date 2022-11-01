@@ -1,11 +1,11 @@
 //! Animation signal is used as a point at which to notify external observers that animation just
 //! started to play a specific frame.
 
-use crate::core::{inspect::prelude::*, reflect::prelude::*, visitor::prelude::*};
+use crate::core::{reflect::prelude::*, visitor::prelude::*};
 
 /// Animation signal is used as a point at which to notify external observers that animation just
 /// started to play a specific frame.
-#[derive(Inspect, Visit, Reflect, Debug, Clone)]
+#[derive(Visit, Reflect, Debug, Clone)]
 pub struct Signal {
     /// Signal id. It should be used to distinguish different signals. For example, `JUMP` signal
     /// can have `id = 0`, while `CROUCH` signal - `id = 1`, etc.

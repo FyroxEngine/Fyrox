@@ -3,7 +3,6 @@
 use crate::{
     core::{
         algebra::Matrix4,
-        inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
         reflect::prelude::*,
@@ -45,7 +44,7 @@ pub mod effect;
 pub mod listener;
 
 /// Sound source.
-#[derive(Visit, Inspect, Reflect, Debug)]
+#[derive(Visit, Reflect, Debug)]
 pub struct Sound {
     base: Base,
 
@@ -55,11 +54,11 @@ pub struct Sound {
     #[reflect(setter = "set_play_once")]
     play_once: InheritableVariable<bool>,
 
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_gain")]
     gain: InheritableVariable<f32>,
 
-    #[inspect(min_value = -1.0, max_value = 1.0, step = 0.05)]
+    #[reflect(min_value = -1.0, max_value = 1.0, step = 0.05)]
     #[reflect(setter = "set_panning")]
     panning: InheritableVariable<f32>,
 
@@ -69,19 +68,19 @@ pub struct Sound {
     #[reflect(setter = "set_looping")]
     looping: InheritableVariable<bool>,
 
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_pitch")]
     pitch: InheritableVariable<f64>,
 
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_radius")]
     radius: InheritableVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_max_distance")]
     max_distance: InheritableVariable<f32>,
 
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     #[reflect(setter = "set_rolloff_factor")]
     rolloff_factor: InheritableVariable<f32>,
 
@@ -91,9 +90,8 @@ pub struct Sound {
     #[reflect(setter = "set_spatial_blend")]
     spatial_blend: InheritableVariable<f32>,
 
-    #[inspect(skip)]
-    #[visit(skip)]
     #[reflect(hidden)]
+    #[visit(skip)]
     pub(crate) native: Cell<Handle<SoundSource>>,
 }
 

@@ -5,7 +5,6 @@
 use crate::{
     core::{
         color::Color,
-        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
@@ -83,7 +82,7 @@ use std::ops::{Deref, DerefMut};
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Visit, Default, Clone, Inspect, Reflect)]
+#[derive(Debug, Visit, Default, Clone, Reflect)]
 pub struct Decal {
     base: Base,
 
@@ -96,7 +95,7 @@ pub struct Decal {
     #[reflect(setter = "set_color")]
     color: InheritableVariable<Color>,
 
-    #[inspect(min_value = 0.0)]
+    #[reflect(min_value = 0.0)]
     #[reflect(setter = "set_layer")]
     layer: InheritableVariable<u8>,
 }

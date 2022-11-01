@@ -11,7 +11,6 @@
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
-        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
@@ -51,7 +50,6 @@ pub mod vertex;
     Hash,
     Debug,
     Visit,
-    Inspect,
     Reflect,
     AsRefStr,
     EnumString,
@@ -86,7 +84,7 @@ impl RenderPath {
 }
 
 /// See module docs.
-#[derive(Debug, Inspect, Reflect, Clone, Visit)]
+#[derive(Debug, Reflect, Clone, Visit)]
 pub struct Mesh {
     #[visit(rename = "Common")]
     base: Base,
@@ -100,19 +98,16 @@ pub struct Mesh {
     #[reflect(setter = "set_decal_layer_index")]
     decal_layer_index: InheritableVariable<u8>,
 
-    #[inspect(skip)]
-    #[visit(skip)]
     #[reflect(hidden)]
+    #[visit(skip)]
     local_bounding_box: Cell<AxisAlignedBoundingBox>,
 
-    #[inspect(skip)]
-    #[visit(skip)]
     #[reflect(hidden)]
+    #[visit(skip)]
     local_bounding_box_dirty: Cell<bool>,
 
-    #[inspect(skip)]
-    #[visit(skip)]
     #[reflect(hidden)]
+    #[visit(skip)]
     world_bounding_box: Cell<AxisAlignedBoundingBox>,
 }
 

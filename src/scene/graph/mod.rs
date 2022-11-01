@@ -26,7 +26,6 @@ use crate::{
     asset::ResourceState,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
-        inspect::{Inspect, PropertyInfo},
         instant,
         math::Matrix4Ext,
         pool::{Handle, MultiBorrowContext, Pool, Ticket},
@@ -103,17 +102,14 @@ impl GraphPerformanceStatistics {
 pub type NodePool = Pool<Node, NodeContainer>;
 
 /// See module docs.
-#[derive(Debug, Inspect, Reflect)]
+#[derive(Debug, Reflect)]
 pub struct Graph {
-    #[inspect(skip)]
     #[reflect(hidden)]
     root: Handle<Node>,
 
-    #[inspect(skip)]
     #[reflect(hidden)]
     pool: NodePool,
 
-    #[inspect(skip)]
     #[reflect(hidden)]
     stack: Vec<Handle<Node>>,
 
@@ -124,25 +120,20 @@ pub struct Graph {
     pub physics2d: dim2::physics::PhysicsWorld,
 
     /// Backing sound context. It is responsible for sound rendering.
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub sound_context: SoundContext,
 
     /// Performance statistics of a last [`Graph::update`] call.
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub performance_statistics: GraphPerformanceStatistics,
 
     /// Allows you to "subscribe" for graph events.
     #[reflect(hidden)]
-    #[inspect(skip)]
     pub event_broadcaster: GraphEventBroadcaster,
 
     #[reflect(hidden)]
-    #[inspect(skip)]
     pub(crate) script_message_sender: Sender<ScriptMessage>,
     #[reflect(hidden)]
-    #[inspect(skip)]
     pub(crate) script_message_receiver: Receiver<ScriptMessage>,
 }
 

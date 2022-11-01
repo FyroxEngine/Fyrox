@@ -58,7 +58,6 @@ use crate::{
     source::SoundSource,
 };
 use fyrox_core::{
-    inspect::{Inspect, PropertyInfo},
     reflect::prelude::*,
     visitor::{Visit, VisitResult, Visitor},
 };
@@ -66,10 +65,9 @@ use hrtf::HrirSphere;
 use std::{fmt::Debug, path::PathBuf};
 
 /// See module docs.
-#[derive(Clone, Debug, Default, Inspect, Reflect)]
+#[derive(Clone, Debug, Default, Reflect)]
 pub struct HrtfRenderer {
     hrir_path: PathBuf,
-    #[inspect(skip)]
     #[reflect(hidden)]
     processor: Option<hrtf::HrtfProcessor>,
 }

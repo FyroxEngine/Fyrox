@@ -2,8 +2,7 @@
 //! use BaseEmitter which contains base functionality.
 
 use crate::{
-    asset::core::inspect::PropertyInfo,
-    core::{inspect::Inspect, reflect::prelude::*, visitor::prelude::*},
+    core::{reflect::prelude::*, visitor::prelude::*},
     scene::particle_system::{
         emitter::{
             base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
@@ -27,7 +26,7 @@ pub trait Emit {
 }
 
 /// See module docs.
-#[derive(PartialEq, Debug, Inspect, Reflect, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(PartialEq, Debug, Reflect, AsRefStr, EnumString, EnumVariantNames)]
 pub enum Emitter {
     /// See BoxEmitter docs.
     Cuboid(CuboidEmitter),

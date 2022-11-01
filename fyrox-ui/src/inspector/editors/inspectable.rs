@@ -1,5 +1,5 @@
 use crate::{
-    core::inspect::Inspect,
+    core::reflect::prelude::*,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -20,14 +20,14 @@ use std::{
 
 pub struct InspectablePropertyEditorDefinition<T>
 where
-    T: Inspect + 'static,
+    T: Reflect + 'static,
 {
     phantom: PhantomData<T>,
 }
 
 impl<T> InspectablePropertyEditorDefinition<T>
 where
-    T: Inspect + 'static,
+    T: Reflect + 'static,
 {
     pub fn new() -> Self {
         Self {
@@ -38,7 +38,7 @@ where
 
 impl<T> Debug for InspectablePropertyEditorDefinition<T>
 where
-    T: Inspect + 'static,
+    T: Reflect + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "InspectablePropertyEditorDefinition")
@@ -47,7 +47,7 @@ where
 
 impl<T> PropertyEditorDefinition for InspectablePropertyEditorDefinition<T>
 where
-    T: Inspect + 'static,
+    T: Reflect + 'static,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<T>()

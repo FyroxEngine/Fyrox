@@ -13,7 +13,6 @@ use crate::{
 };
 use fyrox_core::math::lerpf;
 use fyrox_core::{
-    inspect::{Inspect, PropertyInfo},
     reflect::prelude::*,
     visitor::{Visit, VisitResult, Visitor},
 };
@@ -33,17 +32,6 @@ pub enum Renderer {
     /// Can be used *only* with mono sounds, stereo sounds will be rendered through
     /// default renderer.
     HrtfRenderer(HrtfRenderer),
-}
-
-impl Inspect for Renderer {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        match self {
-            Renderer::Default => {
-                vec![]
-            }
-            Renderer::HrtfRenderer(v) => v.properties(),
-        }
-    }
 }
 
 impl Default for Renderer {

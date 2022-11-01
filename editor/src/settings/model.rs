@@ -1,13 +1,9 @@
-use fyrox::core::{
-    algebra::Vector3,
-    inspect::{Inspect, PropertyInfo},
-    reflect::prelude::*,
-};
+use fyrox::core::{algebra::Vector3, reflect::prelude::*};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Inspect, Reflect)]
+#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
 pub struct ModelSettings {
-    #[inspect(
+    #[reflect(
         description = "Initial scale the root of the instance will have after instantiation.\
         Useful when you have lots of huge models and don't want to rescale them manually."
     )]

@@ -8,7 +8,6 @@ use crate::scene::Scene;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
-        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
@@ -130,7 +129,7 @@ macro_rules! impl_query_component {
 }
 
 /// A main trait for any scene graph node.
-pub trait NodeTrait: BaseNodeTrait + Reflect + Inspect + Visit {
+pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
     /// Allows a node to provide access to inner components.
     fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any>;
 
@@ -199,7 +198,7 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Inspect + Visit {
 
 /// A small wrapper over `Handle<Node>`. Its main purpose is to provide a convenient way
 /// to handle arrays of handles in the editor.
-#[derive(Reflect, Inspect, Default, Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Reflect, Default, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct NodeHandle(pub Handle<Node>);
 
@@ -431,11 +430,5 @@ impl Node {
 impl Visit for Node {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.0.visit(name, visitor)
-    }
-}
-
-impl Inspect for Node {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        self.0.properties()
     }
 }

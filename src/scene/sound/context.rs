@@ -2,7 +2,6 @@
 
 use crate::{
     core::{
-        inspect::{Inspect, PropertyInfo},
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
         visitor::prelude::*,
@@ -23,20 +22,18 @@ use fyrox_sound::{
 use std::time::Duration;
 
 /// Sound context.
-#[derive(Debug, Visit, Inspect, Reflect)]
+#[derive(Debug, Visit, Reflect)]
 pub struct SoundContext {
     master_gain: f32,
     renderer: Renderer,
     distance_model: DistanceModel,
     paused: bool,
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub(crate) effects: Pool<Effect>,
-    #[inspect(read_only)]
+    #[reflect(read_only)]
     // A model resource from which this context was instantiated from.
     pub(crate) resource: Option<Model>,
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub(crate) native: fyrox_sound::context::SoundContext,
 }

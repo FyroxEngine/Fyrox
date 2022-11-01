@@ -303,7 +303,7 @@ picking restriction stack.
 - Light source for model previewer
 - Default skybox for editor and model previewer cameras
 - `Color` API improvements.
-- `#[inspect(expand)]` and `#[inspect(expand_subtree)]` were removed from `Inspect` proc-macro
+- `#[reflect(expand)]` and `#[reflect(expand_subtree)]` were removed from `Inspect` proc-macro
 - Correct field name generation for enum variants
 - Ability to draw Bézier curves in the UI.
 - Fix for navmesh agent navigation of multilayer navigational meshes.

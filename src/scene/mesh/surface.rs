@@ -8,7 +8,6 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         hash_combine,
-        inspect::{Inspect, PropertyInfo},
         math::TriangleDefinition,
         parking_lot::{Mutex, MutexGuard},
         pool::{ErasedHandle, Handle},
@@ -954,7 +953,7 @@ impl VertexWeightSet {
 /// Surface shared data is a vertex and index buffer that can be shared across multiple objects. This is
 /// very useful memory optimization - you create a single data storage for a surface and then share it
 /// with any instance count you want. Memory usage does not increate with instance count in this case.
-#[derive(Default, Debug, Clone, Inspect, Reflect)]
+#[derive(Default, Debug, Clone, Reflect)]
 pub struct SurfaceSharedData(#[reflect(hidden)] Arc<Mutex<SurfaceData>>);
 
 impl PartialEq for SurfaceSharedData {
@@ -998,7 +997,7 @@ impl SurfaceSharedData {
 }
 
 /// See module docs.
-#[derive(Debug, Clone, Inspect, Reflect, PartialEq)]
+#[derive(Debug, Clone, Reflect, PartialEq)]
 pub struct Surface {
     data: InheritableVariable<SurfaceSharedData>,
 
@@ -1013,7 +1012,6 @@ pub struct Surface {
     // bones so we can use `bones` array as reference to get those indices. This could be done
     // like so: iterate over all vertices and weight data and calculate index of node handle that
     // associated with vertex in `bones` array and store it as bone index in vertex.
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub(crate) vertex_weights: Vec<VertexWeightSet>,
 }

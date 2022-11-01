@@ -7,7 +7,6 @@ use crate::{
         AnimationContainer, AnimationPose,
     },
     core::{
-        inspect::{Inspect, PropertyInfo},
         pool::{Handle, Pool},
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
@@ -25,10 +24,10 @@ pub struct BlendPose {
     pub pose_source: Handle<PoseNode>,
 }
 
-#[derive(Default, Debug, Visit, Clone, Inspect, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct BlendPoseDefinition {
     pub weight: PoseWeight,
-    #[inspect(skip)]
+    #[reflect(hidden)]
     pub pose_source: Handle<PoseNodeDefinition>,
 }
 
@@ -91,7 +90,7 @@ impl DerefMut for BlendAnimations {
     }
 }
 
-#[derive(Default, Debug, Visit, Clone, Inspect, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct BlendAnimationsDefinition {
     pub base: BasePoseNodeDefinition,
     pub pose_sources: Vec<BlendPoseDefinition>,
@@ -172,10 +171,10 @@ pub struct IndexedBlendInput {
     pub pose_source: Handle<PoseNode>,
 }
 
-#[derive(Default, Debug, Visit, Clone, Inspect, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct IndexedBlendInputDefinition {
     pub blend_time: f32,
-    #[inspect(skip)]
+    #[reflect(hidden)]
     pub pose_source: Handle<PoseNodeDefinition>,
 }
 
@@ -204,7 +203,7 @@ impl DerefMut for BlendAnimationsByIndex {
     }
 }
 
-#[derive(Default, Debug, Visit, Clone, Inspect, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct BlendAnimationsByIndexDefinition {
     pub base: BasePoseNodeDefinition,
     pub index_parameter: String,

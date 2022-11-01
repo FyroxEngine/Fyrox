@@ -11,7 +11,6 @@ use crate::{
     algebra::{
         Matrix3, Matrix4, RealField, Scalar, SimdRealField, UnitQuaternion, Vector2, Vector3,
     },
-    inspect::prelude::*,
     math::ray::IntersectionResult,
     num_traits::{NumAssign, Zero},
     reflect::prelude::*,
@@ -848,7 +847,7 @@ pub fn get_closest_point_triangle_set<P: PositionProvider>(
     closest_index
 }
 
-#[derive(Debug, PartialEq, Visit, Reflect, Inspect, Clone)]
+#[derive(Debug, PartialEq, Visit, Reflect, Clone)]
 pub struct SmoothAngle {
     /// Current angle in radians.
     pub angle: f32,

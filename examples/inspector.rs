@@ -138,7 +138,7 @@ fn main() {
     } = fyrox::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     let inspector_context = InspectorContext::from_object(
-        &scene.graph[model_handle],
+        scene.graph[model_handle].as_reflect(),
         &mut engine.user_interface.build_ctx(),
         interface.definition_container.clone(),
         None,

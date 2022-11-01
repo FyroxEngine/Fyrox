@@ -1,5 +1,5 @@
 use crate::{
-    core::{inspect::Inspect, pool::Handle},
+    core::{pool::Handle, reflect::prelude::*},
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
@@ -66,7 +66,7 @@ impl Control for ArrayEditor {
 
 pub struct ArrayEditorBuilder<'a, T, I>
 where
-    T: Inspect + 'static,
+    T: Reflect + 'static,
     I: IntoIterator<Item = &'a T>,
 {
     widget_builder: WidgetBuilder,
@@ -106,7 +106,7 @@ fn create_items<'a, T, I>(
     layer_index: usize,
 ) -> Vec<Item>
 where
-    T: Inspect + 'static,
+    T: Reflect + 'static,
     I: IntoIterator<Item = &'a T>,
 {
     iter.into_iter()
@@ -131,7 +131,7 @@ where
 
 impl<'a, T, I> ArrayEditorBuilder<'a, T, I>
 where
-    T: Inspect + 'static,
+    T: Reflect + 'static,
     I: IntoIterator<Item = &'a T>,
 {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
@@ -206,14 +206,14 @@ where
 #[derive(Debug)]
 pub struct ArrayPropertyEditorDefinition<T, const N: usize>
 where
-    T: Inspect + Debug + 'static,
+    T: Reflect + Debug + 'static,
 {
     phantom: PhantomData<T>,
 }
 
 impl<T, const N: usize> ArrayPropertyEditorDefinition<T, N>
 where
-    T: Inspect + Debug + 'static,
+    T: Reflect + Debug + 'static,
 {
     pub fn new() -> Self {
         Self::default()
@@ -222,7 +222,7 @@ where
 
 impl<T, const N: usize> Default for ArrayPropertyEditorDefinition<T, N>
 where
-    T: Inspect + Debug + 'static,
+    T: Reflect + Debug + 'static,
 {
     fn default() -> Self {
         Self {
@@ -233,7 +233,7 @@ where
 
 impl<T, const N: usize> PropertyEditorDefinition for ArrayPropertyEditorDefinition<T, N>
 where
-    T: Inspect + Debug + 'static,
+    T: Reflect + Debug + 'static,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<[T; N]>()

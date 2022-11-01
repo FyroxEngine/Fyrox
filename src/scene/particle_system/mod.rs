@@ -75,7 +75,6 @@ use crate::{
         algebra::{Vector2, Vector3},
         color::Color,
         color_gradient::ColorGradient,
-        inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
@@ -107,8 +106,8 @@ pub mod emitter;
 pub mod particle;
 
 #[doc(hidden)]
-#[derive(PartialEq, Debug, Clone, Default, Inspect, Reflect)]
-pub struct EmitterWrapper(#[inspect(display_name = "Emitter Type")] pub Emitter);
+#[derive(PartialEq, Debug, Clone, Default, Reflect)]
+pub struct EmitterWrapper(#[reflect(display_name = "Emitter Type")] pub Emitter);
 
 impl Deref for EmitterWrapper {
     type Target = Emitter;
@@ -131,7 +130,7 @@ impl Visit for EmitterWrapper {
 }
 
 /// See module docs.
-#[derive(Debug, Visit, Clone, Inspect, Reflect)]
+#[derive(Debug, Visit, Clone, Reflect)]
 pub struct ParticleSystem {
     base: Base,
 
@@ -154,11 +153,9 @@ pub struct ParticleSystem {
     #[reflect(setter = "set_enabled")]
     enabled: InheritableVariable<bool>,
 
-    #[inspect(skip)]
     #[reflect(hidden)]
     particles: Vec<Particle>,
 
-    #[inspect(skip)]
     #[reflect(hidden)]
     free_particles: Vec<u32>,
 }

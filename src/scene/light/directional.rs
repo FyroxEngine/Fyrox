@@ -9,7 +9,6 @@
 
 use crate::{
     core::{
-        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
@@ -32,9 +31,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub const CSM_NUM_CASCADES: usize = 3;
 
 /// Frustum split options defines how to split camera's frustum to generate cascades.
-#[derive(
-    Inspect, Reflect, Clone, Visit, Debug, PartialEq, AsRefStr, EnumString, EnumVariantNames,
-)]
+#[derive(Reflect, Clone, Visit, Debug, PartialEq, AsRefStr, EnumString, EnumVariantNames)]
 pub enum FrustumSplitOptions {
     /// Camera frustum will be split into a [`CSM_NUM_CASCADES`] splits where each sub-frustum
     /// will have fixed far plane location.
@@ -69,12 +66,12 @@ impl Default for FrustumSplitOptions {
 }
 
 /// Cascade Shadow Mapping (CSM) options.
-#[derive(Inspect, Reflect, Clone, Visit, PartialEq, Debug)]
+#[derive(Reflect, Clone, Visit, PartialEq, Debug)]
 pub struct CsmOptions {
     /// See [`FrustumSplitOptions`].
     pub split_options: FrustumSplitOptions,
 
-    #[inspect(min_value = 0.0, step = 0.000025)]
+    #[reflect(min_value = 0.0, step = 0.000025)]
     shadow_bias: f32,
 }
 
@@ -102,7 +99,7 @@ impl CsmOptions {
 }
 
 /// See module docs.
-#[derive(Default, Debug, Visit, Inspect, Reflect, Clone)]
+#[derive(Default, Debug, Visit, Reflect, Clone)]
 pub struct DirectionalLight {
     base_light: BaseLight,
     /// See [`CsmOptions`].

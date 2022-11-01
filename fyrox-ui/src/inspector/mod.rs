@@ -1,11 +1,7 @@
 use crate::{
     border::BorderBuilder,
     check_box::CheckBoxBuilder,
-    core::{
-        algebra::Vector2,
-        inspect::{CastError, Inspect},
-        pool::Handle,
-    },
+    core::{algebra::Vector2, pool::Handle, reflect::CastError},
     define_constructor,
     expander::ExpanderBuilder,
     formatted_text::WrapMode,
@@ -493,7 +489,7 @@ fn make_simple_property_container(
 
 impl InspectorContext {
     pub fn from_object(
-        object: &dyn Inspect,
+        object: &dyn Reflect,
         ctx: &mut BuildContext,
         definition_container: Rc<PropertyEditorDefinitionContainer>,
         environment: Option<Rc<dyn InspectorEnvironment>>,
@@ -503,7 +499,7 @@ impl InspectorContext {
         let mut entries = Vec::new();
 
         let editors = object
-            .properties()
+            .fields_info()
             .iter()
             .enumerate()
             .map(|(i, info)| {
@@ -597,13 +593,13 @@ impl InspectorContext {
 
     pub fn sync(
         &self,
-        object: &dyn Inspect,
+        object: &dyn Reflect,
         ui: &mut UserInterface,
         layer_index: usize,
     ) -> Result<(), Vec<InspectorError>> {
         let mut sync_errors = Vec::new();
 
-        for info in object.properties() {
+        for info in object.fields_info() {
             if let Some(constructor) = self
                 .property_definitions
                 .definitions()

@@ -23,13 +23,11 @@
 #![allow(clippy::unneeded_field_pattern)]
 
 use crate::{
-    inspect::{Inspect, PropertyInfo},
     reflect::prelude::*,
     visitor::{Visit, VisitResult, Visitor},
 };
 use arrayvec::ArrayVec;
 use std::{
-    any::TypeId,
     fmt::{Debug, Display, Formatter},
     future::Future,
     hash::{Hash, Hasher},
@@ -116,44 +114,15 @@ impl<T: PartialEq> PartialEq for Pool<T> {
 #[derive(Reflect)]
 pub struct Handle<T> {
     /// Index of object in pool.
+    #[reflect(read_only, description = "Index of an object in a pool.")]
     index: u32,
     /// Generation number, if it is same as generation of pool record at
     /// index of handle then this is valid handle.
+    #[reflect(read_only, description = "Generation of an object in a pool.")]
     generation: u32,
     /// Type holder.
     #[reflect(hidden)]
     type_marker: PhantomData<T>,
-}
-
-impl<T: 'static> Inspect for Handle<T> {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        vec![
-            PropertyInfo {
-                owner_type_id: TypeId::of::<Self>(),
-                name: "index",
-                display_name: "Index",
-                value: &self.index,
-                read_only: true,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "Index of an object in a pool.".to_string(),
-            },
-            PropertyInfo {
-                owner_type_id: TypeId::of::<Self>(),
-                name: "generation",
-                display_name: "Generation",
-                value: &self.generation,
-                read_only: true,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                description: "Generation of an object in a pool.".to_string(),
-            },
-        ]
-    }
 }
 
 unsafe impl<T> Send for Handle<T> {}
@@ -166,14 +135,14 @@ impl<T> Display for Handle<T> {
 }
 
 /// Type-erased handle.
-#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Inspect, Reflect, Visit)]
+#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Reflect, Visit)]
 pub struct ErasedHandle {
     /// Index of object in pool.
-    #[inspect(read_only)]
+    #[reflect(read_only)]
     index: u32,
     /// Generation number, if it is same as generation of pool record at
     /// index of handle then this is valid handle.
-    #[inspect(read_only)]
+    #[reflect(read_only)]
     generation: u32,
 }
 

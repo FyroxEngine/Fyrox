@@ -4,7 +4,6 @@ use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         futures::executor::block_on,
-        inspect::{Inspect, PropertyInfo},
         pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
@@ -108,7 +107,7 @@ pub struct InputController {
     jump: bool,
 }
 
-#[derive(Visit, Inspect, Reflect, Debug, Clone)]
+#[derive(Visit, Reflect, Debug, Clone)]
 struct Player {
     speed: f32,
     yaw: f32,
@@ -116,7 +115,6 @@ struct Player {
     camera: Handle<Node>,
 
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     controller: InputController,
 }
@@ -249,7 +247,7 @@ impl ScriptTrait for Player {
     }
 }
 
-#[derive(Visit, Inspect, Reflect, Debug, Clone)]
+#[derive(Visit, Reflect, Debug, Clone)]
 struct Jumper {
     timer: f32,
     period: f32,

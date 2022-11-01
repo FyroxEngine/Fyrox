@@ -18,7 +18,6 @@ use crate::{
     source::{SoundSource, Status},
 };
 use fyrox_core::{
-    inspect::{Inspect, PropertyInfo},
     pool::{Handle, Pool},
     reflect::prelude::*,
     visitor::prelude::*,
@@ -35,17 +34,7 @@ pub const SAMPLE_RATE: u32 = 44100;
 
 /// Distance model defines how volume of sound will decay when distance to listener changes.
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Inspect,
-    Reflect,
-    Visit,
-    AsRefStr,
-    EnumString,
-    EnumVariantNames,
+    Copy, Clone, Debug, Eq, PartialEq, Reflect, Visit, AsRefStr, EnumString, EnumVariantNames,
 )]
 #[repr(u32)]
 pub enum DistanceModel {

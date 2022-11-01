@@ -77,7 +77,38 @@ pub struct FieldInfo<'a> {
     pub precision: Option<usize>,
 }
 
-impl<'a> PartialEq<Self> for PropertyInfo<'a> {
+impl<'a> FieldInfo<'a> {
+    /// Tries to cast a value to a given type.
+    pub fn cast_value<T: 'static>(&self) -> Result<&T, CastError> {
+        match self.value.as_any().downcast_ref::<T>() {
+            Some(value) => Ok(value),
+            None => Err(CastError::TypeMismatch {
+                property_name: self.name.to_string(),
+                expected_type_id: TypeId::of::<T>(),
+                actual_type_id: self.value.type_id(),
+            }),
+        }
+    }
+}
+
+impl<'a> fmt::Debug for FieldInfo<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PropertyInfo")
+            .field("owner_type_id", &self.owner_type_id)
+            .field("name", &self.name)
+            .field("display_name", &self.display_name)
+            .field("value", &format_args!("{:?}", self.value as *const _))
+            .field("read_only", &self.read_only)
+            .field("min_value", &self.min_value)
+            .field("max_value", &self.max_value)
+            .field("step", &self.step)
+            .field("precision", &self.precision)
+            .field("description", &self.description)
+            .finish()
+    }
+}
+
+impl<'a> PartialEq<Self> for FieldInfo<'a> {
     fn eq(&self, other: &Self) -> bool {
         let value_ptr_a = self.value as *const _ as *const ();
         let value_ptr_b = other.value as *const _ as *const ();
@@ -605,7 +636,6 @@ macro_rules! delegate_reflect {
     };
 }
 
-use crate::inspect::PropertyInfo;
 use crate::variable::{InheritError, VariableFlags};
 pub use blank_reflect;
 pub use delegate_reflect;

@@ -2,11 +2,7 @@
 
 use crate::{
     core::{
-        algebra::Vector3,
-        color::Color,
-        inspect::{Inspect, PropertyInfo},
-        numeric_range::RangeExt,
-        reflect::prelude::*,
+        algebra::Vector3, color::Color, numeric_range::RangeExt, reflect::prelude::*,
         visitor::prelude::*,
     },
     scene::particle_system::Particle,
@@ -14,7 +10,7 @@ use crate::{
 use std::ops::Range;
 
 /// See module docs.
-#[derive(Debug, Visit, PartialEq, Inspect, Reflect)]
+#[derive(Debug, Visit, PartialEq, Reflect)]
 pub struct BaseEmitter {
     /// Offset from center of particle system.
     position: Vector3<f32>,
@@ -42,18 +38,15 @@ pub struct BaseEmitter {
     rotation_speed: Range<f32>,
     /// Range of initial rotation for a particle
     rotation: Range<f32>,
-    #[inspect(skip)]
+    #[reflect(hidden)]
     pub(crate) alive_particles: u32,
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     time: f32,
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub(crate) particles_to_spawn: u32,
     resurrect_particles: bool,
-    #[inspect(skip)]
     #[reflect(hidden)]
     spawned_particles: u64,
 }

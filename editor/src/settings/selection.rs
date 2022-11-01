@@ -1,12 +1,11 @@
-use fyrox::core::{inspect::prelude::*, reflect::prelude::*};
+use fyrox::core::reflect::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Inspect, Reflect, Eq)]
+#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect, Eq)]
 pub struct SelectionSettings {
     pub ignore_back_faces: bool,
 
     // Hidden because there's a separate switch in world viewer for this.
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub track_selection: bool,
 }

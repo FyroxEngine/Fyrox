@@ -5,9 +5,7 @@
 
 use crate::{
     animation::spritesheet::signal::Signal,
-    core::{
-        algebra::Vector2, inspect::prelude::*, math::Rect, reflect::prelude::*, visitor::prelude::*,
-    },
+    core::{algebra::Vector2, math::Rect, reflect::prelude::*, visitor::prelude::*},
     engine::resource_manager::ResourceManager,
     resource::texture::Texture,
 };
@@ -18,17 +16,7 @@ pub mod signal;
 
 /// Animation playback status.
 #[derive(
-    Visit,
-    Reflect,
-    Inspect,
-    Copy,
-    Clone,
-    Eq,
-    PartialEq,
-    Debug,
-    AsRefStr,
-    EnumString,
-    EnumVariantNames,
+    Visit, Reflect, Copy, Clone, Eq, PartialEq, Debug, AsRefStr, EnumString, EnumVariantNames,
 )]
 pub enum Status {
     /// Animation is playing.
@@ -49,7 +37,7 @@ impl Default for Status {
 }
 
 /// Some animation event.
-#[derive(Visit, Reflect, Inspect, Clone, Debug, Eq, PartialEq)]
+#[derive(Visit, Reflect, Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Event {
     /// A signal with an id was hit.
@@ -63,7 +51,7 @@ impl Default for Event {
 }
 
 /// Container for a sprite sheet animation frames.
-#[derive(Reflect, Inspect, Visit, Clone, Debug, PartialEq, Eq)]
+#[derive(Reflect, Visit, Clone, Debug, PartialEq, Eq)]
 pub struct SpriteSheetFramesContainer {
     size: Vector2<u32>,
     frames: Vec<Vector2<u32>>,
@@ -142,7 +130,7 @@ impl Default for SpriteSheetFramesContainer {
 
 /// Sprite sheet animation is an animation based on key frames, where each key frame is packed into single image. Usually, all key
 /// frames have the same size, but this is not mandatory.
-#[derive(Visit, Reflect, Inspect, Clone, Debug)]
+#[derive(Visit, Reflect, Clone, Debug)]
 pub struct SpriteSheetAnimation {
     #[visit(rename = "Frames")]
     frames_container: SpriteSheetFramesContainer,
@@ -155,7 +143,6 @@ pub struct SpriteSheetAnimation {
     #[reflect(setter = "set_texture")]
     texture: Option<Texture>,
     #[reflect(hidden)]
-    #[inspect(skip)]
     #[visit(skip)]
     events: VecDeque<Event>,
 }

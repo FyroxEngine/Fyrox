@@ -2,9 +2,9 @@ use crate::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         color::Color,
-        inspect::{Inspect, PropertyInfo, PropertyValue},
         math::{Rect, SmoothAngle},
         pool::Handle,
+        reflect::{FieldInfo, FieldValue, Reflect},
     },
     inspector::{
         editors::{
@@ -58,7 +58,7 @@ pub mod vec;
 
 pub struct PropertyEditorBuildContext<'a, 'b, 'c> {
     pub build_context: &'a mut BuildContext<'c>,
-    pub property_info: &'b PropertyInfo<'b>,
+    pub property_info: &'b FieldInfo<'b>,
     pub environment: Option<Rc<dyn InspectorEnvironment>>,
     pub definition_container: Rc<PropertyEditorDefinitionContainer>,
     pub sync_flag: u64,
@@ -69,7 +69,7 @@ pub struct PropertyEditorMessageContext<'a, 'b> {
     pub sync_flag: u64,
     pub instance: Handle<UiNode>,
     pub ui: &'b mut UserInterface,
-    pub property_info: &'a PropertyInfo<'a>,
+    pub property_info: &'a FieldInfo<'a>,
     pub definition_container: Rc<PropertyEditorDefinitionContainer>,
     pub layer_index: usize,
     pub environment: Option<Rc<dyn InspectorEnvironment>>,
@@ -235,7 +235,7 @@ impl PropertyEditorDefinitionContainer {
 
     pub fn register_inheritable_vec_collection<T>(&self)
     where
-        T: CollectionItem + PropertyValue,
+        T: CollectionItem + FieldValue,
     {
         assert!(self
             .insert(VecCollectionPropertyEditorDefinition::<T>::new())
@@ -247,7 +247,7 @@ impl PropertyEditorDefinitionContainer {
 
     pub fn register_inheritable_inspectable<T>(&self)
     where
-        T: Inspect + PropertyValue,
+        T: Reflect + FieldValue,
     {
         assert!(self
             .insert(InspectablePropertyEditorDefinition::<T>::new())
@@ -259,7 +259,7 @@ impl PropertyEditorDefinitionContainer {
 
     pub fn register_inheritable_enum<T, E: Debug>(&self)
     where
-        T: InspectableEnum + PropertyValue + VariantNames + AsRef<str> + FromStr<Err = E> + Debug,
+        T: InspectableEnum + FieldValue + VariantNames + AsRef<str> + FromStr<Err = E> + Debug,
     {
         assert!(self
             .insert(EnumPropertyEditorDefinition::<T>::new())
@@ -271,7 +271,7 @@ impl PropertyEditorDefinitionContainer {
 
     pub fn register_inheritable_option<T>(&self)
     where
-        T: InspectableEnum + PropertyValue + Default,
+        T: InspectableEnum + FieldValue + Default,
     {
         assert!(self
             .insert(EnumPropertyEditorDefinition::<T>::new_optional())

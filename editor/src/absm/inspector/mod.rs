@@ -22,7 +22,7 @@ use fyrox::{
         },
         MachineDefinition, PoseWeight,
     },
-    core::{inspect::Inspect, pool::Handle},
+    core::{pool::Handle, reflect::prelude::*},
     gui::{
         inspector::{
             editors::{
@@ -96,13 +96,13 @@ impl Inspector {
     fn first_selected_entity<'a>(
         &self,
         definition: &'a MachineDefinition,
-    ) -> Option<&'a dyn Inspect> {
+    ) -> Option<&'a dyn Reflect> {
         self.selection.first().map(|first| match first {
             SelectedEntity::Transition(transition) => {
-                &definition.transitions[*transition] as &dyn Inspect
+                &definition.transitions[*transition] as &dyn Reflect
             }
-            SelectedEntity::State(state) => &definition.states[*state] as &dyn Inspect,
-            SelectedEntity::PoseNode(pose) => &definition.nodes[*pose] as &dyn Inspect,
+            SelectedEntity::State(state) => &definition.states[*state] as &dyn Reflect,
+            SelectedEntity::PoseNode(pose) => &definition.nodes[*pose] as &dyn Reflect,
         })
     }
 

@@ -1,13 +1,7 @@
-use fyrox::{
-    core::{
-        inspect::{Inspect, PropertyInfo},
-        reflect::prelude::*,
-    },
-    renderer::QualitySettings,
-};
+use fyrox::{core::reflect::prelude::*, renderer::QualitySettings};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Inspect, Reflect)]
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Reflect)]
 pub struct GraphicsSettings {
     pub quality: QualitySettings,
     pub z_near: f32,

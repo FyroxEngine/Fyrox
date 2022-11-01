@@ -1,11 +1,6 @@
 use crate::{
     animation::machine::{state::StateDefinition, State},
-    core::{
-        inspect::{Inspect, PropertyInfo},
-        pool::Handle,
-        reflect::prelude::*,
-        visitor::prelude::*,
-    },
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
 };
 
 /// Transition is a connection between two states with a rule that defines possibility
@@ -29,28 +24,28 @@ pub struct Transition {
     pub(crate) blend_factor: f32,
 }
 
-#[derive(Default, Debug, Visit, Clone, Inspect, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct TransitionDefinition {
-    #[inspect(description = "The name of the transition, it is used for debug output.")]
+    #[reflect(description = "The name of the transition, it is used for debug output.")]
     pub name: String,
     /// Total amount of time to transition from `src` to `dst` state.
-    #[inspect(description = "Total amount of time (in seconds) to transition \
+    #[reflect(description = "Total amount of time (in seconds) to transition \
         from source to destination state")]
     pub transition_time: f32,
     /// Identifier of Rule parameter which defines is transition should be activated or not.
-    #[inspect(
+    #[reflect(
         description = "Name of the Rule parameter which defines whether transition \
         should be activated or not"
     )]
     pub rule: String,
-    #[inspect(skip)]
+    #[reflect(hidden)]
     pub source: Handle<StateDefinition>,
-    #[inspect(skip)]
+    #[reflect(hidden)]
     pub dest: Handle<StateDefinition>,
     /// If set, then fetched value from `rule` will be inverted. It is useful for cases when you
     /// have a pair of transitions that depend on a single Rule parameter, but have different
     /// directions (A -> B, B -> A).
-    #[inspect(
+    #[reflect(
         description = "If set, then fetched value from `rule` will be inverted. It is useful
      for cases when you have a pair of transitions that depend on a single Rule parameter,
       but have different directions (A -> B, B -> A)."

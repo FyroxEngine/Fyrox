@@ -66,7 +66,7 @@ pub fn gen_fields_metadata_body(
     }
 }
 
-/// `PropertyInfo { .. }`
+/// `FieldInfo { .. }`
 fn quote_field_prop(
     prop_key_name: &str,
     nth_field: usize,

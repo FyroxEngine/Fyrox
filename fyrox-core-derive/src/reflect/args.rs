@@ -152,43 +152,43 @@ pub struct FieldArgs {
     #[darling(default)]
     pub setter: Option<Path>,
 
-    /// #[inspect(display_name = "<name>")]
+    /// #[reflect(display_name = "<name>")]
     ///
     /// A human-readable name.
     #[darling(default)]
     pub display_name: Option<String>,
 
-    /// `#[inspect(read_only)]`
+    /// `#[reflect(read_only)]`
     ///
     /// The field is not meant to be edited.
     #[darling(default)]
     pub read_only: bool,
 
-    /// `#[inspect(min_value = "0.0")]`
+    /// `#[reflect(min_value = "0.0")]`
     ///
     /// Minimal value of the field. Works only for numeric fields!
     #[darling(default)]
     pub min_value: Option<f64>,
 
-    /// `#[inspect(max_value = "1.0")]`
+    /// `#[reflect(max_value = "1.0")]`
     ///
     /// Maximal value of the field. Works only for numeric fields!
     #[darling(default)]
     pub max_value: Option<f64>,
 
-    /// `#[inspect(step = "0.1")]`
+    /// `#[reflect(step = "0.1")]`
     ///
     /// Increment/decrement step of the field. Works only for numeric fields!
     #[darling(default)]
     pub step: Option<f64>,
 
-    /// `#[inspect(precision = "3")]`
+    /// `#[reflect(precision = "3")]`
     ///
     /// Maximum amount of decimal places for a numeric property.
     #[darling(default)]
     pub precision: Option<usize>,
 
-    /// `#[inspect(description = "This is a property description.")]`
+    /// `#[reflect(description = "This is a property description.")]`
     ///
     /// Description of the property.
     #[darling(default)]

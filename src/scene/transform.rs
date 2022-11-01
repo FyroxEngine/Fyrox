@@ -47,7 +47,6 @@
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, UnitQuaternion, Vector3},
-        inspect::{Inspect, PropertyInfo},
         reflect::prelude::*,
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
@@ -57,56 +56,53 @@ use crate::{
 use std::cell::Cell;
 
 /// See module docs.
-#[derive(Clone, Debug, Inspect, Reflect)]
+#[derive(Clone, Debug, Reflect)]
 pub struct Transform {
     // Indicates that some property has changed and matrix must be
     // recalculated before use. This is some sort of lazy evaluation.
-    #[inspect(skip)]
     #[reflect(hidden)]
     dirty: Cell<bool>,
 
-    #[inspect(description = "Local scale of the transform")]
+    #[reflect(description = "Local scale of the transform")]
     #[reflect(setter = "set_scale_internal")]
     local_scale: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(description = "Local position of the transform")]
+    #[reflect(description = "Local position of the transform")]
     #[reflect(setter = "set_position_internal")]
     local_position: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(description = "Local rotation of the transform")]
+    #[reflect(description = "Local rotation of the transform")]
     #[reflect(setter = "set_rotation_internal")]
     local_rotation: InheritableVariable<UnitQuaternion<f32>>,
 
-    #[inspect(description = "Pre rotation of the transform. Applied before local rotation.")]
+    #[reflect(description = "Pre rotation of the transform. Applied before local rotation.")]
     #[reflect(setter = "set_pre_rotation_internal")]
     pre_rotation: InheritableVariable<UnitQuaternion<f32>>,
 
-    #[inspect(description = "Post rotation of the transform. Applied after local rotation.")]
+    #[reflect(description = "Post rotation of the transform. Applied after local rotation.")]
     #[reflect(setter = "set_post_rotation_internal")]
     post_rotation: InheritableVariable<UnitQuaternion<f32>>,
 
-    #[inspect(description = "Rotation offset of the transform.")]
+    #[reflect(description = "Rotation offset of the transform.")]
     #[reflect(setter = "set_rotation_offset_internal")]
     rotation_offset: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(description = "Rotation pivot of the transform.")]
+    #[reflect(description = "Rotation pivot of the transform.")]
     #[reflect(setter = "set_rotation_pivot_internal")]
     rotation_pivot: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(description = "Scale offset of the transform.")]
+    #[reflect(description = "Scale offset of the transform.")]
     #[reflect(setter = "set_scaling_offset_internal")]
     scaling_offset: InheritableVariable<Vector3<f32>>,
 
-    #[inspect(description = "Scale pivot of the transform.")]
+    #[reflect(description = "Scale pivot of the transform.")]
     #[reflect(setter = "set_scaling_pivot_internal")]
     scaling_pivot: InheritableVariable<Vector3<f32>>,
 
     // Combined transform. Final result of combination of other properties.
-    #[inspect(skip)]
     #[reflect(hidden)]
     matrix: Cell<Matrix4<f32>>,
 
-    #[inspect(skip)]
     #[reflect(hidden)]
     post_rotation_matrix: Matrix3<f32>,
 }

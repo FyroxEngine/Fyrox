@@ -9,12 +9,7 @@ use crate::{
     GameEngine, Message, MSG_SYNC_FLAG,
 };
 use fyrox::{
-    core::{
-        inspect::{Inspect, PropertyInfo},
-        pool::Handle,
-        reflect::prelude::*,
-        scope_profile,
-    },
+    core::{pool::Handle, reflect::prelude::*, scope_profile},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
@@ -57,7 +52,7 @@ pub struct SettingsWindow {
     inspector: Handle<UiNode>,
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Default, Debug, Inspect, Reflect)]
+#[derive(Deserialize, Serialize, PartialEq, Clone, Default, Debug, Reflect)]
 pub struct Settings {
     pub selection: SelectionSettings,
     pub graphics: GraphicsSettings,
@@ -67,7 +62,6 @@ pub struct Settings {
     pub model: ModelSettings,
     pub camera: CameraSettings,
     pub navmesh: NavmeshSettings,
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub recent: RecentFiles,
 }

@@ -1,10 +1,7 @@
 //! Sound buffer loader.
 
 use crate::{
-    core::{
-        inspect::{Inspect, PropertyInfo},
-        reflect::prelude::*,
-    },
+    core::reflect::prelude::*,
     engine::resource_manager::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
@@ -18,7 +15,7 @@ use fyrox_sound::buffer::{
 use serde::{Deserialize, Serialize};
 
 /// Defines sound buffer resource import options.
-#[derive(Clone, Deserialize, Serialize, Default, Inspect, Reflect)]
+#[derive(Clone, Deserialize, Serialize, Default, Reflect)]
 pub struct SoundBufferImportOptions {
     /// Whether the buffer is streaming or not.
     pub stream: bool,

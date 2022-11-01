@@ -1,6 +1,6 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
-    core::{inspect::Inspect, pool::Handle},
+    core::pool::Handle,
     define_constructor,
     inspector::{
         editors::{
@@ -33,9 +33,9 @@ pub struct Item {
     remove: Handle<UiNode>,
 }
 
-pub trait CollectionItem: Inspect + Clone + Reflect + Debug + Default + 'static {}
+pub trait CollectionItem: Clone + Reflect + Debug + Default + 'static {}
 
-impl<T: Inspect + Clone + Reflect + Debug + Default + 'static> CollectionItem for T {}
+impl<T: Clone + Reflect + Debug + Default + 'static> CollectionItem for T {}
 
 #[derive(Debug)]
 pub struct CollectionEditor<T: CollectionItem> {

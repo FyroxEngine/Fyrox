@@ -37,7 +37,6 @@ use crate::{
 };
 use fyrox_core::{
     algebra::Vector3,
-    inspect::{Inspect, PropertyInfo},
     reflect::prelude::*,
     visitor::{Visit, VisitResult, Visitor},
 };
@@ -45,7 +44,7 @@ use fyrox_resource::ResourceState;
 use std::time::Duration;
 
 /// Status (state) of sound source.
-#[derive(Eq, PartialEq, Copy, Clone, Debug, Inspect, Reflect, Visit)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Reflect, Visit)]
 #[repr(u32)]
 pub enum Status {
     /// Sound is stopped - it won't produces any sample and won't load mixer. This is default
@@ -61,7 +60,7 @@ pub enum Status {
 }
 
 /// See module info.
-#[derive(Debug, Clone, Inspect, Reflect, Visit)]
+#[derive(Debug, Clone, Reflect, Visit)]
 pub struct SoundSource {
     name: String,
     #[reflect(hidden)]
@@ -70,19 +69,19 @@ pub struct SoundSource {
     // In case of streaming buffer its maximum value will be some fixed value which is
     // implementation defined. It can be less than zero, this happens when we are in the process
     // of reading next block in streaming buffer (see also prev_buffer_sample).
-    #[inspect(skip)]
+    #[reflect(hidden)]
     buf_read_pos: f64,
     // Real playback position in samples.
-    #[inspect(skip)]
+    #[reflect(hidden)]
     playback_pos: f64,
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     panning: f32,
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     pitch: f64,
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     gain: f32,
     looping: bool,
-    #[inspect(min_value = 0.0, max_value = 1.0, step = 0.05)]
+    #[reflect(min_value = 0.0, max_value = 1.0, step = 0.05)]
     spatial_blend: f32,
     // Important coefficient for runtime resampling. It is used to modify playback speed
     // of a source in order to match output device sampling rate. PCM data can be stored
@@ -92,7 +91,7 @@ pub struct SoundSource {
     // hear that sound will have high pitch (2.0), to fix that we'll just pre-multiply
     // playback speed by 0.5.
     // However such auto-resampling has poor quality, but it is fast.
-    #[inspect(read_only)]
+    #[reflect(read_only)]
     resampling_multiplier: f64,
     status: Status,
     play_once: bool,
@@ -102,37 +101,37 @@ pub struct SoundSource {
     // can be with no respect to real distance attenuation (or what else affects channel
     // gain). So if these are None engine will set correct values first and only then it
     // will start interpolation of gain.
-    #[inspect(skip)]
+    #[reflect(hidden)]
     #[visit(skip)]
     pub(crate) last_left_gain: Option<f32>,
-    #[inspect(skip)]
+    #[reflect(hidden)]
     #[visit(skip)]
     pub(crate) last_right_gain: Option<f32>,
-    #[inspect(skip)]
+    #[reflect(hidden)]
     #[visit(skip)]
     pub(crate) frame_samples: Vec<(f32, f32)>,
     // This sample is used when doing linear interpolation between two blocks of streaming buffer.
-    #[inspect(skip)]
+    #[reflect(hidden)]
     #[visit(skip)]
     prev_buffer_sample: (f32, f32),
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     radius: f32,
     position: Vector3<f32>,
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     max_distance: f32,
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     rolloff_factor: f32,
     // Some data that needed for iterative overlap-save convolution.
-    #[inspect(skip)]
+    #[reflect(hidden)]
     #[visit(skip)]
     pub(crate) prev_left_samples: Vec<f32>,
-    #[inspect(skip)]
+    #[reflect(hidden)]
     #[visit(skip)]
     pub(crate) prev_right_samples: Vec<f32>,
-    #[inspect(skip)]
+    #[reflect(hidden)]
     #[visit(skip)]
     pub(crate) prev_sampling_vector: Vector3<f32>,
-    #[inspect(skip)]
+    #[reflect(hidden)]
     #[visit(skip)]
     pub(crate) prev_distance_gain: Option<f32>,
 }

@@ -17,7 +17,6 @@
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
-        inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, ray::Ray, Rect},
         pool::Handle,
         reflect::prelude::*,
@@ -45,20 +44,20 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 /// Perspective projection make parallel lines to converge at some point. Objects will be smaller
 /// with increasing distance. This the projection type "used" by human eyes, photographic lens and
 /// it looks most realistic.
-#[derive(Inspect, Reflect, Clone, Debug, PartialEq, Visit)]
+#[derive(Reflect, Clone, Debug, PartialEq, Visit)]
 pub struct PerspectiveProjection {
     /// Horizontal angle between look axis and a side of the viewing frustum. Larger values will
     /// increase field of view and create fish-eye effect, smaller values could be used to create
     /// "binocular" effect or scope effect.  
-    #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1)]
+    #[reflect(min_value = 0.0, max_value = 3.14159, step = 0.1)]
     pub fov: f32,
     /// Location of the near clipping plane. If it is larger than [`Self::z_far`] then it will be
     /// treated like far clipping plane.
-    #[inspect(min_value = 0.0, step = 0.1)]
+    #[reflect(min_value = 0.0, step = 0.1)]
     pub z_near: f32,
     /// Location of the far clipping plane. If it is less than [`Self::z_near`] then it will be
     /// treated like near clipping plane.
-    #[inspect(min_value = 0.0, step = 0.1)]
+    #[reflect(min_value = 0.0, step = 0.1)]
     pub z_far: f32,
 }
 
@@ -97,20 +96,20 @@ impl PerspectiveProjection {
 
 /// Parallel projection. Object's size won't be affected by distance from the viewer, it can be
 /// used for 2D games.
-#[derive(Inspect, Reflect, Clone, Debug, PartialEq, Visit)]
+#[derive(Reflect, Clone, Debug, PartialEq, Visit)]
 pub struct OrthographicProjection {
     /// Location of the near clipping plane. If it is larger than [`Self::z_far`] then it will be
     /// treated like far clipping plane.
-    #[inspect(min_value = 0.0, step = 0.1)]
+    #[reflect(min_value = 0.0, step = 0.1)]
     pub z_near: f32,
     /// Location of the far clipping plane. If it is less than [`Self::z_near`] then it will be
     /// treated like near clipping plane.
-    #[inspect(min_value = 0.0, step = 0.1)]
+    #[reflect(min_value = 0.0, step = 0.1)]
     pub z_far: f32,
     /// Vertical size of the "view box". Horizontal size is derived value and depends on the aspect
     /// ratio of the viewport. Any values very close to zero (from both sides) will be clamped to
     /// some minimal value to prevent singularities from occuring.
-    #[inspect(step = 0.1)]
+    #[reflect(step = 0.1)]
     pub vertical_size: f32,
 }
 
@@ -168,9 +167,7 @@ impl OrthographicProjection {
 /// objects will look smaller with increasing distance.
 /// 2) Orthographic projection most useful for 2D games, objects won't look smaller with increasing
 /// distance.  
-#[derive(
-    Inspect, Reflect, Clone, Debug, PartialEq, Visit, AsRefStr, EnumString, EnumVariantNames,
-)]
+#[derive(Reflect, Clone, Debug, PartialEq, Visit, AsRefStr, EnumString, EnumVariantNames)]
 pub enum Projection {
     /// See [`PerspectiveProjection`] docs.
     Perspective(PerspectiveProjection),
@@ -255,9 +252,7 @@ impl Default for Projection {
 
 /// Exposure is a parameter that describes how many light should be collected for one
 /// frame. The higher the value, the more brighter the final frame will be and vice versa.
-#[derive(
-    Visit, Copy, Clone, PartialEq, Debug, Inspect, Reflect, AsRefStr, EnumString, EnumVariantNames,
-)]
+#[derive(Visit, Copy, Clone, PartialEq, Debug, Reflect, AsRefStr, EnumString, EnumVariantNames)]
 pub enum Exposure {
     /// Automatic exposure based on the frame luminance. High luminance values will result
     /// in lower exposure levels and vice versa. This is default option.
@@ -267,13 +262,13 @@ pub enum Exposure {
     /// `exposure = key_value / clamp(avg_luminance, min_luminance, max_luminance)`
     Auto {
         /// A key value in the formula above. Default is 0.01556.
-        #[inspect(min_value = 0.0, step = 0.1)]
+        #[reflect(min_value = 0.0, step = 0.1)]
         key_value: f32,
         /// A min luminance value in the formula above. Default is 0.00778.
-        #[inspect(min_value = 0.0, step = 0.1)]
+        #[reflect(min_value = 0.0, step = 0.1)]
         min_luminance: f32,
         /// A max luminance value in the formula above. Default is 64.0.
-        #[inspect(min_value = 0.0, step = 0.1)]
+        #[reflect(min_value = 0.0, step = 0.1)]
         max_luminance: f32,
     },
 
@@ -292,7 +287,7 @@ impl Default for Exposure {
 }
 
 /// See module docs.
-#[derive(Debug, Visit, Inspect, Reflect, Clone)]
+#[derive(Debug, Visit, Reflect, Clone)]
 pub struct Camera {
     base: Base,
 
@@ -321,18 +316,15 @@ pub struct Camera {
     color_grading_enabled: InheritableVariable<bool>,
 
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     view_matrix: Matrix4<f32>,
 
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     projection_matrix: Matrix4<f32>,
 
     /// Visibility cache allows you to quickly check if object is visible from the camera or not.
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub visibility_cache: VisibilityCache,
 }
@@ -678,12 +670,11 @@ pub enum ColorGradingLutCreationError {
 /// games - this is achieved by color grading.
 ///
 /// See [more info in Unreal engine docs](https://docs.unrealengine.com/4.26/en-US/RenderingAndGraphics/PostProcessEffects/UsingLUTs/)
-#[derive(Visit, Clone, Default, PartialEq, Debug, Inspect, Reflect, Eq)]
+#[derive(Visit, Clone, Default, PartialEq, Debug, Reflect, Eq)]
 pub struct ColorGradingLut {
     unwrapped_lut: Option<Texture>,
 
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     lut: Option<Texture>,
 }
@@ -1024,7 +1015,7 @@ impl SkyBoxBuilder {
 /// skies and/or some other objects (mountains, buildings, etc.). Usually skyboxes used
 /// in outdoor scenes, however real use of it limited only by your imagination. Skybox
 /// will be drawn first, none of objects could be drawn before skybox.
-#[derive(Debug, Clone, Default, PartialEq, Inspect, Reflect, Visit, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Reflect, Visit, Eq)]
 pub struct SkyBox {
     /// Texture for front face.
     #[reflect(setter = "set_front")]
@@ -1051,9 +1042,8 @@ pub struct SkyBox {
     pub(crate) bottom: Option<Texture>,
 
     /// Cubemap texture
-    #[inspect(skip)]
-    #[visit(skip)]
     #[reflect(hidden)]
+    #[visit(skip)]
     pub(crate) cubemap: Option<Texture>,
 }
 

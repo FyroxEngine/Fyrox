@@ -4,7 +4,6 @@
 use crate::{
     core::{
         algebra::Vector3,
-        inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         num_traits::{NumCast, One, ToPrimitive, Zero},
         pool::Handle,
@@ -34,10 +33,10 @@ use std::{
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Ball is an idea sphere shape defined by a single parameters - its radius.
-#[derive(Clone, Debug, PartialEq, Visit, Inspect, Reflect)]
+#[derive(Clone, Debug, PartialEq, Visit, Reflect)]
 pub struct BallShape {
     /// Radius of the sphere.
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
@@ -48,13 +47,13 @@ impl Default for BallShape {
 }
 
 /// Cylinder shape aligned in Y axis.
-#[derive(Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
+#[derive(Clone, Debug, Visit, Reflect, PartialEq)]
 pub struct CylinderShape {
     /// Half height of the cylinder, actual height will be 2 times bigger.
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
     /// Radius of the cylinder.
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
@@ -68,13 +67,13 @@ impl Default for CylinderShape {
 }
 
 /// Cone shape aligned in Y axis.
-#[derive(Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
+#[derive(Clone, Debug, Visit, Reflect, PartialEq)]
 pub struct ConeShape {
     /// Half height of the cone, actual height will be 2 times bigger.
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
     /// Radius of the cone base.
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
@@ -88,7 +87,7 @@ impl Default for ConeShape {
 }
 
 /// Cuboid shape (box).
-#[derive(Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
+#[derive(Clone, Debug, Visit, Reflect, PartialEq)]
 pub struct CuboidShape {
     /// Half extents of the box. X - half width, Y - half height, Z - half depth.
     /// Actual _size_ will be 2 times bigger.
@@ -104,14 +103,14 @@ impl Default for CuboidShape {
 }
 
 /// Arbitrary capsule shape defined by 2 points (which forms axis) and a radius.
-#[derive(Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
+#[derive(Clone, Debug, Visit, Reflect, PartialEq)]
 pub struct CapsuleShape {
     /// Begin point of the capsule.
     pub begin: Vector3<f32>,
     /// End point of the capsule.
     pub end: Vector3<f32>,
     /// Radius of the capsule.
-    #[inspect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
@@ -127,7 +126,7 @@ impl Default for CapsuleShape {
 }
 
 /// Arbitrary segment shape defined by two points.
-#[derive(Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
+#[derive(Clone, Debug, Visit, Reflect, PartialEq)]
 pub struct SegmentShape {
     /// Begin point of the capsule.
     pub begin: Vector3<f32>,
@@ -145,7 +144,7 @@ impl Default for SegmentShape {
 }
 
 /// Arbitrary triangle shape.
-#[derive(Clone, Debug, Visit, Inspect, Reflect, PartialEq)]
+#[derive(Clone, Debug, Visit, Reflect, PartialEq)]
 pub struct TriangleShape {
     /// First point of the triangle shape.
     pub a: Vector3<f32>,
@@ -170,25 +169,25 @@ impl Default for TriangleShape {
 /// # Notes
 ///
 /// Currently there is only one way to set geometry - using a scene node as a source of data.
-#[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Inspect, Reflect, Eq)]
+#[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Reflect, Eq)]
 pub struct GeometrySource(pub Handle<Node>);
 
 /// Arbitrary triangle mesh shape.
-#[derive(Default, Clone, Debug, Visit, Inspect, Reflect, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, Visit, Reflect, PartialEq, Eq)]
 pub struct TrimeshShape {
     /// Geometry sources for the shape.
     pub sources: Vec<GeometrySource>,
 }
 
 /// Arbitrary height field shape.
-#[derive(Default, Clone, Debug, Visit, Inspect, Reflect, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, Visit, Reflect, PartialEq, Eq)]
 pub struct HeightfieldShape {
     /// A handle to terrain scene node.
     pub geometry_source: GeometrySource,
 }
 
 /// Arbitrary convex polyhedron shape.
-#[derive(Default, Clone, Debug, Visit, Inspect, Reflect, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, Visit, Reflect, PartialEq, Eq)]
 pub struct ConvexPolyhedronShape {
     /// A handle to a mesh node.
     pub geometry_source: GeometrySource,
@@ -197,12 +196,6 @@ pub struct ConvexPolyhedronShape {
 /// A set of bits used for pairwise collision filtering.
 #[derive(Clone, Copy, Default, PartialEq, Debug, Reflect, Eq)]
 pub struct BitMask(pub u32);
-
-impl Inspect for BitMask {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        self.0.properties()
-    }
-}
 
 impl Visit for BitMask {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -305,7 +298,7 @@ impl NumCast for BitMask {
 /// ```ignore
 /// (self.memberships & rhs.filter) != 0 && (rhs.memberships & self.filter) != 0
 /// ```
-#[derive(Visit, Debug, Clone, Copy, PartialEq, Inspect, Reflect, Eq)]
+#[derive(Visit, Debug, Clone, Copy, PartialEq, Reflect, Eq)]
 pub struct InteractionGroups {
     /// Groups memberships.
     pub memberships: BitMask,
@@ -342,9 +335,7 @@ impl From<geometry::InteractionGroups> for InteractionGroups {
 }
 
 /// Possible collider shapes.
-#[derive(
-    Clone, Debug, PartialEq, Visit, Inspect, Reflect, AsRefStr, EnumString, EnumVariantNames,
-)]
+#[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, EnumVariantNames)]
 pub enum ColliderShape {
     /// See [`BallShape`] docs.
     Ball(BallShape),
@@ -454,22 +445,20 @@ impl ColliderShape {
 
 /// Collider is a geometric entity that can be attached to a rigid body to allow participate it
 /// participate in contact generation, collision response and proximity queries.
-#[derive(Inspect, Reflect, Visit, Debug)]
+#[derive(Reflect, Visit, Debug)]
 pub struct Collider {
     base: Base,
 
     #[reflect(setter = "set_shape")]
     pub(crate) shape: InheritableVariable<ColliderShape>,
 
-    #[inspect(min_value = 0.0, step = 0.05)]
-    #[reflect(setter = "set_friction")]
+    #[reflect(min_value = 0.0, step = 0.05, setter = "set_friction")]
     pub(crate) friction: InheritableVariable<f32>,
 
     #[reflect(setter = "set_density")]
     pub(crate) density: InheritableVariable<Option<f32>>,
 
-    #[inspect(min_value = 0.0, step = 0.05)]
-    #[reflect(setter = "set_restitution")]
+    #[reflect(min_value = 0.0, step = 0.05, setter = "set_restitution")]
     pub(crate) restitution: InheritableVariable<f32>,
 
     #[reflect(setter = "set_is_sensor")]
@@ -488,7 +477,6 @@ pub struct Collider {
     pub(crate) restitution_combine_rule: InheritableVariable<CoefficientCombineRule>,
 
     #[visit(skip)]
-    #[inspect(skip)]
     #[reflect(hidden)]
     pub(crate) native: Cell<ColliderHandle>,
 }
