@@ -20,7 +20,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, ray::Ray, Rect},
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},

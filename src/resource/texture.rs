@@ -26,7 +26,7 @@ use crate::{
         futures::io::Error,
         inspect::{Inspect, PropertyInfo},
         io::{self, FileLoadError},
-        reflect::Reflect,
+        reflect::prelude::*,
         visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
     },
     engine::resource_manager::options::ImportOptions,

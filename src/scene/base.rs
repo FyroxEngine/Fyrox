@@ -8,7 +8,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{ErasedHandle, Handle},
-        reflect::Reflect,
+        reflect::prelude::*,
         variable::InheritableVariable,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
@@ -1145,7 +1145,7 @@ impl BaseBuilder {
 #[cfg(test)]
 pub mod test {
     use crate::{
-        core::{reflect::Reflect, variable::try_inherit_properties},
+        core::{reflect::prelude::*, variable::try_inherit_properties},
         scene::base::{BaseBuilder, LevelOfDetail, LodGroup, Mobility},
     };
 

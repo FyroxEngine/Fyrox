@@ -9,7 +9,7 @@ use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::{Handle, Pool},
-        reflect::Reflect,
+        reflect::prelude::*,
         visitor::prelude::*,
     },
 };

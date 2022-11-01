@@ -1,4 +1,4 @@
-use fyrox::core::{inspect::prelude::*, reflect::Reflect};
+use fyrox::core::{inspect::prelude::*, reflect::prelude::*};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Inspect, Reflect, Eq)]

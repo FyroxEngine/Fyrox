@@ -35,7 +35,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         instant,
         pool::{Handle, Pool, Ticket},
-        reflect::Reflect,
+        reflect::prelude::*,
         sstorage::ImmutableString,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },

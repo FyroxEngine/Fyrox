@@ -7,7 +7,7 @@ use crate::{
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         io::{self, FileLoadError},
-        reflect::Reflect,
+        reflect::prelude::*,
         sparse::AtomicIndex,
         visitor::prelude::*,
     },

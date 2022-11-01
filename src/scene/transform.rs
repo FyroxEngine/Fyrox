@@ -48,7 +48,7 @@ use crate::{
     core::{
         algebra::{Matrix3, Matrix4, UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
-        reflect::Reflect,
+        reflect::prelude::*,
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },

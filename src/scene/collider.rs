@@ -8,7 +8,7 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         num_traits::{NumCast, One, ToPrimitive, Zero},
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,

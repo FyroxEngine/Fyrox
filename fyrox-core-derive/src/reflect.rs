@@ -4,9 +4,11 @@ pub mod args;
 mod prop;
 mod syntax;
 
+use convert_case::{Case, Casing};
 use darling::ast;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
+use syn::Index;
 
 use prop::Property;
 
@@ -19,6 +21,7 @@ pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
             quote!(vec![]),
             quote!(vec![]),
             None,
+            quote!(vec![]),
         );
     }
 
@@ -33,7 +36,93 @@ pub fn impl_prop_constants(ty_args: &args::TypeArgs) -> TokenStream2 {
     prop::impl_prop_constants(prop_keys.iter(), &ty_args.ident, &ty_args.generics)
 }
 
-fn impl_reflect_struct(ty_args: &args::TypeArgs, _field_args: &args::Fields) -> TokenStream2 {
+pub fn gen_fields_metadata_body(
+    props: &[Property],
+    field_args: &ast::Fields<args::FieldArgs>,
+) -> TokenStream2 {
+    // `inspect` function body, consisting of a sequence of quotes
+    let mut quotes = Vec::new();
+
+    let props = field_args
+        .fields
+        .iter()
+        .enumerate()
+        .filter(|(_i, f)| !f.hidden)
+        .zip(props)
+        .map(|((i, field), prop)| self::quote_field_prop(&prop.value, i, field));
+
+    quotes.push(quote! {
+        let mut props = Vec::new();
+        #(props.push(#props);)*
+    });
+
+    // concatenate the quotes
+    quote! {
+        #(#quotes)*
+        props
+    }
+}
+
+/// `PropertyInfo { .. }`
+fn quote_field_prop(
+    prop_key_name: &str,
+    nth_field: usize,
+    field: &args::FieldArgs,
+) -> TokenStream2 {
+    let field_ident = match &field.ident {
+        Some(ident) => quote!(#ident),
+        None => {
+            let nth_field = Index::from(nth_field);
+            quote!(#nth_field)
+        }
+    };
+
+    let display_name = field
+        .display_name
+        .clone()
+        .unwrap_or_else(|| field_ident.to_string());
+    let display_name = display_name.to_case(Case::Title);
+
+    let min_value = match field.min_value {
+        None => quote! { None },
+        Some(v) => quote! { Some(#v)},
+    };
+
+    let max_value = match field.max_value {
+        None => quote! { None },
+        Some(v) => quote! { Some(#v)},
+    };
+
+    let step = match field.step {
+        None => quote! { None },
+        Some(v) => quote! { Some(#v) },
+    };
+
+    let precision = match field.precision {
+        None => quote! { None },
+        Some(v) => quote! { Some(#v) },
+    };
+
+    let read_only = field.read_only;
+
+    let description = field.description.clone().unwrap_or_default();
+
+    quote! {
+        Metadata {
+            owner_type_id: std::any::TypeId::of::<Self>(),
+            name: #prop_key_name,
+            display_name: #display_name,
+            read_only: #read_only,
+            min_value: #min_value,
+            max_value: #max_value,
+            step: #step,
+            precision: #precision,
+            description: #description,
+        }
+    }
+}
+
+fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> TokenStream2 {
     // Property keys for `Reflect::{field, field_mut, set_field}` impls:
     let props = prop::props(ty_args).collect::<Vec<_>>();
     let prop_values = props.iter().map(|p| &p.value).collect::<Vec<_>>();
@@ -48,6 +137,8 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, _field_args: &args::Fields) -> 
     let (fields, field_muts) = self::collect_field_refs(&props, &fields, &field_muts);
     let fields = fields.collect::<Vec<_>>();
     let field_muts = field_muts.collect::<Vec<_>>();
+
+    let metadata = gen_fields_metadata_body(&props, field_args);
 
     let field_body = quote! {
         match name {
@@ -91,6 +182,7 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, _field_args: &args::Fields) -> 
         fields_body,
         fields_mut_body,
         set_field_body,
+        metadata,
     )
 }
 
@@ -138,6 +230,7 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
 fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
     let mut fields_list = Vec::new();
     let mut fields_list_mut = Vec::new();
+    let mut fields_metadata = Vec::new();
     let (fields, field_muts): (Vec<_>, Vec<_>) = variant_args
         .iter()
         .map(|v| {
@@ -152,6 +245,8 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                 .iter()
                 .map(|(i, f)| prop::enum_prop(v, *i, f))
                 .collect::<Vec<_>>();
+
+            let metadata = gen_fields_metadata_body(&props, &v.fields);
 
             let prop_values = props.iter().map(|p| &p.value).collect::<Vec<_>>();
 
@@ -213,6 +308,13 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                 }
             });
 
+            fields_metadata.push(quote! {
+                match self {
+                    #matcher => return  { #metadata },
+                    _ => (),
+                }
+            });
+
             (fields, field_muts)
         })
         .unzip();
@@ -225,6 +327,7 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             quote!(vec![]),
             quote!(vec![]),
             None,
+            quote!(vec![]),
         )
     } else {
         let field_body = quote! {
@@ -261,6 +364,14 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             vec![]
         };
 
+        let fields_metadata_body = quote! {
+            #(
+                #fields_metadata
+            )*
+
+            vec![]
+        };
+
         self::gen_impl(
             ty_args,
             field_body,
@@ -268,6 +379,7 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             fields_body,
             fields_mut_body,
             None,
+            fields_metadata_body,
         )
     }
 }
@@ -279,6 +391,7 @@ fn gen_impl(
     fields: TokenStream2,
     fields_mut: TokenStream2,
     set_field: Option<TokenStream2>,
+    metadata: TokenStream2,
 ) -> TokenStream2 {
     let ty_ident = &ty_args.ident;
     let generics = ty_args.impl_generics();
@@ -298,6 +411,10 @@ fn gen_impl(
     quote! {
         #[allow(warnings)]
         impl #impl_generics Reflect for #ty_ident #ty_generics #where_clause {
+            fn fields_metadata(&self) -> Vec<Metadata> {
+                #metadata
+            }
+
             fn into_any(self: Box<Self>) -> Box<dyn ::core::any::Any> {
                 self
             }

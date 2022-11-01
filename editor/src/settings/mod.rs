@@ -12,7 +12,7 @@ use fyrox::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         scope_profile,
     },
     gui::{

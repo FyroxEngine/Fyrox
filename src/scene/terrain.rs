@@ -9,7 +9,7 @@ use crate::{
             aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect, TriangleDefinition,
         },
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{prelude::*, PodVecView},

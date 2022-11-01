@@ -30,7 +30,7 @@ use crate::{
         instant,
         math::Matrix4Ext,
         pool::{Handle, MultiBorrowContext, Pool, Ticket},
-        reflect::Reflect,
+        reflect::prelude::*,
         variable::try_inherit_properties,
         visitor::{Visit, VisitResult, Visitor},
     },

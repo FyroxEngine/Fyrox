@@ -3,10 +3,11 @@
 //! See [Material struct docs](self::Material) for more info.
 
 #![warn(missing_docs)]
-use crate::core::inspect::prelude::*;
-use crate::core::reflect::Reflect;
+
 use crate::{
     asset::ResourceState,
+    core::inspect::prelude::*,
+    core::reflect::prelude::*,
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,

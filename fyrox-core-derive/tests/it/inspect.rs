@@ -4,7 +4,7 @@ use std::any::TypeId;
 
 use fyrox_core::{
     inspect::{Inspect, PropertyInfo},
-    reflect::Reflect,
+    reflect::prelude::*,
 };
 
 fn default_prop() -> PropertyInfo<'static> {

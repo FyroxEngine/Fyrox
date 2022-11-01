@@ -38,7 +38,7 @@ use crate::{
 use fyrox_core::{
     algebra::Vector3,
     inspect::{Inspect, PropertyInfo},
-    reflect::Reflect,
+    reflect::prelude::*,
     visitor::{Visit, VisitResult, Visitor},
 };
 use fyrox_resource::ResourceState;

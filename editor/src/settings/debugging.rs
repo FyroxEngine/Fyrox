@@ -1,6 +1,6 @@
 use fyrox::core::{
     inspect::{Inspect, PropertyInfo},
-    reflect::Reflect,
+    reflect::prelude::*,
 };
 use serde::{Deserialize, Serialize};
 

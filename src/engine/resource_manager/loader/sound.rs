@@ -3,7 +3,7 @@
 use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
-        reflect::Reflect,
+        reflect::prelude::*,
     },
     engine::resource_manager::{
         container::event::ResourceEventBroadcaster,

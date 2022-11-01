@@ -6,7 +6,7 @@ use crate::{
     core::{
         algebra::Vector3,
         inspect::{Inspect, PropertyInfo},
-        reflect::Reflect,
+        reflect::prelude::*,
         visitor::prelude::*,
     },
     scene::particle_system::{

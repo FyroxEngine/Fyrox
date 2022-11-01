@@ -12,7 +12,7 @@ use crate::{
         math::Matrix4Ext,
         parking_lot::Mutex,
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         variable::VariableFlags,
         visitor::prelude::*,
         BiDirHashMap,

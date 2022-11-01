@@ -3,7 +3,7 @@
 use crate::{
     animation::machine::{AnimationsPack, Machine, MachineDefinition, MachineInstantiationError},
     asset::{define_new_resource, Resource, ResourceData},
-    core::reflect::Reflect,
+    core::reflect::prelude::*,
     core::{pool::Handle, visitor::prelude::*},
     engine::resource_manager::{options::ImportOptions, ResourceManager},
     scene::{node::Node, Scene},

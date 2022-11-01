@@ -988,7 +988,7 @@ impl Drop for Engine {
 mod test {
     use crate::{
         core::{
-            inspect::prelude::*, pool::Handle, reflect::Reflect, uuid::Uuid, visitor::prelude::*,
+            inspect::prelude::*, pool::Handle, reflect::prelude::*, uuid::Uuid, visitor::prelude::*,
         },
         engine::{resource_manager::ResourceManager, ScriptProcessor},
         impl_component_provider,

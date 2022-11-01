@@ -4,7 +4,7 @@
 
 use crate::{
     inspect::{Inspect, PropertyInfo},
-    reflect::{Reflect, ReflectArray, ReflectInheritableVariable, ReflectList},
+    reflect::{prelude::*, ReflectArray, ReflectInheritableVariable, ReflectList},
     visitor::prelude::*,
 };
 use bitflags::bitflags;
@@ -254,6 +254,10 @@ impl<T> Reflect for InheritableVariable<T>
 where
     T: Reflect + Clone + PartialEq + Debug,
 {
+    fn fields_metadata(&self) -> Vec<Metadata> {
+        self.value.fields_metadata()
+    }
+
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
         Box::new(self.value).into_any()
     }
@@ -464,7 +468,7 @@ pub fn reset_inheritable_properties(object: &mut dyn Reflect) {
 #[cfg(test)]
 mod test {
     use crate::{
-        reflect::{Reflect, ReflectInheritableVariable},
+        reflect::{prelude::*, ReflectInheritableVariable},
         variable::{try_inherit_properties, InheritableVariable},
     };
 

@@ -21,7 +21,7 @@ use crate::{
         algebra::Vector3,
         color::Color,
         inspect::{Inspect, PropertyInfo},
-        reflect::Reflect,
+        reflect::prelude::*,
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },

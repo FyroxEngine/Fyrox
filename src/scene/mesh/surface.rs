@@ -12,7 +12,7 @@ use crate::{
         math::TriangleDefinition,
         parking_lot::{Mutex, MutexGuard},
         pool::{ErasedHandle, Handle},
-        reflect::Reflect,
+        reflect::prelude::*,
         sparse::AtomicIndex,
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},

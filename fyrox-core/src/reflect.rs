@@ -12,6 +12,41 @@ use std::{
 };
 use thiserror::Error;
 
+pub mod prelude {
+    pub use super::Metadata;
+    pub use super::Reflect;
+}
+
+#[derive(PartialEq, Debug)]
+pub struct Metadata {
+    /// A type id of the owner of the property.
+    pub owner_type_id: TypeId,
+
+    /// A name of the property.
+    pub name: &'static str,
+
+    /// A human-readable name of the property.
+    pub display_name: &'static str,
+
+    /// Description of the property.
+    pub description: &'static str,
+
+    /// A property is not meant to be edited.
+    pub read_only: bool,
+
+    /// A minimal value of the property. Works only with numeric properties!
+    pub min_value: Option<f64>,
+
+    /// A minimal value of the property. Works only with numeric properties!
+    pub max_value: Option<f64>,
+
+    /// A minimal value of the property. Works only with numeric properties!
+    pub step: Option<f64>,
+
+    /// Maximum amount of decimal places for a numeric property.
+    pub precision: Option<usize>,
+}
+
 /// Trait for runtime reflection
 ///
 /// Derive macro is available.
@@ -25,6 +60,8 @@ use thiserror::Error;
 /// - `#[reflect(field = <method call>)]
 /// - `#[reflect(field_mut = <method call>)]
 pub trait Reflect: Any {
+    fn fields_metadata(&self) -> Vec<Metadata>;
+
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
     fn as_any(&self) -> &dyn Any;
@@ -416,6 +453,10 @@ impl fmt::Debug for dyn Reflect + 'static + Send {
 #[macro_export]
 macro_rules! blank_reflect {
     () => {
+        fn fields_metadata(&self) -> Vec<Metadata> {
+            vec![]
+        }
+
         fn into_any(self: Box<Self>) -> Box<dyn Any> {
             self
         }
@@ -462,6 +503,10 @@ macro_rules! blank_reflect {
 #[macro_export]
 macro_rules! delegate_reflect {
     () => {
+        fn fields_metadata(&self) -> Vec<Metadata> {
+            self.deref().fields_metadata()
+        }
+
         fn into_any(self: Box<Self>) -> Box<dyn Any> {
             (*self).into_any()
         }

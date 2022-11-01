@@ -78,7 +78,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,

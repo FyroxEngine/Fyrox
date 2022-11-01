@@ -3,7 +3,7 @@
 //! See [NodeHandleMap] docs for more info.
 
 use crate::{
-    core::{pool::Handle, reflect::Reflect, variable::InheritableVariable},
+    core::{pool::Handle, reflect::prelude::*, variable::InheritableVariable},
     scene::node::Node,
     utils::log::Log,
 };

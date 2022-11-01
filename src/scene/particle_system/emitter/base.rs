@@ -6,7 +6,7 @@ use crate::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
         numeric_range::RangeExt,
-        reflect::Reflect,
+        reflect::prelude::*,
         visitor::prelude::*,
     },
     scene::particle_system::Particle,

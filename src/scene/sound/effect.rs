@@ -5,7 +5,7 @@ use crate::{
         define_is_as,
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         variable::InheritableVariable,
         visitor::prelude::*,
     },

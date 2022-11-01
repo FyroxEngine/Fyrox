@@ -7,7 +7,7 @@ use crate::{
         algebra::Vector2,
         inspect::{Inspect, PropertyInfo},
         pool::{Handle, Pool},
-        reflect::Reflect,
+        reflect::prelude::*,
         visitor::prelude::*,
     },
 };

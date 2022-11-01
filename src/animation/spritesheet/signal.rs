@@ -1,7 +1,7 @@
 //! Animation signal is used as a point at which to notify external observers that animation just
 //! started to play a specific frame.
 
-use crate::core::{inspect::prelude::*, reflect::Reflect, visitor::prelude::*};
+use crate::core::{inspect::prelude::*, reflect::prelude::*, visitor::prelude::*};
 
 /// Animation signal is used as a point at which to notify external observers that animation just
 /// started to play a specific frame.

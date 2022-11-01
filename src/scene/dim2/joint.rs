@@ -6,7 +6,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,

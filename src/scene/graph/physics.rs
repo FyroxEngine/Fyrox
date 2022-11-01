@@ -12,7 +12,7 @@ use crate::{
         instant,
         math::Matrix4Ext,
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         variable::VariableFlags,
         visitor::prelude::*,
         BiDirHashMap,

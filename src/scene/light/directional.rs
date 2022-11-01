@@ -12,7 +12,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},

@@ -15,7 +15,7 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         parking_lot::Mutex,
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,

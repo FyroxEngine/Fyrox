@@ -16,6 +16,7 @@ use crate::{
     scene::{node::Node, Scene},
     utils::{component::ComponentProvider, log::Log},
 };
+use fyrox_core::reflect::Metadata;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -161,7 +162,7 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     ///     scene::node::TypeUuidProvider,
     ///     core::visitor::prelude::*,
     ///     core::inspect::{Inspect, PropertyInfo},
-    ///     core::reflect::Reflect,
+    ///     core::reflect::prelude::*,
     ///     core::uuid::Uuid,
     ///     script::ScriptTrait,
     ///     core::uuid::uuid, impl_component_provider
@@ -254,6 +255,10 @@ impl Reflect for Script {
 
     fn fields_mut(&mut self) -> Vec<&mut dyn Reflect> {
         self.instance.deref_mut().fields_mut()
+    }
+
+    fn fields_metadata(&self) -> Vec<Metadata> {
+        self.instance.fields_metadata()
     }
 }
 
@@ -361,7 +366,7 @@ impl Script {
 mod test {
     use crate::{
         core::{
-            inspect::prelude::*, reflect::Reflect, uuid::Uuid, variable::try_inherit_properties,
+            inspect::prelude::*, reflect::prelude::*, uuid::Uuid, variable::try_inherit_properties,
             variable::InheritableVariable, visitor::prelude::*,
         },
         impl_component_provider,

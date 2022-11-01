@@ -1,5 +1,5 @@
 use crate::camera;
-use fyrox::core::{algebra::Vector3, inspect::prelude::*, reflect::Reflect};
+use fyrox::core::{algebra::Vector3, inspect::prelude::*, reflect::prelude::*};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 

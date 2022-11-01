@@ -14,7 +14,7 @@ use crate::{
     inspect::prelude::*,
     math::ray::IntersectionResult,
     num_traits::{NumAssign, Zero},
-    reflect::Reflect,
+    reflect::prelude::*,
     visitor::prelude::*,
 };
 use std::ops::{Index, IndexMut};

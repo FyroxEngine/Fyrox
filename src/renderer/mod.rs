@@ -41,7 +41,7 @@ use crate::{
         instant,
         math::Rect,
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         scope_profile,
     },
     engine::resource_manager::{container::event::ResourceEvent, ResourceManager},

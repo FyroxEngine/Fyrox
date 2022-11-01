@@ -1,7 +1,7 @@
 use fyrox::{
     core::{
         inspect::{Inspect, PropertyInfo},
-        reflect::Reflect,
+        reflect::prelude::*,
     },
     renderer::QualitySettings,
 };

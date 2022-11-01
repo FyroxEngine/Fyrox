@@ -11,7 +11,7 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },

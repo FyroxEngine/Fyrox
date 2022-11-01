@@ -20,7 +20,7 @@ use crate::{
 use fyrox_core::{
     inspect::{Inspect, PropertyInfo},
     pool::{Handle, Pool},
-    reflect::Reflect,
+    reflect::prelude::*,
     visitor::prelude::*,
 };
 use std::{

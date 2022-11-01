@@ -59,7 +59,7 @@ use crate::{
 };
 use fyrox_core::{
     inspect::{Inspect, PropertyInfo},
-    reflect::Reflect,
+    reflect::prelude::*,
     visitor::{Visit, VisitResult, Visitor},
 };
 use hrtf::HrirSphere;

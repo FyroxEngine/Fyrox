@@ -1,6 +1,6 @@
 use crate::core::{
     inspect::{Inspect, PropertyInfo},
-    reflect::Reflect,
+    reflect::prelude::*,
     visitor::prelude::*,
 };
 use fxhash::FxHashMap;

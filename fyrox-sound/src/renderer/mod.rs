@@ -14,7 +14,7 @@ use crate::{
 use fyrox_core::math::lerpf;
 use fyrox_core::{
     inspect::{Inspect, PropertyInfo},
-    reflect::Reflect,
+    reflect::prelude::*,
     visitor::{Visit, VisitResult, Visitor},
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};

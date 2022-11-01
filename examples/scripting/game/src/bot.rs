@@ -8,7 +8,7 @@ use fyrox::{
         algebra::{UnitQuaternion, Vector3},
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },

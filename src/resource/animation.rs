@@ -3,7 +3,7 @@
 use crate::{
     animation::{definition::AnimationDefinition, Animation, AnimationContainer},
     asset::{define_new_resource, Resource, ResourceData},
-    core::{io::FileLoadError, pool::Handle, reflect::Reflect, visitor::prelude::*},
+    core::{io::FileLoadError, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     engine::resource_manager::options::ImportOptions,
     scene::{graph::Graph, node::Node},
 };

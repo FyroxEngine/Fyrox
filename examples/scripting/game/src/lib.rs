@@ -6,7 +6,7 @@ use fyrox::{
         futures::executor::block_on,
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },

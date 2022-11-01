@@ -3,7 +3,7 @@ use crate::{
     core::{
         inspect::{Inspect, PropertyInfo},
         pool::Handle,
-        reflect::Reflect,
+        reflect::prelude::*,
         visitor::prelude::*,
     },
 };

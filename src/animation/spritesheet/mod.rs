@@ -6,7 +6,7 @@
 use crate::{
     animation::spritesheet::signal::Signal,
     core::{
-        algebra::Vector2, inspect::prelude::*, math::Rect, reflect::Reflect, visitor::prelude::*,
+        algebra::Vector2, inspect::prelude::*, math::Rect, reflect::prelude::*, visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
     resource::texture::Texture,

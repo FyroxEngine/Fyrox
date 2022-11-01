@@ -1,7 +1,7 @@
 use fyrox::core::{
     algebra::Vector3,
     inspect::{Inspect, PropertyInfo},
-    reflect::Reflect,
+    reflect::prelude::*,
 };
 use serde::{Deserialize, Serialize};
 
