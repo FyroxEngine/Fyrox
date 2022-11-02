@@ -332,9 +332,9 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     /// It should at least return `Some(self)` for `type_id == TypeId::of::<Self>`.
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any>;
 
-    fn resolve(&mut self, _node_map: &NodeHandleMapping) {}
+    fn resolve(&mut self, #[allow(unused_variables)] node_map: &NodeHandleMapping) {}
 
-    fn on_remove(&self, _sender: &Sender<UiMessage>) {}
+    fn on_remove(&self, #[allow(unused_variables)] sender: &Sender<UiMessage>) {}
 
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
@@ -348,9 +348,14 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
         self.deref().arrange_override(ui, final_size)
     }
 
-    fn draw(&self, _drawing_context: &mut DrawingContext) {}
+    fn draw(&self, #[allow(unused_variables)] drawing_context: &mut DrawingContext) {}
 
-    fn update(&mut self, _dt: f32, _sender: &Sender<UiMessage>) {}
+    fn update(
+        &mut self,
+        #[allow(unused_variables)] dt: f32,
+        #[allow(unused_variables)] sender: &Sender<UiMessage>,
+    ) {
+    }
 
     /// Performs event-specific actions. Must call widget.handle_message()!
     ///
@@ -380,7 +385,11 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     ///
     /// The order of execution of this method is undefined! There is no guarantee that it will be called
     /// hierarchically as widgets connected.
-    fn preview_message(&self, _ui: &UserInterface, _message: &mut UiMessage) {
+    fn preview_message(
+        &self,
+        #[allow(unused_variables)] ui: &UserInterface,
+        #[allow(unused_variables)] message: &mut UiMessage,
+    ) {
         // This method is optional.
     }
 
@@ -394,9 +403,9 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     /// force library to call `handle_os_event`!
     fn handle_os_event(
         &mut self,
-        _self_handle: Handle<UiNode>,
-        _ui: &mut UserInterface,
-        _event: &OsEvent,
+        #[allow(unused_variables)] self_handle: Handle<UiNode>,
+        #[allow(unused_variables)] ui: &mut UserInterface,
+        #[allow(unused_variables)] event: &OsEvent,
     ) {
     }
 }
