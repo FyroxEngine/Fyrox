@@ -27,6 +27,8 @@ pub struct PathVertex {
     #[visit(skip)]
     state: PathVertexState,
     #[visit(skip)]
+    g_penalty: f32,
+    #[visit(skip)]
     g_score: f32,
     #[visit(skip)]
     f_score: f32,
@@ -40,6 +42,7 @@ impl Default for PathVertex {
         Self {
             position: Default::default(),
             parent: None,
+            g_penalty: 1f32,
             g_score: f32::MAX,
             f_score: f32::MAX,
             state: PathVertexState::NonVisited,
@@ -54,6 +57,7 @@ impl PathVertex {
         Self {
             position,
             parent: None,
+            g_penalty: 1f32,
             g_score: f32::MAX,
             f_score: f32::MAX,
             state: PathVertexState::NonVisited,
@@ -66,7 +70,15 @@ impl PathVertex {
         &self.neighbours
     }
 
+    /// Sets penalty for vertex g_score calculation
+    /// Penalty can be interpreted as measure, how harder is to travel
+    /// to this vertex.
+    pub fn set_penalty(&mut self, new_penalty: f32){
+        self.g_penalty = new_penalty;
+    }
+
     fn clear(&mut self) {
+        self.g_penalty = 1f32;
         self.g_score = f32::MAX;
         self.f_score = f32::MAX;
         self.state = PathVertexState::NonVisited;
@@ -262,7 +274,7 @@ impl PathFinder {
                     .ok_or(PathError::InvalidIndex(*neighbour_index as usize))?;
 
                 let g_score = current_vertex.g_score
-                    + (current_vertex.position - neighbour.position).norm_squared();
+                    + ((current_vertex.position - neighbour.position).norm_squared()*neighbour.g_penalty);
                 if g_score < neighbour.g_score {
                     neighbour.parent = Some(current_index);
                     neighbour.g_score = g_score;
