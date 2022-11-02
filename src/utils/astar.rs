@@ -73,7 +73,7 @@ impl PathVertex {
     /// Sets penalty for vertex g_score calculation
     /// Penalty can be interpreted as measure, how harder is to travel
     /// to this vertex.
-    pub fn set_penalty(&mut self, new_penalty: f32){
+    pub fn set_penalty(&mut self, new_penalty: f32) {
         self.g_penalty = new_penalty;
     }
 
@@ -274,7 +274,8 @@ impl PathFinder {
                     .ok_or(PathError::InvalidIndex(*neighbour_index as usize))?;
 
                 let g_score = current_vertex.g_score
-                    + ((current_vertex.position - neighbour.position).norm_squared()*neighbour.g_penalty);
+                    + ((current_vertex.position - neighbour.position).norm_squared()
+                        * neighbour.g_penalty);
                 if g_score < neighbour.g_score {
                     neighbour.parent = Some(current_index);
                     neighbour.g_score = g_score;
