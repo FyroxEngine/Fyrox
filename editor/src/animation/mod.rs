@@ -1,7 +1,8 @@
 #![allow(dead_code)] // TODO
 
 use crate::scene::{
-    selector::{HierarchyNode, NodeSelectorWindowBuilder},
+    property::{object_to_property_tree, PropertySelectorWindowBuilder},
+    selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
     EditorScene,
 };
 use fyrox::{
@@ -117,6 +118,7 @@ struct TrackList {
     list: Handle<UiNode>,
     add_track: Handle<UiNode>,
     node_selector: Handle<UiNode>,
+    property_selector: Handle<UiNode>,
 }
 
 impl TrackList {
@@ -163,6 +165,7 @@ impl TrackList {
             list,
             add_track,
             node_selector: Default::default(),
+            property_selector: Default::default(),
         }
     }
 
@@ -200,11 +203,38 @@ impl TrackList {
                 }
             }
         } else if let Some(WindowMessage::Close) = message.data() {
-            if message.destination() == self.node_selector {
+            if message.destination() == self.node_selector
+                || message.destination() == self.property_selector
+            {
                 ui.send_message(WidgetMessage::remove(
-                    self.node_selector,
+                    message.destination(),
                     MessageDirection::ToWidget,
                 ));
+            }
+        } else if let Some(NodeSelectorMessage::Selection(selection)) = message.data() {
+            if message.destination() == self.node_selector {
+                if let Some(editor_scene) = editor_scene {
+                    let scene = &engine.scenes[editor_scene.scene];
+                    if let Some(first) = selection.first() {
+                        self.property_selector = PropertySelectorWindowBuilder::new(
+                            WindowBuilder::new(
+                                WidgetBuilder::new().with_width(300.0).with_height(400.0),
+                            )
+                            .open(false),
+                        )
+                        .with_property_descriptors(object_to_property_tree(
+                            "",
+                            scene.graph[*first].as_reflect(),
+                        ))
+                        .build(&mut ui.build_ctx());
+
+                        ui.send_message(WindowMessage::open_modal(
+                            self.property_selector,
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
+                    }
+                }
             }
         }
     }
