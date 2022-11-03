@@ -1,12 +1,17 @@
 #![allow(dead_code)] // TODO
 
-use crate::scene::{
-    property::{object_to_property_tree, PropertySelectorWindowBuilder},
-    selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-    EditorScene,
+use crate::{
+    animation::command::AnimationCommandStack,
+    scene::{
+        property::{
+            object_to_property_tree, PropertySelectorMessage, PropertySelectorWindowBuilder,
+        },
+        selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
+        EditorScene,
+    },
 };
 use fyrox::{
-    core::pool::Handle,
+    core::{pool::Handle, reflect::ResolvePath},
     engine::Engine,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
@@ -21,7 +26,10 @@ use fyrox::{
         BuildContext, Orientation, Thickness, UiNode, UserInterface,
     },
     resource::animation::AnimationResource,
+    scene::node::Node,
 };
+
+pub mod command;
 
 struct Menu {
     menu: Handle<UiNode>,
@@ -119,6 +127,7 @@ struct TrackList {
     add_track: Handle<UiNode>,
     node_selector: Handle<UiNode>,
     property_selector: Handle<UiNode>,
+    selected_node: Handle<Node>,
 }
 
 impl TrackList {
@@ -166,6 +175,7 @@ impl TrackList {
             add_track,
             node_selector: Default::default(),
             property_selector: Default::default(),
+            selected_node: Default::default(),
         }
     }
 
@@ -216,6 +226,8 @@ impl TrackList {
                 if let Some(editor_scene) = editor_scene {
                     let scene = &engine.scenes[editor_scene.scene];
                     if let Some(first) = selection.first() {
+                        self.selected_node = *first;
+
                         self.property_selector = PropertySelectorWindowBuilder::new(
                             WindowBuilder::new(
                                 WidgetBuilder::new().with_width(300.0).with_height(400.0),
@@ -236,6 +248,22 @@ impl TrackList {
                     }
                 }
             }
+        } else if let Some(PropertySelectorMessage::Selection(selected_properties)) = message.data()
+        {
+            if message.destination() == self.property_selector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                if let Some(editor_scene) = editor_scene {
+                    let scene = &engine.scenes[editor_scene.scene];
+                    if let Some(node) = scene.graph.try_get(self.selected_node) {
+                        for property_path in selected_properties {
+                            if let Ok(_property) = node.as_reflect().resolve_path(property_path) {
+                                // TODO: Add tracks.
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -246,6 +274,7 @@ pub struct AnimationEditor {
     curve_editor: Handle<UiNode>,
     resource: Option<AnimationResource>,
     menu: Menu,
+    command_stack: AnimationCommandStack,
 }
 
 impl AnimationEditor {
@@ -298,6 +327,7 @@ impl AnimationEditor {
             curve_editor,
             resource: None,
             menu,
+            command_stack: AnimationCommandStack::new(false),
         }
     }
 
