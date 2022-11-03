@@ -277,8 +277,9 @@ pub enum ScriptMessage {
 /// links. It is useful to create various resources that can bind to any instance of the node. For example, an
 /// animation resource could be made for a specific node, but with the `instance_id` it can be retargetted to any
 /// instance of the node. Instance here means: any copy of the node in any resource (including nested prefabs).
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd, Default, Debug)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd, Default, Debug, Reflect)]
 #[repr(transparent)]
+#[reflect(hide_all)]
 pub struct InstanceId(pub Uuid);
 
 impl Visit for InstanceId {

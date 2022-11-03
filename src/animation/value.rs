@@ -1,7 +1,7 @@
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
-        reflect::{Reflect, ResolvePath},
+        reflect::{prelude::*, ResolvePath},
         visitor::prelude::*,
     },
     scene::node::Node,
@@ -49,7 +49,7 @@ impl TrackValue {
     }
 }
 
-#[derive(Clone, Visit, Debug, PartialEq, Eq)]
+#[derive(Clone, Visit, Reflect, Debug, PartialEq, Eq)]
 pub enum ValueBinding {
     Position,
     Scale,

@@ -4,11 +4,12 @@ use crate::{
         algebra::Vector3,
         curve::Curve,
         math::{quat_from_euler, RotationOrder},
+        reflect::prelude::*,
         visitor::prelude::*,
     },
 };
 
-#[derive(Clone, Copy, Debug, Visit, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Visit, Reflect, PartialEq, Eq)]
 pub enum TrackValueKind {
     Vector3,
     UnitQuaternion,
@@ -20,7 +21,7 @@ impl Default for TrackValueKind {
     }
 }
 
-#[derive(Visit, Debug, Clone, Default)]
+#[derive(Visit, Reflect, Debug, Clone, Default)]
 pub struct TrackFramesContainer {
     curves: Vec<Curve>,
     kind: TrackValueKind,

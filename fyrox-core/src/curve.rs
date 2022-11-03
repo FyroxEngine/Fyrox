@@ -1,5 +1,6 @@
 use crate::{
     math::{cubicf, lerpf},
+    reflect::prelude::*,
     visitor::prelude::*,
 };
 use std::cmp::Ordering;
@@ -116,7 +117,8 @@ impl CurveKey {
     }
 }
 
-#[derive(Visit, Default, Clone, Debug, PartialEq)]
+#[derive(Visit, Reflect, Default, Clone, Debug, PartialEq)]
+#[reflect(hide_all)]
 pub struct Curve {
     keys: Vec<CurveKey>,
 }

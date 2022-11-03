@@ -3,17 +3,17 @@ use crate::{
         container::{TrackFramesContainer, TrackValueKind},
         value::{BoundValue, ValueBinding},
     },
-    core::{pool::Handle, visitor::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     scene::{base::InstanceId, node::Node},
 };
 use std::fmt::Debug;
 
-pub trait TrackTarget: Visit + Debug + Copy + Clone + Default {}
+pub trait TrackTarget: Visit + Debug + Copy + Clone + Default + Reflect {}
 
 impl TrackTarget for Handle<Node> {}
 impl TrackTarget for InstanceId {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Reflect, Clone)]
 pub struct Track<T>
 where
     T: TrackTarget,

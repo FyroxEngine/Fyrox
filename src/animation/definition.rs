@@ -1,12 +1,12 @@
 use crate::{
     animation::{track::Track, Animation, AnimationContainer, NodeTrack},
-    core::{pool::Handle, visitor::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     scene::{base::InstanceId, graph::Graph, node::Node},
 };
 
 pub type ResourceTrack = Track<InstanceId>;
 
-#[derive(Visit, Default, Debug)]
+#[derive(Visit, Reflect, Default, Debug)]
 pub struct AnimationDefinition {
     tracks: Vec<ResourceTrack>,
 }
