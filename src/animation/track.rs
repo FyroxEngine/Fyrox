@@ -3,7 +3,7 @@ use crate::{
         container::{TrackFramesContainer, TrackValueKind},
         value::{BoundValue, ValueBinding},
     },
-    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     scene::{base::InstanceId, node::Node},
 };
 use std::fmt::Debug;
@@ -23,6 +23,7 @@ where
     enabled: bool,
     serialize_frames: bool,
     target: T,
+    id: Uuid,
 }
 
 impl<T> Visit for Track<T>
@@ -37,6 +38,7 @@ where
 
         let _ = self.binding.visit("Binding", &mut region); // Backward compatibility
         let _ = self.serialize_frames.visit("SerializeFrames", &mut region); // Backward compatibility
+        let _ = self.id.visit("Id", &mut region); // Backward compatibility
 
         if self.serialize_frames {
             self.frames.visit("Frames", &mut region)?;
@@ -59,6 +61,7 @@ where
             // instead they're restoring it from respective animation resource.
             serialize_frames: false,
             target: Default::default(),
+            id: Uuid::new_v4(),
         }
     }
 }
@@ -154,5 +157,9 @@ where
 
     pub fn is_serializing_frames(&self) -> bool {
         self.serialize_frames
+    }
+
+    pub fn id(&self) -> Uuid {
+        self.id
     }
 }
