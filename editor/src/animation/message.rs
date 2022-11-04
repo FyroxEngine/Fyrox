@@ -1,4 +1,5 @@
 use crate::animation::command::AnimationCommand;
+use std::path::PathBuf;
 
 pub enum Message {
     NewAnimation,
@@ -7,4 +8,5 @@ pub enum Message {
     Redo,
     ClearCommandStack,
     Exit,
+    Save(PathBuf),
 }

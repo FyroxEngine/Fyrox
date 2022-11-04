@@ -19,14 +19,15 @@ use fyrox::{
         definition::{AnimationDefinition, ResourceTrack},
         value::ValueBinding,
     },
-    asset::{Resource, ResourceState},
-    core::{pool::Handle, reflect::ResolvePath, uuid::Uuid},
+    asset::{Resource, ResourceData, ResourceState},
+    core::{pool::Handle, reflect::ResolvePath, uuid::Uuid, visitor::prelude::*},
     engine::Engine,
     gui::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
         curve::CurveEditorBuilder,
         decorator::DecoratorBuilder,
+        file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
         grid::{Column, GridBuilder, Row},
         list_view::{ListView, ListViewBuilder, ListViewMessage},
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
@@ -41,8 +42,10 @@ use fyrox::{
     scene::node::Node,
     utils::log::Log,
 };
+use std::rc::Rc;
 use std::{
     cmp::Ordering,
+    path::{Path, PathBuf},
     sync::mpsc::{self, Receiver, Sender},
 };
 
@@ -59,10 +62,43 @@ struct Menu {
     undo: Handle<UiNode>,
     redo: Handle<UiNode>,
     clear_command_stack: Handle<UiNode>,
+    save_file_dialog: Handle<UiNode>,
+    load_file_dialog: Handle<UiNode>,
+}
+
+pub fn make_file_dialog(
+    title: &str,
+    mode: FileBrowserMode,
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
+    FileSelectorBuilder::new(
+        WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+            .with_title(WindowTitle::text(title))
+            .open(false),
+    )
+    .with_mode(mode)
+    .with_path("./")
+    .with_filter(Filter::new(|p: &Path| {
+        if let Some(ext) = p.extension() {
+            ext.to_string_lossy().as_ref() == "anim"
+        } else {
+            p.is_dir()
+        }
+    }))
+    .build(ctx)
 }
 
 impl Menu {
     fn new(ctx: &mut BuildContext) -> Self {
+        let save_file_dialog = make_file_dialog(
+            "Save Animation As",
+            FileBrowserMode::Save {
+                default_file_name: PathBuf::from("unnamed.anim"),
+            },
+            ctx,
+        );
+        let load_file_dialog = make_file_dialog("Load Animation", FileBrowserMode::Open, ctx);
+
         let new;
         let load;
         let save;
@@ -144,6 +180,8 @@ impl Menu {
             undo,
             redo,
             clear_command_stack,
+            save_file_dialog,
+            load_file_dialog,
         }
     }
 }
@@ -152,18 +190,35 @@ impl Menu {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        _ui: &UserInterface,
+        ui: &UserInterface,
         sender: &Sender<Message>,
+        data_model: Option<&DataModel>,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.new {
                 sender.send(Message::NewAnimation).unwrap();
             } else if message.destination() == self.load {
-                todo!();
+                ui.send_message(WindowMessage::open_modal(
+                    self.load_file_dialog,
+                    MessageDirection::ToWidget,
+                    true,
+                ));
             } else if message.destination() == self.save {
-                unimplemented!();
+                if let Some(data_model) = data_model {
+                    if !data_model.saved
+                        && data_model.resource.data_ref().path() == PathBuf::default()
+                    {
+                        self.open_save_file_dialog(ui);
+                    } else {
+                        sender
+                            .send(Message::Save(
+                                data_model.resource.data_ref().path().to_path_buf(),
+                            ))
+                            .unwrap();
+                    }
+                }
             } else if message.destination() == self.save_as {
-                todo!();
+                self.open_save_file_dialog(ui);
             } else if message.destination() == self.exit {
                 sender.send(Message::Exit).unwrap();
             } else if message.destination() == self.undo {
@@ -173,7 +228,21 @@ impl Menu {
             } else if message.destination() == self.clear_command_stack {
                 sender.send(Message::ClearCommandStack).unwrap();
             }
+        } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
+            if message.destination() == self.save_file_dialog {
+                sender.send(Message::Save(path.clone())).unwrap();
+            } else if message.destination() == self.load_file_dialog {
+                // TODO
+            }
         }
+    }
+
+    pub fn open_save_file_dialog(&self, ui: &UserInterface) {
+        ui.send_message(WindowMessage::open_modal(
+            self.save_file_dialog,
+            MessageDirection::ToWidget,
+            true,
+        ));
     }
 }
 
@@ -389,6 +458,9 @@ impl TrackList {
                     {
                         let track_view = DecoratorBuilder::new(BorderBuilder::new(
                             WidgetBuilder::new()
+                                .with_user_data(Rc::new(TrackViewData {
+                                    id: model_track.id(),
+                                }))
                                 .with_height(18.0)
                                 .with_margin(Thickness::uniform(1.0))
                                 .with_child(
@@ -412,12 +484,34 @@ impl TrackList {
     }
 }
 
+struct DataModel {
+    saved: bool,
+    resource: AnimationResource,
+}
+
+impl DataModel {
+    pub fn save(&mut self, path: PathBuf) {
+        if !self.saved {
+            self.resource.data_ref().set_path(path.clone());
+            if let ResourceState::Ok(ref mut state) = *self.resource.state() {
+                let mut visitor = Visitor::new();
+                state
+                    .animation_definition
+                    .visit("Definition", &mut visitor)
+                    .unwrap();
+                visitor.save_binary(&path).unwrap();
+            }
+            self.saved = true;
+        }
+    }
+}
+
 pub struct AnimationEditor {
     pub window: Handle<UiNode>,
     track_list: TrackList,
     #[allow(dead_code)] // TODO
     curve_editor: Handle<UiNode>,
-    resource: Option<AnimationResource>,
+    data_model: Option<DataModel>,
     menu: Menu,
     command_stack: AnimationCommandStack,
     message_sender: Sender<Message>,
@@ -474,7 +568,7 @@ impl AnimationEditor {
             window,
             track_list,
             curve_editor,
-            resource: None,
+            data_model: None,
             menu,
             command_stack: AnimationCommandStack::new(false),
             message_sender,
@@ -498,8 +592,12 @@ impl AnimationEditor {
     ) {
         self.track_list
             .handle_ui_message(message, editor_scene, engine, &self.message_sender);
-        self.menu
-            .handle_ui_message(message, &engine.user_interface, &self.message_sender);
+        self.menu.handle_ui_message(
+            message,
+            &engine.user_interface,
+            &self.message_sender,
+            self.data_model.as_ref(),
+        );
     }
 
     pub fn update(&mut self, engine: &mut Engine) {
@@ -507,30 +605,33 @@ impl AnimationEditor {
         while let Ok(message) = self.message_receiver.try_recv() {
             match message {
                 Message::DoCommand(command) => {
-                    if let Some(resource) = self.resource.as_ref() {
-                        let resource = resource.data_ref();
+                    if let Some(data_model) = self.data_model.as_mut() {
+                        let resource = data_model.resource.data_ref();
                         self.command_stack
                             .do_command(command.0, AnimationEditorContext { resource });
+                        data_model.saved = false;
                         need_sync = true;
                     }
                 }
                 Message::Undo => {
-                    if let Some(resource) = self.resource.as_ref() {
-                        let resource = resource.data_ref();
+                    if let Some(data_model) = self.data_model.as_mut() {
+                        let resource = data_model.resource.data_ref();
                         self.command_stack.redo(AnimationEditorContext { resource });
+                        data_model.saved = false;
                         need_sync = true;
                     }
                 }
                 Message::Redo => {
-                    if let Some(resource) = self.resource.as_ref() {
-                        let resource = resource.data_ref();
+                    if let Some(data_model) = self.data_model.as_mut() {
+                        let resource = data_model.resource.data_ref();
                         self.command_stack.undo(AnimationEditorContext { resource });
+                        data_model.saved = false;
                         need_sync = true;
                     }
                 }
                 Message::ClearCommandStack => {
-                    if let Some(resource) = self.resource.as_ref() {
-                        let resource = resource.data_ref();
+                    if let Some(data_model) = self.data_model.as_ref() {
+                        let resource = data_model.resource.data_ref();
                         self.command_stack
                             .clear(AnimationEditorContext { resource });
                     }
@@ -542,10 +643,18 @@ impl AnimationEditor {
                     ));
                 }
                 Message::NewAnimation => {
-                    self.resource = Some(AnimationResource(Resource::new(ResourceState::Ok(
-                        AnimationResourceState::default(),
-                    ))));
+                    self.data_model = Some(DataModel {
+                        resource: AnimationResource(Resource::new(ResourceState::Ok(
+                            AnimationResourceState::default(),
+                        ))),
+                        saved: false,
+                    });
                     need_sync = true;
+                }
+                Message::Save(path) => {
+                    if let Some(data_model) = self.data_model.as_mut() {
+                        data_model.save(path);
+                    }
                 }
             }
         }
@@ -556,8 +665,8 @@ impl AnimationEditor {
     }
 
     fn sync_to_model(&mut self, engine: &mut Engine) {
-        if let Some(resource) = self.resource.as_ref() {
-            let resource = resource.data_ref();
+        if let Some(resource) = self.data_model.as_ref() {
+            let resource = resource.resource.data_ref();
             self.track_list
                 .sync_to_model(engine, &resource.animation_definition);
         }
