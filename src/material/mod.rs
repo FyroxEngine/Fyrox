@@ -20,6 +20,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::parking_lot::{Mutex, MutexGuard};
+use std::fmt::{Display, Formatter};
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -350,22 +351,15 @@ pub struct Material {
 }
 
 /// A set of possible errors that can occur when working with materials.
-#[derive(Clone, Debug, thiserror::Error)]
+#[derive(Clone, Debug)]
 pub enum MaterialError {
     /// A property is missing.
-    #[error("Unable to find material property {}", property_name)]
     NoSuchProperty {
         /// Name of the property.
         property_name: String,
     },
 
     /// Attempt to set a value of wrong type to a property.
-    #[error(
-        "Attempt to set a value of wrong type to {} property. Expected: {:?}, given {:?}",
-        property_name,
-        expected,
-        given
-    )]
     TypeMismatch {
         /// Name of the property.
         property_name: String,
@@ -374,6 +368,27 @@ pub enum MaterialError {
         /// Given property value.
         given: PropertyValue,
     },
+}
+
+impl Display for MaterialError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MaterialError::NoSuchProperty { property_name } => {
+                write!(f, "Unable to find material property {property_name}")
+            }
+            MaterialError::TypeMismatch {
+                property_name,
+                expected,
+                given,
+            } => {
+                write!(
+                    f,
+                    "Attempt to set a value of wrong type \
+                to {property_name} property. Expected: {expected:?}, given {given:?}"
+                )
+            }
+        }
+    }
 }
 
 impl Material {

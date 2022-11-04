@@ -10,6 +10,7 @@ use crate::core::algebra::Vector3;
 use crate::core::math::{self, PositionProvider};
 use crate::core::visitor::Visit;
 use fyrox_core::visitor::{VisitResult, Visitor};
+use std::fmt::{Display, Formatter};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 enum PathVertexState {
@@ -124,20 +125,33 @@ impl PositionProvider for PathVertex {
 
 /// Path search can be interrupted by errors, this enum stores all possible
 /// kinds of errors.
-#[derive(Clone, Debug, thiserror::Error)]
+#[derive(Clone, Debug)]
 pub enum PathError {
     /// Out-of-bounds vertex index has found, it can be either index of begin/end
     /// points, or some index of neighbour vertices in list of neighbours in vertex.
-    #[error("Invalid vertex index {0}.")]
     InvalidIndex(usize),
 
     /// There is a vertex that has itself as neighbour.
-    #[error("Cyclical reference was found {0}.")]
     CyclicReferenceFound(usize),
 
     /// User-defined error.
-    #[error("An error has occurred {0}")]
     Custom(String),
+}
+
+impl Display for PathError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PathError::InvalidIndex(v) => {
+                write!(f, "Invalid vertex index {v}.")
+            }
+            PathError::CyclicReferenceFound(v) => {
+                write!(f, "Cyclical reference was found {v}.")
+            }
+            PathError::Custom(v) => {
+                write!(f, "An error has occurred {v}")
+            }
+        }
+    }
 }
 
 impl PathFinder {

@@ -19,6 +19,7 @@ use crate::{
     },
 };
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::{
     borrow::Cow,
     io::Cursor,
@@ -274,15 +275,26 @@ impl ResourceData for ShaderState {
 }
 
 /// A set of possible error variants that can occur during shader loading.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum ShaderError {
     /// An i/o error has occurred.
-    #[error("A file load error has occurred {0:?}")]
     Io(FileLoadError),
 
     /// A parsing error has occurred.
-    #[error("A parsing error has occurred {0:?}")]
     ParseError(ron::error::SpannedError),
+}
+
+impl Display for ShaderError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ShaderError::Io(v) => {
+                write!(f, "A file load error has occurred {v:?}")
+            }
+            ShaderError::ParseError(v) => {
+                write!(f, "A parsing error has occurred {v:?}")
+            }
+        }
+    }
 }
 
 impl From<ron::error::SpannedError> for ShaderError {

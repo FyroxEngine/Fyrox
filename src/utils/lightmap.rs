@@ -35,6 +35,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use rayon::prelude::*;
+use std::fmt::{Display, Formatter};
 use std::{
     ops::Deref,
     path::Path,
@@ -197,14 +198,25 @@ impl Deref for ProgressIndicator {
 }
 
 /// An error that may occur during ligthmap generation.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum LightmapGenerationError {
     /// Generation was cancelled by user.
-    #[error("Lightmap generation was cancelled by the user.")]
     Cancelled,
     /// Vertex buffer of a mesh lacks required data.
-    #[error("Vertex buffer of a mesh lacks required data {0}.")]
     InvalidData(VertexFetchError),
+}
+
+impl Display for LightmapGenerationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LightmapGenerationError::Cancelled => {
+                write!(f, "Lightmap generation was cancelled by the user.")
+            }
+            LightmapGenerationError::InvalidData(v) => {
+                write!(f, "Vertex buffer of a mesh lacks required data {v}.")
+            }
+        }
+    }
 }
 
 impl From<VertexFetchError> for LightmapGenerationError {

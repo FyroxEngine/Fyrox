@@ -8,21 +8,36 @@ use crate::{
     scene::{graph::Graph, node::Node},
 };
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
 };
 
 /// An error that may occur during animation resource loading.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum AnimationResourceError {
     /// An i/o error has occurred.
-    #[error("A file load error has occurred {0:?}")]
     Io(FileLoadError),
 
     /// An error that may occur due to version incompatibilities.
-    #[error("An error that may occur due to version incompatibilities. {0:?}")]
     Visit(VisitError),
+}
+
+impl Display for AnimationResourceError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AnimationResourceError::Io(v) => {
+                write!(f, "A file load error has occurred {v:?}")
+            }
+            AnimationResourceError::Visit(v) => {
+                write!(
+                    f,
+                    "An error that may occur due to version incompatibilities. {v:?}"
+                )
+            }
+        }
+    }
 }
 
 impl From<FileLoadError> for AnimationResourceError {

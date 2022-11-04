@@ -90,6 +90,7 @@
 
 use fxhash::FxHashMap;
 use std::cmp::Ordering;
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use crate::animation::{Animation, AnimationHolder};
@@ -166,24 +167,45 @@ pub struct MachineDefinition {
 }
 
 /// An error that may occur during ABSM resource loading.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum MachineInstantiationError {
     /// An i/o error has occurred.
-    #[error("A file load error has occurred {0:?}")]
     Io(FileLoadError),
 
     /// An error that may occur due to version incompatibilities.
-    #[error("An error that may occur due to version incompatibilities. {0:?}")]
     Visit(VisitError),
 
     /// An error that may occur during instantiation of the ABSM. It means that an external
     /// animation resource wasn't able to load correctly.
-    #[error("An error that may occur during instantiation of the ABSM. {0:?}")]
     AnimationLoadError(Option<Arc<ModelLoadError>>),
 
     /// An animation is not valid.
-    #[error("An animation is not valid.")]
     InvalidAnimation,
+}
+
+impl Display for MachineInstantiationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MachineInstantiationError::Io(v) => {
+                write!(f, "A file load error has occurred {v:?}")
+            }
+            MachineInstantiationError::Visit(v) => {
+                write!(
+                    f,
+                    "An error that may occur due to version incompatibilities. {v:?}"
+                )
+            }
+            MachineInstantiationError::AnimationLoadError(v) => {
+                write!(
+                    f,
+                    "An error that may occur during instantiation of the ABSM. {v:?}"
+                )
+            }
+            MachineInstantiationError::InvalidAnimation => {
+                write!(f, "An animation is not valid.")
+            }
+        }
+    }
 }
 
 impl From<FileLoadError> for MachineInstantiationError {

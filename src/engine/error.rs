@@ -1,19 +1,29 @@
 //! All possible errors that can happen in the engine.
 
 use crate::{renderer::framework::error::FrameworkError, scene::sound::SoundError};
+use std::fmt::{Debug, Display, Formatter};
 
 /// See module docs.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum EngineError {
     /// Sound system error.
-    #[error(transparent)]
     Sound(SoundError),
     /// Rendering system error.
-    #[error(transparent)]
     Renderer(FrameworkError),
     /// Internal error.
-    #[error("Custom error: {0}")]
     Custom(String),
+}
+
+impl Display for EngineError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EngineError::Sound(v) => Display::fmt(v, f),
+            EngineError::Renderer(v) => Display::fmt(v, f),
+            EngineError::Custom(v) => {
+                write!(f, "Custom error: {v}")
+            }
+        }
+    }
 }
 
 impl From<SoundError> for EngineError {

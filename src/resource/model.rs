@@ -40,6 +40,7 @@ use crate::{
 };
 use fyrox_core::variable::reset_inheritable_properties;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
@@ -354,17 +355,28 @@ pub struct ModelInstance {
 
 /// All possible errors that may occur while trying to load model from some
 /// data source.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum ModelLoadError {
     /// An error occurred while reading a data source.
-    #[error("An error occurred while reading a data source {0:?}")]
     Visit(VisitError),
     /// Format is not supported.
-    #[error("Model format is not supported: {0}")]
     NotSupported(String),
     /// An error occurred while loading FBX file.
-    #[error(transparent)]
     Fbx(FbxError),
+}
+
+impl Display for ModelLoadError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ModelLoadError::Visit(v) => {
+                write!(f, "An error occurred while reading a data source {v:?}")
+            }
+            ModelLoadError::NotSupported(v) => {
+                write!(f, "Model format is not supported: {v}")
+            }
+            ModelLoadError::Fbx(v) => v.fmt(f),
+        }
+    }
 }
 
 impl From<FbxError> for ModelLoadError {

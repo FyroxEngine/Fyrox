@@ -7,21 +7,36 @@ use crate::{
     engine::resource_manager::options::ImportOptions,
 };
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
 };
 
 /// An error that may occur during curve resource loading.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum CurveResourceError {
     /// An i/o error has occurred.
-    #[error("A file load error has occurred {0:?}")]
     Io(FileLoadError),
 
     /// An error that may occur due to version incompatibilities.
-    #[error("An error that may occur due to version incompatibilities. {0:?}")]
     Visit(VisitError),
+}
+
+impl Display for CurveResourceError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CurveResourceError::Io(v) => {
+                write!(f, "A file load error has occurred {v:?}")
+            }
+            CurveResourceError::Visit(v) => {
+                write!(
+                    f,
+                    "An error that may occur due to version incompatibilities. {v:?}"
+                )
+            }
+        }
+    }
 }
 
 impl From<FileLoadError> for CurveResourceError {

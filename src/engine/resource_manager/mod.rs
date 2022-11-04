@@ -34,6 +34,7 @@ use crate::{
     utils::{log::Log, watcher::FileSystemWatcher},
 };
 use fyrox_sound::buffer::SoundBufferResource;
+use std::fmt::{Debug, Display, Formatter};
 use std::{path::Path, sync::Arc};
 
 pub mod container;
@@ -174,17 +175,28 @@ pub struct ResourceManager {
 }
 
 /// An error that may occur during texture registration.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum TextureRegistrationError {
     /// Texture saving has failed.
-    #[error(transparent)]
     Texture(TextureError),
     /// Texture was in invalid state (Pending, LoadErr)
-    #[error("A texture was in invalid state!")]
     InvalidState,
     /// Texture is already registered.
-    #[error("A texture is already registered!")]
     AlreadyRegistered,
+}
+
+impl Display for TextureRegistrationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TextureRegistrationError::Texture(v) => Display::fmt(v, f),
+            TextureRegistrationError::InvalidState => {
+                write!(f, "A texture was in invalid state!")
+            }
+            TextureRegistrationError::AlreadyRegistered => {
+                write!(f, "A texture is already registered!")
+            }
+        }
+    }
 }
 
 impl From<TextureError> for TextureRegistrationError {

@@ -5,11 +5,11 @@ mod std_impls;
 
 pub use fyrox_core_derive::Reflect;
 
+use std::fmt::{Display, Formatter};
 use std::{
     any::{Any, TypeId},
     fmt::{self, Debug},
 };
-use thiserror::Error;
 
 pub mod prelude {
     pub use super::{FieldInfo, Reflect};
@@ -260,25 +260,47 @@ pub trait ReflectInheritableVariable: Reflect + Debug {
 }
 
 /// An error returned from a failed path string query.
-#[derive(Debug, PartialEq, Eq, Error)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ReflectPathError<'a> {
     // syntax errors
-    #[error("unclosed brackets: `{s}`")]
     UnclosedBrackets { s: &'a str },
-    #[error("not index syntax: `{s}`")]
     InvalidIndexSyntax { s: &'a str },
 
     // access errors
-    #[error("given unknown field: `{s}`")]
     UnknownField { s: &'a str },
-    #[error("no item for index: `{s}`")]
     NoItemForIndex { s: &'a str },
 
     // type cast errors
-    #[error("failed to downcast to the target type after path resolution")]
     InvalidDowncast,
-    #[error("tried to resolve index access, but the reflect type does not implement list API")]
     NotAnArray,
+}
+
+impl<'a> Display for ReflectPathError<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            ReflectPathError::UnclosedBrackets { s } => {
+                write!(f, "unclosed brackets: `{s}`")
+            }
+            ReflectPathError::InvalidIndexSyntax { s } => {
+                write!(f, "not index syntax: `{s}`")
+            }
+            ReflectPathError::UnknownField { s } => {
+                write!(f, "given unknown field: `{s}`")
+            }
+            ReflectPathError::NoItemForIndex { s } => {
+                write!(f, "no item for index: `{s}`")
+            }
+            ReflectPathError::InvalidDowncast => {
+                write!(
+                    f,
+                    "failed to downcast to the target type after path resolution"
+                )
+            }
+            ReflectPathError::NotAnArray => {
+                write!(f, "tried to resolve index access, but the reflect type does not implement list API")
+            }
+        }
+    }
 }
 
 pub trait ResolvePath {

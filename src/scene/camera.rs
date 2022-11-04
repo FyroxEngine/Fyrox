@@ -35,6 +35,7 @@ use crate::{
     utils::log::Log,
 };
 use fyrox_resource::ResourceState;
+use std::fmt::{Display, Formatter};
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -640,14 +641,9 @@ impl NodeTrait for Camera {
 }
 
 /// All possible error that may occur during color grading look-up table creation.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum ColorGradingLutCreationError {
     /// There is not enough data in provided texture to build LUT.
-    #[error(
-        "There is not enough data in provided texture to build LUT. Required: {}, current: {}.",
-        required,
-        current
-    )]
     NotEnoughData {
         /// Required amount of bytes.
         required: usize,
@@ -656,12 +652,34 @@ pub enum ColorGradingLutCreationError {
     },
 
     /// Pixel format is not supported. It must be either RGB8 or RGBA8.
-    #[error("Pixel format is not supported. It must be either RGB8 or RGBA8, but texture has {0:?} pixel format")]
     InvalidPixelFormat(TexturePixelKind),
 
     /// Texture error.
-    #[error("Texture load error: {0:?}")]
     Texture(Option<Arc<TextureError>>),
+}
+
+impl Display for ColorGradingLutCreationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ColorGradingLutCreationError::NotEnoughData { required, current } => {
+                write!(
+                    f,
+                    "There is not enough data in provided \
+                texture to build LUT. Required: {required}, current: {current}.",
+                )
+            }
+            ColorGradingLutCreationError::InvalidPixelFormat(v) => {
+                write!(
+                    f,
+                    "Pixel format is not supported. It must be either RGB8 \
+                or RGBA8, but texture has {v:?} pixel format"
+                )
+            }
+            ColorGradingLutCreationError::Texture(v) => {
+                write!(f, "Texture load error: {v:?}")
+            }
+        }
+    }
 }
 
 /// Color grading look up table (LUT). Color grading is used to modify color space of the
