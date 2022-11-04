@@ -7,7 +7,7 @@ use crate::{
     scene::node::Node,
     utils::log::Log,
 };
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Clone, Debug)]
 pub enum TrackValue {
@@ -55,6 +55,17 @@ pub enum ValueBinding {
     Scale,
     Rotation,
     Property(String),
+}
+
+impl Display for ValueBinding {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ValueBinding::Position => write!(f, "Position"),
+            ValueBinding::Scale => write!(f, "Scale"),
+            ValueBinding::Rotation => write!(f, "Rotation"),
+            ValueBinding::Property(name) => write!(f, "{}", name),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
