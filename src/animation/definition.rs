@@ -37,4 +37,8 @@ impl AnimationDefinition {
     pub fn tracks(&self) -> &[ResourceTrack] {
         &self.tracks
     }
+
+    pub fn tracks_container(&mut self) -> &mut Vec<ResourceTrack> {
+        &mut self.tracks
+    }
 }
