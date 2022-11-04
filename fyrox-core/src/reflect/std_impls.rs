@@ -7,11 +7,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::delegate_reflect;
+use crate::{
+    delegate_reflect,
+    reflect::{blank_reflect, prelude::*, ReflectArray, ReflectList},
+    uuid::Uuid,
+};
 use fyrox_core_derive::impl_reflect;
 use std::ops::{Deref, DerefMut};
-
-use crate::reflect::{blank_reflect, prelude::*, ReflectArray, ReflectList};
 
 macro_rules! impl_blank_reflect {
     ( $( $ty:ty ),* $(,)? ) => {
@@ -140,6 +142,8 @@ impl<T: Reflect + 'static> ReflectList for Vec<T> {
         Ok(())
     }
 }
+
+impl_reflect! { pub struct Uuid; }
 
 impl_reflect! {
     pub struct Cell<T>;
