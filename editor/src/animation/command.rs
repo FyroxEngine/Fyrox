@@ -1,7 +1,7 @@
-use crate::{define_command_stack, define_universal_commands};
+use crate::define_command_stack;
+use fyrox::animation::definition::ResourceTrack;
 use fyrox::{
     asset::ResourceDataRef,
-    core::reflect::ResolvePath,
     resource::animation::{AnimationResourceError, AnimationResourceState},
 };
 use std::{
@@ -40,10 +40,6 @@ impl DerefMut for AnimationCommand {
 impl AnimationCommand {
     pub fn new<C: AnimationCommandTrait>(cmd: C) -> Self {
         Self(Box::new(cmd))
-    }
-
-    pub fn into_inner(self) -> Box<dyn AnimationCommandTrait> {
-        self.0
     }
 }
 
@@ -95,14 +91,35 @@ impl AnimationCommandTrait for CommandGroup {
     }
 }
 
-define_universal_commands!(
-    make_set_animation_property_command,
-    AnimationCommandTrait,
-    AnimationCommand,
-    AnimationEditorContext,
-    (),
-    ctx,
-    handle,
-    self,
-    { &mut ctx.resource.animation_definition }
-);
+#[derive(Debug)]
+pub struct AddTrackCommand {
+    track: Option<ResourceTrack>,
+}
+
+impl AddTrackCommand {
+    pub fn new(track: ResourceTrack) -> Self {
+        Self { track: Some(track) }
+    }
+}
+
+impl AnimationCommandTrait for AddTrackCommand {
+    fn name(&mut self, _: &AnimationEditorContext) -> String {
+        "Add Track".to_string()
+    }
+
+    fn execute(&mut self, context: &mut AnimationEditorContext) {
+        context
+            .resource
+            .animation_definition
+            .tracks_container()
+            .push(self.track.take().unwrap());
+    }
+
+    fn revert(&mut self, context: &mut AnimationEditorContext) {
+        self.track = context
+            .resource
+            .animation_definition
+            .tracks_container()
+            .pop();
+    }
+}

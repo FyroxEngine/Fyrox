@@ -1698,6 +1698,7 @@ impl Editor {
             _ => {}
         }
 
+        self.animation_editor.update(&mut self.engine);
         self.absm_editor.update(&mut self.engine);
         self.log.update(&mut self.engine);
         self.material_editor.update(&mut self.engine);

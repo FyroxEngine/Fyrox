@@ -1,7 +1,10 @@
-#![allow(dead_code)] // TODO
-
 use crate::{
-    animation::command::AnimationCommandStack,
+    animation::{
+        command::{
+            AddTrackCommand, AnimationCommand, AnimationCommandStack, AnimationEditorContext,
+        },
+        message::Message,
+    },
     scene::{
         property::{
             object_to_property_tree, PropertySelectorMessage, PropertySelectorWindowBuilder,
@@ -11,25 +14,40 @@ use crate::{
     },
 };
 use fyrox::{
-    core::{pool::Handle, reflect::ResolvePath},
+    animation::{
+        container::{TrackFramesContainer, TrackValueKind},
+        definition::{AnimationDefinition, ResourceTrack},
+        value::ValueBinding,
+    },
+    asset::{Resource, ResourceState},
+    core::{pool::Handle, reflect::ResolvePath, uuid::Uuid},
     engine::Engine,
     gui::{
+        border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
         curve::CurveEditorBuilder,
+        decorator::DecoratorBuilder,
         grid::{Column, GridBuilder, Row},
-        list_view::ListViewBuilder,
+        list_view::{ListView, ListViewBuilder, ListViewMessage},
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
         message::{MessageDirection, UiMessage},
         stack_panel::StackPanelBuilder,
+        text::TextBuilder,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Orientation, Thickness, UiNode, UserInterface,
+        BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    resource::animation::AnimationResource,
+    resource::animation::{AnimationResource, AnimationResourceState},
     scene::node::Node,
+    utils::log::Log,
+};
+use std::{
+    cmp::Ordering,
+    sync::mpsc::{self, Receiver, Sender},
 };
 
-pub mod command;
+mod command;
+mod message;
 
 struct Menu {
     menu: Handle<UiNode>,
@@ -40,6 +58,7 @@ struct Menu {
     exit: Handle<UiNode>,
     undo: Handle<UiNode>,
     redo: Handle<UiNode>,
+    clear_command_stack: Handle<UiNode>,
 }
 
 impl Menu {
@@ -51,6 +70,7 @@ impl Menu {
         let exit;
         let undo;
         let redo;
+        let clear_command_stack;
         let menu = MenuBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
             .with_items(vec![
                 MenuItemBuilder::new(WidgetBuilder::new())
@@ -103,6 +123,12 @@ impl Menu {
                                 .build(ctx);
                             redo
                         },
+                        {
+                            clear_command_stack = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text_no_arrow("Redo"))
+                                .build(ctx);
+                            clear_command_stack
+                        },
                     ])
                     .build(ctx),
             ])
@@ -117,6 +143,36 @@ impl Menu {
             exit,
             undo,
             redo,
+            clear_command_stack,
+        }
+    }
+}
+
+impl Menu {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        _ui: &UserInterface,
+        sender: &Sender<Message>,
+    ) {
+        if let Some(MenuItemMessage::Click) = message.data() {
+            if message.destination() == self.new {
+                sender.send(Message::NewAnimation).unwrap();
+            } else if message.destination() == self.load {
+                // TODO
+            } else if message.destination() == self.save {
+                // TODO
+            } else if message.destination() == self.save_as {
+                // TODO
+            } else if message.destination() == self.exit {
+                sender.send(Message::Exit).unwrap();
+            } else if message.destination() == self.undo {
+                sender.send(Message::Undo).unwrap();
+            } else if message.destination() == self.redo {
+                sender.send(Message::Redo).unwrap();
+            } else if message.destination() == self.clear_command_stack {
+                sender.send(Message::ClearCommandStack).unwrap();
+            }
         }
     }
 }
@@ -128,6 +184,10 @@ struct TrackList {
     node_selector: Handle<UiNode>,
     property_selector: Handle<UiNode>,
     selected_node: Handle<Node>,
+}
+
+struct TrackViewData {
+    id: Uuid,
 }
 
 impl TrackList {
@@ -184,6 +244,7 @@ impl TrackList {
         message: &UiMessage,
         editor_scene: Option<&EditorScene>,
         engine: &mut Engine,
+        sender: &Sender<Message>,
     ) {
         let ui = &mut engine.user_interface;
 
@@ -257,10 +318,93 @@ impl TrackList {
                     let scene = &engine.scenes[editor_scene.scene];
                     if let Some(node) = scene.graph.try_get(self.selected_node) {
                         for property_path in selected_properties {
-                            if let Ok(_property) = node.as_reflect().resolve_path(property_path) {
-                                // TODO: Add tracks.
+                            match node.as_reflect().resolve_path(property_path) {
+                                Ok(_property) => {
+                                    // TODO: Check property type.
+                                    let mut track =
+                                        ResourceTrack::new(TrackFramesContainer::with_n_curves(
+                                            TrackValueKind::Vector3,
+                                            3,
+                                        ));
+                                    track
+                                        .set_binding(ValueBinding::Property(property_path.clone()));
+
+                                    sender
+                                        .send(Message::DoCommand(AnimationCommand::new(
+                                            AddTrackCommand::new(track),
+                                        )))
+                                        .unwrap();
+                                }
+                                Err(e) => {
+                                    Log::err(format!(
+                                        "Invalid property path {}. Error: {:?}!",
+                                        property_path, e
+                                    ));
+                                }
                             }
                         }
+                    } else {
+                        Log::err("Invalid node handle!");
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn sync_to_model(&mut self, engine: &mut Engine, definition: &AnimationDefinition) {
+        let ui = &mut engine.user_interface;
+        let track_views = ui
+            .node(self.list)
+            .query_component::<ListView>()
+            .unwrap()
+            .items
+            .clone();
+        match definition.tracks().len().cmp(&track_views.len()) {
+            Ordering::Less => {
+                for track_view in track_views.iter() {
+                    let track_view_ref = ui.node(*track_view);
+                    let track_view_data = track_view_ref.user_data_ref::<TrackViewData>().unwrap();
+                    if definition
+                        .tracks()
+                        .iter()
+                        .all(|t| t.id() != track_view_data.id)
+                    {
+                        ui.send_message(ListViewMessage::remove_item(
+                            self.list,
+                            MessageDirection::ToWidget,
+                            *track_view,
+                        ));
+                    }
+                }
+            }
+            Ordering::Equal => {
+                // Nothing to do.
+            }
+            Ordering::Greater => {
+                for model_track in definition.tracks().iter() {
+                    if track_views
+                        .iter()
+                        .map(|v| ui.node(*v))
+                        .all(|v| v.user_data_ref::<TrackViewData>().unwrap().id != model_track.id())
+                    {
+                        let track_view = DecoratorBuilder::new(BorderBuilder::new(
+                            WidgetBuilder::new()
+                                .with_height(18.0)
+                                .with_margin(Thickness::uniform(1.0))
+                                .with_child(
+                                    TextBuilder::new(WidgetBuilder::new())
+                                        .with_text(format!("{}", model_track.binding()))
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .build(&mut ui.build_ctx()),
+                                ),
+                        ))
+                        .build(&mut ui.build_ctx());
+
+                        ui.send_message(ListViewMessage::add_item(
+                            self.list,
+                            MessageDirection::ToWidget,
+                            track_view,
+                        ))
                     }
                 }
             }
@@ -271,10 +415,13 @@ impl TrackList {
 pub struct AnimationEditor {
     pub window: Handle<UiNode>,
     track_list: TrackList,
+    #[allow(dead_code)] // TODO
     curve_editor: Handle<UiNode>,
     resource: Option<AnimationResource>,
     menu: Menu,
     command_stack: AnimationCommandStack,
+    message_sender: Sender<Message>,
+    message_receiver: Receiver<Message>,
 }
 
 impl AnimationEditor {
@@ -321,6 +468,8 @@ impl AnimationEditor {
             .with_title(WindowTitle::text("Animation Editor"))
             .build(ctx);
 
+        let (message_sender, message_receiver) = mpsc::channel();
+
         Self {
             window,
             track_list,
@@ -328,6 +477,8 @@ impl AnimationEditor {
             resource: None,
             menu,
             command_stack: AnimationCommandStack::new(false),
+            message_sender,
+            message_receiver,
         }
     }
 
@@ -346,15 +497,69 @@ impl AnimationEditor {
         engine: &mut Engine,
     ) {
         self.track_list
-            .handle_ui_message(message, editor_scene, engine);
+            .handle_ui_message(message, editor_scene, engine, &self.message_sender);
+        self.menu
+            .handle_ui_message(message, &engine.user_interface, &self.message_sender);
+    }
 
-        if let Some(MenuItemMessage::Click) = message.data() {
-            if message.destination() == self.menu.exit {
-                engine.user_interface.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+    pub fn update(&mut self, engine: &mut Engine) {
+        let mut need_sync = false;
+        while let Ok(message) = self.message_receiver.try_recv() {
+            match message {
+                Message::DoCommand(command) => {
+                    if let Some(resource) = self.resource.as_ref() {
+                        let resource = resource.data_ref();
+                        self.command_stack
+                            .do_command(command.0, AnimationEditorContext { resource });
+                        need_sync = true;
+                    }
+                }
+                Message::Undo => {
+                    if let Some(resource) = self.resource.as_ref() {
+                        let resource = resource.data_ref();
+                        self.command_stack.redo(AnimationEditorContext { resource });
+                        need_sync = true;
+                    }
+                }
+                Message::Redo => {
+                    if let Some(resource) = self.resource.as_ref() {
+                        let resource = resource.data_ref();
+                        self.command_stack.undo(AnimationEditorContext { resource });
+                        need_sync = true;
+                    }
+                }
+                Message::ClearCommandStack => {
+                    if let Some(resource) = self.resource.as_ref() {
+                        let resource = resource.data_ref();
+                        self.command_stack
+                            .clear(AnimationEditorContext { resource });
+                    }
+                }
+                Message::Exit => {
+                    engine.user_interface.send_message(WindowMessage::close(
+                        self.window,
+                        MessageDirection::ToWidget,
+                    ));
+                }
+                Message::NewAnimation => {
+                    self.resource = Some(AnimationResource(Resource::new(ResourceState::Ok(
+                        AnimationResourceState::default(),
+                    ))));
+                    need_sync = true;
+                }
             }
+        }
+
+        if need_sync {
+            self.sync_to_model(engine)
+        }
+    }
+
+    fn sync_to_model(&mut self, engine: &mut Engine) {
+        if let Some(resource) = self.resource.as_ref() {
+            let resource = resource.data_ref();
+            self.track_list
+                .sync_to_model(engine, &resource.animation_definition);
         }
     }
 }
