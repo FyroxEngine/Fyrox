@@ -399,8 +399,8 @@ impl ReplaceNodeCommand {
 
         // Swap `Base` part, this is needed because base part contains hierarchy info.
         // This way base part will be moved to replacement node.
-        let existing_base: &mut Base = &mut ***existing;
-        let replacement_base: &mut Base = &mut **self.node;
+        let existing_base: &mut Base = existing;
+        let replacement_base: &mut Base = &mut self.node;
 
         std::mem::swap(existing_base, replacement_base);
 

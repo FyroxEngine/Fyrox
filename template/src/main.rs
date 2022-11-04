@@ -48,7 +48,7 @@ fn write_file_binary<P: AsRef<Path>>(path: P, content: &[u8]) {
 
 fn init_game(base_path: &Path, name: &str) {
     Command::new("cargo")
-        .args(&["init", "--lib", "--vcs", "none"])
+        .args(["init", "--lib", "--vcs", "none"])
         .arg(base_path.join("game"))
         .output()
         .unwrap();
@@ -160,7 +160,7 @@ impl Plugin for Game {
 
 fn init_executor(base_path: &Path, name: &str) {
     Command::new("cargo")
-        .args(&["init", "--bin", "--vcs", "none"])
+        .args(["init", "--bin", "--vcs", "none"])
         .arg(base_path.join("executor"))
         .output()
         .unwrap();
@@ -202,7 +202,7 @@ fn main() {{
 
 fn init_editor(base_path: &Path, name: &str) {
     Command::new("cargo")
-        .args(&["init", "--bin", "--vcs", "none"])
+        .args(["init", "--bin", "--vcs", "none"])
         .arg(base_path.join("editor"))
         .output()
         .unwrap();
@@ -253,7 +253,7 @@ fn main() {{
 
 fn init_workspace(base_path: &Path) {
     Command::new("cargo")
-        .args(&["init", "--vcs", "git"])
+        .args(["init", "--vcs", "git"])
         .arg(base_path)
         .output()
         .unwrap();

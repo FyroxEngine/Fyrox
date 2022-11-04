@@ -224,7 +224,7 @@ impl SoundContext {
                         native_reverb.set_decay_time(Duration::from_secs_f32(reverb.decay_time()));
                         native_reverb.set_dry(reverb.dry());
                         native_reverb.set_wet(reverb.wet());
-                        sync_effect_inputs(&mut *native_reverb, &*reverb.inputs, nodes);
+                        sync_effect_inputs(&mut native_reverb, &reverb.inputs, nodes);
                         let native =
                             state.add_effect(fyrox_sound::effects::Effect::Reverb(native_reverb));
                         reverb.native.set(native);

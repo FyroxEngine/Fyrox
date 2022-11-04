@@ -159,11 +159,11 @@ impl Menu {
             if message.destination() == self.new {
                 sender.send(Message::NewAnimation).unwrap();
             } else if message.destination() == self.load {
-                // TODO
+                todo!();
             } else if message.destination() == self.save {
-                // TODO
+                unimplemented!();
             } else if message.destination() == self.save_as {
-                // TODO
+                todo!();
             } else if message.destination() == self.exit {
                 sender.send(Message::Exit).unwrap();
             } else if message.destination() == self.undo {

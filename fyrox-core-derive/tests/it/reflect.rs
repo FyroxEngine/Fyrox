@@ -1,6 +1,6 @@
 //! Test cases for `fyrox_core::reflect::Reflect`
 
-#![allow(clippy::blacklisted_name)] // Useless in tests
+#![allow(clippy::disallowed_names)] // Useless in tests
 
 use std::any::TypeId;
 use std::ops::{Deref, DerefMut};

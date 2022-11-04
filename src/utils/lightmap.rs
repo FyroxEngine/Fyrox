@@ -193,7 +193,7 @@ impl Deref for ProgressIndicator {
     type Target = ProgressData;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 

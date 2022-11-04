@@ -126,7 +126,7 @@ impl Visit for NodeContainer {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        let mut is_some = if self.is_some() { 1u8 } else { 0u8 };
+        let mut is_some = u8::from(self.is_some());
         is_some.visit("IsSome", &mut region)?;
 
         if is_some != 0 {

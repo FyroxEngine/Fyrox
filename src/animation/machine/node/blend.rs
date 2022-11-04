@@ -296,7 +296,7 @@ impl EvaluatePose for BlendAnimationsByIndex {
                 if let Some(current_input) = self.inputs.get(current_index as usize) {
                     nodes[current_input.pose_source]
                         .eval_pose(nodes, params, animations, dt)
-                        .clone_into(&mut *self.output_pose.borrow_mut());
+                        .clone_into(&mut self.output_pose.borrow_mut());
                 }
             }
         }

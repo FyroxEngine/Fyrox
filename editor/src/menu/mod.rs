@@ -163,12 +163,8 @@ impl Menu {
         scope_profile!();
 
         if let Some(scene) = ctx.editor_scene.as_mut() {
-            self.edit_menu.handle_ui_message(
-                message,
-                &self.message_sender,
-                &mut **scene,
-                ctx.engine,
-            );
+            self.edit_menu
+                .handle_ui_message(message, &self.message_sender, scene, ctx.engine);
 
             self.create_entity_menu.handle_ui_message(
                 message,

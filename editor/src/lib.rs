@@ -528,7 +528,7 @@ impl Editor {
 
         engine.user_interface.default_font.set(
             Font::from_memory(
-                include_bytes!("../resources/embed/arial.ttf").to_vec(),
+                include_bytes!("../resources/embed/arial.ttf").as_slice(),
                 14.0,
                 Font::default_char_set(),
             )

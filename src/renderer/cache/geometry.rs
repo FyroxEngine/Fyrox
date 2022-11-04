@@ -44,7 +44,7 @@ impl GeometryCache {
             entry
         } else {
             let geometry_buffer =
-                GeometryBuffer::from_surface_data(&*data, GeometryBufferKind::StaticDraw, state);
+                GeometryBuffer::from_surface_data(&data, GeometryBufferKind::StaticDraw, state);
 
             let index = self.buffer.spawn(CacheEntry {
                 value: geometry_buffer,

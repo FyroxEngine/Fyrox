@@ -309,7 +309,7 @@ impl GBuffer {
                             };
 
                             apply_material(MaterialContext {
-                                material: &*material,
+                                material: &material,
                                 program_binding: &mut program_binding,
                                 texture_cache,
                                 world_matrix: &instance.world_transform,

@@ -119,7 +119,7 @@ impl Model {
 
         let instance_root = Self::instantiate_from(
             self.clone(),
-            &*data,
+            &data,
             data.scene.graph.get_root(),
             &mut dest_scene.graph,
         )

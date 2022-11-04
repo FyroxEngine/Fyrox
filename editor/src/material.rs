@@ -655,10 +655,7 @@ impl MaterialEditor {
                         }
                         DropdownListMessage::Open => {
                             self.sync_available_shaders_list(engine.resource_manager.clone());
-                            self.create_shaders_items(
-                                &mut engine.user_interface,
-                                &*material.lock(),
-                            );
+                            self.create_shaders_items(&mut engine.user_interface, &material.lock());
                         }
                         _ => (),
                     }
