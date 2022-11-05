@@ -6,7 +6,7 @@ use fyrox::{
         file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
         message::{MessageDirection, UiMessage},
-        widget::WidgetBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface,
     },
@@ -89,15 +89,16 @@ impl Menu {
                             load
                         },
                         {
-                            save = MenuItemBuilder::new(WidgetBuilder::new())
+                            save = MenuItemBuilder::new(WidgetBuilder::new().with_enabled(false))
                                 .with_content(MenuItemContent::text_no_arrow("Save"))
                                 .build(ctx);
                             save
                         },
                         {
-                            save_as = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text_no_arrow("Save As..."))
-                                .build(ctx);
+                            save_as =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_enabled(false))
+                                    .with_content(MenuItemContent::text_no_arrow("Save As..."))
+                                    .build(ctx);
                             save_as
                         },
                         {
@@ -112,21 +113,24 @@ impl Menu {
                     .with_content(MenuItemContent::text_no_arrow("Edit"))
                     .with_items(vec![
                         {
-                            undo = MenuItemBuilder::new(WidgetBuilder::new())
+                            undo = MenuItemBuilder::new(WidgetBuilder::new().with_enabled(false))
                                 .with_content(MenuItemContent::text_no_arrow("Undo"))
                                 .build(ctx);
                             undo
                         },
                         {
-                            redo = MenuItemBuilder::new(WidgetBuilder::new())
+                            redo = MenuItemBuilder::new(WidgetBuilder::new().with_enabled(false))
                                 .with_content(MenuItemContent::text_no_arrow("Redo"))
                                 .build(ctx);
                             redo
                         },
                         {
-                            clear_command_stack = MenuItemBuilder::new(WidgetBuilder::new())
-                                .with_content(MenuItemContent::text_no_arrow("Redo"))
-                                .build(ctx);
+                            clear_command_stack =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_enabled(false))
+                                    .with_content(MenuItemContent::text_no_arrow(
+                                        "Clear Command Stack",
+                                    ))
+                                    .build(ctx);
                             clear_command_stack
                         },
                     ])
@@ -221,5 +225,21 @@ impl Menu {
             MessageDirection::ToWidget,
             true,
         ));
+    }
+
+    pub fn sync_to_model(&self, ui: &UserInterface, model: Option<&DataModel>) {
+        for widget in [
+            self.save,
+            self.save_as,
+            self.undo,
+            self.redo,
+            self.clear_command_stack,
+        ] {
+            ui.send_message(WidgetMessage::enabled(
+                widget,
+                MessageDirection::ToWidget,
+                model.is_some(),
+            ))
+        }
     }
 }

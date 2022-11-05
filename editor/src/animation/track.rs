@@ -1,6 +1,7 @@
 use crate::{
     animation::{
         command::{AddTrackCommand, AnimationCommand},
+        data::DataModel,
         message::Message,
     },
     scene::{
@@ -14,7 +15,7 @@ use crate::{
 use fyrox::{
     animation::{
         container::{TrackFramesContainer, TrackValueKind},
-        definition::{AnimationDefinition, ResourceTrack},
+        definition::ResourceTrack,
         value::ValueBinding,
     },
     core::{pool::Handle, reflect::ResolvePath, uuid::Uuid},
@@ -57,6 +58,7 @@ impl TrackList {
 
         let panel = GridBuilder::new(
             WidgetBuilder::new()
+                .with_enabled(false)
                 .with_child({
                     list = ListViewBuilder::new(
                         WidgetBuilder::new()
@@ -211,63 +213,73 @@ impl TrackList {
         }
     }
 
-    pub fn sync_to_model(&mut self, engine: &mut Engine, definition: &AnimationDefinition) {
+    pub fn sync_to_model(&mut self, engine: &mut Engine, data_model: Option<&DataModel>) {
         let ui = &mut engine.user_interface;
-        let track_views = ui
-            .node(self.list)
-            .query_component::<ListView>()
-            .unwrap()
-            .items
-            .clone();
-        match definition.tracks().len().cmp(&track_views.len()) {
-            Ordering::Less => {
-                for track_view in track_views.iter() {
-                    let track_view_ref = ui.node(*track_view);
-                    let track_view_data = track_view_ref.user_data_ref::<TrackViewData>().unwrap();
-                    if definition
-                        .tracks()
-                        .iter()
-                        .all(|t| t.id() != track_view_data.id)
-                    {
-                        ui.send_message(ListViewMessage::remove_item(
-                            self.list,
-                            MessageDirection::ToWidget,
-                            *track_view,
-                        ));
+
+        ui.send_message(WidgetMessage::enabled(
+            self.panel,
+            MessageDirection::ToWidget,
+            data_model.is_some(),
+        ));
+
+        if let Some(data_model) = data_model {
+            let data_ref = data_model.resource.data_ref();
+            let definition = &data_ref.animation_definition;
+            let track_views = ui
+                .node(self.list)
+                .query_component::<ListView>()
+                .unwrap()
+                .items
+                .clone();
+            match definition.tracks().len().cmp(&track_views.len()) {
+                Ordering::Less => {
+                    for track_view in track_views.iter() {
+                        let track_view_ref = ui.node(*track_view);
+                        let track_view_data =
+                            track_view_ref.user_data_ref::<TrackViewData>().unwrap();
+                        if definition
+                            .tracks()
+                            .iter()
+                            .all(|t| t.id() != track_view_data.id)
+                        {
+                            ui.send_message(ListViewMessage::remove_item(
+                                self.list,
+                                MessageDirection::ToWidget,
+                                *track_view,
+                            ));
+                        }
                     }
                 }
-            }
-            Ordering::Equal => {
-                // Nothing to do.
-            }
-            Ordering::Greater => {
-                for model_track in definition.tracks().iter() {
-                    if track_views
-                        .iter()
-                        .map(|v| ui.node(*v))
-                        .all(|v| v.user_data_ref::<TrackViewData>().unwrap().id != model_track.id())
-                    {
-                        let track_view = DecoratorBuilder::new(BorderBuilder::new(
-                            WidgetBuilder::new()
-                                .with_user_data(Rc::new(TrackViewData {
-                                    id: model_track.id(),
-                                }))
-                                .with_height(18.0)
-                                .with_margin(Thickness::uniform(1.0))
-                                .with_child(
-                                    TextBuilder::new(WidgetBuilder::new())
-                                        .with_text(format!("{}", model_track.binding()))
-                                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                                        .build(&mut ui.build_ctx()),
-                                ),
-                        ))
-                        .build(&mut ui.build_ctx());
+                Ordering::Equal => {
+                    // Nothing to do.
+                }
+                Ordering::Greater => {
+                    for model_track in definition.tracks().iter() {
+                        if track_views.iter().map(|v| ui.node(*v)).all(|v| {
+                            v.user_data_ref::<TrackViewData>().unwrap().id != model_track.id()
+                        }) {
+                            let track_view = DecoratorBuilder::new(BorderBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_user_data(Rc::new(TrackViewData {
+                                        id: model_track.id(),
+                                    }))
+                                    .with_height(18.0)
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .with_child(
+                                        TextBuilder::new(WidgetBuilder::new())
+                                            .with_text(format!("{}", model_track.binding()))
+                                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                                            .build(&mut ui.build_ctx()),
+                                    ),
+                            ))
+                            .build(&mut ui.build_ctx());
 
-                        ui.send_message(ListViewMessage::add_item(
-                            self.list,
-                            MessageDirection::ToWidget,
-                            track_view,
-                        ))
+                            ui.send_message(ListViewMessage::add_item(
+                                self.list,
+                                MessageDirection::ToWidget,
+                                track_view,
+                            ))
+                        }
                     }
                 }
             }

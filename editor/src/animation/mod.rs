@@ -16,7 +16,7 @@ use fyrox::{
         curve::CurveEditorBuilder,
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
-        widget::WidgetBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
@@ -33,7 +33,6 @@ mod track;
 pub struct AnimationEditor {
     pub window: Handle<UiNode>,
     track_list: TrackList,
-    #[allow(dead_code)] // TODO
     curve_editor: Handle<UiNode>,
     data_model: Option<DataModel>,
     menu: Menu,
@@ -57,6 +56,7 @@ impl AnimationEditor {
                 .with_child({
                     curve_editor = CurveEditorBuilder::new(
                         WidgetBuilder::new()
+                            .with_enabled(false)
                             .on_row(0)
                             .on_column(1)
                             .with_margin(Thickness::uniform(1.0)),
@@ -199,10 +199,15 @@ impl AnimationEditor {
     }
 
     fn sync_to_model(&mut self, engine: &mut Engine) {
-        if let Some(resource) = self.data_model.as_ref() {
-            let resource = resource.resource.data_ref();
-            self.track_list
-                .sync_to_model(engine, &resource.animation_definition);
-        }
+        engine.user_interface.send_message(WidgetMessage::enabled(
+            self.curve_editor,
+            MessageDirection::ToWidget,
+            self.data_model.is_some(),
+        ));
+
+        self.menu
+            .sync_to_model(&engine.user_interface, self.data_model.as_ref());
+        self.track_list
+            .sync_to_model(engine, self.data_model.as_ref());
     }
 }
