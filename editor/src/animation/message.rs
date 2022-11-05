@@ -9,4 +9,5 @@ pub enum Message {
     ClearCommandStack,
     Exit,
     Save(PathBuf),
+    Load(PathBuf),
 }

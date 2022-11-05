@@ -20,7 +20,10 @@ use fyrox::{
         value::ValueBinding,
     },
     asset::{Resource, ResourceData, ResourceState},
-    core::{pool::Handle, reflect::ResolvePath, uuid::Uuid, visitor::prelude::*},
+    core::{
+        futures::executor::block_on, pool::Handle, reflect::ResolvePath, uuid::Uuid,
+        visitor::prelude::*,
+    },
     engine::Engine,
     gui::{
         border::BorderBuilder,
@@ -42,10 +45,10 @@ use fyrox::{
     scene::node::Node,
     utils::log::Log,
 };
-use std::rc::Rc;
 use std::{
     cmp::Ordering,
     path::{Path, PathBuf},
+    rc::Rc,
     sync::mpsc::{self, Receiver, Sender},
 };
 
@@ -198,11 +201,7 @@ impl Menu {
             if message.destination() == self.new {
                 sender.send(Message::NewAnimation).unwrap();
             } else if message.destination() == self.load {
-                ui.send_message(WindowMessage::open_modal(
-                    self.load_file_dialog,
-                    MessageDirection::ToWidget,
-                    true,
-                ));
+                self.open_load_file_dialog(ui);
             } else if message.destination() == self.save {
                 if let Some(data_model) = data_model {
                     if !data_model.saved
@@ -232,12 +231,30 @@ impl Menu {
             if message.destination() == self.save_file_dialog {
                 sender.send(Message::Save(path.clone())).unwrap();
             } else if message.destination() == self.load_file_dialog {
-                // TODO
+                sender.send(Message::Load(path.clone())).unwrap();
             }
         }
     }
 
+    pub fn open_load_file_dialog(&self, ui: &UserInterface) {
+        ui.send_message(FileSelectorMessage::root(
+            self.load_file_dialog,
+            MessageDirection::ToWidget,
+            std::env::current_dir().ok(),
+        ));
+        ui.send_message(WindowMessage::open_modal(
+            self.load_file_dialog,
+            MessageDirection::ToWidget,
+            true,
+        ));
+    }
+
     pub fn open_save_file_dialog(&self, ui: &UserInterface) {
+        ui.send_message(FileSelectorMessage::root(
+            self.save_file_dialog,
+            MessageDirection::ToWidget,
+            std::env::current_dir().ok(),
+        ));
         ui.send_message(WindowMessage::open_modal(
             self.save_file_dialog,
             MessageDirection::ToWidget,
@@ -654,6 +671,16 @@ impl AnimationEditor {
                 Message::Save(path) => {
                     if let Some(data_model) = self.data_model.as_mut() {
                         data_model.save(path);
+                    }
+                }
+                Message::Load(path) => {
+                    if let Ok(animation) = block_on(engine.resource_manager.request_animation(path))
+                    {
+                        self.data_model = Some(DataModel {
+                            saved: true,
+                            resource: animation,
+                        });
+                        need_sync = true;
                     }
                 }
             }
