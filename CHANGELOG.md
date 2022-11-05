@@ -1,4 +1,52 @@
-# 0.28 (WIP)
+# 0.29 (WIP)
+
+- Fixed potential crash when joint was initialized earlier than connected rigid bodies.
+- Model instantiation scaling now used for prefab preview.
+- Fixed lots of potential sources of panic in perspective and ortho projections.
+- Fixed editor's camera movement speed setting for 3D mode.
+- Standard "two-side" shader - useful for foliage and grass.
+- Sprite sheet editor
+- Support for `Vector(2/3/4)<f32/f64/u8/i8/u16/i16/u32/i32/u64/i64>` types in serializer.
+- Sprite sheet animation now uses frames coordinates instead of explicit uv rectangles for each frame.
+- Sprite sheet animation now has a texture associated with it.
+- Fixed reflection fallback in case of missing field setter.
+- Ability to set uv rect for Image widget
+- Scene settings window for the editor - gives you an ability to edit scene settings: change 
+physics integration parameters, ambient lighting color, various flags, etc.
+- Prevent crash when adding a new surface to a Mesh node in the editor
+- Fixed directory/file duplicates in file browser widget when double-clicking on an item.
+- Show use count for materials in Inspector
+- Replace `Arc<Mutex<Material>>` with `SharedMaterial` new-type.
+- Ability to assign a unique copy of a material to an object.
+- Replace `Arc<Mutex<Material>>` with `SurfaceSharedData`
+- Clear collections before deserialization
+- Property inheritance for collections
+- Fixed incorrect material replacement when loading a scene with an FBX with custom materials.
+- Added Blender material slots names in FBX loader
+- Access to `procedural` flag for `SurfaceData`
+- Property editor for mesh's surface data.
+- Validation for scene nodes
+  - Helps to find invalid cases like:
+  - Missing joint bodies or invalid types of bodies (i.e. use 2d rigid body for 3d joint)
+  - Wrongly attached colliders (not being a child of a rigid body)
+  - Shows small exclamation mark if there's something wrong with a node
+- Share tooltip across widgets on clone
+- Fixed color picker: brightness-saturation grid wasn't visible
+- Added support for Collider intersection check
+- Animation resource.
+- Animation system refactoring
+  - Use curves for numeric properties.
+  - Ability to animate arbitrary numeric properties via reflection.
+- Prevent crash in case of invalid node handle in animation
+- `Curve::value_at` optimization - 2x performance improvement of using binary search for spans.
+- `Curve::add_key` optimized insertion using binary search.
+- Node Selector widget - allows you to pick a node from a scene.
+- Merge `Inspect` trait functionality into `Reflect` trait - it is now possible to obtain fields metadata
+while iterating over them.
+- Property Selector widget - allows you to pick a property path from an object that supports `Reflect` trait.
+- `Reflect` implementation for `Uuid`
+
+# 0.28
 
 - Preview for prefab instantiation.
 - Drag preview nodes are now input-transparent.
