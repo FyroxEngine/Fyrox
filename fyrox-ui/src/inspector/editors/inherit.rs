@@ -205,6 +205,7 @@ where
         step: property_info.step,
         precision: property_info.precision,
         description: property_info.description,
+        type_name: property_info.type_name,
     })
 }
 

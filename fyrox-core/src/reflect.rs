@@ -56,6 +56,9 @@ pub struct FieldInfo<'a> {
     /// Description of the property.
     pub description: &'static str,
 
+    /// Type name of the property.
+    pub type_name: &'static str,
+
     /// An reference to the actual value of the property. This is "non-mangled" reference, which
     /// means that while `field/fields/field_mut/fields_mut` might return a reference to other value,
     /// than the actual field, the `value` is guaranteed to be a reference to the real value.

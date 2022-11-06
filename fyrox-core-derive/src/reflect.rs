@@ -107,6 +107,8 @@ fn quote_field_prop(
         Some(v) => quote! { Some(#v) },
     };
 
+    let ty = field.ty.clone();
+
     let read_only = field.read_only;
 
     let description = field.description.clone().unwrap_or_default();
@@ -123,6 +125,7 @@ fn quote_field_prop(
             step: #step,
             precision: #precision,
             description: #description,
+            type_name: std::any::type_name::<#ty>()
         }
     }
 }
