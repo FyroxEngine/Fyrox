@@ -101,6 +101,7 @@ where
 }
 
 /// See module docs.
+#[derive(Default, Debug, Clone)]
 pub struct RawMesh<T> {
     /// Vertices of mesh.
     pub vertices: Vec<T>,
