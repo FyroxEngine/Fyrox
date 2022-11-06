@@ -38,11 +38,30 @@ impl PropertySelectorMessage {
 pub struct PropertyDescriptor {
     path: String,
     display_name: String,
+    type_name: &'static str,
     children_properties: Vec<PropertyDescriptor>,
 }
 
 struct PropertyDescriptorData {
     path: String,
+}
+
+fn make_pretty_type_name(type_name: &str) -> String {
+    let mut colon_position = None;
+    let mut byte_pos = 0;
+    for c in type_name.chars() {
+        byte_pos += c.len_utf8();
+        if c == ':' {
+            colon_position = Some(byte_pos);
+        } else if c == '<' {
+            break;
+        }
+    }
+    if let Some(colon_position) = colon_position {
+        type_name.split_at(colon_position).1.to_owned()
+    } else {
+        type_name.to_owned()
+    }
 }
 
 impl PropertyDescriptor {
@@ -60,7 +79,11 @@ impl PropertyDescriptor {
         )
         .with_content(
             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                .with_text(&self.display_name)
+                .with_text(format!(
+                    "{} ({})",
+                    self.display_name,
+                    make_pretty_type_name(self.type_name)
+                ))
                 .build(ctx),
         )
         .build(ctx)
@@ -80,6 +103,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
             let mut descriptor = PropertyDescriptor {
                 path: path.clone(),
                 display_name: field_info.display_name.to_owned(),
+                type_name: field_info.type_name,
                 children_properties: Default::default(),
             };
 
@@ -89,6 +113,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                 descriptor.children_properties.push(PropertyDescriptor {
                     path: item_path.clone(),
                     display_name: format!("[{}]", i),
+                    type_name: field_info.type_name,
                     children_properties: object_to_property_tree(&item_path, item),
                 })
             }
@@ -96,6 +121,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
             descriptors.push(PropertyDescriptor {
                 path,
                 display_name: field_info.display_name.to_owned(),
+                type_name: field_info.type_name,
                 children_properties: object_to_property_tree(field_info.name, field_ref),
             })
         }
