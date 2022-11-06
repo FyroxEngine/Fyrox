@@ -313,7 +313,7 @@ fn init_script(raw_name: &str) {
         format!(
             r#"
 use fyrox::{{
-    core::{{inspect::prelude::*, uuid::{{Uuid, uuid}}, visitor::prelude::*, reflect::Reflect}},
+    core::{{uuid::{{Uuid, uuid}}, visitor::prelude::*, reflect::Reflect}},
     engine::resource_manager::ResourceManager,
     event::Event, impl_component_provider,
     scene::{{node::TypeUuidProvider}},
