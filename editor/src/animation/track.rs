@@ -155,6 +155,7 @@ impl TrackList {
                             WindowBuilder::new(
                                 WidgetBuilder::new().with_width(300.0).with_height(400.0),
                             )
+                            .with_title(WindowTitle::text("Select a Property"))
                             .open(false),
                         )
                         .with_property_descriptors(object_to_property_tree(

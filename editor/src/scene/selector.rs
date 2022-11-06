@@ -2,6 +2,7 @@ use crate::utils::make_node_name;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     gui::{
+        border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
         define_constructor, define_widget_deref,
         draw::DrawingContext,
@@ -12,6 +13,7 @@ use fyrox::{
         text::{TextBuilder, TextMessage},
         text_box::{TextBoxBuilder, TextCommitMode},
         tree::{Tree, TreeBuilder, TreeRootBuilder, TreeRootMessage},
+        utils,
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{Window, WindowBuilder, WindowMessage},
         BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
@@ -238,24 +240,36 @@ impl NodeSelectorBuilder {
                             .with_child({
                                 clear_filter = ButtonBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_width(20.0)
                                         .on_column(1)
                                         .on_row(0)
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_text("X")
+                                .with_content(utils::make_cross(ctx, 10.0, 2.0))
                                 .build(ctx);
                                 clear_filter
                             }),
                     )
-                    .add_row(Row::auto())
+                    .add_row(Row::strict(22.0))
                     .add_column(Column::stretch())
                     .add_column(Column::strict(22.0))
                     .build(ctx),
                 )
                 .with_child(
-                    ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1).on_column(0))
-                        .with_content(tree_root)
-                        .build(ctx),
+                    BorderBuilder::new(
+                        WidgetBuilder::new()
+                            .with_background(fyrox::gui::BRUSH_DARK)
+                            .on_row(1)
+                            .on_column(0)
+                            .with_child(
+                                ScrollViewerBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_content(tree_root)
+                                .build(ctx),
+                            ),
+                    )
+                    .build(ctx),
                 ),
         )
         .add_row(Row::strict(22.0))
@@ -417,6 +431,7 @@ impl NodeSelectorWindowBuilder {
                 .with_child(
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(2.0))
                             .on_row(1)
                             .on_column(0)
                             .with_horizontal_alignment(HorizontalAlignment::Right)
@@ -447,7 +462,7 @@ impl NodeSelectorWindowBuilder {
         )
         .add_column(Column::stretch())
         .add_row(Row::stretch())
-        .add_row(Row::strict(23.0))
+        .add_row(Row::strict(27.0))
         .build(ctx);
 
         let window = NodeSelectorWindow {
