@@ -65,6 +65,28 @@ pub fn make_arrow(
     .build(ctx)
 }
 
+pub fn make_cross(ctx: &mut BuildContext, size: f32, thickness: f32) -> Handle<UiNode> {
+    VectorImageBuilder::new(
+        WidgetBuilder::new()
+            .with_horizontal_alignment(HorizontalAlignment::Center)
+            .with_vertical_alignment(VerticalAlignment::Center)
+            .with_foreground(BRUSH_BRIGHT),
+    )
+    .with_primitives(vec![
+        Primitive::Line {
+            begin: Vector2::new(0.0, 0.0),
+            end: Vector2::new(size, size),
+            thickness,
+        },
+        Primitive::Line {
+            begin: Vector2::new(size, 0.0),
+            end: Vector2::new(0.0, size),
+            thickness,
+        },
+    ])
+    .build(ctx)
+}
+
 pub fn make_simple_tooltip(ctx: &mut BuildContext, text: &str) -> Rc<Handle<UiNode>> {
     Rc::new(
         BorderBuilder::new(
