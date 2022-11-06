@@ -45,6 +45,9 @@ physics integration parameters, ambient lighting color, various flags, etc.
 while iterating over them.
 - Property Selector widget - allows you to pick a property path from an object that supports `Reflect` trait.
 - `Reflect` implementation for `Uuid`
+- `fyrox::gui::utils::make_cross` - small helper to create a vector image of a cross
+- `FieldInfo::type_name` - allows to get type name of a field without using unstable 
+`std::any::type_name_of_val`
 
 # 0.28
 
