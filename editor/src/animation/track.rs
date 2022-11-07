@@ -18,8 +18,9 @@ use fyrox::{
         definition::ResourceTrack,
         value::ValueBinding,
     },
-    core::{pool::Handle, reflect::ResolvePath, uuid::Uuid},
+    core::{pool::Handle, reflect::ResolvePath, uuid::Uuid, variable::InheritableVariable},
     engine::Engine,
+    fxhash::FxHashSet,
     gui::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
@@ -36,7 +37,7 @@ use fyrox::{
     scene::node::Node,
     utils::log::Log,
 };
-use std::{cmp::Ordering, rc::Rc, sync::mpsc::Sender};
+use std::{any::TypeId, cmp::Ordering, rc::Rc, sync::mpsc::Sender};
 
 pub struct TrackList {
     pub panel: Handle<UiNode>,
@@ -119,7 +120,7 @@ impl TrackList {
                         WindowBuilder::new(
                             WidgetBuilder::new().with_width(300.0).with_height(400.0),
                         )
-                        .with_title(WindowTitle::text("Select a Node")),
+                        .with_title(WindowTitle::text("Select a Node To Animate")),
                     )
                     .with_hierarchy(HierarchyNode::from_scene_node(
                         scene.graph.get_root(),
@@ -155,9 +156,33 @@ impl TrackList {
                             WindowBuilder::new(
                                 WidgetBuilder::new().with_width(300.0).with_height(400.0),
                             )
-                            .with_title(WindowTitle::text("Select a Property"))
+                            .with_title(WindowTitle::text("Select a Numeric Property To Animate"))
                             .open(false),
                         )
+                        .with_allowed_types(Some(FxHashSet::from_iter([
+                            TypeId::of::<InheritableVariable<f32>>(),
+                            TypeId::of::<InheritableVariable<f64>>(),
+                            TypeId::of::<InheritableVariable<u64>>(),
+                            TypeId::of::<InheritableVariable<i64>>(),
+                            TypeId::of::<InheritableVariable<u32>>(),
+                            TypeId::of::<InheritableVariable<i32>>(),
+                            TypeId::of::<InheritableVariable<u16>>(),
+                            TypeId::of::<InheritableVariable<i16>>(),
+                            TypeId::of::<InheritableVariable<u8>>(),
+                            TypeId::of::<InheritableVariable<i8>>(),
+                            TypeId::of::<InheritableVariable<bool>>(),
+                            TypeId::of::<f32>(),
+                            TypeId::of::<f64>(),
+                            TypeId::of::<u64>(),
+                            TypeId::of::<i64>(),
+                            TypeId::of::<u32>(),
+                            TypeId::of::<i32>(),
+                            TypeId::of::<u16>(),
+                            TypeId::of::<i16>(),
+                            TypeId::of::<u8>(),
+                            TypeId::of::<i8>(),
+                            TypeId::of::<bool>(),
+                        ])))
                         .with_property_descriptors(object_to_property_tree(
                             "",
                             scene.graph[*first].as_reflect(),
