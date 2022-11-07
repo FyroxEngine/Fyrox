@@ -1,6 +1,6 @@
-use fyrox::fxhash::FxHashSet;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, reflect::Reflect},
+    fxhash::FxHashSet,
     gui::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
@@ -14,7 +14,7 @@ use fyrox::{
         text_box::TextBoxBuilder,
         tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
         utils,
-        widget::{Widget, WidgetBuilder},
+        widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{Window, WindowBuilder, WindowMessage},
         BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
         UiNode, UserInterface,
@@ -29,11 +29,11 @@ use std::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PropertySelectorMessage {
-    Selection(Vec<String>),
+    Selection(Vec<PropertyDescriptorData>),
 }
 
 impl PropertySelectorMessage {
-    define_constructor!(PropertySelectorMessage:Selection => fn selection(Vec<String>), layout: false);
+    define_constructor!(PropertySelectorMessage:Selection => fn selection(Vec<PropertyDescriptorData>), layout: false);
 }
 
 pub struct PropertyDescriptor {
@@ -44,8 +44,10 @@ pub struct PropertyDescriptor {
     children_properties: Vec<PropertyDescriptor>,
 }
 
-struct PropertyDescriptorData {
-    path: String,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PropertyDescriptorData {
+    pub path: String,
+    pub type_id: TypeId,
 }
 
 fn make_pretty_type_name(type_name: &str) -> String {
@@ -100,6 +102,7 @@ impl PropertyDescriptor {
             TreeBuilder::new(
                 WidgetBuilder::new().with_user_data(Rc::new(PropertyDescriptorData {
                     path: self.path.clone(),
+                    type_id: self.type_id,
                 })),
             )
             .with_items(items)
@@ -164,10 +167,8 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
 #[derive(Clone)]
 pub struct PropertySelector {
     widget: Widget,
-    selected_property_path: Vec<String>,
+    selected_property_path: Vec<PropertyDescriptorData>,
     tree_root: Handle<UiNode>,
-    #[allow(dead_code)]
-    allowed_types: Option<FxHashSet<TypeId>>,
 }
 
 define_widget_deref!(PropertySelector);
@@ -197,7 +198,6 @@ impl Control for PropertySelector {
                             ui.node(*s)
                                 .user_data_ref::<PropertyDescriptorData>()
                                 .unwrap()
-                                .path
                                 .clone()
                         })
                         .collect(),
@@ -307,7 +307,6 @@ impl PropertySelectorBuilder {
             widget: self.widget_builder.with_child(content).build(),
             selected_property_path: Default::default(),
             tree_root,
-            allowed_types: self.allowed_types,
         };
 
         ctx.add_node(UiNode::new(selector))
@@ -320,6 +319,7 @@ pub struct PropertySelectorWindow {
     selector: Handle<UiNode>,
     ok: Handle<UiNode>,
     cancel: Handle<UiNode>,
+    allowed_types: Option<FxHashSet<TypeId>>,
 }
 
 impl Deref for PropertySelectorWindow {
@@ -396,6 +396,22 @@ impl Control for PropertySelectorWindow {
                     MessageDirection::ToWidget,
                 ));
             }
+        } else if let Some(PropertySelectorMessage::Selection(selection)) = message.data() {
+            if message.destination() == self.selector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                let enabled = selection.iter().all(|d| {
+                    self.allowed_types
+                        .as_ref()
+                        .map_or(true, |types| types.contains(&d.type_id))
+                });
+
+                ui.send_message(WidgetMessage::enabled(
+                    self.ok,
+                    MessageDirection::ToWidget,
+                    enabled,
+                ));
+            }
         }
     }
 
@@ -451,7 +467,7 @@ impl PropertySelectorWindowBuilder {
                             .on_column(0)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_allowed_types(self.allowed_types)
+                    .with_allowed_types(self.allowed_types.clone())
                     .with_property_descriptors(self.property_descriptors)
                     .build(ctx);
                     selector
@@ -466,6 +482,7 @@ impl PropertySelectorWindowBuilder {
                             .with_child({
                                 ok = ButtonBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_enabled(false)
                                         .with_width(100.0)
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
@@ -498,6 +515,7 @@ impl PropertySelectorWindowBuilder {
             selector,
             ok,
             cancel,
+            allowed_types: self.allowed_types,
         };
 
         ctx.add_node(UiNode::new(window))

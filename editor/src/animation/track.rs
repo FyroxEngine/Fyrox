@@ -206,7 +206,7 @@ impl TrackList {
                     let scene = &engine.scenes[editor_scene.scene];
                     if let Some(node) = scene.graph.try_get(self.selected_node) {
                         for property_path in selected_properties {
-                            match node.as_reflect().resolve_path(property_path) {
+                            match node.as_reflect().resolve_path(&property_path.path) {
                                 Ok(_property) => {
                                     // TODO: Check property type.
                                     let mut track =
@@ -214,8 +214,9 @@ impl TrackList {
                                             TrackValueKind::Vector3,
                                             3,
                                         ));
-                                    track
-                                        .set_binding(ValueBinding::Property(property_path.clone()));
+                                    track.set_binding(ValueBinding::Property(
+                                        property_path.path.clone(),
+                                    ));
 
                                     sender
                                         .send(Message::DoCommand(AnimationCommand::new(
@@ -225,7 +226,7 @@ impl TrackList {
                                 }
                                 Err(e) => {
                                     Log::err(format!(
-                                        "Invalid property path {}. Error: {:?}!",
+                                        "Invalid property path {:?}. Error: {:?}!",
                                         property_path, e
                                     ));
                                 }
