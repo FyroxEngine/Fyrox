@@ -12,13 +12,20 @@ use crate::{
         EditorScene,
     },
 };
+use fyrox::core::algebra::UnitQuaternion;
 use fyrox::{
     animation::{
         container::{TrackFramesContainer, TrackValueKind},
         definition::ResourceTrack,
         value::ValueBinding,
     },
-    core::{pool::Handle, reflect::ResolvePath, uuid::Uuid, variable::InheritableVariable},
+    core::{
+        algebra::{Vector2, Vector3, Vector4},
+        pool::Handle,
+        reflect::ResolvePath,
+        uuid::Uuid,
+        variable::InheritableVariable,
+    },
     engine::Engine,
     fxhash::FxHashSet,
     gui::{
@@ -50,6 +57,17 @@ pub struct TrackList {
 
 struct TrackViewData {
     id: Uuid,
+}
+
+macro_rules! define_allowed_types {
+    ($($ty:ty),*) => {
+        [
+            $(
+                TypeId::of::<InheritableVariable<$ty>>(),
+                TypeId::of::<$ty>(),
+            )*
+        ]
+    }
 }
 
 impl TrackList {
@@ -159,30 +177,20 @@ impl TrackList {
                             .with_title(WindowTitle::text("Select a Numeric Property To Animate"))
                             .open(false),
                         )
-                        .with_allowed_types(Some(FxHashSet::from_iter([
-                            TypeId::of::<InheritableVariable<f32>>(),
-                            TypeId::of::<InheritableVariable<f64>>(),
-                            TypeId::of::<InheritableVariable<u64>>(),
-                            TypeId::of::<InheritableVariable<i64>>(),
-                            TypeId::of::<InheritableVariable<u32>>(),
-                            TypeId::of::<InheritableVariable<i32>>(),
-                            TypeId::of::<InheritableVariable<u16>>(),
-                            TypeId::of::<InheritableVariable<i16>>(),
-                            TypeId::of::<InheritableVariable<u8>>(),
-                            TypeId::of::<InheritableVariable<i8>>(),
-                            TypeId::of::<InheritableVariable<bool>>(),
-                            TypeId::of::<f32>(),
-                            TypeId::of::<f64>(),
-                            TypeId::of::<u64>(),
-                            TypeId::of::<i64>(),
-                            TypeId::of::<u32>(),
-                            TypeId::of::<i32>(),
-                            TypeId::of::<u16>(),
-                            TypeId::of::<i16>(),
-                            TypeId::of::<u8>(),
-                            TypeId::of::<i8>(),
-                            TypeId::of::<bool>(),
-                        ])))
+                        .with_allowed_types(Some(FxHashSet::from_iter(define_allowed_types! {
+                            f32, f64, u64, i64, u32, i32, u16, i16, u8, i8, bool,
+
+                            Vector2<f32>, Vector2<f64>, Vector2<u64>, Vector2<i64>, Vector2<u32>, Vector2<i32>,
+                            Vector2<i16>, Vector2<u16>, Vector2<i8>, Vector2<u8>,
+
+                            Vector3<f32>, Vector3<f64>, Vector3<u64>, Vector3<i64>, Vector3<u32>, Vector3<i32>,
+                            Vector3<i16>, Vector3<u16>, Vector3<i8>, Vector3<u8>,
+
+                            Vector4<f32>, Vector4<f64>, Vector4<u64>, Vector4<i64>, Vector4<u32>, Vector4<i32>,
+                            Vector4<i16>, Vector4<u16>, Vector4<i8>, Vector4<u8>,
+
+                            UnitQuaternion<f32>
+                        })))
                         .with_property_descriptors(object_to_property_tree(
                             "",
                             scene.graph[*first].as_reflect(),
@@ -207,22 +215,81 @@ impl TrackList {
                     if let Some(node) = scene.graph.try_get(self.selected_node) {
                         for property_path in selected_properties {
                             match node.as_reflect().resolve_path(&property_path.path) {
-                                Ok(_property) => {
-                                    // TODO: Check property type.
-                                    let mut track =
-                                        ResourceTrack::new(TrackFramesContainer::with_n_curves(
-                                            TrackValueKind::Vector3,
-                                            3,
-                                        ));
-                                    track.set_binding(ValueBinding::Property(
-                                        property_path.path.clone(),
-                                    ));
+                                Ok(property) => {
+                                    let property_type = property.as_any().type_id();
 
-                                    sender
-                                        .send(Message::DoCommand(AnimationCommand::new(
-                                            AddTrackCommand::new(track),
-                                        )))
-                                        .unwrap();
+                                    let container = if property_type == TypeId::of::<f32>()
+                                        || property_type == TypeId::of::<f64>()
+                                        || property_type == TypeId::of::<u64>()
+                                        || property_type == TypeId::of::<i64>()
+                                        || property_type == TypeId::of::<u32>()
+                                        || property_type == TypeId::of::<i32>()
+                                        || property_type == TypeId::of::<u16>()
+                                        || property_type == TypeId::of::<i16>()
+                                        || property_type == TypeId::of::<u8>()
+                                        || property_type == TypeId::of::<i8>()
+                                        || property_type == TypeId::of::<bool>()
+                                    {
+                                        Some(TrackFramesContainer::new(TrackValueKind::Real))
+                                    } else if property_type == TypeId::of::<Vector2<f32>>()
+                                        || property_type == TypeId::of::<Vector2<f64>>()
+                                        || property_type == TypeId::of::<Vector2<u64>>()
+                                        || property_type == TypeId::of::<Vector2<i64>>()
+                                        || property_type == TypeId::of::<Vector2<u32>>()
+                                        || property_type == TypeId::of::<Vector2<i32>>()
+                                        || property_type == TypeId::of::<Vector2<u16>>()
+                                        || property_type == TypeId::of::<Vector2<i16>>()
+                                        || property_type == TypeId::of::<Vector2<u8>>()
+                                        || property_type == TypeId::of::<Vector2<i8>>()
+                                        || property_type == TypeId::of::<Vector2<bool>>()
+                                    {
+                                        Some(TrackFramesContainer::new(TrackValueKind::Vector2))
+                                    } else if property_type == TypeId::of::<Vector3<f32>>()
+                                        || property_type == TypeId::of::<Vector3<f64>>()
+                                        || property_type == TypeId::of::<Vector3<u64>>()
+                                        || property_type == TypeId::of::<Vector3<i64>>()
+                                        || property_type == TypeId::of::<Vector3<u32>>()
+                                        || property_type == TypeId::of::<Vector3<i32>>()
+                                        || property_type == TypeId::of::<Vector3<u16>>()
+                                        || property_type == TypeId::of::<Vector3<i16>>()
+                                        || property_type == TypeId::of::<Vector3<u8>>()
+                                        || property_type == TypeId::of::<Vector3<i8>>()
+                                        || property_type == TypeId::of::<Vector3<bool>>()
+                                    {
+                                        Some(TrackFramesContainer::new(TrackValueKind::Vector3))
+                                    } else if property_type == TypeId::of::<Vector4<f32>>()
+                                        || property_type == TypeId::of::<Vector4<f64>>()
+                                        || property_type == TypeId::of::<Vector4<u64>>()
+                                        || property_type == TypeId::of::<Vector4<i64>>()
+                                        || property_type == TypeId::of::<Vector4<u32>>()
+                                        || property_type == TypeId::of::<Vector4<i32>>()
+                                        || property_type == TypeId::of::<Vector4<u16>>()
+                                        || property_type == TypeId::of::<Vector4<i16>>()
+                                        || property_type == TypeId::of::<Vector4<u8>>()
+                                        || property_type == TypeId::of::<Vector4<i8>>()
+                                        || property_type == TypeId::of::<Vector4<bool>>()
+                                    {
+                                        Some(TrackFramesContainer::new(TrackValueKind::Vector4))
+                                    } else if property_type == TypeId::of::<UnitQuaternion<f32>>() {
+                                        Some(TrackFramesContainer::new(
+                                            TrackValueKind::UnitQuaternion,
+                                        ))
+                                    } else {
+                                        None
+                                    };
+
+                                    if let Some(container) = container {
+                                        let track = ResourceTrack::new(
+                                            container,
+                                            ValueBinding::Property(property_path.path.clone()),
+                                        );
+
+                                        sender
+                                            .send(Message::DoCommand(AnimationCommand::new(
+                                                AddTrackCommand::new(track),
+                                            )))
+                                            .unwrap();
+                                    }
                                 }
                                 Err(e) => {
                                     Log::err(format!(
