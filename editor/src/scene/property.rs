@@ -41,6 +41,7 @@ pub struct PropertyDescriptor {
     display_name: String,
     type_name: &'static str,
     type_id: TypeId,
+    read_only: bool,
     children_properties: Vec<PropertyDescriptor>,
 }
 
@@ -92,6 +93,10 @@ impl PropertyDescriptor {
         ctx: &mut BuildContext,
         allowed_types: Option<&FxHashSet<TypeId>>,
     ) -> Handle<UiNode> {
+        if self.read_only {
+            return Handle::NONE;
+        }
+
         let items = make_views_for_property_descriptor_collection(
             ctx,
             &self.children_properties,
@@ -138,6 +143,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                 type_name: field_info.type_name,
                 type_id: field_info.value.type_id(),
                 children_properties: Default::default(),
+                read_only: field_info.read_only,
             };
 
             for i in 0..array.reflect_len() {
@@ -148,6 +154,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                     display_name: format!("[{}]", i),
                     type_name: field_info.type_name,
                     type_id: field_info.value.type_id(),
+                    read_only: field_info.read_only,
                     children_properties: object_to_property_tree(&item_path, item),
                 })
             }
@@ -157,6 +164,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                 display_name: field_info.display_name.to_owned(),
                 type_name: field_info.type_name,
                 type_id: field_info.value.type_id(),
+                read_only: field_info.read_only,
                 children_properties: object_to_property_tree(field_info.name, field_ref),
             })
         }
