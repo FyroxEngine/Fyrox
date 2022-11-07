@@ -1,3 +1,4 @@
+use fyrox::fxhash::FxHashSet;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, reflect::Reflect},
     gui::{
@@ -39,6 +40,7 @@ pub struct PropertyDescriptor {
     path: String,
     display_name: String,
     type_name: &'static str,
+    type_id: TypeId,
     children_properties: Vec<PropertyDescriptor>,
 }
 
@@ -64,29 +66,56 @@ fn make_pretty_type_name(type_name: &str) -> String {
     }
 }
 
+fn make_views_for_property_descriptor_collection(
+    ctx: &mut BuildContext,
+    collection: &[PropertyDescriptor],
+    allowed_types: Option<&FxHashSet<TypeId>>,
+) -> Vec<Handle<UiNode>> {
+    collection
+        .iter()
+        .filter_map(|p| {
+            let view = p.make_view(ctx, allowed_types);
+            if view.is_some() {
+                Some(view)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 impl PropertyDescriptor {
-    fn make_view(&self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        TreeBuilder::new(
-            WidgetBuilder::new().with_user_data(Rc::new(PropertyDescriptorData {
-                path: self.path.clone(),
-            })),
-        )
-        .with_items(
-            self.children_properties
-                .iter()
-                .map(|p| p.make_view(ctx))
-                .collect(),
-        )
-        .with_content(
-            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                .with_text(format!(
-                    "{} ({})",
-                    self.display_name,
-                    make_pretty_type_name(self.type_name)
-                ))
-                .build(ctx),
-        )
-        .build(ctx)
+    fn make_view(
+        &self,
+        ctx: &mut BuildContext,
+        allowed_types: Option<&FxHashSet<TypeId>>,
+    ) -> Handle<UiNode> {
+        let items = make_views_for_property_descriptor_collection(
+            ctx,
+            &self.children_properties,
+            allowed_types,
+        );
+
+        if !items.is_empty() || allowed_types.map_or(true, |types| types.contains(&self.type_id)) {
+            TreeBuilder::new(
+                WidgetBuilder::new().with_user_data(Rc::new(PropertyDescriptorData {
+                    path: self.path.clone(),
+                })),
+            )
+            .with_items(items)
+            .with_content(
+                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                    .with_text(format!(
+                        "{} ({})",
+                        self.display_name,
+                        make_pretty_type_name(self.type_name)
+                    ))
+                    .build(ctx),
+            )
+            .build(ctx)
+        } else {
+            Handle::NONE
+        }
     }
 }
 
@@ -104,6 +133,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                 path: path.clone(),
                 display_name: field_info.display_name.to_owned(),
                 type_name: field_info.type_name,
+                type_id: field_info.value.type_id(),
                 children_properties: Default::default(),
             };
 
@@ -114,6 +144,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                     path: item_path.clone(),
                     display_name: format!("[{}]", i),
                     type_name: field_info.type_name,
+                    type_id: field_info.value.type_id(),
                     children_properties: object_to_property_tree(&item_path, item),
                 })
             }
@@ -122,6 +153,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                 path,
                 display_name: field_info.display_name.to_owned(),
                 type_name: field_info.type_name,
+                type_id: field_info.value.type_id(),
                 children_properties: object_to_property_tree(field_info.name, field_ref),
             })
         }
@@ -134,6 +166,8 @@ pub struct PropertySelector {
     widget: Widget,
     selected_property_path: Vec<String>,
     tree_root: Handle<UiNode>,
+    #[allow(dead_code)]
+    allowed_types: Option<FxHashSet<TypeId>>,
 }
 
 define_widget_deref!(PropertySelector);
@@ -184,6 +218,7 @@ impl Control for PropertySelector {
 pub struct PropertySelectorBuilder {
     widget_builder: WidgetBuilder,
     property_descriptors: Vec<PropertyDescriptor>,
+    allowed_types: Option<FxHashSet<TypeId>>,
 }
 
 impl PropertySelectorBuilder {
@@ -191,7 +226,13 @@ impl PropertySelectorBuilder {
         Self {
             widget_builder,
             property_descriptors: Default::default(),
+            allowed_types: Default::default(),
         }
+    }
+
+    pub fn with_allowed_types(mut self, allowed_types: Option<FxHashSet<TypeId>>) -> Self {
+        self.allowed_types = allowed_types;
+        self
     }
 
     pub fn with_property_descriptors(mut self, descriptors: Vec<PropertyDescriptor>) -> Self {
@@ -243,12 +284,11 @@ impl PropertySelectorBuilder {
                                 )
                                 .with_content({
                                     tree_root = TreeRootBuilder::new(WidgetBuilder::new())
-                                        .with_items(
-                                            self.property_descriptors
-                                                .into_iter()
-                                                .map(|d| d.make_view(ctx))
-                                                .collect(),
-                                        )
+                                        .with_items(make_views_for_property_descriptor_collection(
+                                            ctx,
+                                            &self.property_descriptors,
+                                            self.allowed_types.as_ref(),
+                                        ))
                                         .build(ctx);
                                     tree_root
                                 })
@@ -267,6 +307,7 @@ impl PropertySelectorBuilder {
             widget: self.widget_builder.with_child(content).build(),
             selected_property_path: Default::default(),
             tree_root,
+            allowed_types: self.allowed_types,
         };
 
         ctx.add_node(UiNode::new(selector))
@@ -375,6 +416,7 @@ impl Control for PropertySelectorWindow {
 pub struct PropertySelectorWindowBuilder {
     window_builder: WindowBuilder,
     property_descriptors: Vec<PropertyDescriptor>,
+    allowed_types: Option<FxHashSet<TypeId>>,
 }
 
 impl PropertySelectorWindowBuilder {
@@ -382,7 +424,13 @@ impl PropertySelectorWindowBuilder {
         Self {
             window_builder,
             property_descriptors: Default::default(),
+            allowed_types: None,
         }
+    }
+
+    pub fn with_allowed_types(mut self, allowed_types: Option<FxHashSet<TypeId>>) -> Self {
+        self.allowed_types = allowed_types;
+        self
     }
 
     pub fn with_property_descriptors(mut self, descriptors: Vec<PropertyDescriptor>) -> Self {
@@ -403,6 +451,7 @@ impl PropertySelectorWindowBuilder {
                             .on_column(0)
                             .with_margin(Thickness::uniform(1.0)),
                     )
+                    .with_allowed_types(self.allowed_types)
                     .with_property_descriptors(self.property_descriptors)
                     .build(ctx);
                     selector
