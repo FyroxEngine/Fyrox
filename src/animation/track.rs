@@ -70,16 +70,17 @@ impl<T> Track<T>
 where
     T: TrackTarget,
 {
-    pub fn new(container: TrackFramesContainer) -> Self {
+    pub fn new(container: TrackFramesContainer, binding: ValueBinding) -> Self {
         Self {
             frames: container,
+            binding,
             ..Default::default()
         }
     }
 
     pub fn new_position() -> Self {
         Self {
-            frames: TrackFramesContainer::with_n_curves(TrackValueKind::Vector3, 3),
+            frames: TrackFramesContainer::new(TrackValueKind::Vector3),
             binding: ValueBinding::Position,
             ..Default::default()
         }
@@ -87,7 +88,7 @@ where
 
     pub fn new_rotation() -> Self {
         Self {
-            frames: TrackFramesContainer::with_n_curves(TrackValueKind::UnitQuaternion, 3),
+            frames: TrackFramesContainer::new(TrackValueKind::UnitQuaternion),
             binding: ValueBinding::Rotation,
             ..Default::default()
         }
@@ -95,7 +96,7 @@ where
 
     pub fn new_scale() -> Self {
         Self {
-            frames: TrackFramesContainer::with_n_curves(TrackValueKind::Vector3, 3),
+            frames: TrackFramesContainer::new(TrackValueKind::Vector3),
             binding: ValueBinding::Scale,
             ..Default::default()
         }

@@ -539,9 +539,11 @@ impl Animation {
                     self.remove_tracks();
 
                     for track in animation.data_ref().animation_definition.tracks() {
-                        let mut node_track = NodeTrack::new(track.frames_container().clone());
+                        let mut node_track = NodeTrack::new(
+                            track.frames_container().clone(),
+                            track.binding().clone(),
+                        );
 
-                        node_track.set_binding(track.binding().clone());
                         node_track.set_target(
                             graph.find(self.root, &mut |n| n.instance_id() == track.target()),
                         );

@@ -23,9 +23,9 @@ impl AnimationDefinition {
         animation.set_root(root);
 
         for track in self.tracks.iter() {
-            let mut node_track = NodeTrack::new(track.frames_container().clone());
+            let mut node_track =
+                NodeTrack::new(track.frames_container().clone(), track.binding().clone());
 
-            node_track.set_binding(track.binding().clone());
             node_track.set_target(graph.find(root, &mut |n| n.instance_id() == track.target()));
 
             animation.add_track(node_track);

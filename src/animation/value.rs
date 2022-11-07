@@ -1,6 +1,7 @@
 use crate::{
     core::{
-        algebra::{UnitQuaternion, Vector3},
+        algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
+        math::lerpf,
         reflect::{prelude::*, ResolvePath},
         visitor::prelude::*,
     },
@@ -11,14 +12,29 @@ use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Clone, Debug)]
 pub enum TrackValue {
+    /// A real number.
+    Real(f32),
+
+    /// A 2-dimensional vector of real values.
+    Vector2(Vector2<f32>),
+
+    /// A 3-dimensional vector of real values.
     Vector3(Vector3<f32>),
+
+    /// A 4-dimensional vector of real values.
+    Vector4(Vector4<f32>),
+
+    /// A quaternion that represents some rotation.
     UnitQuaternion(UnitQuaternion<f32>),
 }
 
 impl TrackValue {
     pub fn weighted_clone(&self, weight: f32) -> Self {
         match self {
+            TrackValue::Real(v) => TrackValue::Real(*v * weight),
+            TrackValue::Vector2(v) => TrackValue::Vector2(v.scale(weight)),
             TrackValue::Vector3(v) => TrackValue::Vector3(v.scale(weight)),
+            TrackValue::Vector4(v) => TrackValue::Vector4(v.scale(weight)),
             TrackValue::UnitQuaternion(v) => TrackValue::UnitQuaternion(*v),
         }
     }
@@ -33,7 +49,10 @@ impl TrackValue {
 
     pub fn interpolate(&self, other: &Self, t: f32) -> Option<Self> {
         match (self, other) {
+            (Self::Real(a), Self::Real(b)) => Some(Self::Real(lerpf(*a, *b, t))),
+            (Self::Vector2(a), Self::Vector2(b)) => Some(Self::Vector2(a.lerp(b, t))),
             (Self::Vector3(a), Self::Vector3(b)) => Some(Self::Vector3(a.lerp(b, t))),
+            (Self::Vector4(a), Self::Vector4(b)) => Some(Self::Vector4(a.lerp(b, t))),
             (Self::UnitQuaternion(a), Self::UnitQuaternion(b)) => {
                 Some(Self::UnitQuaternion(a.nlerp(b, t)))
             }
@@ -45,6 +64,9 @@ impl TrackValue {
         match self {
             TrackValue::Vector3(v) => Box::new(*v),
             TrackValue::UnitQuaternion(v) => Box::new(*v),
+            TrackValue::Real(v) => Box::new(*v),
+            TrackValue::Vector2(v) => Box::new(*v),
+            TrackValue::Vector4(v) => Box::new(*v),
         }
     }
 }

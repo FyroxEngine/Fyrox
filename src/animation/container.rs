@@ -8,11 +8,41 @@ use crate::{
         visitor::prelude::*,
     },
 };
+use fyrox_core::algebra::{Vector2, Vector4};
 
 #[derive(Clone, Copy, Debug, Visit, Reflect, PartialEq, Eq)]
 pub enum TrackValueKind {
+    /// A real number.
+    Real,
+
+    /// A 2-dimensional vector of real values.
+    Vector2,
+
+    /// A 3-dimensional vector of real values.
     Vector3,
+
+    /// A 4-dimensional vector of real values.
+    Vector4,
+
+    /// A quaternion that represents some rotation.
     UnitQuaternion,
+}
+
+impl TrackValueKind {
+    /// Returns count of elementary components of a value kind. For example: Vector3 consists of
+    /// 3 components where each component has its own parametric curve.
+    pub fn components_count(self) -> usize {
+        match self {
+            TrackValueKind::Real => 1,
+            TrackValueKind::Vector2 => 2,
+            TrackValueKind::Vector3 => 3,
+            TrackValueKind::Vector4 => 4,
+            TrackValueKind::UnitQuaternion => {
+                // Euler angles
+                3
+            }
+        }
+    }
 }
 
 impl Default for TrackValueKind {
@@ -28,10 +58,10 @@ pub struct TrackFramesContainer {
 }
 
 impl TrackFramesContainer {
-    pub fn with_n_curves(kind: TrackValueKind, curve_count: usize) -> Self {
+    pub fn new(kind: TrackValueKind) -> Self {
         Self {
             kind,
-            curves: vec![Default::default(); curve_count],
+            curves: vec![Default::default(); kind.components_count()],
         }
     }
 
@@ -65,10 +95,21 @@ impl TrackFramesContainer {
 
     pub fn fetch(&self, time: f32) -> Option<TrackValue> {
         match self.kind {
+            TrackValueKind::Real => Some(TrackValue::Real(self.curves.get(0)?.value_at(time))),
+            TrackValueKind::Vector2 => Some(TrackValue::Vector2(Vector2::new(
+                self.curves.get(0)?.value_at(time),
+                self.curves.get(1)?.value_at(time),
+            ))),
             TrackValueKind::Vector3 => Some(TrackValue::Vector3(Vector3::new(
                 self.curves.get(0)?.value_at(time),
                 self.curves.get(1)?.value_at(time),
                 self.curves.get(2)?.value_at(time),
+            ))),
+            TrackValueKind::Vector4 => Some(TrackValue::Vector4(Vector4::new(
+                self.curves.get(0)?.value_at(time),
+                self.curves.get(1)?.value_at(time),
+                self.curves.get(2)?.value_at(time),
+                self.curves.get(3)?.value_at(time),
             ))),
             TrackValueKind::UnitQuaternion => {
                 // Convert Euler angles to quaternion
