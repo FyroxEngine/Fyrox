@@ -160,12 +160,12 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
             }
         } else {
             descriptors.push(PropertyDescriptor {
-                path,
                 display_name: field_info.display_name.to_owned(),
                 type_name: field_info.type_name,
                 type_id: field_info.value.type_id(),
                 read_only: field_info.read_only,
-                children_properties: object_to_property_tree(field_info.name, field_ref),
+                children_properties: object_to_property_tree(&path, field_ref),
+                path,
             })
         }
     }
