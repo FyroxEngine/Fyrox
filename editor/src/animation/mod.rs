@@ -137,7 +137,7 @@ impl AnimationEditor {
                         need_sync = true;
                     }
                 }
-                Message::Undo => {
+                Message::Redo => {
                     if let Some(data_model) = self.data_model.as_mut() {
                         let resource = data_model.resource.data_ref();
                         self.command_stack.redo(AnimationEditorContext { resource });
@@ -145,7 +145,7 @@ impl AnimationEditor {
                         need_sync = true;
                     }
                 }
-                Message::Redo => {
+                Message::Undo => {
                     if let Some(data_model) = self.data_model.as_mut() {
                         let resource = data_model.resource.data_ref();
                         self.command_stack.undo(AnimationEditorContext { resource });
