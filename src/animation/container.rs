@@ -61,7 +61,12 @@ impl TrackFramesContainer {
     pub fn new(kind: TrackValueKind) -> Self {
         Self {
             kind,
-            curves: vec![Default::default(); kind.components_count()],
+            // Do not use `vec![Default::default(); kind.components_count()]` here because
+            // it clones a curve that was created in first macro argument which leads to
+            // non-unique ids of the curves.
+            curves: (0..kind.components_count())
+                .map(|_| Curve::default())
+                .collect(),
         }
     }
 
