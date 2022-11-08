@@ -117,10 +117,26 @@ impl CurveKey {
     }
 }
 
-#[derive(Visit, Reflect, Default, Clone, Debug, PartialEq)]
+#[derive(Visit, Reflect, Clone, Debug, PartialEq)]
 #[reflect(hide_all)]
 pub struct Curve {
+    #[visit(optional)] // Backward compatibility
+    id: Uuid,
+
+    #[visit(optional)] // Backward compatibility
+    name: String,
+
     keys: Vec<CurveKey>,
+}
+
+impl Default for Curve {
+    fn default() -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            name: Default::default(),
+            keys: Default::default(),
+        }
+    }
 }
 
 fn sort_keys(keys: &mut [CurveKey]) {
@@ -138,11 +154,30 @@ fn sort_keys(keys: &mut [CurveKey]) {
 impl From<Vec<CurveKey>> for Curve {
     fn from(mut keys: Vec<CurveKey>) -> Self {
         sort_keys(&mut keys);
-        Self { keys }
+        Self {
+            id: Uuid::new_v4(),
+            name: Default::default(),
+            keys,
+        }
     }
 }
 
 impl Curve {
+    #[inline]
+    pub fn id(&self) -> Uuid {
+        self.id
+    }
+
+    #[inline]
+    pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
+        self.name = name.as_ref().to_owned();
+    }
+
+    #[inline]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     #[inline]
     pub fn clear(&mut self) {
         self.keys.clear()
