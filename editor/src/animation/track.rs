@@ -12,7 +12,6 @@ use crate::{
         EditorScene,
     },
 };
-use fyrox::core::algebra::UnitQuaternion;
 use fyrox::{
     animation::{
         container::{TrackFramesContainer, TrackValueKind},
@@ -20,7 +19,7 @@ use fyrox::{
         value::ValueBinding,
     },
     core::{
-        algebra::{Vector2, Vector3, Vector4},
+        algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         pool::Handle,
         reflect::ResolvePath,
         uuid::Uuid,
@@ -29,14 +28,13 @@ use fyrox::{
     engine::Engine,
     fxhash::FxHashSet,
     gui::{
-        border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
-        decorator::DecoratorBuilder,
         grid::{Column, GridBuilder, Row},
-        list_view::{ListView, ListViewBuilder, ListViewMessage},
         message::{MessageDirection, UiMessage},
+        scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
+        tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, VerticalAlignment,
@@ -48,11 +46,12 @@ use std::{any::TypeId, cmp::Ordering, rc::Rc, sync::mpsc::Sender};
 
 pub struct TrackList {
     pub panel: Handle<UiNode>,
-    list: Handle<UiNode>,
+    tree_root: Handle<UiNode>,
     add_track: Handle<UiNode>,
     node_selector: Handle<UiNode>,
     property_selector: Handle<UiNode>,
     selected_node: Handle<Node>,
+    track_views: Vec<Handle<UiNode>>,
 }
 
 struct TrackViewData {
@@ -72,22 +71,28 @@ macro_rules! define_allowed_types {
 
 impl TrackList {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let list;
+        let tree_root;
         let add_track;
 
         let panel = GridBuilder::new(
             WidgetBuilder::new()
                 .with_enabled(false)
-                .with_child({
-                    list = ListViewBuilder::new(
+                .with_child(
+                    ScrollViewerBuilder::new(
                         WidgetBuilder::new()
                             .on_row(0)
                             .on_column(0)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .build(ctx);
-                    list
-                })
+                    .with_content({
+                        tree_root = TreeRootBuilder::new(
+                            WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                        )
+                        .build(ctx);
+                        tree_root
+                    })
+                    .build(ctx),
+                )
                 .with_child(
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
@@ -112,11 +117,12 @@ impl TrackList {
 
         Self {
             panel,
-            list,
+            tree_root,
             add_track,
             node_selector: Default::default(),
             property_selector: Default::default(),
             selected_node: Default::default(),
+            track_views: Default::default(),
         }
     }
 
@@ -319,15 +325,9 @@ impl TrackList {
         if let Some(data_model) = data_model {
             let data_ref = data_model.resource.data_ref();
             let definition = &data_ref.animation_definition;
-            let track_views = ui
-                .node(self.list)
-                .query_component::<ListView>()
-                .unwrap()
-                .items
-                .clone();
-            match definition.tracks().len().cmp(&track_views.len()) {
+            match definition.tracks().len().cmp(&self.track_views.len()) {
                 Ordering::Less => {
-                    for track_view in track_views.iter() {
+                    for track_view in self.track_views.clone().iter() {
                         let track_view_ref = ui.node(*track_view);
                         let track_view_data =
                             track_view_ref.user_data_ref::<TrackViewData>().unwrap();
@@ -336,11 +336,18 @@ impl TrackList {
                             .iter()
                             .all(|t| t.id() != track_view_data.id)
                         {
-                            ui.send_message(ListViewMessage::remove_item(
-                                self.list,
+                            ui.send_message(TreeRootMessage::remove_item(
+                                self.tree_root,
                                 MessageDirection::ToWidget,
                                 *track_view,
                             ));
+
+                            self.track_views.remove(
+                                self.track_views
+                                    .iter()
+                                    .position(|v| *v == *track_view)
+                                    .unwrap(),
+                            );
                         }
                     }
                 }
@@ -349,30 +356,51 @@ impl TrackList {
                 }
                 Ordering::Greater => {
                     for model_track in definition.tracks().iter() {
-                        if track_views.iter().map(|v| ui.node(*v)).all(|v| {
+                        if self.track_views.iter().map(|v| ui.node(*v)).all(|v| {
                             v.user_data_ref::<TrackViewData>().unwrap().id != model_track.id()
                         }) {
-                            let track_view = DecoratorBuilder::new(BorderBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_user_data(Rc::new(TrackViewData {
-                                        id: model_track.id(),
-                                    }))
-                                    .with_height(18.0)
-                                    .with_margin(Thickness::uniform(1.0))
-                                    .with_child(
-                                        TextBuilder::new(WidgetBuilder::new())
-                                            .with_text(format!("{}", model_track.binding()))
-                                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                                            .build(&mut ui.build_ctx()),
-                                    ),
-                            ))
-                            .build(&mut ui.build_ctx());
+                            let ctx = &mut ui.build_ctx();
 
-                            ui.send_message(ListViewMessage::add_item(
-                                self.list,
+                            let track_view = TreeBuilder::new(WidgetBuilder::new().with_user_data(
+                                Rc::new(TrackViewData {
+                                    id: model_track.id(),
+                                }),
+                            ))
+                            .with_items(
+                                model_track
+                                    .frames_container()
+                                    .curves_ref()
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, _)| {
+                                        TreeBuilder::new(WidgetBuilder::new())
+                                            .with_content(
+                                                TextBuilder::new(WidgetBuilder::new())
+                                                    .with_text(format!(
+                                                        "Curve - {}",
+                                                        ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_")
+                                                    ))
+                                                    .build(ctx),
+                                            )
+                                            .build(ctx)
+                                    })
+                                    .collect(),
+                            )
+                            .with_content(
+                                TextBuilder::new(WidgetBuilder::new())
+                                    .with_text(format!("{}", model_track.binding()))
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .build(ctx),
+                            )
+                            .build(ctx);
+
+                            ui.send_message(TreeRootMessage::add_item(
+                                self.tree_root,
                                 MessageDirection::ToWidget,
                                 track_view,
-                            ))
+                            ));
+
+                            self.track_views.push(track_view);
                         }
                     }
                 }
