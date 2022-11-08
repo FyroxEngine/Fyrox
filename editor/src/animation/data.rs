@@ -1,12 +1,19 @@
 use fyrox::{
     asset::{ResourceData, ResourceState},
-    core::visitor::prelude::*,
+    core::{uuid::Uuid, visitor::prelude::*},
     resource::animation::AnimationResource,
 };
 use std::path::PathBuf;
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum SelectedEntity {
+    Track(Uuid),
+    Curve(Uuid),
+}
+
 pub struct DataModel {
     pub saved: bool,
+    pub selection: Vec<SelectedEntity>,
     pub resource: AnimationResource,
 }
 

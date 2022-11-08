@@ -1,6 +1,6 @@
-use crate::define_command_stack;
-use fyrox::animation::definition::ResourceTrack;
+use crate::{animation::data::SelectedEntity, define_command_stack};
 use fyrox::{
+    animation::definition::ResourceTrack,
     asset::ResourceDataRef,
     resource::animation::{AnimationResourceError, AnimationResourceState},
 };
@@ -11,6 +11,7 @@ use std::{
 
 #[derive(Debug)]
 pub struct AnimationEditorContext<'a> {
+    pub selection: &'a mut Vec<SelectedEntity>,
     pub resource: ResourceDataRef<'a, AnimationResourceState, AnimationResourceError>,
 }
 
@@ -121,5 +122,30 @@ impl AnimationCommandTrait for AddTrackCommand {
             .animation_definition
             .tracks_container()
             .pop();
+    }
+}
+
+#[derive(Debug)]
+pub struct SetSelectionCommand {
+    pub selection: Vec<SelectedEntity>,
+}
+
+impl SetSelectionCommand {
+    fn swap(&mut self, context: &mut AnimationEditorContext) {
+        std::mem::swap(&mut self.selection, context.selection)
+    }
+}
+
+impl AnimationCommandTrait for SetSelectionCommand {
+    fn name(&mut self, _: &AnimationEditorContext) -> String {
+        "Set Selection".to_string()
+    }
+
+    fn execute(&mut self, context: &mut AnimationEditorContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut AnimationEditorContext) {
+        self.swap(context)
     }
 }

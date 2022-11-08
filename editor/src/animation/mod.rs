@@ -1,7 +1,7 @@
 use crate::{
     animation::{
         command::{AnimationCommandStack, AnimationEditorContext},
-        data::DataModel,
+        data::{DataModel, SelectedEntity},
         menu::Menu,
         message::Message,
         track::TrackList,
@@ -13,7 +13,7 @@ use fyrox::{
     core::{futures::executor::block_on, pool::Handle},
     engine::Engine,
     gui::{
-        curve::CurveEditorBuilder,
+        curve::{CurveEditorBuilder, CurveEditorMessage},
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
         widget::{WidgetBuilder, WidgetMessage},
@@ -39,6 +39,7 @@ pub struct AnimationEditor {
     command_stack: AnimationCommandStack,
     message_sender: Sender<Message>,
     message_receiver: Receiver<Message>,
+    current_selection: Vec<SelectedEntity>,
 }
 
 impl AnimationEditor {
@@ -97,6 +98,7 @@ impl AnimationEditor {
             command_stack: AnimationCommandStack::new(false),
             message_sender,
             message_receiver,
+            current_selection: Default::default(),
         }
     }
 
@@ -131,8 +133,13 @@ impl AnimationEditor {
                 Message::DoCommand(command) => {
                     if let Some(data_model) = self.data_model.as_mut() {
                         let resource = data_model.resource.data_ref();
-                        self.command_stack
-                            .do_command(command.0, AnimationEditorContext { resource });
+                        self.command_stack.do_command(
+                            command.0,
+                            AnimationEditorContext {
+                                selection: &mut data_model.selection,
+                                resource,
+                            },
+                        );
                         data_model.saved = false;
                         need_sync = true;
                     }
@@ -140,7 +147,10 @@ impl AnimationEditor {
                 Message::Redo => {
                     if let Some(data_model) = self.data_model.as_mut() {
                         let resource = data_model.resource.data_ref();
-                        self.command_stack.redo(AnimationEditorContext { resource });
+                        self.command_stack.redo(AnimationEditorContext {
+                            selection: &mut data_model.selection,
+                            resource,
+                        });
                         data_model.saved = false;
                         need_sync = true;
                     }
@@ -148,16 +158,21 @@ impl AnimationEditor {
                 Message::Undo => {
                     if let Some(data_model) = self.data_model.as_mut() {
                         let resource = data_model.resource.data_ref();
-                        self.command_stack.undo(AnimationEditorContext { resource });
+                        self.command_stack.undo(AnimationEditorContext {
+                            selection: &mut data_model.selection,
+                            resource,
+                        });
                         data_model.saved = false;
                         need_sync = true;
                     }
                 }
                 Message::ClearCommandStack => {
-                    if let Some(data_model) = self.data_model.as_ref() {
+                    if let Some(data_model) = self.data_model.as_mut() {
                         let resource = data_model.resource.data_ref();
-                        self.command_stack
-                            .clear(AnimationEditorContext { resource });
+                        self.command_stack.clear(AnimationEditorContext {
+                            selection: &mut data_model.selection,
+                            resource,
+                        });
                     }
                 }
                 Message::Exit => {
@@ -172,6 +187,7 @@ impl AnimationEditor {
                             AnimationResourceState::default(),
                         ))),
                         saved: false,
+                        selection: Default::default(),
                     });
                     need_sync = true;
                 }
@@ -185,6 +201,7 @@ impl AnimationEditor {
                     {
                         self.data_model = Some(DataModel {
                             saved: true,
+                            selection: Default::default(),
                             resource: animation,
                         });
                         need_sync = true;
@@ -209,5 +226,35 @@ impl AnimationEditor {
             .sync_to_model(&engine.user_interface, self.data_model.as_ref());
         self.track_list
             .sync_to_model(engine, self.data_model.as_ref());
+
+        if let Some(data_model) = self.data_model.as_ref() {
+            if self.current_selection != data_model.selection {
+                self.current_selection = data_model.selection.clone();
+
+                // TODO: Add support for multi-selection
+                if let Some(SelectedEntity::Curve(selected_curve_id)) =
+                    self.current_selection.first()
+                {
+                    let resource_ref = data_model.resource.data_ref();
+                    if let Some(selected_curve) = resource_ref
+                        .animation_definition
+                        .tracks()
+                        .iter()
+                        .find_map(|t| {
+                            t.frames_container()
+                                .curves_ref()
+                                .iter()
+                                .find(|c| &c.id() == selected_curve_id)
+                        })
+                    {
+                        engine.user_interface.send_message(CurveEditorMessage::sync(
+                            self.curve_editor,
+                            MessageDirection::ToWidget,
+                            selected_curve.clone(),
+                        ));
+                    }
+                }
+            }
+        }
     }
 }

@@ -1,7 +1,7 @@
 use crate::{
     animation::{
-        command::{AddTrackCommand, AnimationCommand},
-        data::DataModel,
+        command::{AddTrackCommand, AnimationCommand, SetSelectionCommand},
+        data::{DataModel, SelectedEntity},
         message::Message,
     },
     scene::{
@@ -55,6 +55,10 @@ pub struct TrackList {
 }
 
 struct TrackViewData {
+    id: Uuid,
+}
+
+struct CurveViewData {
     id: Uuid,
 }
 
@@ -310,6 +314,32 @@ impl TrackList {
                     }
                 }
             }
+        } else if let Some(TreeRootMessage::Selected(selection)) = message.data() {
+            if message.destination() == self.tree_root
+                && message.direction == MessageDirection::FromWidget
+            {
+                let selection = selection
+                    .iter()
+                    .filter_map(|s| {
+                        let selected_widget = ui.node(*s);
+                        if let Some(track_data) = selected_widget.user_data_ref::<TrackViewData>() {
+                            Some(SelectedEntity::Track(track_data.id))
+                        } else if let Some(curve_data) =
+                            selected_widget.user_data_ref::<CurveViewData>()
+                        {
+                            Some(SelectedEntity::Curve(curve_data.id))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                sender
+                    .send(Message::DoCommand(AnimationCommand::new(
+                        SetSelectionCommand { selection },
+                    )))
+                    .unwrap();
+            }
         }
     }
 
@@ -372,17 +402,19 @@ impl TrackList {
                                     .curves_ref()
                                     .iter()
                                     .enumerate()
-                                    .map(|(i, _)| {
-                                        TreeBuilder::new(WidgetBuilder::new())
-                                            .with_content(
-                                                TextBuilder::new(WidgetBuilder::new())
-                                                    .with_text(format!(
-                                                        "Curve - {}",
-                                                        ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_")
-                                                    ))
-                                                    .build(ctx),
-                                            )
-                                            .build(ctx)
+                                    .map(|(i, curve)| {
+                                        TreeBuilder::new(WidgetBuilder::new().with_user_data(
+                                            Rc::new(CurveViewData { id: curve.id() }),
+                                        ))
+                                        .with_content(
+                                            TextBuilder::new(WidgetBuilder::new())
+                                                .with_text(format!(
+                                                    "Curve - {}",
+                                                    ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_"),
+                                                ))
+                                                .build(ctx),
+                                        )
+                                        .build(ctx)
                                     })
                                     .collect(),
                             )
