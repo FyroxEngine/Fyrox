@@ -164,6 +164,11 @@ impl From<Vec<CurveKey>> for Curve {
 
 impl Curve {
     #[inline]
+    pub fn set_id(&mut self, id: Uuid) {
+        self.id = id;
+    }
+
+    #[inline]
     pub fn id(&self) -> Uuid {
         self.id
     }
