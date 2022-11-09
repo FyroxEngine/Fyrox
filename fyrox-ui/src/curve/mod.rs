@@ -432,6 +432,7 @@ impl Control for CurveEditor {
                             });
                             self.set_selection(None, ui);
                             self.sort_keys();
+                            self.send_curve(ui);
                         }
                         CurveEditorMessage::ZoomToFit => {
                             let mut max_y = -f32::MAX;
