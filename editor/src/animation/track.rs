@@ -289,10 +289,13 @@ impl TrackList {
                                     };
 
                                     if let Some(container) = container {
-                                        let track = ResourceTrack::new(
+                                        let mut track = ResourceTrack::new(
                                             container,
                                             ValueBinding::Property(property_path.path.clone()),
                                         );
+
+                                        track.set_serialize_frames(true);
+                                        track.set_target(node.instance_id());
 
                                         sender
                                             .send(Message::DoCommand(AnimationCommand::new(
