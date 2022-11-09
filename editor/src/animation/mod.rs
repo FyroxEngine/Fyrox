@@ -1,6 +1,9 @@
 use crate::{
     animation::{
-        command::{AnimationCommandStack, AnimationEditorContext},
+        command::{
+            AnimationCommand, AnimationCommandStack, AnimationEditorContext,
+            ReplaceTrackCurveCommand,
+        },
         data::{DataModel, SelectedEntity},
         menu::Menu,
         message::Message,
@@ -124,6 +127,20 @@ impl AnimationEditor {
             &self.message_sender,
             self.data_model.as_ref(),
         );
+
+        if let Some(CurveEditorMessage::Sync(curve)) = message.data() {
+            if message.destination() == self.curve_editor
+                && message.direction() == MessageDirection::FromWidget
+            {
+                self.message_sender
+                    .send(Message::DoCommand(AnimationCommand::new(
+                        ReplaceTrackCurveCommand {
+                            curve: curve.clone(),
+                        },
+                    )))
+                    .unwrap();
+            }
+        }
     }
 
     pub fn update(&mut self, engine: &mut Engine) {

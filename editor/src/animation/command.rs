@@ -2,7 +2,9 @@ use crate::{animation::data::SelectedEntity, define_command_stack};
 use fyrox::{
     animation::definition::ResourceTrack,
     asset::ResourceDataRef,
+    core::curve::Curve,
     resource::animation::{AnimationResourceError, AnimationResourceState},
+    utils::log::Log,
 };
 use std::{
     fmt::Debug,
@@ -139,6 +141,40 @@ impl SetSelectionCommand {
 impl AnimationCommandTrait for SetSelectionCommand {
     fn name(&mut self, _: &AnimationEditorContext) -> String {
         "Set Selection".to_string()
+    }
+
+    fn execute(&mut self, context: &mut AnimationEditorContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut AnimationEditorContext) {
+        self.swap(context)
+    }
+}
+
+#[derive(Debug)]
+pub struct ReplaceTrackCurveCommand {
+    pub curve: Curve,
+}
+
+impl ReplaceTrackCurveCommand {
+    fn swap(&mut self, context: &mut AnimationEditorContext) {
+        for track in context.resource.animation_definition.tracks_container() {
+            for curve in track.frames_container_mut().curves_mut() {
+                if curve.id() == self.curve.id() {
+                    std::mem::swap(&mut self.curve, curve);
+                    return;
+                }
+            }
+        }
+
+        Log::err(format!("There's no such curve with id {}", self.curve.id()))
+    }
+}
+
+impl AnimationCommandTrait for ReplaceTrackCurveCommand {
+    fn name(&mut self, _context: &AnimationEditorContext) -> String {
+        "Replace Track Curve".to_string()
     }
 
     fn execute(&mut self, context: &mut AnimationEditorContext) {
