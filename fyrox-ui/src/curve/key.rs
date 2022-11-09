@@ -24,6 +24,7 @@ impl From<&CurveKey> for CurveKeyView {
 
 #[derive(Clone)]
 pub struct KeyContainer {
+    id: Uuid,
     keys: Vec<CurveKeyView>,
 }
 
@@ -35,6 +36,7 @@ impl From<&Curve> for KeyContainer {
                 .iter()
                 .map(CurveKeyView::from)
                 .collect::<Vec<_>>(),
+            id: curve.id(),
         }
     }
 }
@@ -89,11 +91,17 @@ impl KeyContainer {
     }
 
     pub fn curve(&self) -> Curve {
-        Curve::from(
+        let mut curve = Curve::from(
             self.keys
                 .iter()
-                .map(|k| CurveKey::new(k.position.x, k.position.y, k.kind.clone()))
+                .map(|k| {
+                    let mut key = CurveKey::new(k.position.x, k.position.y, k.kind.clone());
+                    key.id = k.id;
+                    key
+                })
                 .collect::<Vec<_>>(),
-        )
+        );
+        curve.set_id(self.id);
+        curve
     }
 }
