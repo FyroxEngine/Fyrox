@@ -5,6 +5,7 @@
 //! A `Scene` is a container for graph nodes, animations and physics.
 
 pub mod accel;
+pub mod animation;
 pub mod base;
 pub mod camera;
 pub mod collider;

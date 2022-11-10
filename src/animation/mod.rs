@@ -1,14 +1,14 @@
-use crate::resource::animation::AnimationResource;
 use crate::{
     animation::{track::Track, value::BoundValueCollection},
     asset::ResourceState,
     core::{
         math::wrapf,
         pool::{Handle, Pool, Ticket},
+        reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    resource::model::Model,
+    resource::{animation::AnimationResource, model::Model},
     scene::{graph::Graph, node::Node},
     utils::log::{Log, MessageKind},
 };
@@ -31,7 +31,7 @@ pub struct AnimationEvent {
     pub signal_id: u64,
 }
 
-#[derive(Clone, Debug, Visit)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct AnimationSignal {
     id: u64,
     time: f32,
@@ -78,7 +78,8 @@ pub type NodeTrack = Track<Handle<Node>>;
 
 /// Animation data source. There's two main sources of animation - external models (FBX) and engine
 /// animation resources.
-#[derive(Debug, Clone, Visit, PartialEq, Eq)]
+#[derive(Debug, Clone, Visit, PartialEq, Eq, Reflect)]
+#[reflect(hide_all)]
 pub enum AnimationHolder {
     /// Model resources can contain animations. For example, an FBX model could store a skeletal
     /// animation which contains a set of tracks for some bones.
@@ -93,7 +94,7 @@ impl Default for AnimationHolder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Reflect)]
 pub struct Animation {
     tracks: Vec<NodeTrack>,
     length: f32,
@@ -108,8 +109,10 @@ pub struct Animation {
     root: Handle<Node>,
 
     // Non-serialized
+    #[reflect(hidden)]
     pose: AnimationPose,
     // Non-serialized
+    #[reflect(hidden)]
     events: VecDeque<AnimationEvent>,
 }
 
@@ -308,7 +311,7 @@ impl Animation {
         self.root
     }
 
-    fn tick(&mut self, dt: f32) {
+    pub(crate) fn tick(&mut self, dt: f32) {
         self.update_pose();
 
         let current_time_position = self.time_position();
