@@ -7,6 +7,7 @@ use crate::{
         data::{DataModel, SelectedEntity},
         menu::Menu,
         message::Message,
+        toolbar::Toolbar,
         track::TrackList,
     },
     scene::EditorScene,
@@ -31,6 +32,7 @@ mod command;
 mod data;
 mod menu;
 mod message;
+mod toolbar;
 mod track;
 
 pub struct AnimationEditor {
@@ -39,6 +41,8 @@ pub struct AnimationEditor {
     curve_editor: Handle<UiNode>,
     data_model: Option<DataModel>,
     menu: Menu,
+    #[allow(dead_code)] // TODO
+    toolbar: Toolbar,
     command_stack: AnimationCommandStack,
     message_sender: Sender<Message>,
     message_receiver: Receiver<Message>,
@@ -51,10 +55,11 @@ impl AnimationEditor {
 
         let menu = Menu::new(ctx);
         let track_list = TrackList::new(ctx);
+        let toolbar = Toolbar::new(ctx);
 
         let payload = GridBuilder::new(
             WidgetBuilder::new()
-                .on_row(1)
+                .on_row(2)
                 .on_column(0)
                 .with_child(track_list.panel)
                 .with_child({
@@ -77,8 +82,10 @@ impl AnimationEditor {
         let content = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(menu.menu)
+                .with_child(toolbar.panel)
                 .with_child(payload),
         )
+        .add_row(Row::strict(22.0))
         .add_row(Row::strict(22.0))
         .add_row(Row::stretch())
         .add_column(Column::stretch())
@@ -98,6 +105,7 @@ impl AnimationEditor {
             curve_editor,
             data_model: None,
             menu,
+            toolbar,
             command_stack: AnimationCommandStack::new(false),
             message_sender,
             message_receiver,
