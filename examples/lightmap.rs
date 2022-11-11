@@ -238,8 +238,7 @@ fn create_scene_async(
                     .request_model("examples/data/sponza/Sponza.rgs")
                     .await
                     .unwrap()
-                    .instantiate(&mut scene)
-                    .root;
+                    .instantiate(&mut scene);
 
                 if let Ok(lightmap) =
                     Lightmap::new(&mut scene, 64, cancellation_token, progress_indicator)

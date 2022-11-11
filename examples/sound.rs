@@ -9,6 +9,8 @@
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
+use fyrox::scene::animation::absm::AnimationBlendingStateMachine;
+use fyrox::scene::animation::AnimationPlayer;
 use fyrox::scene::sound::effect::EffectInput;
 use fyrox::{
     animation::AnimationSignal,
@@ -81,7 +83,6 @@ fn main() {
                 previous = Instant::now();
                 lag += elapsed.as_secs_f32();
                 while lag >= fixed_timestep {
-
                     // ************************
                     // Put your game logic here.
                     // ************************
@@ -91,14 +92,23 @@ fn main() {
                     // thread still loading data.
                     if let Ok(mut load_context) = game.load_context.as_ref().unwrap().try_lock() {
                         if let Some(mut load_result) = load_context.scene_data.take() {
+                            let animation_player = load_result
+                                .scene
+                                .graph
+                                .find(load_result.player.animation_player, &mut |n| {
+                                    n.query_component_ref::<AnimationPlayer>().is_some()
+                                });
+
                             // Once scene is fully loaded, add some signals to walking animation.
-                            load_result.scene
-                                .animations
-                                .get_mut(load_result.player.locomotion_machine.walk_animation)
-                                // Add signals to the walk animation timeline, we'll use signals to emit foot step
-                                // sounds.
-                                .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 0.2))
-                                .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 0.95));
+                            (**load_result.scene.graph[animation_player]
+                                .query_component_mut::<AnimationPlayer>()
+                                .unwrap()
+                                .animations_mut())
+                            .get_mut(load_result.player.locomotion_machine.walk_animation)
+                            // Add signals to the walk animation timeline, we'll use signals to emit foot step
+                            // sounds.
+                            .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 0.2))
+                            .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 0.95));
 
                             // Add scene to engine - engine will take ownership over scene and will return
                             // you a handle to scene which can be used later on to borrow it and do some
@@ -106,7 +116,7 @@ fn main() {
                             game.game_scene = Some(GameScene {
                                 scene: game.engine.scenes.add(load_result.scene),
                                 player: load_result.player,
-                                reverb_effect: load_result.reverb_effect
+                                reverb_effect: load_result.reverb_effect,
                             });
 
                             // Once scene is loaded, we should hide progress bar and text.
@@ -152,31 +162,57 @@ fn main() {
                         let scene = &mut game.engine.scenes[game_scene.scene];
                         game_scene.player.update(scene, fixed_timestep);
 
-                        while let Some(event) = scene.animations.get_mut(game_scene.player.locomotion_machine.walk_animation).pop_event() {
+                        let active_state = scene.graph
+                            [game_scene.player.locomotion_machine.machine]
+                            .query_component_ref::<AnimationBlendingStateMachine>()
+                            .unwrap()
+                            .machine()
+                            .active_state();
+
+                        let animation_player = scene.graph[game_scene.player.animation_player]
+                            .query_component_mut::<AnimationPlayer>()
+                            .unwrap();
+
+                        let mut events = Vec::new();
+                        while let Some(event) = (**animation_player.animations_mut())
+                            .get_mut(game_scene.player.locomotion_machine.walk_animation)
+                            .pop_event()
+                        {
+                            events.push(event);
+                        }
+
+                        while let Some(event) = events.pop() {
                             // We must play sound only if it was foot step signal and player was in walking state.
                             if event.signal_id != FOOTSTEP_SIGNAL
-                                || game_scene.player.locomotion_machine.machine.active_state() != game_scene.player.locomotion_machine.walk_state {
+                                || active_state != game_scene.player.locomotion_machine.walk_state
+                            {
                                 continue;
                             }
 
                             // We'll emit sounds on player's feet.
-                            let mut position = scene.graph[game_scene.player.pivot].global_position();
+                            let mut position =
+                                scene.graph[game_scene.player.pivot].global_position();
                             position.y -= 0.5;
 
-                            let foot_step = footstep_buffers[fyrox::rand::thread_rng().gen_range(0.. footstep_buffers.len())].clone();
+                            let foot_step = footstep_buffers
+                                [fyrox::rand::thread_rng().gen_range(0..footstep_buffers.len())]
+                            .clone();
 
                             // Create new temporary foot step sound source.
-                            let source = SoundBuilder::new(BaseBuilder::new()
-                                .with_local_transform(TransformBuilder::new()
-                                    .with_local_position(position).build()))
-                                // Fyrox provides built-in way to create temporary sounds that will die immediately
-                                // after first play. This is very useful for foot step sounds.
-                                .with_play_once(true)
-                                .with_buffer(Some(foot_step))
-                                // Every sound source must be explicitly set to Playing status, otherwise it will be stopped.
-                                .with_status(Status::Playing)
-                                .build(&mut scene.graph);
-
+                            let source = SoundBuilder::new(
+                                BaseBuilder::new().with_local_transform(
+                                    TransformBuilder::new()
+                                        .with_local_position(position)
+                                        .build(),
+                                ),
+                            )
+                            // Fyrox provides built-in way to create temporary sounds that will die immediately
+                            // after first play. This is very useful for foot step sounds.
+                            .with_play_once(true)
+                            .with_buffer(Some(foot_step))
+                            // Every sound source must be explicitly set to Playing status, otherwise it will be stopped.
+                            .with_status(Status::Playing)
+                            .build(&mut scene.graph);
 
                             // Once foot step sound source was created, it must be attached to reverb effect, otherwise no reverb
                             // will be added to the source.
@@ -185,16 +221,17 @@ fn main() {
                                 .sound_context
                                 .effect_mut(game_scene.reverb_effect)
                                 .inputs_mut()
-                                .push(EffectInput{
+                                .push(EffectInput {
                                     sound: source,
-                                    filter: None
+                                    filter: None,
                                 });
                         }
                     }
 
                     let fps = game.engine.renderer.get_statistics().frames_per_second;
                     let debug_text = format!(
-                        "Example 07 - Sound\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}\nUse [1][2][3][4] to select graphics quality.",
+                        "Example 07 - Sound\n[W][S][A][D] - walk, [SPACE] - jump.\n\
+                        FPS: {}\nUse [1][2][3][4] to select graphics quality.",
                         fps
                     );
                     game.engine.user_interface.send_message(TextMessage::text(
@@ -214,7 +251,7 @@ fn main() {
                         // ************************
                     }
 
-                    game.engine.update(fixed_timestep,control_flow, &mut lag);
+                    game.engine.update(fixed_timestep, control_flow, &mut lag);
 
                     lag -= fixed_timestep;
                 }
@@ -237,22 +274,29 @@ fn main() {
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
                         if let Err(e) = game.engine.set_frame_size(size.into()) {
-                            Log::writeln(MessageKind::Error, format!("Unable to set frame size: {:?}", e));
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Unable to set frame size: {:?}", e),
+                            );
                         }
 
                         // Root UI node should be resized too, otherwise progress bar will stay
                         // in wrong position after resize.
                         let size = size.to_logical(game.engine.get_window().scale_factor());
-                        game.engine.user_interface.send_message(WidgetMessage::width(
-                            interface.root,
-                            MessageDirection::ToWidget,
-                            size.width,
-                        ));
-                        game.engine.user_interface.send_message(WidgetMessage::height(
-                            interface.root,
-                            MessageDirection::ToWidget,
-                            size.height,
-                        ));
+                        game.engine
+                            .user_interface
+                            .send_message(WidgetMessage::width(
+                                interface.root,
+                                MessageDirection::ToWidget,
+                                size.width,
+                            ));
+                        game.engine
+                            .user_interface
+                            .send_message(WidgetMessage::height(
+                                interface.root,
+                                MessageDirection::ToWidget,
+                                size.height,
+                            ));
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         if let Some(code) = input.virtual_keycode {
@@ -266,7 +310,7 @@ fn main() {
                                 VirtualKeyCode::Key2 => Some(QualitySettings::high()),
                                 VirtualKeyCode::Key3 => Some(QualitySettings::medium()),
                                 VirtualKeyCode::Key4 => Some(QualitySettings::low()),
-                                _ => None
+                                _ => None,
                             };
 
                             if let Some(settings) = settings {
@@ -289,7 +333,9 @@ fn main() {
             }
             Event::DeviceEvent { event, .. } => {
                 if let Some(game_scene) = game.game_scene.as_mut() {
-                    game_scene.player.handle_device_event(&event, fixed_timestep);
+                    game_scene
+                        .player
+                        .handle_device_event(&event, fixed_timestep);
                 }
             }
             _ => *control_flow = ControlFlow::Poll,

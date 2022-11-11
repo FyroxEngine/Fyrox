@@ -8,7 +8,6 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use fyrox::{
-    animation::Animation,
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,

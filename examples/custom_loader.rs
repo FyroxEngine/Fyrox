@@ -139,7 +139,7 @@ impl GameSceneLoader {
             .request_model("examples/data/mutant/mutant.FBX")
             .await;
 
-        let model_handle = model_resource.unwrap().instantiate_geometry(&mut scene);
+        let model_handle = model_resource.unwrap().instantiate(&mut scene);
         scene.graph[model_handle]
             .local_transform_mut()
             .set_scale(Vector3::new(0.05, 0.05, 0.05));

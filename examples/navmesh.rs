@@ -82,7 +82,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         .request_model("examples/data/navmesh_scene.rgs")
         .await
         .unwrap()
-        .instantiate_geometry(&mut scene);
+        .instantiate(&mut scene);
 
     let mut cursor_material = Material::standard();
     cursor_material

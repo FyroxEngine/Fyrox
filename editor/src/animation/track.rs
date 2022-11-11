@@ -1,3 +1,5 @@
+#![allow(clippy::manual_map)]
+
 use crate::{
     animation::{
         command::{AddTrackCommand, AnimationCommand, SetSelectionCommand},

@@ -404,7 +404,7 @@ impl LocomotionMachine {
         }
     }
 
-    pub fn apply(&mut self, scene: &mut Scene, dt: f32, input: LocomotionMachineInput) {
+    pub fn apply(&mut self, scene: &mut Scene, input: LocomotionMachineInput) {
         let animation_player = scene.graph[self.animation_player]
             .query_component_ref::<AnimationPlayer>()
             .unwrap();
@@ -727,7 +727,6 @@ impl Player {
         // Make sure to apply animation machine pose to model explicitly.
         self.locomotion_machine.apply(
             scene,
-            dt,
             LocomotionMachineInput {
                 is_walking: self.controller.walk_backward
                     || self.controller.walk_forward

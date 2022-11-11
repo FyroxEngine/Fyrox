@@ -9,15 +9,13 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::engine::{EngineInitParams, SerializationContext};
 use fyrox::{
-    animation::Animation,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
         pool::Handle,
     },
-    engine::{resource_manager::ResourceManager, Engine},
+    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -272,7 +270,6 @@ fn create_ui(engine: &mut Engine) -> Interface {
 struct GameScene {
     scene: Scene,
     model_handle: Handle<Node>,
-    walk_animation: Handle<Animation>,
 }
 
 async fn create_scene(resource_manager: ResourceManager) -> GameScene {
@@ -301,9 +298,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         .await
         .unwrap();
 
-    // Instantiate model on scene - but only geometry, without any animations.
-    // Instantiation is a process of embedding model resource data in desired scene.
-    let model_handle = model_resource.instantiate_geometry(&mut scene);
+    let model_handle = model_resource.instantiate(&mut scene);
 
     // Add simple animation for our model. Animations are loaded from model resources -
     // this is because animation is a set of skeleton bones with their own transforms.
@@ -316,15 +311,11 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // Why? Because animation in *resource* uses information about *resource* bones,
     // not model instance bones, retarget_animations maps animations of each bone on
     // model instance so animation will know about nodes it should operate on.
-    let walk_animation = *walk_animation_resource
-        .retarget_animations(model_handle, &mut scene)
-        .get(0)
-        .unwrap();
+    walk_animation_resource.retarget_animations(model_handle, &mut scene.graph);
 
     GameScene {
         scene,
         model_handle,
-        walk_animation,
     }
 }
 
@@ -352,7 +343,6 @@ fn main() {
     let GameScene {
         scene,
         model_handle,
-        walk_animation,
     } = fyrox::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     // Add scene to engine - engine will take ownership over scene and will return
@@ -388,14 +378,6 @@ fn main() {
                     // Use stored scene handle to borrow a mutable reference of scene in
                     // engine.
                     let scene = &mut engine.scenes[scene_handle];
-
-                    // Our animation must be applied to scene explicitly, otherwise
-                    // it will have no effect.
-                    scene
-                        .animations
-                        .get_mut(walk_animation)
-                        .pose()
-                        .apply(&mut scene.graph);
 
                     scene.graph[model_handle]
                         .local_transform_mut()
