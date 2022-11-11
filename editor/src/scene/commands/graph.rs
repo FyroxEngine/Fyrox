@@ -1,6 +1,5 @@
 use crate::{command::Command, scene::commands::SceneContext};
 use fyrox::{
-    animation::Animation,
     core::{
         algebra::{UnitQuaternion, Vector3},
         pool::{Handle, Ticket},
@@ -222,21 +221,14 @@ impl Command for DeleteNodeCommand {
 #[derive(Debug)]
 pub struct AddModelCommand {
     model: Handle<Node>,
-    animations: Vec<Handle<Animation>>,
     sub_graph: Option<SubGraph>,
-    animations_container: Vec<(Ticket<Animation>, Animation)>,
 }
 
 impl AddModelCommand {
-    pub fn new(
-        sub_graph: SubGraph,
-        animations_container: Vec<(Ticket<Animation>, Animation)>,
-    ) -> Self {
+    pub fn new(sub_graph: SubGraph) -> Self {
         Self {
             model: Default::default(),
-            animations: Default::default(),
             sub_graph: Some(sub_graph),
-            animations_container,
         }
     }
 }
@@ -253,26 +245,15 @@ impl Command for AddModelCommand {
             .scene
             .graph
             .put_sub_graph_back(self.sub_graph.take().unwrap());
-        for (ticket, animation) in self.animations_container.drain(..) {
-            context.scene.animations.put_back(ticket, animation);
-        }
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
         self.sub_graph = Some(context.scene.graph.take_reserve_sub_graph(self.model));
-        self.animations_container = self
-            .animations
-            .iter()
-            .map(|&anim| context.scene.animations.take_reserve(anim))
-            .collect();
     }
 
     fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(sub_graph) = self.sub_graph.take() {
             context.scene.graph.forget_sub_graph(sub_graph)
-        }
-        for (ticket, _) in self.animations_container.drain(..) {
-            context.scene.animations.forget_ticket(ticket);
         }
     }
 }

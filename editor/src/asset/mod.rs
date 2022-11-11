@@ -188,7 +188,7 @@ pub struct AssetBrowser {
 
 impl AssetBrowser {
     pub fn new(engine: &mut GameEngine) -> Self {
-        let preview = PreviewPanel::new(engine, 250, 250, true);
+        let preview = PreviewPanel::new(engine, 250, 250);
         let ctx = &mut engine.user_interface.build_ctx();
 
         let inspector = AssetInspector::new(ctx, 1, 0);
@@ -351,7 +351,7 @@ impl AssetBrowser {
                 AssetKind::Unknown => {}
                 AssetKind::Model => {
                     let path = item.path.clone();
-                    block_on(self.preview.load_model(&path, true, engine));
+                    block_on(self.preview.load_model(&path, engine));
 
                     self.inspector.inspect_resource_import_options(
                         ModelImportOptionsHandler::new(&path),

@@ -235,7 +235,7 @@ fn sync_array_of_arrays<'a, T, I, B>(
 
 impl MaterialEditor {
     pub fn new(engine: &mut GameEngine) -> Self {
-        let mut preview = PreviewPanel::new(engine, 300, 400, false);
+        let mut preview = PreviewPanel::new(engine, 300, 400);
 
         let graph = &mut engine.scenes[preview.scene()].graph;
         let sphere = MeshBuilder::new(BaseBuilder::new())

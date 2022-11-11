@@ -1,5 +1,5 @@
 use crate::absm::command::{AbsmCommand, AbsmCommandTrait};
-use std::{path::PathBuf, sync::mpsc::Sender};
+use std::sync::mpsc::Sender;
 
 pub enum AbsmMessage {
     DoCommand(AbsmCommand),
@@ -10,7 +10,6 @@ pub enum AbsmMessage {
     LoadAbsm,
     SaveCurrentAbsm,
     Sync,
-    SetPreviewModel(PathBuf),
 }
 
 pub struct MessageSender {
@@ -60,9 +59,5 @@ impl MessageSender {
 
     pub fn sync(&self) {
         self.send(AbsmMessage::Sync)
-    }
-
-    pub fn set_preview_model(&self, path: PathBuf) {
-        self.send(AbsmMessage::SetPreviewModel(path))
     }
 }

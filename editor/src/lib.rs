@@ -1699,7 +1699,7 @@ impl Editor {
         }
 
         self.animation_editor.update(&mut self.engine);
-        self.absm_editor.update(&mut self.engine);
+
         self.log.update(&mut self.engine);
         self.material_editor.update(&mut self.engine);
         self.asset_browser.update(&mut self.engine);
@@ -1847,6 +1847,8 @@ impl Editor {
         self.handle_resize();
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.absm_editor.update(editor_scene, &mut self.engine);
+
             editor_scene.draw_auxiliary_geometry(&mut self.engine, &self.settings);
 
             let scene = &mut self.engine.scenes[editor_scene.scene];
