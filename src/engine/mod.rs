@@ -327,7 +327,6 @@ impl ScriptProcessor {
 struct ResourceGraphVertex {
     resource: Model,
     children: Vec<ResourceGraphVertex>,
-    resource_manager: ResourceManager,
 }
 
 impl ResourceGraphVertex {
@@ -359,7 +358,6 @@ impl ResourceGraphVertex {
         Self {
             resource: model,
             children,
-            resource_manager,
         }
     }
 
@@ -371,12 +369,7 @@ impl ResourceGraphVertex {
 
         // Wait until resource is fully loaded, then resolve.
         if block_on(self.resource.clone()).is_ok() {
-            block_on(
-                self.resource
-                    .data_ref()
-                    .get_scene_mut()
-                    .resolve(self.resource_manager.clone()),
-            );
+            self.resource.data_ref().get_scene_mut().resolve();
 
             for child in self.children.iter() {
                 child.resolve();
@@ -865,7 +858,7 @@ impl Engine {
                 // TODO: This might be inefficient if there is bunch of scenes loaded,
                 // however this seems to be very rare case so it should be ok.
                 for scene in self.scenes.iter_mut() {
-                    block_on(scene.resolve(self.resource_manager.clone()));
+                    scene.resolve();
                 }
             }
         }

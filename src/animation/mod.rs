@@ -1,6 +1,6 @@
+use crate::scene::graph::NodePool;
 use crate::{
     animation::{track::Track, value::BoundValueCollection},
-    asset::ResourceState,
     core::{
         math::wrapf,
         pool::{Handle, Pool, Ticket},
@@ -31,7 +31,7 @@ pub struct AnimationEvent {
     pub signal_id: u64,
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Clone, Debug, Visit, Reflect, PartialEq)]
 pub struct AnimationSignal {
     id: u64,
     time: f32,
@@ -94,7 +94,7 @@ impl Default for AnimationHolder {
     }
 }
 
-#[derive(Debug, Reflect)]
+#[derive(Debug, Reflect, PartialEq)]
 pub struct Animation {
     tracks: Vec<NodeTrack>,
     length: f32,
@@ -144,7 +144,7 @@ impl Visit for Animation {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LocalPose {
     node: Handle<Node>,
     values: BoundValueCollection,
@@ -176,7 +176,7 @@ impl LocalPose {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct AnimationPose {
     local_poses: FxHashMap<Handle<Node>, LocalPose>,
 }
@@ -207,6 +207,16 @@ impl AnimationPose {
 
     pub fn reset(&mut self) {
         self.local_poses.clear();
+    }
+
+    pub(crate) fn apply_internal(&self, nodes: &mut NodePool) {
+        for (node, local_pose) in self.local_poses.iter() {
+            if node.is_none() {
+                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
+            } else if let Some(node) = nodes.try_borrow_mut(*node) {
+                local_pose.values.apply(node);
+            }
+        }
     }
 
     pub fn apply(&self, graph: &mut Graph) {
@@ -467,97 +477,6 @@ impl Animation {
         }
     }
 
-    pub(crate) fn resolve(&mut self, graph: &Graph) {
-        // Copy key frames from resource for each animation. This is needed because we
-        // do not store key frames in save file, but just keep reference to resource
-        // from which key frames should be taken on load.
-        match self.resource.clone() {
-            AnimationHolder::Model(model) => {
-                if let Some(resource) = model {
-                    let resource = resource.state();
-                    match *resource {
-                        ResourceState::Ok(ref data) => {
-                            // TODO: Here we assume that resource contains only *one* animation.
-                            if let Some(ref_animation) = data.get_scene().animations.pool.at(0) {
-                                for track in self.tracks_mut() {
-                                    // This may panic if animation has track that refers to a deleted node,
-                                    // it can happen if you deleted a node but forgot to remove animation
-                                    // that uses this node.
-                                    let track_node = &graph[track.target()];
-
-                                    // Find corresponding track in resource using names of nodes, not
-                                    // original handles of instantiated nodes. We can't use original
-                                    // handles here because animation can be targeted to a node that
-                                    // wasn't instantiated from animation resource. It can be instantiated
-                                    // from some other resource. For example you have a character with
-                                    // multiple animations. Character "lives" in its own file without animations
-                                    // but with skin. Each animation "lives" in its own file too, then
-                                    // you did animation retargeting from animation resource to your character
-                                    // instantiated model, which is essentially copies key frames to new
-                                    // animation targeted to character instance.
-                                    let mut found = false;
-                                    for ref_track in ref_animation.tracks().iter() {
-                                        if ref_track.binding() == track.binding()
-                                            && track_node.name()
-                                                == data.get_scene().graph[ref_track.target()].name()
-                                        {
-                                            track.set_frames_container(
-                                                ref_track.frames_container().clone(),
-                                            );
-                                            found = true;
-                                            break;
-                                        }
-                                    }
-                                    if !found {
-                                        Log::write(
-                                            MessageKind::Error,
-                                            format!(
-                                                "Failed to copy key frames for node {}!",
-                                                track_node.name()
-                                            ),
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                        ResourceState::LoadError {
-                            ref path,
-                            ref error,
-                        } => Log::err(format!(
-                            "Unable to restore animation key frames from {} resource. Reason: {:?}",
-                            path.display(),
-                            error
-                        )),
-                        ResourceState::Pending { ref path, .. } => {
-                            panic!(
-                                "Animation resource {} must be fully loaded before resolving!",
-                                path.display()
-                            )
-                        }
-                    }
-                }
-            }
-            AnimationHolder::Animation(animation) => {
-                if let Some(animation) = animation {
-                    self.remove_tracks();
-
-                    for track in animation.data_ref().animation_definition.tracks() {
-                        let mut node_track = NodeTrack::new(
-                            track.frames_container().clone(),
-                            track.binding().clone(),
-                        );
-
-                        node_track.set_target(
-                            graph.find(self.root, &mut |n| n.instance_id() == track.target()),
-                        );
-
-                        self.add_track(node_track);
-                    }
-                }
-            }
-        }
-    }
-
     pub fn remove_tracks(&mut self) {
         self.tracks.clear();
         self.length = 0.0;
@@ -610,7 +529,7 @@ impl Default for Animation {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect, PartialEq)]
 pub struct AnimationContainer {
     pool: Pool<Animation>,
 }
@@ -714,20 +633,12 @@ impl AnimationContainer {
         self.pool.retain(pred)
     }
 
-    pub fn resolve(&mut self, graph: &Graph) {
-        Log::writeln(MessageKind::Information, "Resolving animations...");
-        for animation in self.pool.iter_mut() {
-            animation.resolve(graph)
-        }
-        Log::writeln(
-            MessageKind::Information,
-            "Animations resolved successfully!",
-        );
-    }
-
-    pub fn update_animations(&mut self, dt: f32) {
+    pub fn update_animations(&mut self, nodes: &mut NodePool, apply: bool, dt: f32) {
         for animation in self.pool.iter_mut().filter(|anim| anim.enabled) {
             animation.tick(dt);
+            if apply {
+                animation.pose.apply_internal(nodes);
+            }
         }
     }
 

@@ -1,14 +1,12 @@
 use crate::{
     animation::{
-        machine::{AnimationsPack, Machine, PoseNode},
+        machine::{Machine, PoseNode},
         Animation, AnimationContainer,
     },
     core::{
         pool::{Handle, Pool},
         visitor::prelude::*,
     },
-    engine::resource_manager::ResourceManager,
-    scene::graph::Graph,
 };
 use std::ops::{Index, IndexMut};
 
@@ -66,31 +64,6 @@ impl AnimationMachineContainer {
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Machine> {
         self.pool.iter_mut()
-    }
-
-    pub async fn resolve(
-        &mut self,
-        resource_manager: ResourceManager,
-        graph: &mut Graph,
-        animations: &mut AnimationContainer,
-    ) {
-        let mut animation_paths = Vec::new();
-        for machine in self.pool.iter() {
-            if let Some(resource) = machine.resource() {
-                animation_paths.extend(
-                    resource
-                        .data_ref()
-                        .absm_definition
-                        .collect_animation_paths(),
-                )
-            }
-        }
-
-        let pack = AnimationsPack::load(&animation_paths, resource_manager).await;
-
-        for machine in self.pool.iter_mut() {
-            machine.resolve(&pack, graph, animations);
-        }
     }
 }
 

@@ -13,7 +13,7 @@ pub trait TrackTarget: Visit + Debug + Copy + Clone + Default + Reflect {}
 impl TrackTarget for Handle<Node> {}
 impl TrackTarget for InstanceId {}
 
-#[derive(Debug, Reflect, Clone)]
+#[derive(Debug, Reflect, Clone, PartialEq)]
 pub struct Track<T>
 where
     T: TrackTarget,

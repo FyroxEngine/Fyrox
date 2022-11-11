@@ -22,11 +22,13 @@
 
 #![allow(clippy::unneeded_field_pattern)]
 
+use crate::reflect::ReflectArray;
 use crate::{
     reflect::prelude::*,
     visitor::{Visit, VisitResult, Visitor},
 };
 use arrayvec::ArrayVec;
+use std::any::Any;
 use std::{
     fmt::{Debug, Display, Formatter},
     future::Future,
@@ -100,6 +102,67 @@ where
 {
     records: Vec<PoolRecord<T, P>>,
     free_stack: Vec<u32>,
+}
+
+impl<T: Reflect> Reflect for Pool<T> {
+    fn fields_info(&self) -> Vec<FieldInfo> {
+        vec![]
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn as_reflect(&self) -> &dyn Reflect {
+        self
+    }
+
+    fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
+        self
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        let this = std::mem::replace(self, value.take()?);
+        Ok(Box::new(this))
+    }
+
+    fn field(&self, _name: &str) -> Option<&dyn Reflect> {
+        None
+    }
+
+    fn field_mut(&mut self, _name: &str) -> Option<&mut dyn Reflect> {
+        None
+    }
+
+    fn as_array(&self) -> Option<&dyn ReflectArray> {
+        Some(self)
+    }
+
+    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
+        Some(self)
+    }
+}
+
+impl<T: Reflect> ReflectArray for Pool<T> {
+    fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
+        self.at(index as u32).map(|p| p.as_reflect())
+    }
+
+    fn reflect_index_mut(&mut self, index: usize) -> Option<&mut dyn Reflect> {
+        self.at_mut(index as u32).map(|p| p.as_reflect_mut())
+    }
+
+    fn reflect_len(&self) -> usize {
+        self.get_capacity() as usize
+    }
 }
 
 impl<T: PartialEq> PartialEq for Pool<T> {

@@ -26,9 +26,7 @@ pub mod terrain;
 pub mod transform;
 pub mod visibility;
 
-use crate::animation::AnimationHolder;
 use crate::{
-    animation::{machine::container::AnimationMachineContainer, AnimationContainer},
     core::{
         algebra::Vector2,
         color::Color,
@@ -150,11 +148,6 @@ pub struct Scene {
     /// info.
     pub graph: Graph,
 
-    /// Animations container controls all animation on scene. Each animation can have tracks which
-    /// has handles to graph nodes. See `animation` module docs for more info.
-    #[reflect(hidden)]
-    pub animations: AnimationContainer,
-
     /// Texture to draw scene to. If empty, scene will be drawn on screen directly.
     /// It is useful to "embed" some scene into other by drawing a quad with this
     /// texture. This can be used to make in-game video conference - you can make
@@ -192,17 +185,12 @@ pub struct Scene {
     /// to false for menu's scene and when you need to open a menu - set it to true and
     /// set `enabled` flag to false for level's scene.
     pub enabled: bool,
-
-    /// A container for animation blending state machines.
-    #[reflect(hidden)]
-    pub animation_machines: AnimationMachineContainer,
 }
 
 impl Default for Scene {
     fn default() -> Self {
         Self {
             graph: Default::default(),
-            animations: Default::default(),
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
@@ -210,7 +198,6 @@ impl Default for Scene {
             performance_statistics: Default::default(),
             ambient_lighting_color: Color::opaque(100, 100, 100),
             enabled: true,
-            animation_machines: Default::default(),
         }
     }
 }
@@ -342,34 +329,8 @@ impl SceneLoader {
         }
         join_all(skybox_textures).await;
 
-        let mut animation_resources = Vec::new();
-        let mut model_resources = Vec::new();
-
-        for animation in scene.animations.iter_mut() {
-            animation.restore_resources(resource_manager.clone());
-            match animation.resource {
-                AnimationHolder::Model(Some(ref model)) => model_resources.push(model.clone()),
-                AnimationHolder::Animation(Some(ref animation)) => {
-                    animation_resources.push(animation.clone())
-                }
-                _ => (),
-            }
-        }
-
-        join_all(animation_resources).await;
-        join_all(model_resources).await;
-
-        let mut animation_machines = Vec::new();
-        for machine in scene.animation_machines.iter_mut() {
-            machine.restore_resources(resource_manager.clone());
-            if let Some(resource) = machine.resource.as_ref() {
-                animation_machines.push(resource.clone());
-            }
-        }
-        join_all(animation_machines).await;
-
         // And do resolve to extract correct graphical data and so on.
-        scene.resolve(resource_manager).await;
+        scene.resolve();
 
         scene
     }
@@ -387,7 +348,6 @@ impl Scene {
         Self {
             // Graph must be created with `new` method because it differs from `default`
             graph: Graph::new(),
-            animations: Default::default(),
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
@@ -395,7 +355,6 @@ impl Scene {
             performance_statistics: Default::default(),
             ambient_lighting_color: Color::opaque(100, 100, 100),
             enabled: true,
-            animation_machines: Default::default(),
         }
     }
 
@@ -406,30 +365,14 @@ impl Scene {
     ///
     /// Panics if handle is invalid.
     pub fn remove_node(&mut self, handle: Handle<Node>) {
-        for descendant in self.graph.traverse_handle_iter(handle) {
-            // Remove all associated animations.
-            self.animations.retain(|animation| {
-                for track in animation.tracks() {
-                    if track.target() == descendant {
-                        return false;
-                    }
-                }
-                true
-            });
-        }
-
         self.graph.remove_node(handle)
     }
 
     /// Synchronizes the state of the scene with external resources.
-    pub async fn resolve(&mut self, resource_manager: ResourceManager) {
+    pub fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Starting resolve...");
 
         self.graph.resolve();
-        self.animations.resolve(&self.graph);
-        self.animation_machines
-            .resolve(resource_manager, &mut self.graph, &mut self.animations)
-            .await;
         self.graph.update_hierarchical_data();
 
         // Re-apply lightmap if any. This has to be done after resolve because we must patch surface
@@ -564,17 +507,11 @@ impl Scene {
     /// no need to call it directly, engine automatically updates all available scenes.
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
         let last = instant::Instant::now();
-        self.animations.update_animations(dt);
+
         self.performance_statistics.animations_update_time = instant::Instant::now() - last;
 
         self.graph.update(frame_size, dt);
         self.performance_statistics.graph = self.graph.performance_statistics.clone();
-
-        for machine in self.animation_machines.iter_mut() {
-            machine
-                .evaluate_pose(&self.animations, dt)
-                .apply(&mut self.graph);
-        }
     }
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
@@ -584,30 +521,10 @@ impl Scene {
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
         let (graph, old_new_map) = self.graph.clone(filter);
-        let mut animations = self.animations.clone();
-        for animation in animations.iter_mut() {
-            // Remove all tracks for nodes that were filtered out.
-            animation.retain_tracks(|track| old_new_map.map.contains_key(&track.target()));
-            // Remap track nodes.
-            for track in animation.tracks_mut() {
-                track.set_target(old_new_map.map[&track.target()]);
-            }
-        }
-
-        let mut animation_machines = self.animation_machines.clone();
-        for machine in animation_machines.iter_mut() {
-            machine.root = old_new_map
-                .map
-                .get(&machine.root)
-                .cloned()
-                .unwrap_or_default();
-        }
 
         (
             Self {
                 graph,
-                animations,
-                animation_machines,
                 // Render target is intentionally not copied, because it does not makes sense - a copy
                 // will redraw frame completely.
                 render_target: Default::default(),
@@ -626,15 +543,11 @@ impl Scene {
         let mut region = visitor.enter_region(region_name)?;
 
         self.graph.visit("Graph", &mut region)?;
-        self.animations.visit("Animations", &mut region)?;
         self.lightmap.visit("Lightmap", &mut region)?;
         self.navmeshes.visit("NavMeshes", &mut region)?;
         self.ambient_lighting_color
             .visit("AmbientLightingColor", &mut region)?;
         self.enabled.visit("Enabled", &mut region)?;
-        let _ = self
-            .animation_machines
-            .visit("AnimationMachines", &mut region);
 
         Ok(())
     }

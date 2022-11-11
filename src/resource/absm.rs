@@ -1,12 +1,10 @@
 //! Animation blending state machine resource.
 
 use crate::{
-    animation::machine::{AnimationsPack, Machine, MachineDefinition, MachineInstantiationError},
+    animation::machine::{MachineDefinition, MachineInstantiationError},
     asset::{define_new_resource, Resource, ResourceData},
-    core::reflect::prelude::*,
-    core::{pool::Handle, visitor::prelude::*},
-    engine::resource_manager::{options::ImportOptions, ResourceManager},
-    scene::{node::Node, Scene},
+    core::{reflect::prelude::*, visitor::prelude::*},
+    engine::resource_manager::options::ImportOptions,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -52,58 +50,6 @@ define_new_resource!(
     #[reflect(hide_all)]
     AbsmResource<AbsmResourceState, MachineInstantiationError>
 );
-
-impl AbsmResource {
-    /// Loads all animation resources used by the animation blending state machine. It is used in
-    /// two-step instantiation process. At first you load all animations, it can be done asynchronously,
-    /// next your instantiate the machine.
-    ///
-    /// # Important notes
-    ///
-    /// The method loads multiple animation resources at once and it will fail even if one of them
-    /// is faulty.
-    pub async fn load_animations(&self, resource_manager: ResourceManager) -> AnimationsPack {
-        let data = self.data_ref();
-        let definition = &data.absm_definition;
-
-        AnimationsPack::load(&definition.collect_animation_paths(), resource_manager).await
-    }
-
-    /// Instantiates animation blending state machine to the specified scene for a given root node.
-    ///
-    /// # Steps
-    ///
-    /// Instantiation involves multiple steps, the most important are:
-    ///
-    /// - Animation retargeting - it tries to retarget animation stored in PlayAnimation nodes to
-    ///   a node hierarchy that starts from `root` node. The step may fail if the animation is not
-    ///   suitable for the hierarchy.
-    /// - ABSM instantiation - it uses ABSM definition to create a new instance of the ABSM.
-    ///
-    /// # Important notes
-    ///
-    /// Animation retargeting creates multiple animation instances in the scene, you **must** delete
-    /// them manually when deleting the ABSM instance.
-    ///
-    /// The method is intended to be used with the ABSM resources made in the Fyroxed, any
-    /// "hand-crafted" resources may contain invalid data which may cause errors during instantiation
-    /// or even panic.  
-    pub fn instantiate(
-        &self,
-        root: Handle<Node>,
-        scene: &mut Scene,
-        animations: AnimationsPack,
-    ) -> Result<Handle<Machine>, MachineInstantiationError> {
-        let data = self.data_ref();
-        let definition = &data.absm_definition;
-
-        let machine = definition.instantiate(root, scene, animations)?;
-
-        scene.animation_machines[machine].resource = Some(self.clone());
-
-        Ok(machine)
-    }
-}
 
 /// Import options for ABSM resource.
 #[derive(Serialize, Deserialize, Default, Clone)]

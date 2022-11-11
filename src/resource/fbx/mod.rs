@@ -10,6 +10,7 @@ mod document;
 pub mod error;
 mod scene;
 
+use crate::scene::animation::AnimationPlayerBuilder;
 use crate::{
     animation::{track::Track, Animation, AnimationContainer, NodeTrack},
     core::{
@@ -542,8 +543,7 @@ async fn convert_model(
     model: &FbxModel,
     resource_manager: ResourceManager,
     graph: &mut Graph,
-    animations: &mut AnimationContainer,
-    animation_handle: Handle<Animation>,
+    animation: &mut Animation,
     model_path: &Path,
     model_import_options: &ModelImportOptions,
 ) -> Result<Handle<Node>, FbxError> {
@@ -679,7 +679,6 @@ async fn convert_model(
             add_vec3_key(&mut scale_track, model.scale);
         }
 
-        let animation = animations.get_mut(animation_handle);
         animation.add_track(translation_track);
         animation.add_track(rotation_track);
         animation.add_track(scale_track);
@@ -699,9 +698,10 @@ async fn convert(
     model_import_options: &ModelImportOptions,
 ) -> Result<(), FbxError> {
     let root = scene.graph.get_root();
+
     let mut animation = Animation::default();
     animation.set_root(root);
-    let animation_handle = scene.animations.add(animation);
+
     let mut fbx_model_to_node_map = FxHashMap::default();
     for (component_handle, component) in fbx_scene.pair_iter() {
         if let FbxComponent::Model(model) = component {
@@ -710,8 +710,7 @@ async fn convert(
                 model,
                 resource_manager.clone(),
                 &mut scene.graph,
-                &mut scene.animations,
-                animation_handle,
+                &mut animation,
                 model_path,
                 model_import_options,
             )
@@ -720,6 +719,13 @@ async fn convert(
             fbx_model_to_node_map.insert(component_handle, node);
         }
     }
+
+    let mut animations_container = AnimationContainer::new();
+    animations_container.add(animation);
+    AnimationPlayerBuilder::new(BaseBuilder::new().with_name("AnimationPlayer"))
+        .with_animations(animations_container)
+        .build(&mut scene.graph);
+
     // Link according to hierarchy
     for (&fbx_model_handle, node_handle) in fbx_model_to_node_map.iter() {
         if let FbxComponent::Model(fbx_model) = fbx_scene.get(fbx_model_handle) {

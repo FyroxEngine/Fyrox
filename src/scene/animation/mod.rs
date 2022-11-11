@@ -1,25 +1,63 @@
 #![allow(missing_docs)] // TODO
 
 use crate::{
-    animation::Animation,
+    animation::AnimationContainer,
     core::{
         math::aabb::AxisAlignedBoundingBox,
+        pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
+        variable::InheritableVariable,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
     scene::{
-        base::Base,
-        node::{NodeTrait, TypeUuidProvider, UpdateContext},
+        base::{Base, BaseBuilder},
+        graph::Graph,
+        node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
     },
 };
 use std::ops::{Deref, DerefMut};
 
+pub mod absm;
+
 #[derive(Visit, Reflect, Clone, Debug)]
 pub struct AnimationPlayer {
     base: Base,
-    animations: Vec<Animation>,
+    animations: InheritableVariable<AnimationContainer>,
+    auto_apply: bool,
+}
+
+impl Default for AnimationPlayer {
+    fn default() -> Self {
+        Self {
+            base: Default::default(),
+            animations: Default::default(),
+            auto_apply: true,
+        }
+    }
+}
+
+impl AnimationPlayer {
+    pub fn set_auto_apply(&mut self, auto_apply: bool) {
+        self.auto_apply = auto_apply;
+    }
+
+    pub fn is_auto_apply(&self) -> bool {
+        self.auto_apply
+    }
+
+    pub fn animations(&self) -> &InheritableVariable<AnimationContainer> {
+        &self.animations
+    }
+
+    pub fn animations_mut(&mut self) -> &mut InheritableVariable<AnimationContainer> {
+        &mut self.animations
+    }
+
+    pub fn set_animations(&mut self, animations: AnimationContainer) {
+        self.animations.set(animations);
+    }
 }
 
 impl TypeUuidProvider for AnimationPlayer {
@@ -54,7 +92,11 @@ impl NodeTrait for AnimationPlayer {
     }
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base.restore_resources(resource_manager)
+        self.base.restore_resources(resource_manager.clone());
+
+        for animation in self.animations.iter_mut() {
+            animation.restore_resources(resource_manager.clone());
+        }
     }
 
     fn id(&self) -> Uuid {
@@ -62,10 +104,42 @@ impl NodeTrait for AnimationPlayer {
     }
 
     fn update(&mut self, context: &mut UpdateContext) -> bool {
-        for animation in self.animations.iter_mut().filter(|anim| anim.is_enabled()) {
-            animation.tick(context.dt);
-        }
-
+        self.animations
+            .update_animations(context.nodes, self.auto_apply, context.dt);
         self.base.update_lifetime(context.dt)
+    }
+}
+
+pub struct AnimationPlayerBuilder {
+    base_builder: BaseBuilder,
+    animations: AnimationContainer,
+    auto_apply: bool,
+}
+
+impl AnimationPlayerBuilder {
+    pub fn new(base_builder: BaseBuilder) -> Self {
+        Self {
+            base_builder,
+            animations: AnimationContainer::new(),
+            auto_apply: true,
+        }
+    }
+
+    pub fn with_animations(mut self, animations: AnimationContainer) -> Self {
+        self.animations = animations;
+        self
+    }
+
+    pub fn with_auto_apply(mut self, auto_apply: bool) -> Self {
+        self.auto_apply = auto_apply;
+        self
+    }
+
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(Node::new(AnimationPlayer {
+            base: self.base_builder.build_base(),
+            animations: self.animations.into(),
+            auto_apply: self.auto_apply,
+        }))
     }
 }

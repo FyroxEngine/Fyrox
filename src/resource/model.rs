@@ -17,13 +17,14 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native Fyroxed format) formats are supported.
-use crate::animation::AnimationHolder;
+
+use crate::animation::Animation;
 use crate::{
-    animation::{Animation, AnimationContainer},
     asset::{define_new_resource, Resource, ResourceData},
     core::{
         pool::Handle,
         reflect::prelude::*,
+        variable::reset_inheritable_properties,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::{
@@ -32,17 +33,17 @@ use crate::{
     },
     resource::fbx::{self, error::FbxError},
     scene::{
+        animation::AnimationPlayer,
         graph::{map::NodeHandleMap, Graph},
         node::Node,
         Scene, SceneLoader,
     },
     utils::log::{Log, MessageKind},
 };
-use fyrox_core::variable::reset_inheritable_properties;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
 use std::{
     borrow::Cow,
+    fmt::{Display, Formatter},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -112,9 +113,8 @@ impl Model {
         (root, old_to_new)
     }
 
-    /// Tries to instantiate model from given resource. Does not retarget available
-    /// animations from model to its instance. Can be helpful if you only need geometry.
-    pub fn instantiate_geometry(&self, dest_scene: &mut Scene) -> Handle<Node> {
+    /// Tries to instantiate model from given resource.
+    pub fn instantiate(&self, dest_scene: &mut Scene) -> Handle<Node> {
         let data = self.data_ref();
 
         let instance_root = Self::instantiate_from(
@@ -139,59 +139,61 @@ impl Model {
         instance_root
     }
 
-    /// Tries to instantiate model from given resource.
-    /// Returns root handle to node of model instance along with available animations
-    pub fn instantiate(&self, dest_scene: &mut Scene) -> ModelInstance {
-        let root = self.instantiate_geometry(dest_scene);
-        ModelInstance {
-            root,
-            animations: self.retarget_animations(root, dest_scene),
-        }
-    }
-
     pub(crate) fn retarget_animations_internal(
         &self,
         root: Handle<Node>,
-        graph: &Graph,
-        animations: &mut AnimationContainer,
+        graph: &mut Graph,
     ) -> Vec<Handle<Animation>> {
-        let data = self.data_ref();
-        let mut animation_handles = Vec::new();
+        let mut retargetted_animations = Vec::new();
 
-        for ref_anim in data.scene.animations.iter() {
-            let mut anim_copy = ref_anim.clone();
+        let animation_player = graph.find(root, &mut |n| {
+            n.query_component_ref::<AnimationPlayer>().is_some()
+        });
 
-            anim_copy.set_root(root);
+        if animation_player.is_some() {
+            let data = self.data_ref();
 
-            // Keep reference to resource from which this animation was taken from. This will help
-            // us to correctly reload keyframes for each track when we'll be loading a save file.
-            anim_copy.resource = AnimationHolder::Model(Some(self.clone()));
+            for src_node_ref in data.scene.graph.linear_iter() {
+                if let Some(src_player) = src_node_ref.query_component_ref::<AnimationPlayer>() {
+                    for src_anim in src_player.animations().iter() {
+                        let mut anim_copy = src_anim.clone();
 
-            // Remap animation track nodes from resource to instance. This is required
-            // because we've made a plain copy and it has tracks with node handles mapped
-            // to nodes of internal scene.
-            for (i, ref_track) in ref_anim.tracks().iter().enumerate() {
-                let ref_node = &data.scene.graph[ref_track.target()];
-                // Find instantiated node that corresponds to node in resource
-                let instance_node = graph.find_by_name(root, ref_node.name());
-                if instance_node.is_none() {
-                    Log::writeln(
-                        MessageKind::Error,
-                        format!(
-                            "Failed to retarget animation {:?} for node {}",
-                            data.path(),
-                            ref_node.name()
-                        ),
-                    );
+                        anim_copy.set_root(root);
+
+                        // Remap animation track nodes from resource to instance. This is required
+                        // because we've made a plain copy and it has tracks with node handles mapped
+                        // to nodes of internal scene.
+                        for (i, ref_track) in src_anim.tracks().iter().enumerate() {
+                            let ref_node = &data.scene.graph[ref_track.target()];
+                            // Find instantiated node that corresponds to node in resource
+                            let instance_node = graph.find_by_name(root, ref_node.name());
+                            if instance_node.is_none() {
+                                Log::writeln(
+                                    MessageKind::Error,
+                                    format!(
+                                        "Failed to retarget animation {:?} for node {}",
+                                        data.path(),
+                                        ref_node.name()
+                                    ),
+                                );
+                            }
+                            // One-to-one track mapping so there is [i] indexing.
+                            anim_copy.tracks_mut()[i].set_target(instance_node);
+                        }
+
+                        if let Some(dest_animation_player) = graph
+                            .try_get_mut(animation_player)
+                            .and_then(|p| p.query_component_mut::<AnimationPlayer>())
+                        {
+                            retargetted_animations
+                                .push(dest_animation_player.animations_mut().add(anim_copy));
+                        }
+                    }
                 }
-                // One-to-one track mapping so there is [i] indexing.
-                anim_copy.tracks_mut()[i].set_target(instance_node);
             }
-
-            animation_handles.push(animations.add(anim_copy));
         }
 
-        animation_handles
+        retargetted_animations
     }
 
     /// Tries to retarget animations from given model resource to a node hierarchy starting
@@ -218,9 +220,9 @@ impl Model {
     pub fn retarget_animations(
         &self,
         root: Handle<Node>,
-        dest_scene: &mut Scene,
+        graph: &mut Graph,
     ) -> Vec<Handle<Animation>> {
-        self.retarget_animations_internal(root, &dest_scene.graph, &mut dest_scene.animations)
+        self.retarget_animations_internal(root, graph)
     }
 }
 
@@ -340,18 +342,6 @@ pub struct ModelImportOptions {
 }
 
 impl ImportOptions for ModelImportOptions {}
-
-/// Model instance is a combination of handle to root node of instance in a scene,
-/// and list of all animations from model which were instantiated on a scene.
-#[derive(Debug)]
-pub struct ModelInstance {
-    /// Handle of root node of instance.
-    pub root: Handle<Node>,
-
-    /// List of instantiated animations that were inside model resource.
-    /// You must free them when you do not need model anymore
-    pub animations: Vec<Handle<Animation>>,
-}
 
 /// All possible errors that may occur while trying to load model from some
 /// data source.
