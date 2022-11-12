@@ -48,19 +48,20 @@ pub fn set_entity_field(
 
 #[macro_export]
 macro_rules! define_universal_commands {
-    ($name:ident, $command:ident, $command_wrapper:ty, $ctx:ty, $handle:ty, $ctx_ident:ident, $handle_ident:ident, $self:ident, $entity_getter:block) => {
-        pub fn $name($handle_ident: $handle, property_changed: &fyrox::gui::inspector::PropertyChanged) -> Option<$command_wrapper> {
+    ($name:ident, $command:ident, $command_wrapper:ty, $ctx:ty, $handle:ty, $ctx_ident:ident, $handle_ident:ident, $self:ident, $entity_getter:block, $($field_name:ident: $field_type:ty),*) => {
+        pub fn $name($handle_ident: $handle, property_changed: &fyrox::gui::inspector::PropertyChanged, $($field_name: $field_type),*) -> Option<$command_wrapper> {
             match fyrox::gui::inspector::PropertyAction::from_field_kind(&property_changed.value) {
                 fyrox::gui::inspector::PropertyAction::Modify { value } => Some(<$command_wrapper>::new(SetPropertyCommand::new(
                     $handle_ident,
                     property_changed.path(),
                     value,
+                    $($field_name),*
                 ))),
                 fyrox::gui::inspector::PropertyAction::AddItem { value } => Some(<$command_wrapper>::new(
-                    AddCollectionItemCommand::new($handle_ident, property_changed.path(), value),
+                    AddCollectionItemCommand::new($handle_ident, property_changed.path(), value, $($field_name),*)
                 )),
                 fyrox::gui::inspector::PropertyAction::RemoveItem { index } => Some(<$command_wrapper>::new(
-                    RemoveCollectionItemCommand::new($handle_ident, property_changed.path(), index),
+                    RemoveCollectionItemCommand::new($handle_ident, property_changed.path(), index, $($field_name),*)
                 )),
                 // Must be handled outside, there is not enough context and it near to impossible to create universal reversion
                 // for InheritableVariable<T>.
@@ -88,14 +89,16 @@ macro_rules! define_universal_commands {
             $handle_ident: $handle,
             value: Option<Box<dyn fyrox::core::reflect::Reflect>>,
             path: String,
+            $($field_name: $field_type),*
         }
 
         impl SetPropertyCommand {
-            pub fn new($handle_ident: $handle, path: String, value: Box<dyn fyrox::core::reflect::Reflect>) -> Self {
+            pub fn new($handle_ident: $handle, path: String, value: Box<dyn fyrox::core::reflect::Reflect>, $($field_name: $field_type),*) -> Self {
                 Self {
                     $handle_ident,
                     value: Some(value),
                     path,
+                    $($field_name),*
                 }
             }
 
@@ -135,14 +138,16 @@ macro_rules! define_universal_commands {
             $handle_ident: $handle,
             path: String,
             item: Option<Box<dyn fyrox::core::reflect::Reflect>>,
+            $($field_name: $field_type),*
         }
 
         impl AddCollectionItemCommand {
-            pub fn new($handle_ident: $handle, path: String, item: Box<dyn fyrox::core::reflect::Reflect>) -> Self {
+            pub fn new($handle_ident: $handle, path: String, item: Box<dyn fyrox::core::reflect::Reflect>, $($field_name: $field_type),*) -> Self {
                 Self {
                     $handle_ident,
                     path,
                     item: Some(item),
+                    $($field_name),*
                 }
             }
         }
@@ -190,15 +195,17 @@ macro_rules! define_universal_commands {
             path: String,
             index: usize,
             value: Option<Box<dyn fyrox::core::reflect::Reflect>>,
+            $($field_name: $field_type),*
         }
 
         impl RemoveCollectionItemCommand {
-            pub fn new($handle_ident: $handle, path: String, index: usize) -> Self {
+            pub fn new($handle_ident: $handle, path: String, index: usize, $($field_name: $field_type),*) -> Self {
                 Self {
                     $handle_ident,
                     path,
                     index,
                     value: None,
+                    $($field_name),*
                 }
             }
         }

@@ -61,12 +61,13 @@ impl BlendPose {
 /// you can dynamically change them in runtime. In our example we can decrease weight
 /// of hit animation over time and increase weight of run animation, so character will
 /// recover from his wounds.
-#[derive(Default, Debug, Visit, Clone)]
+#[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct BlendAnimations {
     pub base: BasePoseNode,
     pub pose_sources: Vec<BlendPose>,
     #[visit(skip)]
-    pub(crate) output_pose: RefCell<AnimationPose>,
+    #[reflect(hidden)]
+    pub output_pose: RefCell<AnimationPose>,
 }
 
 impl Deref for BlendAnimations {
@@ -146,13 +147,13 @@ pub struct IndexedBlendInput {
 #[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct BlendAnimationsByIndex {
     pub base: BasePoseNode,
-    pub(crate) index_parameter: String,
+    pub index_parameter: String,
     pub inputs: Vec<IndexedBlendInput>,
-    pub(crate) prev_index: Cell<Option<u32>>,
-    pub(crate) blend_time: Cell<f32>,
+    pub prev_index: Cell<Option<u32>>,
+    pub blend_time: Cell<f32>,
     #[visit(skip)]
     #[reflect(hidden)]
-    pub(crate) output_pose: RefCell<AnimationPose>,
+    pub output_pose: RefCell<AnimationPose>,
 }
 
 impl Deref for BlendAnimationsByIndex {

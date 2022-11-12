@@ -1,20 +1,27 @@
 use crate::{
-    absm::command::{AbsmCommand, AbsmCommandTrait, AbsmEditorContext},
+    absm::command::fetch_machine,
+    command::Command,
     define_universal_commands,
+    scene::commands::{SceneCommand, SceneContext},
 };
 use fyrox::{
-    animation::machine::node::PoseNodeDefinition,
+    animation::machine::node::PoseNode,
     core::{pool::Handle, reflect::ResolvePath},
+    scene::node::Node,
 };
 
-define_universal_commands!(
+define_universal_commands! {
     make_set_pose_property_command,
-    AbsmCommandTrait,
-    AbsmCommand,
-    AbsmEditorContext,
-    Handle<PoseNodeDefinition>,
+    Command,
+    SceneCommand,
+    SceneContext,
+    Handle<PoseNode>,
     ctx,
     handle,
     self,
-    { &mut ctx.resource.absm_definition.nodes[self.handle] }
-);
+    {
+        let machine = fetch_machine(ctx, self.node_handle);
+        &mut machine.nodes_mut()[self.handle]
+    },
+    node_handle: Handle<Node>
+}

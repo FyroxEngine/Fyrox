@@ -241,6 +241,7 @@ pub enum Message {
         view: Handle<UiNode>,
         handle: Handle<Node>,
     },
+    ForceSync,
 }
 
 impl Message {
@@ -1070,7 +1071,6 @@ impl Editor {
 
         let engine = &mut self.engine;
 
-        self.absm_editor.handle_ui_message(message, engine);
         self.save_scene_dialog.handle_ui_message(
             message,
             &self.message_sender,
@@ -1128,6 +1128,8 @@ impl Editor {
             .handle_ui_message(message, self.scene.as_ref(), engine);
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.absm_editor
+                .handle_ui_message(message, engine, &self.message_sender, editor_scene);
             self.audio_panel
                 .handle_ui_message(message, editor_scene, &self.message_sender, engine);
 
@@ -1337,6 +1339,7 @@ impl Editor {
             .sync_to_model(self.scene.as_ref(), &mut engine.user_interface);
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.absm_editor.sync_to_model(editor_scene, engine);
             self.scene_settings.sync_to_model(editor_scene, engine);
             self.scene_viewer.sync_to_model(editor_scene, engine);
             self.inspector.sync_to_model(editor_scene, engine);
@@ -1829,6 +1832,9 @@ impl Editor {
                                 ),
                             );
                         }
+                    }
+                    Message::ForceSync => {
+                        needs_sync = true;
                     }
                 }
             }

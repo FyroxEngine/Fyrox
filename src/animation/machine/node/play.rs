@@ -19,12 +19,13 @@ use std::{
 };
 
 /// Machine node that plays specified animation.
-#[derive(Default, Debug, Visit, Clone)]
+#[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct PlayAnimation {
     pub base: BasePoseNode,
     pub animation: Handle<Animation>,
     #[visit(skip)]
-    pub(crate) output_pose: RefCell<AnimationPose>,
+    #[reflect(hidden)]
+    pub output_pose: RefCell<AnimationPose>,
 }
 
 impl Deref for PlayAnimation {

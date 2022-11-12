@@ -30,7 +30,7 @@ pub struct BasePoseNode {
 }
 
 /// Specialized node that provides animation pose. See documentation for each variant.
-#[derive(Debug, Visit, Clone)]
+#[derive(Debug, Visit, Clone, Reflect)]
 pub enum PoseNode {
     /// See docs for `PlayAnimation`.
     PlayAnimation(PlayAnimation),

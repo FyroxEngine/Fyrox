@@ -1,23 +1,23 @@
 use crate::absm::command::blend::SetBlendAnimationsPoseSourceCommand;
+use crate::absm::selection::{AbsmSelection, SelectedEntity};
+use crate::scene::commands::{ChangeSelectionCommand, CommandGroup, SceneCommand};
+use crate::scene::{EditorScene, Selection};
 use crate::{
     absm::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
-        command::{
-            blend::SetBlendAnimationByIndexInputPoseSourceCommand, AbsmCommand,
-            ChangeSelectionCommand, CommandGroup, MovePoseNodeCommand,
-        },
+        command::{blend::SetBlendAnimationByIndexInputPoseSourceCommand, MovePoseNodeCommand},
         connection::{Connection, ConnectionBuilder},
-        message::MessageSender,
         node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
         socket::{Socket, SocketBuilder, SocketDirection},
         state_viewer::context::{CanvasContextMenu, ConnectionContextMenu, NodeContextMenu},
-        AbsmDataModel, SelectedEntity, NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND,
-        SELECTED_ROOT_COLOR,
+        NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND, SELECTED_ROOT_COLOR,
     },
-    send_sync_message,
+    send_sync_message, Message,
 };
+use fyrox::animation::machine::{PoseNode, State};
+use fyrox::scene::animation::absm::AnimationBlendingStateMachine;
+use fyrox::scene::node::Node;
 use fyrox::{
-    animation::machine::{node::PoseNodeDefinition, state::StateDefinition},
     core::pool::Handle,
     gui::{
         border::BorderBuilder,
@@ -28,13 +28,14 @@ use fyrox::{
     },
 };
 use std::cmp::Ordering;
+use std::sync::mpsc::Sender;
 
 mod context;
 
 pub struct StateViewer {
     pub window: Handle<UiNode>,
     canvas: Handle<UiNode>,
-    state: Handle<StateDefinition>,
+    state: Handle<State>,
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,
     connection_context_menu: ConnectionContextMenu,
@@ -43,7 +44,7 @@ pub struct StateViewer {
 fn create_socket(
     direction: SocketDirection,
     index: usize,
-    parent_node: Handle<PoseNodeDefinition>,
+    parent_node: Handle<PoseNode>,
     ui: &mut UserInterface,
 ) -> Handle<UiNode> {
     SocketBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
@@ -56,7 +57,7 @@ fn create_socket(
 fn create_sockets(
     count: usize,
     direction: SocketDirection,
-    parent_node: Handle<PoseNodeDefinition>,
+    parent_node: Handle<PoseNode>,
     ui: &mut UserInterface,
 ) -> Vec<Handle<UiNode>> {
     (0..count)
@@ -64,12 +65,9 @@ fn create_sockets(
         .collect::<Vec<_>>()
 }
 
-fn fetch_pose_node_model_handle(
-    handle: Handle<UiNode>,
-    ui: &UserInterface,
-) -> Handle<PoseNodeDefinition> {
+fn fetch_pose_node_model_handle(handle: Handle<UiNode>, ui: &UserInterface) -> Handle<PoseNode> {
     ui.node(handle)
-        .query_component::<AbsmNode<PoseNodeDefinition>>()
+        .query_component::<AbsmNode<PoseNode>>()
         .unwrap()
         .model_handle
 }
@@ -77,7 +75,7 @@ fn fetch_pose_node_model_handle(
 fn fetch_socket_pose_node_model_handle(
     handle: Handle<UiNode>,
     ui: &UserInterface,
-) -> Handle<PoseNodeDefinition> {
+) -> Handle<PoseNode> {
     ui.node(handle)
         .query_component::<Socket>()
         .unwrap()
@@ -124,19 +122,17 @@ impl StateViewer {
 
     pub fn set_state(
         &mut self,
-        state: Handle<StateDefinition>,
-        data_model: &AbsmDataModel,
+        state: Handle<State>,
+        absm_node: &AnimationBlendingStateMachine,
         ui: &UserInterface,
     ) {
         assert!(state.is_some());
 
         self.state = state;
 
-        let (state_name, exists) = data_model
-            .resource
-            .data_ref()
-            .absm_definition
-            .states
+        let (state_name, exists) = absm_node
+            .machine()
+            .states()
             .try_borrow(self.state)
             .map(|state| {
                 (
@@ -188,10 +184,12 @@ impl StateViewer {
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
-        sender: &MessageSender,
-        data_model: &AbsmDataModel,
+        sender: &Sender<Message>,
+        absm_node_handle: Handle<Node>,
+        absm_node: &AnimationBlendingStateMachine,
+        editor_scene: &EditorScene,
     ) {
-        let definition = &data_model.resource.data_ref().absm_definition;
+        let machine = absm_node.machine();
 
         if message.destination() == self.canvas {
             if let Some(msg) = message.data::<AbsmCanvasMessage>() {
@@ -203,7 +201,8 @@ impl StateViewer {
                                 let pose_handle = fetch_pose_node_model_handle(e.node, ui);
                                 let new_position = ui.node(e.node).actual_local_position();
 
-                                AbsmCommand::new(MovePoseNodeCommand::new(
+                                SceneCommand::new(MovePoseNodeCommand::new(
+                                    absm_node_handle,
                                     pose_handle,
                                     e.initial_position,
                                     new_position,
@@ -211,25 +210,35 @@ impl StateViewer {
                             })
                             .collect::<Vec<_>>();
 
-                        sender.do_command(CommandGroup::from(commands));
+                        sender
+                            .send(Message::do_scene_command(CommandGroup::from(commands)))
+                            .unwrap();
                     }
                     AbsmCanvasMessage::SelectionChanged(selection) => {
                         if message.direction() == MessageDirection::FromWidget {
-                            let selection = selection
-                                .iter()
-                                .filter_map(|n| {
-                                    let node_ref = ui.node(*n);
+                            let selection = Selection::Absm(AbsmSelection {
+                                absm_node_handle,
+                                entities: selection
+                                    .iter()
+                                    .filter_map(|n| {
+                                        let node_ref = ui.node(*n);
 
-                                    node_ref
-                                        .query_component::<AbsmNode<PoseNodeDefinition>>()
-                                        .map(|state_node| {
-                                            SelectedEntity::PoseNode(state_node.model_handle)
-                                        })
-                                })
-                                .collect::<Vec<_>>();
+                                        node_ref.query_component::<AbsmNode<PoseNode>>().map(
+                                            |state_node| {
+                                                SelectedEntity::PoseNode(state_node.model_handle)
+                                            },
+                                        )
+                                    })
+                                    .collect::<Vec<_>>(),
+                            });
 
-                            if !selection.is_empty() && selection != data_model.selection {
-                                sender.do_command(ChangeSelectionCommand { selection });
+                            if !selection.is_empty() && selection != editor_scene.selection {
+                                sender
+                                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                                        selection,
+                                        editor_scene.selection.clone(),
+                                    )))
+                                    .unwrap();
                             }
                         }
                     }
@@ -243,22 +252,32 @@ impl StateViewer {
                             ui.node(*dest_socket).query_component::<Socket>().unwrap();
                         let dest_node = fetch_socket_pose_node_model_handle(*dest_socket, ui);
 
-                        let dest_node_ref = &definition.nodes[dest_node];
+                        let dest_node_ref = &machine.nodes()[dest_node];
                         match dest_node_ref {
-                            PoseNodeDefinition::PlayAnimation(_) => {}
-                            PoseNodeDefinition::BlendAnimations(_) => {
-                                sender.do_command(SetBlendAnimationsPoseSourceCommand {
-                                    handle: dest_node,
-                                    index: dest_socket_ref.index,
-                                    value: source_node,
-                                });
+                            PoseNode::PlayAnimation(_) => {}
+                            PoseNode::BlendAnimations(_) => {
+                                sender
+                                    .send(Message::do_scene_command(
+                                        SetBlendAnimationsPoseSourceCommand {
+                                            node_handle: absm_node_handle,
+                                            handle: dest_node,
+                                            index: dest_socket_ref.index,
+                                            value: source_node,
+                                        },
+                                    ))
+                                    .unwrap();
                             }
-                            PoseNodeDefinition::BlendAnimationsByIndex(_) => {
-                                sender.do_command(SetBlendAnimationByIndexInputPoseSourceCommand {
-                                    handle: dest_node,
-                                    index: dest_socket_ref.index,
-                                    value: source_node,
-                                });
+                            PoseNode::BlendAnimationsByIndex(_) => {
+                                sender
+                                    .send(Message::do_scene_command(
+                                        SetBlendAnimationByIndexInputPoseSourceCommand {
+                                            node_handle: absm_node_handle,
+                                            handle: dest_node,
+                                            index: dest_socket_ref.index,
+                                            value: source_node,
+                                        },
+                                    ))
+                                    .unwrap();
                             }
                         }
                     }
@@ -269,25 +288,41 @@ impl StateViewer {
 
         self.node_context_menu.handle_ui_message(
             message,
-            &data_model.selection,
-            definition,
+            machine,
             sender,
             ui,
+            editor_scene,
+            absm_node_handle,
         );
-        self.canvas_context_menu
-            .handle_ui_message(sender, message, self.state, ui);
-        self.connection_context_menu
-            .handle_ui_message(message, ui, sender, definition);
+        self.canvas_context_menu.handle_ui_message(
+            sender,
+            message,
+            self.state,
+            ui,
+            absm_node_handle,
+        );
+        self.connection_context_menu.handle_ui_message(
+            message,
+            ui,
+            sender,
+            machine,
+            absm_node_handle,
+        );
     }
 
-    pub fn sync_to_model(&mut self, ui: &mut UserInterface, data_model: &AbsmDataModel) {
+    pub fn sync_to_model(
+        &mut self,
+        ui: &mut UserInterface,
+        absm_node: &AnimationBlendingStateMachine,
+        editor_scene: &EditorScene,
+    ) {
         if self.state.is_none() {
             return;
         }
 
-        let definition = &data_model.resource.data_ref().absm_definition;
+        let machine = absm_node.machine();
 
-        let parent_state_ref = &definition.states[self.state];
+        let parent_state_ref = &machine.states()[self.state];
 
         let mut views = ui
             .node(self.canvas)
@@ -295,12 +330,9 @@ impl StateViewer {
             .iter()
             .cloned()
             .filter(|h| {
-                if let Some(pose_node) = ui
-                    .node(*h)
-                    .query_component::<AbsmNode<PoseNodeDefinition>>()
-                {
-                    if definition
-                        .nodes
+                if let Some(pose_node) = ui.node(*h).query_component::<AbsmNode<PoseNode>>() {
+                    if machine
+                        .nodes()
                         .try_borrow(pose_node.model_handle)
                         .map_or(false, |node| node.parent_state == self.state)
                     {
@@ -318,8 +350,8 @@ impl StateViewer {
             })
             .collect::<Vec<_>>();
 
-        let models = definition
-            .nodes
+        let models = machine
+            .nodes()
             .pair_iter()
             .filter_map(|(h, n)| {
                 if n.parent_state == self.state {
@@ -336,24 +368,24 @@ impl StateViewer {
                 for &pose_definition in models.iter() {
                     if views.iter().all(|v| {
                         ui.node(*v)
-                            .query_component::<AbsmNode<PoseNodeDefinition>>()
+                            .query_component::<AbsmNode<PoseNode>>()
                             .unwrap()
                             .model_handle
                             != pose_definition
                     }) {
-                        let node_ref = &definition.nodes[pose_definition];
+                        let node_ref = &machine.nodes()[pose_definition];
 
                         let (input_socket_count, name, can_add_sockets) = match node_ref {
-                            PoseNodeDefinition::PlayAnimation(_) => {
+                            PoseNode::PlayAnimation(_) => {
                                 // No input sockets
                                 (0, "Play Animation", false)
                             }
-                            PoseNodeDefinition::BlendAnimations(blend_animations) => (
+                            PoseNode::BlendAnimations(blend_animations) => (
                                 blend_animations.pose_sources.len(),
                                 "Blend Animations",
                                 true,
                             ),
-                            PoseNodeDefinition::BlendAnimationsByIndex(blend_animations) => (
+                            PoseNode::BlendAnimationsByIndex(blend_animations) => (
                                 blend_animations.inputs.len(),
                                 "Blend Animations By Index",
                                 true,
@@ -407,11 +439,11 @@ impl StateViewer {
                 for &view in views.clone().iter() {
                     let view_ref = ui
                         .node(view)
-                        .query_component::<AbsmNode<PoseNodeDefinition>>()
+                        .query_component::<AbsmNode<PoseNode>>()
                         .unwrap();
 
-                    if definition
-                        .nodes
+                    if machine
+                        .nodes()
                         .pair_iter()
                         .all(|(h, _)| view_ref.model_handle != h)
                     {
@@ -433,10 +465,10 @@ impl StateViewer {
         for &view in &views {
             let view_ref = ui
                 .node(view)
-                .query_component::<AbsmNode<PoseNodeDefinition>>()
+                .query_component::<AbsmNode<PoseNode>>()
                 .unwrap();
             let model_handle = view_ref.model_handle;
-            let model_ref = &definition.nodes[model_handle];
+            let model_ref = &machine.nodes()[model_handle];
             let children = model_ref.children();
             let position = view_ref.actual_local_position();
 
@@ -508,27 +540,21 @@ impl StateViewer {
         for model in models.iter().cloned() {
             let dest_ref = views
                 .iter()
-                .filter_map(|v| {
-                    ui.node(*v)
-                        .query_component::<AbsmNode<PoseNodeDefinition>>()
-                })
+                .filter_map(|v| ui.node(*v).query_component::<AbsmNode<PoseNode>>())
                 .find(|v| v.model_handle == model)
                 .unwrap();
             let dest_handle = dest_ref.handle();
             let input_sockets = dest_ref.base.input_sockets.clone();
 
-            let model_ref = &definition.nodes[model];
+            let model_ref = &machine.nodes()[model];
             for (i, child) in model_ref.children().into_iter().enumerate() {
                 // Sanity check.
                 assert_ne!(child, model);
 
-                if definition.nodes.is_valid_handle(child) {
+                if machine.nodes().is_valid_handle(child) {
                     let source = views
                         .iter()
-                        .filter_map(|v| {
-                            ui.node(*v)
-                                .query_component::<AbsmNode<PoseNodeDefinition>>()
-                        })
+                        .filter_map(|v| ui.node(*v).query_component::<AbsmNode<PoseNode>>())
                         .find(|v| v.model_handle == child)
                         .unwrap();
 
@@ -554,23 +580,28 @@ impl StateViewer {
         }
 
         // Sync selection.
-        let new_selection = data_model
-            .selection
-            .iter()
-            .filter_map(|entry| match entry {
-                SelectedEntity::Transition(_) | SelectedEntity::State(_) => {
-                    // No such nodes possible to have on this canvas.
-                    None
-                }
-                SelectedEntity::PoseNode(pose_node) => views.iter().cloned().find(|s| {
-                    ui.node(*s)
-                        .query_component::<AbsmNode<PoseNodeDefinition>>()
-                        .unwrap()
-                        .model_handle
-                        == *pose_node
-                }),
-            })
-            .collect::<Vec<_>>();
+        let new_selection = if let Selection::Absm(ref selection) = editor_scene.selection {
+            selection
+                .entities
+                .iter()
+                .filter_map(|entry| match entry {
+                    SelectedEntity::Transition(_) | SelectedEntity::State(_) => {
+                        // No such nodes possible to have on this canvas.
+                        None
+                    }
+                    SelectedEntity::PoseNode(pose_node) => views.iter().cloned().find(|s| {
+                        ui.node(*s)
+                            .query_component::<AbsmNode<PoseNode>>()
+                            .unwrap()
+                            .model_handle
+                            == *pose_node
+                    }),
+                })
+                .collect::<Vec<_>>()
+        } else {
+            Default::default()
+        };
+
         send_sync_message(
             ui,
             AbsmCanvasMessage::selection_changed(

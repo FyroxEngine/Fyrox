@@ -181,7 +181,7 @@ impl Machine {
                 *parameter = new_value;
             }
             None => {
-                self.parameters.insert(id.to_owned(), new_value);
+                self.parameters.add(id, new_value);
             }
         }
 
@@ -194,9 +194,19 @@ impl Machine {
     }
 
     #[inline]
+    pub fn parameters_mut(&mut self) -> &mut ParameterContainer {
+        &mut self.parameters
+    }
+
+    #[inline]
     pub fn set_entry_state(&mut self, entry_state: Handle<State>) {
         self.active_state = entry_state;
         self.entry_state = entry_state;
+    }
+
+    #[inline]
+    pub fn entry_state(&self) -> Handle<State> {
+        self.entry_state
     }
 
     #[inline]
@@ -243,13 +253,23 @@ impl Machine {
     }
 
     #[inline]
-    pub fn nodes(&self) -> impl Iterator<Item = &PoseNode> {
-        self.nodes.iter()
+    pub fn node(&self, handle: Handle<PoseNode>) -> &PoseNode {
+        &self.nodes[handle]
     }
 
     #[inline]
     pub fn node_mut(&mut self, handle: Handle<PoseNode>) -> &mut PoseNode {
         &mut self.nodes[handle]
+    }
+
+    #[inline]
+    pub fn nodes(&self) -> &Pool<PoseNode> {
+        &self.nodes
+    }
+
+    #[inline]
+    pub fn nodes_mut(&mut self) -> &mut Pool<PoseNode> {
+        &mut self.nodes
     }
 
     #[inline]
@@ -263,13 +283,43 @@ impl Machine {
     }
 
     #[inline]
+    pub fn transition(&self, handle: Handle<Transition>) -> &Transition {
+        &self.transitions[handle]
+    }
+
+    #[inline]
+    pub fn transition_mut(&mut self, handle: Handle<Transition>) -> &mut Transition {
+        &mut self.transitions[handle]
+    }
+
+    #[inline]
     pub fn transitions(&self) -> &Pool<Transition> {
         &self.transitions
     }
 
     #[inline]
+    pub fn transitions_mut(&mut self) -> &mut Pool<Transition> {
+        &mut self.transitions
+    }
+
+    #[inline]
+    pub fn state(&self, handle: Handle<State>) -> &State {
+        &self.states[handle]
+    }
+
+    #[inline]
+    pub fn state_mut(&mut self, handle: Handle<State>) -> &mut State {
+        &mut self.states[handle]
+    }
+
+    #[inline]
     pub fn states(&self) -> &Pool<State> {
         &self.states
+    }
+
+    #[inline]
+    pub fn states_mut(&mut self) -> &mut Pool<State> {
+        &mut self.states
     }
 
     pub(crate) fn evaluate_pose(

@@ -1,5 +1,5 @@
+use fyrox::animation::machine::PoseNode;
 use fyrox::{
-    animation::machine::node::PoseNodeDefinition,
     core::{algebra::Vector2, color::Color, pool::Handle},
     gui::{
         brush::Brush,
@@ -39,7 +39,7 @@ pub enum SocketDirection {
 pub struct Socket {
     widget: Widget,
     click_position: Option<Vector2<f32>>,
-    pub parent_node: Handle<PoseNodeDefinition>,
+    pub parent_node: Handle<PoseNode>,
     pub direction: SocketDirection,
     #[allow(dead_code)] // TODO
     editor: Handle<UiNode>,
@@ -117,7 +117,7 @@ impl Control for Socket {
 
 pub struct SocketBuilder {
     widget_builder: WidgetBuilder,
-    parent_node: Handle<PoseNodeDefinition>,
+    parent_node: Handle<PoseNode>,
     direction: SocketDirection,
     editor: Handle<UiNode>,
     index: usize,
@@ -134,7 +134,7 @@ impl SocketBuilder {
         }
     }
 
-    pub fn with_parent_node(mut self, parent_node: Handle<PoseNodeDefinition>) -> Self {
+    pub fn with_parent_node(mut self, parent_node: Handle<PoseNode>) -> Self {
         self.parent_node = parent_node;
         self
     }

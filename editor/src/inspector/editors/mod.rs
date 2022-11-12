@@ -7,8 +7,16 @@ use crate::{
     },
     Message,
 };
+use fyrox::animation::machine::node::play::TimeSlice;
+use fyrox::animation::machine::node::BasePoseNode;
+use fyrox::animation::machine::{
+    BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, PlayAnimation,
+    PoseWeight,
+};
+use fyrox::gui::inspector::editors::collection::VecCollectionPropertyEditorDefinition;
+use fyrox::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;
 use fyrox::{
-    animation::{self, machine::MachineInstantiationError},
+    animation::{self},
     core::{
         futures::executor::block_on,
         parking_lot::Mutex,
@@ -23,7 +31,6 @@ use fyrox::{
         SharedMaterial,
     },
     resource::{
-        absm::{AbsmResource, AbsmResourceState},
         curve::{CurveResource, CurveResourceError, CurveResourceState},
         model::{MaterialSearchOptions, Model, ModelData, ModelLoadError},
         texture::{
@@ -168,15 +175,6 @@ pub fn make_property_editors_container(
     >::new());
 
     container.insert(ResourceFieldPropertyEditorDefinition::<
-        AbsmResource,
-        AbsmResourceState,
-        MachineInstantiationError,
-    >::new(Rc::new(|resource_manager, path| {
-        block_on(resource_manager.request_absm(path))
-    })));
-    container.insert(InheritablePropertyEditorDefinition::<Option<AbsmResource>>::new());
-
-    container.insert(ResourceFieldPropertyEditorDefinition::<
         CurveResource,
         CurveResourceState,
         CurveResourceError,
@@ -275,6 +273,20 @@ pub fn make_property_editors_container(
 
     container.insert(SurfaceDataPropertyEditorDefinition);
     container.insert(InheritablePropertyEditorDefinition::<SurfaceSharedData>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<BasePoseNode>::new());
+    container.insert(InspectablePropertyEditorDefinition::<IndexedBlendInput>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<IndexedBlendInput>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BlendPose>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<BlendPose>::new());
+    container.insert(EnumPropertyEditorDefinition::<PoseWeight>::new());
+    container.insert(InspectablePropertyEditorDefinition::<PoseWeight>::new());
+    container.insert(InspectablePropertyEditorDefinition::<TimeSlice>::new());
+    container.insert(EnumPropertyEditorDefinition::<TimeSlice>::new_optional());
+    container.insert(InspectablePropertyEditorDefinition::<TimeSlice>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BlendAnimationsByIndex>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BlendAnimations>::new());
+    container.insert(InspectablePropertyEditorDefinition::<PlayAnimation>::new());
 
     container
 }

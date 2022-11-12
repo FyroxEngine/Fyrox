@@ -3,6 +3,7 @@ use crate::{
         machine::{EvaluatePose, ParameterContainer, PoseNode},
         AnimationContainer, AnimationPose,
     },
+    core::algebra::Vector2,
     core::{
         pool::{Handle, Pool},
         reflect::prelude::*,
@@ -15,15 +16,17 @@ use std::cell::Ref;
 /// set of values.
 #[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct State {
-    pub(crate) name: String,
+    pub position: Vector2<f32>,
+    pub name: String,
     #[reflect(hidden)]
-    pub(crate) root: Handle<PoseNode>,
+    pub root: Handle<PoseNode>,
 }
 
 impl State {
     /// Creates new instance of state with a given pose.
     pub fn new(name: &str, root: Handle<PoseNode>) -> Self {
         Self {
+            position: Default::default(),
             name: name.to_owned(),
             root,
         }

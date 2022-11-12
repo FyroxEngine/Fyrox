@@ -5,7 +5,7 @@ use crate::{
         segment::SegmentMessage,
         selectable::{Selectable, SelectableMessage},
         socket::{Socket, SocketDirection, SocketMessage},
-        transition::{self, Transition},
+        transition::{self, TransitionView},
     },
     utils::fetch_node_screen_center_ui,
 };
@@ -230,7 +230,7 @@ impl AbsmCanvas {
         for transition in self
             .children()
             .iter()
-            .filter_map(|c| ui.node(*c).query_component::<Transition>())
+            .filter_map(|c| ui.node(*c).query_component::<TransitionView>())
         {
             if force
                 || moved_node == transition.segment.source
@@ -241,17 +241,19 @@ impl AbsmCanvas {
                     .children()
                     .iter()
                     .filter_map(|c| {
-                        ui.node(*c).query_component::<Transition>().and_then(|t| {
-                            if t.segment.source == transition.segment.source
-                                && t.segment.dest == transition.segment.dest
-                                || t.segment.source == transition.segment.dest
-                                    && t.segment.dest == transition.segment.source
-                            {
-                                Some(*c)
-                            } else {
-                                None
-                            }
-                        })
+                        ui.node(*c)
+                            .query_component::<TransitionView>()
+                            .and_then(|t| {
+                                if t.segment.source == transition.segment.source
+                                    && t.segment.dest == transition.segment.dest
+                                    || t.segment.source == transition.segment.dest
+                                        && t.segment.dest == transition.segment.source
+                                {
+                                    Some(*c)
+                                } else {
+                                    None
+                                }
+                            })
                     })
                     .enumerate()
                 {

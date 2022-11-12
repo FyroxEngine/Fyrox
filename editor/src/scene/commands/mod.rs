@@ -183,6 +183,7 @@ impl ChangeSelectionCommand {
                 Selection::Navmesh(_) => "Change Selection: Navmesh",
                 Selection::SoundContext => "Change Selection: Sound Context",
                 Selection::Effect(_) => "Change Selection: Effect",
+                Selection::Absm(_) => "Change Selection: Absm",
             }
             .to_owned(),
             new_selection,
@@ -467,5 +468,5 @@ define_universal_commands!(
     ctx,
     handle,
     self,
-    { ctx.scene.graph[self.handle].as_reflect_mut() }
+    { ctx.scene.graph[self.handle].as_reflect_mut() },
 );
