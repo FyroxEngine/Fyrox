@@ -1,7 +1,7 @@
 use crate::{
     animation::{
         machine::{
-            node::{BasePoseNode, BasePoseNodeDefinition, EvaluatePose},
+            node::{BasePoseNode, EvaluatePose},
             ParameterContainer, PoseNode,
         },
         Animation, AnimationContainer, AnimationPose,
@@ -43,41 +43,6 @@ impl DerefMut for PlayAnimation {
 
 #[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct TimeSlice(pub Range<f32>);
-
-#[derive(Debug, Visit, Clone, Reflect)]
-pub struct PlayAnimationDefinition {
-    pub base: BasePoseNodeDefinition,
-    pub animation: String,
-    #[visit(optional)] // Backward compatibility
-    pub speed: f32,
-    #[visit(optional)] // Backward compatibility
-    pub time_slice: Option<TimeSlice>,
-}
-
-impl Default for PlayAnimationDefinition {
-    fn default() -> Self {
-        Self {
-            base: Default::default(),
-            animation: "".to_string(),
-            speed: 1.0,
-            time_slice: None,
-        }
-    }
-}
-
-impl Deref for PlayAnimationDefinition {
-    type Target = BasePoseNodeDefinition;
-
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
-}
-
-impl DerefMut for PlayAnimationDefinition {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base
-    }
-}
 
 impl PlayAnimation {
     /// Creates new PlayAnimation node with given animation handle.

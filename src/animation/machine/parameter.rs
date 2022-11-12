@@ -41,14 +41,3 @@ impl Default for PoseWeight {
 }
 
 pub type ParameterContainer = FxHashMap<String, Parameter>;
-
-#[derive(Debug, Default, Visit, Clone, Reflect)]
-pub struct ParameterDefinition {
-    pub name: String,
-    pub value: Parameter,
-}
-
-#[derive(Debug, Default, Visit, Clone, Reflect)]
-pub struct ParameterContainerDefinition {
-    pub container: Vec<ParameterDefinition>,
-}

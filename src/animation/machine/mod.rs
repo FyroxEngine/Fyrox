@@ -88,27 +88,13 @@
 //! locomotion and other is for combat. This means that locomotion machine will take control over
 //! lower body and combat machine will control upper body.
 
-use std::fmt::{Display, Formatter};
-use std::sync::Arc;
-
 use crate::{
-    animation::{
-        machine::{
-            event::LimitedEventQueue, node::PoseNodeDefinition,
-            parameter::ParameterContainerDefinition, state::StateDefinition,
-            transition::TransitionDefinition,
-        },
-        AnimationContainer, AnimationPose,
-    },
+    animation::{machine::event::LimitedEventQueue, AnimationContainer, AnimationPose},
     core::{
-        io::FileLoadError,
         pool::{Handle, Pool},
         reflect::prelude::*,
-        visitor::VisitError,
         visitor::{Visit, VisitResult, Visitor},
     },
-    engine::resource_manager::ResourceManager,
-    resource::{absm::AbsmResource, model::ModelLoadError},
     scene::node::Node,
     utils::log::{Log, MessageKind},
 };
@@ -132,7 +118,6 @@ pub mod transition;
 #[derive(Default, Debug, Visit, Reflect, Clone)]
 pub struct Machine {
     pub(crate) root: Handle<Node>,
-    pub(crate) resource: Option<AbsmResource>,
 
     #[reflect(hidden)]
     parameters: ParameterContainer,
@@ -166,81 +151,11 @@ pub struct Machine {
     debug: bool,
 }
 
-#[derive(Default, Debug, Visit, Clone)]
-pub struct MachineDefinition {
-    pub parameters: ParameterContainerDefinition,
-    pub nodes: Pool<PoseNodeDefinition>,
-    pub transitions: Pool<TransitionDefinition>,
-    pub states: Pool<StateDefinition>,
-    pub entry_state: Handle<StateDefinition>,
-}
-
-/// An error that may occur during ABSM resource loading.
-#[derive(Debug)]
-pub enum MachineInstantiationError {
-    /// An i/o error has occurred.
-    Io(FileLoadError),
-
-    /// An error that may occur due to version incompatibilities.
-    Visit(VisitError),
-
-    /// An error that may occur during instantiation of the ABSM. It means that an external
-    /// animation resource wasn't able to load correctly.
-    AnimationLoadError(Option<Arc<ModelLoadError>>),
-
-    /// An animation is not valid.
-    InvalidAnimation,
-}
-
-impl Display for MachineInstantiationError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            MachineInstantiationError::Io(v) => {
-                write!(f, "A file load error has occurred {v:?}")
-            }
-            MachineInstantiationError::Visit(v) => {
-                write!(
-                    f,
-                    "An error that may occur due to version incompatibilities. {v:?}"
-                )
-            }
-            MachineInstantiationError::AnimationLoadError(v) => {
-                write!(
-                    f,
-                    "An error that may occur during instantiation of the ABSM. {v:?}"
-                )
-            }
-            MachineInstantiationError::InvalidAnimation => {
-                write!(f, "An animation is not valid.")
-            }
-        }
-    }
-}
-
-impl From<FileLoadError> for MachineInstantiationError {
-    fn from(e: FileLoadError) -> Self {
-        Self::Io(e)
-    }
-}
-
-impl From<VisitError> for MachineInstantiationError {
-    fn from(e: VisitError) -> Self {
-        Self::Visit(e)
-    }
-}
-
-impl From<Option<Arc<ModelLoadError>>> for MachineInstantiationError {
-    fn from(e: Option<Arc<ModelLoadError>>) -> Self {
-        Self::AnimationLoadError(e)
-    }
-}
-
 impl Machine {
     #[inline]
     pub fn new(root: Handle<Node>) -> Self {
         Self {
             root,
-            resource: None,
             nodes: Default::default(),
             states: Default::default(),
             transitions: Default::default(),
@@ -319,11 +234,6 @@ impl Machine {
     }
 
     #[inline]
-    pub fn resource(&self) -> Option<AbsmResource> {
-        self.resource.clone()
-    }
-
-    #[inline]
     pub fn reset(&mut self) {
         for transition in self.transitions.iter_mut() {
             transition.reset();
@@ -360,14 +270,6 @@ impl Machine {
     #[inline]
     pub fn states(&self) -> &Pool<State> {
         &self.states
-    }
-
-    pub fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        resource_manager
-            .state()
-            .containers_mut()
-            .absm
-            .try_restore_optional_resource(&mut self.resource);
     }
 
     pub(crate) fn evaluate_pose(

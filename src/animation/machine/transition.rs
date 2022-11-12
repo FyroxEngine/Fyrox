@@ -1,47 +1,29 @@
 use crate::{
-    animation::machine::{state::StateDefinition, State},
+    animation::machine::State,
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
 };
 
 /// Transition is a connection between two states with a rule that defines possibility
 /// of actual transition with blending.
-#[derive(Default, Debug, Visit, Clone)]
-pub struct Transition {
-    pub definition: Handle<TransitionDefinition>,
-    pub(crate) name: String,
-    /// Total amount of time to transition from `src` to `dst` state.
-    pub(crate) transition_time: f32,
-    pub(crate) elapsed_time: f32,
-    pub(crate) source: Handle<State>,
-    pub(crate) dest: Handle<State>,
-    /// Identifier of Rule parameter which defines is transition should be activated or not.
-    pub(crate) rule: String,
-    /// If set, then fetched value from `rule` will be inverted. It is useful for cases when you
-    /// have a pair of transitions that depend on a single Rule parameter, but have different
-    /// directions (A -> B, B -> A).
-    pub(crate) invert_rule: bool,
-    /// 0 - evaluates `src` pose, 1 - `dest`, 0..1 - blends `src` and `dest`
-    pub(crate) blend_factor: f32,
-}
-
 #[derive(Default, Debug, Visit, Clone, Reflect)]
-pub struct TransitionDefinition {
+pub struct Transition {
     #[reflect(description = "The name of the transition, it is used for debug output.")]
-    pub name: String,
+    pub(crate) name: String,
     /// Total amount of time to transition from `src` to `dst` state.
     #[reflect(description = "Total amount of time (in seconds) to transition \
         from source to destination state")]
-    pub transition_time: f32,
+    pub(crate) transition_time: f32,
+    pub(crate) elapsed_time: f32,
+    #[reflect(hidden)]
+    pub(crate) source: Handle<State>,
+    #[reflect(hidden)]
+    pub(crate) dest: Handle<State>,
     /// Identifier of Rule parameter which defines is transition should be activated or not.
     #[reflect(
         description = "Name of the Rule parameter which defines whether transition \
         should be activated or not"
     )]
-    pub rule: String,
-    #[reflect(hidden)]
-    pub source: Handle<StateDefinition>,
-    #[reflect(hidden)]
-    pub dest: Handle<StateDefinition>,
+    pub(crate) rule: String,
     /// If set, then fetched value from `rule` will be inverted. It is useful for cases when you
     /// have a pair of transitions that depend on a single Rule parameter, but have different
     /// directions (A -> B, B -> A).
@@ -50,7 +32,9 @@ pub struct TransitionDefinition {
      for cases when you have a pair of transitions that depend on a single Rule parameter,
       but have different directions (A -> B, B -> A)."
     )]
-    pub invert_rule: bool,
+    pub(crate) invert_rule: bool,
+    /// 0 - evaluates `src` pose, 1 - `dest`, 0..1 - blends `src` and `dest`
+    pub(crate) blend_factor: f32,
 }
 
 impl Transition {
@@ -62,7 +46,6 @@ impl Transition {
         rule: &str,
     ) -> Transition {
         Self {
-            definition: Default::default(),
             name: name.to_owned(),
             transition_time: time,
             elapsed_time: 0.0,

@@ -74,8 +74,7 @@ impl NodeTrait for AnimationBlendingStateMachine {
     }
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base.restore_resources(resource_manager.clone());
-        self.machine.restore_resources(resource_manager);
+        self.base.restore_resources(resource_manager);
     }
 
     fn id(&self) -> Uuid {

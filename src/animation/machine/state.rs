@@ -1,10 +1,9 @@
 use crate::{
     animation::{
-        machine::{node::PoseNodeDefinition, EvaluatePose, ParameterContainer, PoseNode},
+        machine::{EvaluatePose, ParameterContainer, PoseNode},
         AnimationContainer, AnimationPose,
     },
     core::{
-        algebra::Vector2,
         pool::{Handle, Pool},
         reflect::prelude::*,
         visitor::prelude::*,
@@ -14,26 +13,17 @@ use std::cell::Ref;
 
 /// State is a final "container" for animation pose. It has backing pose node which provides a
 /// set of values.
-#[derive(Default, Debug, Visit, Clone)]
-pub struct State {
-    pub definition: Handle<StateDefinition>,
-    pub(crate) name: String,
-    pub(crate) root: Handle<PoseNode>,
-}
-
 #[derive(Default, Debug, Visit, Clone, Reflect)]
-pub struct StateDefinition {
-    pub position: Vector2<f32>,
-    pub name: String,
+pub struct State {
+    pub(crate) name: String,
     #[reflect(hidden)]
-    pub root: Handle<PoseNodeDefinition>,
+    pub(crate) root: Handle<PoseNode>,
 }
 
 impl State {
     /// Creates new instance of state with a given pose.
     pub fn new(name: &str, root: Handle<PoseNode>) -> Self {
         Self {
-            definition: Default::default(),
             name: name.to_owned(),
             root,
         }

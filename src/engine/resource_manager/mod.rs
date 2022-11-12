@@ -11,7 +11,6 @@ use crate::{
         resource_manager::{
             container::{Container, ResourceContainer},
             loader::{
-                absm::AbsmLoader,
                 curve::CurveLoader,
                 model::ModelLoader,
                 shader::ShaderLoader,
@@ -25,7 +24,6 @@ use crate::{
     },
     material::shader::{Shader, ShaderImportOptions},
     resource::{
-        absm::{AbsmImportOptions, AbsmResource},
         animation::{AnimationImportOptions, AnimationResource},
         curve::{CurveImportOptions, CurveResource},
         model::{Model, ModelImportOptions},
@@ -58,9 +56,6 @@ pub struct ContainersStorage {
 
     /// Container for curve resources.
     pub curves: ResourceContainer<CurveResource, CurveImportOptions>,
-
-    /// Container for ABSM resources.
-    pub absm: ResourceContainer<AbsmResource, AbsmImportOptions>,
 
     /// Container for animation resources.
     pub animations: ResourceContainer<AnimationResource, AnimationImportOptions>,
@@ -107,14 +102,6 @@ impl ContainersStorage {
         self.curves.set_loader(loader);
     }
 
-    /// Sets a custom ABSM loader.
-    pub fn set_absm_loader<L>(&mut self, loader: L)
-    where
-        L: 'static + ResourceLoader<AbsmResource, AbsmImportOptions>,
-    {
-        self.absm.set_loader(loader);
-    }
-
     /// Sets a custom animation loader.
     pub fn set_animation_loader<L>(&mut self, loader: L)
     where
@@ -127,7 +114,6 @@ impl ContainersStorage {
     pub fn wait_concurrent(&self) -> ResourceWaitContext {
         ResourceWaitContext {
             models: self.models.resources(),
-            absm: self.absm.resources(),
             curves: self.curves.resources(),
             shaders: self.shaders.resources(),
             textures: self.textures.resources(),
@@ -141,7 +127,6 @@ impl ContainersStorage {
 #[must_use]
 pub struct ResourceWaitContext {
     models: Vec<Model>,
-    absm: Vec<AbsmResource>,
     curves: Vec<CurveResource>,
     shaders: Vec<Shader>,
     textures: Vec<Texture>,
@@ -153,7 +138,6 @@ impl ResourceWaitContext {
     /// Wait until all resources are loaded (or failed to load).
     pub async fn wait_concurrent(self) {
         join_all(self.models).await;
-        join_all(self.absm).await;
         join_all(self.curves).await;
         join_all(self.shaders).await;
         join_all(self.textures).await;
@@ -227,7 +211,6 @@ impl ResourceManager {
             animations: ResourceContainer::new(task_pool.clone(), Box::new(AnimationLoader)),
             shaders: ResourceContainer::new(task_pool.clone(), Box::new(ShaderLoader)),
             curves: ResourceContainer::new(task_pool.clone(), Box::new(CurveLoader)),
-            absm: ResourceContainer::new(task_pool, Box::new(AbsmLoader)),
         });
 
         resource_manager
@@ -358,17 +341,6 @@ impl ResourceManager {
     }
 
     /// Tries to load a new ABSM resource from given path or get instance of existing, if any.
-    /// This method is asynchronous, it immediately returns a ABSM which can be shared across
-    /// multiple places, the loading may fail, but it is internal state of the ABSM resource.
-    ///
-    /// # Async/.await
-    ///
-    /// Each ABSM implements Future trait and can be used in async contexts.
-    pub fn request_absm<P: AsRef<Path>>(&self, path: P) -> AbsmResource {
-        self.state().containers_mut().absm.request(path)
-    }
-
-    /// Tries to load a new ABSM resource from given path or get instance of existing, if any.
     /// This method is asynchronous, it immediately returns an animation which can be shared across
     /// multiple places, the loading may fail, but it is internal state of the animation resource.
     ///
@@ -407,13 +379,6 @@ impl ResourceManager {
         join_all(resources).await;
     }
 
-    /// Reloads every loaded ABSM resource. This method is asynchronous, internally it uses thread pool
-    /// to run reload on separate thread per resource.
-    pub async fn reload_absm_resources(&self) {
-        let resources = self.state().containers_mut().absm.reload_resources();
-        join_all(resources).await;
-    }
-
     /// Reloads every loaded animation resource. This method is asynchronous, internally it uses thread pool
     /// to run reload on separate thread per resource.
     pub async fn reload_animations(&self) {
@@ -443,7 +408,6 @@ impl ResourceManager {
             self.reload_animations(),
             self.reload_shaders(),
             self.reload_curve_resources(),
-            self.reload_absm_resources(),
         );
     }
 }
@@ -486,7 +450,6 @@ impl ResourceManagerState {
             + containers.models.count_pending_resources()
             + containers.shaders.count_pending_resources()
             + containers.curves.count_pending_resources()
-            + containers.absm.count_pending_resources()
             + containers.animations.count_pending_resources()
     }
 
@@ -498,7 +461,6 @@ impl ResourceManagerState {
             + containers.models.count_loaded_resources()
             + containers.shaders.count_loaded_resources()
             + containers.curves.count_loaded_resources()
-            + containers.absm.count_loaded_resources()
             + containers.animations.count_loaded_resources()
     }
 
@@ -510,7 +472,6 @@ impl ResourceManagerState {
             + containers.models.len()
             + containers.shaders.len()
             + containers.curves.len()
-            + containers.absm.len()
             + containers.animations.len()
     }
 
@@ -535,7 +496,6 @@ impl ResourceManagerState {
         containers.textures.destroy_unused();
         containers.shaders.destroy_unused();
         containers.curves.destroy_unused();
-        containers.absm.destroy_unused();
         containers.animations.destroy_unused();
     }
 
@@ -553,7 +513,6 @@ impl ResourceManagerState {
         containers.sound_buffers.update(dt);
         containers.shaders.update(dt);
         containers.curves.update(dt);
-        containers.absm.update(dt);
         containers.animations.update(dt);
 
         if let Some(watcher) = self.watcher.as_ref() {
@@ -569,7 +528,6 @@ impl ResourceManagerState {
                                 &mut containers.animations as &mut dyn Container,
                                 &mut containers.shaders as &mut dyn Container,
                                 &mut containers.curves as &mut dyn Container,
-                                &mut containers.absm as &mut dyn Container,
                             ] {
                                 if container.try_reload_resource_from_path(&relative_path) {
                                     Log::info(format!(
