@@ -96,6 +96,7 @@ impl Default for AnimationHolder {
 
 #[derive(Debug, Reflect, PartialEq)]
 pub struct Animation {
+    name: String,
     tracks: Vec<NodeTrack>,
     length: f32,
     time_position: f32,
@@ -129,6 +130,7 @@ impl Visit for Animation {
         self.enabled.visit("Enabled", &mut region)?;
         self.signals.visit("Signals", &mut region)?;
         let _ = self.root.visit("Root", &mut region);
+        let _ = self.name.visit("Name", &mut region);
 
         if region.is_reading() {
             if self.resource.visit("Resource", &mut region).is_err() {
@@ -248,6 +250,7 @@ impl AnimationPose {
 impl Clone for Animation {
     fn clone(&self) -> Self {
         Self {
+            name: self.name.clone(),
             tracks: self.tracks.clone(),
             speed: self.speed,
             length: self.length,
@@ -265,6 +268,14 @@ impl Clone for Animation {
 }
 
 impl Animation {
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+
+    pub fn name(&self) -> &str {
+        self.name.as_ref()
+    }
+
     pub fn add_track(&mut self, track: NodeTrack) {
         self.tracks.push(track);
 
@@ -513,6 +524,7 @@ impl Animation {
 impl Default for Animation {
     fn default() -> Self {
         Self {
+            name: Default::default(),
             tracks: Vec::new(),
             speed: 1.0,
             length: 0.0,
