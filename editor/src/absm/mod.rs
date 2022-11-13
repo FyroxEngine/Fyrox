@@ -9,6 +9,7 @@ use crate::{
     scene::{EditorScene, Selection},
     Message,
 };
+use fyrox::gui::BuildContext;
 use fyrox::{
     animation::machine::{BlendPose, Event, IndexedBlendInput, PoseNode, State},
     core::{color::Color, pool::Handle},
@@ -44,7 +45,7 @@ const NORMAL_ROOT_COLOR: Color = Color::opaque(40, 80, 0);
 const SELECTED_ROOT_COLOR: Color = Color::opaque(60, 100, 0);
 
 pub struct AbsmEditor {
-    window: Handle<UiNode>,
+    pub window: Handle<UiNode>,
     state_graph_viewer: StateGraphViewer,
     state_viewer: StateViewer,
     parameter_panel: ParameterPanel,
@@ -52,10 +53,7 @@ pub struct AbsmEditor {
 }
 
 impl AbsmEditor {
-    pub fn new(engine: &mut Engine, sender: Sender<Message>) -> Self {
-        let ui = &mut engine.user_interface;
-        let ctx = &mut ui.build_ctx();
-
+    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let state_graph_viewer = StateGraphViewer::new(ctx);
         let state_viewer = StateViewer::new(ctx);
         let parameter_panel = ParameterPanel::new(ctx, sender);
@@ -91,7 +89,7 @@ impl AbsmEditor {
         )
         .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(1200.0).with_height(700.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(800.0).with_height(500.0))
             .open(false)
             .with_content(docking_manager)
             .with_title(WindowTitle::text("ABSM Editor"))
@@ -107,6 +105,8 @@ impl AbsmEditor {
     }
 
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+        let prev_absm = self.absm;
+
         self.absm = match editor_scene.selection {
             Selection::Absm(ref selection) => selection.absm_node_handle,
             Selection::Graph(ref selection) => selection.nodes.first().cloned().unwrap_or_default(),
@@ -115,15 +115,25 @@ impl AbsmEditor {
 
         let ui = &mut engine.user_interface;
         let scene = &mut engine.scenes[editor_scene.scene];
-        if let Some(absm_node) = scene
+
+        let absm_node = scene
             .graph
             .try_get(self.absm)
-            .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
-        {
+            .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>());
+
+        if self.absm != prev_absm {
+            self.parameter_panel.on_selection_changed(ui, absm_node);
+        }
+
+        if let Some(absm_node) = absm_node {
             self.parameter_panel.sync_to_model(ui, absm_node);
             self.state_graph_viewer
                 .sync_to_model(absm_node, ui, editor_scene);
             self.state_viewer.sync_to_model(ui, absm_node, editor_scene);
+        } else {
+            self.parameter_panel.reset(ui);
+            self.state_graph_viewer.clear(ui);
+            self.state_viewer.clear(ui);
         }
     }
 

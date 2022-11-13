@@ -210,7 +210,7 @@ impl ResourceManager {
             sound_buffers: ResourceContainer::new(task_pool.clone(), Box::new(SoundBufferLoader)),
             animations: ResourceContainer::new(task_pool.clone(), Box::new(AnimationLoader)),
             shaders: ResourceContainer::new(task_pool.clone(), Box::new(ShaderLoader)),
-            curves: ResourceContainer::new(task_pool.clone(), Box::new(CurveLoader)),
+            curves: ResourceContainer::new(task_pool, Box::new(CurveLoader)),
         });
 
         resource_manager

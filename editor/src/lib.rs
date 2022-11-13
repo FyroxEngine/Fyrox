@@ -582,6 +582,7 @@ impl Editor {
         let log = LogPanel::new(ctx, log_message_receiver);
         let inspector = Inspector::new(ctx, message_sender.clone());
         let animation_editor = AnimationEditor::new(ctx);
+        let absm_editor = AbsmEditor::new(ctx, message_sender.clone());
 
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()
@@ -684,7 +685,7 @@ impl Editor {
                             })
                             .build(ctx)
                     }))
-                    .with_floating_windows(vec![animation_editor.window])
+                    .with_floating_windows(vec![animation_editor.window, absm_editor.window])
                     .build(ctx),
                 ),
         )
@@ -725,8 +726,6 @@ impl Editor {
         let build_window = BuildWindow::new(ctx);
 
         let scene_settings = SceneSettingsWindow::new(ctx, message_sender.clone());
-
-        let absm_editor = AbsmEditor::new(&mut engine, message_sender.clone());
 
         let material_editor = MaterialEditor::new(&mut engine);
 

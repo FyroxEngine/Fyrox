@@ -1,10 +1,10 @@
 use fyrox::{
     core::{algebra::Vector2, pool::ErasedHandle, pool::Handle},
     gui::{
-        file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
+        file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
         message::MessageDirection,
         widget::{WidgetBuilder, WidgetMessage},
-        window::{Window, WindowBuilder, WindowMessage},
+        window::{Window, WindowBuilder},
         BuildContext, UiNode, UserInterface,
     },
     resource::texture::{CompressionOptions, Texture},
@@ -66,20 +66,6 @@ pub fn create_file_selector(
     }))
     .with_mode(mode)
     .build(ctx)
-}
-
-pub fn open_file_selector(file_selector: Handle<UiNode>, ui: &UserInterface) {
-    ui.send_message(FileSelectorMessage::root(
-        file_selector,
-        MessageDirection::ToWidget,
-        Some(std::env::current_dir().unwrap()),
-    ));
-
-    ui.send_message(WindowMessage::open_modal(
-        file_selector,
-        MessageDirection::ToWidget,
-        true,
-    ));
 }
 
 pub fn fetch_node_center(handle: Handle<UiNode>, ctx: &BuildContext) -> Vector2<f32> {

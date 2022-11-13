@@ -171,27 +171,27 @@ impl NodeContextMenu {
                     };
 
                 // Gather every transition that leads from/to any of states to remove.
-                let transitions_to_remove = machine
-                    .transitions()
-                    .pair_iter()
-                    .filter_map(|(handle, transition)| {
-                        if states_to_remove.iter().cloned().any(|state_to_remove| {
-                            state_to_remove == transition.source()
-                                || state_to_remove == transition.dest()
-                        }) {
-                            Some(handle)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>();
+                let transitions_to_remove =
+                    machine
+                        .transitions()
+                        .pair_iter()
+                        .filter_map(|(handle, transition)| {
+                            if states_to_remove.iter().cloned().any(|state_to_remove| {
+                                state_to_remove == transition.source()
+                                    || state_to_remove == transition.dest()
+                            }) {
+                                Some(handle)
+                            } else {
+                                None
+                            }
+                        });
 
                 let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
                     Default::default(),
                     editor_scene.selection.clone(),
                 ))];
 
-                group.extend(transitions_to_remove.into_iter().map(|transition| {
+                group.extend(transitions_to_remove.map(|transition| {
                     SceneCommand::new(DeleteTransitionCommand::new(absm_node_handle, transition))
                 }));
 

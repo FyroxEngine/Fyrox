@@ -394,10 +394,11 @@ impl Inspector {
                         .filter_map(|&handle| make_set_effect_property_command(handle, args))
                         .collect::<Vec<_>>(),
                     Selection::Absm(selection) => {
-                        if let Some(node) = scene
+                        if scene
                             .graph
                             .try_get(selection.absm_node_handle)
                             .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
+                            .is_some()
                         {
                             selection
                                 .entities

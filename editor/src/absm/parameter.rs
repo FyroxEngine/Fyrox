@@ -2,8 +2,6 @@ use crate::{
     absm::command::parameter::make_set_parameters_property_command,
     inspector::editors::make_property_editors_container, Message, MessageDirection, MSG_SYNC_FLAG,
 };
-use fyrox::scene::animation::absm::AnimationBlendingStateMachine;
-use fyrox::scene::node::Node;
 use fyrox::{
     animation::machine::parameter::Parameter,
     core::pool::Handle,
@@ -21,6 +19,7 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, UiNode, UserInterface,
     },
+    scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
     utils::log::Log,
 };
 use std::{rc::Rc, sync::mpsc::Sender};
@@ -57,8 +56,8 @@ impl ParameterPanel {
         }
     }
 
-    pub fn reset(
-        &mut self,
+    pub fn on_selection_changed(
+        &self,
         ui: &mut UserInterface,
         absm_node: Option<&AnimationBlendingStateMachine>,
     ) {
@@ -79,6 +78,14 @@ impl ParameterPanel {
             self.inspector,
             MessageDirection::ToWidget,
             inspector_context,
+        ));
+    }
+
+    pub fn reset(&mut self, ui: &mut UserInterface) {
+        ui.send_message(InspectorMessage::context(
+            self.inspector,
+            MessageDirection::ToWidget,
+            Default::default(),
         ));
     }
 
