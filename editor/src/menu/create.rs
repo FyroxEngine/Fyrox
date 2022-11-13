@@ -1,8 +1,8 @@
 use crate::{
     create_terrain_layer_material,
     menu::{
-        create_menu_item, create_root_menu_item, dim2::Dim2Menu, physics::PhysicsMenu,
-        physics2d::Physics2dMenu,
+        animation::AnimationMenu, create_menu_item, create_root_menu_item, dim2::Dim2Menu,
+        physics::PhysicsMenu, physics2d::Physics2dMenu,
     },
     scene::commands::graph::AddNodeCommand,
     Message, Mode,
@@ -94,6 +94,7 @@ pub struct CreateEntityMenu {
     physics_menu: PhysicsMenu,
     physics2d_menu: Physics2dMenu,
     dim2_menu: Dim2Menu,
+    animation_menu: AnimationMenu,
 }
 
 impl CreateEntityMenu {
@@ -117,6 +118,7 @@ impl CreateEntityMenu {
         let physics_menu = PhysicsMenu::new(ctx);
         let physics2d_menu = Physics2dMenu::new(ctx);
         let dim2_menu = Dim2Menu::new(ctx);
+        let animation_menu = AnimationMenu::new(ctx);
 
         let items = vec![
             {
@@ -185,6 +187,7 @@ impl CreateEntityMenu {
             physics_menu.menu,
             physics2d_menu.menu,
             dim2_menu.menu,
+            animation_menu.menu,
             {
                 create_camera = create_menu_item("Camera", vec![], ctx);
                 create_camera
@@ -228,6 +231,7 @@ impl CreateEntityMenu {
                 physics_menu,
                 physics2d_menu,
                 dim2_menu,
+                animation_menu,
             },
             items,
         )
@@ -238,6 +242,7 @@ impl CreateEntityMenu {
             .handle_ui_message(message)
             .or_else(|| self.physics2d_menu.handle_ui_message(message))
             .or_else(|| self.dim2_menu.handle_ui_message(message))
+            .or_else(|| self.animation_menu.handle_ui_message(message))
             .or_else(|| {
                 if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
                     if message.destination() == self.create_cube {
