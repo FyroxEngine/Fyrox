@@ -1,6 +1,11 @@
-use crate::scene::commands::effect::make_set_effect_property_command;
-use crate::utils::window_content;
 use crate::{
+    absm::{
+        command::{
+            pose::make_set_pose_property_command, state::make_set_state_property_command,
+            transition::make_set_transition_property_command,
+        },
+        selection::SelectedEntity,
+    },
     inspector::{
         editors::make_property_editors_container,
         handlers::{
@@ -8,13 +13,13 @@ use crate::{
             sound_context::handle_sound_context_property_changed,
         },
     },
-    scene::{EditorScene, Selection},
+    scene::{commands::effect::make_set_effect_property_command, EditorScene, Selection},
+    utils::window_content,
     Brush, CommandGroup, GameEngine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
-use fyrox::engine::SerializationContext;
 use fyrox::{
     core::{color::Color, pool::Handle, reflect::prelude::*},
-    engine::resource_manager::ResourceManager,
+    engine::{resource_manager::ResourceManager, SerializationContext},
     gui::{
         grid::{Column, GridBuilder, Row},
         inspector::{
@@ -28,6 +33,7 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
+    scene::animation::absm::AnimationBlendingStateMachine,
     utils::log::{Log, MessageKind},
 };
 use std::{
@@ -192,6 +198,32 @@ impl Inspector {
                         .sound_context
                         .try_get_effect(selection.effects[0])
                         .map(|e| e as &dyn Reflect),
+                    Selection::Absm(selection) => {
+                        if let Some(node) = scene
+                            .graph
+                            .try_get(selection.absm_node_handle)
+                            .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
+                        {
+                            if let Some(first) = selection.entities.first() {
+                                let machine = node.machine();
+                                match first {
+                                    SelectedEntity::Transition(transition) => {
+                                        Some(&machine.transitions()[*transition] as &dyn Reflect)
+                                    }
+                                    SelectedEntity::State(state) => {
+                                        Some(&machine.states()[*state] as &dyn Reflect)
+                                    }
+                                    SelectedEntity::PoseNode(pose) => {
+                                        Some(&machine.nodes()[*pose] as &dyn Reflect)
+                                    }
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
                     _ => None,
                 };
 
@@ -263,6 +295,32 @@ impl Inspector {
                         .sound_context
                         .try_get_effect(selection.effects[0])
                         .map(|e| e as &dyn Reflect),
+                    Selection::Absm(selection) => {
+                        if let Some(node) = scene
+                            .graph
+                            .try_get(selection.absm_node_handle)
+                            .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
+                        {
+                            if let Some(first) = selection.entities.first() {
+                                let machine = node.machine();
+                                match first {
+                                    SelectedEntity::Transition(transition) => {
+                                        Some(&machine.transitions()[*transition] as &dyn Reflect)
+                                    }
+                                    SelectedEntity::State(state) => {
+                                        Some(&machine.states()[*state] as &dyn Reflect)
+                                    }
+                                    SelectedEntity::PoseNode(pose) => {
+                                        Some(&machine.nodes()[*pose] as &dyn Reflect)
+                                    }
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
                     _ => None,
                 };
 
@@ -335,6 +393,43 @@ impl Inspector {
                         .iter()
                         .filter_map(|&handle| make_set_effect_property_command(handle, args))
                         .collect::<Vec<_>>(),
+                    Selection::Absm(selection) => {
+                        if let Some(node) = scene
+                            .graph
+                            .try_get(selection.absm_node_handle)
+                            .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
+                        {
+                            selection
+                                .entities
+                                .iter()
+                                .filter_map(|ent| match ent {
+                                    SelectedEntity::Transition(transition) => {
+                                        make_set_transition_property_command(
+                                            *transition,
+                                            args,
+                                            selection.absm_node_handle,
+                                        )
+                                    }
+                                    SelectedEntity::State(state) => {
+                                        make_set_state_property_command(
+                                            *state,
+                                            args,
+                                            selection.absm_node_handle,
+                                        )
+                                    }
+                                    SelectedEntity::PoseNode(pose) => {
+                                        make_set_pose_property_command(
+                                            *pose,
+                                            args,
+                                            selection.absm_node_handle,
+                                        )
+                                    }
+                                })
+                                .collect()
+                        } else {
+                            vec![]
+                        }
+                    }
                     _ => vec![],
                 };
 

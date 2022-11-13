@@ -1,4 +1,3 @@
-use crate::scene::Selection;
 use crate::{
     absm::{
         command::blend::{AddInputCommand, AddPoseSourceCommand},
@@ -7,13 +6,11 @@ use crate::{
         state_graph::StateGraphViewer,
         state_viewer::StateViewer,
     },
-    scene::EditorScene,
+    scene::{EditorScene, Selection},
     Message,
 };
-use fyrox::animation::machine::{BlendPose, IndexedBlendInput, PoseNode, State};
-use fyrox::scene::animation::absm::AnimationBlendingStateMachine;
 use fyrox::{
-    animation::machine::Event,
+    animation::machine::{BlendPose, Event, IndexedBlendInput, PoseNode, State},
     core::{color::Color, pool::Handle},
     engine::Engine,
     gui::{
@@ -23,12 +20,12 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         UiNode, UserInterface,
     },
-    scene::node::Node,
+    scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
 };
 use std::sync::mpsc::Sender;
 
 mod canvas;
-mod command;
+pub mod command;
 mod connection;
 mod node;
 mod parameter;
