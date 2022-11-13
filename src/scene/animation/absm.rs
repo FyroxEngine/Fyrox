@@ -40,6 +40,14 @@ impl AnimationBlendingStateMachine {
     pub fn machine_mut(&mut self) -> &mut Machine {
         &mut self.machine
     }
+
+    pub fn set_animation_player(&mut self, animation_player: Handle<Node>) {
+        self.animation_player.set(animation_player);
+    }
+
+    pub fn animation_player(&self) -> Handle<Node> {
+        *self.animation_player
+    }
 }
 
 impl TypeUuidProvider for AnimationBlendingStateMachine {
