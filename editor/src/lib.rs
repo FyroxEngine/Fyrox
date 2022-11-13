@@ -668,7 +668,16 @@ impl Editor {
                                                                                 ),
                                                                             )
                                                                             .build(ctx),
-                                                                            audio_panel.window,
+                                                                            TileBuilder::new(
+                                                                                WidgetBuilder::new(
+                                                                                ),
+                                                                            )
+                                                                            .with_content(
+                                                                                TileContent::Window(
+                                                                                    audio_panel.window,
+                                                                                ),
+                                                                            )
+                                                                            .build(ctx),
                                                                         ],
                                                                     },
                                                                 )
