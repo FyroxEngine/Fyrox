@@ -16,8 +16,8 @@ use crate::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
+        Scene,
     },
-    utils::log::Log,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -96,13 +96,25 @@ impl NodeTrait for AnimationBlendingStateMachine {
                 .evaluate_pose(&animation_player.animations, context.dt);
 
             pose.apply_internal(context.nodes);
-        } else {
-            Log::warn(format!(
-                "Animation player is not set or invalid! Animation blending state machine {} won't operate!",
-                self.self_handle
-            ))
         }
         self.base.update_lifetime(context.dt)
+    }
+
+    fn validate(&self, scene: &Scene) -> Result<(), String> {
+        if scene
+            .graph
+            .try_get(*self.animation_player)
+            .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+            .is_none()
+        {
+            Err(
+                "Animation player is not set or invalid! Animation blending state \
+            machine won't operate! Set the animation player handle in the Inspector."
+                    .to_string(),
+            )
+        } else {
+            Ok(())
+        }
     }
 }
 
