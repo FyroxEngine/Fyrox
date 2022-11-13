@@ -135,11 +135,15 @@ impl AnimationPlayerBuilder {
         self
     }
 
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(Node::new(AnimationPlayer {
+    pub fn build_node(self) -> Node {
+        Node::new(AnimationPlayer {
             base: self.base_builder.build_base(),
             animations: self.animations.into(),
             auto_apply: self.auto_apply,
-        }))
+        })
+    }
+
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }

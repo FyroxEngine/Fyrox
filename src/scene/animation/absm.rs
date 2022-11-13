@@ -1,7 +1,5 @@
 #![allow(missing_docs)] // TODO
 
-use crate::scene::graph::Graph;
-use crate::utils::log::Log;
 use crate::{
     animation::machine::Machine,
     core::{
@@ -9,16 +7,18 @@ use crate::{
         pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
+        variable::InheritableVariable,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
     scene::{
         animation::AnimationPlayer,
         base::{Base, BaseBuilder},
+        graph::Graph,
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
     },
+    utils::log::Log,
 };
-use fyrox_core::variable::InheritableVariable;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Visit, Reflect, Clone, Debug, Default)]
@@ -131,11 +131,15 @@ impl AnimationBlendingStateMachineBuilder {
         self
     }
 
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(Node::new(AnimationBlendingStateMachine {
+    pub fn build_node(self) -> Node {
+        Node::new(AnimationBlendingStateMachine {
             base: self.base_builder.build_base(),
             machine: self.machine,
             animation_player: self.animation_player.into(),
-        }))
+        })
+    }
+
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }
