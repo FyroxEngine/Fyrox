@@ -3,13 +3,15 @@ use crate::{
     inspector::editors::make_property_editors_container, Message, MessageDirection, MSG_SYNC_FLAG,
 };
 use fyrox::{
-    animation::machine::parameter::Parameter,
+    animation::machine::parameter::{Parameter, ParameterDefinition},
     core::pool::Handle,
     gui::{
         inspector::{
             editors::{
                 collection::VecCollectionPropertyEditorDefinition,
-                enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
+                enumeration::EnumPropertyEditorDefinition,
+                inspectable::InspectablePropertyEditorDefinition,
+                PropertyEditorDefinitionContainer,
             },
             InspectorBuilder, InspectorContext, InspectorMessage,
         },
@@ -33,8 +35,10 @@ pub struct ParameterPanel {
 impl ParameterPanel {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let property_editors = make_property_editors_container(sender);
-        property_editors.insert(VecCollectionPropertyEditorDefinition::<Parameter>::new());
+        property_editors
+            .insert(VecCollectionPropertyEditorDefinition::<ParameterDefinition>::new());
         property_editors.insert(EnumPropertyEditorDefinition::<Parameter>::new());
+        property_editors.insert(InspectablePropertyEditorDefinition::<ParameterDefinition>::new());
 
         let inspector;
         let window = WindowBuilder::new(WidgetBuilder::new())
