@@ -268,8 +268,8 @@ impl Clone for Animation {
 }
 
 impl Animation {
-    pub fn set_name(&mut self, name: String) {
-        self.name = name;
+    pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
+        self.name = name.as_ref().to_owned();
     }
 
     pub fn name(&self) -> &str {
