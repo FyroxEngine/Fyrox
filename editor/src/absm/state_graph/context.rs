@@ -1,6 +1,3 @@
-use crate::absm::selection::SelectedEntity;
-use crate::scene::commands::{ChangeSelectionCommand, CommandGroup, SceneCommand};
-use crate::scene::{EditorScene, Selection};
 use crate::{
     absm::{
         canvas::{AbsmCanvasMessage, Mode},
@@ -9,15 +6,18 @@ use crate::{
             SetMachineEntryStateCommand,
         },
         node::AbsmNode,
+        selection::SelectedEntity,
         transition::TransitionView,
     },
     menu::create_menu_item,
+    scene::{
+        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        EditorScene, Selection,
+    },
     Message,
 };
-use fyrox::animation::machine::State;
-use fyrox::scene::animation::absm::AnimationBlendingStateMachine;
-use fyrox::scene::node::Node;
 use fyrox::{
+    animation::machine::State,
     core::pool::Handle,
     gui::{
         menu::MenuItemMessage,
@@ -27,6 +27,7 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, UiNode, UserInterface,
     },
+    scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
 };
 use std::sync::mpsc::Sender;
 

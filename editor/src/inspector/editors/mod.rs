@@ -1,3 +1,4 @@
+use crate::inspector::editors::animation::AnimationPropertyEditorDefinition;
 use crate::{
     inspector::editors::{
         handle::NodeHandlePropertyEditorDefinition, material::MaterialPropertyEditorDefinition,
@@ -7,24 +8,21 @@ use crate::{
     },
     Message,
 };
-use fyrox::animation::machine::node::play::TimeSlice;
-use fyrox::animation::machine::node::BasePoseNode;
-use fyrox::animation::machine::{
-    BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, PlayAnimation,
-    PoseWeight,
-};
-use fyrox::gui::inspector::editors::collection::VecCollectionPropertyEditorDefinition;
-use fyrox::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;
 use fyrox::{
-    animation::{self},
+    animation::machine::{
+        node::{play::TimeSlice, BasePoseNode},
+        BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, PlayAnimation,
+        PoseWeight,
+    },
     core::{
         futures::executor::block_on,
         parking_lot::Mutex,
         pool::{ErasedHandle, Handle},
     },
     gui::inspector::editors::{
-        bit::BitFieldPropertyEditorDefinition, enumeration::EnumPropertyEditorDefinition,
-        inherit::InheritablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
+        bit::BitFieldPropertyEditorDefinition, collection::VecCollectionPropertyEditorDefinition,
+        enumeration::EnumPropertyEditorDefinition, inherit::InheritablePropertyEditorDefinition,
+        inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
     material::{
         shader::{Shader, ShaderError, ShaderState},
@@ -83,6 +81,7 @@ use fyrox::{
 };
 use std::{rc::Rc, sync::mpsc::Sender};
 
+pub mod animation;
 pub mod handle;
 pub mod material;
 pub mod resource;
@@ -144,15 +143,19 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
     container.insert(InheritablePropertyEditorDefinition::<Option<LodGroup>>::new());
 
-    container.register_inheritable_enum::<animation::spritesheet::Status, _>();
+    container.register_inheritable_enum::<fyrox::animation::spritesheet::Status, _>();
 
     container.register_inheritable_inspectable::<LodGroup>();
 
-    container.register_inheritable_inspectable::<animation::spritesheet::SpriteSheetAnimation>();
-    container.register_inheritable_vec_collection::<animation::spritesheet::SpriteSheetAnimation>();
+    container
+        .register_inheritable_inspectable::<fyrox::animation::spritesheet::SpriteSheetAnimation>();
+    container
+        .register_inheritable_vec_collection::<fyrox::animation::spritesheet::SpriteSheetAnimation>(
+        );
 
-    container.register_inheritable_inspectable::<animation::spritesheet::signal::Signal>();
-    container.register_inheritable_vec_collection::<animation::spritesheet::signal::Signal>();
+    container.register_inheritable_inspectable::<fyrox::animation::spritesheet::signal::Signal>();
+    container
+        .register_inheritable_vec_collection::<fyrox::animation::spritesheet::signal::Signal>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<
         Model,
@@ -287,6 +290,8 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimationsByIndex>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimations>::new());
     container.insert(InspectablePropertyEditorDefinition::<PlayAnimation>::new());
+
+    container.insert(AnimationPropertyEditorDefinition);
 
     container
 }

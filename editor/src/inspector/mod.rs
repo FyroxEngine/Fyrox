@@ -18,6 +18,7 @@ use crate::{
     Brush, CommandGroup, GameEngine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
 use fyrox::{
+    animation::Animation,
     core::{color::Color, pool::Handle, reflect::prelude::*},
     engine::{resource_manager::ResourceManager, SerializationContext},
     gui::{
@@ -33,7 +34,10 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
-    scene::animation::absm::AnimationBlendingStateMachine,
+    scene::{
+        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
+        graph::Graph,
+    },
     utils::log::{Log, MessageKind},
 };
 use std::{
@@ -45,9 +49,25 @@ use std::{
 pub mod editors;
 pub mod handlers;
 
+pub struct AnimationDefinition {
+    name: String,
+    handle: Handle<Animation>,
+}
+
 pub struct EditorEnvironment {
     pub resource_manager: ResourceManager,
     pub serialization_context: Arc<SerializationContext>,
+    /// List of animations definitions (name + handle). It is filled only if current selection
+    /// is `AnimationBlendingStateMachine`. The list is filled using ABSM's animation player.
+    pub available_animations: Vec<AnimationDefinition>,
+}
+
+impl EditorEnvironment {
+    pub fn try_get_from(environment: &Option<Rc<dyn InspectorEnvironment>>) -> Option<&Self> {
+        environment
+            .as_ref()
+            .and_then(|e| e.as_any().downcast_ref::<Self>())
+    }
 }
 
 impl InspectorEnvironment for EditorEnvironment {
@@ -242,10 +262,33 @@ impl Inspector {
         ui: &mut UserInterface,
         resource_manager: ResourceManager,
         serialization_context: Arc<SerializationContext>,
+        graph: &Graph,
+        selection: &Selection,
     ) {
         let environment = Rc::new(EditorEnvironment {
             resource_manager,
             serialization_context,
+            available_animations: if let Selection::Absm(absm_selection) = selection {
+                if let Some(animation_player) = graph
+                    .try_get(absm_selection.absm_node_handle)
+                    .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
+                    .and_then(|absm| graph.try_get(absm.animation_player()))
+                    .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+                {
+                    animation_player
+                        .animations()
+                        .pair_iter()
+                        .map(|(handle, anim)| AnimationDefinition {
+                            name: anim.name().to_string(),
+                            handle,
+                        })
+                        .collect()
+                } else {
+                    Default::default()
+                }
+            } else {
+                Default::default()
+            },
         });
 
         let context = InspectorContext::from_object(
@@ -330,6 +373,8 @@ impl Inspector {
                         &mut engine.user_interface,
                         engine.resource_manager.clone(),
                         engine.serialization_context.clone(),
+                        &scene.graph,
+                        &editor_scene.selection,
                     )
                 }
             } else {
