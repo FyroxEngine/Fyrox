@@ -700,6 +700,7 @@ async fn convert(
     let root = scene.graph.get_root();
 
     let mut animation = Animation::default();
+    animation.set_name("Animation");
     animation.set_root(root);
 
     let mut fbx_model_to_node_map = FxHashMap::default();
