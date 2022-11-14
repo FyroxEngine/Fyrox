@@ -8,7 +8,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    resource::{animation::AnimationResource, model::Model},
+    resource::model::Model,
     scene::{graph::Graph, node::Node},
     utils::log::{Log, MessageKind},
 };
@@ -20,7 +20,6 @@ use std::{
 };
 
 pub mod container;
-pub mod definition;
 pub mod machine;
 pub mod spritesheet;
 pub mod track;
@@ -76,74 +75,34 @@ impl Default for AnimationSignal {
 
 pub type NodeTrack = Track<Handle<Node>>;
 
-/// Animation data source. There's two main sources of animation - external models (FBX) and engine
-/// animation resources.
-#[derive(Debug, Clone, Visit, PartialEq, Eq, Reflect)]
-#[reflect(hide_all)]
-pub enum AnimationHolder {
-    /// Model resources can contain animations. For example, an FBX model could store a skeletal
-    /// animation which contains a set of tracks for some bones.
-    Model(Option<Model>),
-    /// Standard engine animation.
-    Animation(Option<AnimationResource>),
-}
-
-impl Default for AnimationHolder {
-    fn default() -> Self {
-        Self::Animation(None)
-    }
-}
-
-#[derive(Debug, Reflect, PartialEq)]
+#[derive(Debug, Reflect, Visit, PartialEq)]
 pub struct Animation {
+    #[visit(optional)]
     name: String,
     tracks: Vec<NodeTrack>,
     length: f32,
     time_position: f32,
+    #[visit(optional)]
     time_slice: Option<Range<f32>>,
     speed: f32,
     looped: bool,
     enabled: bool,
-    pub(crate) resource: AnimationHolder,
+    /// An external resource from which the animation was created.
+    #[visit(optional)]
+    pub(crate) resource: Option<Model>,
     signals: Vec<AnimationSignal>,
     // Handle of a root node of a hierarchy of nodes to which the animation is applied to.
+    #[visit(optional)]
     root: Handle<Node>,
 
     // Non-serialized
     #[reflect(hidden)]
+    #[visit(skip)]
     pose: AnimationPose,
     // Non-serialized
     #[reflect(hidden)]
+    #[visit(skip)]
     events: VecDeque<AnimationEvent>,
-}
-
-impl Visit for Animation {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
-
-        self.tracks.visit("Tracks", &mut region)?;
-        self.length.visit("Length", &mut region)?;
-        self.time_position.visit("TimePosition", &mut region)?;
-        let _ = self.time_slice.visit("TimeSlice", &mut region);
-        self.speed.visit("Speed", &mut region)?;
-        self.looped.visit("Looped", &mut region)?;
-        self.enabled.visit("Enabled", &mut region)?;
-        self.signals.visit("Signals", &mut region)?;
-        let _ = self.root.visit("Root", &mut region);
-        let _ = self.name.visit("Name", &mut region);
-
-        if region.is_reading() {
-            if self.resource.visit("Resource", &mut region).is_err() {
-                // Backward compatibility
-                let mut resource: Option<Model> = None;
-                resource.visit("Resource", &mut region)?;
-                self.resource = AnimationHolder::Model(resource);
-            }
-        } else {
-            self.resource.visit("Resource", &mut region)?;
-        }
-        Ok(())
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -399,7 +358,7 @@ impl Animation {
         &mut self.tracks
     }
 
-    pub fn resource(&self) -> AnimationHolder {
+    pub fn resource(&self) -> Option<Model> {
         self.resource.clone()
     }
 
@@ -472,19 +431,9 @@ impl Animation {
     }
 
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        match self.resource {
-            AnimationHolder::Model(ref mut model) => {
-                if let Some(resource) = model.as_mut() {
-                    let new_resource = resource_manager.request_model(resource.state().path());
-                    *resource = new_resource;
-                }
-            }
-            AnimationHolder::Animation(ref mut animation) => {
-                if let Some(resource) = animation.as_mut() {
-                    let new_resource = resource_manager.request_animation(resource.state().path());
-                    *resource = new_resource;
-                }
-            }
+        if let Some(resource) = self.resource.as_mut() {
+            let new_resource = resource_manager.request_model(resource.state().path());
+            *resource = new_resource;
         }
     }
 

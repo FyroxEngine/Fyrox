@@ -5,7 +5,6 @@ use crate::engine::resource_manager::{
 };
 use std::{future::Future, pin::Pin};
 
-pub mod animation;
 pub mod curve;
 pub mod model;
 pub mod shader;
