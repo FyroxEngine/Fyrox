@@ -1,12 +1,12 @@
 //! Executor is a small wrapper that manages plugins and scripts for your game.
 
 use crate::{
-    core::{futures::executor::block_on, instant::Instant, pool::Handle},
+    core::instant::Instant,
     engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     plugin::PluginConstructor,
-    scene::SceneLoader,
+    scene::loader::AsyncSceneLoader,
     utils::{
         log::{Log, MessageKind},
         translate_event,
@@ -31,6 +31,7 @@ pub struct Executor {
     event_loop: EventLoop<()>,
     engine: Engine,
     desired_update_rate: f32,
+    loader: Option<AsyncSceneLoader>,
 }
 
 impl Deref for Executor {
@@ -75,6 +76,7 @@ impl Executor {
             event_loop,
             engine,
             desired_update_rate: Self::DEFAULT_UPDATE_RATE,
+            loader: None,
         }
     }
 
@@ -108,37 +110,45 @@ impl Executor {
     }
 
     /// Runs the executor - starts your game. This function is never returns.
-    pub fn run(self) -> ! {
+    pub fn run(mut self) -> ! {
         let mut engine = self.engine;
         let event_loop = self.event_loop;
 
         let args = Args::parse();
 
-        let mut override_scene = Handle::NONE;
         if !args.override_scene.is_empty() {
-            match block_on(SceneLoader::from_file(
-                &args.override_scene,
+            // Try to load specified scene in a separate thread.
+            self.loader = Some(AsyncSceneLoader::begin_loading(
+                args.override_scene.clone().into(),
                 engine.serialization_context.clone(),
-            )) {
-                Ok(loader) => {
-                    override_scene = engine
-                        .scenes
-                        .add(block_on(loader.finish(engine.resource_manager.clone())));
-                }
-                Err(e) => Log::warn(format!(
-                    "Unable to load {} override scene! Reason: {:?}",
-                    args.override_scene, e
-                )),
-            }
+                engine.resource_manager.clone(),
+            ));
+        } else {
+            // Enable plugins immediately.
+            engine.enable_plugins(Default::default(), true);
         }
-
-        engine.enable_plugins(override_scene, true);
 
         let mut previous = Instant::now();
         let fixed_time_step = 1.0 / self.desired_update_rate;
         let mut lag = 0.0;
 
         event_loop.run(move |event, _, control_flow| {
+            if let Some(loader) = self.loader.as_ref() {
+                if let Some(result) = loader.fetch_result() {
+                    let override_scene = match result {
+                        Ok(scene) => engine.scenes.add(scene),
+                        Err(e) => {
+                            Log::err(e);
+                            Default::default()
+                        }
+                    };
+
+                    engine.enable_plugins(override_scene, true);
+
+                    self.loader = None;
+                }
+            }
+
             engine.handle_os_event_by_plugins(&event, fixed_time_step, control_flow, &mut lag);
 
             let scenes = engine
