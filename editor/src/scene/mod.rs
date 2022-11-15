@@ -1,4 +1,5 @@
 use crate::absm::selection::AbsmSelection;
+use crate::animation::selection::AnimationSelection;
 use crate::interaction::navmesh::data_model::NavmeshContainer;
 use crate::{
     audio::EffectSelection,
@@ -357,6 +358,7 @@ pub enum Selection {
     Navmesh(NavmeshSelection),
     Effect(EffectSelection),
     Absm(AbsmSelection),
+    Animation(AnimationSelection),
 }
 
 impl Default for Selection {
@@ -374,6 +376,7 @@ impl Selection {
             Selection::SoundContext => false,
             Selection::Effect(effect) => effect.is_empty(),
             Selection::Absm(absm) => absm.is_empty(),
+            Selection::Animation(animation) => animation.is_empty(),
         }
     }
 
@@ -385,6 +388,7 @@ impl Selection {
             Selection::SoundContext => 1,
             Selection::Effect(effect) => effect.len(),
             Selection::Absm(absm) => absm.len(),
+            Selection::Animation(animation) => animation.len(),
         }
     }
 

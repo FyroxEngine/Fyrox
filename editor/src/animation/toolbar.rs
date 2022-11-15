@@ -21,7 +21,7 @@ impl Toolbar {
         let speed;
         let panel = BorderBuilder::new(
             WidgetBuilder::new()
-                .on_row(1)
+                .on_row(0)
                 .with_foreground(BRUSH_LIGHT)
                 .with_child(
                     StackPanelBuilder::new(

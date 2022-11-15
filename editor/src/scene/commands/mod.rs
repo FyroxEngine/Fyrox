@@ -184,6 +184,7 @@ impl ChangeSelectionCommand {
                 Selection::SoundContext => "Change Selection: Sound Context",
                 Selection::Effect(_) => "Change Selection: Effect",
                 Selection::Absm(_) => "Change Selection: Absm",
+                Selection::Animation(_) => "Change Selection: Animation",
             }
             .to_owned(),
             new_selection,

@@ -1123,8 +1123,12 @@ impl Editor {
             &self.settings,
             &self.mode,
         );
-        self.animation_editor
-            .handle_ui_message(message, self.scene.as_ref(), engine);
+        self.animation_editor.handle_ui_message(
+            message,
+            self.scene.as_ref(),
+            engine,
+            &self.message_sender,
+        );
 
         if let Some(editor_scene) = self.scene.as_mut() {
             self.absm_editor
@@ -1338,6 +1342,7 @@ impl Editor {
             .sync_to_model(self.scene.as_ref(), &mut engine.user_interface);
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.animation_editor.sync_to_model(editor_scene, engine);
             self.absm_editor.sync_to_model(editor_scene, engine);
             self.scene_settings.sync_to_model(editor_scene, engine);
             self.scene_viewer.sync_to_model(editor_scene, engine);
@@ -1699,8 +1704,6 @@ impl Editor {
             }
             _ => {}
         }
-
-        self.animation_editor.update(&mut self.engine);
 
         self.log.update(&mut self.engine);
         self.material_editor.update(&mut self.engine);

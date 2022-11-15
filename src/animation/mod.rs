@@ -238,6 +238,16 @@ impl Animation {
     pub fn add_track(&mut self, track: NodeTrack) {
         self.tracks.push(track);
 
+        self.calculate_length();
+    }
+
+    pub fn pop_track(&mut self) -> Option<NodeTrack> {
+        let track = self.tracks.pop();
+        self.calculate_length();
+        track
+    }
+
+    fn calculate_length(&mut self) {
         for track in self.tracks.iter_mut() {
             if track.time_length() > self.length {
                 self.length = track.time_length();

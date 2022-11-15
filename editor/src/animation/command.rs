@@ -1,165 +1,73 @@
-use crate::{animation::data::SelectedEntity, define_command_stack};
+use crate::{command::Command, scene::commands::SceneContext};
+use fyrox::animation::Animation;
 use fyrox::{
-    animation::definition::ResourceTrack,
-    asset::ResourceDataRef,
-    core::curve::Curve,
-    resource::animation::{AnimationResourceError, AnimationResourceState},
+    animation::NodeTrack,
+    core::{curve::Curve, pool::Handle},
+    scene::{animation::AnimationPlayer, node::Node},
     utils::log::Log,
 };
-use std::{
-    fmt::Debug,
-    ops::{Deref, DerefMut},
-};
+use std::fmt::Debug;
 
-#[derive(Debug)]
-pub struct AnimationEditorContext<'a> {
-    pub selection: &'a mut Vec<SelectedEntity>,
-    pub resource: ResourceDataRef<'a, AnimationResourceState, AnimationResourceError>,
-}
-
-define_command_stack!(
-    AnimationCommandTrait,
-    AnimationCommandStack,
-    AnimationEditorContext
-);
-
-#[derive(Debug)]
-pub struct AnimationCommand(pub Box<dyn AnimationCommandTrait>);
-
-impl Deref for AnimationCommand {
-    type Target = dyn AnimationCommandTrait;
-
-    fn deref(&self) -> &Self::Target {
-        &*self.0
-    }
-}
-
-impl DerefMut for AnimationCommand {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.0
-    }
-}
-
-impl AnimationCommand {
-    pub fn new<C: AnimationCommandTrait>(cmd: C) -> Self {
-        Self(Box::new(cmd))
-    }
-}
-
-#[derive(Debug)]
-pub struct CommandGroup {
-    commands: Vec<AnimationCommand>,
-}
-
-impl From<Vec<AnimationCommand>> for CommandGroup {
-    fn from(commands: Vec<AnimationCommand>) -> Self {
-        Self { commands }
-    }
-}
-
-impl CommandGroup {
-    #[allow(dead_code)]
-    pub fn push(&mut self, command: AnimationCommand) {
-        self.commands.push(command)
-    }
-}
-
-impl AnimationCommandTrait for CommandGroup {
-    fn name(&mut self, context: &AnimationEditorContext) -> String {
-        let mut name = String::from("Command group: ");
-        for cmd in self.commands.iter_mut() {
-            name.push_str(&cmd.name(context));
-            name.push_str(", ");
-        }
-        name
-    }
-
-    fn execute(&mut self, context: &mut AnimationEditorContext) {
-        for cmd in self.commands.iter_mut() {
-            cmd.execute(context);
-        }
-    }
-
-    fn revert(&mut self, context: &mut AnimationEditorContext) {
-        // revert must be done in reverse order.
-        for cmd in self.commands.iter_mut().rev() {
-            cmd.revert(context);
-        }
-    }
-
-    fn finalize(&mut self, context: &mut AnimationEditorContext) {
-        for mut cmd in self.commands.drain(..) {
-            cmd.finalize(context);
-        }
-    }
+fn fetch_animation_player<'a>(
+    handle: Handle<Node>,
+    context: &'a mut SceneContext,
+) -> &'a mut AnimationPlayer {
+    context.scene.graph[handle]
+        .query_component_mut::<AnimationPlayer>()
+        .unwrap()
 }
 
 #[derive(Debug)]
 pub struct AddTrackCommand {
-    track: Option<ResourceTrack>,
+    animation_player: Handle<Node>,
+    animation: Handle<Animation>,
+    track: Option<NodeTrack>,
 }
 
 impl AddTrackCommand {
-    pub fn new(track: ResourceTrack) -> Self {
-        Self { track: Some(track) }
+    pub fn new(
+        animation_player: Handle<Node>,
+        animation: Handle<Animation>,
+        track: NodeTrack,
+    ) -> Self {
+        Self {
+            animation_player,
+            animation,
+            track: Some(track),
+        }
     }
 }
 
-impl AnimationCommandTrait for AddTrackCommand {
-    fn name(&mut self, _: &AnimationEditorContext) -> String {
+impl Command for AddTrackCommand {
+    fn name(&mut self, _: &SceneContext) -> String {
         "Add Track".to_string()
     }
 
-    fn execute(&mut self, context: &mut AnimationEditorContext) {
-        context
-            .resource
-            .animation_definition
-            .tracks_container()
-            .push(self.track.take().unwrap());
+    fn execute(&mut self, context: &mut SceneContext) {
+        fetch_animation_player(self.animation_player, context).animations_mut()[self.animation]
+            .add_track(self.track.take().unwrap());
     }
 
-    fn revert(&mut self, context: &mut AnimationEditorContext) {
-        self.track = context
-            .resource
-            .animation_definition
-            .tracks_container()
-            .pop();
-    }
-}
-
-#[derive(Debug)]
-pub struct SetSelectionCommand {
-    pub selection: Vec<SelectedEntity>,
-}
-
-impl SetSelectionCommand {
-    fn swap(&mut self, context: &mut AnimationEditorContext) {
-        std::mem::swap(&mut self.selection, context.selection)
-    }
-}
-
-impl AnimationCommandTrait for SetSelectionCommand {
-    fn name(&mut self, _: &AnimationEditorContext) -> String {
-        "Set Selection".to_string()
-    }
-
-    fn execute(&mut self, context: &mut AnimationEditorContext) {
-        self.swap(context)
-    }
-
-    fn revert(&mut self, context: &mut AnimationEditorContext) {
-        self.swap(context)
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.track = fetch_animation_player(self.animation_player, context).animations_mut()
+            [self.animation]
+            .pop_track();
     }
 }
 
 #[derive(Debug)]
 pub struct ReplaceTrackCurveCommand {
+    pub animation_player: Handle<Node>,
+    pub animation: Handle<Animation>,
     pub curve: Curve,
 }
 
 impl ReplaceTrackCurveCommand {
-    fn swap(&mut self, context: &mut AnimationEditorContext) {
-        for track in context.resource.animation_definition.tracks_container() {
+    fn swap(&mut self, context: &mut SceneContext) {
+        for track in fetch_animation_player(self.animation_player, context).animations_mut()
+            [self.animation]
+            .tracks_mut()
+        {
             for curve in track.frames_container_mut().curves_mut() {
                 if curve.id() == self.curve.id() {
                     std::mem::swap(&mut self.curve, curve);
@@ -172,16 +80,16 @@ impl ReplaceTrackCurveCommand {
     }
 }
 
-impl AnimationCommandTrait for ReplaceTrackCurveCommand {
-    fn name(&mut self, _context: &AnimationEditorContext) -> String {
+impl Command for ReplaceTrackCurveCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Replace Track Curve".to_string()
     }
 
-    fn execute(&mut self, context: &mut AnimationEditorContext) {
+    fn execute(&mut self, context: &mut SceneContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut AnimationEditorContext) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.swap(context)
     }
 }
