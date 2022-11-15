@@ -15,6 +15,7 @@ pub mod dim2;
 pub mod graph;
 pub mod joint;
 pub mod light;
+pub mod loader;
 pub mod mesh;
 pub mod node;
 pub mod particle_system;

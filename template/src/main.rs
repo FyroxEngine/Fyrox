@@ -74,15 +74,13 @@ fyrox = "0.28""#,
         base_path.join("game/src/lib.rs"),
         r#"//! Game project.
 use fyrox::{
-    core::{
-        futures::executor::block_on,
-        pool::Handle,
-    },
+    core::pool::Handle,
     event::Event,
     event_loop::ControlFlow,
     gui::message::UiMessage,
     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
-    scene::{Scene, SceneLoader},
+    scene::{Scene, loader::AsyncSceneLoader},
+    utils::log::Log
 };
 
 pub struct GameConstructor;
@@ -103,27 +101,24 @@ impl PluginConstructor for GameConstructor {
 
 pub struct Game {
     scene: Handle<Scene>,
+    loader: Option<AsyncSceneLoader>,
 }
 
 impl Game {
     pub fn new(override_scene: Handle<Scene>, context: PluginContext) -> Self {
+        let mut loader = None;
         let scene = if override_scene.is_some() {
             override_scene
         } else {
-            // Load a scene from file if there is no override scene specified.
-            let scene = block_on(
-                block_on(SceneLoader::from_file(
-                    "data/scene.rgs",
-                    context.serialization_context.clone(),
-                ))
-                .unwrap()
-                .finish(context.resource_manager.clone()),
-            );
-
-            context.scenes.add(scene)
+            loader = Some(AsyncSceneLoader::begin_loading(
+                "data/scene.rgs".into(),
+                context.serialization_context.clone(),
+                context.resource_manager.clone(),
+            ));
+            Default::default()
         };
 
-        Self { scene }
+        Self { scene, loader }
     }
 }
 
@@ -132,7 +127,18 @@ impl Plugin for Game {
         // Do a cleanup here.
     }
 
-    fn update(&mut self, _context: &mut PluginContext, _control_flow: &mut ControlFlow) {
+    fn update(&mut self, context: &mut PluginContext, _control_flow: &mut ControlFlow) {
+         if let Some(loader) = self.loader.as_ref() {
+            if let Some(result) = loader.fetch_result() {
+                match result {
+                    Ok(scene) => {
+                        self.scene = context.scenes.add(scene);
+                    }
+                    Err(err) => Log::err(err),
+                }
+            }
+        }
+    
         // Add your global update code here.
     }
 
@@ -197,6 +203,112 @@ fn main() {{
 }}"#,
             name
         ),
+    );
+}
+
+fn init_wasm_executor(base_path: &Path, name: &str) {
+    Command::new("cargo")
+        .args(["init", "--lib", "--vcs", "none"])
+        .arg(base_path.join("executor-wasm"))
+        .output()
+        .unwrap();
+
+    // Write Cargo.toml
+    write_file(
+        base_path.join("executor-wasm/Cargo.toml"),
+        format!(
+            r#"
+[package]
+name = "executor-wasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+fyrox = "0.28"
+{} = {{ path = "../game" }}"#,
+            name,
+        ),
+    );
+
+    // Write lib.rs
+    write_file(
+        base_path.join("executor-wasm/src/lib.rs"),
+        format!(
+            r#"//! Executor with your game connected to it as a plugin.
+use fyrox::engine::executor::Executor;
+use {}::GameConstructor;
+use fyrox::core::wasm_bindgen::{{self, prelude::*}};
+
+#[wasm_bindgen]
+extern "C" {{
+    #[wasm_bindgen(js_namespace = console)]
+    fn error(msg: String);
+
+    type Error;
+
+    #[wasm_bindgen(constructor)]
+    fn new() -> Error;
+
+    #[wasm_bindgen(structural, method, getter)]
+    fn stack(error: &Error) -> String;
+}}
+
+fn custom_panic_hook(info: &std::panic::PanicInfo) {{
+    let mut msg = info.to_string();
+    msg.push_str("\n\nStack:\n\n");
+    let e = Error::new();
+    let stack = e.stack();
+    msg.push_str(&stack);
+    msg.push_str("\n\n");
+    error(msg);
+}}
+
+#[inline]
+pub fn set_panic_hook() {{
+    use std::sync::Once;
+    static SET_HOOK: Once = Once::new();
+    SET_HOOK.call_once(|| {{
+        std::panic::set_hook(Box::new(custom_panic_hook));
+    }});
+}}
+
+#[wasm_bindgen]
+pub fn main() {{
+    set_panic_hook();
+    let mut executor = Executor::new();
+    executor.add_plugin_constructor(GameConstructor);
+    executor.run()
+}}"#,
+            name
+        ),
+    );
+
+    // Write "entry" point stuff. This includes:
+    //
+    // - Index page with a "Start" button. The button is needed to solve sound issues in some browsers.
+    //   Some browsers (mostly Chrome) prevent sound from playing until user click on something on the
+    //   game page.
+    // - Entry JavaScript code - basically a web launcher for your game.
+    // - Styles - to make "Start" button to look decent.
+    // - A readme file with build instructions.
+    write_file_binary(
+        base_path.join("executor-wasm/index.html"),
+        include_bytes!("wasm/index.html"),
+    );
+    write_file_binary(
+        base_path.join("executor-wasm/styles.css"),
+        include_bytes!("wasm/styles.css"),
+    );
+    write_file_binary(
+        base_path.join("executor-wasm/main.js"),
+        include_bytes!("wasm/main.js"),
+    );
+    write_file_binary(
+        base_path.join("executor-wasm/README.md"),
+        include_bytes!("wasm/README.md"),
     );
 }
 
@@ -268,7 +380,7 @@ fn init_workspace(base_path: &Path) {
         base_path.join("Cargo.toml"),
         r#"
 [workspace]
-members = ["editor", "executor", "game"]
+members = ["editor", "executor", "executor-wasm", "game"]
 
 # Optimize the engine in debug builds, but leave project's code non-optimized.
 # By using this technique, you can still debug you code, but engine will be fully
@@ -391,6 +503,7 @@ fn main() {
             init_game(base_path, &name);
             init_editor(base_path, &name);
             init_executor(base_path, &name);
+            init_wasm_executor(base_path, &name);
 
             println!("Project {} was generated successfully!", name);
             println!(
@@ -399,6 +512,9 @@ fn main() {
             );
             println!("\tRun the Editor: cargo run --package editor --release");
             println!("\tRun the Executor: cargo run --package executor --release");
+            println!(
+                "\tFor WebAssembly builds - see instructions at README.md in executor-wasm folder"
+            );
         }
         Commands::Script { name } => {
             init_script(&name);
