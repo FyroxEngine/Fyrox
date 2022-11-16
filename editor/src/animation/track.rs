@@ -1,26 +1,25 @@
 #![allow(clippy::manual_map)]
 
-use crate::animation::selection::AnimationSelection;
-use crate::scene::commands::ChangeSelectionCommand;
-use crate::scene::Selection;
 use crate::{
-    animation::{command::AddTrackCommand, selection::SelectedEntity},
+    animation::{
+        command::AddTrackCommand,
+        selection::{AnimationSelection, SelectedEntity},
+    },
     scene::{
+        commands::ChangeSelectionCommand,
         property::{
             object_to_property_tree, PropertySelectorMessage, PropertySelectorWindowBuilder,
         },
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        EditorScene,
+        EditorScene, Selection,
     },
     Message,
 };
-use fyrox::animation::Animation;
-use fyrox::gui::UserInterface;
 use fyrox::{
     animation::{
         container::{TrackFramesContainer, TrackValueKind},
         value::ValueBinding,
-        NodeTrack,
+        Animation, NodeTrack,
     },
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
@@ -41,7 +40,7 @@ use fyrox::{
         tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Orientation, Thickness, UiNode, VerticalAlignment,
+        BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
     scene::node::Node,
     utils::log::Log,
@@ -84,7 +83,6 @@ impl TrackList {
 
         let panel = GridBuilder::new(
             WidgetBuilder::new()
-                .with_enabled(false)
                 .with_child(
                     ScrollViewerBuilder::new(
                         WidgetBuilder::new()

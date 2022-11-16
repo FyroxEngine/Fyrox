@@ -32,7 +32,6 @@ pub struct AnimationEditor {
     pub window: Handle<UiNode>,
     track_list: TrackList,
     curve_editor: Handle<UiNode>,
-    #[allow(dead_code)] // TODO
     toolbar: Toolbar,
     content: Handle<UiNode>,
 }
@@ -77,7 +76,6 @@ impl AnimationEditor {
                 .with_child({
                     curve_editor = CurveEditorBuilder::new(
                         WidgetBuilder::new()
-                            .with_enabled(false)
                             .on_row(0)
                             .on_column(1)
                             .with_margin(Thickness::uniform(1.0)),
@@ -143,6 +141,14 @@ impl AnimationEditor {
                 selection.animation,
             );
 
+            self.toolbar.handle_ui_message(
+                message,
+                sender,
+                &engine.user_interface,
+                selection.animation_player,
+                editor_scene,
+            );
+
             if let Some(CurveEditorMessage::Sync(curve)) = message.data() {
                 if message.destination() == self.curve_editor
                     && message.direction() == MessageDirection::FromWidget
@@ -169,6 +175,9 @@ impl AnimationEditor {
             .try_get(selection.animation_player)
             .and_then(|n| n.query_component_ref::<AnimationPlayer>())
         {
+            self.toolbar
+                .sync_to_model(animation_player, &mut engine.user_interface);
+
             if let Some(animation) = animation_player.animations().try_get(selection.animation) {
                 self.track_list
                     .sync_to_model(animation, &mut engine.user_interface);
