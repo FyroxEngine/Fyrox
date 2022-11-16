@@ -7,6 +7,7 @@ pub mod error;
 pub mod executor;
 pub mod resource_manager;
 
+use crate::engine::resource_manager::ResourceWaitContext;
 use crate::{
     asset::ResourceState,
     core::{algebra::Vector2, futures::executor::block_on, instant, pool::Handle},
@@ -115,6 +116,7 @@ pub struct Engine {
 
 #[derive(Default)]
 struct ScriptProcessor {
+    wait_list: Vec<ResourceWaitContext>,
     scripted_scenes: FxHashSet<Handle<Scene>>,
 }
 
@@ -145,11 +147,8 @@ impl ScriptProcessor {
                 .unwrap();
         }
 
-        // Wait until all resources are fully loaded (or failed to load). It is needed
-        // because some scripts may use resources and any attempt to use non loaded resource
-        // will result in panic.
-        let wait_context = resource_manager.state().containers_mut().wait_concurrent();
-        block_on(wait_context.wait_concurrent());
+        self.wait_list
+            .push(resource_manager.state().containers_mut().get_wait_context());
     }
 
     fn handle_scripts(
@@ -160,6 +159,13 @@ impl ScriptProcessor {
         dt: f32,
         elapsed_time: f32,
     ) {
+        self.wait_list
+            .retain_mut(|context| !context.is_all_loaded());
+
+        if !self.wait_list.is_empty() {
+            return;
+        }
+
         self.scripted_scenes
             .retain(|handle| scenes.is_valid_handle(*handle));
 

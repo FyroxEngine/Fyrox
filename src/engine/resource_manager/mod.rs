@@ -1,7 +1,7 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::engine::resource_manager::loader::animation::AnimationLoader;
 use crate::{
+    asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
     core::{
         futures::future::join_all,
         make_relative_path,
@@ -12,6 +12,7 @@ use crate::{
             container::{Container, ResourceContainer},
             loader::{
                 absm::AbsmLoader,
+                animation::AnimationLoader,
                 curve::CurveLoader,
                 model::ModelLoader,
                 shader::ShaderLoader,
@@ -34,8 +35,13 @@ use crate::{
     utils::{log::Log, watcher::FileSystemWatcher},
 };
 use fyrox_sound::buffer::SoundBufferResource;
-use std::fmt::{Debug, Display, Formatter};
-use std::{path::Path, sync::Arc};
+use std::{
+    fmt::{Debug, Display, Formatter},
+    future::Future,
+    ops::Deref,
+    path::Path,
+    sync::Arc,
+};
 
 pub mod container;
 pub mod loader;
@@ -124,7 +130,7 @@ impl ContainersStorage {
     }
 
     /// Wait until all resources are loaded (or failed to load).
-    pub fn wait_concurrent(&self) -> ResourceWaitContext {
+    pub fn get_wait_context(&self) -> ResourceWaitContext {
         ResourceWaitContext {
             models: self.models.resources(),
             absm: self.absm.resources(),
@@ -151,17 +157,37 @@ pub struct ResourceWaitContext {
 
 impl ResourceWaitContext {
     /// Wait until all resources are loaded (or failed to load).
-    pub async fn wait_concurrent(self) {
-        join_all(self.models).await;
-        join_all(self.absm).await;
-        join_all(self.curves).await;
-        join_all(self.shaders).await;
-        join_all(self.textures).await;
-        join_all(self.sound_buffers).await;
-        join_all(self.animations).await;
+    #[must_use]
+    pub fn is_all_loaded(&self) -> bool {
+        fn check_container<T, R, E>(container: &[T]) -> bool
+        where
+            T: Deref<Target = Resource<R, E>>
+                + Clone
+                + Send
+                + Future
+                + From<Resource<R, E>>
+                + 'static,
+            R: ResourceData,
+            E: ResourceLoadError,
+        {
+            let mut loaded_count = 0;
+            for resource in container.iter() {
+                if !matches!(*resource.state(), ResourceState::Pending { .. }) {
+                    loaded_count += 1;
+                }
+            }
+            return loaded_count == container.len();
+        }
+
+        check_container(&self.models)
+            && check_container(&self.absm)
+            && check_container(&self.curves)
+            && check_container(&self.shaders)
+            && check_container(&self.textures)
+            && check_container(&self.sound_buffers)
+            && check_container(&self.animations)
     }
 }
-
 /// See module docs.
 pub struct ResourceManagerState {
     containers_storage: Option<ContainersStorage>,
