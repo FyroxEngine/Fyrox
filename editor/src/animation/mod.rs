@@ -195,6 +195,13 @@ impl AnimationEditor {
                             MessageDirection::ToWidget,
                             selected_curve.clone(),
                         ));
+
+                        engine
+                            .user_interface
+                            .send_message(CurveEditorMessage::zoom_to_fit(
+                                self.curve_editor,
+                                MessageDirection::ToWidget,
+                            ));
                     }
                 }
             }
