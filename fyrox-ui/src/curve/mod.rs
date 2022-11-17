@@ -32,7 +32,7 @@ pub mod key;
 pub enum CurveEditorMessage {
     Sync(Curve),
     ViewPosition(Vector2<f32>),
-    Zoom(f32),
+    Zoom(Vector2<f32>),
     ZoomToFit,
 
     // Internal messages. Use only when you know what you're doing.
@@ -47,7 +47,7 @@ pub enum CurveEditorMessage {
 impl CurveEditorMessage {
     define_constructor!(CurveEditorMessage:Sync => fn sync(Curve), layout: false);
     define_constructor!(CurveEditorMessage:ViewPosition => fn view_position(Vector2<f32>), layout: false);
-    define_constructor!(CurveEditorMessage:Zoom => fn zoom(f32), layout: false);
+    define_constructor!(CurveEditorMessage:Zoom => fn zoom(Vector2<f32>), layout: false);
     define_constructor!(CurveEditorMessage:ZoomToFit => fn zoom_to_fit(), layout: false);
     // Internal. Use only when you know what you're doing.
     define_constructor!(CurveEditorMessage:RemoveSelection => fn remove_selection(), layout: false);
@@ -59,7 +59,7 @@ impl CurveEditorMessage {
 pub struct CurveEditor {
     widget: Widget,
     key_container: KeyContainer,
-    zoom: f32,
+    zoom: Vector2<f32>,
     view_position: Vector2<f32>,
     // Transforms a point from local to view coordinates.
     view_matrix: Cell<Matrix3<f32>>,
@@ -197,7 +197,8 @@ impl Control for CurveEditor {
                                     initial_mouse_pos,
                                     initial_view_pos,
                                 } => {
-                                    let delta = (pos - initial_mouse_pos).scale(1.0 / self.zoom);
+                                    let d = pos - initial_mouse_pos;
+                                    let delta = Vector2::new(d.x / self.zoom.x, d.y / self.zoom.y);
                                     self.view_position = initial_view_pos + delta;
                                 }
                                 OperationContext::DragTangent { key, left } => {
@@ -515,9 +516,17 @@ impl Control for CurveEditor {
                             let max = Vector2::new(max_x, max_y);
                             let center = (min + max).scale(0.5);
 
-                            let mut offset = self.actual_local_size().scale(0.5 * self.zoom);
-                            offset.y *= -1.0;
-                            self.view_position = center + offset;
+                            self.zoom = Vector2::new(
+                                self.actual_local_size().x
+                                    / (max.x - min.x).max(5.0 * f32::EPSILON),
+                                self.actual_local_size().y
+                                    / (max.y - min.y).max(5.0 * f32::EPSILON),
+                            );
+
+                            self.view_position = Vector2::new(
+                                self.actual_local_size().x * 0.5 - center.x,
+                                -self.actual_local_size().y * 0.5 + center.y,
+                            );
                         }
                     }
                 }
@@ -598,7 +607,7 @@ impl CurveEditor {
         let vp = Vector2::new(self.view_position.x, -self.view_position.y);
         self.view_matrix.set(
             Matrix3::new_nonuniform_scaling_wrt_point(
-                &Vector2::new(self.zoom, self.zoom),
+                &self.zoom,
                 &Point2::from(self.actual_local_size().scale(0.5)),
             ) * Matrix3::new_translation(&vp),
         );
@@ -757,29 +766,30 @@ impl CurveEditor {
     fn draw_grid(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
 
-        let step_size = 50.0 / self.zoom.clamp(0.001, 1000.0);
+        let step_size_x = 50.0 / self.zoom.x.clamp(0.001, 1000.0);
+        let step_size_y = 50.0 / self.zoom.y.clamp(0.001, 1000.0);
 
         let mut local_left_bottom = self.point_to_local_space(screen_bounds.left_top_corner());
         let local_left_bottom_n = local_left_bottom;
-        local_left_bottom.x = round_to_step(local_left_bottom.x, step_size);
-        local_left_bottom.y = round_to_step(local_left_bottom.y, step_size);
+        local_left_bottom.x = round_to_step(local_left_bottom.x, step_size_x);
+        local_left_bottom.y = round_to_step(local_left_bottom.y, step_size_y);
 
         let mut local_right_top = self.point_to_local_space(screen_bounds.right_bottom_corner());
-        local_right_top.x = round_to_step(local_right_top.x, step_size);
-        local_right_top.y = round_to_step(local_right_top.y, step_size);
+        local_right_top.x = round_to_step(local_right_top.x, step_size_x);
+        local_right_top.y = round_to_step(local_right_top.y, step_size_y);
 
         let w = (local_right_top.x - local_left_bottom.x).abs();
         let h = (local_right_top.y - local_left_bottom.y).abs();
 
-        let nw = ((w / step_size).ceil()) as usize;
-        let nh = ((h / step_size).ceil()) as usize;
+        let nw = ((w / step_size_x).ceil()) as usize;
+        let nh = ((h / step_size_y).ceil()) as usize;
 
         for ny in 0..=nh {
             let k = ny as f32 / (nh) as f32;
             let y = local_left_bottom.y - k * h;
             ctx.push_line(
-                self.point_to_screen_space(Vector2::new(local_left_bottom.x - step_size, y)),
-                self.point_to_screen_space(Vector2::new(local_right_top.x + step_size, y)),
+                self.point_to_screen_space(Vector2::new(local_left_bottom.x - step_size_x, y)),
+                self.point_to_screen_space(Vector2::new(local_right_top.x + step_size_x, y)),
                 1.0,
             );
         }
@@ -788,8 +798,8 @@ impl CurveEditor {
             let k = nx as f32 / (nw) as f32;
             let x = local_left_bottom.x + k * w;
             ctx.push_line(
-                self.point_to_screen_space(Vector2::new(x, local_left_bottom.y + step_size)),
-                self.point_to_screen_space(Vector2::new(x, local_right_top.y - step_size)),
+                self.point_to_screen_space(Vector2::new(x, local_left_bottom.y + step_size_y)),
+                self.point_to_screen_space(Vector2::new(x, local_right_top.y - step_size_y)),
                 1.0,
             );
         }
@@ -1135,7 +1145,7 @@ impl CurveEditorBuilder {
                 .with_preview_messages(true)
                 .build(),
             key_container: keys,
-            zoom: 1.0,
+            zoom: Vector2::new(1.0, 1.0),
             view_position: Default::default(),
             view_matrix: Default::default(),
             screen_matrix: Default::default(),
