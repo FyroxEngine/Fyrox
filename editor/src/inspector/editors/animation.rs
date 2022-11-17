@@ -1,18 +1,18 @@
 //! Animation selector for `Handle<Animation>` fields.
 
-use crate::{gui::make_dropdown_list_option_universal, inspector::EditorEnvironment};
-use fyrox::gui::inspector::FieldKind;
+use crate::{gui::make_dropdown_list_option_universal, inspector::EditorEnvironment, Message};
 use fyrox::{
-    animation::Animation,
+    animation::{Animation, AnimationContainer},
     core::pool::Handle,
     gui::{
+        button::{ButtonBuilder, ButtonMessage},
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
         inspector::{
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                 PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
-            InspectorError, PropertyChanged,
+            FieldKind, InspectorError, PropertyChanged,
         },
         message::{MessageDirection, UiMessage},
         widget::WidgetBuilder,
@@ -101,6 +101,47 @@ impl PropertyEditorDefinition for AnimationPropertyEditorDefinition {
                             value: FieldKind::object(definition.handle),
                         });
                     }
+                }
+            }
+        }
+        None
+    }
+}
+
+#[derive(Debug)]
+pub struct AnimationContainerPropertyEditorDefinition;
+
+impl PropertyEditorDefinition for AnimationContainerPropertyEditorDefinition {
+    fn value_type_id(&self) -> TypeId {
+        TypeId::of::<AnimationContainer>()
+    }
+
+    fn create_instance(
+        &self,
+        ctx: PropertyEditorBuildContext,
+    ) -> Result<PropertyEditorInstance, InspectorError> {
+        Ok(PropertyEditorInstance::Simple {
+            editor: ButtonBuilder::new(WidgetBuilder::new())
+                .with_text("Open Animation Editor...")
+                .build(ctx.build_context),
+        })
+    }
+
+    fn create_message(
+        &self,
+        _ctx: PropertyEditorMessageContext,
+    ) -> Result<Option<UiMessage>, InspectorError> {
+        Ok(None)
+    }
+
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if ctx.message.direction() == MessageDirection::FromWidget {
+            if let Some(ButtonMessage::Click) = ctx.message.data() {
+                if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
+                    environment
+                        .sender
+                        .send(Message::OpenAnimationEditor)
+                        .unwrap();
                 }
             }
         }

@@ -60,6 +60,7 @@ pub struct EditorEnvironment {
     /// List of animations definitions (name + handle). It is filled only if current selection
     /// is `AnimationBlendingStateMachine`. The list is filled using ABSM's animation player.
     pub available_animations: Vec<AnimationDefinition>,
+    pub sender: Sender<Message>,
 }
 
 impl EditorEnvironment {
@@ -264,6 +265,7 @@ impl Inspector {
         serialization_context: Arc<SerializationContext>,
         graph: &Graph,
         selection: &Selection,
+        sender: &Sender<Message>,
     ) {
         let environment = Rc::new(EditorEnvironment {
             resource_manager,
@@ -289,6 +291,7 @@ impl Inspector {
             } else {
                 Default::default()
             },
+            sender: sender.clone(),
         });
 
         let context = InspectorContext::from_object(
@@ -314,6 +317,7 @@ impl Inspector {
         message: &Message,
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
+        sender: &Sender<Message>,
     ) {
         if let Message::SelectionChanged = message {
             let scene = &engine.scenes[editor_scene.scene];
@@ -375,6 +379,7 @@ impl Inspector {
                         engine.serialization_context.clone(),
                         &scene.graph,
                         &editor_scene.selection,
+                        sender,
                     )
                 }
             } else {

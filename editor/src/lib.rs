@@ -217,6 +217,7 @@ pub enum Message {
         force: bool,
     },
     OpenSettings,
+    OpenAnimationEditor,
     OpenMaterialEditor(SharedMaterial),
     ShowInAssetBrowser(PathBuf),
     SetWorldViewerFilter(String),
@@ -676,7 +677,8 @@ impl Editor {
                                                                             )
                                                                             .with_content(
                                                                                 TileContent::Window(
-                                                                                    audio_panel.window,
+                                                                                    audio_panel
+                                                                                        .window,
                                                                                 ),
                                                                             )
                                                                             .build(ctx),
@@ -1736,8 +1738,12 @@ impl Editor {
                     .handle_message(&message, &self.message_sender);
 
                 if let Some(editor_scene) = self.scene.as_ref() {
-                    self.inspector
-                        .handle_message(&message, editor_scene, &mut self.engine);
+                    self.inspector.handle_message(
+                        &message,
+                        editor_scene,
+                        &mut self.engine,
+                        &self.message_sender,
+                    );
                 }
 
                 self.scene_viewer.handle_message(&message, &mut self.engine);
@@ -1846,6 +1852,9 @@ impl Editor {
                     }
                     Message::ForceSync => {
                         needs_sync = true;
+                    }
+                    Message::OpenAnimationEditor => {
+                        self.animation_editor.open(&self.engine.user_interface);
                     }
                 }
             }

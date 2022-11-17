@@ -1,18 +1,26 @@
-use crate::inspector::editors::animation::AnimationPropertyEditorDefinition;
 use crate::{
     inspector::editors::{
-        handle::NodeHandlePropertyEditorDefinition, material::MaterialPropertyEditorDefinition,
-        resource::ResourceFieldPropertyEditorDefinition, script::ScriptPropertyEditorDefinition,
+        animation::{
+            AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
+        },
+        handle::NodeHandlePropertyEditorDefinition,
+        material::MaterialPropertyEditorDefinition,
+        resource::ResourceFieldPropertyEditorDefinition,
+        script::ScriptPropertyEditorDefinition,
         spritesheet::SpriteSheetFramesContainerEditorDefinition,
-        surface::SurfaceDataPropertyEditorDefinition, texture::TexturePropertyEditorDefinition,
+        surface::SurfaceDataPropertyEditorDefinition,
+        texture::TexturePropertyEditorDefinition,
     },
     Message,
 };
 use fyrox::{
-    animation::machine::{
-        node::{play::TimeSlice, BasePoseNode},
-        BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, PlayAnimation,
-        PoseWeight,
+    animation::{
+        machine::{
+            node::{play::TimeSlice, BasePoseNode},
+            BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, PlayAnimation,
+            PoseWeight,
+        },
+        AnimationContainer,
     },
     core::{
         futures::executor::block_on,
@@ -292,6 +300,9 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<PlayAnimation>::new());
 
     container.insert(AnimationPropertyEditorDefinition);
+
+    container.insert(AnimationContainerPropertyEditorDefinition);
+    container.insert(InheritablePropertyEditorDefinition::<AnimationContainer>::new());
 
     container
 }
