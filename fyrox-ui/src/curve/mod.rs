@@ -80,6 +80,7 @@ pub struct CurveEditor {
     handle_radius: f32,
     context_menu: ContextMenu,
     text: RefCell<FormattedText>,
+    view_bounds: Option<Rect<f32>>,
 }
 
 crate::define_widget_deref!(CurveEditor);
@@ -199,7 +200,7 @@ impl Control for CurveEditor {
                                 } => {
                                     let d = pos - initial_mouse_pos;
                                     let delta = Vector2::new(d.x / self.zoom.x, d.y / self.zoom.y);
-                                    self.view_position = initial_view_pos + delta;
+                                    self.set_view_position(initial_view_pos + delta);
                                 }
                                 OperationContext::DragTangent { key, left } => {
                                     let key_pos =
@@ -413,7 +414,7 @@ impl Control for CurveEditor {
                             self.key_container = KeyContainer::from(curve);
                         }
                         CurveEditorMessage::ViewPosition(view_position) => {
-                            self.view_position = *view_position;
+                            self.set_view_position(*view_position);
                         }
                         CurveEditorMessage::Zoom(zoom) => {
                             self.zoom = *zoom;
@@ -523,10 +524,10 @@ impl Control for CurveEditor {
                                     / (max.y - min.y).max(5.0 * f32::EPSILON),
                             );
 
-                            self.view_position = Vector2::new(
+                            self.set_view_position(Vector2::new(
                                 self.actual_local_size().x * 0.5 - center.x,
                                 -self.actual_local_size().y * 0.5 + center.y,
-                            );
+                            ));
                         }
                     }
                 }
@@ -603,6 +604,22 @@ fn round_to_step(x: f32, step: f32) -> f32 {
 }
 
 impl CurveEditor {
+    fn set_view_position(&mut self, position: Vector2<f32>) {
+        self.view_position = self.view_bounds.map_or(position, |bounds| {
+            let local_space_position = -position;
+            let clamped_local_space_position = Vector2::new(
+                local_space_position
+                    .x
+                    .clamp(bounds.position.x, bounds.position.x + 2.0 * bounds.size.x),
+                local_space_position
+                    .y
+                    .clamp(bounds.position.y, bounds.position.y + 2.0 * bounds.size.y),
+            );
+            let clamped_view_space = -clamped_local_space_position;
+            clamped_view_space
+        });
+    }
+
     fn update_matrices(&self) {
         let vp = Vector2::new(self.view_position.x, -self.view_position.y);
         self.view_matrix.set(
@@ -1044,6 +1061,7 @@ pub struct CurveEditorBuilder {
     curve: Curve,
     view_position: Vector2<f32>,
     zoom: f32,
+    view_bounds: Option<Rect<f32>>,
 }
 
 impl CurveEditorBuilder {
@@ -1053,6 +1071,7 @@ impl CurveEditorBuilder {
             curve: Default::default(),
             view_position: Default::default(),
             zoom: 1.0,
+            view_bounds: None,
         }
     }
 
@@ -1068,6 +1087,12 @@ impl CurveEditorBuilder {
 
     pub fn with_view_position(mut self, view_position: Vector2<f32>) -> Self {
         self.view_position = view_position;
+        self
+    }
+
+    /// View bounds in value-space.
+    pub fn with_view_bounds(mut self, bounds: Rect<f32>) -> Self {
+        self.view_bounds = Some(bounds);
         self
     }
 
@@ -1172,6 +1197,7 @@ impl CurveEditorBuilder {
                 key,
                 zoom_to_fit,
             },
+            view_bounds: self.view_bounds,
         };
 
         ctx.add_node(UiNode::new(editor))
