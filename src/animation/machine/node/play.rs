@@ -19,7 +19,7 @@ use std::{
 };
 
 /// Machine node that plays specified animation.
-#[derive(Default, Debug, Visit, Clone, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct PlayAnimation {
     pub base: BasePoseNode,
     pub animation: Handle<Animation>,

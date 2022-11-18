@@ -22,7 +22,7 @@ use std::{
 pub mod blend;
 pub mod play;
 
-#[derive(Debug, Visit, Clone, Default, Reflect)]
+#[derive(Debug, Visit, Clone, Default, Reflect, PartialEq)]
 pub struct BasePoseNode {
     pub position: Vector2<f32>,
     #[reflect(hidden)]
@@ -30,7 +30,7 @@ pub struct BasePoseNode {
 }
 
 /// Specialized node that provides animation pose. See documentation for each variant.
-#[derive(Debug, Visit, Clone, Reflect)]
+#[derive(Debug, Visit, Clone, Reflect, PartialEq)]
 pub enum PoseNode {
     /// See docs for `PlayAnimation`.
     PlayAnimation(PlayAnimation),

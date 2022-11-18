@@ -5,7 +5,7 @@ use crate::{
 
 /// Transition is a connection between two states with a rule that defines possibility
 /// of actual transition with blending.
-#[derive(Default, Debug, Visit, Clone, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct Transition {
     #[reflect(description = "The name of the transition, it is used for debug output.")]
     pub(crate) name: String,

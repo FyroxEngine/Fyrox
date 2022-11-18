@@ -14,7 +14,7 @@ use std::cell::Ref;
 
 /// State is a final "container" for animation pose. It has backing pose node which provides a
 /// set of values.
-#[derive(Default, Debug, Visit, Clone, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct State {
     pub position: Vector2<f32>,
     pub name: String,

@@ -8,7 +8,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 /// Machine parameter.  Machine uses various parameters for specific actions. For example
 /// Rule parameter is used to check where transition from a state to state is possible.
 /// See module docs for example.
-#[derive(Copy, Clone, Debug, Reflect, Visit, EnumVariantNames, EnumString, AsRefStr)]
+#[derive(Copy, Clone, Debug, PartialEq, Reflect, Visit, EnumVariantNames, EnumString, AsRefStr)]
 pub enum Parameter {
     /// Weight parameter is used to control blend weight in BlendAnimation node.
     Weight(f32),
@@ -27,7 +27,7 @@ impl Default for Parameter {
 }
 
 /// Specific animation pose weight.
-#[derive(Debug, Visit, Clone, Reflect, EnumVariantNames, EnumString, AsRefStr)]
+#[derive(Debug, Visit, Clone, PartialEq, Reflect, EnumVariantNames, EnumString, AsRefStr)]
 pub enum PoseWeight {
     /// Fixed scalar value. Should not be negative (can't even realize what will happen
     /// with negative weight here)
@@ -43,7 +43,7 @@ impl Default for PoseWeight {
     }
 }
 
-#[derive(Reflect, Visit, Default, Debug, Clone)]
+#[derive(Reflect, Visit, Default, Debug, Clone, PartialEq)]
 pub struct ParameterDefinition {
     pub name: String,
     pub value: Parameter,
@@ -53,6 +53,12 @@ pub struct ParameterDefinition {
 struct Wrapper {
     parameters: Vec<ParameterDefinition>,
     dirty: Cell<bool>,
+}
+
+impl PartialEq for Wrapper {
+    fn eq(&self, other: &Self) -> bool {
+        self.parameters == other.parameters
+    }
 }
 
 impl Visit for Wrapper {
@@ -84,6 +90,12 @@ pub struct ParameterContainer {
     #[reflect(hidden)]
     #[visit(skip)]
     lookup: Mutex<FxHashMap<String, usize>>,
+}
+
+impl PartialEq for ParameterContainer {
+    fn eq(&self, other: &Self) -> bool {
+        self.parameters == other.parameters
+    }
 }
 
 impl Clone for ParameterContainer {

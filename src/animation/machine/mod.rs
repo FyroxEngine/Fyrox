@@ -115,7 +115,7 @@ pub mod parameter;
 pub mod state;
 pub mod transition;
 
-#[derive(Default, Debug, Visit, Reflect, Clone)]
+#[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
 pub struct Machine {
     pub(crate) root: Handle<Node>,
 

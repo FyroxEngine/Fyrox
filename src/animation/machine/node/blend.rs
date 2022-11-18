@@ -17,7 +17,7 @@ use std::{
 };
 
 /// Weighted proxy for animation pose.
-#[derive(Default, Debug, Visit, Clone, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct BlendPose {
     pub weight: PoseWeight,
     #[reflect(hidden)]
@@ -61,7 +61,7 @@ impl BlendPose {
 /// you can dynamically change them in runtime. In our example we can decrease weight
 /// of hit animation over time and increase weight of run animation, so character will
 /// recover from his wounds.
-#[derive(Default, Debug, Visit, Clone, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct BlendAnimations {
     pub base: BasePoseNode,
     pub pose_sources: Vec<BlendPose>,
@@ -137,14 +137,14 @@ impl EvaluatePose for BlendAnimations {
     }
 }
 
-#[derive(Default, Debug, Visit, Clone, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct IndexedBlendInput {
     pub blend_time: f32,
     #[reflect(hidden)]
     pub pose_source: Handle<PoseNode>,
 }
 
-#[derive(Default, Debug, Visit, Clone, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct BlendAnimationsByIndex {
     pub base: BasePoseNode,
     pub index_parameter: String,
