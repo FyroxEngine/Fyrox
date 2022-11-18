@@ -256,7 +256,9 @@ impl SoundContext {
         if sound.native.get().is_some() {
             let mut state = self.native.state();
             let source = state.source_mut(sound.native.get());
-
+            sound.buffer.try_sync_model(|v| {
+                Log::verify(source.set_buffer(v));
+            });
             sound.max_distance.try_sync_model(|v| {
                 source.set_max_distance(v);
             });
@@ -284,9 +286,6 @@ impl SoundContext {
             sound
                 .spatial_blend
                 .try_sync_model(|v| source.set_spatial_blend(v));
-            sound.buffer.try_sync_model(|v| {
-                Log::verify(source.set_buffer(v));
-            });
             sound.status.try_sync_model(|v| match v {
                 Status::Stopped => {
                     Log::verify(source.stop());
