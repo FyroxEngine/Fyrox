@@ -24,13 +24,13 @@ use std::ops::{Deref, DerefMut};
 #[derive(Visit, Reflect, Clone, Debug, Default)]
 pub struct AnimationBlendingStateMachine {
     base: Base,
-    machine: Machine,
+    machine: InheritableVariable<Machine>,
     animation_player: InheritableVariable<Handle<Node>>,
 }
 
 impl AnimationBlendingStateMachine {
     pub fn set_machine(&mut self, machine: Machine) {
-        self.machine = machine;
+        self.machine.set(machine);
     }
 
     pub fn machine(&self) -> &Machine {
@@ -101,6 +101,7 @@ impl NodeTrait for AnimationBlendingStateMachine {
 
             let pose = self
                 .machine
+                .get_mut_silent()
                 .evaluate_pose(&animation_player.animations, context.dt);
 
             pose.apply_internal(context.nodes);
@@ -154,7 +155,7 @@ impl AnimationBlendingStateMachineBuilder {
     pub fn build_node(self) -> Node {
         Node::new(AnimationBlendingStateMachine {
             base: self.base_builder.build_base(),
-            machine: self.machine,
+            machine: self.machine.into(),
             animation_player: self.animation_player.into(),
         })
     }
