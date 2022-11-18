@@ -146,7 +146,7 @@ impl ResourceWaitContext {
                     loaded_count += 1;
                 }
             }
-            return loaded_count == container.len();
+            loaded_count == container.len()
         }
 
         check_container(&self.models)

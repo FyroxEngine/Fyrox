@@ -119,7 +119,7 @@ impl Executor {
         if !args.override_scene.is_empty() {
             // Try to load specified scene in a separate thread.
             self.loader = Some(AsyncSceneLoader::begin_loading(
-                args.override_scene.clone().into(),
+                args.override_scene.into(),
                 engine.serialization_context.clone(),
                 engine.resource_manager.clone(),
             ));

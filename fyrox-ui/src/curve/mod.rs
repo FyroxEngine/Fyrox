@@ -604,6 +604,7 @@ fn round_to_step(x: f32, step: f32) -> f32 {
 }
 
 impl CurveEditor {
+    #[allow(clippy::let_and_return)] // Improves readability
     fn set_view_position(&mut self, position: Vector2<f32>) {
         self.view_position = self.view_bounds.map_or(position, |bounds| {
             let local_space_position = -position;
