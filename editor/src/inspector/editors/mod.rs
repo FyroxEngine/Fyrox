@@ -275,6 +275,7 @@ pub fn make_property_editors_container(
 
     container.insert(SurfaceDataPropertyEditorDefinition);
     container.insert(InheritablePropertyEditorDefinition::<SurfaceSharedData>::new());
+    container.insert(InheritablePropertyEditorDefinition::<Status>::new());
 
     container
 }
