@@ -10,5 +10,5 @@ define_universal_commands!(
     ctx,
     handle,
     self,
-    { ctx.scene }
+    { ctx.scene },
 );

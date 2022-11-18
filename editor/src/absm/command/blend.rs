@@ -1,33 +1,37 @@
 use crate::{
-    absm::command::{AbsmCommandTrait, AbsmEditorContext},
-    define_push_element_to_collection_command, define_set_collection_element_command,
+    absm::command::fetch_machine, command::Command, define_push_element_to_collection_command,
+    define_set_collection_element_command, scene::commands::SceneContext,
 };
 use fyrox::{
     animation::machine::node::{
-        blend::{BlendPoseDefinition, IndexedBlendInputDefinition},
-        PoseNodeDefinition,
+        blend::{BlendPose, IndexedBlendInput},
+        PoseNode,
     },
     core::pool::Handle,
+    scene::node::Node,
 };
 
-define_push_element_to_collection_command!(AddInputCommand<Handle<PoseNodeDefinition>, IndexedBlendInputDefinition>(self, context) {
-    match &mut context.resource.absm_definition.nodes[self.handle] {
-        PoseNodeDefinition::BlendAnimationsByIndex(definition) => &mut definition.inputs,
+define_push_element_to_collection_command!(AddInputCommand<Handle<PoseNode>, IndexedBlendInput>(self, context) {
+    let machine = fetch_machine(context, self.node_handle);
+    match &mut machine.nodes_mut()[self.handle] {
+        PoseNode::BlendAnimationsByIndex(definition) => &mut definition.inputs,
         _ => unreachable!(),
     }
 });
 
-define_push_element_to_collection_command!(AddPoseSourceCommand<Handle<PoseNodeDefinition>, BlendPoseDefinition>(self, context) {
-    match &mut context.resource.absm_definition.nodes[self.handle] {
-        PoseNodeDefinition::BlendAnimations(definition) => &mut definition.pose_sources,
+define_push_element_to_collection_command!(AddPoseSourceCommand<Handle<PoseNode>, BlendPose>(self, context) {
+    let machine = fetch_machine(context, self.node_handle);
+    match &mut machine.nodes_mut()[self.handle] {
+        PoseNode::BlendAnimations(definition) => &mut definition.pose_sources,
         _ => unreachable!(),
     }
 });
 
 define_set_collection_element_command!(
-    SetBlendAnimationByIndexInputPoseSourceCommand<Handle<PoseNodeDefinition>, Handle<PoseNodeDefinition>>(self, context) {
-        match context.resource.absm_definition.nodes[self.handle] {
-            PoseNodeDefinition::BlendAnimationsByIndex(ref mut definition) => {
+    SetBlendAnimationByIndexInputPoseSourceCommand<Handle<PoseNode>, Handle<PoseNode>>(self, context) {
+        let machine = fetch_machine(context, self.node_handle);
+        match machine.nodes_mut()[self.handle] {
+            PoseNode::BlendAnimationsByIndex(ref mut definition) => {
                 &mut definition.inputs[self.index].pose_source
             }
             _ => unreachable!(),
@@ -36,9 +40,10 @@ define_set_collection_element_command!(
 );
 
 define_set_collection_element_command!(
-    SetBlendAnimationsPoseSourceCommand<Handle<PoseNodeDefinition>, Handle<PoseNodeDefinition>>(self, context) {
-        match context.resource.absm_definition.nodes[self.handle] {
-            PoseNodeDefinition::BlendAnimations(ref mut definition) => {
+    SetBlendAnimationsPoseSourceCommand<Handle<PoseNode>, Handle<PoseNode>>(self, context) {
+        let machine = fetch_machine(context, self.node_handle);
+        match machine.nodes_mut()[self.handle] {
+            PoseNode::BlendAnimations(ref mut definition) => {
                 &mut definition.pose_sources[self.index].pose_source
             }
             _ => unreachable!(),

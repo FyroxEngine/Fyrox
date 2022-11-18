@@ -44,7 +44,7 @@ struct LoaderState {
 ///                 match result {
 ///                     Ok(scene) => {
 ///                         // Add the scene to the engine, so it will be included in engine processing pipeline.
-///                         context.scenes.add(scene)
+///                         context.scenes.add(scene);
 ///                     }
 ///                     Err(err) => Log::err(err),
 ///                 }

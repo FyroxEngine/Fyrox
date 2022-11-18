@@ -10,7 +10,7 @@ use crate::{
 };
 use std::fmt::{Debug, Display, Formatter};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TrackValue {
     /// A real number.
     Real(f32),
@@ -90,7 +90,7 @@ impl Display for ValueBinding {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct BoundValue {
     pub binding: ValueBinding,
     pub value: TrackValue,
@@ -122,7 +122,7 @@ impl BoundValue {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct BoundValueCollection {
     pub values: Vec<BoundValue>,
 }

@@ -131,14 +131,6 @@ pub struct ScriptPropertyEditorBuilder {
     widget_builder: WidgetBuilder,
 }
 
-fn get_editor_environment(
-    environment: &Option<Rc<dyn InspectorEnvironment>>,
-) -> Option<&EditorEnvironment> {
-    environment
-        .as_ref()
-        .and_then(|e| e.as_any().downcast_ref::<EditorEnvironment>())
-}
-
 impl ScriptPropertyEditorBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self { widget_builder }
@@ -241,7 +233,7 @@ fn fetch_script_definitions(
         .environment
         .clone();
 
-    let editor_environment = get_editor_environment(&environment);
+    let editor_environment = EditorEnvironment::try_get_from(&environment);
 
     editor_environment.map(|e| create_items(e.serialization_context.clone(), &mut ui.build_ctx()))
 }
@@ -260,8 +252,8 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Script>>()?;
 
-        let environment =
-            get_editor_environment(&ctx.environment).expect("Must have editor environment!");
+        let environment = EditorEnvironment::try_get_from(&ctx.environment)
+            .expect("Must have editor environment!");
 
         let items = create_items(environment.serialization_context.clone(), ctx.build_context);
 
@@ -312,7 +304,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             .expect("Must be EnumPropertyEditor!");
 
         let editor_environment =
-            get_editor_environment(&ctx.environment).expect("Environment must be set!");
+            EditorEnvironment::try_get_from(&ctx.environment).expect("Environment must be set!");
 
         let variant_selector_ref = ctx
             .ui
@@ -410,7 +402,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             if let Some(message) = ctx.message.data::<ScriptPropertyEditorMessage>() {
                 match message {
                     ScriptPropertyEditorMessage::Value(value) => {
-                        if let Some(env) = get_editor_environment(&ctx.environment) {
+                        if let Some(env) = EditorEnvironment::try_get_from(&ctx.environment) {
                             let script = value.and_then(|uuid| {
                                 env.serialization_context
                                     .script_constructors

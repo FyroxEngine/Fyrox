@@ -1,17 +1,23 @@
 use crate::{
-    absm::command::{AbsmCommand, AbsmCommandTrait, AbsmEditorContext},
+    absm::command::fetch_machine,
+    command::Command,
     define_universal_commands,
+    scene::commands::{SceneCommand, SceneContext},
 };
-use fyrox::core::reflect::ResolvePath;
+use fyrox::{
+    core::{pool::Handle, reflect::ResolvePath},
+    scene::node::Node,
+};
 
 define_universal_commands!(
     make_set_parameters_property_command,
-    AbsmCommandTrait,
-    AbsmCommand,
-    AbsmEditorContext,
+    Command,
+    SceneCommand,
+    SceneContext,
     (),
     ctx,
     handle,
     self,
-    { &mut ctx.resource.absm_definition.parameters }
+    { fetch_machine(ctx, self.node_handle).parameters_mut() },
+    node_handle: Handle<Node>
 );

@@ -20,6 +20,7 @@ use fyrox::{
 };
 use std::sync::mpsc::Sender;
 
+pub mod animation;
 pub mod create;
 pub mod dim2;
 pub mod edit;

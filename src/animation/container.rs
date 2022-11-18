@@ -51,7 +51,7 @@ impl Default for TrackValueKind {
     }
 }
 
-#[derive(Visit, Reflect, Debug, Clone, Default)]
+#[derive(Visit, Reflect, Debug, Clone, Default, PartialEq)]
 pub struct TrackFramesContainer {
     curves: Vec<Curve>,
     kind: TrackValueKind,

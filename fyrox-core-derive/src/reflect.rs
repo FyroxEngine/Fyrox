@@ -143,11 +143,11 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
         })
         .unzip();
 
-    let metadata = gen_fields_metadata_body(&props, &fields, field_args);
-
     let (fields, field_muts) = self::collect_field_refs(&props, &fields, &field_muts);
     let fields = fields.collect::<Vec<_>>();
     let field_muts = field_muts.collect::<Vec<_>>();
+
+    let metadata = gen_fields_metadata_body(&props, &fields, field_args);
 
     let field_body = quote! {
         match name {
@@ -268,11 +268,11 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                 })
                 .unzip();
 
-            let metadata = gen_fields_metadata_body(&props, &fields, &v.fields);
-
             let (fields, field_muts) = self::collect_field_refs(&props, &fields, &field_muts);
             let fields = fields.collect::<Vec<_>>();
             let field_muts = field_muts.collect::<Vec<_>>();
+
+            let metadata = gen_fields_metadata_body(&props, &fields, &v.fields);
 
             let fields_list_raw = quote! {
                 #(

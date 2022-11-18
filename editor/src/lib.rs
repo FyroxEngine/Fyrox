@@ -217,6 +217,7 @@ pub enum Message {
         force: bool,
     },
     OpenSettings,
+    OpenAnimationEditor,
     OpenMaterialEditor(SharedMaterial),
     ShowInAssetBrowser(PathBuf),
     SetWorldViewerFilter(String),
@@ -241,6 +242,7 @@ pub enum Message {
         view: Handle<UiNode>,
         handle: Handle<Node>,
     },
+    ForceSync,
 }
 
 impl Message {
@@ -581,6 +583,7 @@ impl Editor {
         let log = LogPanel::new(ctx, log_message_receiver);
         let inspector = Inspector::new(ctx, message_sender.clone());
         let animation_editor = AnimationEditor::new(ctx);
+        let absm_editor = AbsmEditor::new(ctx, message_sender.clone());
 
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()
@@ -674,7 +677,8 @@ impl Editor {
                                                                             )
                                                                             .with_content(
                                                                                 TileContent::Window(
-                                                                                    audio_panel.window,
+                                                                                    audio_panel
+                                                                                        .window,
                                                                                 ),
                                                                             )
                                                                             .build(ctx),
@@ -692,7 +696,7 @@ impl Editor {
                             })
                             .build(ctx)
                     }))
-                    .with_floating_windows(vec![animation_editor.window])
+                    .with_floating_windows(vec![animation_editor.window, absm_editor.window])
                     .build(ctx),
                 ),
         )
@@ -733,8 +737,6 @@ impl Editor {
         let build_window = BuildWindow::new(ctx);
 
         let scene_settings = SceneSettingsWindow::new(ctx, message_sender.clone());
-
-        let absm_editor = AbsmEditor::new(&mut engine, message_sender.clone());
 
         let material_editor = MaterialEditor::new(&mut engine);
 
@@ -1079,7 +1081,6 @@ impl Editor {
 
         let engine = &mut self.engine;
 
-        self.absm_editor.handle_ui_message(message, engine);
         self.save_scene_dialog.handle_ui_message(
             message,
             &self.message_sender,
@@ -1133,10 +1134,16 @@ impl Editor {
             &self.settings,
             &self.mode,
         );
-        self.animation_editor
-            .handle_ui_message(message, self.scene.as_ref(), engine);
+        self.animation_editor.handle_ui_message(
+            message,
+            self.scene.as_ref(),
+            engine,
+            &self.message_sender,
+        );
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.absm_editor
+                .handle_ui_message(message, engine, &self.message_sender, editor_scene);
             self.audio_panel
                 .handle_ui_message(message, editor_scene, &self.message_sender, engine);
 
@@ -1346,6 +1353,8 @@ impl Editor {
             .sync_to_model(self.scene.as_ref(), &mut engine.user_interface);
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.animation_editor.sync_to_model(editor_scene, engine);
+            self.absm_editor.sync_to_model(editor_scene, engine);
             self.scene_settings.sync_to_model(editor_scene, engine);
             self.scene_viewer.sync_to_model(editor_scene, engine);
             self.inspector.sync_to_model(editor_scene, engine);
@@ -1707,8 +1716,6 @@ impl Editor {
             _ => {}
         }
 
-        self.animation_editor.update(&mut self.engine);
-        self.absm_editor.update(&mut self.engine);
         self.log.update(&mut self.engine);
         self.material_editor.update(&mut self.engine);
         self.asset_browser.update(&mut self.engine);
@@ -1731,8 +1738,12 @@ impl Editor {
                     .handle_message(&message, &self.message_sender);
 
                 if let Some(editor_scene) = self.scene.as_ref() {
-                    self.inspector
-                        .handle_message(&message, editor_scene, &mut self.engine);
+                    self.inspector.handle_message(
+                        &message,
+                        editor_scene,
+                        &mut self.engine,
+                        &self.message_sender,
+                    );
                 }
 
                 self.scene_viewer.handle_message(&message, &mut self.engine);
@@ -1839,6 +1850,12 @@ impl Editor {
                             );
                         }
                     }
+                    Message::ForceSync => {
+                        needs_sync = true;
+                    }
+                    Message::OpenAnimationEditor => {
+                        self.animation_editor.open(&self.engine.user_interface);
+                    }
                 }
             }
 
@@ -1856,6 +1873,8 @@ impl Editor {
         self.handle_resize();
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.absm_editor.update(editor_scene, &mut self.engine);
+
             editor_scene.draw_auxiliary_geometry(&mut self.engine, &self.settings);
 
             let scene = &mut self.engine.scenes[editor_scene.scene];

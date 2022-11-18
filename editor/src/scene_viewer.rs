@@ -34,10 +34,7 @@ use fyrox::{
         BRUSH_BRIGHT_BLUE, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST,
         COLOR_LIGHTEST,
     },
-    resource::{
-        model::ModelInstance,
-        texture::{Texture, TextureState},
-    },
+    resource::texture::{Texture, TextureState},
     scene::{
         camera::{Camera, Projection},
         node::Node,
@@ -47,7 +44,7 @@ use fyrox::{
 use std::sync::mpsc::Sender;
 
 struct PreviewInstance {
-    instance: ModelInstance,
+    instance: Handle<Node>,
     nodes: FxHashSet<Handle<Node>>,
 }
 
@@ -571,11 +568,7 @@ impl SceneViewer {
                         if let Some(preview) = self.preview_instance.take() {
                             let scene = &mut engine.scenes[editor_scene.scene];
 
-                            scene.graph.remove_node(preview.instance.root);
-
-                            for animation in preview.instance.animations {
-                                scene.animations.remove(animation);
-                            }
+                            scene.graph.remove_node(preview.instance);
                         }
                     }
                     WidgetMessage::DragOver(handle) => {
@@ -601,17 +594,13 @@ impl SceneViewer {
                                                 // Instantiate the model.
                                                 let instance = model.instantiate(scene);
 
-                                                for &animation in instance.animations.iter() {
-                                                    scene.animations[animation].set_enabled(true);
-                                                }
-
-                                                scene.graph[instance.root]
+                                                scene.graph[instance]
                                                     .local_transform_mut()
                                                     .set_scale(settings.model.instantiation_scale);
 
                                                 let nodes = scene
                                                     .graph
-                                                    .traverse_handle_iter(instance.root)
+                                                    .traverse_handle_iter(instance)
                                                     .collect::<FxHashSet<Handle<Node>>>();
 
                                                 self.preview_instance =
@@ -641,7 +630,7 @@ impl SceneViewer {
                                         only_meshes: false,
                                     })
                                 {
-                                    graph[preview.instance.root]
+                                    graph[preview.instance]
                                         .local_transform_mut()
                                         .set_position(result.position);
                                 } else {
@@ -668,7 +657,7 @@ impl SceneViewer {
                                         let ray = camera.make_ray(rel_pos, frame_size);
 
                                         if let Some(point) = ray.plane_intersection_point(&plane) {
-                                            graph[preview.instance.root]
+                                            graph[preview.instance]
                                                 .local_transform_mut()
                                                 .set_position(point);
                                         }
@@ -901,24 +890,14 @@ impl SceneViewer {
 
                             // Immediately after extract if from the scene to subgraph. This is required to not violate
                             // the rule of one place of execution, only commands allowed to modify the scene.
-                            let sub_graph =
-                                scene.graph.take_reserve_sub_graph(preview.instance.root);
-                            let animations_container = preview
-                                .instance
-                                .animations
-                                .iter()
-                                .map(|&anim| scene.animations.take_reserve(anim))
-                                .collect();
+                            let sub_graph = scene.graph.take_reserve_sub_graph(preview.instance);
 
                             let group = vec![
-                                SceneCommand::new(AddModelCommand::new(
-                                    sub_graph,
-                                    animations_container,
-                                )),
+                                SceneCommand::new(AddModelCommand::new(sub_graph)),
                                 // We also want to select newly instantiated model.
                                 SceneCommand::new(ChangeSelectionCommand::new(
                                     Selection::Graph(GraphSelection::single_or_empty(
-                                        preview.instance.root,
+                                        preview.instance,
                                     )),
                                     editor_scene.selection.clone(),
                                 )),

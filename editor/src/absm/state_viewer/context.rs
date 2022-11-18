@@ -1,29 +1,26 @@
+use crate::absm::selection::SelectedEntity;
+use crate::scene::commands::{ChangeSelectionCommand, CommandGroup, SceneCommand};
+use crate::scene::{EditorScene, Selection};
 use crate::{
     absm::{
         command::{
             blend::{
                 SetBlendAnimationByIndexInputPoseSourceCommand, SetBlendAnimationsPoseSourceCommand,
             },
-            AbsmCommand, AddPoseNodeCommand, ChangeSelectionCommand, CommandGroup,
-            DeletePoseNodeCommand, SetStateRootPoseCommand,
+            AddPoseNodeCommand, DeletePoseNodeCommand, SetStateRootPoseCommand,
         },
         connection::Connection,
-        message::MessageSender,
         node::AbsmNode,
-        SelectedEntity,
     },
     menu::create_menu_item,
+    Message,
 };
+use fyrox::animation::machine::node::BasePoseNode;
+use fyrox::animation::machine::{
+    BlendAnimations, BlendAnimationsByIndex, Machine, PlayAnimation, PoseNode, State,
+};
+use fyrox::scene::node::Node;
 use fyrox::{
-    animation::machine::{
-        node::{
-            blend::{BlendAnimationsByIndexDefinition, BlendAnimationsDefinition},
-            play::PlayAnimationDefinition,
-            BasePoseNodeDefinition, PoseNodeDefinition,
-        },
-        state::StateDefinition,
-        MachineDefinition,
-    },
     core::pool::Handle,
     gui::{
         menu::MenuItemMessage,
@@ -34,6 +31,7 @@ use fyrox::{
         BuildContext, UiNode, UserInterface,
     },
 };
+use std::sync::mpsc::Sender;
 
 pub struct CanvasContextMenu {
     create_play_animation: Handle<UiNode>,
@@ -86,10 +84,11 @@ impl CanvasContextMenu {
 
     pub fn handle_ui_message(
         &mut self,
-        sender: &MessageSender,
+        sender: &Sender<Message>,
         message: &UiMessage,
-        current_state: Handle<StateDefinition>,
+        current_state: Handle<State>,
         ui: &mut UserInterface,
+        absm_node_handle: Handle<Node>,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             let position = ui
@@ -97,42 +96,46 @@ impl CanvasContextMenu {
                 .screen_to_local(ui.node(self.menu).screen_position());
 
             let pose_node = if message.destination() == self.create_play_animation {
-                Some(PoseNodeDefinition::PlayAnimation(PlayAnimationDefinition {
-                    base: BasePoseNodeDefinition {
+                Some(PoseNode::PlayAnimation(PlayAnimation {
+                    base: BasePoseNode {
                         position,
                         parent_state: current_state,
                     },
                     animation: Default::default(),
-                    speed: 1.0,
-                    time_slice: None,
+                    output_pose: Default::default(),
                 }))
             } else if message.destination() == self.create_blend_animations {
-                Some(PoseNodeDefinition::BlendAnimations(
-                    BlendAnimationsDefinition {
-                        base: BasePoseNodeDefinition {
-                            position,
-                            parent_state: current_state,
-                        },
-                        pose_sources: Default::default(),
+                Some(PoseNode::BlendAnimations(BlendAnimations {
+                    base: BasePoseNode {
+                        position,
+                        parent_state: current_state,
                     },
-                ))
+                    pose_sources: Default::default(),
+                    output_pose: Default::default(),
+                }))
             } else if message.destination() == self.create_blend_by_index {
-                Some(PoseNodeDefinition::BlendAnimationsByIndex(
-                    BlendAnimationsByIndexDefinition {
-                        base: BasePoseNodeDefinition {
-                            position,
-                            parent_state: current_state,
-                        },
-                        index_parameter: "".to_string(),
-                        inputs: Default::default(),
+                Some(PoseNode::BlendAnimationsByIndex(BlendAnimationsByIndex {
+                    base: BasePoseNode {
+                        position,
+                        parent_state: current_state,
                     },
-                ))
+                    index_parameter: "".to_string(),
+                    inputs: Default::default(),
+                    prev_index: Default::default(),
+                    blend_time: Default::default(),
+                    output_pose: Default::default(),
+                }))
             } else {
                 None
             };
 
             if let Some(pose_node) = pose_node {
-                sender.do_command(AddPoseNodeCommand::new(pose_node));
+                sender
+                    .send(Message::do_scene_command(AddPoseNodeCommand::new(
+                        absm_node_handle,
+                        pose_node,
+                    )))
+                    .unwrap();
             }
         }
     }
@@ -179,37 +182,49 @@ impl NodeContextMenu {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        selection: &[SelectedEntity],
-        definition: &MachineDefinition,
-        sender: &MessageSender,
+        machine: &Machine,
+        sender: &Sender<Message>,
         ui: &UserInterface,
+        editor_scene: &EditorScene,
+        absm_node_handle: Handle<Node>,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.remove {
-                let mut group = vec![AbsmCommand::new(ChangeSelectionCommand {
-                    selection: vec![],
-                })];
+                let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
+                    Default::default(),
+                    editor_scene.selection.clone(),
+                ))];
 
-                group.extend(selection.iter().filter_map(|entry| {
-                    if let SelectedEntity::PoseNode(pose_node) = entry {
-                        Some(AbsmCommand::new(DeletePoseNodeCommand::new(*pose_node)))
-                    } else {
-                        None
-                    }
-                }));
+                if let Selection::Absm(ref selection) = editor_scene.selection {
+                    group.extend(selection.entities.iter().filter_map(|entry| {
+                        if let SelectedEntity::PoseNode(pose_node) = entry {
+                            Some(SceneCommand::new(DeletePoseNodeCommand::new(
+                                absm_node_handle,
+                                *pose_node,
+                            )))
+                        } else {
+                            None
+                        }
+                    }));
+                }
 
-                sender.do_command(CommandGroup::from(group));
+                sender
+                    .send(Message::do_scene_command(CommandGroup::from(group)))
+                    .unwrap();
             } else if message.destination() == self.set_as_root {
                 let root = ui
                     .node(self.placement_target)
-                    .query_component::<AbsmNode<PoseNodeDefinition>>()
+                    .query_component::<AbsmNode<PoseNode>>()
                     .unwrap()
                     .model_handle;
 
-                sender.do_command(SetStateRootPoseCommand {
-                    handle: definition.nodes[root].parent_state,
-                    value: root,
-                })
+                sender
+                    .send(Message::do_scene_command(SetStateRootPoseCommand {
+                        node_handle: absm_node_handle,
+                        handle: machine.node(root).parent_state,
+                        value: root,
+                    }))
+                    .unwrap();
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu {
@@ -249,8 +264,9 @@ impl ConnectionContextMenu {
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
-        sender: &MessageSender,
-        definition: &MachineDefinition,
+        sender: &Sender<Message>,
+        machine: &Machine,
+        absm_node_handle: Handle<Node>,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination == self.remove {
@@ -261,7 +277,7 @@ impl ConnectionContextMenu {
 
                 let dest_node_ref = ui
                     .node(connection_ref.dest_node)
-                    .query_component::<AbsmNode<PoseNodeDefinition>>()
+                    .query_component::<AbsmNode<PoseNode>>()
                     .unwrap();
 
                 let index = dest_node_ref
@@ -272,24 +288,30 @@ impl ConnectionContextMenu {
                     .unwrap();
 
                 let model_handle = dest_node_ref.model_handle;
-                match definition.nodes[model_handle] {
-                    PoseNodeDefinition::PlayAnimation(_) => {
+                match machine.node(model_handle) {
+                    PoseNode::PlayAnimation(_) => {
                         // No connections
                     }
-                    PoseNodeDefinition::BlendAnimations(_) => {
-                        sender.do_command(SetBlendAnimationsPoseSourceCommand {
-                            handle: model_handle,
-                            index,
-                            value: Default::default(),
-                        })
-                    }
-                    PoseNodeDefinition::BlendAnimationsByIndex(_) => {
-                        sender.do_command(SetBlendAnimationByIndexInputPoseSourceCommand {
-                            handle: model_handle,
-                            index,
-                            value: Default::default(),
-                        })
-                    }
+                    PoseNode::BlendAnimations(_) => sender
+                        .send(Message::do_scene_command(
+                            SetBlendAnimationsPoseSourceCommand {
+                                node_handle: absm_node_handle,
+                                handle: model_handle,
+                                index,
+                                value: Default::default(),
+                            },
+                        ))
+                        .unwrap(),
+                    PoseNode::BlendAnimationsByIndex(_) => sender
+                        .send(Message::do_scene_command(
+                            SetBlendAnimationByIndexInputPoseSourceCommand {
+                                node_handle: absm_node_handle,
+                                handle: model_handle,
+                                index,
+                                value: Default::default(),
+                            },
+                        ))
+                        .unwrap(),
                 }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {

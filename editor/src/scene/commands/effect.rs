@@ -23,7 +23,7 @@ define_universal_commands!(
             .sound_context
             .effect_mut(self.handle)
             .as_reflect_mut()
-    }
+    },
 );
 
 #[derive(Debug)]

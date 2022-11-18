@@ -81,7 +81,7 @@ pub struct UpdateContext<'a> {
     /// A time that have passed since last update call.
     pub dt: f32,
     /// A reference to a pool with nodes from a scene graph.
-    pub nodes: &'a NodePool,
+    pub nodes: &'a mut NodePool,
     /// A mutable reference to 3D physics world.
     pub physics: &'a mut graph::physics::PhysicsWorld,
     /// A mutable reference to 2D physics world.

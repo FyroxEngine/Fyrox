@@ -5,8 +5,8 @@ use crate::{
     },
     utils::fetch_node_center,
 };
+use fyrox::animation::machine::Transition;
 use fyrox::{
-    animation::machine::transition::TransitionDefinition,
     core::{algebra::Vector2, color::Color, color::Hsv, math::Rect, pool::Handle},
     gui::{
         brush::Brush,
@@ -41,15 +41,15 @@ impl TransitionMessage {
 }
 
 #[derive(Clone, Debug)]
-pub struct Transition {
+pub struct TransitionView {
     widget: Widget,
     pub segment: Segment,
-    pub model_handle: Handle<TransitionDefinition>,
+    pub model_handle: Handle<Transition>,
     selectable: Selectable,
     activity_factor: f32,
 }
 
-impl Transition {
+impl TransitionView {
     fn handle_selection_change(&self, ui: &UserInterface) {
         ui.send_message(WidgetMessage::foreground(
             self.handle(),
@@ -63,7 +63,7 @@ impl Transition {
     }
 }
 
-define_widget_deref!(Transition);
+define_widget_deref!(TransitionView);
 
 pub fn draw_transition(
     drawing_context: &mut DrawingContext,
@@ -89,7 +89,7 @@ pub fn draw_transition(
     drawing_context.commit(clip_bounds, brush, CommandTexture::None, None);
 }
 
-impl Control for Transition {
+impl Control for TransitionView {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
             Some(self)
@@ -178,12 +178,8 @@ impl TransitionBuilder {
         self
     }
 
-    pub fn build(
-        self,
-        model_handle: Handle<TransitionDefinition>,
-        ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
-        let transition = Transition {
+    pub fn build(self, model_handle: Handle<Transition>, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let transition = TransitionView {
             widget: self
                 .widget_builder
                 .with_foreground(NORMAL_BRUSH.clone())

@@ -4,7 +4,6 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use fyrox::{
-    animation::Animation,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
@@ -69,7 +68,6 @@ fn create_ui(engine: &mut Engine) -> Interface {
 struct GameScene {
     scene: Scene,
     model_handle: Handle<Node>,
-    walk_animation: Handle<Animation>,
 }
 
 async fn create_scene(resource_manager: ResourceManager) -> GameScene {
@@ -91,22 +89,18 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         .await
         .unwrap();
 
-    let model_handle = model_resource.instantiate_geometry(&mut scene);
+    let model_handle = model_resource.instantiate(&mut scene);
 
     let walk_animation_resource = resource_manager
         .request_model("examples/data/mutant/walk.fbx")
         .await
         .unwrap();
 
-    let walk_animation = *walk_animation_resource
-        .retarget_animations(model_handle, &mut scene)
-        .get(0)
-        .unwrap();
+    walk_animation_resource.retarget_animations(model_handle, &mut scene.graph);
 
     GameScene {
         scene,
         model_handle,
-        walk_animation,
     }
 }
 
@@ -134,7 +128,6 @@ fn main() {
     let GameScene {
         scene,
         model_handle,
-        walk_animation,
     } = fyrox::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     let inspector_context = InspectorContext::from_object(
@@ -178,18 +171,6 @@ fn main() {
                     // ************************
                     // Put your game logic here.
                     // ************************
-
-                    // Use stored scene handle to borrow a mutable reference of scene in
-                    // engine.
-                    let scene = &mut engine.scenes[scene_handle];
-
-                    // Our animation must be applied to scene explicitly, otherwise
-                    // it will have no effect.
-                    scene
-                        .animations
-                        .get_mut(walk_animation)
-                        .pose()
-                        .apply(&mut scene.graph);
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
                     engine.user_interface.send_message(TextMessage::text(

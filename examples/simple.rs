@@ -7,10 +7,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::material::SharedMaterial;
-use fyrox::scene::mesh::surface::SurfaceSharedData;
 use fyrox::{
-    animation::Animation,
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
@@ -26,13 +23,13 @@ use fyrox::{
         widget::WidgetBuilder,
         UiNode,
     },
-    material::{shader::SamplerFallback, Material, PropertyValue},
+    material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
     plugin::{Plugin, PluginConstructor, PluginContext},
     scene::{
         base::BaseBuilder,
         light::{point::PointLightBuilder, BaseLightBuilder},
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder,
         },
         node::Node,
@@ -44,7 +41,6 @@ use fyrox::{
 struct GameSceneLoader {
     scene: Scene,
     model_handle: Handle<Node>,
-    walk_animation: Handle<Animation>,
 }
 
 impl GameSceneLoader {
@@ -87,7 +83,7 @@ impl GameSceneLoader {
 
         // Instantiate model on scene - but only geometry, without any animations.
         // Instantiation is a process of embedding model resource data in desired scene.
-        let model_handle = model_resource.unwrap().instantiate_geometry(&mut scene);
+        let model_handle = model_resource.unwrap().instantiate(&mut scene);
 
         // Now we have whole sub-graph instantiated, we can start modifying model instance.
         scene.graph[model_handle]
@@ -101,11 +97,9 @@ impl GameSceneLoader {
         // Why? Because animation in *resource* uses information about *resource* bones,
         // not model instance bones, retarget_animations maps animations of each bone on
         // model instance so animation will know about nodes it should operate on.
-        let walk_animation = *walk_animation_resource
+        walk_animation_resource
             .unwrap()
-            .retarget_animations(model_handle, &mut scene)
-            .get(0)
-            .unwrap();
+            .retarget_animations(model_handle, &mut scene.graph);
 
         let mut material = Material::standard();
 
@@ -139,7 +133,6 @@ impl GameSceneLoader {
         Self {
             scene,
             model_handle,
-            walk_animation,
         }
     }
 }
@@ -152,7 +145,6 @@ struct InputController {
 struct Game {
     scene: Handle<Scene>,
     model_handle: Handle<Node>,
-    walk_animation: Handle<Animation>,
     input_controller: InputController,
     debug_text: Handle<UiNode>,
     model_angle: f32,
@@ -161,14 +153,6 @@ struct Game {
 impl Plugin for Game {
     fn update(&mut self, context: &mut PluginContext, _control_flow: &mut ControlFlow) {
         let scene = &mut context.scenes[self.scene];
-
-        // Our animation must be applied to scene explicitly, otherwise
-        // it will have no effect.
-        scene
-            .animations
-            .get_mut(self.walk_animation)
-            .pose()
-            .apply(&mut scene.graph);
 
         // Rotate model according to input controller state
         if self.input_controller.rotate_left {
@@ -237,7 +221,6 @@ impl PluginConstructor for GameConstructor {
                 .build(&mut context.user_interface.build_ctx()),
             scene: context.scenes.add(scene.scene),
             model_handle: scene.model_handle,
-            walk_animation: scene.walk_animation,
             // Create input controller - it will hold information about needed actions.
             input_controller: InputController {
                 rotate_left: false,

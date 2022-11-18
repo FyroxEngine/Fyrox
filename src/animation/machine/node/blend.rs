@@ -1,8 +1,7 @@
 use crate::{
     animation::{
         machine::{
-            node::{BasePoseNode, BasePoseNodeDefinition, PoseNodeDefinition},
-            EvaluatePose, Parameter, ParameterContainer, PoseNode, PoseWeight,
+            node::BasePoseNode, EvaluatePose, Parameter, ParameterContainer, PoseNode, PoseWeight,
         },
         AnimationContainer, AnimationPose,
     },
@@ -18,17 +17,11 @@ use std::{
 };
 
 /// Weighted proxy for animation pose.
-#[derive(Default, Debug, Visit, Clone)]
+#[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct BlendPose {
     pub weight: PoseWeight,
-    pub pose_source: Handle<PoseNode>,
-}
-
-#[derive(Default, Debug, Visit, Clone, Reflect)]
-pub struct BlendPoseDefinition {
-    pub weight: PoseWeight,
     #[reflect(hidden)]
-    pub pose_source: Handle<PoseNodeDefinition>,
+    pub pose_source: Handle<PoseNode>,
 }
 
 impl BlendPose {
@@ -68,12 +61,13 @@ impl BlendPose {
 /// you can dynamically change them in runtime. In our example we can decrease weight
 /// of hit animation over time and increase weight of run animation, so character will
 /// recover from his wounds.
-#[derive(Default, Debug, Visit, Clone)]
+#[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct BlendAnimations {
     pub base: BasePoseNode,
     pub pose_sources: Vec<BlendPose>,
     #[visit(skip)]
-    pub(crate) output_pose: RefCell<AnimationPose>,
+    #[reflect(hidden)]
+    pub output_pose: RefCell<AnimationPose>,
 }
 
 impl Deref for BlendAnimations {
@@ -90,32 +84,6 @@ impl DerefMut for BlendAnimations {
     }
 }
 
-#[derive(Default, Debug, Visit, Clone, Reflect)]
-pub struct BlendAnimationsDefinition {
-    pub base: BasePoseNodeDefinition,
-    pub pose_sources: Vec<BlendPoseDefinition>,
-}
-
-impl BlendAnimationsDefinition {
-    pub fn children(&self) -> Vec<Handle<PoseNodeDefinition>> {
-        self.pose_sources.iter().map(|s| s.pose_source).collect()
-    }
-}
-
-impl Deref for BlendAnimationsDefinition {
-    type Target = BasePoseNodeDefinition;
-
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
-}
-
-impl DerefMut for BlendAnimationsDefinition {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base
-    }
-}
-
 impl BlendAnimations {
     /// Creates new animation blend node with given poses.
     pub fn new(poses: Vec<BlendPose>) -> Self {
@@ -124,6 +92,10 @@ impl BlendAnimations {
             pose_sources: poses,
             output_pose: Default::default(),
         }
+    }
+
+    pub fn children(&self) -> Vec<Handle<PoseNode>> {
+        self.pose_sources.iter().map(|s| s.pose_source).collect()
     }
 }
 
@@ -165,28 +137,23 @@ impl EvaluatePose for BlendAnimations {
     }
 }
 
-#[derive(Default, Debug, Visit, Clone)]
+#[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct IndexedBlendInput {
     pub blend_time: f32,
+    #[reflect(hidden)]
     pub pose_source: Handle<PoseNode>,
 }
 
-#[derive(Default, Debug, Visit, Clone, Reflect)]
-pub struct IndexedBlendInputDefinition {
-    pub blend_time: f32,
-    #[reflect(hidden)]
-    pub pose_source: Handle<PoseNodeDefinition>,
-}
-
-#[derive(Default, Debug, Visit, Clone)]
+#[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct BlendAnimationsByIndex {
     pub base: BasePoseNode,
-    pub(crate) index_parameter: String,
+    pub index_parameter: String,
     pub inputs: Vec<IndexedBlendInput>,
-    pub(crate) prev_index: Cell<Option<u32>>,
-    pub(crate) blend_time: Cell<f32>,
+    pub prev_index: Cell<Option<u32>>,
+    pub blend_time: Cell<f32>,
     #[visit(skip)]
-    pub(crate) output_pose: RefCell<AnimationPose>,
+    #[reflect(hidden)]
+    pub output_pose: RefCell<AnimationPose>,
 }
 
 impl Deref for BlendAnimationsByIndex {
@@ -203,33 +170,6 @@ impl DerefMut for BlendAnimationsByIndex {
     }
 }
 
-#[derive(Default, Debug, Visit, Clone, Reflect)]
-pub struct BlendAnimationsByIndexDefinition {
-    pub base: BasePoseNodeDefinition,
-    pub index_parameter: String,
-    pub inputs: Vec<IndexedBlendInputDefinition>,
-}
-
-impl BlendAnimationsByIndexDefinition {
-    pub fn children(&self) -> Vec<Handle<PoseNodeDefinition>> {
-        self.inputs.iter().map(|s| s.pose_source).collect()
-    }
-}
-
-impl Deref for BlendAnimationsByIndexDefinition {
-    type Target = BasePoseNodeDefinition;
-
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
-}
-
-impl DerefMut for BlendAnimationsByIndexDefinition {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base
-    }
-}
-
 impl BlendAnimationsByIndex {
     pub fn new(index_parameter: String, inputs: Vec<IndexedBlendInput>) -> Self {
         Self {
@@ -240,6 +180,10 @@ impl BlendAnimationsByIndex {
             prev_index: Cell::new(None),
             blend_time: Cell::new(0.0),
         }
+    }
+
+    pub fn children(&self) -> Vec<Handle<PoseNode>> {
+        self.inputs.iter().map(|s| s.pose_source).collect()
     }
 }
 

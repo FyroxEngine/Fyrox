@@ -1,20 +1,27 @@
 use crate::{
-    absm::command::{AbsmCommand, AbsmCommandTrait, AbsmEditorContext},
+    absm::command::fetch_machine,
+    command::Command,
     define_universal_commands,
+    scene::commands::{SceneCommand, SceneContext},
 };
 use fyrox::{
-    animation::machine::state::StateDefinition,
+    animation::machine::state::State,
     core::{pool::Handle, reflect::ResolvePath},
+    scene::node::Node,
 };
 
 define_universal_commands!(
     make_set_state_property_command,
-    AbsmCommandTrait,
-    AbsmCommand,
-    AbsmEditorContext,
-    Handle<StateDefinition>,
+    Command,
+    SceneCommand,
+    SceneContext,
+    Handle<State>,
     ctx,
     handle,
     self,
-    { &mut ctx.resource.absm_definition.states[self.handle] }
+    {
+        let machine = fetch_machine(ctx, self.node_handle);
+        &mut machine.states_mut()[self.handle]
+    },
+    node_handle: Handle<Node>
 );

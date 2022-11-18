@@ -8,7 +8,6 @@
 pub mod shared;
 
 use fyrox::{
-    animation::Animation,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
@@ -90,7 +89,6 @@ fn create_ui(ctx: &mut BuildContext, screen_size: Vector2<f32>) -> Interface {
 struct SceneLoader {
     scene: Scene,
     model_handle: Handle<Node>,
-    walk_animation: Handle<Animation>,
 }
 
 impl SceneLoader {
@@ -134,7 +132,7 @@ impl SceneLoader {
 
         // Instantiate model on scene - but only geometry, without any animations.
         // Instantiation is a process of embedding model resource data in desired scene.
-        let model_handle = model_resource.instantiate_geometry(&mut scene);
+        let model_handle = model_resource.instantiate(&mut scene);
 
         // Now we have whole sub-graph instantiated, we can start modifying model instance.
         scene.graph[model_handle]
@@ -158,17 +156,13 @@ impl SceneLoader {
         // Why? Because animation in *resource* uses information about *resource* bones,
         // not model instance bones, retarget_animations maps animations of each bone on
         // model instance so animation will know about nodes it should operate on.
-        let walk_animation = *walk_animation_resource
-            .retarget_animations(model_handle, &mut scene)
-            .get(0)
-            .unwrap();
+        walk_animation_resource.retarget_animations(model_handle, &mut scene.graph);
 
         context.lock().unwrap().report_progress(1.0, "Done");
 
         context.lock().unwrap().data = Some(Self {
             scene,
             model_handle,
-            walk_animation,
         });
     }
 }
@@ -214,7 +208,6 @@ struct InputController {
 struct GameScene {
     scene: Handle<Scene>,
     model_handle: Handle<Node>,
-    walk_animation: Handle<Animation>,
 }
 
 struct Game {
@@ -235,7 +228,6 @@ impl Plugin for Game {
                 self.game_scene = Some(GameScene {
                     scene: context.scenes.add(loader.scene),
                     model_handle: loader.model_handle,
-                    walk_animation: loader.walk_animation,
                 });
 
                 // Once scene is loaded, we should hide progress bar and text.
@@ -279,14 +271,6 @@ impl Plugin for Game {
             // Use stored scene handle to borrow a mutable reference of scene in
             // engine.
             let scene = &mut context.scenes[game_scene.scene];
-
-            // Our animation must be applied to scene explicitly, otherwise
-            // it will have no effect.
-            scene
-                .animations
-                .get_mut(game_scene.walk_animation)
-                .pose()
-                .apply(&mut scene.graph);
 
             // Rotate model according to input controller state.
             if self.input_controller.rotate_left {

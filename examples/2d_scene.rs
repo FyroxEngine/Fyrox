@@ -48,7 +48,7 @@ impl SceneLoader {
         // Load scene.
         block_on(resource_manager.request_model("examples/data/2d/scene.rgs"))
             .unwrap()
-            .instantiate_geometry(&mut scene);
+            .instantiate(&mut scene);
 
         Self { scene, camera }
     }

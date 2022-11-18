@@ -1,6 +1,11 @@
-use crate::scene::commands::effect::make_set_effect_property_command;
-use crate::utils::window_content;
 use crate::{
+    absm::{
+        command::{
+            pose::make_set_pose_property_command, state::make_set_state_property_command,
+            transition::make_set_transition_property_command,
+        },
+        selection::SelectedEntity,
+    },
     inspector::{
         editors::make_property_editors_container,
         handlers::{
@@ -8,13 +13,14 @@ use crate::{
             sound_context::handle_sound_context_property_changed,
         },
     },
-    scene::{EditorScene, Selection},
+    scene::{commands::effect::make_set_effect_property_command, EditorScene, Selection},
+    utils::window_content,
     Brush, CommandGroup, GameEngine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
-use fyrox::engine::SerializationContext;
 use fyrox::{
+    animation::Animation,
     core::{color::Color, pool::Handle, reflect::prelude::*},
-    engine::resource_manager::ResourceManager,
+    engine::{resource_manager::ResourceManager, SerializationContext},
     gui::{
         grid::{Column, GridBuilder, Row},
         inspector::{
@@ -28,6 +34,10 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
+    scene::{
+        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
+        graph::Graph,
+    },
     utils::log::{Log, MessageKind},
 };
 use std::{
@@ -39,9 +49,26 @@ use std::{
 pub mod editors;
 pub mod handlers;
 
+pub struct AnimationDefinition {
+    name: String,
+    handle: Handle<Animation>,
+}
+
 pub struct EditorEnvironment {
     pub resource_manager: ResourceManager,
     pub serialization_context: Arc<SerializationContext>,
+    /// List of animations definitions (name + handle). It is filled only if current selection
+    /// is `AnimationBlendingStateMachine`. The list is filled using ABSM's animation player.
+    pub available_animations: Vec<AnimationDefinition>,
+    pub sender: Sender<Message>,
+}
+
+impl EditorEnvironment {
+    pub fn try_get_from(environment: &Option<Rc<dyn InspectorEnvironment>>) -> Option<&Self> {
+        environment
+            .as_ref()
+            .and_then(|e| e.as_any().downcast_ref::<Self>())
+    }
 }
 
 impl InspectorEnvironment for EditorEnvironment {
@@ -192,6 +219,32 @@ impl Inspector {
                         .sound_context
                         .try_get_effect(selection.effects[0])
                         .map(|e| e as &dyn Reflect),
+                    Selection::Absm(selection) => {
+                        if let Some(node) = scene
+                            .graph
+                            .try_get(selection.absm_node_handle)
+                            .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
+                        {
+                            if let Some(first) = selection.entities.first() {
+                                let machine = node.machine();
+                                match first {
+                                    SelectedEntity::Transition(transition) => {
+                                        Some(&machine.transitions()[*transition] as &dyn Reflect)
+                                    }
+                                    SelectedEntity::State(state) => {
+                                        Some(&machine.states()[*state] as &dyn Reflect)
+                                    }
+                                    SelectedEntity::PoseNode(pose) => {
+                                        Some(&machine.nodes()[*pose] as &dyn Reflect)
+                                    }
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
                     _ => None,
                 };
 
@@ -210,10 +263,35 @@ impl Inspector {
         ui: &mut UserInterface,
         resource_manager: ResourceManager,
         serialization_context: Arc<SerializationContext>,
+        graph: &Graph,
+        selection: &Selection,
+        sender: &Sender<Message>,
     ) {
         let environment = Rc::new(EditorEnvironment {
             resource_manager,
             serialization_context,
+            available_animations: if let Selection::Absm(absm_selection) = selection {
+                if let Some(animation_player) = graph
+                    .try_get(absm_selection.absm_node_handle)
+                    .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
+                    .and_then(|absm| graph.try_get(absm.animation_player()))
+                    .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+                {
+                    animation_player
+                        .animations()
+                        .pair_iter()
+                        .map(|(handle, anim)| AnimationDefinition {
+                            name: anim.name().to_string(),
+                            handle,
+                        })
+                        .collect()
+                } else {
+                    Default::default()
+                }
+            } else {
+                Default::default()
+            },
+            sender: sender.clone(),
         });
 
         let context = InspectorContext::from_object(
@@ -239,6 +317,7 @@ impl Inspector {
         message: &Message,
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
+        sender: &Sender<Message>,
     ) {
         if let Message::SelectionChanged = message {
             let scene = &engine.scenes[editor_scene.scene];
@@ -263,6 +342,32 @@ impl Inspector {
                         .sound_context
                         .try_get_effect(selection.effects[0])
                         .map(|e| e as &dyn Reflect),
+                    Selection::Absm(selection) => {
+                        if let Some(node) = scene
+                            .graph
+                            .try_get(selection.absm_node_handle)
+                            .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
+                        {
+                            if let Some(first) = selection.entities.first() {
+                                let machine = node.machine();
+                                match first {
+                                    SelectedEntity::Transition(transition) => {
+                                        Some(&machine.transitions()[*transition] as &dyn Reflect)
+                                    }
+                                    SelectedEntity::State(state) => {
+                                        Some(&machine.states()[*state] as &dyn Reflect)
+                                    }
+                                    SelectedEntity::PoseNode(pose) => {
+                                        Some(&machine.nodes()[*pose] as &dyn Reflect)
+                                    }
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
                     _ => None,
                 };
 
@@ -272,6 +377,9 @@ impl Inspector {
                         &mut engine.user_interface,
                         engine.resource_manager.clone(),
                         engine.serialization_context.clone(),
+                        &scene.graph,
+                        &editor_scene.selection,
+                        sender,
                     )
                 }
             } else {
@@ -335,6 +443,44 @@ impl Inspector {
                         .iter()
                         .filter_map(|&handle| make_set_effect_property_command(handle, args))
                         .collect::<Vec<_>>(),
+                    Selection::Absm(selection) => {
+                        if scene
+                            .graph
+                            .try_get(selection.absm_node_handle)
+                            .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
+                            .is_some()
+                        {
+                            selection
+                                .entities
+                                .iter()
+                                .filter_map(|ent| match ent {
+                                    SelectedEntity::Transition(transition) => {
+                                        make_set_transition_property_command(
+                                            *transition,
+                                            args,
+                                            selection.absm_node_handle,
+                                        )
+                                    }
+                                    SelectedEntity::State(state) => {
+                                        make_set_state_property_command(
+                                            *state,
+                                            args,
+                                            selection.absm_node_handle,
+                                        )
+                                    }
+                                    SelectedEntity::PoseNode(pose) => {
+                                        make_set_pose_property_command(
+                                            *pose,
+                                            args,
+                                            selection.absm_node_handle,
+                                        )
+                                    }
+                                })
+                                .collect()
+                        } else {
+                            vec![]
+                        }
+                    }
                     _ => vec![],
                 };
 

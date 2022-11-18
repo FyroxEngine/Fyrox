@@ -4,6 +4,7 @@ use crate::{
     core::{parking_lot::Mutex, uuid::Uuid},
     scene::{
         self,
+        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
         camera::Camera,
         decal::Decal,
         dim2::{self, rectangle::Rectangle},
@@ -52,6 +53,8 @@ impl NodeConstructorContainer {
         container.add::<scene::rigidbody::RigidBody>();
         container.add::<Sprite>();
         container.add::<Terrain>();
+        container.add::<AnimationPlayer>();
+        container.add::<AnimationBlendingStateMachine>();
 
         container
     }

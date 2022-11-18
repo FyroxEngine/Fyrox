@@ -5,7 +5,7 @@ use crate::{
 use std::collections::VecDeque;
 
 /// Specific machine event.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     /// Occurs when enter some state. See module docs for example.
     StateEnter(Handle<State>),
@@ -20,7 +20,7 @@ pub enum Event {
     ActiveTransitionChanged(Handle<Transition>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LimitedEventQueue {
     queue: VecDeque<Event>,
     limit: u32,

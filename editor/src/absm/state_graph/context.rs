@@ -2,18 +2,22 @@ use crate::{
     absm::{
         canvas::{AbsmCanvasMessage, Mode},
         command::{
-            AbsmCommand, AddStateCommand, ChangeSelectionCommand, CommandGroup, DeleteStateCommand,
-            DeleteTransitionCommand, SetMachineEntryStateCommand,
+            AddStateCommand, DeleteStateCommand, DeleteTransitionCommand,
+            SetMachineEntryStateCommand,
         },
-        message::MessageSender,
         node::AbsmNode,
-        transition::Transition,
-        AbsmDataModel, SelectedEntity,
+        selection::SelectedEntity,
+        transition::TransitionView,
     },
     menu::create_menu_item,
+    scene::{
+        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        EditorScene, Selection,
+    },
+    Message,
 };
 use fyrox::{
-    animation::machine::state::StateDefinition,
+    animation::machine::State,
     core::pool::Handle,
     gui::{
         menu::MenuItemMessage,
@@ -23,7 +27,9 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, UiNode, UserInterface,
     },
+    scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
 };
+use std::sync::mpsc::Sender;
 
 pub struct CanvasContextMenu {
     create_state: Handle<UiNode>,
@@ -55,19 +61,25 @@ impl CanvasContextMenu {
 
     pub fn handle_ui_message(
         &mut self,
-        sender: &MessageSender,
+        sender: &Sender<Message>,
         message: &UiMessage,
         ui: &mut UserInterface,
+        absm_node_handle: Handle<Node>,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.create_state {
                 let screen_position = ui.node(self.menu).screen_position();
 
-                sender.do_command(AddStateCommand::new(StateDefinition {
-                    position: ui.node(self.canvas).screen_to_local(screen_position),
-                    name: "New State".to_string(),
-                    root: Default::default(),
-                }));
+                sender
+                    .send(Message::do_scene_command(AddStateCommand::new(
+                        absm_node_handle,
+                        State {
+                            position: ui.node(self.canvas).screen_to_local(screen_position),
+                            name: "New State".to_string(),
+                            root: Default::default(),
+                        },
+                    )))
+                    .unwrap();
             }
         }
     }
@@ -123,9 +135,12 @@ impl NodeContextMenu {
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
-        data_model: &AbsmDataModel,
-        sender: &MessageSender,
+        sender: &Sender<Message>,
+        absm_node_handle: Handle<Node>,
+        absm_node: &AnimationBlendingStateMachine,
+        editor_scene: &EditorScene,
     ) {
+        let machine = absm_node.machine();
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.create_transition {
                 ui.send_message(AbsmCanvasMessage::switch_mode(
@@ -138,63 +153,67 @@ impl NodeContextMenu {
                     },
                 ))
             } else if message.destination == self.remove {
-                let states_to_remove = data_model
-                    .selection
-                    .iter()
-                    .cloned()
-                    .filter_map(|e| {
-                        if let SelectedEntity::State(handle) = e {
-                            Some(handle)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>();
+                let states_to_remove =
+                    if let Selection::Absm(ref selection) = editor_scene.selection {
+                        selection
+                            .entities
+                            .iter()
+                            .cloned()
+                            .filter_map(|e| {
+                                if let SelectedEntity::State(handle) = e {
+                                    Some(handle)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                    } else {
+                        Default::default()
+                    };
 
                 // Gather every transition that leads from/to any of states to remove.
-                let transitions_to_remove = data_model
-                    .resource
-                    .data_ref()
-                    .absm_definition
-                    .transitions
-                    .pair_iter()
-                    .filter_map(|(handle, transition)| {
-                        if states_to_remove.iter().cloned().any(|state_to_remove| {
-                            state_to_remove == transition.source
-                                || state_to_remove == transition.dest
-                        }) {
-                            Some(handle)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>();
+                let transitions_to_remove =
+                    machine
+                        .transitions()
+                        .pair_iter()
+                        .filter_map(|(handle, transition)| {
+                            if states_to_remove.iter().cloned().any(|state_to_remove| {
+                                state_to_remove == transition.source()
+                                    || state_to_remove == transition.dest()
+                            }) {
+                                Some(handle)
+                            } else {
+                                None
+                            }
+                        });
 
-                let mut group = vec![AbsmCommand::new(ChangeSelectionCommand {
-                    selection: vec![],
-                })];
+                let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
+                    Default::default(),
+                    editor_scene.selection.clone(),
+                ))];
 
-                group.extend(
-                    transitions_to_remove.into_iter().map(|transition| {
-                        AbsmCommand::new(DeleteTransitionCommand::new(transition))
-                    }),
-                );
+                group.extend(transitions_to_remove.map(|transition| {
+                    SceneCommand::new(DeleteTransitionCommand::new(absm_node_handle, transition))
+                }));
 
-                group.extend(
-                    states_to_remove
-                        .into_iter()
-                        .map(|state| AbsmCommand::new(DeleteStateCommand::new(state))),
-                );
+                group.extend(states_to_remove.into_iter().map(|state| {
+                    SceneCommand::new(DeleteStateCommand::new(absm_node_handle, state))
+                }));
 
-                sender.do_command(CommandGroup::from(group));
+                sender
+                    .send(Message::do_scene_command(CommandGroup::from(group)))
+                    .unwrap();
             } else if message.destination() == self.set_as_entry_state {
-                sender.do_command(SetMachineEntryStateCommand {
-                    entry: ui
-                        .node(self.placement_target)
-                        .query_component::<AbsmNode<StateDefinition>>()
-                        .unwrap()
-                        .model_handle,
-                });
+                sender
+                    .send(Message::do_scene_command(SetMachineEntryStateCommand {
+                        node_handle: absm_node_handle,
+                        entry: ui
+                            .node(self.placement_target)
+                            .query_component::<AbsmNode<State>>()
+                            .unwrap()
+                            .model_handle,
+                    }))
+                    .unwrap();
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu {
@@ -234,21 +253,31 @@ impl TransitionContextMenu {
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
-        sender: &MessageSender,
+        sender: &Sender<Message>,
+        absm_node_handle: Handle<Node>,
+        editor_scene: &EditorScene,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination == self.remove {
                 let transition_ref = ui
                     .node(self.placement_target)
-                    .query_component::<Transition>()
+                    .query_component::<TransitionView>()
                     .unwrap();
 
                 let group = vec![
-                    AbsmCommand::new(ChangeSelectionCommand { selection: vec![] }),
-                    AbsmCommand::new(DeleteTransitionCommand::new(transition_ref.model_handle)),
+                    SceneCommand::new(ChangeSelectionCommand::new(
+                        Default::default(),
+                        editor_scene.selection.clone(),
+                    )),
+                    SceneCommand::new(DeleteTransitionCommand::new(
+                        absm_node_handle,
+                        transition_ref.model_handle,
+                    )),
                 ];
 
-                sender.do_command(CommandGroup::from(group));
+                sender
+                    .send(Message::do_scene_command(CommandGroup::from(group)))
+                    .unwrap();
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu {
