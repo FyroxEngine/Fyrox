@@ -29,7 +29,7 @@ use fyrox::{
         variable::InheritableVariable,
     },
     engine::Engine,
-    fxhash::FxHashSet,
+    fxhash::{FxHashMap, FxHashSet},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
@@ -37,15 +37,15 @@ use fyrox::{
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
-        tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
+        tree::{Tree, TreeBuilder, TreeMessage, TreeRootBuilder, TreeRootMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    scene::node::Node,
+    scene::{graph::Graph, node::Node},
     utils::log::Log,
 };
-use std::{any::TypeId, cmp::Ordering, rc::Rc, sync::mpsc::Sender};
+use std::{any::TypeId, cmp::Ordering, collections::hash_map::Entry, rc::Rc, sync::mpsc::Sender};
 
 pub struct TrackList {
     pub panel: Handle<UiNode>,
@@ -54,11 +54,13 @@ pub struct TrackList {
     node_selector: Handle<UiNode>,
     property_selector: Handle<UiNode>,
     selected_node: Handle<Node>,
+    group_views: FxHashMap<Handle<Node>, Handle<UiNode>>,
     track_views: Vec<Handle<UiNode>>,
 }
 
 struct TrackViewData {
     id: Uuid,
+    target: Handle<Node>,
 }
 
 struct CurveViewData {
@@ -128,6 +130,7 @@ impl TrackList {
             node_selector: Default::default(),
             property_selector: Default::default(),
             selected_node: Default::default(),
+            group_views: Default::default(),
             track_views: Default::default(),
         }
     }
@@ -347,7 +350,7 @@ impl TrackList {
         }
     }
 
-    pub fn sync_to_model(&mut self, animation: &Animation, ui: &mut UserInterface) {
+    pub fn sync_to_model(&mut self, animation: &Animation, graph: &Graph, ui: &mut UserInterface) {
         match animation.tracks().len().cmp(&self.track_views.len()) {
             Ordering::Less => {
                 for track_view in self.track_views.clone().iter() {
@@ -370,6 +373,24 @@ impl TrackList {
                                 .position(|v| *v == *track_view)
                                 .unwrap(),
                         );
+
+                        // Remove group if it is empty.
+                        if let Some(group) = self.group_views.get(&track_view_data.target) {
+                            if ui
+                                .node(*group)
+                                .query_component::<Tree>()
+                                .unwrap()
+                                .items
+                                .len()
+                                <= 1
+                            {
+                                ui.send_message(TreeRootMessage::remove_item(
+                                    self.tree_root,
+                                    MessageDirection::ToWidget,
+                                    *group,
+                                ));
+                            }
+                        }
                     }
                 }
             }
@@ -384,12 +405,43 @@ impl TrackList {
                         .map(|v| ui.node(*v))
                         .all(|v| v.user_data_ref::<TrackViewData>().unwrap().id != model_track.id())
                     {
+                        let parent_group = match self.group_views.entry(model_track.target()) {
+                            Entry::Occupied(entry) => *entry.get(),
+                            Entry::Vacant(entry) => {
+                                let ctx = &mut ui.build_ctx();
+                                let group = TreeBuilder::new(WidgetBuilder::new())
+                                    .with_content(
+                                        TextBuilder::new(WidgetBuilder::new())
+                                            .with_text(format!(
+                                                "{} ({}:{})",
+                                                graph
+                                                    .try_get(model_track.target())
+                                                    .map(|n| n.name())
+                                                    .unwrap_or_default(),
+                                                model_track.target().index(),
+                                                model_track.target().generation()
+                                            ))
+                                            .build(ctx),
+                                    )
+                                    .build(ctx);
+
+                                ui.send_message(TreeRootMessage::add_item(
+                                    self.tree_root,
+                                    MessageDirection::ToWidget,
+                                    group,
+                                ));
+
+                                *entry.insert(group)
+                            }
+                        };
+
                         let ctx = &mut ui.build_ctx();
 
                         let track_view =
                             TreeBuilder::new(WidgetBuilder::new().with_user_data(Rc::new(
                                 TrackViewData {
                                     id: model_track.id(),
+                                    target: model_track.target(),
                                 },
                             )))
                             .with_items(
@@ -422,8 +474,8 @@ impl TrackList {
                             )
                             .build(ctx);
 
-                        ui.send_message(TreeRootMessage::add_item(
-                            self.tree_root,
+                        ui.send_message(TreeMessage::add_item(
+                            parent_group,
                             MessageDirection::ToWidget,
                             track_view,
                         ));

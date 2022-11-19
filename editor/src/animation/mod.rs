@@ -180,7 +180,7 @@ impl AnimationEditor {
 
             if let Some(animation) = animation_player.animations().try_get(selection.animation) {
                 self.track_list
-                    .sync_to_model(animation, &mut engine.user_interface);
+                    .sync_to_model(animation, &scene.graph, &mut engine.user_interface);
 
                 // TODO: Support multi-selection.
                 if let Some(SelectedEntity::Curve(selected_curve_id)) = selection.entities.first() {
