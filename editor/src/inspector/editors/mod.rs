@@ -2,6 +2,7 @@ use crate::{
     inspector::editors::{
         animation::{
             AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
+            MachinePropertyEditorDefinition,
         },
         handle::NodeHandlePropertyEditorDefinition,
         material::MaterialPropertyEditorDefinition,
@@ -17,8 +18,8 @@ use fyrox::{
     animation::{
         machine::{
             node::{play::TimeSlice, BasePoseNode},
-            BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, PlayAnimation,
-            PoseWeight,
+            BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, Machine,
+            PlayAnimation, PoseWeight,
         },
         AnimationContainer,
     },
@@ -304,6 +305,9 @@ pub fn make_property_editors_container(
 
     container.insert(AnimationContainerPropertyEditorDefinition);
     container.insert(InheritablePropertyEditorDefinition::<AnimationContainer>::new());
+
+    container.insert(MachinePropertyEditorDefinition);
+    container.insert(InheritablePropertyEditorDefinition::<Machine>::new());
 
     container
 }

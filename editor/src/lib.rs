@@ -218,6 +218,7 @@ pub enum Message {
     },
     OpenSettings,
     OpenAnimationEditor,
+    OpenAbsmEditor,
     OpenMaterialEditor(SharedMaterial),
     ShowInAssetBrowser(PathBuf),
     SetWorldViewerFilter(String),
@@ -1856,6 +1857,7 @@ impl Editor {
                     Message::OpenAnimationEditor => {
                         self.animation_editor.open(&self.engine.user_interface);
                     }
+                    Message::OpenAbsmEditor => self.absm_editor.open(&self.engine.user_interface),
                 }
             }
 

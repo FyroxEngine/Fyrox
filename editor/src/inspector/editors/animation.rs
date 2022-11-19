@@ -2,7 +2,7 @@
 
 use crate::{gui::make_dropdown_list_option_universal, inspector::EditorEnvironment, Message};
 use fyrox::{
-    animation::{Animation, AnimationContainer},
+    animation::{machine::Machine, Animation, AnimationContainer},
     core::pool::Handle,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
@@ -142,6 +142,44 @@ impl PropertyEditorDefinition for AnimationContainerPropertyEditorDefinition {
                         .sender
                         .send(Message::OpenAnimationEditor)
                         .unwrap();
+                }
+            }
+        }
+        None
+    }
+}
+
+#[derive(Debug)]
+pub struct MachinePropertyEditorDefinition;
+
+impl PropertyEditorDefinition for MachinePropertyEditorDefinition {
+    fn value_type_id(&self) -> TypeId {
+        TypeId::of::<Machine>()
+    }
+
+    fn create_instance(
+        &self,
+        ctx: PropertyEditorBuildContext,
+    ) -> Result<PropertyEditorInstance, InspectorError> {
+        Ok(PropertyEditorInstance::Simple {
+            editor: ButtonBuilder::new(WidgetBuilder::new())
+                .with_text("Open ABSM Editor...")
+                .build(ctx.build_context),
+        })
+    }
+
+    fn create_message(
+        &self,
+        _ctx: PropertyEditorMessageContext,
+    ) -> Result<Option<UiMessage>, InspectorError> {
+        Ok(None)
+    }
+
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if ctx.message.direction() == MessageDirection::FromWidget {
+            if let Some(ButtonMessage::Click) = ctx.message.data() {
+                if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
+                    environment.sender.send(Message::OpenAbsmEditor).unwrap();
                 }
             }
         }
