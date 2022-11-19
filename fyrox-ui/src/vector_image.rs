@@ -1,5 +1,5 @@
 use crate::{
-    core::{algebra::Vector2, color::Color, math::Vector2Ext, pool::Handle},
+    core::{algebra::Vector2, color::Color, math::Rect, math::Vector2Ext, pool::Handle},
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
@@ -24,6 +24,13 @@ pub enum Primitive {
         center: Vector2<f32>,
         radius: f32,
         segments: usize,
+    },
+    Rectangle {
+        rect: Rect<f32>,
+        thickness: f32,
+    },
+    RectangleFilled {
+        rect: Rect<f32>,
     },
 }
 
@@ -64,6 +71,9 @@ impl Primitive {
             Primitive::Circle { radius, center, .. } => {
                 let radius = Vector2::new(*radius, *radius);
                 (center - radius, center + radius)
+            }
+            Primitive::Rectangle { rect, .. } | Primitive::RectangleFilled { rect } => {
+                (rect.left_top_corner(), rect.right_bottom_corner())
             }
         }
     }
@@ -138,6 +148,10 @@ impl Control for VectorImage {
                     *segments,
                     Color::WHITE,
                 ),
+                Primitive::RectangleFilled { rect } => drawing_context.push_rect_filled(rect, None),
+                Primitive::Rectangle { rect, thickness } => {
+                    drawing_context.push_rect(rect, *thickness)
+                }
             }
         }
         drawing_context.commit(
