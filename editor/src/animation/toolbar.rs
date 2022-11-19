@@ -6,7 +6,7 @@ use crate::{
 };
 use fyrox::{
     animation::Animation,
-    core::pool::Handle,
+    core::{algebra::Vector2, math::Rect, pool::Handle},
     gui::{
         border::BorderBuilder,
         button::ButtonBuilder,
@@ -14,10 +14,12 @@ use fyrox::{
         message::{MessageDirection, UiMessage},
         numeric::NumericUpDownBuilder,
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
+        text_box::TextBoxBuilder,
+        utils::{make_arrow, make_cross, make_simple_tooltip, ArrowDirection},
+        vector_image::{Primitive, VectorImageBuilder},
         widget::WidgetBuilder,
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
-        BRUSH_LIGHT,
+        BRUSH_BRIGHT, BRUSH_LIGHT,
     },
     scene::{animation::AnimationPlayer, node::Node},
 };
@@ -29,6 +31,10 @@ pub struct Toolbar {
     pub stop: Handle<UiNode>,
     pub speed: Handle<UiNode>,
     pub animations: Handle<UiNode>,
+    pub add_animation: Handle<UiNode>,
+    pub remove_current_animation: Handle<UiNode>,
+    pub rename_current_animation: Handle<UiNode>,
+    pub animation_name: Handle<UiNode>,
 }
 
 impl Toolbar {
@@ -37,6 +43,10 @@ impl Toolbar {
         let stop;
         let speed;
         let animations;
+        let add_animation;
+        let remove_current_animation;
+        let rename_current_animation;
+        let animation_name;
         let panel = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
@@ -45,6 +55,48 @@ impl Toolbar {
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
+                            .with_child({
+                                animation_name = TextBoxBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_width(100.0)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("New Animation")
+                                .build(ctx);
+                                animation_name
+                            })
+                            .with_child({
+                                add_animation = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_width(20.0)
+                                        .with_height(20.0)
+                                        .with_vertical_alignment(VerticalAlignment::Center)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(make_simple_tooltip(
+                                            ctx,
+                                            "Add New Animation",
+                                        )),
+                                )
+                                .with_text("+")
+                                .build(ctx);
+                                add_animation
+                            })
+                            .with_child({
+                                rename_current_animation = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_width(20.0)
+                                        .with_height(20.0)
+                                        .with_vertical_alignment(VerticalAlignment::Center)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(make_simple_tooltip(
+                                            ctx,
+                                            "Rename Selected Animation",
+                                        )),
+                                )
+                                .with_content(make_arrow(ctx, ArrowDirection::Right, 14.0))
+                                .build(ctx);
+                                rename_current_animation
+                            })
                             .with_child({
                                 animations = DropdownListBuilder::new(
                                     WidgetBuilder::new()
@@ -55,39 +107,85 @@ impl Toolbar {
                                 animations
                             })
                             .with_child({
-                                play_pause = ButtonBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                remove_current_animation = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_width(20.0)
+                                        .with_height(20.0)
+                                        .with_vertical_alignment(VerticalAlignment::Center)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(make_simple_tooltip(
+                                            ctx,
+                                            "Remove Selected Animation",
+                                        )),
                                 )
-                                .with_text("Play/Pause")
+                                .with_content(make_cross(ctx, 14.0, 2.0))
+                                .build(ctx);
+                                remove_current_animation
+                            })
+                            .with_child({
+                                play_pause = ButtonBuilder::new(WidgetBuilder::new().with_margin(
+                                    Thickness {
+                                        left: 16.0,
+                                        top: 1.0,
+                                        right: 1.0,
+                                        bottom: 1.0,
+                                    },
+                                ))
+                                .with_content(
+                                    VectorImageBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_foreground(BRUSH_BRIGHT)
+                                            .with_tooltip(make_simple_tooltip(ctx, "Play/Pause")),
+                                    )
+                                    .with_primitives(vec![
+                                        Primitive::Triangle {
+                                            points: [
+                                                Vector2::new(0.0, 0.0),
+                                                Vector2::new(8.0, 8.0),
+                                                Vector2::new(0.0, 16.0),
+                                            ],
+                                        },
+                                        Primitive::RectangleFilled {
+                                            rect: Rect::new(10.0, 0.0, 4.0, 16.0),
+                                        },
+                                        Primitive::RectangleFilled {
+                                            rect: Rect::new(15.0, 0.0, 4.0, 16.0),
+                                        },
+                                    ])
+                                    .build(ctx),
+                                )
                                 .build(ctx);
                                 play_pause
                             })
                             .with_child({
                                 stop = ButtonBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(make_simple_tooltip(ctx, "Stop Playback")),
                                 )
-                                .with_text("Stop")
+                                .with_content(
+                                    VectorImageBuilder::new(
+                                        WidgetBuilder::new().with_foreground(BRUSH_BRIGHT),
+                                    )
+                                    .with_primitives(vec![Primitive::RectangleFilled {
+                                        rect: Rect::new(0.0, 0.0, 16.0, 16.0),
+                                    }])
+                                    .build(ctx),
+                                )
                                 .build(ctx);
                                 stop
                             })
-                            .with_child(
-                                TextBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_vertical_alignment(VerticalAlignment::Center)
-                                        .with_margin(Thickness {
-                                            left: 10.0,
-                                            top: 1.0,
-                                            right: 1.0,
-                                            bottom: 1.0,
-                                        }),
-                                )
-                                .with_text("Playback Speed")
-                                .build(ctx),
-                            )
                             .with_child({
                                 speed = NumericUpDownBuilder::<f32>::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                    WidgetBuilder::new()
+                                        .with_width(80.0)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(make_simple_tooltip(
+                                            ctx,
+                                            "Preview Playback Speed",
+                                        )),
                                 )
+                                .with_value(1.0)
                                 .build(ctx);
                                 speed
                             }),
@@ -105,6 +203,10 @@ impl Toolbar {
             stop,
             speed,
             animations,
+            add_animation,
+            rename_current_animation,
+            remove_current_animation,
+            animation_name,
         }
     }
 

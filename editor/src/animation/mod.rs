@@ -94,7 +94,7 @@ impl AnimationEditor {
                 .with_child(toolbar.panel)
                 .with_child(payload),
         )
-        .add_row(Row::strict(22.0))
+        .add_row(Row::strict(26.0))
         .add_row(Row::stretch())
         .add_column(Column::stretch())
         .build(ctx);
