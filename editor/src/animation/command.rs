@@ -193,3 +193,95 @@ impl Command for AddAnimationCommand {
         }
     }
 }
+
+#[derive(Debug)]
+pub enum RemoveAnimationCommand {
+    Unknown,
+    NonExecuted {
+        animation_player: Handle<Node>,
+        animation: Handle<Animation>,
+    },
+    Executed {
+        animation_player: Handle<Node>,
+        animation: Animation,
+        ticket: Ticket<Animation>,
+    },
+    Reverted {
+        animation_player: Handle<Node>,
+        animation: Handle<Animation>,
+    },
+}
+
+impl RemoveAnimationCommand {
+    pub fn new(animation_player: Handle<Node>, animation: Handle<Animation>) -> Self {
+        Self::NonExecuted {
+            animation_player,
+            animation,
+        }
+    }
+}
+
+impl Command for RemoveAnimationCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Remove Animation".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        match std::mem::replace(self, Self::Unknown) {
+            RemoveAnimationCommand::NonExecuted {
+                animation_player,
+                animation,
+            }
+            | RemoveAnimationCommand::Reverted {
+                animation_player,
+                animation,
+            } => {
+                let (ticket, animation) = fetch_animation_player(animation_player, context)
+                    .animations_mut()
+                    .take_reserve(animation);
+
+                *self = Self::Executed {
+                    animation_player,
+                    animation,
+                    ticket,
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        match std::mem::replace(self, Self::Unknown) {
+            RemoveAnimationCommand::Executed {
+                animation_player,
+                animation,
+                ticket,
+            } => {
+                let handle = fetch_animation_player(animation_player, context)
+                    .animations_mut()
+                    .put_back(ticket, animation);
+
+                *self = Self::Reverted {
+                    animation_player,
+                    animation: handle,
+                };
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn finalize(&mut self, context: &mut SceneContext) {
+        match std::mem::replace(self, Self::Unknown) {
+            RemoveAnimationCommand::Executed {
+                animation_player,
+                ticket,
+                ..
+            } => {
+                fetch_animation_player(animation_player, context)
+                    .animations_mut()
+                    .forget_ticket(ticket);
+            }
+            _ => (),
+        }
+    }
+}

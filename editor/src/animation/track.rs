@@ -28,7 +28,6 @@ use fyrox::{
         uuid::Uuid,
         variable::InheritableVariable,
     },
-    engine::Engine,
     fxhash::{FxHashMap, FxHashSet},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
@@ -42,7 +41,7 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    scene::{graph::Graph, node::Node},
+    scene::{graph::Graph, node::Node, Scene},
     utils::log::Log,
 };
 use std::{any::TypeId, cmp::Ordering, collections::hash_map::Entry, rc::Rc, sync::mpsc::Sender};
@@ -139,15 +138,12 @@ impl TrackList {
         &mut self,
         message: &UiMessage,
         editor_scene: &EditorScene,
-        engine: &mut Engine,
         sender: &Sender<Message>,
         animation_player: Handle<Node>,
         animation: Handle<Animation>,
+        ui: &mut UserInterface,
+        scene: &Scene,
     ) {
-        let ui = &mut engine.user_interface;
-
-        let scene = &engine.scenes[editor_scene.scene];
-
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_track {
                 self.node_selector = NodeSelectorWindowBuilder::new(

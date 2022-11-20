@@ -1,7 +1,13 @@
 use crate::{
-    animation::{command::AddAnimationCommand, selection::AnimationSelection},
+    animation::{
+        command::{AddAnimationCommand, RemoveAnimationCommand},
+        selection::AnimationSelection,
+    },
     gui::make_dropdown_list_option_universal,
-    scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
+    scene::{
+        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        EditorScene, Selection,
+    },
     Message,
 };
 use fyrox::{
@@ -217,6 +223,7 @@ impl Toolbar {
         sender: &Sender<Message>,
         ui: &UserInterface,
         animation_player_handle: Handle<Node>,
+        animation_player: &AnimationPlayer,
         editor_scene: &EditorScene,
         _selection: &AnimationSelection,
     ) {
@@ -247,7 +254,30 @@ impl Toolbar {
             } else if message.destination() == self.stop {
                 // TODO
             } else if message.destination() == self.remove_current_animation {
-                // TODO
+                if animation_player
+                    .animations()
+                    .try_get(_selection.animation)
+                    .is_some()
+                {
+                    let group = vec![
+                        SceneCommand::new(ChangeSelectionCommand::new(
+                            Selection::Animation(AnimationSelection {
+                                animation_player: animation_player_handle,
+                                animation: Default::default(),
+                                entities: vec![],
+                            }),
+                            editor_scene.selection.clone(),
+                        )),
+                        SceneCommand::new(RemoveAnimationCommand::new(
+                            animation_player_handle,
+                            _selection.animation,
+                        )),
+                    ];
+
+                    sender
+                        .send(Message::do_scene_command(CommandGroup::from(group)))
+                        .unwrap();
+                }
             } else if message.destination() == self.rename_current_animation {
                 // TODO
             } else if message.destination() == self.add_animation {

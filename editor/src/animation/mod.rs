@@ -132,35 +132,45 @@ impl AnimationEditor {
         if let Some(editor_scene) = editor_scene {
             let selection = fetch_selection(&editor_scene.selection);
 
-            self.track_list.handle_ui_message(
-                message,
-                editor_scene,
-                engine,
-                sender,
-                selection.animation_player,
-                selection.animation,
-            );
+            let scene = &engine.scenes[editor_scene.scene];
 
-            self.toolbar.handle_ui_message(
-                message,
-                sender,
-                &engine.user_interface,
-                selection.animation_player,
-                editor_scene,
-                &selection,
-            );
+            if let Some(animation_player) = scene
+                .graph
+                .try_get(selection.animation_player)
+                .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+            {
+                self.track_list.handle_ui_message(
+                    message,
+                    editor_scene,
+                    sender,
+                    selection.animation_player,
+                    selection.animation,
+                    &mut engine.user_interface,
+                    scene,
+                );
 
-            if let Some(CurveEditorMessage::Sync(curve)) = message.data() {
-                if message.destination() == self.curve_editor
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    sender
-                        .send(Message::do_scene_command(ReplaceTrackCurveCommand {
-                            animation_player: selection.animation_player,
-                            animation: selection.animation,
-                            curve: curve.clone(),
-                        }))
-                        .unwrap();
+                self.toolbar.handle_ui_message(
+                    message,
+                    sender,
+                    &engine.user_interface,
+                    selection.animation_player,
+                    animation_player,
+                    editor_scene,
+                    &selection,
+                );
+
+                if let Some(CurveEditorMessage::Sync(curve)) = message.data() {
+                    if message.destination() == self.curve_editor
+                        && message.direction() == MessageDirection::FromWidget
+                    {
+                        sender
+                            .send(Message::do_scene_command(ReplaceTrackCurveCommand {
+                                animation_player: selection.animation_player,
+                                animation: selection.animation,
+                                curve: curve.clone(),
+                            }))
+                            .unwrap();
+                    }
                 }
             }
         }
