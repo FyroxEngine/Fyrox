@@ -1,8 +1,7 @@
 use crate::{command::Command, scene::commands::SceneContext};
-use fyrox::animation::Animation;
 use fyrox::{
-    animation::NodeTrack,
-    core::{curve::Curve, pool::Handle},
+    animation::{Animation, NodeTrack},
+    core::{curve::Curve, pool::Handle, pool::Ticket},
     scene::{animation::AnimationPlayer, node::Node},
     utils::log::Log,
 };
@@ -91,5 +90,106 @@ impl Command for ReplaceTrackCurveCommand {
 
     fn revert(&mut self, context: &mut SceneContext) {
         self.swap(context)
+    }
+}
+
+#[derive(Debug)]
+pub enum AddAnimationCommand {
+    Unknown,
+    NonExecuted {
+        animation_player: Handle<Node>,
+        animation: Animation,
+    },
+    Executed {
+        animation_player: Handle<Node>,
+        animation: Handle<Animation>,
+    },
+    Reverted {
+        animation_player: Handle<Node>,
+        animation: Animation,
+        ticket: Ticket<Animation>,
+    },
+}
+
+impl AddAnimationCommand {
+    pub fn new(animation_player: Handle<Node>, animation: Animation) -> Self {
+        Self::NonExecuted {
+            animation_player,
+            animation,
+        }
+    }
+}
+
+impl Command for AddAnimationCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Add Animation".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        match std::mem::replace(self, Self::Unknown) {
+            AddAnimationCommand::NonExecuted {
+                animation_player,
+                animation,
+            } => {
+                let handle = fetch_animation_player(animation_player, context)
+                    .animations_mut()
+                    .add(animation);
+
+                *self = Self::Executed {
+                    animation_player,
+                    animation: handle,
+                };
+            }
+            AddAnimationCommand::Reverted {
+                animation_player,
+                animation,
+                ticket,
+            } => {
+                let handle = fetch_animation_player(animation_player, context)
+                    .animations_mut()
+                    .put_back(ticket, animation);
+
+                *self = Self::Executed {
+                    animation_player,
+                    animation: handle,
+                };
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        match std::mem::replace(self, Self::Unknown) {
+            AddAnimationCommand::Executed {
+                animation_player,
+                animation,
+            } => {
+                let (ticket, animation) = fetch_animation_player(animation_player, context)
+                    .animations_mut()
+                    .take_reserve(animation);
+
+                *self = Self::Reverted {
+                    animation_player,
+                    animation,
+                    ticket,
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn finalize(&mut self, context: &mut SceneContext) {
+        match std::mem::replace(self, Self::Unknown) {
+            AddAnimationCommand::Reverted {
+                animation_player,
+                ticket,
+                ..
+            } => {
+                fetch_animation_player(animation_player, context)
+                    .animations_mut()
+                    .forget_ticket(ticket);
+            }
+            _ => (),
+        }
     }
 }

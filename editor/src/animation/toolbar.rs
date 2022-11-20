@@ -1,5 +1,5 @@
 use crate::{
-    animation::selection::AnimationSelection,
+    animation::{command::AddAnimationCommand, selection::AnimationSelection},
     gui::make_dropdown_list_option_universal,
     scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
     Message,
@@ -9,12 +9,13 @@ use fyrox::{
     core::{algebra::Vector2, math::Rect, pool::Handle},
     gui::{
         border::BorderBuilder,
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
         message::{MessageDirection, UiMessage},
         numeric::NumericUpDownBuilder,
         stack_panel::StackPanelBuilder,
-        text_box::TextBoxBuilder,
+        text::TextMessage,
+        text_box::{TextBox, TextBoxBuilder},
         utils::{make_arrow, make_cross, make_simple_tooltip, ArrowDirection},
         vector_image::{Primitive, VectorImageBuilder},
         widget::WidgetBuilder,
@@ -217,6 +218,7 @@ impl Toolbar {
         ui: &UserInterface,
         animation_player_handle: Handle<Node>,
         editor_scene: &EditorScene,
+        _selection: &AnimationSelection,
     ) {
         if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.destination() == self.animations
@@ -239,10 +241,39 @@ impl Toolbar {
                     )))
                     .unwrap();
             }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.play_pause {
+                // TODO
+            } else if message.destination() == self.stop {
+                // TODO
+            } else if message.destination() == self.remove_current_animation {
+                // TODO
+            } else if message.destination() == self.rename_current_animation {
+                // TODO
+            } else if message.destination() == self.add_animation {
+                let mut animation = Animation::default();
+                animation.set_name(
+                    ui.node(self.animation_name)
+                        .query_component::<TextBox>()
+                        .unwrap()
+                        .text(),
+                );
+                sender
+                    .send(Message::do_scene_command(AddAnimationCommand::new(
+                        animation_player_handle,
+                        animation,
+                    )))
+                    .unwrap();
+            }
         }
     }
 
-    pub fn sync_to_model(&self, animation_player: &AnimationPlayer, ui: &mut UserInterface) {
+    pub fn sync_to_model(
+        &self,
+        animation_player: &AnimationPlayer,
+        selection: &AnimationSelection,
+        ui: &mut UserInterface,
+    ) {
         let new_items = animation_player
             .animations()
             .pair_iter()
@@ -256,5 +287,13 @@ impl Toolbar {
             MessageDirection::ToWidget,
             new_items,
         ));
+
+        if let Some(animation) = animation_player.animations().try_get(selection.animation) {
+            ui.send_message(TextMessage::text(
+                self.animation_name,
+                MessageDirection::ToWidget,
+                animation.name().to_string(),
+            ));
+        }
     }
 }

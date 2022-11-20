@@ -147,6 +147,7 @@ impl AnimationEditor {
                 &engine.user_interface,
                 selection.animation_player,
                 editor_scene,
+                &selection,
             );
 
             if let Some(CurveEditorMessage::Sync(curve)) = message.data() {
@@ -176,7 +177,7 @@ impl AnimationEditor {
             .and_then(|n| n.query_component_ref::<AnimationPlayer>())
         {
             self.toolbar
-                .sync_to_model(animation_player, &mut engine.user_interface);
+                .sync_to_model(animation_player, &selection, &mut engine.user_interface);
 
             if let Some(animation) = animation_player.animations().try_get(selection.animation) {
                 self.track_list
