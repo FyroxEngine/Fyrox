@@ -158,8 +158,6 @@ impl Model {
                     for src_anim in src_player.animations().iter() {
                         let mut anim_copy = src_anim.clone();
 
-                        anim_copy.set_root(root);
-
                         // Remap animation track nodes from resource to instance. This is required
                         // because we've made a plain copy and it has tracks with node handles mapped
                         // to nodes of internal scene.

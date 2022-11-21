@@ -701,7 +701,6 @@ async fn convert(
 
     let mut animation = Animation::default();
     animation.set_name("Animation");
-    animation.set_root(root);
 
     let mut fbx_model_to_node_map = FxHashMap::default();
     for (component_handle, component) in fbx_scene.pair_iter() {

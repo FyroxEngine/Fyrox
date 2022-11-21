@@ -91,9 +91,6 @@ pub struct Animation {
     #[visit(optional)]
     pub(crate) resource: Option<Model>,
     signals: Vec<AnimationSignal>,
-    // Handle of a root node of a hierarchy of nodes to which the animation is applied to.
-    #[visit(optional)]
-    root: Handle<Node>,
 
     // Non-serialized
     #[reflect(hidden)]
@@ -221,7 +218,6 @@ impl Clone for Animation {
             signals: self.signals.clone(),
             events: Default::default(),
             time_slice: self.time_slice.clone(),
-            root: self.root,
         }
     }
 }
@@ -291,14 +287,6 @@ impl Animation {
 
     pub fn length(&self) -> f32 {
         self.length
-    }
-
-    pub fn set_root(&mut self, root: Handle<Node>) {
-        self.root = root;
-    }
-
-    pub fn root(&self) -> Handle<Node> {
-        self.root
     }
 
     pub(crate) fn tick(&mut self, dt: f32) {
@@ -495,7 +483,6 @@ impl Default for Animation {
             signals: Default::default(),
             events: Default::default(),
             time_slice: Default::default(),
-            root: Default::default(),
         }
     }
 }
