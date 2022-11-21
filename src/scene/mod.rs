@@ -32,7 +32,6 @@ use crate::{
         algebra::Vector2,
         color::Color,
         futures::future::join_all,
-        instant,
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
         sstorage::ImmutableString,
@@ -61,7 +60,6 @@ use std::{
     ops::{Index, IndexMut},
     path::Path,
     sync::{Arc, Mutex},
-    time::Duration,
 };
 
 /// A container for navigational meshes.
@@ -208,17 +206,13 @@ impl Default for Scene {
 pub struct PerformanceStatistics {
     /// Graph performance statistics.
     pub graph: GraphPerformanceStatistics,
-
-    /// A time which was required to update animations.
-    pub animations_update_time: Duration,
 }
 
 impl Display for PerformanceStatistics {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Animations: {:?}\n\
-            Graph: {:?}\n\
+            "Graph: {:?}\n\
             \tSync Time: {:?}\n\
             \tSound: {:?}\n\
             \tPhysics: {:?}\n\
@@ -228,7 +222,6 @@ impl Display for PerformanceStatistics {
             \t\tSimulation: {:?}\n\
             \t\tRay cast: {:?}\n\
             \tHierarchy: {:?}",
-            self.animations_update_time,
             self.graph.total(),
             self.graph.sync_time,
             self.graph.sound_update_time,
@@ -507,10 +500,6 @@ impl Scene {
     /// it updates physics, animations, and each graph node. In most cases there is
     /// no need to call it directly, engine automatically updates all available scenes.
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
-        let last = instant::Instant::now();
-
-        self.performance_statistics.animations_update_time = instant::Instant::now() - last;
-
         self.graph.update(frame_size, dt);
         self.performance_statistics.graph = self.graph.performance_statistics.clone();
     }
