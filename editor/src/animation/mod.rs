@@ -132,23 +132,13 @@ impl AnimationEditor {
         if let Some(editor_scene) = editor_scene {
             let selection = fetch_selection(&editor_scene.selection);
 
-            let scene = &engine.scenes[editor_scene.scene];
+            let scene = &mut engine.scenes[editor_scene.scene];
 
             if let Some(animation_player) = scene
                 .graph
-                .try_get(selection.animation_player)
-                .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+                .try_get_mut(selection.animation_player)
+                .and_then(|n| n.query_component_mut::<AnimationPlayer>())
             {
-                self.track_list.handle_ui_message(
-                    message,
-                    editor_scene,
-                    sender,
-                    selection.animation_player,
-                    selection.animation,
-                    &mut engine.user_interface,
-                    scene,
-                );
-
                 self.toolbar.handle_ui_message(
                     message,
                     sender,
@@ -157,6 +147,16 @@ impl AnimationEditor {
                     animation_player,
                     editor_scene,
                     &selection,
+                );
+
+                self.track_list.handle_ui_message(
+                    message,
+                    editor_scene,
+                    sender,
+                    selection.animation_player,
+                    selection.animation,
+                    &mut engine.user_interface,
+                    scene,
                 );
 
                 if let Some(CurveEditorMessage::Sync(curve)) = message.data() {

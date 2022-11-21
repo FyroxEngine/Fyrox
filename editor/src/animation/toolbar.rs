@@ -16,15 +16,16 @@ use fyrox::{
     gui::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
+        check_box::{CheckBoxBuilder, CheckBoxMessage},
         dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
         message::{MessageDirection, UiMessage},
         numeric::NumericUpDownBuilder,
         stack_panel::StackPanelBuilder,
-        text::TextMessage,
+        text::{TextBuilder, TextMessage},
         text_box::{TextBox, TextBoxBuilder},
         utils::{make_arrow, make_cross, make_simple_tooltip, ArrowDirection},
         vector_image::{Primitive, VectorImageBuilder},
-        widget::WidgetBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
         BRUSH_BRIGHT, BRUSH_LIGHT,
     },
@@ -42,6 +43,7 @@ pub struct Toolbar {
     pub remove_current_animation: Handle<UiNode>,
     pub rename_current_animation: Handle<UiNode>,
     pub animation_name: Handle<UiNode>,
+    pub preview: Handle<UiNode>,
 }
 
 impl Toolbar {
@@ -54,6 +56,7 @@ impl Toolbar {
         let remove_current_animation;
         let rename_current_animation;
         let animation_name;
+        let preview;
         let panel = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
@@ -63,11 +66,35 @@ impl Toolbar {
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
                             .with_child({
+                                preview = CheckBoxBuilder::new(
+                                    WidgetBuilder::new().with_enabled(false).with_margin(
+                                        Thickness {
+                                            left: 1.0,
+                                            top: 1.0,
+                                            right: 5.0,
+                                            bottom: 1.0,
+                                        },
+                                    ),
+                                )
+                                .with_content(
+                                    TextBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_vertical_alignment(VerticalAlignment::Center),
+                                    )
+                                    .with_text("Preview")
+                                    .build(ctx),
+                                )
+                                .checked(Some(true))
+                                .build(ctx);
+                                preview
+                            })
+                            .with_child({
                                 animation_name = TextBoxBuilder::new(
                                     WidgetBuilder::new()
                                         .with_width(100.0)
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .with_text("New Animation")
                                 .build(ctx);
                                 animation_name
@@ -91,6 +118,7 @@ impl Toolbar {
                             .with_child({
                                 rename_current_animation = ButtonBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_enabled(false)
                                         .with_width(20.0)
                                         .with_height(20.0)
                                         .with_vertical_alignment(VerticalAlignment::Center)
@@ -116,6 +144,7 @@ impl Toolbar {
                             .with_child({
                                 remove_current_animation = ButtonBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_enabled(false)
                                         .with_width(20.0)
                                         .with_height(20.0)
                                         .with_vertical_alignment(VerticalAlignment::Center)
@@ -130,14 +159,16 @@ impl Toolbar {
                                 remove_current_animation
                             })
                             .with_child({
-                                play_pause = ButtonBuilder::new(WidgetBuilder::new().with_margin(
-                                    Thickness {
-                                        left: 16.0,
-                                        top: 1.0,
-                                        right: 1.0,
-                                        bottom: 1.0,
-                                    },
-                                ))
+                                play_pause = ButtonBuilder::new(
+                                    WidgetBuilder::new().with_enabled(false).with_margin(
+                                        Thickness {
+                                            left: 16.0,
+                                            top: 1.0,
+                                            right: 1.0,
+                                            bottom: 1.0,
+                                        },
+                                    ),
+                                )
                                 .with_content(
                                     VectorImageBuilder::new(
                                         WidgetBuilder::new()
@@ -167,6 +198,7 @@ impl Toolbar {
                             .with_child({
                                 stop = ButtonBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_enabled(false)
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_tooltip(make_simple_tooltip(ctx, "Stop Playback")),
                                 )
@@ -185,6 +217,7 @@ impl Toolbar {
                             .with_child({
                                 speed = NumericUpDownBuilder::<f32>::new(
                                     WidgetBuilder::new()
+                                        .with_enabled(false)
                                         .with_width(80.0)
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_tooltip(make_simple_tooltip(
@@ -214,6 +247,7 @@ impl Toolbar {
             rename_current_animation,
             remove_current_animation,
             animation_name,
+            preview,
         }
     }
 
@@ -223,9 +257,9 @@ impl Toolbar {
         sender: &Sender<Message>,
         ui: &UserInterface,
         animation_player_handle: Handle<Node>,
-        animation_player: &AnimationPlayer,
+        animation_player: &mut AnimationPlayer,
         editor_scene: &EditorScene,
-        _selection: &AnimationSelection,
+        selection: &AnimationSelection,
     ) {
         if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.destination() == self.animations
@@ -256,7 +290,7 @@ impl Toolbar {
             } else if message.destination() == self.remove_current_animation {
                 if animation_player
                     .animations()
-                    .try_get(_selection.animation)
+                    .try_get(selection.animation)
                     .is_some()
                 {
                     let group = vec![
@@ -270,7 +304,7 @@ impl Toolbar {
                         )),
                         SceneCommand::new(RemoveAnimationCommand::new(
                             animation_player_handle,
-                            _selection.animation,
+                            selection.animation,
                         )),
                     ];
 
@@ -295,6 +329,17 @@ impl Toolbar {
                     )))
                     .unwrap();
             }
+        } else if let Some(CheckBoxMessage::Check(Some(checked))) = message.data() {
+            if message.destination() == self.preview
+                && message.direction() == MessageDirection::FromWidget
+            {
+                if let Some(animation) = animation_player
+                    .animations_mut()
+                    .try_get_mut(selection.animation)
+                {
+                    animation.set_enabled(*checked);
+                }
+            }
         }
     }
 
@@ -318,11 +363,28 @@ impl Toolbar {
             new_items,
         ));
 
+        let mut selected_animation_valid = false;
         if let Some(animation) = animation_player.animations().try_get(selection.animation) {
+            selected_animation_valid = true;
             ui.send_message(TextMessage::text(
                 self.animation_name,
                 MessageDirection::ToWidget,
                 animation.name().to_string(),
+            ));
+        }
+
+        for widget in [
+            self.preview,
+            self.play_pause,
+            self.stop,
+            self.speed,
+            self.rename_current_animation,
+            self.remove_current_animation,
+        ] {
+            ui.send_message(WidgetMessage::enabled(
+                widget,
+                MessageDirection::ToWidget,
+                selected_animation_valid,
             ));
         }
     }
