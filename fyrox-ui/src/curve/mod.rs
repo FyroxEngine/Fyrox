@@ -857,7 +857,7 @@ impl CurveEditor {
             text.set_text(format!("{:.1}", x)).build();
             ctx.draw_text(
                 screen_bounds,
-                self.point_to_screen_space(Vector2::new(x, 0.0)),
+                self.point_to_screen_space(Vector2::new(x, local_left_bottom_n.y)),
                 &text,
             );
         }
