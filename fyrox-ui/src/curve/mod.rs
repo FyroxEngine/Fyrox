@@ -202,7 +202,11 @@ impl Control for CurveEditor {
                                 } => {
                                     let d = pos - initial_mouse_pos;
                                     let delta = Vector2::new(d.x / self.zoom.x, d.y / self.zoom.y);
-                                    self.set_view_position(initial_view_pos + delta);
+                                    ui.send_message(CurveEditorMessage::view_position(
+                                        self.handle,
+                                        MessageDirection::ToWidget,
+                                        initial_view_pos + delta,
+                                    ));
                                 }
                                 OperationContext::DragTangent { key, left } => {
                                     let key_pos =
@@ -417,9 +421,11 @@ impl Control for CurveEditor {
                         }
                         CurveEditorMessage::ViewPosition(view_position) => {
                             self.set_view_position(*view_position);
+                            ui.send_message(message.reverse());
                         }
                         CurveEditorMessage::Zoom(zoom) => {
                             self.zoom = *zoom;
+                            ui.send_message(message.reverse());
                         }
                         CurveEditorMessage::RemoveSelection => {
                             self.remove_selection(ui);
@@ -519,16 +525,24 @@ impl Control for CurveEditor {
                             let max = Vector2::new(max_x, max_y);
                             let center = (min + max).scale(0.5);
 
-                            self.zoom = Vector2::new(
-                                self.actual_local_size().x
-                                    / (max.x - min.x).max(5.0 * f32::EPSILON),
-                                self.actual_local_size().y
-                                    / (max.y - min.y).max(5.0 * f32::EPSILON),
-                            );
+                            ui.send_message(CurveEditorMessage::zoom(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                                Vector2::new(
+                                    self.actual_local_size().x
+                                        / (max.x - min.x).max(5.0 * f32::EPSILON),
+                                    self.actual_local_size().y
+                                        / (max.y - min.y).max(5.0 * f32::EPSILON),
+                                ),
+                            ));
 
-                            self.set_view_position(Vector2::new(
-                                self.actual_local_size().x * 0.5 - center.x,
-                                -self.actual_local_size().y * 0.5 + center.y,
+                            ui.send_message(CurveEditorMessage::view_position(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                                Vector2::new(
+                                    self.actual_local_size().x * 0.5 - center.x,
+                                    -self.actual_local_size().y * 0.5 + center.y,
+                                ),
                             ));
                         }
                     }
