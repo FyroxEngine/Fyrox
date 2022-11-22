@@ -775,6 +775,7 @@ impl Engine {
                         engine: &self.sound_engine,
                     },
                 };
+
                 for plugin in self.plugins.iter_mut() {
                     plugin.on_ui_message(&mut context, &message, control_flow);
                 }

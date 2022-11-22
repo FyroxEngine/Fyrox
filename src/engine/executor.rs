@@ -176,8 +176,6 @@ impl Executor {
                         lag -= fixed_time_step;
                     }
 
-                    while let Some(_ui_event) = engine.user_interface.poll_message() {}
-
                     engine.get_window().request_redraw();
                 }
                 Event::RedrawRequested(_) => {
