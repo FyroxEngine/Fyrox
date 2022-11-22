@@ -81,6 +81,8 @@ pub struct CurveEditor {
     context_menu: ContextMenu,
     text: RefCell<FormattedText>,
     view_bounds: Option<Rect<f32>>,
+    show_x_values: bool,
+    show_y_values: bool,
 }
 
 crate::define_widget_deref!(CurveEditor);
@@ -840,26 +842,31 @@ impl CurveEditor {
 
         // Draw values.
         let mut text = self.text.borrow_mut();
-        for ny in 0..=nh {
-            let k = ny as f32 / (nh) as f32;
-            let y = local_left_bottom.y - k * h;
-            text.set_text(format!("{:.1}", y)).build();
-            ctx.draw_text(
-                screen_bounds,
-                self.point_to_screen_space(Vector2::new(local_left_bottom_n.x, y)),
-                &text,
-            );
+
+        if self.show_y_values {
+            for ny in 0..=nh {
+                let k = ny as f32 / (nh) as f32;
+                let y = local_left_bottom.y - k * h;
+                text.set_text(format!("{:.1}", y)).build();
+                ctx.draw_text(
+                    screen_bounds,
+                    self.point_to_screen_space(Vector2::new(local_left_bottom_n.x, y)),
+                    &text,
+                );
+            }
         }
 
-        for nx in 0..=nw {
-            let k = nx as f32 / (nw) as f32;
-            let x = local_left_bottom.x + k * w;
-            text.set_text(format!("{:.1}", x)).build();
-            ctx.draw_text(
-                screen_bounds,
-                self.point_to_screen_space(Vector2::new(x, local_left_bottom_n.y)),
-                &text,
-            );
+        if self.show_x_values {
+            for nx in 0..=nw {
+                let k = nx as f32 / (nw) as f32;
+                let x = local_left_bottom.x + k * w;
+                text.set_text(format!("{:.1}", x)).build();
+                ctx.draw_text(
+                    screen_bounds,
+                    self.point_to_screen_space(Vector2::new(x, local_left_bottom_n.y)),
+                    &text,
+                );
+            }
         }
     }
 
@@ -1063,6 +1070,8 @@ pub struct CurveEditorBuilder {
     view_position: Vector2<f32>,
     zoom: f32,
     view_bounds: Option<Rect<f32>>,
+    show_x_values: bool,
+    show_y_values: bool,
 }
 
 impl CurveEditorBuilder {
@@ -1073,6 +1082,8 @@ impl CurveEditorBuilder {
             view_position: Default::default(),
             zoom: 1.0,
             view_bounds: None,
+            show_x_values: true,
+            show_y_values: true,
         }
     }
 
@@ -1088,6 +1099,16 @@ impl CurveEditorBuilder {
 
     pub fn with_view_position(mut self, view_position: Vector2<f32>) -> Self {
         self.view_position = view_position;
+        self
+    }
+
+    pub fn with_show_x_values(mut self, show_x_values: bool) -> Self {
+        self.show_x_values = show_x_values;
+        self
+    }
+
+    pub fn with_show_y_values(mut self, show_y_values: bool) -> Self {
+        self.show_y_values = show_y_values;
         self
     }
 
@@ -1199,6 +1220,8 @@ impl CurveEditorBuilder {
                 zoom_to_fit,
             },
             view_bounds: self.view_bounds,
+            show_x_values: self.show_x_values,
+            show_y_values: self.show_y_values,
         };
 
         ctx.add_node(UiNode::new(editor))
