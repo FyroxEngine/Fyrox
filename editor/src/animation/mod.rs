@@ -1,6 +1,7 @@
 use crate::{
     animation::{
         command::ReplaceTrackCurveCommand,
+        ruler::{RulerBuilder, RulerMessage},
         selection::{AnimationSelection, SelectedEntity},
         toolbar::Toolbar,
         track::TrackList,
@@ -24,6 +25,7 @@ use fyrox::{
 use std::sync::mpsc::Sender;
 
 mod command;
+mod ruler;
 pub mod selection;
 mod toolbar;
 mod track;
@@ -34,6 +36,7 @@ pub struct AnimationEditor {
     curve_editor: Handle<UiNode>,
     toolbar: Toolbar,
     content: Handle<UiNode>,
+    ruler: Handle<UiNode>,
 }
 
 fn fetch_selection(editor_selection: &Selection) -> AnimationSelection {
@@ -64,6 +67,7 @@ fn fetch_selection(editor_selection: &Selection) -> AnimationSelection {
 impl AnimationEditor {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let curve_editor;
+        let ruler;
 
         let track_list = TrackList::new(ctx);
         let toolbar = Toolbar::new(ctx);
@@ -73,16 +77,42 @@ impl AnimationEditor {
                 .on_row(1)
                 .on_column(0)
                 .with_child(track_list.panel)
-                .with_child({
-                    curve_editor = CurveEditorBuilder::new(
+                .with_child(
+                    GridBuilder::new(
                         WidgetBuilder::new()
                             .on_row(0)
                             .on_column(1)
-                            .with_margin(Thickness::uniform(1.0)),
+                            .with_child({
+                                ruler = RulerBuilder::new(
+                                    WidgetBuilder::new().on_row(0).with_margin(Thickness {
+                                        left: 1.0,
+                                        top: 1.0,
+                                        right: 1.0,
+                                        bottom: 0.0,
+                                    }),
+                                )
+                                .build(ctx);
+                                ruler
+                            })
+                            .with_child({
+                                curve_editor = CurveEditorBuilder::new(
+                                    WidgetBuilder::new().on_row(1).with_margin(Thickness {
+                                        left: 1.0,
+                                        top: 0.0,
+                                        right: 1.0,
+                                        bottom: 1.0,
+                                    }),
+                                )
+                                .with_show_x_values(false)
+                                .build(ctx);
+                                curve_editor
+                            }),
                     )
-                    .build(ctx);
-                    curve_editor
-                }),
+                    .add_row(Row::strict(25.0))
+                    .add_row(Row::stretch())
+                    .add_column(Column::stretch())
+                    .build(ctx),
+                ),
         )
         .add_row(Row::stretch())
         .add_column(Column::strict(250.0))
@@ -111,6 +141,7 @@ impl AnimationEditor {
             curve_editor,
             toolbar,
             content,
+            ruler,
         }
     }
 
@@ -159,17 +190,35 @@ impl AnimationEditor {
                     scene,
                 );
 
-                if let Some(CurveEditorMessage::Sync(curve)) = message.data() {
+                if let Some(msg) = message.data::<CurveEditorMessage>() {
                     if message.destination() == self.curve_editor
                         && message.direction() == MessageDirection::FromWidget
                     {
-                        sender
-                            .send(Message::do_scene_command(ReplaceTrackCurveCommand {
-                                animation_player: selection.animation_player,
-                                animation: selection.animation,
-                                curve: curve.clone(),
-                            }))
-                            .unwrap();
+                        let ui = &engine.user_interface;
+                        match msg {
+                            CurveEditorMessage::Sync(curve) => {
+                                sender
+                                    .send(Message::do_scene_command(ReplaceTrackCurveCommand {
+                                        animation_player: selection.animation_player,
+                                        animation: selection.animation,
+                                        curve: curve.clone(),
+                                    }))
+                                    .unwrap();
+                            }
+                            CurveEditorMessage::ViewPosition(position) => {
+                                ui.send_message(RulerMessage::view_position(
+                                    self.ruler,
+                                    MessageDirection::ToWidget,
+                                    position.x,
+                                ))
+                            }
+                            CurveEditorMessage::Zoom(zoom) => ui.send_message(RulerMessage::zoom(
+                                self.ruler,
+                                MessageDirection::ToWidget,
+                                zoom.x,
+                            )),
+                            _ => (),
+                        }
                     }
                 }
             }
