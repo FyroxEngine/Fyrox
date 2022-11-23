@@ -41,6 +41,7 @@ pub struct Ruler {
     view_position: f32,
     text: RefCell<FormattedText>,
     value: f32,
+    dragging: bool,
 }
 
 define_widget_deref!(Ruler);
@@ -64,6 +65,10 @@ impl Ruler {
             .unwrap_or_default()
             .transform_point(&Point2::new(x, 0.0))
             .x
+    }
+
+    fn screen_to_value_space(&self, x: f32) -> f32 {
+        self.view_to_local(self.screen_to_local(Vector2::new(x, 0.0)).x)
     }
 }
 
@@ -144,15 +149,39 @@ impl Control for Ruler {
                     }
                 }
             }
-        } else if let Some(WidgetMessage::MouseDown { pos, button }) = message.data() {
-            if message.direction() == MessageDirection::FromWidget && *button == MouseButton::Left {
-                let local_click_pos = self.screen_to_local(*pos);
-                let value = self.view_to_local(local_click_pos.x);
-                ui.send_message(RulerMessage::value(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    value,
-                ));
+        } else if let Some(msg) = message.data::<WidgetMessage>() {
+            if message.direction() == MessageDirection::FromWidget {
+                match msg {
+                    WidgetMessage::MouseDown { pos, button } => {
+                        if *button == MouseButton::Left {
+                            ui.capture_mouse(self.handle);
+
+                            ui.send_message(RulerMessage::value(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                                self.screen_to_value_space(pos.x),
+                            ));
+
+                            self.dragging = true;
+                        }
+                    }
+                    WidgetMessage::MouseUp { button, .. } => {
+                        if *button == MouseButton::Left {
+                            ui.release_mouse_capture();
+                            self.dragging = false;
+                        }
+                    }
+                    WidgetMessage::MouseMove { pos, .. } => {
+                        if self.dragging {
+                            ui.send_message(RulerMessage::value(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                                self.screen_to_value_space(pos.x),
+                            ));
+                        }
+                    }
+                    _ => (),
+                };
             }
         }
     }
@@ -183,6 +212,7 @@ impl RulerBuilder {
             view_position: 0.0,
             text: RefCell::new(FormattedTextBuilder::new(ctx.default_font()).build()),
             value: self.value,
+            dragging: false,
         };
 
         ctx.add_node(UiNode::new(ruler))
