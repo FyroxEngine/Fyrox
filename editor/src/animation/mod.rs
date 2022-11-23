@@ -181,16 +181,6 @@ impl AnimationEditor {
                     &selection,
                 );
 
-                self.track_list.handle_ui_message(
-                    message,
-                    editor_scene,
-                    sender,
-                    selection.animation_player,
-                    selection.animation,
-                    &mut engine.user_interface,
-                    scene,
-                );
-
                 if let Some(msg) = message.data::<CurveEditorMessage>() {
                     if message.destination() == self.curve_editor
                         && message.direction() == MessageDirection::FromWidget
@@ -221,7 +211,28 @@ impl AnimationEditor {
                             _ => (),
                         }
                     }
+                } else if let Some(RulerMessage::Value(value)) = message.data() {
+                    if message.destination() == self.ruler
+                        && message.direction() == MessageDirection::FromWidget
+                    {
+                        if let Some(animation) = animation_player
+                            .animations_mut()
+                            .try_get_mut(selection.animation)
+                        {
+                            animation.set_time_position(*value);
+                        }
+                    }
                 }
+
+                self.track_list.handle_ui_message(
+                    message,
+                    editor_scene,
+                    sender,
+                    selection.animation_player,
+                    selection.animation,
+                    &mut engine.user_interface,
+                    scene,
+                );
             }
         }
     }
