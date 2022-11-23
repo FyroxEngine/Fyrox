@@ -254,10 +254,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     .build()])
     .build(&mut scene.graph);
 
-    context.lock().data = Some(GameScene {
-        scene,
-        model,
-    })
+    context.lock().data = Some(GameScene { scene, model })
 }
 
 struct InputController {

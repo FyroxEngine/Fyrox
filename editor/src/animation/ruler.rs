@@ -8,8 +8,8 @@ use fyrox::{
         define_constructor, define_widget_deref,
         draw::{Draw, DrawingContext},
         formatted_text::{FormattedText, FormattedTextBuilder},
-        message::{MessageDirection, UiMessage},
-        widget::{Widget, WidgetBuilder},
+        message::{MessageDirection, MouseButton, UiMessage},
+        widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
     },
 };
@@ -23,11 +23,13 @@ use std::{
 pub enum RulerMessage {
     Zoom(f32),
     ViewPosition(f32),
+    Value(f32),
 }
 
 impl RulerMessage {
     define_constructor!(RulerMessage:Zoom => fn zoom(f32), layout: false);
     define_constructor!(RulerMessage:ViewPosition => fn view_position(f32), layout: false);
+    define_constructor!(RulerMessage:Value => fn value(f32), layout: false);
 }
 
 #[derive(Clone)]
@@ -36,6 +38,7 @@ pub struct Ruler {
     zoom: f32,
     view_position: f32,
     text: RefCell<FormattedText>,
+    value: f32,
 }
 
 define_widget_deref!(Ruler);
@@ -121,7 +124,20 @@ impl Control for Ruler {
                     RulerMessage::ViewPosition(position) => {
                         self.view_position = *position;
                     }
+                    RulerMessage::Value(value) => {
+                        self.value = *value;
+                    }
                 }
+            }
+        } else if let Some(WidgetMessage::MouseDown { pos, button }) = message.data() {
+            if message.direction() == MessageDirection::FromWidget && *button == MouseButton::Left {
+                let local_click_pos = self.screen_to_local(*pos);
+                let value = self.view_to_local(local_click_pos.x);
+                ui.send_message(RulerMessage::value(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    value,
+                ));
             }
         }
     }
@@ -129,11 +145,20 @@ impl Control for Ruler {
 
 pub struct RulerBuilder {
     widget_builder: WidgetBuilder,
+    value: f32,
 }
 
 impl RulerBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
-        Self { widget_builder }
+        Self {
+            widget_builder,
+            value: 0.0,
+        }
+    }
+
+    pub fn with_value(mut self, value: f32) -> Self {
+        self.value = value;
+        self
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
@@ -142,6 +167,7 @@ impl RulerBuilder {
             zoom: 1.0,
             view_position: 0.0,
             text: RefCell::new(FormattedTextBuilder::new(ctx.default_font()).build()),
+            value: self.value,
         };
 
         ctx.add_node(UiNode::new(ruler))

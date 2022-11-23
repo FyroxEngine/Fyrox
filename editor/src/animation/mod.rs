@@ -91,6 +91,7 @@ impl AnimationEditor {
                                         bottom: 0.0,
                                     }),
                                 )
+                                .with_value(0.0)
                                 .build(ctx);
                                 ruler
                             })
