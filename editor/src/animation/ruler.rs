@@ -1,12 +1,14 @@
 use fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
+        color::Color,
         math::round_to_step,
         pool::Handle,
     },
     gui::{
+        brush::Brush,
         define_constructor, define_widget_deref,
-        draw::{Draw, DrawingContext},
+        draw::{CommandTexture, Draw, DrawingContext},
         formatted_text::{FormattedText, FormattedTextBuilder},
         message::{MessageDirection, MouseButton, UiMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -77,6 +79,16 @@ impl Control for Ruler {
     fn draw(&self, ctx: &mut DrawingContext) {
         let local_bounds = self.bounding_rect();
 
+        // Add clickable rectangle first.
+        ctx.push_rect_filled(&local_bounds, None);
+        ctx.commit(
+            self.clip_bounds(),
+            Brush::Solid(Color::TRANSPARENT),
+            CommandTexture::None,
+            None,
+        );
+
+        // Then draw the rest.
         let step_size_x = 50.0 / self.zoom.clamp(0.001, 1000.0);
 
         let left_local_bound = round_to_step(self.view_to_local(0.0), step_size_x);
@@ -125,7 +137,10 @@ impl Control for Ruler {
                         self.view_position = *position;
                     }
                     RulerMessage::Value(value) => {
-                        self.value = *value;
+                        if value.ne(&self.value) {
+                            self.value = *value;
+                            ui.send_message(message.reverse());
+                        }
                     }
                 }
             }
