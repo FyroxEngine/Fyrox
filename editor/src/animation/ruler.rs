@@ -1,18 +1,16 @@
 use fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
-        color::Color,
         math::round_to_step,
         pool::Handle,
     },
     gui::{
-        brush::Brush,
         define_constructor, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         formatted_text::{FormattedText, FormattedTextBuilder},
         message::{MessageDirection, MouseButton, UiMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, UiNode, UserInterface,
+        BuildContext, Control, UiNode, UserInterface, BRUSH_DARK, BRUSH_LIGHTER,
     },
 };
 use std::{
@@ -88,7 +86,7 @@ impl Control for Ruler {
         ctx.push_rect_filled(&local_bounds, None);
         ctx.commit(
             self.clip_bounds(),
-            Brush::Solid(Color::TRANSPARENT),
+            self.background.clone(),
             CommandTexture::None,
             None,
         );
@@ -114,6 +112,12 @@ impl Control for Ruler {
                 1.0,
             );
         }
+        ctx.commit(
+            self.clip_bounds(),
+            self.foreground.clone(),
+            CommandTexture::None,
+            None,
+        );
 
         // Draw values.
         let mut text = self.text.borrow_mut();
@@ -207,7 +211,11 @@ impl RulerBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let ruler = Ruler {
-            widget: self.widget_builder.build(),
+            widget: self
+                .widget_builder
+                .with_background(BRUSH_DARK)
+                .with_foreground(BRUSH_LIGHTER)
+                .build(),
             zoom: 1.0,
             view_position: 0.0,
             text: RefCell::new(FormattedTextBuilder::new(ctx.default_font()).build()),
