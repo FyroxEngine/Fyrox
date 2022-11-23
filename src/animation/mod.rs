@@ -1,4 +1,3 @@
-use crate::scene::graph::NodePool;
 use crate::{
     animation::{track::Track, value::BoundValueCollection},
     core::{
@@ -9,7 +8,10 @@ use crate::{
     },
     engine::resource_manager::ResourceManager,
     resource::model::Model,
-    scene::{graph::Graph, node::Node},
+    scene::{
+        graph::{Graph, NodePool},
+        node::Node,
+    },
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
@@ -231,19 +233,22 @@ impl Animation {
         self.name.as_ref()
     }
 
+    /// Adds new track to the animation. Animation can have unlimited number of tracks, each track is responsible
+    /// for animation of a single scene node.
     pub fn add_track(&mut self, track: NodeTrack) {
         self.tracks.push(track);
-
-        self.calculate_length();
     }
 
+    /// Removes last track from the list of tracks of the animation.
     pub fn pop_track(&mut self) -> Option<NodeTrack> {
-        let track = self.tracks.pop();
-        self.calculate_length();
-        track
+        self.tracks.pop()
     }
 
-    fn calculate_length(&mut self) {
+    /// Calculates new length of the animation based on the content of its tracks. It looks for the most "right"
+    /// curve key in all curves of all tracks and treats it as length of the animation. The method could be used
+    /// in case if you formed animation from code using just curves and don't know the actual length of the
+    /// animation.  
+    pub fn fit_length_to_content(&mut self) {
         for track in self.tracks.iter_mut() {
             if track.time_length() > self.length {
                 self.length = track.time_length();
@@ -285,6 +290,14 @@ impl Animation {
         self.set_time_position(0.0)
     }
 
+    /// Sets new length of the animation in seconds. Sign of negative values passed to the method will
+    /// be discarded. Current playback position will be clamped to fit to new bounds.
+    pub fn set_length(&mut self, length: f32) {
+        self.length = length.abs();
+        self.set_time_position(self.time_position);
+    }
+
+    /// Returns length of the animation in seconds.
     pub fn length(&self) -> f32 {
         self.length
     }

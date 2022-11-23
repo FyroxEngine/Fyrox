@@ -684,6 +684,8 @@ async fn convert_model(
         animation.add_track(scale_track);
     }
 
+    animation.fit_length_to_content();
+
     Ok(node_handle)
 }
 
