@@ -5,7 +5,6 @@
 //! Warning - Work in progress!
 
 use fyrox::{
-    animation::Animation,
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
@@ -115,7 +114,6 @@ pub fn set_once() {
 struct GameScene {
     scene: Scene,
     model: Handle<Node>,
-    walk_animation: Handle<Animation>,
 }
 
 struct SceneContext {
@@ -210,7 +208,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
 
     // Instantiate model on scene - but only geometry, without any animations.
     // Instantiation is a process of embedding model resource data in desired scene.
-    let model = model_resource.unwrap().instantiate_geometry(&mut scene);
+    let model = model_resource.unwrap().instantiate(&mut scene);
 
     // Now we have whole sub-graph instantiated, we can start modifying model instance.
     scene.graph[model]
@@ -224,11 +222,9 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     // Why? Because animation in *resource* uses information about *resource* bones,
     // not model instance bones, retarget_animations maps animations of each bone on
     // model instance so animation will know about nodes it should operate on.
-    let walk_animation = *walk_animation_resource
+    walk_animation_resource
         .unwrap()
-        .retarget_animations(model, &mut scene)
-        .get(0)
-        .unwrap();
+        .retarget_animations(model, &mut scene.graph);
 
     let mut material = Material::standard();
     material
@@ -261,7 +257,6 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     context.lock().data = Some(GameScene {
         scene,
         model,
-        walk_animation,
     })
 }
 
@@ -306,7 +301,6 @@ pub fn main_js() {
 
     let mut scene_handle = Handle::NONE;
     let mut model_handle = Handle::NONE;
-    let mut walk_animation = Handle::NONE;
 
     // Create simple user interface that will show some useful info.
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());
@@ -340,17 +334,10 @@ pub fn main_js() {
                     if let Some(scene) = load_context.lock().data.take() {
                         scene_handle = engine.scenes.add(scene.scene);
                         model_handle = scene.model;
-                        walk_animation = scene.walk_animation;
                     }
 
                     if scene_handle.is_some() && model_handle.is_some() {
                         let scene = &mut engine.scenes[scene_handle];
-
-                        scene
-                            .animations
-                            .get_mut(walk_animation)
-                            .pose()
-                            .apply(&mut scene.graph);
 
                         // Rotate model according to input controller state.
                         if input_controller.rotate_left {
