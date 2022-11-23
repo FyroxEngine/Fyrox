@@ -83,6 +83,7 @@ pub struct CurveEditor {
     view_bounds: Option<Rect<f32>>,
     show_x_values: bool,
     show_y_values: bool,
+    grid_size: Vector2<f32>,
 }
 
 crate::define_widget_deref!(CurveEditor);
@@ -800,8 +801,8 @@ impl CurveEditor {
     fn draw_grid(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
 
-        let step_size_x = 50.0 / self.zoom.x.clamp(0.001, 1000.0);
-        let step_size_y = 50.0 / self.zoom.y.clamp(0.001, 1000.0);
+        let step_size_x = self.grid_size.x / self.zoom.x.clamp(0.001, 1000.0);
+        let step_size_y = self.grid_size.y / self.zoom.y.clamp(0.001, 1000.0);
 
         let mut local_left_bottom = self.point_to_local_space(screen_bounds.left_top_corner());
         let local_left_bottom_n = local_left_bottom;
@@ -1086,6 +1087,7 @@ pub struct CurveEditorBuilder {
     view_bounds: Option<Rect<f32>>,
     show_x_values: bool,
     show_y_values: bool,
+    grid_size: Vector2<f32>,
 }
 
 impl CurveEditorBuilder {
@@ -1098,6 +1100,7 @@ impl CurveEditorBuilder {
             view_bounds: None,
             show_x_values: true,
             show_y_values: true,
+            grid_size: Vector2::new(50.0, 50.0),
         }
     }
 
@@ -1129,6 +1132,11 @@ impl CurveEditorBuilder {
     /// View bounds in value-space.
     pub fn with_view_bounds(mut self, bounds: Rect<f32>) -> Self {
         self.view_bounds = Some(bounds);
+        self
+    }
+
+    pub fn with_grid_size(mut self, size: Vector2<f32>) -> Self {
+        self.grid_size = size;
         self
     }
 
@@ -1236,6 +1244,7 @@ impl CurveEditorBuilder {
             view_bounds: self.view_bounds,
             show_x_values: self.show_x_values,
             show_y_values: self.show_y_values,
+            grid_size: self.grid_size,
         };
 
         ctx.add_node(UiNode::new(editor))
