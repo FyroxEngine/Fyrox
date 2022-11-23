@@ -179,17 +179,15 @@ impl Command for AddAnimationCommand {
     }
 
     fn finalize(&mut self, context: &mut SceneContext) {
-        match std::mem::replace(self, Self::Unknown) {
-            AddAnimationCommand::Reverted {
-                animation_player,
-                ticket,
-                ..
-            } => {
-                fetch_animation_player(animation_player, context)
-                    .animations_mut()
-                    .forget_ticket(ticket);
-            }
-            _ => (),
+        if let AddAnimationCommand::Reverted {
+            animation_player,
+            ticket,
+            ..
+        } = std::mem::replace(self, Self::Unknown)
+        {
+            fetch_animation_player(animation_player, context)
+                .animations_mut()
+                .forget_ticket(ticket);
         }
     }
 }
@@ -271,17 +269,15 @@ impl Command for RemoveAnimationCommand {
     }
 
     fn finalize(&mut self, context: &mut SceneContext) {
-        match std::mem::replace(self, Self::Unknown) {
-            RemoveAnimationCommand::Executed {
-                animation_player,
-                ticket,
-                ..
-            } => {
-                fetch_animation_player(animation_player, context)
-                    .animations_mut()
-                    .forget_ticket(ticket);
-            }
-            _ => (),
+        if let RemoveAnimationCommand::Executed {
+            animation_player,
+            ticket,
+            ..
+        } = std::mem::replace(self, Self::Unknown)
+        {
+            fetch_animation_player(animation_player, context)
+                .animations_mut()
+                .forget_ticket(ticket);
         }
     }
 }

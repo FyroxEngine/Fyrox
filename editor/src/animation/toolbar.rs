@@ -10,6 +10,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::utils::log::Log;
 use fyrox::{
     animation::Animation,
     core::{algebra::Vector2, math::Rect, pool::Handle},
@@ -284,9 +285,9 @@ impl Toolbar {
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.play_pause {
-                // TODO
+                Log::warn("Implement playback!");
             } else if message.destination() == self.stop {
-                // TODO
+                Log::warn("Implement playback stopping!");
             } else if message.destination() == self.remove_current_animation {
                 if animation_player
                     .animations()
