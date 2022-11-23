@@ -1,7 +1,7 @@
 use crate::{
     brush::Brush,
     core::{
-        algebra::{Matrix3, Point2, Vector2, Vector3},
+        algebra::{Matrix3, Point2, SimdPartialOrd, Vector2, Vector3},
         color::Color,
         curve::{Curve, CurveKeyKind},
         math::{cubicf, inf_sup_cubicf, lerpf, wrap_angle, Rect},
@@ -84,6 +84,8 @@ pub struct CurveEditor {
     show_x_values: bool,
     show_y_values: bool,
     grid_size: Vector2<f32>,
+    min_zoom: Vector2<f32>,
+    max_zoom: Vector2<f32>,
 }
 
 crate::define_widget_deref!(CurveEditor);
@@ -425,7 +427,7 @@ impl Control for CurveEditor {
                             ui.send_message(message.reverse());
                         }
                         CurveEditorMessage::Zoom(zoom) => {
-                            self.zoom = *zoom;
+                            self.zoom = zoom.simd_clamp(self.min_zoom, self.max_zoom);
                             ui.send_message(message.reverse());
                         }
                         CurveEditorMessage::RemoveSelection => {
@@ -801,8 +803,8 @@ impl CurveEditor {
     fn draw_grid(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
 
-        let step_size_x = self.grid_size.x / self.zoom.x.clamp(0.001, 1000.0);
-        let step_size_y = self.grid_size.y / self.zoom.y.clamp(0.001, 1000.0);
+        let step_size_x = self.grid_size.x / self.zoom.x;
+        let step_size_y = self.grid_size.y / self.zoom.y;
 
         let mut local_left_bottom = self.point_to_local_space(screen_bounds.left_top_corner());
         let local_left_bottom_n = local_left_bottom;
@@ -1088,6 +1090,8 @@ pub struct CurveEditorBuilder {
     show_x_values: bool,
     show_y_values: bool,
     grid_size: Vector2<f32>,
+    min_zoom: Vector2<f32>,
+    max_zoom: Vector2<f32>,
 }
 
 impl CurveEditorBuilder {
@@ -1101,6 +1105,8 @@ impl CurveEditorBuilder {
             show_x_values: true,
             show_y_values: true,
             grid_size: Vector2::new(50.0, 50.0),
+            min_zoom: Vector2::new(0.001, 0.001),
+            max_zoom: Vector2::new(1000.0, 1000.0),
         }
     }
 
@@ -1137,6 +1143,15 @@ impl CurveEditorBuilder {
 
     pub fn with_grid_size(mut self, size: Vector2<f32>) -> Self {
         self.grid_size = size;
+        self
+    }
+
+    pub fn with_min_zoom(mut self, min_zoom: Vector2<f32>) -> Self {
+        self.min_zoom = min_zoom;
+        self
+    }
+    pub fn with_max_zoom(mut self, max_zoom: Vector2<f32>) -> Self {
+        self.max_zoom = max_zoom;
         self
     }
 
@@ -1245,6 +1260,8 @@ impl CurveEditorBuilder {
             show_x_values: self.show_x_values,
             show_y_values: self.show_y_values,
             grid_size: self.grid_size,
+            min_zoom: self.min_zoom,
+            max_zoom: self.max_zoom,
         };
 
         ctx.add_node(UiNode::new(editor))
