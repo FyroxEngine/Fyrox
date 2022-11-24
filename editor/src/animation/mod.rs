@@ -242,6 +242,9 @@ impl AnimationEditor {
 
         let scene = &engine.scenes[editor_scene.scene];
 
+        let mut is_animation_player_selected = false;
+        let mut is_animation_selected = false;
+
         if let Some(animation_player) = scene
             .graph
             .try_get(selection.animation_player)
@@ -276,22 +279,22 @@ impl AnimationEditor {
                             ));
                     }
                 }
+                is_animation_selected = true;
             }
-            engine
-                .user_interface
-                .send_message(WidgetMessage::visibility(
-                    self.content,
-                    MessageDirection::ToWidget,
-                    true,
-                ));
-        } else {
-            engine
-                .user_interface
-                .send_message(WidgetMessage::visibility(
-                    self.content,
-                    MessageDirection::ToWidget,
-                    false,
-                ));
+            is_animation_player_selected = true;
         }
+
+        engine
+            .user_interface
+            .send_message(WidgetMessage::visibility(
+                self.content,
+                MessageDirection::ToWidget,
+                is_animation_player_selected,
+            ));
+        engine.user_interface.send_message(WidgetMessage::enabled(
+            self.track_list.panel,
+            MessageDirection::ToWidget,
+            is_animation_selected,
+        ));
     }
 }
