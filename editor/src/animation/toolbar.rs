@@ -1,16 +1,19 @@
 use crate::{
     animation::{
-        command::{AddAnimationCommand, RemoveAnimationCommand},
+        command::{
+            AddAnimationCommand, RemoveAnimationCommand, SetAnimationLengthCommand,
+            SetAnimationSpeedCommand,
+        },
         selection::AnimationSelection,
     },
     gui::make_dropdown_list_option_universal,
+    load_image,
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
         EditorScene, Selection,
     },
     Message,
 };
-use fyrox::utils::log::Log;
 use fyrox::{
     animation::Animation,
     core::{algebra::Vector2, math::Rect, pool::Handle},
@@ -19,8 +22,9 @@ use fyrox::{
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
+        image::ImageBuilder,
         message::{MessageDirection, UiMessage},
-        numeric::NumericUpDownBuilder,
+        numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
         text_box::{TextBox, TextBoxBuilder},
@@ -31,6 +35,7 @@ use fyrox::{
         BRUSH_BRIGHT, BRUSH_LIGHT,
     },
     scene::{animation::AnimationPlayer, node::Node},
+    utils::log::Log,
 };
 use std::sync::mpsc::Sender;
 
@@ -45,6 +50,7 @@ pub struct Toolbar {
     pub rename_current_animation: Handle<UiNode>,
     pub animation_name: Handle<UiNode>,
     pub preview: Handle<UiNode>,
+    pub length: Handle<UiNode>,
 }
 
 impl Toolbar {
@@ -58,6 +64,7 @@ impl Toolbar {
         let rename_current_animation;
         let animation_name;
         let preview;
+        let length;
         let panel = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
@@ -163,7 +170,7 @@ impl Toolbar {
                                 play_pause = ButtonBuilder::new(
                                     WidgetBuilder::new().with_enabled(false).with_margin(
                                         Thickness {
-                                            left: 16.0,
+                                            left: 10.0,
                                             top: 1.0,
                                             right: 1.0,
                                             bottom: 1.0,
@@ -215,20 +222,63 @@ impl Toolbar {
                                 .build(ctx);
                                 stop
                             })
+                            .with_child(
+                                ImageBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_width(18.0)
+                                        .with_height(18.0)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_background(BRUSH_BRIGHT),
+                                )
+                                .with_opt_texture(load_image(include_bytes!(
+                                    "../../resources/embed/speed.png"
+                                )))
+                                .build(ctx),
+                            )
                             .with_child({
                                 speed = NumericUpDownBuilder::<f32>::new(
                                     WidgetBuilder::new()
                                         .with_enabled(false)
-                                        .with_width(80.0)
+                                        .with_width(60.0)
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_tooltip(make_simple_tooltip(
                                             ctx,
                                             "Preview Playback Speed",
                                         )),
                                 )
+                                .with_min_value(0.0)
                                 .with_value(1.0)
                                 .build(ctx);
                                 speed
+                            })
+                            .with_child(
+                                ImageBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_width(18.0)
+                                        .with_height(18.0)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_background(BRUSH_BRIGHT),
+                                )
+                                .with_opt_texture(load_image(include_bytes!(
+                                    "../../resources/embed/time.png"
+                                )))
+                                .build(ctx),
+                            )
+                            .with_child({
+                                length = NumericUpDownBuilder::<f32>::new(
+                                    WidgetBuilder::new()
+                                        .with_enabled(false)
+                                        .with_width(60.0)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(make_simple_tooltip(
+                                            ctx,
+                                            "Animation Length in Seconds",
+                                        )),
+                                )
+                                .with_min_value(0.0)
+                                .with_value(1.0)
+                                .build(ctx);
+                                length
                             }),
                     )
                     .with_orientation(Orientation::Horizontal)
@@ -249,6 +299,7 @@ impl Toolbar {
             remove_current_animation,
             animation_name,
             preview,
+            length,
         }
     }
 
@@ -341,6 +392,26 @@ impl Toolbar {
                     animation.set_enabled(*checked);
                 }
             }
+        } else if let Some(NumericUpDownMessage::Value(value)) = message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.length {
+                    sender
+                        .send(Message::do_scene_command(SetAnimationLengthCommand {
+                            node_handle: animation_player_handle,
+                            animation_handle: selection.animation,
+                            value: *value,
+                        }))
+                        .unwrap();
+                } else if message.destination() == self.speed {
+                    sender
+                        .send(Message::do_scene_command(SetAnimationSpeedCommand {
+                            node_handle: animation_player_handle,
+                            animation_handle: selection.animation,
+                            value: *value,
+                        }))
+                        .unwrap();
+                }
+            }
         }
     }
 
@@ -372,6 +443,18 @@ impl Toolbar {
                 MessageDirection::ToWidget,
                 animation.name().to_string(),
             ));
+
+            ui.send_message(NumericUpDownMessage::value(
+                self.length,
+                MessageDirection::ToWidget,
+                animation.length(),
+            ));
+
+            ui.send_message(NumericUpDownMessage::value(
+                self.speed,
+                MessageDirection::ToWidget,
+                animation.speed(),
+            ));
         }
 
         for widget in [
@@ -381,6 +464,7 @@ impl Toolbar {
             self.speed,
             self.rename_current_animation,
             self.remove_current_animation,
+            self.length,
         ] {
             ui.send_message(WidgetMessage::enabled(
                 widget,

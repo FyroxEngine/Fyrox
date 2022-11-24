@@ -6,6 +6,7 @@ use fyrox::{
     utils::log::Log,
 };
 use std::fmt::Debug;
+use std::ops::IndexMut;
 
 fn fetch_animation_player<'a>(
     handle: Handle<Node>,
@@ -281,3 +282,59 @@ impl Command for RemoveAnimationCommand {
         }
     }
 }
+
+#[macro_export]
+macro_rules! define_animation_swap_command {
+    ($name:ident<$value_type:ty>($self:ident, $context:ident) $swap:block) => {
+        #[derive(Debug)]
+        pub struct $name {
+            pub node_handle: Handle<Node>,
+            pub animation_handle: Handle<Animation>,
+            pub value: $value_type,
+        }
+
+        impl $name {
+            fn swap(&mut $self, $context: &mut SceneContext) {
+                $swap
+            }
+        }
+
+        impl Command for $name {
+            fn name(&mut self, _context: &SceneContext) -> String {
+                stringify!($name).to_string()
+            }
+
+            fn execute(&mut self, context: &mut SceneContext) {
+                self.swap(context)
+            }
+
+            fn revert(&mut self, context: &mut SceneContext) {
+                self.swap(context)
+            }
+        }
+    };
+}
+
+fn fetch_animation<'a>(
+    animation_player: Handle<Node>,
+    animation: Handle<Animation>,
+    ctx: &'a mut SceneContext,
+) -> &'a mut Animation {
+    fetch_animation_player(animation_player, ctx)
+        .animations_mut()
+        .index_mut(animation)
+}
+
+define_animation_swap_command!(SetAnimationSpeedCommand<f32>(self, context) {
+    let animation = fetch_animation(self.node_handle, self.animation_handle, context);
+    let old_speed = animation.speed();
+    animation.set_speed(self.value);
+    self.value = old_speed;
+});
+
+define_animation_swap_command!(SetAnimationLengthCommand<f32>(self, context) {
+    let animation = fetch_animation(self.node_handle, self.animation_handle, context);
+    let old_length = animation.length();
+    animation.set_length(self.value);
+    self.value = old_length;
+});
