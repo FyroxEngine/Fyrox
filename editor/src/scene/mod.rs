@@ -1,11 +1,10 @@
-use crate::absm::selection::AbsmSelection;
-use crate::animation::selection::AnimationSelection;
-use crate::interaction::navmesh::data_model::NavmeshContainer;
 use crate::{
+    absm::selection::AbsmSelection,
+    animation::selection::AnimationSelection,
     audio::EffectSelection,
     camera::CameraController,
     interaction::navmesh::{
-        data_model::{Navmesh, NavmeshTriangle, NavmeshVertex},
+        data_model::{Navmesh, NavmeshContainer, NavmeshTriangle, NavmeshVertex},
         selection::NavmeshSelection,
     },
     scene::clipboard::Clipboard,
@@ -23,6 +22,7 @@ use fyrox::{
     },
     engine::Engine,
     scene::{
+        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
         base::BaseBuilder,
         camera::Camera,
         debug::{Line, SceneDrawingContext},
@@ -67,6 +67,21 @@ pub fn is_scene_needs_to_be_saved(editor_scene: Option<&EditorScene>) -> bool {
         .map_or(false, |s| s.has_unsaved_changes || s.path.is_none())
 }
 
+fn set_animation_enabled(scene: &mut Scene, enabled: bool) {
+    for node in scene.graph.linear_iter_mut() {
+        if let Some(animation_player) = node.query_component_mut::<AnimationPlayer>() {
+            for animation in animation_player
+                .animations_mut()
+                .get_mut_silent()
+                .iter_mut()
+            {
+                animation.set_enabled(enabled);
+            }
+        } else if let Some(absm) = node.query_component_mut::<AnimationBlendingStateMachine>() {
+            absm.set_enabled(enabled);
+        }
+    }
+}
 impl EditorScene {
     pub fn from_native_scene(
         mut scene: Scene,
@@ -81,6 +96,9 @@ impl EditorScene {
             path.as_ref()
                 .and_then(|p| settings.camera.camera_settings.get(p)),
         );
+
+        // Disable all animations and state machines.
+        set_animation_enabled(&mut scene, false);
 
         // Freeze physics simulation in while editing scene by setting time step to zero.
         scene.graph.physics.integration_parameters.dt = Some(0.0);
@@ -127,6 +145,9 @@ impl EditorScene {
 
         let editor_root = self.editor_objects_root;
         let (mut pure_scene, _) = scene.clone(&mut |node, _| node != editor_root);
+
+        // Disable all animations and state machines back.
+        set_animation_enabled(&mut pure_scene, true);
 
         // Reset state of nodes. For some nodes (such as particles systems) we use scene as preview
         // so before saving scene, we have to reset state of such nodes.
