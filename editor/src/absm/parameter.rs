@@ -51,6 +51,8 @@ impl ParameterPanel {
                     })
                     .build(ctx),
             )
+            .can_close(false)
+            .can_minimize(false)
             .build(ctx);
 
         Self {

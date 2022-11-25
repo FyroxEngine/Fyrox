@@ -5,23 +5,26 @@ use crate::{
         parameter::ParameterPanel,
         state_graph::StateGraphViewer,
         state_viewer::StateViewer,
+        toolbar::Toolbar,
+        toolbar::ToolbarAction,
     },
     scene::{EditorScene, Selection},
     Message,
 };
-use fyrox::gui::BuildContext;
 use fyrox::{
     animation::machine::{BlendPose, Event, IndexedBlendInput, PoseNode, State},
     core::{color::Color, pool::Handle},
     engine::Engine,
     gui::{
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
+        grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        UiNode, UserInterface,
+        BuildContext, UiNode, UserInterface,
     },
     scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
+    utils::log::Log,
 };
 use std::sync::mpsc::Sender;
 
@@ -36,6 +39,7 @@ pub mod selection;
 mod socket;
 mod state_graph;
 mod state_viewer;
+mod toolbar;
 mod transition;
 
 const NORMAL_BACKGROUND: Color = Color::opaque(60, 60, 60);
@@ -50,6 +54,7 @@ pub struct AbsmEditor {
     state_viewer: StateViewer,
     parameter_panel: ParameterPanel,
     absm: Handle<Node>,
+    toolbar: Toolbar,
 }
 
 impl AbsmEditor {
@@ -89,9 +94,21 @@ impl AbsmEditor {
         )
         .build(ctx);
 
+        let toolbar = Toolbar::new(ctx);
+
+        let content = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(toolbar.panel)
+                .with_child(docking_manager),
+        )
+        .add_row(Row::strict(22.0))
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
+        .build(ctx);
+
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(800.0).with_height(500.0))
             .open(false)
-            .with_content(docking_manager)
+            .with_content(content)
             .with_title(WindowTitle::text("ABSM Editor"))
             .build(ctx);
 
@@ -101,6 +118,7 @@ impl AbsmEditor {
             state_viewer,
             parameter_panel,
             absm: Default::default(),
+            toolbar,
         }
     }
 
@@ -208,6 +226,15 @@ impl AbsmEditor {
             );
             self.parameter_panel
                 .handle_ui_message(message, sender, self.absm);
+
+            let action = self.toolbar.handle_ui_message(message);
+
+            // TODO
+            match action {
+                ToolbarAction::None => {}
+                ToolbarAction::EnterPreviewMode => Log::warn("Implement entering preview mode!"),
+                ToolbarAction::LeavePreviewMode => Log::warn("Implement leaving preview mode!"),
+            }
         }
 
         if let Some(msg) = message.data::<AbsmNodeMessage>() {
