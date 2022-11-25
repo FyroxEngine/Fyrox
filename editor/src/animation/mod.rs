@@ -3,17 +3,19 @@ use crate::{
         command::ReplaceTrackCurveCommand,
         ruler::{RulerBuilder, RulerMessage},
         selection::{AnimationSelection, SelectedEntity},
+        thumb::{ThumbBuilder, ThumbMessage},
         toolbar::{Toolbar, ToolbarAction},
         track::TrackList,
     },
     scene::{EditorScene, Selection},
     send_sync_message, Message,
 };
-use fyrox::gui::check_box::CheckBoxMessage;
 use fyrox::{
     core::pool::Handle,
     engine::Engine,
     gui::{
+        border::BorderBuilder,
+        check_box::CheckBoxMessage,
         curve::{CurveEditorBuilder, CurveEditorMessage},
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
@@ -28,6 +30,7 @@ use std::sync::mpsc::Sender;
 mod command;
 mod ruler;
 pub mod selection;
+mod thumb;
 mod toolbar;
 mod track;
 
@@ -43,6 +46,7 @@ pub struct AnimationEditor {
     content: Handle<UiNode>,
     ruler: Handle<UiNode>,
     preview_mode_data: Option<PreviewModeData>,
+    thumb: Handle<UiNode>,
 }
 
 fn fetch_selection(editor_selection: &Selection) -> AnimationSelection {
@@ -74,6 +78,7 @@ impl AnimationEditor {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let curve_editor;
         let ruler;
+        let thumb;
 
         let track_list = TrackList::new(ctx);
         let toolbar = Toolbar::new(ctx);
@@ -84,40 +89,54 @@ impl AnimationEditor {
                 .on_column(0)
                 .with_child(track_list.panel)
                 .with_child(
-                    GridBuilder::new(
+                    BorderBuilder::new(
                         WidgetBuilder::new()
                             .on_row(0)
                             .on_column(1)
-                            .with_child({
-                                ruler = RulerBuilder::new(
-                                    WidgetBuilder::new().on_row(0).with_margin(Thickness {
-                                        left: 1.0,
-                                        top: 1.0,
-                                        right: 1.0,
-                                        bottom: 0.0,
-                                    }),
+                            .with_child(
+                                GridBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_child({
+                                            ruler = RulerBuilder::new(
+                                                WidgetBuilder::new().on_row(0).with_margin(
+                                                    Thickness {
+                                                        left: 1.0,
+                                                        top: 1.0,
+                                                        right: 1.0,
+                                                        bottom: 0.0,
+                                                    },
+                                                ),
+                                            )
+                                            .with_value(0.0)
+                                            .build(ctx);
+                                            ruler
+                                        })
+                                        .with_child({
+                                            curve_editor = CurveEditorBuilder::new(
+                                                WidgetBuilder::new().on_row(1).with_margin(
+                                                    Thickness {
+                                                        left: 1.0,
+                                                        top: 0.0,
+                                                        right: 1.0,
+                                                        bottom: 1.0,
+                                                    },
+                                                ),
+                                            )
+                                            .with_show_x_values(false)
+                                            .build(ctx);
+                                            curve_editor
+                                        }),
                                 )
-                                .with_value(0.0)
-                                .build(ctx);
-                                ruler
-                            })
+                                .add_row(Row::strict(25.0))
+                                .add_row(Row::stretch())
+                                .add_column(Column::stretch())
+                                .build(ctx),
+                            )
                             .with_child({
-                                curve_editor = CurveEditorBuilder::new(
-                                    WidgetBuilder::new().on_row(1).with_margin(Thickness {
-                                        left: 1.0,
-                                        top: 0.0,
-                                        right: 1.0,
-                                        bottom: 1.0,
-                                    }),
-                                )
-                                .with_show_x_values(false)
-                                .build(ctx);
-                                curve_editor
+                                thumb = ThumbBuilder::new(WidgetBuilder::new()).build(ctx);
+                                thumb
                             }),
                     )
-                    .add_row(Row::strict(25.0))
-                    .add_row(Row::stretch())
-                    .add_column(Column::stretch())
                     .build(ctx),
                 ),
         )
@@ -150,6 +169,7 @@ impl AnimationEditor {
             content,
             ruler,
             preview_mode_data: None,
+            thumb,
         }
     }
 
@@ -208,13 +228,25 @@ impl AnimationEditor {
                                     self.ruler,
                                     MessageDirection::ToWidget,
                                     position.x,
+                                ));
+                                ui.send_message(ThumbMessage::view_position(
+                                    self.thumb,
+                                    MessageDirection::ToWidget,
+                                    position.x,
+                                ));
+                            }
+                            CurveEditorMessage::Zoom(zoom) => {
+                                ui.send_message(RulerMessage::zoom(
+                                    self.ruler,
+                                    MessageDirection::ToWidget,
+                                    zoom.x,
+                                ));
+                                ui.send_message(ThumbMessage::zoom(
+                                    self.thumb,
+                                    MessageDirection::ToWidget,
+                                    zoom.x,
                                 ))
                             }
-                            CurveEditorMessage::Zoom(zoom) => ui.send_message(RulerMessage::zoom(
-                                self.ruler,
-                                MessageDirection::ToWidget,
-                                zoom.x,
-                            )),
                             _ => (),
                         }
                     }
@@ -329,6 +361,27 @@ impl AnimationEditor {
             }
         }
     }
+
+    pub fn update(&mut self, editor_scene: &EditorScene, engine: &Engine) {
+        let selection = fetch_selection(&editor_scene.selection);
+
+        let scene = &engine.scenes[editor_scene.scene];
+
+        if let Some(animation_player) = scene
+            .graph
+            .try_get(selection.animation_player)
+            .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+        {
+            if let Some(animation) = animation_player.animations().try_get(selection.animation) {
+                engine.user_interface.send_message(ThumbMessage::position(
+                    self.thumb,
+                    MessageDirection::ToWidget,
+                    animation.time_position(),
+                ));
+            }
+        }
+    }
+
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         let selection = fetch_selection(&editor_scene.selection);
 

@@ -1721,6 +1721,10 @@ impl Editor {
         self.material_editor.update(&mut self.engine);
         self.asset_browser.update(&mut self.engine);
 
+        if let Some(scene) = self.scene.as_ref() {
+            self.animation_editor.update(scene, &self.engine);
+        }
+
         let mut iterations = 1;
         while iterations > 0 {
             iterations -= 1;
