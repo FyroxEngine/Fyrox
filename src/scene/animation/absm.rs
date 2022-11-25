@@ -21,11 +21,24 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-#[derive(Visit, Reflect, Clone, Debug, Default)]
+#[derive(Visit, Reflect, Clone, Debug)]
 pub struct AnimationBlendingStateMachine {
     base: Base,
     machine: InheritableVariable<Machine>,
     animation_player: InheritableVariable<Handle<Node>>,
+    #[visit(optional)]
+    enabled: bool,
+}
+
+impl Default for AnimationBlendingStateMachine {
+    fn default() -> Self {
+        Self {
+            base: Default::default(),
+            machine: Default::default(),
+            animation_player: Default::default(),
+            enabled: true,
+        }
+    }
 }
 
 impl AnimationBlendingStateMachine {
@@ -47,6 +60,14 @@ impl AnimationBlendingStateMachine {
 
     pub fn animation_player(&self) -> Handle<Node> {
         *self.animation_player
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
     }
 }
 
@@ -90,21 +111,23 @@ impl NodeTrait for AnimationBlendingStateMachine {
     }
 
     fn update(&mut self, context: &mut UpdateContext) -> bool {
-        if let Some(animation_player) = context
-            .nodes
-            .try_borrow_mut(*self.animation_player)
-            .and_then(|n| n.query_component_mut::<AnimationPlayer>())
-        {
-            // Prevent animation player to apply animation to scene nodes. The animation will
-            // do than instead.
-            animation_player.set_auto_apply(false);
+        if self.enabled {
+            if let Some(animation_player) = context
+                .nodes
+                .try_borrow_mut(*self.animation_player)
+                .and_then(|n| n.query_component_mut::<AnimationPlayer>())
+            {
+                // Prevent animation player to apply animation to scene nodes. The animation will
+                // do than instead.
+                animation_player.set_auto_apply(false);
 
-            let pose = self
-                .machine
-                .get_mut_silent()
-                .evaluate_pose(&animation_player.animations, context.dt);
+                let pose = self
+                    .machine
+                    .get_mut_silent()
+                    .evaluate_pose(&animation_player.animations, context.dt);
 
-            pose.apply_internal(context.nodes);
+                pose.apply_internal(context.nodes);
+            }
         }
         self.base.update_lifetime(context.dt)
     }
@@ -131,6 +154,7 @@ pub struct AnimationBlendingStateMachineBuilder {
     base_builder: BaseBuilder,
     machine: Machine,
     animation_player: Handle<Node>,
+    enabled: bool,
 }
 
 impl AnimationBlendingStateMachineBuilder {
@@ -139,6 +163,7 @@ impl AnimationBlendingStateMachineBuilder {
             base_builder,
             machine: Default::default(),
             animation_player: Default::default(),
+            enabled: true,
         }
     }
 
@@ -152,11 +177,17 @@ impl AnimationBlendingStateMachineBuilder {
         self
     }
 
+    pub fn with_enabled(mut self, enabled: bool) -> Self {
+        self.enabled = enabled;
+        self
+    }
+
     pub fn build_node(self) -> Node {
         Node::new(AnimationBlendingStateMachine {
             base: self.base_builder.build_base(),
             machine: self.machine.into(),
             animation_player: self.animation_player.into(),
+            enabled: self.enabled,
         })
     }
 
