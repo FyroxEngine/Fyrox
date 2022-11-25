@@ -53,6 +53,13 @@ pub struct Toolbar {
     pub length: Handle<UiNode>,
 }
 
+#[must_use]
+pub enum ToolbarAction {
+    None,
+    EnterPreviewMode,
+    LeavePreviewMode,
+}
+
 impl Toolbar {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let play_pause;
@@ -92,7 +99,7 @@ impl Toolbar {
                                     .with_text("Preview")
                                     .build(ctx),
                                 )
-                                .checked(Some(true))
+                                .checked(Some(false))
                                 .build(ctx);
                                 preview
                             })
@@ -312,7 +319,7 @@ impl Toolbar {
         animation_player: &mut AnimationPlayer,
         editor_scene: &EditorScene,
         selection: &AnimationSelection,
-    ) {
+    ) -> ToolbarAction {
         if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.destination() == self.animations
                 && message.direction() == MessageDirection::FromWidget
@@ -385,12 +392,11 @@ impl Toolbar {
             if message.destination() == self.preview
                 && message.direction() == MessageDirection::FromWidget
             {
-                if let Some(animation) = animation_player
-                    .animations_mut()
-                    .try_get_mut(selection.animation)
-                {
-                    animation.set_enabled(*checked);
-                }
+                return if *checked {
+                    ToolbarAction::EnterPreviewMode
+                } else {
+                    ToolbarAction::LeavePreviewMode
+                };
             }
         } else if let Some(NumericUpDownMessage::Value(value)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
@@ -413,6 +419,8 @@ impl Toolbar {
                 }
             }
         }
+
+        ToolbarAction::None
     }
 
     pub fn sync_to_model(

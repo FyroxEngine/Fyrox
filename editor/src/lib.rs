@@ -1747,6 +1747,11 @@ impl Editor {
                     );
                 }
 
+                if let Some(scene) = self.scene.as_ref() {
+                    self.animation_editor
+                        .handle_message(&message, scene, &mut self.engine);
+                }
+
                 self.scene_viewer.handle_message(&message, &mut self.engine);
 
                 match message {

@@ -3,12 +3,13 @@ use crate::{
         command::ReplaceTrackCurveCommand,
         ruler::{RulerBuilder, RulerMessage},
         selection::{AnimationSelection, SelectedEntity},
-        toolbar::Toolbar,
+        toolbar::{Toolbar, ToolbarAction},
         track::TrackList,
     },
     scene::{EditorScene, Selection},
-    Message,
+    send_sync_message, Message,
 };
+use fyrox::gui::check_box::CheckBoxMessage;
 use fyrox::{
     core::pool::Handle,
     engine::Engine,
@@ -20,7 +21,7 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
-    scene::animation::AnimationPlayer,
+    scene::{animation::AnimationPlayer, node::Node, Scene},
 };
 use std::sync::mpsc::Sender;
 
@@ -30,6 +31,10 @@ pub mod selection;
 mod toolbar;
 mod track;
 
+struct PreviewModeData {
+    nodes: Vec<(Handle<Node>, Node)>,
+}
+
 pub struct AnimationEditor {
     pub window: Handle<UiNode>,
     track_list: TrackList,
@@ -37,6 +42,7 @@ pub struct AnimationEditor {
     toolbar: Toolbar,
     content: Handle<UiNode>,
     ruler: Handle<UiNode>,
+    preview_mode_data: Option<PreviewModeData>,
 }
 
 fn fetch_selection(editor_selection: &Selection) -> AnimationSelection {
@@ -143,6 +149,7 @@ impl AnimationEditor {
             toolbar,
             content,
             ruler,
+            preview_mode_data: None,
         }
     }
 
@@ -171,7 +178,7 @@ impl AnimationEditor {
                 .try_get_mut(selection.animation_player)
                 .and_then(|n| n.query_component_mut::<AnimationPlayer>())
             {
-                self.toolbar.handle_ui_message(
+                let toolbar_action = self.toolbar.handle_ui_message(
                     message,
                     sender,
                     &engine.user_interface,
@@ -224,6 +231,35 @@ impl AnimationEditor {
                     }
                 }
 
+                match toolbar_action {
+                    ToolbarAction::None => {}
+                    ToolbarAction::EnterPreviewMode => {
+                        animation_player.set_auto_apply(true);
+                        if let Some(animation) = animation_player
+                            .animations_mut()
+                            .try_get_mut(selection.animation)
+                        {
+                            animation.rewind();
+                            animation.set_enabled(true);
+
+                            let animation_targets =
+                                animation.tracks().iter().map(|t| t.target()).collect();
+
+                            self.enter_preview_mode(animation_targets, scene);
+                        }
+                    }
+                    ToolbarAction::LeavePreviewMode => {
+                        animation_player.set_auto_apply(false);
+                        if let Some(animation) = animation_player
+                            .animations_mut()
+                            .try_get_mut(selection.animation)
+                        {
+                            animation.set_enabled(false);
+                            self.leave_preview_mode(scene);
+                        }
+                    }
+                }
+
                 self.track_list.handle_ui_message(
                     message,
                     editor_scene,
@@ -237,6 +273,62 @@ impl AnimationEditor {
         }
     }
 
+    fn enter_preview_mode(&mut self, animation_targets: Vec<Handle<Node>>, scene: &Scene) {
+        assert!(self.preview_mode_data.is_none());
+
+        // Save state of affected nodes.
+        self.preview_mode_data = Some(PreviewModeData {
+            nodes: animation_targets
+                .into_iter()
+                .map(|t| (t, scene.graph[t].clone_box()))
+                .collect(),
+        });
+    }
+
+    fn leave_preview_mode(&mut self, scene: &mut Scene) {
+        let preview_data = self
+            .preview_mode_data
+            .take()
+            .expect("Unable to leave animation preview mode!");
+
+        // Revert state of nodes.
+        for (handle, node) in preview_data.nodes {
+            scene.graph[handle] = node;
+        }
+    }
+
+    pub fn handle_message(
+        &mut self,
+        message: &Message,
+        editor_scene: &EditorScene,
+        engine: &mut Engine,
+    ) {
+        // Leave preview mode before execution of any scene command.
+        if let Message::DoSceneCommand(_) | Message::UndoSceneCommand | Message::RedoSceneCommand =
+            message
+        {
+            let selection = fetch_selection(&editor_scene.selection);
+
+            let scene = &mut engine.scenes[editor_scene.scene];
+
+            if let Some(animation_player) = scene
+                .graph
+                .try_get_mut(selection.animation_player)
+                .and_then(|n| n.query_component_mut::<AnimationPlayer>())
+            {
+                if let Some(animation) = animation_player
+                    .animations_mut()
+                    .try_get_mut(selection.animation)
+                {
+                    if animation.is_enabled() {
+                        animation.set_enabled(false);
+
+                        self.leave_preview_mode(scene);
+                    }
+                }
+            }
+        }
+    }
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         let selection = fetch_selection(&editor_scene.selection);
 
@@ -284,17 +376,31 @@ impl AnimationEditor {
             is_animation_player_selected = true;
         }
 
-        engine
-            .user_interface
-            .send_message(WidgetMessage::visibility(
+        let ui = &engine.user_interface;
+
+        send_sync_message(
+            ui,
+            WidgetMessage::visibility(
                 self.content,
                 MessageDirection::ToWidget,
                 is_animation_player_selected,
-            ));
-        engine.user_interface.send_message(WidgetMessage::enabled(
-            self.track_list.panel,
-            MessageDirection::ToWidget,
-            is_animation_selected,
-        ));
+            ),
+        );
+        send_sync_message(
+            ui,
+            WidgetMessage::enabled(
+                self.track_list.panel,
+                MessageDirection::ToWidget,
+                is_animation_selected,
+            ),
+        );
+        send_sync_message(
+            ui,
+            CheckBoxMessage::checked(
+                self.toolbar.preview,
+                MessageDirection::ToWidget,
+                Some(self.preview_mode_data.is_some()),
+            ),
+        );
     }
 }
