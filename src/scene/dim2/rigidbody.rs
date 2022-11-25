@@ -174,7 +174,7 @@ impl Clone for RigidBody {
             can_sleep: self.can_sleep.clone(),
             dominance: self.dominance.clone(),
             gravity_scale: self.gravity_scale.clone(),
-            // Do not copy.
+            // Do not copy. The copy will have its own native representation.
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
         }

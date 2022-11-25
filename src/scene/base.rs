@@ -308,7 +308,7 @@ impl Visit for InstanceId {
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Reflect)]
+#[derive(Debug, Reflect, Clone)]
 pub struct Base {
     #[reflect(hidden)]
     pub(crate) self_handle: Handle<Node>,
@@ -408,39 +408,6 @@ pub struct Base {
 impl Drop for Base {
     fn drop(&mut self) {
         self.remove_script();
-    }
-}
-
-impl Clone for Base {
-    fn clone(&self) -> Self {
-        Self {
-            self_handle: Default::default(), // Intentionally not copied!
-            script_message_sender: None,     // Intentionally not copied!
-            name: self.name.clone(),
-            local_transform: self.local_transform.clone(),
-            global_transform: self.global_transform.clone(),
-            visibility: self.visibility.clone(),
-            global_visibility: self.global_visibility.clone(),
-            inv_bind_pose_transform: self.inv_bind_pose_transform,
-            resource: self.resource.clone(),
-            original_handle_in_resource: self.original_handle_in_resource,
-            is_resource_instance_root: self.is_resource_instance_root,
-            lifetime: self.lifetime.clone(),
-            mobility: self.mobility.clone(),
-            tag: self.tag.clone(),
-            lod_group: self.lod_group.clone(),
-            properties: self.properties.clone(),
-            frustum_culling: self.frustum_culling.clone(),
-            depth_offset: self.depth_offset.clone(),
-            cast_shadows: self.cast_shadows.clone(),
-            script: self.script.clone(),
-            instance_id: self.instance_id,
-
-            // Rest of data is *not* copied!
-            parent: Default::default(),
-            children: Default::default(),
-            transform_modified: Cell::new(false),
-        }
     }
 }
 

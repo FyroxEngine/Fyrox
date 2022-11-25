@@ -217,7 +217,9 @@ impl Clone for Joint {
             body1: self.body1.clone(),
             body2: self.body2.clone(),
             contacts_enabled: self.contacts_enabled.clone(),
+            // Do not copy. The copy will have its own native representation.
             native: Cell::new(ImpulseJointHandle::invalid()),
+            // Rebind will happen automatically.
             need_rebind: Cell::new(true),
         }
     }

@@ -146,7 +146,7 @@ impl Clone for Sound {
             rolloff_factor: self.rolloff_factor.clone(),
             playback_time: self.playback_time.clone(),
             spatial_blend: self.spatial_blend.clone(),
-            // Do not copy.
+            // Do not copy. The copy will have its own native representation.
             native: Default::default(),
         }
     }

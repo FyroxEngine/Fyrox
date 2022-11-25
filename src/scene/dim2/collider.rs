@@ -308,7 +308,7 @@ impl Clone for Collider {
             solver_groups: self.solver_groups.clone(),
             friction_combine_rule: self.friction_combine_rule.clone(),
             restitution_combine_rule: self.restitution_combine_rule.clone(),
-            // Do not copy.
+            // Do not copy. The copy will have its own native representation.
             native: Cell::new(ColliderHandle::invalid()),
         }
     }

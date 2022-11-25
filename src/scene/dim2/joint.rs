@@ -136,6 +136,7 @@ impl Default for Joint {
             body1: Default::default(),
             body2: Default::default(),
             contacts_enabled: InheritableVariable::new(true),
+            // Do not copy. The copy will have its own native representation.
             native: Cell::new(ImpulseJointHandle::invalid()),
             need_rebind: Cell::new(true),
         }
