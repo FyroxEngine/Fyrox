@@ -58,6 +58,7 @@ pub enum ToolbarAction {
     None,
     EnterPreviewMode,
     LeavePreviewMode,
+    SelectAnimation(Handle<Animation>),
 }
 
 impl Toolbar {
@@ -340,6 +341,7 @@ impl Toolbar {
                         editor_scene.selection.clone(),
                     )))
                     .unwrap();
+                return ToolbarAction::SelectAnimation(*animation);
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.play_pause {

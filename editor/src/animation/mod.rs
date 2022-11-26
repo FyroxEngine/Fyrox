@@ -290,6 +290,32 @@ impl AnimationEditor {
                             self.leave_preview_mode(scene);
                         }
                     }
+                    ToolbarAction::SelectAnimation(animation) => {
+                        let animation_ref = &animation_player.animations()[animation];
+
+                        let size = engine
+                            .user_interface
+                            .node(self.curve_editor)
+                            .actual_local_size();
+                        let zoom = size.x / animation_ref.length().max(f32::EPSILON);
+
+                        engine.user_interface.send_message(CurveEditorMessage::zoom(
+                            self.curve_editor,
+                            MessageDirection::ToWidget,
+                            Vector2::new(zoom, zoom),
+                        ));
+
+                        engine
+                            .user_interface
+                            .send_message(CurveEditorMessage::view_position(
+                                self.curve_editor,
+                                MessageDirection::ToWidget,
+                                Vector2::new(
+                                    0.5 * (size.x - animation_ref.length()),
+                                    -0.5 * size.y,
+                                ),
+                            ));
+                    }
                 }
 
                 self.track_list.handle_ui_message(
@@ -415,13 +441,6 @@ impl AnimationEditor {
                             MessageDirection::ToWidget,
                             selected_curve.clone(),
                         ));
-
-                        engine
-                            .user_interface
-                            .send_message(CurveEditorMessage::zoom_to_fit(
-                                self.curve_editor,
-                                MessageDirection::ToWidget,
-                            ));
                     }
                 }
                 is_animation_selected = true;
