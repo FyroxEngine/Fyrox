@@ -346,6 +346,17 @@ impl TrackList {
         }
     }
 
+    pub fn clear(&mut self, ui: &UserInterface) {
+        ui.send_message(TreeRootMessage::items(
+            self.tree_root,
+            MessageDirection::ToWidget,
+            vec![],
+        ));
+        self.group_views.clear();
+        self.track_views.clear();
+        self.selected_node = Handle::NONE;
+    }
+
     pub fn sync_to_model(&mut self, animation: &Animation, graph: &Graph, ui: &mut UserInterface) {
         match animation.tracks().len().cmp(&self.track_views.len()) {
             Ordering::Less => {

@@ -11,7 +11,7 @@ use crate::{
     send_sync_message, Message,
 };
 use fyrox::{
-    core::pool::Handle,
+    core::{algebra::Vector2, pool::Handle},
     engine::Engine,
     gui::{
         border::BorderBuilder,
@@ -430,6 +430,31 @@ impl AnimationEditor {
         }
 
         let ui = &engine.user_interface;
+
+        if !is_animation_selected || !is_animation_player_selected {
+            self.track_list.clear(ui);
+
+            ui.send_message(CurveEditorMessage::sync(
+                self.curve_editor,
+                MessageDirection::ToWidget,
+                Default::default(),
+            ));
+
+            ui.send_message(CurveEditorMessage::zoom(
+                self.curve_editor,
+                MessageDirection::ToWidget,
+                Vector2::new(1.0, 1.0),
+            ));
+            ui.send_message(CurveEditorMessage::view_position(
+                self.curve_editor,
+                MessageDirection::ToWidget,
+                Vector2::default(),
+            ))
+        }
+
+        if !is_animation_player_selected {
+            self.toolbar.clear(ui);
+        }
 
         send_sync_message(
             ui,

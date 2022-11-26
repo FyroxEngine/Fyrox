@@ -423,6 +423,14 @@ impl Toolbar {
         ToolbarAction::None
     }
 
+    pub fn clear(&mut self, ui: &UserInterface) {
+        ui.send_message(DropdownListMessage::items(
+            self.animations,
+            MessageDirection::ToWidget,
+            vec![],
+        ));
+    }
+
     pub fn sync_to_model(
         &self,
         animation_player: &AnimationPlayer,
