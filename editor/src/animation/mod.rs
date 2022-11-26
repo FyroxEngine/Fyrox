@@ -272,12 +272,15 @@ impl AnimationEditor {
                             .try_get_mut(selection.animation)
                         {
                             animation.rewind();
-                            animation.set_enabled(true);
 
                             let animation_targets =
                                 animation.tracks().iter().map(|t| t.target()).collect();
 
-                            self.enter_preview_mode(animation_targets, scene);
+                            self.enter_preview_mode(
+                                animation_targets,
+                                scene,
+                                &engine.user_interface,
+                            );
                         }
                     }
                     ToolbarAction::LeavePreviewMode => {
@@ -287,7 +290,7 @@ impl AnimationEditor {
                             .try_get_mut(selection.animation)
                         {
                             animation.set_enabled(false);
-                            self.leave_preview_mode(scene);
+                            self.leave_preview_mode(scene, &engine.user_interface);
                         }
                     }
                     ToolbarAction::SelectAnimation(animation) => {
@@ -316,6 +319,23 @@ impl AnimationEditor {
                                 ),
                             ));
                     }
+                    ToolbarAction::PlayPause => {
+                        if let Some(animation) = animation_player
+                            .animations_mut()
+                            .try_get_mut(selection.animation)
+                        {
+                            animation.set_enabled(!animation.is_enabled());
+                        }
+                    }
+                    ToolbarAction::Stop => {
+                        if let Some(animation) = animation_player
+                            .animations_mut()
+                            .try_get_mut(selection.animation)
+                        {
+                            animation.rewind();
+                            animation.set_enabled(false);
+                        }
+                    }
                 }
 
                 self.track_list.handle_ui_message(
@@ -331,8 +351,15 @@ impl AnimationEditor {
         }
     }
 
-    fn enter_preview_mode(&mut self, animation_targets: Vec<Handle<Node>>, scene: &Scene) {
+    fn enter_preview_mode(
+        &mut self,
+        animation_targets: Vec<Handle<Node>>,
+        scene: &Scene,
+        ui: &UserInterface,
+    ) {
         assert!(self.preview_mode_data.is_none());
+
+        self.toolbar.on_preview_mode_changed(ui, true);
 
         // Save state of affected nodes.
         self.preview_mode_data = Some(PreviewModeData {
@@ -343,7 +370,9 @@ impl AnimationEditor {
         });
     }
 
-    fn leave_preview_mode(&mut self, scene: &mut Scene) {
+    fn leave_preview_mode(&mut self, scene: &mut Scene, ui: &UserInterface) {
+        self.toolbar.on_preview_mode_changed(ui, false);
+
         let preview_data = self
             .preview_mode_data
             .take()
@@ -378,10 +407,10 @@ impl AnimationEditor {
                     .animations_mut()
                     .try_get_mut(selection.animation)
                 {
-                    if animation.is_enabled() {
+                    if animation.is_enabled() && self.preview_mode_data.is_some() {
                         animation.set_enabled(false);
 
-                        self.leave_preview_mode(scene);
+                        self.leave_preview_mode(scene, &engine.user_interface);
                     }
                 }
             }
@@ -421,8 +450,12 @@ impl AnimationEditor {
             .try_get(selection.animation_player)
             .and_then(|n| n.query_component_ref::<AnimationPlayer>())
         {
-            self.toolbar
-                .sync_to_model(animation_player, &selection, &mut engine.user_interface);
+            self.toolbar.sync_to_model(
+                animation_player,
+                &selection,
+                &mut engine.user_interface,
+                self.preview_mode_data.is_some(),
+            );
 
             if let Some(animation) = animation_player.animations().try_get(selection.animation) {
                 self.track_list

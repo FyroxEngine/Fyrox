@@ -35,7 +35,6 @@ use fyrox::{
         BRUSH_BRIGHT, BRUSH_LIGHT,
     },
     scene::{animation::AnimationPlayer, node::Node},
-    utils::log::Log,
 };
 use std::sync::mpsc::Sender;
 
@@ -59,6 +58,8 @@ pub enum ToolbarAction {
     EnterPreviewMode,
     LeavePreviewMode,
     SelectAnimation(Handle<Animation>),
+    PlayPause,
+    Stop,
 }
 
 impl Toolbar {
@@ -81,29 +82,6 @@ impl Toolbar {
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
-                            .with_child({
-                                preview = CheckBoxBuilder::new(
-                                    WidgetBuilder::new().with_enabled(false).with_margin(
-                                        Thickness {
-                                            left: 1.0,
-                                            top: 1.0,
-                                            right: 5.0,
-                                            bottom: 1.0,
-                                        },
-                                    ),
-                                )
-                                .with_content(
-                                    TextBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_vertical_alignment(VerticalAlignment::Center),
-                                    )
-                                    .with_text("Preview")
-                                    .build(ctx),
-                                )
-                                .checked(Some(false))
-                                .build(ctx);
-                                preview
-                            })
                             .with_child({
                                 animation_name = TextBoxBuilder::new(
                                     WidgetBuilder::new()
@@ -174,62 +152,6 @@ impl Toolbar {
                                 .build(ctx);
                                 remove_current_animation
                             })
-                            .with_child({
-                                play_pause = ButtonBuilder::new(
-                                    WidgetBuilder::new().with_enabled(false).with_margin(
-                                        Thickness {
-                                            left: 10.0,
-                                            top: 1.0,
-                                            right: 1.0,
-                                            bottom: 1.0,
-                                        },
-                                    ),
-                                )
-                                .with_content(
-                                    VectorImageBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_foreground(BRUSH_BRIGHT)
-                                            .with_tooltip(make_simple_tooltip(ctx, "Play/Pause")),
-                                    )
-                                    .with_primitives(vec![
-                                        Primitive::Triangle {
-                                            points: [
-                                                Vector2::new(0.0, 0.0),
-                                                Vector2::new(8.0, 8.0),
-                                                Vector2::new(0.0, 16.0),
-                                            ],
-                                        },
-                                        Primitive::RectangleFilled {
-                                            rect: Rect::new(10.0, 0.0, 4.0, 16.0),
-                                        },
-                                        Primitive::RectangleFilled {
-                                            rect: Rect::new(15.0, 0.0, 4.0, 16.0),
-                                        },
-                                    ])
-                                    .build(ctx),
-                                )
-                                .build(ctx);
-                                play_pause
-                            })
-                            .with_child({
-                                stop = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_enabled(false)
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_tooltip(make_simple_tooltip(ctx, "Stop Playback")),
-                                )
-                                .with_content(
-                                    VectorImageBuilder::new(
-                                        WidgetBuilder::new().with_foreground(BRUSH_BRIGHT),
-                                    )
-                                    .with_primitives(vec![Primitive::RectangleFilled {
-                                        rect: Rect::new(0.0, 0.0, 16.0, 16.0),
-                                    }])
-                                    .build(ctx),
-                                )
-                                .build(ctx);
-                                stop
-                            })
                             .with_child(
                                 ImageBuilder::new(
                                     WidgetBuilder::new()
@@ -287,6 +209,85 @@ impl Toolbar {
                                 .with_value(1.0)
                                 .build(ctx);
                                 length
+                            })
+                            .with_child({
+                                preview = CheckBoxBuilder::new(
+                                    WidgetBuilder::new().with_enabled(false).with_margin(
+                                        Thickness {
+                                            left: 10.0,
+                                            top: 1.0,
+                                            right: 5.0,
+                                            bottom: 1.0,
+                                        },
+                                    ),
+                                )
+                                .with_content(
+                                    TextBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_vertical_alignment(VerticalAlignment::Center),
+                                    )
+                                    .with_text("Preview")
+                                    .build(ctx),
+                                )
+                                .checked(Some(false))
+                                .build(ctx);
+                                preview
+                            })
+                            .with_child({
+                                play_pause = ButtonBuilder::new(
+                                    WidgetBuilder::new().with_enabled(false).with_margin(
+                                        Thickness {
+                                            left: 1.0,
+                                            top: 1.0,
+                                            right: 1.0,
+                                            bottom: 1.0,
+                                        },
+                                    ),
+                                )
+                                .with_content(
+                                    VectorImageBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_foreground(BRUSH_BRIGHT)
+                                            .with_tooltip(make_simple_tooltip(ctx, "Play/Pause")),
+                                    )
+                                    .with_primitives(vec![
+                                        Primitive::Triangle {
+                                            points: [
+                                                Vector2::new(0.0, 0.0),
+                                                Vector2::new(8.0, 8.0),
+                                                Vector2::new(0.0, 16.0),
+                                            ],
+                                        },
+                                        Primitive::RectangleFilled {
+                                            rect: Rect::new(10.0, 0.0, 4.0, 16.0),
+                                        },
+                                        Primitive::RectangleFilled {
+                                            rect: Rect::new(15.0, 0.0, 4.0, 16.0),
+                                        },
+                                    ])
+                                    .build(ctx),
+                                )
+                                .build(ctx);
+                                play_pause
+                            })
+                            .with_child({
+                                stop = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_enabled(false)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(make_simple_tooltip(ctx, "Stop Playback")),
+                                )
+                                .with_content(
+                                    VectorImageBuilder::new(
+                                        WidgetBuilder::new().with_foreground(BRUSH_BRIGHT),
+                                    )
+                                    .with_primitives(vec![Primitive::RectangleFilled {
+                                        rect: Rect::new(0.0, 0.0, 16.0, 16.0),
+                                    }])
+                                    .build(ctx),
+                                )
+                                .build(ctx);
+                                stop
                             }),
                     )
                     .with_orientation(Orientation::Horizontal)
@@ -345,9 +346,9 @@ impl Toolbar {
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.play_pause {
-                Log::warn("Implement playback!");
+                return ToolbarAction::PlayPause;
             } else if message.destination() == self.stop {
-                Log::warn("Implement playback stopping!");
+                return ToolbarAction::Stop;
             } else if message.destination() == self.remove_current_animation {
                 if animation_player
                     .animations()
@@ -433,11 +434,22 @@ impl Toolbar {
         ));
     }
 
+    pub fn on_preview_mode_changed(&self, ui: &UserInterface, in_preview_mode: bool) {
+        for widget in [self.play_pause, self.stop] {
+            ui.send_message(WidgetMessage::enabled(
+                widget,
+                MessageDirection::ToWidget,
+                in_preview_mode,
+            ));
+        }
+    }
+
     pub fn sync_to_model(
         &self,
         animation_player: &AnimationPlayer,
         selection: &AnimationSelection,
         ui: &mut UserInterface,
+        in_preview_mode: bool,
     ) {
         let new_items = animation_player
             .animations()
@@ -477,8 +489,6 @@ impl Toolbar {
 
         for widget in [
             self.preview,
-            self.play_pause,
-            self.stop,
             self.speed,
             self.rename_current_animation,
             self.remove_current_animation,
@@ -488,6 +498,14 @@ impl Toolbar {
                 widget,
                 MessageDirection::ToWidget,
                 selected_animation_valid,
+            ));
+        }
+
+        for widget in [self.play_pause, self.stop] {
+            ui.send_message(WidgetMessage::enabled(
+                widget,
+                MessageDirection::ToWidget,
+                selected_animation_valid && in_preview_mode,
             ));
         }
     }
