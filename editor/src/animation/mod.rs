@@ -97,30 +97,15 @@ impl AnimationEditor {
                                 GridBuilder::new(
                                     WidgetBuilder::new()
                                         .with_child({
-                                            ruler = RulerBuilder::new(
-                                                WidgetBuilder::new().on_row(0).with_margin(
-                                                    Thickness {
-                                                        left: 1.0,
-                                                        top: 1.0,
-                                                        right: 1.0,
-                                                        bottom: 0.0,
-                                                    },
-                                                ),
-                                            )
-                                            .with_value(0.0)
-                                            .build(ctx);
+                                            ruler =
+                                                RulerBuilder::new(WidgetBuilder::new().on_row(0))
+                                                    .with_value(0.0)
+                                                    .build(ctx);
                                             ruler
                                         })
                                         .with_child({
                                             curve_editor = CurveEditorBuilder::new(
-                                                WidgetBuilder::new().on_row(1).with_margin(
-                                                    Thickness {
-                                                        left: 1.0,
-                                                        top: 0.0,
-                                                        right: 1.0,
-                                                        bottom: 1.0,
-                                                    },
-                                                ),
+                                                WidgetBuilder::new().on_row(1),
                                             )
                                             .with_show_x_values(false)
                                             .build(ctx);

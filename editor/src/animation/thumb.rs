@@ -123,7 +123,11 @@ impl ThumbBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let ruler = Thumb {
-            widget: self.widget_builder.with_foreground(BRUSH_BRIGHT).build(),
+            widget: self
+                .widget_builder
+                .with_hit_test_visibility(false)
+                .with_foreground(BRUSH_BRIGHT)
+                .build(),
             zoom: 1.0,
             view_position: 0.0,
             position: 0.0,
