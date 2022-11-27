@@ -21,7 +21,7 @@ use fyrox::{
         message::{MessageDirection, UiMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Thickness, UiNode, UserInterface,
+        BuildContext, UiNode, UserInterface,
     },
     scene::{animation::AnimationPlayer, node::Node, Scene},
 };

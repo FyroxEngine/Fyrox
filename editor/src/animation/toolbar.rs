@@ -2,7 +2,7 @@ use crate::{
     animation::{
         command::{
             AddAnimationCommand, RemoveAnimationCommand, SetAnimationLengthCommand,
-            SetAnimationSpeedCommand,
+            SetAnimationNameCommand, SetAnimationSpeedCommand,
         },
         selection::AnimationSelection,
     },
@@ -28,7 +28,7 @@ use fyrox::{
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
         text_box::{TextBox, TextBoxBuilder},
-        utils::{make_arrow, make_cross, make_simple_tooltip, ArrowDirection},
+        utils::{make_cross, make_simple_tooltip},
         vector_image::{Primitive, VectorImageBuilder},
         widget::{WidgetBuilder, WidgetMessage},
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
@@ -47,6 +47,7 @@ pub struct Toolbar {
     pub add_animation: Handle<UiNode>,
     pub remove_current_animation: Handle<UiNode>,
     pub rename_current_animation: Handle<UiNode>,
+    pub clone_current_animation: Handle<UiNode>,
     pub animation_name: Handle<UiNode>,
     pub preview: Handle<UiNode>,
     pub length: Handle<UiNode>,
@@ -71,6 +72,7 @@ impl Toolbar {
         let add_animation;
         let remove_current_animation;
         let rename_current_animation;
+        let clone_current_animation;
         let animation_name;
         let preview;
         let length;
@@ -122,7 +124,19 @@ impl Toolbar {
                                             "Rename Selected Animation",
                                         )),
                                 )
-                                .with_content(make_arrow(ctx, ArrowDirection::Right, 14.0))
+                                .with_content(
+                                    ImageBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_width(18.0)
+                                            .with_height(18.0)
+                                            .with_margin(Thickness::uniform(1.0))
+                                            .with_background(BRUSH_BRIGHT),
+                                    )
+                                    .with_opt_texture(load_image(include_bytes!(
+                                        "../../resources/embed/rename.png"
+                                    )))
+                                    .build(ctx),
+                                )
                                 .build(ctx);
                                 rename_current_animation
                             })
@@ -152,6 +166,35 @@ impl Toolbar {
                                 .build(ctx);
                                 remove_current_animation
                             })
+                            .with_child({
+                                clone_current_animation = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_enabled(false)
+                                        .with_width(20.0)
+                                        .with_height(20.0)
+                                        .with_vertical_alignment(VerticalAlignment::Center)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(make_simple_tooltip(
+                                            ctx,
+                                            "Clone Selected Animation",
+                                        )),
+                                )
+                                .with_content(
+                                    ImageBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_width(18.0)
+                                            .with_height(18.0)
+                                            .with_margin(Thickness::uniform(1.0))
+                                            .with_background(BRUSH_BRIGHT),
+                                    )
+                                    .with_opt_texture(load_image(include_bytes!(
+                                        "../../resources/embed/copy.png"
+                                    )))
+                                    .build(ctx),
+                                )
+                                .build(ctx);
+                                clone_current_animation
+                            })
                             .with_child(
                                 ImageBuilder::new(
                                     WidgetBuilder::new()
@@ -173,7 +216,7 @@ impl Toolbar {
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_tooltip(make_simple_tooltip(
                                             ctx,
-                                            "Preview Playback Speed",
+                                            "Animation Playback Speed",
                                         )),
                                 )
                                 .with_min_value(0.0)
@@ -309,6 +352,7 @@ impl Toolbar {
             animation_name,
             preview,
             length,
+            clone_current_animation,
         }
     }
 
@@ -375,7 +419,17 @@ impl Toolbar {
                         .unwrap();
                 }
             } else if message.destination() == self.rename_current_animation {
-                // TODO
+                sender
+                    .send(Message::do_scene_command(SetAnimationNameCommand {
+                        node_handle: animation_player_handle,
+                        animation_handle: selection.animation,
+                        value: ui
+                            .node(self.animation_name)
+                            .query_component::<TextBox>()
+                            .unwrap()
+                            .text(),
+                    }))
+                    .unwrap();
             } else if message.destination() == self.add_animation {
                 let mut animation = Animation::default();
                 animation.set_name(
@@ -390,6 +444,20 @@ impl Toolbar {
                         animation,
                     )))
                     .unwrap();
+            } else if message.destination() == self.clone_current_animation {
+                if let Some(animation) = animation_player.animations().try_get(selection.animation)
+                {
+                    let mut animation_clone = animation.clone();
+
+                    animation_clone.set_name(format!("{} Copy", animation.name()));
+
+                    sender
+                        .send(Message::do_scene_command(AddAnimationCommand::new(
+                            animation_player_handle,
+                            animation_clone,
+                        )))
+                        .unwrap();
+                }
             }
         } else if let Some(CheckBoxMessage::Check(Some(checked))) = message.data() {
             if message.destination() == self.preview
@@ -493,6 +561,7 @@ impl Toolbar {
             self.rename_current_animation,
             self.remove_current_animation,
             self.length,
+            self.clone_current_animation,
         ] {
             ui.send_message(WidgetMessage::enabled(
                 widget,

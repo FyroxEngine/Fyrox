@@ -338,3 +338,10 @@ define_animation_swap_command!(SetAnimationLengthCommand<f32>(self, context) {
     animation.set_length(self.value);
     self.value = old_length;
 });
+
+define_animation_swap_command!(SetAnimationNameCommand<String>(self, context) {
+    let animation = fetch_animation(self.node_handle, self.animation_handle, context);
+    let old_name = animation.name().to_string();
+    animation.set_name(self.value.clone());
+    self.value = old_name;
+});
