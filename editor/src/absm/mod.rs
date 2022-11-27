@@ -345,20 +345,22 @@ impl AbsmEditor {
                     }
                 }
                 ToolbarAction::LeavePreviewMode => {
-                    absm_node.set_enabled(false);
+                    if self.preview_mode_data.is_some() {
+                        absm_node.set_enabled(false);
 
-                    // Disable all animations in the player.
-                    let animation_player = absm_node.animation_player();
-                    if let Some(animation_player) = scene
-                        .graph
-                        .try_get_mut(animation_player)
-                        .and_then(|n| n.query_component_mut::<AnimationPlayer>())
-                    {
-                        for animation in animation_player.animations_mut().iter_mut() {
-                            animation.set_enabled(false);
+                        // Disable all animations in the player.
+                        let animation_player = absm_node.animation_player();
+                        if let Some(animation_player) = scene
+                            .graph
+                            .try_get_mut(animation_player)
+                            .and_then(|n| n.query_component_mut::<AnimationPlayer>())
+                        {
+                            for animation in animation_player.animations_mut().iter_mut() {
+                                animation.set_enabled(false);
+                            }
+
+                            self.leave_preview_mode(scene, ui);
                         }
-
-                        self.leave_preview_mode(scene, ui);
                     }
                 }
             }
