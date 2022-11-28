@@ -1,30 +1,29 @@
-use crate::text::TextMessage;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     core::{
         color::Color,
-        num_traits::NumCast,
-        num_traits::NumOps,
-        num_traits::{clamp, Bounded, NumAssign},
+        num_traits::{clamp, Bounded, NumAssign, NumCast, NumOps},
         pool::Handle,
+        reflect::Reflect,
     },
     decorator::DecoratorBuilder,
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{KeyCode, MessageDirection, UiMessage},
+    text::TextMessage,
     text_box::{TextBox, TextBoxBuilder},
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
 };
-use fyrox_core::reflect::Reflect;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
+    rc::Rc,
     str::FromStr,
 };
 
@@ -69,10 +68,32 @@ impl<T> NumericType for T where
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NumericUpDownMessage<T: NumericType> {
     Value(T),
+    MinValue(T),
+    MaxValue(T),
+    Step(T),
+    Precision(usize),
 }
 
 impl<T: NumericType> NumericUpDownMessage<T> {
     define_constructor!(NumericUpDownMessage:Value => fn value(T), layout: false);
+    define_constructor!(NumericUpDownMessage:MinValue => fn min_value(T), layout: false);
+    define_constructor!(NumericUpDownMessage:MaxValue => fn max_value(T), layout: false);
+    define_constructor!(NumericUpDownMessage:Step => fn step(T), layout: false);
+
+    pub fn precision(
+        destination: Handle<UiNode>,
+        direction: MessageDirection,
+        precision: usize,
+    ) -> UiMessage {
+        UiMessage {
+            handled: Default::default(),
+            data: Rc::new(precision),
+            destination,
+            direction,
+            perform_layout: Default::default(),
+            flags: 0,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -105,6 +126,25 @@ impl<T: NumericType> DerefMut for NumericUpDown<T> {
 impl<T: NumericType> NumericUpDown<T> {
     fn clamp_value(&self, value: T) -> T {
         clamp(value, self.min_value, self.max_value)
+    }
+
+    fn sync_text_field(&self, ui: &UserInterface) {
+        ui.send_message(TextMessage::text(
+            self.field,
+            MessageDirection::ToWidget,
+            format!("{:.1$}", self.value, self.precision),
+        ));
+    }
+
+    fn sync_value_to_bounds_if_needed(&self, ui: &UserInterface) {
+        let clamped = self.clamp_value(self.value);
+        if self.value != clamped {
+            ui.send_message(NumericUpDownMessage::value(
+                self.handle,
+                MessageDirection::ToWidget,
+                clamped,
+            ));
+        }
     }
 
     fn try_parse_value(&mut self, ui: &mut UserInterface) {
@@ -180,32 +220,57 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                     _ => {}
                 }
             }
-        } else if let Some(NumericUpDownMessage::Value(value)) =
-            message.data::<NumericUpDownMessage<T>>()
-        {
+        } else if let Some(msg) = message.data::<NumericUpDownMessage<T>>() {
             if message.direction() == MessageDirection::ToWidget
                 && message.destination() == self.handle()
             {
-                let clamped = self.clamp_value(*value);
-                if self.value != clamped {
-                    self.value = clamped;
+                match msg {
+                    NumericUpDownMessage::Value(value) => {
+                        let clamped = self.clamp_value(*value);
+                        if self.value != clamped {
+                            self.value = clamped;
 
-                    // Sync text field.
-                    ui.send_message(TextMessage::text(
-                        self.field,
-                        MessageDirection::ToWidget,
-                        format!("{:.1$}", self.value, self.precision),
-                    ));
+                            self.sync_text_field(ui);
 
-                    let mut msg = NumericUpDownMessage::value(
-                        self.handle,
-                        MessageDirection::FromWidget,
-                        self.value,
-                    );
-                    // We must maintain flags
-                    msg.set_handled(message.handled());
-                    msg.flags = message.flags;
-                    ui.send_message(msg);
+                            let mut msg = NumericUpDownMessage::value(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                                self.value,
+                            );
+                            // We must maintain flags
+                            msg.set_handled(message.handled());
+                            msg.flags = message.flags;
+                            ui.send_message(msg);
+                        }
+                    }
+                    NumericUpDownMessage::MinValue(min_value) => {
+                        if self.min_value.ne(min_value) {
+                            self.min_value = *min_value;
+                            ui.send_message(message.reverse());
+                            self.sync_value_to_bounds_if_needed(ui);
+                        }
+                    }
+                    NumericUpDownMessage::MaxValue(max_value) => {
+                        if self.max_value.ne(max_value) {
+                            self.max_value = *max_value;
+                            ui.send_message(message.reverse());
+                            self.sync_value_to_bounds_if_needed(ui);
+                        }
+                    }
+                    NumericUpDownMessage::Step(step) => {
+                        if self.step.ne(step) {
+                            self.step = *step;
+                            ui.send_message(message.reverse());
+                            self.sync_text_field(ui);
+                        }
+                    }
+                    NumericUpDownMessage::Precision(precision) => {
+                        if self.precision.ne(precision) {
+                            self.precision = *precision;
+                            ui.send_message(message.reverse());
+                            self.sync_text_field(ui);
+                        }
+                    }
                 }
             }
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
