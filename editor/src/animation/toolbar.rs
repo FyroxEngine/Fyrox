@@ -1,8 +1,8 @@
 use crate::{
     animation::{
         command::{
-            AddAnimationCommand, RemoveAnimationCommand, SetAnimationLengthCommand,
-            SetAnimationNameCommand, SetAnimationSpeedCommand,
+            AddAnimationCommand, RemoveAnimationCommand, SetAnimationNameCommand,
+            SetAnimationSpeedCommand, SetAnimationTimeSliceCommand,
         },
         selection::AnimationSelection,
     },
@@ -12,7 +12,7 @@ use crate::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
         EditorScene, Selection,
     },
-    Message,
+    send_sync_message, Message,
 };
 use fyrox::{
     animation::Animation,
@@ -50,7 +50,8 @@ pub struct Toolbar {
     pub clone_current_animation: Handle<UiNode>,
     pub animation_name: Handle<UiNode>,
     pub preview: Handle<UiNode>,
-    pub length: Handle<UiNode>,
+    pub time_slice_start: Handle<UiNode>,
+    pub time_slice_end: Handle<UiNode>,
 }
 
 #[must_use]
@@ -75,7 +76,8 @@ impl Toolbar {
         let clone_current_animation;
         let animation_name;
         let preview;
-        let length;
+        let time_slice_start;
+        let time_slice_end;
         let panel = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
@@ -238,20 +240,36 @@ impl Toolbar {
                                 .build(ctx),
                             )
                             .with_child({
-                                length = NumericUpDownBuilder::<f32>::new(
+                                time_slice_start = NumericUpDownBuilder::<f32>::new(
                                     WidgetBuilder::new()
                                         .with_enabled(false)
                                         .with_width(60.0)
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_tooltip(make_simple_tooltip(
                                             ctx,
-                                            "Animation Length in Seconds",
+                                            "Start Time of the Animation",
+                                        )),
+                                )
+                                .with_min_value(0.0)
+                                .with_value(0.0)
+                                .build(ctx);
+                                time_slice_start
+                            })
+                            .with_child({
+                                time_slice_end = NumericUpDownBuilder::<f32>::new(
+                                    WidgetBuilder::new()
+                                        .with_enabled(false)
+                                        .with_width(60.0)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(make_simple_tooltip(
+                                            ctx,
+                                            "End Time of the Animation",
                                         )),
                                 )
                                 .with_min_value(0.0)
                                 .with_value(1.0)
                                 .build(ctx);
-                                length
+                                time_slice_end
                             })
                             .with_child({
                                 preview = CheckBoxBuilder::new(
@@ -351,7 +369,8 @@ impl Toolbar {
             remove_current_animation,
             animation_name,
             preview,
-            length,
+            time_slice_start,
+            time_slice_end,
             clone_current_animation,
         }
     }
@@ -469,14 +488,28 @@ impl Toolbar {
                     ToolbarAction::LeavePreviewMode
                 };
             }
-        } else if let Some(NumericUpDownMessage::Value(value)) = message.data() {
+        } else if let Some(NumericUpDownMessage::<f32>::Value(value)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
-                if message.destination() == self.length {
+                if message.destination() == self.time_slice_start {
+                    let mut time_slice =
+                        animation_player.animations()[selection.animation].time_slice();
+                    time_slice.start = value.min(time_slice.end);
                     sender
-                        .send(Message::do_scene_command(SetAnimationLengthCommand {
+                        .send(Message::do_scene_command(SetAnimationTimeSliceCommand {
                             node_handle: animation_player_handle,
                             animation_handle: selection.animation,
-                            value: *value,
+                            value: time_slice,
+                        }))
+                        .unwrap();
+                } else if message.destination() == self.time_slice_end {
+                    let mut time_slice =
+                        animation_player.animations()[selection.animation].time_slice();
+                    time_slice.end = value.max(time_slice.start);
+                    sender
+                        .send(Message::do_scene_command(SetAnimationTimeSliceCommand {
+                            node_handle: animation_player_handle,
+                            animation_handle: selection.animation,
+                            value: time_slice,
                         }))
                         .unwrap();
                 } else if message.destination() == self.speed {
@@ -527,32 +560,65 @@ impl Toolbar {
             })
             .collect();
 
-        ui.send_message(DropdownListMessage::items(
-            self.animations,
-            MessageDirection::ToWidget,
-            new_items,
-        ));
+        send_sync_message(
+            ui,
+            DropdownListMessage::items(self.animations, MessageDirection::ToWidget, new_items),
+        );
 
         let mut selected_animation_valid = false;
         if let Some(animation) = animation_player.animations().try_get(selection.animation) {
             selected_animation_valid = true;
-            ui.send_message(TextMessage::text(
-                self.animation_name,
-                MessageDirection::ToWidget,
-                animation.name().to_string(),
-            ));
+            send_sync_message(
+                ui,
+                TextMessage::text(
+                    self.animation_name,
+                    MessageDirection::ToWidget,
+                    animation.name().to_string(),
+                ),
+            );
 
-            ui.send_message(NumericUpDownMessage::value(
-                self.length,
-                MessageDirection::ToWidget,
-                animation.length(),
-            ));
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.time_slice_start,
+                    MessageDirection::ToWidget,
+                    animation.time_slice().start,
+                ),
+            );
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::max_value(
+                    self.time_slice_start,
+                    MessageDirection::ToWidget,
+                    animation.time_slice().end,
+                ),
+            );
 
-            ui.send_message(NumericUpDownMessage::value(
-                self.speed,
-                MessageDirection::ToWidget,
-                animation.speed(),
-            ));
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.time_slice_end,
+                    MessageDirection::ToWidget,
+                    animation.time_slice().end,
+                ),
+            );
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::min_value(
+                    self.time_slice_end,
+                    MessageDirection::ToWidget,
+                    animation.time_slice().start,
+                ),
+            );
+
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.speed,
+                    MessageDirection::ToWidget,
+                    animation.speed(),
+                ),
+            );
         }
 
         for widget in [
@@ -560,22 +626,29 @@ impl Toolbar {
             self.speed,
             self.rename_current_animation,
             self.remove_current_animation,
-            self.length,
+            self.time_slice_start,
+            self.time_slice_end,
             self.clone_current_animation,
         ] {
-            ui.send_message(WidgetMessage::enabled(
-                widget,
-                MessageDirection::ToWidget,
-                selected_animation_valid,
-            ));
+            send_sync_message(
+                ui,
+                WidgetMessage::enabled(
+                    widget,
+                    MessageDirection::ToWidget,
+                    selected_animation_valid,
+                ),
+            );
         }
 
         for widget in [self.play_pause, self.stop] {
-            ui.send_message(WidgetMessage::enabled(
-                widget,
-                MessageDirection::ToWidget,
-                selected_animation_valid && in_preview_mode,
-            ));
+            send_sync_message(
+                ui,
+                WidgetMessage::enabled(
+                    widget,
+                    MessageDirection::ToWidget,
+                    selected_animation_valid && in_preview_mode,
+                ),
+            );
         }
     }
 }

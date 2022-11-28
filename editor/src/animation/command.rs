@@ -5,8 +5,10 @@ use fyrox::{
     scene::{animation::AnimationPlayer, node::Node},
     utils::log::Log,
 };
-use std::fmt::Debug;
-use std::ops::IndexMut;
+use std::{
+    fmt::Debug,
+    ops::{IndexMut, Range},
+};
 
 fn fetch_animation_player<'a>(
     handle: Handle<Node>,
@@ -332,11 +334,11 @@ define_animation_swap_command!(SetAnimationSpeedCommand<f32>(self, context) {
     self.value = old_speed;
 });
 
-define_animation_swap_command!(SetAnimationLengthCommand<f32>(self, context) {
+define_animation_swap_command!(SetAnimationTimeSliceCommand<Range<f32>>(self, context) {
     let animation = fetch_animation(self.node_handle, self.animation_handle, context);
-    let old_length = animation.length();
-    animation.set_length(self.value);
-    self.value = old_length;
+    let old_time_slice = animation.time_slice();
+    animation.set_time_slice(self.value.clone());
+    self.value = old_time_slice;
 });
 
 define_animation_swap_command!(SetAnimationNameCommand<String>(self, context) {
