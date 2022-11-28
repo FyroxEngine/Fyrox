@@ -200,6 +200,15 @@ fn isometric_global_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f
     }
 }
 
+// Clears all information about parent-child relations of a given node. This is needed in some
+// cases (mostly when copying a node), because `Graph::add_node` uses children list to attach
+// children to the given node, and when copying a node it is important that this step is skipped.
+fn clear_links(mut node: Node) -> Node {
+    node.children.clear();
+    node.parent = Handle::NONE;
+    node
+}
+
 impl Graph {
     /// Creates new graph instance with single root node.
     pub fn new() -> Self {
@@ -339,8 +348,7 @@ impl Graph {
         let parent_handle = std::mem::replace(&mut self.pool[node_handle].parent, Handle::NONE);
 
         // Remove child from parent's children list
-        if parent_handle.is_some() {
-            let parent = &mut self.pool[parent_handle];
+        if let Some(parent) = self.pool.try_borrow_mut(parent_handle) {
             if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
                 parent.children.remove(i);
             }
@@ -536,7 +544,7 @@ impl Graph {
 
         for (parent, children) in to_copy.iter() {
             // Copy parent first.
-            let parent_copy = self.pool[*parent].clone_box();
+            let parent_copy = clear_links(self.pool[*parent].clone_box());
             let parent_copy_handle = self.add_node(parent_copy);
             old_new_mapping.map.insert(*parent, parent_copy_handle);
 
@@ -547,7 +555,7 @@ impl Graph {
             // Copy children and link to new parent.
             for &child in children {
                 if filter(child, &self.pool[child]) {
-                    let child_copy = self.pool[child].clone_box();
+                    let child_copy = clear_links(self.pool[child].clone_box());
                     let child_copy_handle = self.add_node(child_copy);
                     old_new_mapping.map.insert(child, child_copy_handle);
                     self.link_nodes(child_copy_handle, parent_copy_handle);
@@ -567,9 +575,7 @@ impl Graph {
     /// this method returns copied node directly, it does not inserts it in any graph.
     pub fn copy_single_node(&self, node_handle: Handle<Node>) -> Node {
         let node = &self.pool[node_handle];
-        let mut clone = node.clone_box();
-        clone.parent = Handle::NONE;
-        clone.children.clear();
+        let mut clone = clear_links(node.clone_box());
         if let Some(ref mut mesh) = clone.cast_mut::<Mesh>() {
             for surface in mesh.surfaces_mut() {
                 surface.bones.clear();
@@ -589,7 +595,7 @@ impl Graph {
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
         let src_node = &self.pool[root_handle];
-        let dest_node = src_node.clone_box();
+        let dest_node = clear_links(src_node.clone_box());
         let dest_copy_handle = dest_graph.add_node(dest_node);
         old_new_mapping.map.insert(root_handle, dest_copy_handle);
         for &src_child_handle in src_node.children() {
