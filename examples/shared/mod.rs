@@ -308,7 +308,7 @@ impl LocomotionMachine {
         resource_manager: ResourceManager,
         animation_player: Handle<Node>,
     ) -> Self {
-        let mut machine = Machine::new(model);
+        let mut machine = Machine::new();
 
         let (walk_animation, walk_state) = create_play_animation_state(
             "examples/data/mutant/walk.fbx",

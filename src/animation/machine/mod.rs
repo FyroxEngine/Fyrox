@@ -58,10 +58,7 @@
 //! let walk_animation = Handle::default();
 //! let aim_animation = Handle::default();
 //!
-//! // A handle to root node of animated object.
-//! let root = Handle::default();
-//!
-//! let mut machine = Machine::new(root);
+//! let mut machine = Machine::new();
 //!
 //! let aim = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(aim_animation)));
 //! let walk = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(walk_animation)));
@@ -95,7 +92,6 @@ use crate::{
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
-    scene::node::Node,
     utils::log::{Log, MessageKind},
 };
 pub use event::Event;
@@ -117,8 +113,6 @@ pub mod transition;
 
 #[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
 pub struct Machine {
-    pub(crate) root: Handle<Node>,
-
     #[reflect(hidden)]
     parameters: ParameterContainer,
 
@@ -153,9 +147,8 @@ pub struct Machine {
 
 impl Machine {
     #[inline]
-    pub fn new(root: Handle<Node>) -> Self {
+    pub fn new() -> Self {
         Self {
-            root,
             nodes: Default::default(),
             states: Default::default(),
             transitions: Default::default(),
