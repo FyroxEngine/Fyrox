@@ -82,10 +82,9 @@ pub struct Animation {
     #[visit(optional)]
     name: String,
     tracks: Vec<NodeTrack>,
-    length: f32,
     time_position: f32,
     #[visit(optional)]
-    time_slice: Option<Range<f32>>,
+    time_slice: Range<f32>,
     speed: f32,
     looped: bool,
     enabled: bool,
@@ -211,7 +210,6 @@ impl Clone for Animation {
             name: self.name.clone(),
             tracks: self.tracks.clone(),
             speed: self.speed,
-            length: self.length,
             time_position: self.time_position,
             looped: self.looped,
             enabled: self.enabled,
@@ -249,9 +247,10 @@ impl Animation {
     /// in case if you formed animation from code using just curves and don't know the actual length of the
     /// animation.  
     pub fn fit_length_to_content(&mut self) {
+        self.time_slice.start = 0.0;
         for track in self.tracks.iter_mut() {
-            if track.time_length() > self.length {
-                self.length = track.time_length();
+            if track.time_length() > self.time_slice.end {
+                self.time_slice.end = track.time_length();
             }
         }
     }
@@ -261,24 +260,19 @@ impl Animation {
     }
 
     pub fn set_time_position(&mut self, time: f32) -> &mut Self {
-        let time_slice = self.time_slice.clone().unwrap_or(Range {
-            start: 0.0,
-            end: self.length,
-        });
-
         if self.looped {
-            self.time_position = wrapf(time, time_slice.start, time_slice.end);
+            self.time_position = wrapf(time, self.time_slice.start, self.time_slice.end);
         } else {
-            self.time_position = time.clamp(time_slice.start, time_slice.end);
+            self.time_position = time.clamp(self.time_slice.start, self.time_slice.end);
         }
 
         self
     }
 
-    pub fn set_time_slice(&mut self, time_slice: Option<Range<f32>>) {
-        if let Some(time_slice) = time_slice.clone() {
-            assert!(time_slice.start <= time_slice.end);
-        }
+    /// Sets new time slice of the animation in seconds. It defines a time interval in which the animation will
+    /// be played. Current playback position will be clamped to fit to new bounds.
+    pub fn set_time_slice(&mut self, time_slice: Range<f32>) {
+        assert!(time_slice.start <= time_slice.end);
 
         self.time_slice = time_slice;
 
@@ -286,20 +280,17 @@ impl Animation {
         self.set_time_position(self.time_position);
     }
 
+    pub fn time_slice(&self) -> Range<f32> {
+        self.time_slice.clone()
+    }
+
     pub fn rewind(&mut self) -> &mut Self {
         self.set_time_position(0.0)
     }
 
-    /// Sets new length of the animation in seconds. Sign of negative values passed to the method will
-    /// be discarded. Current playback position will be clamped to fit to new bounds.
-    pub fn set_length(&mut self, length: f32) {
-        self.length = length.abs();
-        self.set_time_position(self.time_position);
-    }
-
     /// Returns length of the animation in seconds.
     pub fn length(&self) -> f32 {
-        self.length
+        self.time_slice.end - self.time_slice.start
     }
 
     pub(crate) fn tick(&mut self, dt: f32) {
@@ -348,7 +339,7 @@ impl Animation {
     }
 
     pub fn has_ended(&self) -> bool {
-        !self.looped && (self.time_position - self.length).abs() <= f32::EPSILON
+        !self.looped && (self.time_position - self.time_slice.end).abs() <= f32::EPSILON
     }
 
     pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {
@@ -450,7 +441,7 @@ impl Animation {
 
     pub fn remove_tracks(&mut self) {
         self.tracks.clear();
-        self.length = 0.0;
+        self.time_slice = 0.0..0.0;
     }
 
     fn update_pose(&mut self) {
@@ -487,7 +478,6 @@ impl Default for Animation {
             name: Default::default(),
             tracks: Vec::new(),
             speed: 1.0,
-            length: 0.0,
             time_position: 0.0,
             enabled: true,
             looped: true,
