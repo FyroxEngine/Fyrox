@@ -36,6 +36,7 @@ use fyrox::{
     },
     resource::texture::{Texture, TextureState},
     scene::{
+        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
         camera::{Camera, Projection},
         node::Node,
     },
@@ -887,6 +888,26 @@ impl SceneViewer {
                     AssetKind::Model => {
                         if let Some(preview) = self.preview_instance.take() {
                             let scene = &mut engine.scenes[editor_scene.scene];
+
+                            // Disable animations and state machines.
+                            for handle in preview.nodes.iter() {
+                                let node = &mut scene.graph[*handle];
+                                if let Some(animation_player) =
+                                    node.query_component_mut::<AnimationPlayer>()
+                                {
+                                    for animation in animation_player
+                                        .animations_mut()
+                                        .get_mut_silent()
+                                        .iter_mut()
+                                    {
+                                        animation.set_enabled(false);
+                                    }
+                                } else if let Some(absm) =
+                                    node.query_component_mut::<AnimationBlendingStateMachine>()
+                                {
+                                    absm.set_enabled(false);
+                                }
+                            }
 
                             // Immediately after extract if from the scene to subgraph. This is required to not violate
                             // the rule of one place of execution, only commands allowed to modify the scene.
