@@ -322,9 +322,19 @@ fn fetch_animation<'a>(
     animation: Handle<Animation>,
     ctx: &'a mut SceneContext,
 ) -> &'a mut Animation {
-    fetch_animation_player(animation_player, ctx)
+    let animation = fetch_animation_player(animation_player, ctx)
         .animations_mut()
-        .index_mut(animation)
+        .index_mut(animation);
+
+    // TODO: Hack. Make sure that the animation will serialize all keyframes on all tracks.
+    // This is needed, because by default animation does not serialize its keyframes,
+    // instead it takes keyframes from parent prefab. This should be removed when "diff-like"
+    // prefabs is implemented.
+    for track in animation.tracks_mut() {
+        track.set_serialize_frames(true);
+    }
+
+    animation
 }
 
 define_animation_swap_command!(SetAnimationSpeedCommand<f32>(self, context) {
