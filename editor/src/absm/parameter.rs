@@ -13,7 +13,7 @@ use fyrox::{
                 inspectable::InspectablePropertyEditorDefinition,
                 PropertyEditorDefinitionContainer,
             },
-            InspectorBuilder, InspectorContext, InspectorMessage,
+            InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
         },
         message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
@@ -119,6 +119,8 @@ impl ParameterPanel {
         message: &UiMessage,
         sender: &Sender<Message>,
         absm_node_handle: Handle<Node>,
+        absm_node: &mut AnimationBlendingStateMachine,
+        is_in_preview_mode: bool,
     ) {
         if message.destination() == self.inspector
             && message.direction() == MessageDirection::FromWidget
@@ -126,11 +128,19 @@ impl ParameterPanel {
             if let Some(InspectorMessage::PropertyChanged(args)) =
                 message.data::<InspectorMessage>()
             {
-                sender
-                    .send(Message::DoSceneCommand(
-                        make_set_parameters_property_command((), args, absm_node_handle).unwrap(),
+                if is_in_preview_mode {
+                    Log::verify(PropertyAction::from_field_kind(&args.value).apply(
+                        &args.path(),
+                        absm_node.machine_mut().get_mut_silent().parameters_mut(),
                     ))
-                    .unwrap();
+                } else {
+                    sender
+                        .send(Message::DoSceneCommand(
+                            make_set_parameters_property_command((), args, absm_node_handle)
+                                .unwrap(),
+                        ))
+                        .unwrap();
+                }
             }
         }
     }

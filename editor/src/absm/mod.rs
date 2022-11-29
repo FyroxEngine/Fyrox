@@ -157,7 +157,7 @@ impl AbsmEditor {
         });
     }
 
-    fn leave_preview_mode(&mut self, scene: &mut Scene, ui: &UserInterface) {
+    fn leave_preview_mode(&mut self, scene: &mut Scene, ui: &mut UserInterface) {
         ui.send_message(CheckBoxMessage::checked(
             self.toolbar.preview,
             MessageDirection::ToWidget,
@@ -174,11 +174,13 @@ impl AbsmEditor {
             scene.graph[handle] = node;
         }
 
-        *scene.graph[self.absm]
+        let absm_node = scene.graph[self.absm]
             .query_component_mut::<AnimationBlendingStateMachine>()
-            .unwrap()
-            .machine_mut()
-            .get_mut_silent() = preview_data.machine;
+            .unwrap();
+
+        *absm_node.machine_mut().get_mut_silent() = preview_data.machine;
+
+        self.parameter_panel.sync_to_model(ui, absm_node);
     }
 
     pub fn handle_message(
@@ -213,7 +215,7 @@ impl AbsmEditor {
                                 animation.set_enabled(false);
                             }
 
-                            self.leave_preview_mode(scene, &engine.user_interface);
+                            self.leave_preview_mode(scene, &mut engine.user_interface);
                         }
                     }
                 }
@@ -323,8 +325,13 @@ impl AbsmEditor {
                 absm_node,
                 editor_scene,
             );
-            self.parameter_panel
-                .handle_ui_message(message, sender, self.absm);
+            self.parameter_panel.handle_ui_message(
+                message,
+                sender,
+                self.absm,
+                absm_node,
+                self.preview_mode_data.is_some(),
+            );
 
             let action = self.toolbar.handle_ui_message(message);
 
