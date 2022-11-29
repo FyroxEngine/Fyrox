@@ -46,11 +46,11 @@ impl AnimationBlendingStateMachine {
         self.machine.set(machine);
     }
 
-    pub fn machine(&self) -> &Machine {
+    pub fn machine(&self) -> &InheritableVariable<Machine> {
         &self.machine
     }
 
-    pub fn machine_mut(&mut self) -> &mut Machine {
+    pub fn machine_mut(&mut self) -> &mut InheritableVariable<Machine> {
         &mut self.machine
     }
 

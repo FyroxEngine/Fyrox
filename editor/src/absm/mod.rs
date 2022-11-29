@@ -11,7 +11,7 @@ use crate::{
     Message,
 };
 use fyrox::{
-    animation::machine::{BlendPose, Event, IndexedBlendInput, PoseNode, State},
+    animation::machine::{BlendPose, Event, IndexedBlendInput, Machine, PoseNode, State},
     core::{color::Color, pool::Handle},
     engine::Engine,
     gui::{
@@ -52,6 +52,7 @@ const NORMAL_ROOT_COLOR: Color = Color::opaque(40, 80, 0);
 const SELECTED_ROOT_COLOR: Color = Color::opaque(60, 100, 0);
 
 struct PreviewModeData {
+    machine: Machine,
     nodes: Vec<(Handle<Node>, Node)>,
 }
 
@@ -133,6 +134,7 @@ impl AbsmEditor {
 
     fn enter_preview_mode(
         &mut self,
+        machine: Machine,
         animation_targets: Vec<Handle<Node>>,
         scene: &Scene,
         ui: &UserInterface,
@@ -147,6 +149,7 @@ impl AbsmEditor {
 
         // Save state of affected nodes.
         self.preview_mode_data = Some(PreviewModeData {
+            machine,
             nodes: animation_targets
                 .into_iter()
                 .map(|t| (t, scene.graph[t].clone_box()))
@@ -170,6 +173,12 @@ impl AbsmEditor {
         for (handle, node) in preview_data.nodes {
             scene.graph[handle] = node;
         }
+
+        *scene.graph[self.absm]
+            .query_component_mut::<AnimationBlendingStateMachine>()
+            .unwrap()
+            .machine_mut()
+            .get_mut_silent() = preview_data.machine;
     }
 
     pub fn handle_message(
@@ -324,6 +333,8 @@ impl AbsmEditor {
                 ToolbarAction::EnterPreviewMode => {
                     absm_node.set_enabled(true);
 
+                    let machine = (**absm_node.machine()).clone();
+
                     // Enable all animations in the player.
                     let animation_player = absm_node.animation_player();
 
@@ -341,7 +352,7 @@ impl AbsmEditor {
                             }
                         }
 
-                        self.enter_preview_mode(animation_targets, scene, ui);
+                        self.enter_preview_mode(machine, animation_targets, scene, ui);
                     }
                 }
                 ToolbarAction::LeavePreviewMode => {
