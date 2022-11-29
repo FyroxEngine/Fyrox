@@ -125,7 +125,10 @@ impl NodeHandleMap {
         } else if let Some(array) = entity.as_array_mut() {
             // Look in every array item.
             for i in 0..array.reflect_len() {
-                self.remap_handles_internal(array.reflect_index_mut(i).unwrap(), node_name);
+                // Sparse arrays (like Pool) could have empty entries.
+                if let Some(item) = array.reflect_index_mut(i) {
+                    self.remap_handles_internal(item, node_name);
+                }
             }
         } else {
             // Continue remapping recursively for every compound field.
@@ -178,13 +181,15 @@ impl NodeHandleMap {
         } else if let Some(array) = entity.as_array_mut() {
             // Look in every array item.
             for i in 0..array.reflect_len() {
-                self.remap_inheritable_handles_internal(
-                    array.reflect_index_mut(i).unwrap(),
-                    node_name,
-                    // Propagate mapping flag - it means that we're inside inheritable variable. In this
-                    // case we will map handles.
-                    do_map,
-                );
+                // Sparse arrays (like Pool) could have empty entries.
+                if let Some(item) = array.reflect_index_mut(i) {
+                    self.remap_inheritable_handles_internal(
+                        item, node_name,
+                        // Propagate mapping flag - it means that we're inside inheritable variable. In this
+                        // case we will map handles.
+                        do_map,
+                    );
+                }
             }
         } else {
             // Continue remapping recursively for every compound field.

@@ -418,10 +418,13 @@ pub fn try_inherit_properties(
     {
         if child_collection.reflect_len() == parent_collection.reflect_len() {
             for i in 0..child_collection.reflect_len() {
-                let child_item = child_collection.reflect_index_mut(i).unwrap();
-                let parent_item = parent_collection.reflect_index(i).unwrap();
-
-                try_inherit_properties(child_item, parent_item)?;
+                // Sparse arrays (like Pool) could have empty entries.
+                if let (Some(child_item), Some(parent_item)) = (
+                    child_collection.reflect_index_mut(i),
+                    parent_collection.reflect_index(i),
+                ) {
+                    try_inherit_properties(child_item, parent_item)?;
+                }
             }
         }
 
