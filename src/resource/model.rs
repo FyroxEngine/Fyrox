@@ -139,61 +139,6 @@ impl Model {
         instance_root
     }
 
-    pub(crate) fn retarget_animations_internal(
-        &self,
-        root: Handle<Node>,
-        graph: &mut Graph,
-    ) -> Vec<Handle<Animation>> {
-        let mut retargetted_animations = Vec::new();
-
-        let animation_player = graph.find(root, &mut |n| {
-            n.query_component_ref::<AnimationPlayer>().is_some()
-        });
-
-        if animation_player.is_some() {
-            let data = self.data_ref();
-
-            for src_node_ref in data.scene.graph.linear_iter() {
-                if let Some(src_player) = src_node_ref.query_component_ref::<AnimationPlayer>() {
-                    for src_anim in src_player.animations().iter() {
-                        let mut anim_copy = src_anim.clone();
-
-                        // Remap animation track nodes from resource to instance. This is required
-                        // because we've made a plain copy and it has tracks with node handles mapped
-                        // to nodes of internal scene.
-                        for (i, ref_track) in src_anim.tracks().iter().enumerate() {
-                            let ref_node = &data.scene.graph[ref_track.target()];
-                            // Find instantiated node that corresponds to node in resource
-                            let instance_node = graph.find_by_name(root, ref_node.name());
-                            if instance_node.is_none() {
-                                Log::writeln(
-                                    MessageKind::Error,
-                                    format!(
-                                        "Failed to retarget animation {:?} for node {}",
-                                        data.path(),
-                                        ref_node.name()
-                                    ),
-                                );
-                            }
-                            // One-to-one track mapping so there is [i] indexing.
-                            anim_copy.tracks_mut()[i].set_target(instance_node);
-                        }
-
-                        if let Some(dest_animation_player) = graph
-                            .try_get_mut(animation_player)
-                            .and_then(|p| p.query_component_mut::<AnimationPlayer>())
-                        {
-                            retargetted_animations
-                                .push(dest_animation_player.animations_mut().add(anim_copy));
-                        }
-                    }
-                }
-            }
-        }
-
-        retargetted_animations
-    }
-
     /// Tries to retarget animations from given model resource to a node hierarchy starting
     /// from `root` on a given scene.
     ///
@@ -215,12 +160,75 @@ impl Model {
     ///
     /// Most of the 3d model formats can contain only one animation, so in most cases
     /// this function will return vector with only one animation.
+    pub fn retarget_animations_directly(
+        &self,
+        root: Handle<Node>,
+        graph: &Graph,
+    ) -> Vec<Animation> {
+        let mut retargetted_animations = Vec::new();
+
+        let data = self.data_ref();
+
+        for src_node_ref in data.scene.graph.linear_iter() {
+            if let Some(src_player) = src_node_ref.query_component_ref::<AnimationPlayer>() {
+                for src_anim in src_player.animations().iter() {
+                    let mut anim_copy = src_anim.clone();
+
+                    // Remap animation track nodes from resource to instance. This is required
+                    // because we've made a plain copy and it has tracks with node handles mapped
+                    // to nodes of internal scene.
+                    for (i, ref_track) in src_anim.tracks().iter().enumerate() {
+                        let ref_node = &data.scene.graph[ref_track.target()];
+                        // Find instantiated node that corresponds to node in resource
+                        let instance_node = graph.find_by_name(root, ref_node.name());
+                        if instance_node.is_none() {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!(
+                                    "Failed to retarget animation {:?} for node {}",
+                                    data.path(),
+                                    ref_node.name()
+                                ),
+                            );
+                        }
+                        // One-to-one track mapping so there is [i] indexing.
+                        anim_copy.tracks_mut()[i].set_target(instance_node);
+                    }
+
+                    retargetted_animations.push(anim_copy);
+                }
+            }
+        }
+
+        retargetted_animations
+    }
+
+    /// Tries to retarget animations from given model resource to a node hierarchy starting
+    /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
+    /// adds retargetted animations to a first animation player in the hierarchy of given `root`.
     pub fn retarget_animations(
         &self,
         root: Handle<Node>,
         graph: &mut Graph,
     ) -> Vec<Handle<Animation>> {
-        self.retarget_animations_internal(root, graph)
+        let mut animation_handles = Vec::new();
+
+        let animation_player = graph.find(root, &mut |n| {
+            n.query_component_ref::<AnimationPlayer>().is_some()
+        });
+
+        let animations = self.retarget_animations_directly(root, graph);
+
+        if let Some(dest_animation_player) = graph
+            .try_get_mut(animation_player)
+            .and_then(|p| p.query_component_mut::<AnimationPlayer>())
+        {
+            for animation in animations {
+                animation_handles.push(dest_animation_player.animations_mut().add(animation));
+            }
+        }
+
+        animation_handles
     }
 }
 
