@@ -660,6 +660,10 @@ impl Toolbar {
                             });
 
                             animation.set_enabled(false);
+
+                            for track in animation.tracks_mut() {
+                                track.set_serialize_frames(true);
+                            }
                         }
 
                         let group = CommandGroup::from(
