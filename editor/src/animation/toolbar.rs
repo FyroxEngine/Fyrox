@@ -647,7 +647,18 @@ impl Toolbar {
                         let mut animations = model
                             .retarget_animations_directly(self.selected_import_root, &scene.graph);
 
-                        for animation in animations.iter_mut() {
+                        let file_stem = path
+                            .file_stem()
+                            .map(|p| p.to_string_lossy().to_string())
+                            .unwrap_or_else(|| "Unnamed".to_string());
+
+                        for (i, animation) in animations.iter_mut().enumerate() {
+                            animation.set_name(if i == 0 {
+                                file_stem.clone()
+                            } else {
+                                format!("{} {}", file_stem, i)
+                            });
+
                             animation.set_enabled(false);
                         }
 
