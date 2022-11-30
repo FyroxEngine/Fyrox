@@ -10,18 +10,21 @@ use crate::{
     load_image,
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         EditorScene, Selection,
     },
     send_sync_message, Message,
 };
 use fyrox::{
     animation::Animation,
-    core::{algebra::Vector2, math::Rect, pool::Handle},
+    core::{algebra::Vector2, futures::executor::block_on, math::Rect, pool::Handle},
+    engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
+        file_browser::{FileSelectorBuilder, FileSelectorMessage, Filter},
         image::ImageBuilder,
         message::{MessageDirection, UiMessage},
         numeric::{NumericUpDownBuilder, NumericUpDownMessage},
@@ -31,12 +34,14 @@ use fyrox::{
         utils::{make_cross, make_simple_tooltip},
         vector_image::{Primitive, VectorImageBuilder},
         widget::{WidgetBuilder, WidgetMessage},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
         BRUSH_BRIGHT, BRUSH_LIGHT,
     },
-    scene::{animation::AnimationPlayer, node::Node},
+    scene::{animation::AnimationPlayer, node::Node, Scene},
+    utils::log::Log,
 };
-use std::sync::mpsc::Sender;
+use std::{path::Path, sync::mpsc::Sender};
 
 pub struct Toolbar {
     pub panel: Handle<UiNode>,
@@ -52,6 +57,10 @@ pub struct Toolbar {
     pub preview: Handle<UiNode>,
     pub time_slice_start: Handle<UiNode>,
     pub time_slice_end: Handle<UiNode>,
+    pub import: Handle<UiNode>,
+    pub node_selector: Handle<UiNode>,
+    pub file_selector: Handle<UiNode>,
+    pub selected_import_root: Handle<Node>,
 }
 
 #[must_use]
@@ -78,6 +87,7 @@ impl Toolbar {
         let preview;
         let time_slice_start;
         let time_slice_end;
+        let import;
         let panel = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
@@ -112,6 +122,32 @@ impl Toolbar {
                                 .with_text("+")
                                 .build(ctx);
                                 add_animation
+                            })
+                            .with_child({
+                                import = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(make_simple_tooltip(
+                                            ctx,
+                                            "Import Animation.\n\
+                                            Imports an animation from external file (FBX).",
+                                        )),
+                                )
+                                .with_content(
+                                    ImageBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_width(18.0)
+                                            .with_height(18.0)
+                                            .with_margin(Thickness::uniform(1.0))
+                                            .with_background(BRUSH_BRIGHT),
+                                    )
+                                    .with_opt_texture(load_image(include_bytes!(
+                                        "../../resources/embed/import.png"
+                                    )))
+                                    .build(ctx),
+                                )
+                                .build(ctx);
+                                import
                             })
                             .with_child({
                                 rename_current_animation = ButtonBuilder::new(
@@ -214,7 +250,7 @@ impl Toolbar {
                                 speed = NumericUpDownBuilder::<f32>::new(
                                     WidgetBuilder::new()
                                         .with_enabled(false)
-                                        .with_width(60.0)
+                                        .with_width(50.0)
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_tooltip(make_simple_tooltip(
                                             ctx,
@@ -243,7 +279,7 @@ impl Toolbar {
                                 time_slice_start = NumericUpDownBuilder::<f32>::new(
                                     WidgetBuilder::new()
                                         .with_enabled(false)
-                                        .with_width(60.0)
+                                        .with_width(50.0)
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_tooltip(make_simple_tooltip(
                                             ctx,
@@ -358,6 +394,30 @@ impl Toolbar {
         .with_stroke_thickness(Thickness::uniform(1.0))
         .build(ctx);
 
+        let node_selector = NodeSelectorWindowBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                .with_title(WindowTitle::text("Select a Target Node"))
+                .open(false),
+        )
+        .build(ctx);
+
+        let file_selector = FileSelectorBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                .open(false)
+                .with_title(WindowTitle::text("Select Animation To Import")),
+        )
+        .with_filter(Filter::new(|p: &Path| {
+            if let Some(ext) = p.extension() {
+                // TODO: Here we allow importing only FBX files, but they can contain
+                // multiple animations and it might be good to also add animation selector
+                // that will be used to select a particular animation to import.
+                ext.to_string_lossy().as_ref() == "fbx"
+            } else {
+                p.is_dir()
+            }
+        }))
+        .build(ctx);
+
         Self {
             panel,
             play_pause,
@@ -372,6 +432,10 @@ impl Toolbar {
             time_slice_start,
             time_slice_end,
             clone_current_animation,
+            import,
+            node_selector,
+            file_selector,
+            selected_import_root: Default::default(),
         }
     }
 
@@ -527,6 +591,86 @@ impl Toolbar {
         }
 
         ToolbarAction::None
+    }
+
+    pub fn post_handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        sender: &Sender<Message>,
+        ui: &UserInterface,
+        animation_player_handle: Handle<Node>,
+        scene: &Scene,
+        editor_scene: &EditorScene,
+        resource_manager: &ResourceManager,
+    ) {
+        if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.import {
+                ui.send_message(NodeSelectorMessage::hierarchy(
+                    self.node_selector,
+                    MessageDirection::ToWidget,
+                    HierarchyNode::from_scene_node(
+                        scene.graph.get_root(),
+                        editor_scene.editor_objects_root,
+                        &scene.graph,
+                    ),
+                ));
+
+                ui.send_message(WindowMessage::open_modal(
+                    self.node_selector,
+                    MessageDirection::ToWidget,
+                    true,
+                ));
+            }
+        } else if let Some(NodeSelectorMessage::Selection(selected_nodes)) = message.data() {
+            if message.destination() == self.node_selector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                if let Some(first) = selected_nodes.first() {
+                    self.selected_import_root = *first;
+
+                    ui.send_message(WindowMessage::open_modal(
+                        self.file_selector,
+                        MessageDirection::ToWidget,
+                        true,
+                    ));
+                    ui.send_message(FileSelectorMessage::root(
+                        self.file_selector,
+                        MessageDirection::ToWidget,
+                        Some(std::env::current_dir().unwrap()),
+                    ));
+                }
+            }
+        } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
+            if message.destination() == self.file_selector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                match block_on(resource_manager.request_model(path)) {
+                    Ok(model) => {
+                        let animations = model
+                            .retarget_animations_directly(self.selected_import_root, &scene.graph);
+
+                        let group = CommandGroup::from(
+                            animations
+                                .into_iter()
+                                .map(|a| {
+                                    SceneCommand::new(AddAnimationCommand::new(
+                                        animation_player_handle,
+                                        a,
+                                    ))
+                                })
+                                .collect::<Vec<_>>(),
+                        );
+
+                        sender.send(Message::do_scene_command(group)).unwrap();
+                    }
+                    Err(err) => Log::err(format!(
+                        "Failed to load {} animation file! Reason: {:?}",
+                        path.display(),
+                        err
+                    )),
+                }
+            }
+        }
     }
 
     pub fn clear(&mut self, ui: &UserInterface) {

@@ -333,6 +333,16 @@ impl AnimationEditor {
                     scene,
                 );
             }
+
+            self.toolbar.post_handle_ui_message(
+                message,
+                sender,
+                &engine.user_interface,
+                selection.animation_player,
+                scene,
+                editor_scene,
+                &engine.resource_manager,
+            );
         }
     }
 
