@@ -641,13 +641,15 @@ impl Toolbar {
                 }
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
-            if message.destination() == self.file_selector
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.destination() == self.file_selector {
                 match block_on(resource_manager.request_model(path)) {
                     Ok(model) => {
-                        let animations = model
+                        let mut animations = model
                             .retarget_animations_directly(self.selected_import_root, &scene.graph);
+
+                        for animation in animations.iter_mut() {
+                            animation.set_enabled(false);
+                        }
 
                         let group = CommandGroup::from(
                             animations
