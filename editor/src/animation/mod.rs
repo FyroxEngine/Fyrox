@@ -392,7 +392,7 @@ impl AnimationEditor {
                     .animations_mut()
                     .try_get_mut(selection.animation)
                 {
-                    if animation.is_enabled() && self.preview_mode_data.is_some() {
+                    if self.preview_mode_data.is_some() {
                         animation.set_enabled(false);
 
                         self.leave_preview_mode(scene, &engine.user_interface);
