@@ -34,7 +34,7 @@ struct Entry {
 }
 
 struct MoveContext {
-    plane: Plane,
+    plane: Option<Plane>,
     objects: Vec<Entry>,
     plane_kind: PlaneKind,
     gizmo_inv_transform: Matrix4<f32>,
@@ -68,11 +68,15 @@ impl MoveContext {
 
         let plane = plane_kind.make_plane_from_view(look_direction);
 
-        let plane_point = plane_kind.project_point(
+        let plane_point=        if let Some(plane) = plane {
+          plane_kind.project_point(
             camera_controller
                 .pick_on_plane(plane, graph, mouse_pos, frame_size, gizmo_inv_transform)
                 .unwrap_or_default(),
-        );
+        )
+    } else {
+        Default::default()
+    };
 
         Self {
             plane,
@@ -138,6 +142,57 @@ impl MoveContext {
     pub fn update(
         &mut self,
         graph: &Graph,
+        editor_scene: &mut EditorScene,
+        settings: &Settings,
+        mouse_position: Vector2<f32>,
+        frame_size: Vector2<f32>,
+    ) {
+        match self.plane_kind {
+            PlaneKind::SMART  => {
+                let move_context=self;
+                let preview_nodes = move_context.objects.iter().map(|f| f.node).flat_map(|node| 
+                    graph
+                    .traverse_handle_iter(node) ).collect::<FxHashSet<Handle<Node>>>();
+
+                // let nodes1 = scene
+                // .graph
+                // .traverse_handle_iter(move_context.objects)
+                // .collect::<FxHashSet<Handle<Node>>>();
+
+
+                if let Some(result) =
+                editor_scene.camera_controller.pick(PickingOptions {
+                    cursor_pos: mouse_position,
+                    graph,
+                    editor_objects_root: editor_scene.editor_objects_root,
+                    screen_size: frame_size,
+                    editor_only: false,
+                    filter: |handle, _| !preview_nodes.contains(&handle),
+                    ignore_back_faces: settings.selection.ignore_back_faces,
+                    // We need info only about closest intersection.
+                    use_picking_loop: false,
+                    only_meshes: false,
+                })
+            {
+                for entry in move_context.objects.iter_mut() {
+                    let mut new_local_position = //entry.initial_local_position
+                     entry.initial_parent_inv_global_transform.transform_vector(
+                        &move_context.gizmo_local_transform.transform_vector(
+                            &(result.position ),
+                        ),
+                    );
+                    entry.new_local_position=new_local_position;
+                }
+            }
+
+            },
+            _ => self.update_plane_move(graph, &editor_scene.camera_controller, settings, mouse_position, frame_size)
+        }
+    
+    }
+    pub fn update_plane_move(
+        &mut self,
+        graph: &Graph,
         camera_controller: &CameraController,
         settings: &Settings,
         mouse_position: Vector2<f32>,
@@ -145,7 +200,7 @@ impl MoveContext {
     ) {
         if let Some(picked_position_gizmo_space) = camera_controller
             .pick_on_plane(
-                self.plane,
+                self.plane.unwrap(),
                 graph,
                 mouse_position,
                 frame_size,
@@ -346,51 +401,13 @@ impl InteractionMode for MoveInteractionMode {
             let scene = &mut engine.scenes[editor_scene.scene];
             let graph = &mut scene.graph;
 
-            match move_context.plane_kind {
-                PlaneKind::SMART  => {
-
-                    let preview_nodes = move_context.objects.iter().map(|f| f.node).flat_map(|node| 
-                        graph
-                        .traverse_handle_iter(node) ).collect::<FxHashSet<Handle<Node>>>();
-
-                    // let nodes1 = scene
-                    // .graph
-                    // .traverse_handle_iter(move_context.objects)
-                    // .collect::<FxHashSet<Handle<Node>>>();
-
-
-                    if let Some(result) =
-                    editor_scene.camera_controller.pick(PickingOptions {
-                        cursor_pos: mouse_position,
-                        graph,
-                        editor_objects_root: editor_scene.editor_objects_root,
-                        screen_size: frame_size,
-                        editor_only: false,
-                        filter: |handle, _| !preview_nodes.contains(&handle),
-                        ignore_back_faces: settings.selection.ignore_back_faces,
-                        // We need info only about closest intersection.
-                        use_picking_loop: false,
-                        only_meshes: false,
-                    })
-                {
-                    // entry.new_
-                    for entry in move_context.objects.iter_mut() {
-                        entry.new_local_position=result.position;
-                    }
-
-                }
-                }
-                _ => {
-
-                    move_context.update(
-                        graph,
-                        &editor_scene.camera_controller,
-                        settings,
-                        mouse_position,
-                        frame_size,
-                    );
-                        }
-            }
+            move_context.update(
+                graph,
+                editor_scene,
+                settings,
+                mouse_position,
+                frame_size,
+            );
 
             for entry in move_context.objects.iter() {
                 scene.graph[entry.node]

@@ -320,6 +320,7 @@ impl MoveGizmo {
 
         // Select plane by current active mode.
         let plane = plane_kind.make_plane_from_view(dlook);
+        if let Some(plane) =plane {
 
         // Get two intersection points with plane and use delta between them to calculate offset.
         if let Some(initial_point) = initial_ray.plane_intersection_point(&plane) {
@@ -331,7 +332,8 @@ impl MoveGizmo {
             }
         }
 
-        Vector3::default()
+    }
+    Vector3::default()
     }
 
     pub fn sync_transform(&self, scene: &mut Scene, selection: &Selection, scale: Vector3<f32>) {
