@@ -13,6 +13,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     GameEngine, Message,
 };
+use fyrox::fxhash::FxHashSet;
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -232,6 +233,7 @@ impl InteractionMode for MoveInteractionMode {
             only_meshes: false,
         }) {
             if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, graph) {
+
                 if let Selection::Graph(selection) = &editor_scene.selection {
                     self.move_context = Some(MoveContext::from_graph_selection(
                         selection,
@@ -344,13 +346,51 @@ impl InteractionMode for MoveInteractionMode {
             let scene = &mut engine.scenes[editor_scene.scene];
             let graph = &mut scene.graph;
 
-            move_context.update(
-                graph,
-                &editor_scene.camera_controller,
-                settings,
-                mouse_position,
-                frame_size,
-            );
+            match move_context.plane_kind {
+                PlaneKind::SMART  => {
+
+                    let preview_nodes = move_context.objects.iter().map(|f| f.node).flat_map(|node| 
+                        graph
+                        .traverse_handle_iter(node) ).collect::<FxHashSet<Handle<Node>>>();
+
+                    // let nodes1 = scene
+                    // .graph
+                    // .traverse_handle_iter(move_context.objects)
+                    // .collect::<FxHashSet<Handle<Node>>>();
+
+
+                    if let Some(result) =
+                    editor_scene.camera_controller.pick(PickingOptions {
+                        cursor_pos: mouse_position,
+                        graph,
+                        editor_objects_root: editor_scene.editor_objects_root,
+                        screen_size: frame_size,
+                        editor_only: false,
+                        filter: |handle, _| !preview_nodes.contains(&handle),
+                        ignore_back_faces: settings.selection.ignore_back_faces,
+                        // We need info only about closest intersection.
+                        use_picking_loop: false,
+                        only_meshes: false,
+                    })
+                {
+                    // entry.new_
+                    for entry in move_context.objects.iter_mut() {
+                        entry.new_local_position=result.position;
+                    }
+
+                }
+                }
+                _ => {
+
+                    move_context.update(
+                        graph,
+                        &editor_scene.camera_controller,
+                        settings,
+                        mouse_position,
+                        frame_size,
+                    );
+                        }
+            }
 
             for entry in move_context.objects.iter() {
                 scene.graph[entry.node]

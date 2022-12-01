@@ -27,6 +27,7 @@ use fyrox::{
 
 pub struct MoveGizmo {
     pub origin: Handle<Node>,
+    smart_dot: Handle<Node>,
     x_arrow: Handle<Node>,
     y_arrow: Handle<Node>,
     z_arrow: Handle<Node>,
@@ -36,6 +37,31 @@ pub struct MoveGizmo {
     xy_plane: Handle<Node>,
     yz_plane: Handle<Node>,
     zx_plane: Handle<Node>,
+}
+
+fn make_smart_dot(
+    graph: &mut Graph
+) -> Handle<Node> {
+    let scale=0.3;
+    MeshBuilder::new(
+        BaseBuilder::new()
+            .with_cast_shadows(false)
+            .with_name("smart_dot")
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_scale(Vector3::new(scale,scale,scale))
+                    .build(),
+            ),
+    )
+    .with_render_path(RenderPath::Forward)
+    .with_surfaces(vec![{
+        SurfaceBuilder::new(SurfaceSharedData::new(SurfaceData::make_sphere(8,8,scale,
+            &Matrix4::identity())
+        ))
+        .with_material(make_color_material(Color::WHITE))
+        .build()
+    }])
+    .build(graph)
 }
 
 fn make_move_axis(
@@ -129,6 +155,8 @@ impl MoveGizmo {
 
         graph.link_nodes(origin, editor_scene.editor_objects_root);
 
+        let smart_dot = make_smart_dot(graph);
+        graph.link_nodes(smart_dot, origin);
         let (x_axis, x_arrow) = make_move_axis(
             graph,
             UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 90.0f32.to_radians()),
@@ -173,6 +201,7 @@ impl MoveGizmo {
 
         Self {
             origin,
+            smart_dot,
             x_arrow,
             y_arrow,
             z_arrow,
@@ -204,7 +233,7 @@ impl MoveGizmo {
         if let Some(mode) = mode {
             let yellow = Color::opaque(255, 255, 0);
             match mode {
-                PlaneKind::X => {
+                PlaneKind::SMART|PlaneKind::X => {
                     set_mesh_diffuse_color(graph[self.x_axis].as_mesh_mut(), yellow);
                     set_mesh_diffuse_color(graph[self.x_arrow].as_mesh_mut(), yellow);
                 }
@@ -230,6 +259,7 @@ impl MoveGizmo {
     }
 
     pub fn handle_pick(&mut self, picked: Handle<Node>, graph: &mut Graph) -> Option<PlaneKind> {
+        
         let mode = if picked == self.x_axis || picked == self.x_arrow {
             Some(PlaneKind::X)
         } else if picked == self.y_axis || picked == self.y_arrow {
@@ -242,6 +272,8 @@ impl MoveGizmo {
             Some(PlaneKind::XY)
         } else if picked == self.yz_plane {
             Some(PlaneKind::YZ)
+        } else if picked == self.smart_dot {
+            Some(PlaneKind::SMART)
         } else {
             None
         };

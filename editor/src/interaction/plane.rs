@@ -8,12 +8,13 @@ pub enum PlaneKind {
     XY,
     YZ,
     ZX,
+    SMART,
 }
 
 impl PlaneKind {
     pub fn make_plane_from_view(self, look_direction: Vector3<f32>) -> Plane {
         match self {
-            PlaneKind::X => Plane::from_normal_and_point(
+            PlaneKind::SMART|PlaneKind::X => Plane::from_normal_and_point(
                 &Vector3::new(0.0, look_direction.y, look_direction.z),
                 &Default::default(),
             ),
@@ -34,7 +35,7 @@ impl PlaneKind {
 
     pub fn project_point(self, point: Vector3<f32>) -> Vector3<f32> {
         match self {
-            PlaneKind::X => Vector3::new(point.x, 0.0, 0.0),
+            PlaneKind::SMART|PlaneKind::X => Vector3::new(point.x, 0.0, 0.0),
             PlaneKind::Y => Vector3::new(0.0, point.y, 0.0),
             PlaneKind::Z => Vector3::new(0.0, 0.0, point.z),
             PlaneKind::XY => Vector3::new(point.x, point.y, 0.0),
