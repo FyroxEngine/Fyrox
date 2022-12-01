@@ -13,6 +13,8 @@ use crate::{
     world::graph::selection::GraphSelection,
     GameEngine, Message,
 };
+use fyrox::core::algebra::Vector4;
+use fyrox::core::math::PositionProvider;
 use fyrox::fxhash::FxHashSet;
 use fyrox::scene::camera::{Camera, Projection};
 use fyrox::{
@@ -24,6 +26,7 @@ use fyrox::{
     },
     scene::{graph::Graph, node::Node, Scene},
 };
+use std::ops::Mul;
 use std::sync::mpsc::Sender;
 
 struct Entry {
@@ -213,9 +216,26 @@ impl MoveContext {
 
         if let Some(new_position) = new_position {
             for entry in self.objects.iter_mut() {
-                entry.new_local_position = entry
-                    .initial_parent_inv_global_transform
-                    .transform_vector(&(new_position));
+
+                // let mut new_local_position = entry.initial_local_position
+                //     + entry.initial_parent_inv_global_transform.transform_vector(
+                //         &self.gizmo_local_transform.transform_vector(
+                //             &(picked_position_gizmo_space + entry.initial_offset_gizmo_space),
+                //         ),
+                //     );
+                let p = new_position.to_homogeneous();
+                let n1=
+                entry
+                .initial_parent_inv_global_transform
+                .mul(&(Vector4::new(new_position.x,new_position.y,new_position.z,1.0)));
+                let n2=
+                entry
+                .initial_parent_inv_global_transform
+                .transform_point(&(Point3::from(new_position)));
+                let a:Vector3<f32>  = Vector3::new(n2.x,n2.y,n2.z);
+                entry.new_local_position = a;
+                // n1.
+                println!("pos: {:?} \n n1:{:?}\n n2: {:?}\n mat: {:?}",new_position,n1,n2,entry.initial_parent_inv_global_transform);
             }
         }
     }
