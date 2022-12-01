@@ -12,7 +12,9 @@ pub enum PlaneKind {
 }
 
 impl PlaneKind {
+    
     pub fn make_plane_from_view(self, look_direction: Vector3<f32>) -> Plane {
+        // FIXME: I wonder if look_direction is really needed here
         match self {
             PlaneKind::SMART|PlaneKind::X => Plane::from_normal_and_point(
                 &Vector3::new(0.0, look_direction.y, look_direction.z),
