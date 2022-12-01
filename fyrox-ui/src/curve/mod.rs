@@ -752,24 +752,20 @@ impl CurveEditor {
             self.selection.is_some(),
         ));
 
-        if let Some(selection) = self.selection.as_ref() {
-            if let Selection::Keys { keys } = selection {
-                if let Some(first) = keys.iter().next() {
-                    if let Some(key) = self.key_container.key_ref(*first) {
-                        ui.send_message(NumericUpDownMessage::value(
-                            self.context_menu.key_location,
-                            MessageDirection::ToWidget,
-                            key.position.x,
-                        ));
+        if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
+            if let Some(first) = keys.iter().next() {
+                if let Some(key) = self.key_container.key_ref(*first) {
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.context_menu.key_location,
+                        MessageDirection::ToWidget,
+                        key.position.x,
+                    ));
 
-                        ui.send_message(NumericUpDownMessage::value(
-                            self.context_menu.key_value,
-                            MessageDirection::ToWidget,
-                            key.position.y,
-                        ));
-
-                        dbg!(key.position);
-                    }
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.context_menu.key_value,
+                        MessageDirection::ToWidget,
+                        key.position.y,
+                    ));
                 }
             }
         }
