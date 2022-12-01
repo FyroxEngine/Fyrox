@@ -14,7 +14,6 @@ pub enum PlaneKind {
 impl PlaneKind {
     
     pub fn make_plane_from_view(self, look_direction: Vector3<f32>) -> Option<Plane> {
-        // FIXME: I wonder if look_direction is really needed here
         match self {
             PlaneKind::SMART => {
                 None
