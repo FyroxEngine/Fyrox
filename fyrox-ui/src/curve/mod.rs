@@ -12,12 +12,15 @@ use crate::{
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder},
+    grid::{Column, GridBuilder, Row},
     menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
     message::{ButtonState, KeyCode, MessageDirection, MouseButton, UiMessage},
+    numeric::{NumericUpDownBuilder, NumericUpDownMessage},
     popup::PopupBuilder,
     stack_panel::StackPanelBuilder,
+    text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, UiNode, UserInterface,
+    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fxhash::FxHashSet;
 use std::{
@@ -39,6 +42,8 @@ pub enum CurveEditorMessage {
     // These are internal because you must use Sync message to request changes
     // in the curve editor.
     ChangeSelectedKeysKind(CurveKeyKind),
+    ChangeSelectedKeysValue(f32),
+    ChangeSelectedKeysLocation(f32),
     RemoveSelection,
     // Position in screen coordinates.
     AddKey(Vector2<f32>),
@@ -52,6 +57,8 @@ impl CurveEditorMessage {
     // Internal. Use only when you know what you're doing.
     define_constructor!(CurveEditorMessage:RemoveSelection => fn remove_selection(), layout: false);
     define_constructor!(CurveEditorMessage:ChangeSelectedKeysKind => fn change_selected_keys_kind(CurveKeyKind), layout: false);
+    define_constructor!(CurveEditorMessage:ChangeSelectedKeysValue => fn change_selected_keys_value(f32), layout: false);
+    define_constructor!(CurveEditorMessage:ChangeSelectedKeysLocation => fn change_selected_keys_location(f32), layout: false);
     define_constructor!(CurveEditorMessage:AddKey => fn add_key(Vector2<f32>), layout: false);
 }
 
@@ -100,6 +107,9 @@ struct ContextMenu {
     make_linear: Handle<UiNode>,
     make_cubic: Handle<UiNode>,
     zoom_to_fit: Handle<UiNode>,
+    key_properties: Handle<UiNode>,
+    key_value: Handle<UiNode>,
+    key_location: Handle<UiNode>,
 }
 
 #[derive(Clone)]
@@ -548,6 +558,12 @@ impl Control for CurveEditor {
                                 ),
                             ));
                         }
+                        CurveEditorMessage::ChangeSelectedKeysValue(value) => {
+                            self.change_selected_keys_value(*value, ui);
+                        }
+                        CurveEditorMessage::ChangeSelectedKeysLocation(location) => {
+                            self.change_selected_keys_location(*location, ui);
+                        }
                     }
                 }
             }
@@ -594,6 +610,22 @@ impl Control for CurveEditor {
                     self.handle,
                     MessageDirection::ToWidget,
                 ));
+            }
+        } else if let Some(NumericUpDownMessage::<f32>::Value(value)) = message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.context_menu.key_value {
+                    ui.send_message(CurveEditorMessage::change_selected_keys_value(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        *value,
+                    ));
+                } else if message.destination() == self.context_menu.key_location {
+                    ui.send_message(CurveEditorMessage::change_selected_keys_location(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        *value,
+                    ));
+                }
             }
         }
     }
@@ -713,6 +745,34 @@ impl CurveEditor {
             MessageDirection::ToWidget,
             self.selection.is_some(),
         ));
+
+        ui.send_message(WidgetMessage::enabled(
+            self.context_menu.key_properties,
+            MessageDirection::ToWidget,
+            self.selection.is_some(),
+        ));
+
+        if let Some(selection) = self.selection.as_ref() {
+            if let Selection::Keys { keys } = selection {
+                if let Some(first) = keys.iter().next() {
+                    if let Some(key) = self.key_container.key_ref(*first) {
+                        ui.send_message(NumericUpDownMessage::value(
+                            self.context_menu.key_location,
+                            MessageDirection::ToWidget,
+                            key.position.x,
+                        ));
+
+                        ui.send_message(NumericUpDownMessage::value(
+                            self.context_menu.key_value,
+                            MessageDirection::ToWidget,
+                            key.position.y,
+                        ));
+
+                        dbg!(key.position);
+                    }
+                }
+            }
+        }
     }
 
     fn remove_selection(&mut self, ui: &mut UserInterface) {
@@ -735,6 +795,40 @@ impl CurveEditor {
             }
 
             self.send_curve(ui);
+        }
+    }
+
+    fn change_selected_keys_value(&mut self, value: f32, ui: &mut UserInterface) {
+        if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
+            let mut modified = false;
+            for key in keys {
+                let key_value = &mut self.key_container.key_mut(*key).unwrap().position.y;
+                if (*key_value).ne(&value) {
+                    *key_value = value;
+                    modified = true;
+                }
+            }
+
+            if modified {
+                self.send_curve(ui);
+            }
+        }
+    }
+
+    fn change_selected_keys_location(&mut self, location: f32, ui: &mut UserInterface) {
+        if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
+            let mut modified = false;
+            for key in keys {
+                let key_location = &mut self.key_container.key_mut(*key).unwrap().position.x;
+                if (*key_location).ne(&location) {
+                    *key_location = location;
+                    modified = true;
+                }
+            }
+
+            if modified {
+                self.send_curve(ui);
+            }
         }
     }
 
@@ -1165,10 +1259,67 @@ impl CurveEditorBuilder {
         let make_cubic;
         let key;
         let zoom_to_fit;
+        let key_properties;
+        let key_value;
+        let key_location;
         let context_menu = PopupBuilder::new(WidgetBuilder::new())
             .with_content(
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
+                        .with_child({
+                            key_properties = GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_enabled(false)
+                                    .with_child(
+                                        TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_vertical_alignment(VerticalAlignment::Center)
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .on_row(0)
+                                                .on_column(0),
+                                        )
+                                        .with_text("Location")
+                                        .build(ctx),
+                                    )
+                                    .with_child({
+                                        key_location = NumericUpDownBuilder::<f32>::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .on_row(0)
+                                                .on_column(1),
+                                        )
+                                        .build(ctx);
+                                        key_location
+                                    })
+                                    .with_child(
+                                        TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_vertical_alignment(VerticalAlignment::Center)
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .on_row(1)
+                                                .on_column(0),
+                                        )
+                                        .with_text("Value")
+                                        .build(ctx),
+                                    )
+                                    .with_child({
+                                        key_value = NumericUpDownBuilder::<f32>::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .on_row(1)
+                                                .on_column(1),
+                                        )
+                                        .build(ctx);
+                                        key_value
+                                    }),
+                            )
+                            .add_column(Column::auto())
+                            .add_column(Column::stretch())
+                            .add_row(Row::strict(22.0))
+                            .add_row(Row::strict(22.0))
+                            .build(ctx);
+                            key_properties
+                        })
                         .with_child({
                             add_key = MenuItemBuilder::new(WidgetBuilder::new())
                                 .with_content(MenuItemContent::text("Add Key"))
@@ -1255,6 +1406,9 @@ impl CurveEditorBuilder {
                 make_cubic,
                 key,
                 zoom_to_fit,
+                key_properties,
+                key_value,
+                key_location,
             },
             view_bounds: self.view_bounds,
             show_x_values: self.show_x_values,
