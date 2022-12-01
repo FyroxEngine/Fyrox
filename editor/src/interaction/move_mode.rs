@@ -216,10 +216,9 @@ impl MoveContext {
 
         if let Some(new_position) = new_position {
             for entry in self.objects.iter_mut() {
-                entry.new_local_position =
-                    entry.initial_parent_inv_global_transform.transform_vector(
-                        &self.gizmo_local_transform.transform_vector(&(new_position)),
-                    );
+                entry.new_local_position = entry
+                    .initial_parent_inv_global_transform
+                    .transform_vector(&(new_position));
             }
         }
     }
