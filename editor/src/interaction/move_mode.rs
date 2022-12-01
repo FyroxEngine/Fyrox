@@ -14,6 +14,7 @@ use crate::{
     GameEngine, Message,
 };
 use fyrox::fxhash::FxHashSet;
+use fyrox::scene::camera::{Camera, Projection};
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -153,13 +154,7 @@ impl MoveContext {
     ) {
         match self.plane_kind {
             PlaneKind::SMART => {
-                self.update_smart_move(
-                    graph,
-                    editor_scene,
-                    settings,
-                    mouse_position,
-                    frame_size,
-                );
+                self.update_smart_move(graph, editor_scene, settings, mouse_position, frame_size);
             }
             _ => self.update_plane_move(
                 graph,
@@ -179,44 +174,55 @@ impl MoveContext {
         mouse_position: Vector2<f32>,
         frame_size: Vector2<f32>,
     ) {
-        let move_context= self;
-        let preview_nodes = move_context
+        let preview_nodes = self
             .objects
             .iter()
             .map(|f| f.node)
             .flat_map(|node| graph.traverse_handle_iter(node))
             .collect::<FxHashSet<Handle<Node>>>();
 
-        // let nodes1 = scene
-        // .graph
-        // .traverse_handle_iter(move_context.objects)
-        // .collect::<FxHashSet<Handle<Node>>>();
+        let new_position = if let Some(result) =
+            editor_scene.camera_controller.pick(PickingOptions {
+                cursor_pos: mouse_position,
+                graph,
+                editor_objects_root: editor_scene.editor_objects_root,
+                screen_size: frame_size,
+                editor_only: false,
+                filter: |handle, _| !preview_nodes.contains(&handle),
+                ignore_back_faces: settings.selection.ignore_back_faces,
+                // We need info only about closest intersection.
+                use_picking_loop: false,
+                only_meshes: false,
+            }) {
+            Some(result.position)
+        } else {
+            // In case of empty space, check intersection with oXZ plane (3D) or oXY (2D).
+            if let Some(camera) = graph[editor_scene.camera_controller.camera].cast::<Camera>() {
+                let normal = match camera.projection() {
+                    Projection::Perspective(_) => Vector3::new(0.0, 1.0, 0.0),
+                    Projection::Orthographic(_) => Vector3::new(0.0, 0.0, 1.0),
+                };
 
-        if let Some(result) = editor_scene.camera_controller.pick(PickingOptions {
-            cursor_pos: mouse_position,
-            graph,
-            editor_objects_root: editor_scene.editor_objects_root,
-            screen_size: frame_size,
-            editor_only: false,
-            filter: |handle, _| !preview_nodes.contains(&handle),
-            ignore_back_faces: settings.selection.ignore_back_faces,
-            // We need info only about closest intersection.
-            use_picking_loop: false,
-            only_meshes: false,
-        }) {
-            for entry in move_context.objects.iter_mut() {
-                let mut new_local_position = //entry.initial_local_position
-         entry.initial_parent_inv_global_transform.transform_vector(
-            &move_context.gizmo_local_transform.transform_vector(
-                &(result.position ),
-            ),
-        );
-                entry.new_local_position = new_local_position;
+                let plane =
+                    Plane::from_normal_and_point(&normal, &Default::default()).unwrap_or_default();
+
+                let ray = camera.make_ray(mouse_position, frame_size);
+
+                ray.plane_intersection_point(&plane)
+            } else {
+                None
+            }
+        };
+
+        if let Some(new_position) = new_position {
+            for entry in self.objects.iter_mut() {
+                entry.new_local_position =
+                    entry.initial_parent_inv_global_transform.transform_vector(
+                        &self.gizmo_local_transform.transform_vector(&(new_position)),
+                    );
             }
         }
     }
-
-
 
     pub fn update_plane_move(
         &mut self,
