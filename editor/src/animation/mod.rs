@@ -439,6 +439,7 @@ impl AnimationEditor {
 
         let mut is_animation_player_selected = false;
         let mut is_animation_selected = false;
+        let mut is_curve_selected = false;
 
         if let Some(animation_player) = scene
             .graph
@@ -470,6 +471,7 @@ impl AnimationEditor {
                             selected_curve.clone(),
                         ));
                     }
+                    is_curve_selected = true;
                 }
                 is_animation_selected = true;
             }
@@ -481,12 +483,6 @@ impl AnimationEditor {
         if !is_animation_selected || !is_animation_player_selected {
             self.track_list.clear(ui);
 
-            ui.send_message(CurveEditorMessage::sync(
-                self.curve_editor,
-                MessageDirection::ToWidget,
-                Default::default(),
-            ));
-
             ui.send_message(CurveEditorMessage::zoom(
                 self.curve_editor,
                 MessageDirection::ToWidget,
@@ -496,7 +492,15 @@ impl AnimationEditor {
                 self.curve_editor,
                 MessageDirection::ToWidget,
                 Vector2::default(),
-            ))
+            ));
+        }
+
+        if !is_animation_selected || !is_animation_player_selected || !is_curve_selected {
+            ui.send_message(CurveEditorMessage::sync(
+                self.curve_editor,
+                MessageDirection::ToWidget,
+                Default::default(),
+            ));
         }
 
         if !is_animation_player_selected {
@@ -525,6 +529,14 @@ impl AnimationEditor {
                 self.toolbar.preview,
                 MessageDirection::ToWidget,
                 Some(self.preview_mode_data.is_some()),
+            ),
+        );
+        send_sync_message(
+            ui,
+            WidgetMessage::enabled(
+                self.curve_editor,
+                MessageDirection::ToWidget,
+                is_curve_selected,
             ),
         );
     }
