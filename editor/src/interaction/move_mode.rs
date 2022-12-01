@@ -34,7 +34,6 @@ struct Entry {
     new_local_position: Vector3<f32>,
 }
 
-struct SmartMoveContext {}
 
 struct MoveContext {
     plane: Option<Plane>,
@@ -42,7 +41,6 @@ struct MoveContext {
     plane_kind: PlaneKind,
     gizmo_inv_transform: Matrix4<f32>,
     gizmo_local_transform: Matrix4<f32>,
-    smartMove: SmartMoveContext,
 }
 
 impl MoveContext {
@@ -92,7 +90,6 @@ impl MoveContext {
             gizmo_local_transform: gizmo_origin.local_transform().matrix(),
             gizmo_inv_transform,
             plane_kind,
-            smartMove: SmartMoveContext {},
         }
     }
 
