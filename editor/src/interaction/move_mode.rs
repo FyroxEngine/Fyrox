@@ -33,12 +33,15 @@ struct Entry {
     new_local_position: Vector3<f32>,
 }
 
+struct SmartMoveContext {}
+
 struct MoveContext {
     plane: Option<Plane>,
     objects: Vec<Entry>,
     plane_kind: PlaneKind,
     gizmo_inv_transform: Matrix4<f32>,
     gizmo_local_transform: Matrix4<f32>,
+    smartMove: SmartMoveContext,
 }
 
 impl MoveContext {
@@ -88,6 +91,7 @@ impl MoveContext {
             gizmo_local_transform: gizmo_origin.local_transform().matrix(),
             gizmo_inv_transform,
             plane_kind,
+            smartMove: SmartMoveContext {},
         }
     }
 
@@ -149,40 +153,13 @@ impl MoveContext {
     ) {
         match self.plane_kind {
             PlaneKind::SMART => {
-                let preview_nodes = self
-                    .objects
-                    .iter()
-                    .map(|f| f.node)
-                    .flat_map(|node| graph.traverse_handle_iter(node))
-                    .collect::<FxHashSet<Handle<Node>>>();
-
-                // let nodes1 = scene
-                // .graph
-                // .traverse_handle_iter(move_context.objects)
-                // .collect::<FxHashSet<Handle<Node>>>();
-
-                if let Some(result) = editor_scene.camera_controller.pick(PickingOptions {
-                    cursor_pos: mouse_position,
+                self.update_smart_move(
                     graph,
-                    editor_objects_root: editor_scene.editor_objects_root,
-                    screen_size: frame_size,
-                    editor_only: false,
-                    filter: |handle, _| !preview_nodes.contains(&handle),
-                    ignore_back_faces: settings.selection.ignore_back_faces,
-                    // We need info only about closest intersection.
-                    use_picking_loop: false,
-                    only_meshes: false,
-                }) {
-                    for entry in self.objects.iter_mut() {
-                        let mut new_local_position = //entry.initial_local_position
-                     entry.initial_parent_inv_global_transform.transform_vector(
-                        &self.gizmo_local_transform.transform_vector(
-                            &(result.position ),
-                        ),
-                    );
-                        entry.new_local_position = new_local_position;
-                    }
-                }
+                    editor_scene,
+                    settings,
+                    mouse_position,
+                    frame_size,
+                );
             }
             _ => self.update_plane_move(
                 graph,
@@ -193,6 +170,54 @@ impl MoveContext {
             ),
         }
     }
+
+    fn update_smart_move(
+        &mut self,
+        graph: &Graph,
+        editor_scene: &mut EditorScene,
+        settings: &Settings,
+        mouse_position: Vector2<f32>,
+        frame_size: Vector2<f32>,
+    ) {
+        let move_context= self;
+        let preview_nodes = move_context
+            .objects
+            .iter()
+            .map(|f| f.node)
+            .flat_map(|node| graph.traverse_handle_iter(node))
+            .collect::<FxHashSet<Handle<Node>>>();
+
+        // let nodes1 = scene
+        // .graph
+        // .traverse_handle_iter(move_context.objects)
+        // .collect::<FxHashSet<Handle<Node>>>();
+
+        if let Some(result) = editor_scene.camera_controller.pick(PickingOptions {
+            cursor_pos: mouse_position,
+            graph,
+            editor_objects_root: editor_scene.editor_objects_root,
+            screen_size: frame_size,
+            editor_only: false,
+            filter: |handle, _| !preview_nodes.contains(&handle),
+            ignore_back_faces: settings.selection.ignore_back_faces,
+            // We need info only about closest intersection.
+            use_picking_loop: false,
+            only_meshes: false,
+        }) {
+            for entry in move_context.objects.iter_mut() {
+                let mut new_local_position = //entry.initial_local_position
+         entry.initial_parent_inv_global_transform.transform_vector(
+            &move_context.gizmo_local_transform.transform_vector(
+                &(result.position ),
+            ),
+        );
+                entry.new_local_position = new_local_position;
+            }
+        }
+    }
+
+
+
     pub fn update_plane_move(
         &mut self,
         graph: &Graph,
