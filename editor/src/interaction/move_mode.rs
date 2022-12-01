@@ -13,8 +13,6 @@ use crate::{
     world::graph::selection::GraphSelection,
     GameEngine, Message,
 };
-use fyrox::core::algebra::Vector4;
-use fyrox::core::math::PositionProvider;
 use fyrox::fxhash::FxHashSet;
 use fyrox::scene::camera::{Camera, Projection};
 use fyrox::{
@@ -26,7 +24,6 @@ use fyrox::{
     },
     scene::{graph::Graph, node::Node, Scene},
 };
-use std::ops::Mul;
 use std::sync::mpsc::Sender;
 
 struct Entry {
