@@ -40,7 +40,7 @@ pub struct MoveGizmo {
 }
 
 fn make_smart_dot(graph: &mut Graph) -> Handle<Node> {
-    let scale = 0.1;
+    let scale = 0.05;
     MeshBuilder::new(
         BaseBuilder::new()
             .with_cast_shadows(false)
@@ -114,13 +114,14 @@ fn create_quad_plane(
     color: Color,
     name: &str,
 ) -> Handle<Node> {
+    let scale=0.2;
     MeshBuilder::new(
         BaseBuilder::new()
             .with_cast_shadows(false)
             .with_name(name)
             .with_local_transform(
                 TransformBuilder::new()
-                    .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
+                    .with_local_scale(Vector3::new(scale,scale,scale))
                     .build(),
             ),
     )
