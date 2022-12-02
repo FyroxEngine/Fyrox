@@ -40,7 +40,7 @@ pub struct MoveGizmo {
 }
 
 fn make_smart_dot(graph: &mut Graph) -> Handle<Node> {
-    let scale = 0.05;
+    let scale = 0.075;
     MeshBuilder::new(
         BaseBuilder::new()
             .with_cast_shadows(false)
