@@ -1,6 +1,8 @@
-use fyrox::core::{algebra::Vector3, math::plane::Plane};
+use fyrox::core::{algebra::Vector3, math::plane::Plane, num_traits::Zero};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, EnumIter)]
 pub enum PlaneKind {
     X,
     Y,
@@ -12,12 +14,33 @@ pub enum PlaneKind {
 }
 
 impl PlaneKind {
-    pub fn make_plane_from_view(self, _look_direction: Vector3<f32>) -> Option<Plane> {
+    pub fn make_plane_from_view(self, look_direction: Vector3<f32>) -> Option<Plane> {
         let normal = match self {
             PlaneKind::SMART => return None,
-            PlaneKind::X => Vector3::new(0.0, 1.0,1.0),
-            PlaneKind::Y => Vector3::new(1.0, 0.0,1.0),
-            PlaneKind::Z => Vector3::new(1.0, 1.0, 0.0),
+            PlaneKind::X => {
+                let r = Vector3::new(0.0, look_direction.y, look_direction.z);
+                if !r.is_zero() {
+                    r
+                } else {
+                    Vector3::new(0.0, 1.0, 1.0)
+                }
+            }
+            PlaneKind::Y => {
+                let r = Vector3::new(look_direction.x, 0.0, look_direction.z);
+                if !r.is_zero() {
+                    r
+                } else {
+                    Vector3::new(1.0, 0.0, 1.0)
+                }
+            }
+            PlaneKind::Z => {
+                let r = Vector3::new(look_direction.x, look_direction.y, 0.0);
+                if !r.is_zero() {
+                    r
+                } else {
+                    Vector3::new(1.0, 1.0, 0.0)
+                }
+            }
             PlaneKind::YZ => Vector3::x(),
             PlaneKind::ZX => Vector3::y(),
             PlaneKind::XY => Vector3::z(),
@@ -42,13 +65,23 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_plane_in_111() {
-        let dir111 = Vector3::new(1.0, 1.0, 1.0);
-        assert!(PlaneKind::X.make_plane_from_view(dir111).is_some());
-    }
-    #[test]
     fn test_look_dir_is_move_dir() {
-        let dir_x = Vector3::new(1.0, 0.0, 0.0);
-        assert!(PlaneKind::X.make_plane_from_view(dir_x).is_some());
+        let dirs = vec![
+            Vector3::new(1.0, 1.0, 1.0),
+            Vector3::new(1.0, 0.0, 0.0),
+            Vector3::new(0.0, 1.0, 0.0),
+            Vector3::new(0.0, 0.0, 1.0),
+        ];
+        for dir_x in dirs {
+            for kind in PlaneKind::iter() {
+                match kind {
+                    PlaneKind::SMART => {}
+                    _ => {
+                        let plane = kind.make_plane_from_view(dir_x);
+                        assert!(plane.is_some());
+                    }
+                }
+            }
+        }
     }
 }
