@@ -12,25 +12,17 @@ pub enum PlaneKind {
 }
 
 impl PlaneKind {
-    pub fn make_plane_from_view(self, look_direction: Vector3<f32>) -> Option<Plane> {
-        match self {
-            PlaneKind::SMART => None,
-            PlaneKind::X => Plane::from_normal_and_point(
-                &Vector3::new(0.0, look_direction.y, look_direction.z),
-                &Default::default(),
-            ),
-            PlaneKind::Y => Plane::from_normal_and_point(
-                &Vector3::new(look_direction.x, 0.0, look_direction.z),
-                &Default::default(),
-            ),
-            PlaneKind::Z => Plane::from_normal_and_point(
-                &Vector3::new(look_direction.x, look_direction.y, 0.0),
-                &Default::default(),
-            ),
-            PlaneKind::YZ => Plane::from_normal_and_point(&Vector3::x(), &Default::default()),
-            PlaneKind::ZX => Plane::from_normal_and_point(&Vector3::y(), &Default::default()),
-            PlaneKind::XY => Plane::from_normal_and_point(&Vector3::z(), &Default::default()),
-        }
+    pub fn make_plane_from_view(self, _look_direction: Vector3<f32>) -> Option<Plane> {
+        let normal = match self {
+            PlaneKind::SMART => return None,
+            PlaneKind::X => Vector3::new(0.0, 1.0,1.0),
+            PlaneKind::Y => Vector3::new(1.0, 0.0,1.0),
+            PlaneKind::Z => Vector3::new(1.0, 1.0, 0.0),
+            PlaneKind::YZ => Vector3::x(),
+            PlaneKind::ZX => Vector3::y(),
+            PlaneKind::XY => Vector3::z(),
+        };
+        Plane::from_normal_and_point(&normal, &Default::default())
     }
 
     pub fn project_point(self, point: Vector3<f32>) -> Vector3<f32> {
@@ -42,5 +34,21 @@ impl PlaneKind {
             PlaneKind::YZ => Vector3::new(0.0, point.y, point.z),
             PlaneKind::ZX => Vector3::new(point.x, 0.0, point.z),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_plane_in_111() {
+        let dir111 = Vector3::new(1.0, 1.0, 1.0);
+        assert!(PlaneKind::X.make_plane_from_view(dir111).is_some());
+    }
+    #[test]
+    fn test_look_dir_is_move_dir() {
+        let dir_x = Vector3::new(1.0, 0.0, 0.0);
+        assert!(PlaneKind::X.make_plane_from_view(dir_x).is_some());
     }
 }
