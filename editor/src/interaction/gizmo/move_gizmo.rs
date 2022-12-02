@@ -114,14 +114,14 @@ fn create_quad_plane(
     color: Color,
     name: &str,
 ) -> Handle<Node> {
-    let scale=0.2;
+    let scale = 0.2;
     MeshBuilder::new(
         BaseBuilder::new()
             .with_cast_shadows(false)
             .with_name(name)
             .with_local_transform(
                 TransformBuilder::new()
-                    .with_local_scale(Vector3::new(scale,scale,scale))
+                    .with_local_scale(Vector3::new(scale, scale, scale))
                     .build(),
             ),
     )
