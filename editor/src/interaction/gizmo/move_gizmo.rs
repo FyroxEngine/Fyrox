@@ -25,9 +25,6 @@ use fyrox::{
     },
 };
 
-const SMART_DOT_SIZE : f32=0.1;
-const QUAD_PLANE_SIZE : f32=0.15;
-
 pub struct MoveGizmo {
     pub origin: Handle<Node>,
     smart_dot: Handle<Node>,
@@ -43,6 +40,7 @@ pub struct MoveGizmo {
 }
 
 fn make_smart_dot(graph: &mut Graph) -> Handle<Node> {
+    let scale = 0.1;
     MeshBuilder::new(
         BaseBuilder::new()
             .with_cast_shadows(false)
@@ -53,7 +51,7 @@ fn make_smart_dot(graph: &mut Graph) -> Handle<Node> {
         SurfaceBuilder::new(SurfaceSharedData::new(SurfaceData::make_sphere(
             8,
             8,
-            SMART_DOT_SIZE,
+            scale,
             &Matrix4::identity(),
         )))
         .with_material(make_color_material(Color::WHITE))
@@ -122,7 +120,7 @@ fn create_quad_plane(
             .with_name(name)
             .with_local_transform(
                 TransformBuilder::new()
-                    .with_local_scale(Vector3::new(QUAD_PLANE_SIZE,QUAD_PLANE_SIZE,QUAD_PLANE_SIZE))
+                    .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
                     .build(),
             ),
     )
