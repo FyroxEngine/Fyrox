@@ -498,6 +498,14 @@ impl ResolvePath for dyn Reflect {
     }
 }
 
+pub enum SetFieldByPathError<'p> {
+    InvalidPath {
+        value: Box<dyn Reflect>,
+        reason: ReflectPathError<'p>,
+    },
+    InvalidValue(Box<dyn Reflect>),
+}
+
 /// Type-erased API
 impl dyn Reflect {
     pub fn downcast<T: Reflect>(self: Box<dyn Reflect>) -> Result<Box<T>, Box<dyn Reflect>> {
@@ -525,6 +533,33 @@ impl dyn Reflect {
     #[inline]
     pub fn downcast_mut<T: Reflect>(&mut self) -> Option<&mut T> {
         self.as_any_mut().downcast_mut::<T>()
+    }
+
+    /// Sets a field by its path in the given entity. This method always uses [`Reflect::set_field`] which means,
+    /// that it will always call custom property setters.
+    #[inline]
+    pub fn set_field_by_path<'p>(
+        &mut self,
+        path: &'p str,
+        value: Box<dyn Reflect>,
+    ) -> Result<Box<dyn Reflect>, SetFieldByPathError<'p>> {
+        let (parent_entity, field_path) = if let Some(separator_position) = path.rfind('.') {
+            let parent_path = &path[..separator_position];
+            let field = &path[(separator_position + 1)..];
+            let parent_entity = match self.resolve_path_mut(parent_path) {
+                Err(reason) => {
+                    return Err(SetFieldByPathError::InvalidPath { reason, value });
+                }
+                Ok(property) => property,
+            };
+            (parent_entity, field)
+        } else {
+            (self, path)
+        };
+
+        parent_entity
+            .set_field(field_path, value)
+            .map_err(|e| SetFieldByPathError::InvalidValue(e))
     }
 }
 
