@@ -1,5 +1,4 @@
 use fyrox::core::{algebra::Vector3, math::plane::Plane, num_traits::Zero};
-use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -63,6 +62,7 @@ impl PlaneKind {
 #[cfg(test)]
 mod test {
     use super::*;
+    use strum::IntoEnumIterator;
 
     #[test]
     fn test_look_dir_is_move_dir() {
