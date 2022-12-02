@@ -27,6 +27,7 @@ use fyrox::{
 
 pub struct MoveGizmo {
     pub origin: Handle<Node>,
+    smart_dot: Handle<Node>,
     x_arrow: Handle<Node>,
     y_arrow: Handle<Node>,
     z_arrow: Handle<Node>,
@@ -36,6 +37,27 @@ pub struct MoveGizmo {
     xy_plane: Handle<Node>,
     yz_plane: Handle<Node>,
     zx_plane: Handle<Node>,
+}
+
+fn make_smart_dot(graph: &mut Graph) -> Handle<Node> {
+    let scale = 0.075;
+    MeshBuilder::new(
+        BaseBuilder::new()
+            .with_cast_shadows(false)
+            .with_name("smart_dot"),
+    )
+    .with_render_path(RenderPath::Forward)
+    .with_surfaces(vec![{
+        SurfaceBuilder::new(SurfaceSharedData::new(SurfaceData::make_sphere(
+            8,
+            8,
+            scale,
+            &Matrix4::identity(),
+        )))
+        .with_material(make_color_material(Color::WHITE))
+        .build()
+    }])
+    .build(graph)
 }
 
 fn make_move_axis(
@@ -92,13 +114,14 @@ fn create_quad_plane(
     color: Color,
     name: &str,
 ) -> Handle<Node> {
+    let scale = 0.2;
     MeshBuilder::new(
         BaseBuilder::new()
             .with_cast_shadows(false)
             .with_name(name)
             .with_local_transform(
                 TransformBuilder::new()
-                    .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
+                    .with_local_scale(Vector3::new(scale, scale, scale))
                     .build(),
             ),
     )
@@ -129,6 +152,8 @@ impl MoveGizmo {
 
         graph.link_nodes(origin, editor_scene.editor_objects_root);
 
+        let smart_dot = make_smart_dot(graph);
+        graph.link_nodes(smart_dot, origin);
         let (x_axis, x_arrow) = make_move_axis(
             graph,
             UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 90.0f32.to_radians()),
@@ -173,6 +198,7 @@ impl MoveGizmo {
 
         Self {
             origin,
+            smart_dot,
             x_arrow,
             y_arrow,
             z_arrow,
@@ -195,6 +221,7 @@ impl MoveGizmo {
         set_mesh_diffuse_color(graph[self.zx_plane].as_mesh_mut(), Color::GREEN);
         set_mesh_diffuse_color(graph[self.yz_plane].as_mesh_mut(), Color::RED);
         set_mesh_diffuse_color(graph[self.xy_plane].as_mesh_mut(), Color::BLUE);
+        set_mesh_diffuse_color(graph[self.smart_dot].as_mesh_mut(), Color::WHITE);
     }
 
     pub fn apply_mode(&self, mode: Option<PlaneKind>, graph: &mut Graph) {
@@ -204,6 +231,9 @@ impl MoveGizmo {
         if let Some(mode) = mode {
             let yellow = Color::opaque(255, 255, 0);
             match mode {
+                PlaneKind::SMART => {
+                    set_mesh_diffuse_color(graph[self.smart_dot].as_mesh_mut(), yellow);
+                }
                 PlaneKind::X => {
                     set_mesh_diffuse_color(graph[self.x_axis].as_mesh_mut(), yellow);
                     set_mesh_diffuse_color(graph[self.x_arrow].as_mesh_mut(), yellow);
@@ -242,6 +272,8 @@ impl MoveGizmo {
             Some(PlaneKind::XY)
         } else if picked == self.yz_plane {
             Some(PlaneKind::YZ)
+        } else if picked == self.smart_dot {
+            Some(PlaneKind::SMART)
         } else {
             None
         };
@@ -288,17 +320,17 @@ impl MoveGizmo {
 
         // Select plane by current active mode.
         let plane = plane_kind.make_plane_from_view(dlook);
-
-        // Get two intersection points with plane and use delta between them to calculate offset.
-        if let Some(initial_point) = initial_ray.plane_intersection_point(&plane) {
-            if let Some(next_point) = offset_ray.plane_intersection_point(&plane) {
-                let delta = next_point - initial_point;
-                let offset = plane_kind.project_point(delta);
-                // Make sure offset will be in local coordinates.
-                return node_local_transform.transform_vector(&offset);
+        if let Some(plane) = plane {
+            // Get two intersection points with plane and use delta between them to calculate offset.
+            if let Some(initial_point) = initial_ray.plane_intersection_point(&plane) {
+                if let Some(next_point) = offset_ray.plane_intersection_point(&plane) {
+                    let delta = next_point - initial_point;
+                    let offset = plane_kind.project_point(delta);
+                    // Make sure offset will be in local coordinates.
+                    return node_local_transform.transform_vector(&offset);
+                }
             }
         }
-
         Vector3::default()
     }
 
