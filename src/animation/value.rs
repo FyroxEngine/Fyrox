@@ -2,7 +2,7 @@ use crate::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         math::lerpf,
-        reflect::{prelude::*, ResolvePath},
+        reflect::{prelude::*, SetFieldByPathError},
         visitor::prelude::*,
     },
     scene::node::Node,
@@ -184,20 +184,23 @@ impl BoundValueCollection {
                     }
                 }
                 ValueBinding::Property(ref property_name) => {
-                    match node_ref.as_reflect_mut().resolve_path_mut(property_name) {
-                        Ok(property) => {
-                            if property.set(bound_value.boxed_value()).is_err() {
+                    if let Err(err) = node_ref
+                        .as_reflect_mut()
+                        .set_field_by_path(property_name, bound_value.boxed_value())
+                    {
+                        match err {
+                            SetFieldByPathError::InvalidPath { reason, .. } => {
                                 Log::err(format!(
-                                    "Failed to set property {}! Types mismatch.",
+                                    "Failed to set property {}! Invalid path: {}",
+                                    property_name, reason
+                                ));
+                            }
+                            SetFieldByPathError::InvalidValue(_) => {
+                                Log::err(format!(
+                                    "Failed to set property {}! Types mismatch!",
                                     property_name
                                 ));
                             }
-                        }
-                        Err(err) => {
-                            Log::err(format!(
-                                "Unable to find property {}! Reason: {:?}",
-                                property_name, err
-                            ));
                         }
                     }
                 }
