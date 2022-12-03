@@ -237,6 +237,16 @@ impl Animation {
         self.tracks.push(track);
     }
 
+    /// Removes a track at given index.
+    pub fn remove_track(&mut self, index: usize) -> NodeTrack {
+        self.tracks.remove(index)
+    }
+
+    /// Inserts a track at given index.
+    pub fn insert_track(&mut self, index: usize, track: NodeTrack) {
+        self.tracks.insert(index, track)
+    }
+
     /// Removes last track from the list of tracks of the animation.
     pub fn pop_track(&mut self) -> Option<NodeTrack> {
         self.tracks.pop()
