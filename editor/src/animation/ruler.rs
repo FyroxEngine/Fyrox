@@ -125,7 +125,7 @@ impl Control for Ruler {
         for nx in 0..=steps {
             let k = nx as f32 / steps as f32;
             let x = left_local_bound + k * range;
-            text.set_text(format!("{:.1}", x)).build();
+            text.set_text(format!("{:.1}s", x)).build();
             let vx = self.local_to_view(x);
             ctx.draw_text(self.clip_bounds(), Vector2::new(vx + 1.0, 0.0), &text);
         }
