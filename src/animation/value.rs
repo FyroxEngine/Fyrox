@@ -41,7 +41,10 @@ impl TrackValue {
 
     pub fn blend_with(&mut self, other: &Self, weight: f32) {
         match (self, other) {
+            (Self::Real(a), Self::Real(b)) => *a += *b * weight,
+            (Self::Vector2(a), Self::Vector2(b)) => *a += b.scale(weight),
             (Self::Vector3(a), Self::Vector3(b)) => *a += b.scale(weight),
+            (Self::Vector4(a), Self::Vector4(b)) => *a += b.scale(weight),
             (Self::UnitQuaternion(a), Self::UnitQuaternion(b)) => *a = a.nlerp(b, weight),
             _ => (),
         }
