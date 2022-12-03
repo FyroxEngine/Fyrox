@@ -58,6 +58,43 @@ impl Command for AddTrackCommand {
 }
 
 #[derive(Debug)]
+pub struct RemoveTrackCommand {
+    animation_player: Handle<Node>,
+    animation: Handle<Animation>,
+    index: usize,
+    track: Option<NodeTrack>,
+}
+
+impl RemoveTrackCommand {
+    pub fn new(animation_player: Handle<Node>, animation: Handle<Animation>, index: usize) -> Self {
+        Self {
+            animation_player,
+            animation,
+            index,
+            track: None,
+        }
+    }
+}
+
+impl Command for RemoveTrackCommand {
+    fn name(&mut self, _: &SceneContext) -> String {
+        "Remove Track".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.track = Some(
+            fetch_animation_player(self.animation_player, context).animations_mut()[self.animation]
+                .remove_track(self.index),
+        );
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        fetch_animation_player(self.animation_player, context).animations_mut()[self.animation]
+            .insert_track(self.index, self.track.take().unwrap());
+    }
+}
+
+#[derive(Debug)]
 pub struct ReplaceTrackCurveCommand {
     pub animation_player: Handle<Node>,
     pub animation: Handle<Animation>,

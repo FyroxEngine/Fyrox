@@ -2,18 +2,19 @@
 
 use crate::{
     animation::{
-        command::AddTrackCommand,
+        command::{AddTrackCommand, RemoveTrackCommand},
         selection::{AnimationSelection, SelectedEntity},
     },
+    menu::create_menu_item,
     scene::{
-        commands::ChangeSelectionCommand,
+        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
         property::{
             object_to_property_tree, PropertySelectorMessage, PropertySelectorWindowBuilder,
         },
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         EditorScene, Selection,
     },
-    Message,
+    send_sync_message, Message,
 };
 use fyrox::{
     animation::{
@@ -32,7 +33,9 @@ use fyrox::{
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
+        menu::MenuItemMessage,
         message::{MessageDirection, UiMessage},
+        popup::PopupBuilder,
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -41,10 +44,32 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    scene::{graph::Graph, node::Node, Scene},
+    scene::{animation::AnimationPlayer, graph::Graph, node::Node, Scene},
     utils::log::Log,
 };
 use std::{any::TypeId, cmp::Ordering, collections::hash_map::Entry, rc::Rc, sync::mpsc::Sender};
+
+struct TrackContextMenu {
+    menu: Handle<UiNode>,
+    remove_track: Handle<UiNode>,
+}
+
+impl TrackContextMenu {
+    fn new(ctx: &mut BuildContext) -> Self {
+        let remove_track;
+        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+            .with_content(
+                StackPanelBuilder::new(WidgetBuilder::new().with_child({
+                    remove_track = create_menu_item("Remove Selected Tracks", vec![], ctx);
+                    remove_track
+                }))
+                .build(ctx),
+            )
+            .build(ctx);
+
+        Self { menu, remove_track }
+    }
+}
 
 pub struct TrackList {
     pub panel: Handle<UiNode>,
@@ -54,7 +79,9 @@ pub struct TrackList {
     property_selector: Handle<UiNode>,
     selected_node: Handle<Node>,
     group_views: FxHashMap<Handle<Node>, Handle<UiNode>>,
-    track_views: Vec<Handle<UiNode>>,
+    track_views: FxHashMap<Uuid, Handle<UiNode>>,
+    curve_views: FxHashMap<Uuid, Handle<UiNode>>,
+    context_menu: TrackContextMenu,
 }
 
 struct TrackViewData {
@@ -123,6 +150,7 @@ impl TrackList {
         .build(ctx);
 
         Self {
+            context_menu: TrackContextMenu::new(ctx),
             panel,
             tree_root,
             add_track,
@@ -131,6 +159,7 @@ impl TrackList {
             selected_node: Default::default(),
             group_views: Default::default(),
             track_views: Default::default(),
+            curve_views: Default::default(),
         }
     }
 
@@ -390,6 +419,51 @@ impl TrackList {
                     )))
                     .unwrap();
             }
+        } else if let Some(MenuItemMessage::Click) = message.data() {
+            if message.destination() == self.context_menu.remove_track {
+                if let Selection::Animation(ref selection) = editor_scene.selection {
+                    if let Some(animation_player) = scene
+                        .graph
+                        .try_get(selection.animation_player)
+                        .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+                    {
+                        if let Some(animation) =
+                            animation_player.animations().try_get(selection.animation)
+                        {
+                            let mut commands =
+                                vec![SceneCommand::new(ChangeSelectionCommand::new(
+                                    Selection::Animation(AnimationSelection {
+                                        animation_player: selection.animation_player,
+                                        animation: selection.animation,
+                                        // Just reset inner selection.
+                                        entities: vec![],
+                                    }),
+                                    editor_scene.selection.clone(),
+                                ))];
+
+                            for entity in selection.entities.iter() {
+                                if let SelectedEntity::Track(id) = entity {
+                                    let index = animation
+                                        .tracks()
+                                        .iter()
+                                        .position(|t| t.id() == *id)
+                                        .unwrap();
+
+                                    commands.push(SceneCommand::new(RemoveTrackCommand::new(
+                                        selection.animation_player,
+                                        selection.animation,
+                                        index,
+                                    )));
+                                }
+                            }
+
+                            sender
+                                .send(Message::do_scene_command(CommandGroup::from(commands)))
+                                .unwrap();
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -404,10 +478,16 @@ impl TrackList {
         self.selected_node = Handle::NONE;
     }
 
-    pub fn sync_to_model(&mut self, animation: &Animation, graph: &Graph, ui: &mut UserInterface) {
+    pub fn sync_to_model(
+        &mut self,
+        animation: &Animation,
+        graph: &Graph,
+        editor_scene: &EditorScene,
+        ui: &mut UserInterface,
+    ) {
         match animation.tracks().len().cmp(&self.track_views.len()) {
             Ordering::Less => {
-                for track_view in self.track_views.clone().iter() {
+                for track_view in self.track_views.clone().values() {
                     let track_view_ref = ui.node(*track_view);
                     let track_view_data = track_view_ref.user_data_ref::<TrackViewData>().unwrap();
                     if animation
@@ -415,18 +495,30 @@ impl TrackList {
                         .iter()
                         .all(|t| t.id() != track_view_data.id)
                     {
-                        ui.send_message(TreeRootMessage::remove_item(
-                            self.tree_root,
-                            MessageDirection::ToWidget,
-                            *track_view,
-                        ));
+                        for curve_item in track_view_ref
+                            .query_component::<Tree>()
+                            .unwrap()
+                            .items
+                            .iter()
+                            .cloned()
+                        {
+                            let curve_item_ref = ui
+                                .node(curve_item)
+                                .user_data_ref::<CurveViewData>()
+                                .unwrap();
+                            assert!(self.curve_views.remove(&curve_item_ref.id).is_some());
+                        }
 
-                        self.track_views.remove(
-                            self.track_views
-                                .iter()
-                                .position(|v| *v == *track_view)
-                                .unwrap(),
+                        send_sync_message(
+                            ui,
+                            TreeRootMessage::remove_item(
+                                self.tree_root,
+                                MessageDirection::ToWidget,
+                                *track_view,
+                            ),
                         );
+
+                        assert!(self.track_views.remove(&track_view_data.id).is_some());
 
                         // Remove group if it is empty.
                         if let Some(group) = self.group_views.get(&track_view_data.target) {
@@ -438,11 +530,16 @@ impl TrackList {
                                 .len()
                                 <= 1
                             {
-                                ui.send_message(TreeRootMessage::remove_item(
-                                    self.tree_root,
-                                    MessageDirection::ToWidget,
-                                    *group,
-                                ));
+                                send_sync_message(
+                                    ui,
+                                    TreeRootMessage::remove_item(
+                                        self.tree_root,
+                                        MessageDirection::ToWidget,
+                                        *group,
+                                    ),
+                                );
+
+                                assert!(self.group_views.remove(&track_view_data.target).is_some());
                             }
                         }
                     }
@@ -455,7 +552,7 @@ impl TrackList {
                 for model_track in animation.tracks().iter() {
                     if self
                         .track_views
-                        .iter()
+                        .values()
                         .map(|v| ui.node(*v))
                         .all(|v| v.user_data_ref::<TrackViewData>().unwrap().id != model_track.id())
                     {
@@ -478,12 +575,14 @@ impl TrackList {
                                             .build(ctx),
                                     )
                                     .build(ctx);
-
-                                ui.send_message(TreeRootMessage::add_item(
-                                    self.tree_root,
-                                    MessageDirection::ToWidget,
-                                    group,
-                                ));
+                                send_sync_message(
+                                    ui,
+                                    TreeRootMessage::add_item(
+                                        self.tree_root,
+                                        MessageDirection::ToWidget,
+                                        group,
+                                    ),
+                                );
 
                                 *entry.insert(group)
                             }
@@ -491,53 +590,94 @@ impl TrackList {
 
                         let ctx = &mut ui.build_ctx();
 
-                        let track_view =
-                            TreeBuilder::new(WidgetBuilder::new().with_user_data(Rc::new(
-                                TrackViewData {
+                        let curves = model_track
+                            .frames_container()
+                            .curves_ref()
+                            .iter()
+                            .enumerate()
+                            .map(|(i, curve)| {
+                                let curve_view = TreeBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_user_data(Rc::new(CurveViewData { id: curve.id() })),
+                                )
+                                .with_content(
+                                    TextBuilder::new(WidgetBuilder::new())
+                                        .with_text(format!(
+                                            "Curve - {}",
+                                            ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_"),
+                                        ))
+                                        .build(ctx),
+                                )
+                                .build(ctx);
+
+                                self.curve_views.insert(curve.id(), curve_view);
+
+                                curve_view
+                            })
+                            .collect();
+
+                        let track_view = TreeBuilder::new(
+                            WidgetBuilder::new()
+                                .with_context_menu(self.context_menu.menu)
+                                .with_user_data(Rc::new(TrackViewData {
                                     id: model_track.id(),
                                     target: model_track.target(),
-                                },
-                            )))
-                            .with_items(
-                                model_track
-                                    .frames_container()
-                                    .curves_ref()
-                                    .iter()
-                                    .enumerate()
-                                    .map(|(i, curve)| {
-                                        TreeBuilder::new(WidgetBuilder::new().with_user_data(
-                                            Rc::new(CurveViewData { id: curve.id() }),
-                                        ))
-                                        .with_content(
-                                            TextBuilder::new(WidgetBuilder::new())
-                                                .with_text(format!(
-                                                    "Curve - {}",
-                                                    ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_"),
-                                                ))
-                                                .build(ctx),
-                                        )
-                                        .build(ctx)
-                                    })
-                                    .collect(),
-                            )
-                            .with_content(
-                                TextBuilder::new(WidgetBuilder::new())
-                                    .with_text(format!("{}", model_track.binding()))
-                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                    .build(ctx),
-                            )
-                            .build(ctx);
+                                })),
+                        )
+                        .with_items(curves)
+                        .with_content(
+                            TextBuilder::new(WidgetBuilder::new())
+                                .with_text(format!("{}", model_track.binding()))
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .build(ctx),
+                        )
+                        .build(ctx);
 
-                        ui.send_message(TreeMessage::add_item(
-                            parent_group,
-                            MessageDirection::ToWidget,
-                            track_view,
-                        ));
+                        send_sync_message(
+                            ui,
+                            TreeMessage::add_item(
+                                parent_group,
+                                MessageDirection::ToWidget,
+                                track_view,
+                            ),
+                        );
 
-                        self.track_views.push(track_view);
+                        assert!(self
+                            .track_views
+                            .insert(model_track.id(), track_view)
+                            .is_none());
                     }
                 }
             }
+        }
+
+        if let Selection::Animation(ref selection) = editor_scene.selection {
+            let mut any_track_selected = false;
+            let tree_selection = selection
+                .entities
+                .iter()
+                .filter_map(|e| match e {
+                    SelectedEntity::Track(id) => {
+                        any_track_selected = true;
+                        self.track_views.get(id).cloned()
+                    }
+                    SelectedEntity::Curve(id) => self.curve_views.get(id).cloned(),
+                })
+                .collect();
+
+            send_sync_message(
+                ui,
+                TreeRootMessage::select(self.tree_root, MessageDirection::ToWidget, tree_selection),
+            );
+
+            send_sync_message(
+                ui,
+                WidgetMessage::enabled(
+                    self.context_menu.remove_track,
+                    MessageDirection::ToWidget,
+                    any_track_selected,
+                ),
+            );
         }
     }
 }
