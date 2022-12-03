@@ -11,17 +11,17 @@ use crate::{
     send_sync_message, Message,
 };
 use fyrox::{
-    core::{algebra::Vector2, pool::Handle},
+    core::{algebra::Vector2, math::Rect, pool::Handle},
     engine::Engine,
     gui::{
         border::BorderBuilder,
         check_box::CheckBoxMessage,
-        curve::{CurveEditorBuilder, CurveEditorMessage},
+        curve::{CurveEditorBuilder, CurveEditorMessage, HighlightZone},
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UiNode, UserInterface,
+        BuildContext, UiNode, UserInterface, BRUSH_DARK, BRUSH_PRIMARY,
     },
     scene::{animation::AnimationPlayer, node::Node, Scene},
 };
@@ -105,7 +105,9 @@ impl AnimationEditor {
                                         })
                                         .with_child({
                                             curve_editor = CurveEditorBuilder::new(
-                                                WidgetBuilder::new().on_row(1),
+                                                WidgetBuilder::new()
+                                                    .with_background(BRUSH_DARK)
+                                                    .on_row(1),
                                             )
                                             .with_show_x_values(false)
                                             .build(ctx);
@@ -459,6 +461,23 @@ impl AnimationEditor {
                     &scene.graph,
                     editor_scene,
                     &mut engine.user_interface,
+                );
+
+                send_sync_message(
+                    &engine.user_interface,
+                    CurveEditorMessage::hightlight_zones(
+                        self.curve_editor,
+                        MessageDirection::ToWidget,
+                        vec![HighlightZone {
+                            rect: Rect::new(
+                                animation.time_slice().start,
+                                -100000.0,
+                                animation.time_slice().end - animation.time_slice().start,
+                                200000.0,
+                            ),
+                            brush: BRUSH_PRIMARY,
+                        }],
+                    ),
                 );
 
                 // TODO: Support multi-selection.

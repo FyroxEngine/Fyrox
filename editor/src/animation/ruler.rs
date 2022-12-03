@@ -10,7 +10,7 @@ use fyrox::{
         formatted_text::{FormattedText, FormattedTextBuilder},
         message::{MessageDirection, MouseButton, UiMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, UiNode, UserInterface, BRUSH_DARK, BRUSH_LIGHTER,
+        BuildContext, Control, UiNode, UserInterface, BRUSH_DARKER, BRUSH_LIGHTER,
     },
 };
 use std::{
@@ -213,7 +213,7 @@ impl RulerBuilder {
         let ruler = Ruler {
             widget: self
                 .widget_builder
-                .with_background(BRUSH_DARK)
+                .with_background(BRUSH_DARKER)
                 .with_foreground(BRUSH_LIGHTER)
                 .build(),
             zoom: 1.0,
