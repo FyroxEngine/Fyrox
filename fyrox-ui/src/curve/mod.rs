@@ -37,6 +37,7 @@ pub enum CurveEditorMessage {
     ViewPosition(Vector2<f32>),
     Zoom(Vector2<f32>),
     ZoomToFit,
+    HighlightZones(Vec<HighlightZone>),
 
     // Internal messages. Use only when you know what you're doing.
     // These are internal because you must use Sync message to request changes
@@ -54,12 +55,20 @@ impl CurveEditorMessage {
     define_constructor!(CurveEditorMessage:ViewPosition => fn view_position(Vector2<f32>), layout: false);
     define_constructor!(CurveEditorMessage:Zoom => fn zoom(Vector2<f32>), layout: false);
     define_constructor!(CurveEditorMessage:ZoomToFit => fn zoom_to_fit(), layout: false);
+    define_constructor!(CurveEditorMessage:HighlightZones => fn hightlight_zones(Vec<HighlightZone>), layout: false);
     // Internal. Use only when you know what you're doing.
     define_constructor!(CurveEditorMessage:RemoveSelection => fn remove_selection(), layout: false);
     define_constructor!(CurveEditorMessage:ChangeSelectedKeysKind => fn change_selected_keys_kind(CurveKeyKind), layout: false);
     define_constructor!(CurveEditorMessage:ChangeSelectedKeysValue => fn change_selected_keys_value(f32), layout: false);
     define_constructor!(CurveEditorMessage:ChangeSelectedKeysLocation => fn change_selected_keys_location(f32), layout: false);
     define_constructor!(CurveEditorMessage:AddKey => fn add_key(Vector2<f32>), layout: false);
+}
+
+/// Highlight zone in values space.
+#[derive(Clone, Debug, PartialEq)]
+pub struct HighlightZone {
+    pub rect: Rect<f32>,
+    pub brush: Brush,
 }
 
 #[derive(Clone)]
@@ -93,6 +102,7 @@ pub struct CurveEditor {
     grid_size: Vector2<f32>,
     min_zoom: Vector2<f32>,
     max_zoom: Vector2<f32>,
+    highlight_zones: Vec<HighlightZone>,
 }
 
 crate::define_widget_deref!(CurveEditor);
@@ -178,6 +188,7 @@ impl Control for CurveEditor {
         ctx.transform_stack.push(Matrix3::identity());
         self.update_matrices();
         self.draw_background(ctx);
+        self.draw_highlight_zones(ctx);
         self.draw_grid(ctx);
         self.draw_curve(ctx);
         self.draw_keys(ctx);
@@ -564,6 +575,9 @@ impl Control for CurveEditor {
                         CurveEditorMessage::ChangeSelectedKeysLocation(location) => {
                             self.change_selected_keys_location(*location, ui);
                         }
+                        CurveEditorMessage::HighlightZones(zones) => {
+                            self.highlight_zones = zones.clone();
+                        }
                     }
                 }
             }
@@ -890,6 +904,28 @@ impl CurveEditor {
         ctx.commit(screen_bounds, self.background(), CommandTexture::None, None);
     }
 
+    fn draw_highlight_zones(&self, ctx: &mut DrawingContext) {
+        for zone in self.highlight_zones.iter() {
+            let left_top_corner = self.point_to_screen_space(zone.rect.left_top_corner());
+            let bottom_right_corner = self.point_to_screen_space(zone.rect.right_bottom_corner());
+            ctx.push_rect_filled(
+                &Rect::new(
+                    left_top_corner.x,
+                    left_top_corner.y,
+                    bottom_right_corner.x - left_top_corner.x,
+                    bottom_right_corner.y - left_top_corner.y,
+                ),
+                None,
+            );
+            ctx.commit(
+                self.clip_bounds(),
+                zone.brush.clone(),
+                CommandTexture::None,
+                None,
+            );
+        }
+    }
+
     fn draw_grid(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
 
@@ -1182,6 +1218,7 @@ pub struct CurveEditorBuilder {
     grid_size: Vector2<f32>,
     min_zoom: Vector2<f32>,
     max_zoom: Vector2<f32>,
+    highlight_zones: Vec<HighlightZone>,
 }
 
 impl CurveEditorBuilder {
@@ -1197,6 +1234,7 @@ impl CurveEditorBuilder {
             grid_size: Vector2::new(50.0, 50.0),
             min_zoom: Vector2::new(0.001, 0.001),
             max_zoom: Vector2::new(1000.0, 1000.0),
+            highlight_zones: Default::default(),
         }
     }
 
@@ -1240,8 +1278,14 @@ impl CurveEditorBuilder {
         self.min_zoom = min_zoom;
         self
     }
+
     pub fn with_max_zoom(mut self, max_zoom: Vector2<f32>) -> Self {
         self.max_zoom = max_zoom;
+        self
+    }
+
+    pub fn with_highlight_zone(mut self, zones: Vec<HighlightZone>) -> Self {
+        self.highlight_zones = zones;
         self
     }
 
@@ -1412,6 +1456,7 @@ impl CurveEditorBuilder {
             grid_size: self.grid_size,
             min_zoom: self.min_zoom,
             max_zoom: self.max_zoom,
+            highlight_zones: self.highlight_zones,
         };
 
         ctx.add_node(UiNode::new(editor))
