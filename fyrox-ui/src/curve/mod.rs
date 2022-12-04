@@ -427,10 +427,19 @@ impl Control for CurveEditor {
                     },
                     WidgetMessage::MouseWheel { amount, .. } => {
                         let k = if *amount < 0.0 { 0.9 } else { 1.1 };
+
+                        let new_zoom = if ui.keyboard_modifiers().shift {
+                            Vector2::new(self.zoom.x * k, self.zoom.y)
+                        } else if ui.keyboard_modifiers.control {
+                            Vector2::new(self.zoom.x, self.zoom.y * k)
+                        } else {
+                            self.zoom * k
+                        };
+
                         ui.send_message(CurveEditorMessage::zoom(
                             self.handle,
                             MessageDirection::ToWidget,
-                            self.zoom * k,
+                            new_zoom,
                         ));
                     }
                     _ => {}
