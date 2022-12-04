@@ -5,6 +5,7 @@ use crate::{
         command::{AddTrackCommand, RemoveTrackCommand},
         selection::{AnimationSelection, SelectedEntity},
     },
+    load_image,
     menu::create_menu_item,
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
@@ -14,7 +15,7 @@ use crate::{
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         EditorScene, Selection,
     },
-    send_sync_message, Message,
+    send_sync_message, utils, Message,
 };
 use fyrox::{
     animation::{
@@ -33,16 +34,20 @@ use fyrox::{
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
+        image::ImageBuilder,
         menu::MenuItemMessage,
         message::{MessageDirection, UiMessage},
         popup::PopupBuilder,
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
+        text::{Text, TextBuilder, TextMessage},
+        text_box::{TextBoxBuilder, TextCommitMode},
         tree::{Tree, TreeBuilder, TreeMessage, TreeRootBuilder, TreeRootMessage},
+        utils::{make_cross, make_simple_tooltip},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
+        BRUSH_BRIGHT,
     },
     scene::{animation::AnimationPlayer, graph::Graph, node::Node, Scene},
     utils::log::Log,
@@ -71,7 +76,107 @@ impl TrackContextMenu {
     }
 }
 
+struct Toolbar {
+    panel: Handle<UiNode>,
+    search_text: Handle<UiNode>,
+    clear_search_text: Handle<UiNode>,
+    collapse_all: Handle<UiNode>,
+    expand_all: Handle<UiNode>,
+}
+
+impl Toolbar {
+    fn new(ctx: &mut BuildContext) -> Self {
+        let search_text;
+        let clear_search_text;
+        let collapse_all;
+        let expand_all;
+        let panel = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child({
+                    search_text = TextBoxBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .on_column(0),
+                    )
+                    .with_text_commit_mode(TextCommitMode::Immediate)
+                    .build(ctx);
+                    search_text
+                })
+                .with_child({
+                    clear_search_text = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .on_column(1)
+                            .with_tooltip(make_simple_tooltip(ctx, "Clear Filter Text")),
+                    )
+                    .with_content(make_cross(ctx, 12.0, 2.0))
+                    .build(ctx);
+                    clear_search_text
+                })
+                .with_child({
+                    collapse_all = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .on_column(2)
+                            .with_tooltip(make_simple_tooltip(ctx, "Collapse All")),
+                    )
+                    .with_content(
+                        ImageBuilder::new(
+                            WidgetBuilder::new()
+                                .with_background(BRUSH_BRIGHT)
+                                .with_width(16.0)
+                                .with_height(16.0),
+                        )
+                        .with_opt_texture(load_image(include_bytes!(
+                            "../../resources/embed/collapse.png"
+                        )))
+                        .build(ctx),
+                    )
+                    .build(ctx);
+                    collapse_all
+                })
+                .with_child({
+                    expand_all = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .on_column(3)
+                            .with_tooltip(make_simple_tooltip(ctx, "Expand All")),
+                    )
+                    .with_content(
+                        ImageBuilder::new(
+                            WidgetBuilder::new()
+                                .with_background(BRUSH_BRIGHT)
+                                .with_width(16.0)
+                                .with_height(16.0),
+                        )
+                        .with_opt_texture(load_image(include_bytes!(
+                            "../../resources/embed/expand.png"
+                        )))
+                        .build(ctx),
+                    )
+                    .build(ctx);
+                    expand_all
+                }),
+        )
+        .add_row(Row::strict(22.0))
+        .add_column(Column::stretch())
+        .add_column(Column::strict(22.0))
+        .add_column(Column::strict(22.0))
+        .add_column(Column::strict(22.0))
+        .build(ctx);
+
+        Self {
+            panel,
+            search_text,
+            clear_search_text,
+            collapse_all,
+            expand_all,
+        }
+    }
+}
+
 pub struct TrackList {
+    toolbar: Toolbar,
     pub panel: Handle<UiNode>,
     tree_root: Handle<UiNode>,
     add_track: Handle<UiNode>,
@@ -106,15 +211,18 @@ macro_rules! define_allowed_types {
 
 impl TrackList {
     pub fn new(ctx: &mut BuildContext) -> Self {
+        let toolbar = Toolbar::new(ctx);
+
         let tree_root;
         let add_track;
 
         let panel = GridBuilder::new(
             WidgetBuilder::new()
+                .with_child(toolbar.panel)
                 .with_child(
                     ScrollViewerBuilder::new(
                         WidgetBuilder::new()
-                            .on_row(0)
+                            .on_row(1)
                             .on_column(0)
                             .with_margin(Thickness::uniform(1.0)),
                     )
@@ -130,7 +238,7 @@ impl TrackList {
                 .with_child(
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
-                            .on_row(1)
+                            .on_row(2)
                             .on_column(0)
                             .with_margin(Thickness::uniform(1.0))
                             .with_child({
@@ -144,12 +252,14 @@ impl TrackList {
                     .build(ctx),
                 ),
         )
+        .add_row(Row::auto())
         .add_row(Row::stretch())
         .add_row(Row::strict(22.0))
         .add_column(Column::stretch())
         .build(ctx);
 
         Self {
+            toolbar,
             context_menu: TrackContextMenu::new(ctx),
             panel,
             tree_root,
@@ -191,6 +301,37 @@ impl TrackList {
                     MessageDirection::ToWidget,
                     true,
                 ));
+            } else if message.destination() == self.toolbar.expand_all {
+                ui.send_message(TreeRootMessage::expand_all(
+                    self.tree_root,
+                    MessageDirection::ToWidget,
+                ));
+            } else if message.destination() == self.toolbar.collapse_all {
+                ui.send_message(TreeRootMessage::collapse_all(
+                    self.tree_root,
+                    MessageDirection::ToWidget,
+                ));
+            } else if message.destination() == self.toolbar.clear_search_text {
+                ui.send_message(TextMessage::text(
+                    self.toolbar.search_text,
+                    MessageDirection::ToWidget,
+                    Default::default(),
+                ));
+            }
+        } else if let Some(TextMessage::Text(text)) = message.data() {
+            if message.destination() == self.toolbar.search_text
+                && message.direction() == MessageDirection::FromWidget
+            {
+                let filter_text = text.to_lowercase();
+                utils::apply_visibility_filter(self.tree_root, ui, |node| {
+                    if let Some(tree) = node.query_component::<Tree>() {
+                        if let Some(tree_text) = ui.node(tree.content).query_component::<Text>() {
+                            return Some(tree_text.text().to_lowercase().contains(&filter_text));
+                        }
+                    }
+
+                    None
+                });
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.node_selector

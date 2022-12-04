@@ -114,7 +114,7 @@ impl AnimationEditor {
                                             curve_editor
                                         }),
                                 )
-                                .add_row(Row::strict(25.0))
+                                .add_row(Row::strict(22.0))
                                 .add_row(Row::stretch())
                                 .add_column(Column::stretch())
                                 .build(ctx),

@@ -115,3 +115,34 @@ pub fn built_in_skybox() -> SkyBox {
 pub fn make_node_name(name: &str, handle: ErasedHandle) -> String {
     format!("{} ({}:{})", name, handle.index(), handle.generation())
 }
+
+pub fn apply_visibility_filter<F>(root: Handle<UiNode>, ui: &UserInterface, filter: F)
+where
+    F: Fn(&UiNode) -> Option<bool>,
+{
+    fn apply_filter_recursive<F>(node: Handle<UiNode>, ui: &UserInterface, filter: &F) -> bool
+    where
+        F: Fn(&UiNode) -> Option<bool>,
+    {
+        let node_ref = ui.node(node);
+
+        let mut is_any_match = false;
+        for &child in node_ref.children() {
+            is_any_match |= apply_filter_recursive(child, ui, filter)
+        }
+
+        if let Some(has_match) = filter(node_ref) {
+            is_any_match |= has_match;
+
+            ui.send_message(WidgetMessage::visibility(
+                node,
+                MessageDirection::ToWidget,
+                is_any_match,
+            ));
+        }
+
+        is_any_match
+    }
+
+    apply_filter_recursive(root, ui, &filter);
+}
