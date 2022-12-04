@@ -728,6 +728,18 @@ impl Toolbar {
             DropdownListMessage::items(self.animations, MessageDirection::ToWidget, new_items),
         );
 
+        send_sync_message(
+            ui,
+            DropdownListMessage::selection(
+                self.animations,
+                MessageDirection::ToWidget,
+                animation_player
+                    .animations()
+                    .pair_iter()
+                    .position(|(h, _)| h == selection.animation),
+            ),
+        );
+
         let mut selected_animation_valid = false;
         if let Some(animation) = animation_player.animations().try_get(selection.animation) {
             selected_animation_valid = true;

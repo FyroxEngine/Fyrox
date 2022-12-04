@@ -1,4 +1,8 @@
-use crate::{command::Command, scene::commands::SceneContext};
+use crate::{
+    animation::selection::AnimationSelection,
+    command::Command,
+    scene::{commands::SceneContext, Selection},
+};
 use fyrox::{
     animation::{Animation, NodeTrack},
     core::{curve::Curve, pool::Handle, pool::Ticket},
@@ -143,11 +147,13 @@ pub enum AddAnimationCommand {
     Executed {
         animation_player: Handle<Node>,
         animation: Handle<Animation>,
+        selection: Selection,
     },
     Reverted {
         animation_player: Handle<Node>,
         animation: Animation,
         ticket: Ticket<Animation>,
+        selection: Selection,
     },
 }
 
@@ -175,23 +181,38 @@ impl Command for AddAnimationCommand {
                     .animations_mut()
                     .add(animation);
 
+                let old_selection = std::mem::replace(
+                    &mut context.editor_scene.selection,
+                    Selection::Animation(AnimationSelection {
+                        animation_player,
+                        animation: handle,
+                        entities: vec![],
+                    }),
+                );
+
                 *self = Self::Executed {
                     animation_player,
                     animation: handle,
+                    selection: old_selection,
                 };
             }
             AddAnimationCommand::Reverted {
                 animation_player,
                 animation,
                 ticket,
+                selection,
             } => {
                 let handle = fetch_animation_player(animation_player, context)
                     .animations_mut()
                     .put_back(ticket, animation);
 
+                let old_selection =
+                    std::mem::replace(&mut context.editor_scene.selection, selection);
+
                 *self = Self::Executed {
                     animation_player,
                     animation: handle,
+                    selection: old_selection,
                 };
             }
             _ => unreachable!(),
@@ -203,15 +224,20 @@ impl Command for AddAnimationCommand {
             AddAnimationCommand::Executed {
                 animation_player,
                 animation,
+                selection,
             } => {
                 let (ticket, animation) = fetch_animation_player(animation_player, context)
                     .animations_mut()
                     .take_reserve(animation);
 
+                let old_selection =
+                    std::mem::replace(&mut context.editor_scene.selection, selection);
+
                 *self = Self::Reverted {
                     animation_player,
                     animation,
                     ticket,
+                    selection: old_selection,
                 }
             }
             _ => unreachable!(),
