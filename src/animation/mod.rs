@@ -4,6 +4,7 @@ use crate::{
         math::wrapf,
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
+        uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
     scene::{
@@ -27,46 +28,22 @@ pub mod value;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct AnimationEvent {
-    pub signal_id: u64,
+    pub signal_id: Uuid,
 }
 
 #[derive(Clone, Debug, Visit, Reflect, PartialEq)]
 pub struct AnimationSignal {
-    id: u64,
-    time: f32,
-    enabled: bool,
-}
-
-impl AnimationSignal {
-    pub fn new(id: u64, time: f32) -> Self {
-        Self {
-            id,
-            time,
-            enabled: true,
-        }
-    }
-
-    pub fn set_enabled(&mut self, value: bool) {
-        self.enabled = value;
-    }
-
-    pub fn is_enabled(&self) -> bool {
-        self.enabled
-    }
-
-    pub fn id(&self) -> u64 {
-        self.id
-    }
-
-    pub fn time(&self) -> f32 {
-        self.time
-    }
+    pub id: Uuid,
+    pub name: String,
+    pub time: f32,
+    pub enabled: bool,
 }
 
 impl Default for AnimationSignal {
     fn default() -> Self {
         Self {
-            id: 0,
+            id: Uuid::new_v4(),
+            name: Default::default(),
             time: 0.0,
             enabled: true,
         }
@@ -364,8 +341,25 @@ impl Animation {
         &mut self.tracks
     }
 
+    pub fn add_signal(&mut self, signal: AnimationSignal) -> &mut Self {
+        self.signals.push(signal);
+        self
+    }
+
+    pub fn insert_signal(&mut self, index: usize, signal: AnimationSignal) {
+        self.signals.insert(index, signal)
+    }
+
+    pub fn remove_signal(&mut self, index: usize) -> AnimationSignal {
+        self.signals.remove(index)
+    }
+
     pub fn signals(&self) -> &[AnimationSignal] {
         &self.signals
+    }
+
+    pub fn signals_mut(&mut self) -> &mut [AnimationSignal] {
+        &mut self.signals
     }
 
     pub fn retain_tracks<F>(&mut self, filter: F)
@@ -373,11 +367,6 @@ impl Animation {
         F: FnMut(&NodeTrack) -> bool,
     {
         self.tracks.retain(filter)
-    }
-
-    pub fn add_signal(&mut self, signal: AnimationSignal) -> &mut Self {
-        self.signals.push(signal);
-        self
     }
 
     /// Enables or disables animation tracks for nodes in hierarchy starting from given root.
