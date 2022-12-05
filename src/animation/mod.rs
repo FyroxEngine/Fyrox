@@ -6,8 +6,6 @@ use crate::{
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
-    engine::resource_manager::ResourceManager,
-    resource::model::Model,
     scene::{
         graph::{Graph, NodePool},
         node::Node,
@@ -88,9 +86,6 @@ pub struct Animation {
     speed: f32,
     looped: bool,
     enabled: bool,
-    /// An external resource from which the animation was created.
-    #[visit(optional)]
-    pub(crate) resource: Option<Model>,
     signals: Vec<AnimationSignal>,
 
     // Non-serialized
@@ -213,7 +208,6 @@ impl Clone for Animation {
             time_position: self.time_position,
             looped: self.looped,
             enabled: self.enabled,
-            resource: self.resource.clone(),
             pose: Default::default(),
             signals: self.signals.clone(),
             events: Default::default(),
@@ -370,10 +364,6 @@ impl Animation {
         &mut self.tracks
     }
 
-    pub fn resource(&self) -> Option<Model> {
-        self.resource.clone()
-    }
-
     pub fn signals(&self) -> &[AnimationSignal] {
         &self.signals
     }
@@ -442,13 +432,6 @@ impl Animation {
             .filter(move |track| track.target() == handle)
     }
 
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        if let Some(resource) = self.resource.as_mut() {
-            let new_resource = resource_manager.request_model(resource.state().path());
-            *resource = new_resource;
-        }
-    }
-
     pub fn remove_tracks(&mut self) {
         self.tracks.clear();
         self.time_slice = 0.0..0.0;
@@ -491,7 +474,6 @@ impl Default for Animation {
             time_position: 0.0,
             enabled: true,
             looped: true,
-            resource: Default::default(),
             pose: Default::default(),
             signals: Default::default(),
             events: Default::default(),
