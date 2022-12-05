@@ -346,6 +346,10 @@ impl Animation {
         self
     }
 
+    pub fn pop_signal(&mut self) -> Option<AnimationSignal> {
+        self.signals.pop()
+    }
+
     pub fn insert_signal(&mut self, index: usize, signal: AnimationSignal) {
         self.signals.insert(index, signal)
     }
