@@ -1,3 +1,5 @@
+use crate::animation::command::AddAnimationSignal;
+use crate::animation::ruler::SignalView;
 use crate::{
     animation::{
         command::ReplaceTrackCurveCommand,
@@ -10,6 +12,8 @@ use crate::{
     scene::{EditorScene, Selection},
     send_sync_message, Message,
 };
+use fyrox::animation::AnimationSignal;
+use fyrox::core::uuid::Uuid;
 use fyrox::{
     core::{algebra::Vector2, math::Rect, pool::Handle},
     engine::Engine,
@@ -237,15 +241,37 @@ impl AnimationEditor {
                             _ => (),
                         }
                     }
-                } else if let Some(RulerMessage::Value(value)) = message.data() {
+                } else if let Some(msg) = message.data::<RulerMessage>() {
                     if message.destination() == self.ruler
                         && message.direction() == MessageDirection::FromWidget
                     {
-                        if let Some(animation) = animation_player
-                            .animations_mut()
-                            .try_get_mut(selection.animation)
-                        {
-                            animation.set_time_position(*value);
+                        match msg {
+                            RulerMessage::Value(value) => {
+                                if let Some(animation) = animation_player
+                                    .animations_mut()
+                                    .try_get_mut(selection.animation)
+                                {
+                                    animation.set_time_position(*value);
+                                }
+                            }
+                            RulerMessage::AddSignal(time) => {
+                                sender
+                                    .send(Message::do_scene_command(AddAnimationSignal {
+                                        animation_player_handle: selection.animation_player,
+                                        animation_handle: selection.animation,
+                                        signal: Some(AnimationSignal {
+                                            id: Uuid::new_v4(),
+                                            name: "Unnamed".to_string(),
+                                            time: *time,
+                                            enabled: true,
+                                        }),
+                                    }))
+                                    .unwrap();
+                            }
+                            RulerMessage::RemoveSignal(_) => {
+                                // TODO
+                            }
+                            _ => (),
                         }
                     }
                 }
@@ -477,6 +503,23 @@ impl AnimationEditor {
                             ),
                             brush: BRUSH_PRIMARY,
                         }],
+                    ),
+                );
+
+                send_sync_message(
+                    &engine.user_interface,
+                    RulerMessage::sync_signals(
+                        self.ruler,
+                        MessageDirection::ToWidget,
+                        animation
+                            .signals()
+                            .iter()
+                            .map(|s| SignalView {
+                                id: s.id,
+                                time: s.time,
+                                selected: false,
+                            })
+                            .collect(),
                     ),
                 );
 

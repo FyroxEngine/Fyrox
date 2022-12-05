@@ -3,6 +3,7 @@ use crate::{
     command::Command,
     scene::{commands::SceneContext, Selection},
 };
+use fyrox::animation::AnimationSignal;
 use fyrox::{
     animation::{Animation, NodeTrack},
     core::{curve::Curve, pool::Handle, pool::Ticket},
@@ -420,3 +421,26 @@ define_animation_swap_command!(SetAnimationNameCommand<String>(self, context) {
     animation.set_name(self.value.clone());
     self.value = old_name;
 });
+
+#[derive(Debug)]
+pub struct AddAnimationSignal {
+    pub animation_player_handle: Handle<Node>,
+    pub animation_handle: Handle<Animation>,
+    pub signal: Option<AnimationSignal>,
+}
+
+impl Command for AddAnimationSignal {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Add Animation Signal".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        fetch_animation(self.animation_player_handle, self.animation_handle, context)
+            .add_signal(self.signal.take().unwrap());
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.signal = fetch_animation(self.animation_player_handle, self.animation_handle, context)
+            .pop_signal();
+    }
+}
