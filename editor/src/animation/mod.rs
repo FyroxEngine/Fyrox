@@ -1,6 +1,9 @@
 use crate::{
     animation::{
-        command::{AddAnimationSignal, MoveAnimationSignal, ReplaceTrackCurveCommand},
+        command::{
+            AddAnimationSignal, MoveAnimationSignal, RemoveAnimationSignal,
+            ReplaceTrackCurveCommand,
+        },
         ruler::{RulerBuilder, RulerMessage, SignalView},
         selection::{AnimationSelection, SelectedEntity},
         thumb::{ThumbBuilder, ThumbMessage},
@@ -265,8 +268,23 @@ impl AnimationEditor {
                                     }))
                                     .unwrap();
                             }
-                            RulerMessage::RemoveSignal(_) => {
-                                // TODO
+                            RulerMessage::RemoveSignal(id) => {
+                                if let Some(animation) =
+                                    animation_player.animations().try_get(selection.animation)
+                                {
+                                    sender
+                                        .send(Message::do_scene_command(RemoveAnimationSignal {
+                                            animation_player_handle: selection.animation_player,
+                                            animation_handle: selection.animation,
+                                            signal_index: animation
+                                                .signals()
+                                                .iter()
+                                                .position(|s| s.id == *id)
+                                                .unwrap(),
+                                            signal: None,
+                                        }))
+                                        .unwrap()
+                                }
                             }
                             RulerMessage::MoveSignal { id, new_position } => {
                                 sender

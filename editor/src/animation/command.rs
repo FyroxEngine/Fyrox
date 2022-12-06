@@ -483,3 +483,29 @@ impl Command for MoveAnimationSignal {
         self.swap(context)
     }
 }
+
+#[derive(Debug)]
+pub struct RemoveAnimationSignal {
+    pub animation_player_handle: Handle<Node>,
+    pub animation_handle: Handle<Animation>,
+    pub signal_index: usize,
+    pub signal: Option<AnimationSignal>,
+}
+
+impl Command for RemoveAnimationSignal {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Remove Animation".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        let animation =
+            fetch_animation(self.animation_player_handle, self.animation_handle, context);
+        self.signal = Some(animation.remove_signal(self.signal_index));
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        let animation =
+            fetch_animation(self.animation_player_handle, self.animation_handle, context);
+        animation.insert_signal(self.signal_index, self.signal.take().unwrap());
+    }
+}

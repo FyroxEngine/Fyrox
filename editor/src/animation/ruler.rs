@@ -93,6 +93,27 @@ pub struct SignalView {
 }
 
 impl SignalView {
+    fn screen_bounds(&self, ruler: &Ruler) -> Rect<f32> {
+        let view_x = ruler.local_to_view(self.time);
+        let view_y = ruler.bounding_rect().size.y - SignalView::SIZE;
+
+        let min = ruler
+            .visual_transform()
+            .transform_point(&Point2::new(view_x - SignalView::SIZE * 0.5, view_y))
+            .coords;
+        let max = ruler
+            .visual_transform()
+            .transform_point(&Point2::new(
+                view_x + SignalView::SIZE * 0.5,
+                ruler.bounding_rect().size.y,
+            ))
+            .coords;
+
+        Rect::new(min.x, min.y, max.x - min.x, max.y - min.y)
+    }
+}
+
+impl SignalView {
     const SIZE: f32 = 10.0;
 }
 
@@ -266,25 +287,7 @@ impl Control for Ruler {
                             for signal in self.signals.borrow_mut().iter_mut() {
                                 signal.selected = false;
 
-                                let view_x = self.local_to_view(signal.time);
-                                let view_y = self.bounding_rect().size.y - SignalView::SIZE;
-
-                                let min = self
-                                    .visual_transform()
-                                    .transform_point(&Point2::new(
-                                        view_x - SignalView::SIZE * 0.5,
-                                        view_y,
-                                    ))
-                                    .coords;
-                                let max = self
-                                    .visual_transform()
-                                    .transform_point(&Point2::new(
-                                        view_x + SignalView::SIZE * 0.5,
-                                        self.bounding_rect().size.y,
-                                    ))
-                                    .coords;
-
-                                let bounds = Rect::new(min.x, min.y, max.x - min.x, max.y - min.y);
+                                let bounds = signal.screen_bounds(self);
 
                                 if self.drag_context.is_none() && bounds.contains(*pos) {
                                     signal.selected = true;
@@ -366,7 +369,10 @@ impl Control for Ruler {
                 ));
             } else if message.destination() == self.context_menu.remove_signal {
                 for signal in self.signals.borrow().iter() {
-                    if signal.selected {
+                    if signal
+                        .screen_bounds(self)
+                        .contains(ui.node(self.context_menu.menu).screen_position())
+                    {
                         ui.send_message(RulerMessage::remove_signal(
                             self.handle,
                             MessageDirection::FromWidget,
