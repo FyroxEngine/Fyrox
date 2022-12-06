@@ -33,9 +33,10 @@ use fyrox::{
         translate_event,
     },
 };
+use fyrox_core::uuid::{uuid, Uuid};
 use std::time::Instant;
 
-const FOOTSTEP_SIGNAL: u64 = 1;
+const FOOTSTEP_SIGNAL: Uuid = uuid!("3e536261-9edf-4436-bba0-11173e61c8e9");
 
 fn main() {
     let (mut game, event_loop) = Game::new("Example 07 - Sound");
@@ -107,8 +108,18 @@ fn main() {
                             .get_mut(load_result.player.locomotion_machine.walk_animation)
                             // Add signals to the walk animation timeline, we'll use signals to emit foot step
                             // sounds.
-                            .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 0.2))
-                            .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 0.95));
+                            .add_signal(AnimationSignal {
+                                id: FOOTSTEP_SIGNAL,
+                                time: 0.2,
+                                name: "Footstep".to_string(),
+                                enabled: true,
+                            })
+                            .add_signal(AnimationSignal {
+                                id: FOOTSTEP_SIGNAL,
+                                time: 0.95,
+                                name: "Footstep".to_string(),
+                                enabled: true,
+                            });
 
                             // Add scene to engine - engine will take ownership over scene and will return
                             // you a handle to scene which can be used later on to borrow it and do some

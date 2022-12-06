@@ -49,6 +49,7 @@ use fyrox::{
         Scene,
     },
 };
+use fyrox_core::uuid::{uuid, Uuid};
 use std::{
     path::Path,
     sync::{Arc, Mutex},
@@ -300,7 +301,7 @@ impl LocomotionMachine {
     const IDLE_TO_JUMP: &'static str = "IdleToJump";
     const JUMP_TO_IDLE: &'static str = "JumpToIdle";
 
-    pub const JUMP_SIGNAL: u64 = 1;
+    pub const JUMP_SIGNAL: Uuid = uuid!("3e536261-9edf-4436-bba0-11173e61c8e9");
 
     pub async fn new(
         scene: &mut Scene,
@@ -349,7 +350,12 @@ impl LocomotionMachine {
         // so we have to be notified about this. This is where signals come into play
         // you can assign any signal in animation timeline and then in update loop you
         // can iterate over them and react appropriately.
-        .add_signal(AnimationSignal::new(Self::JUMP_SIGNAL, 0.32))
+        .add_signal(AnimationSignal {
+            id: Self::JUMP_SIGNAL,
+            name: "Jump".to_string(),
+            time: 0.32,
+            enabled: true,
+        })
         .set_loop(false);
 
         // Add transitions between states. This is the "heart" of animation blending state machine

@@ -286,13 +286,11 @@ impl Control for Ruler {
 
                                 let bounds = Rect::new(min.x, min.y, max.x - min.x, max.y - min.y);
 
-                                if self.drag_context.is_none() {
-                                    if bounds.contains(*pos) {
-                                        signal.selected = true;
-                                        self.drag_context = Some(DragContext {
-                                            entity: DragEntity::Signal(signal.id),
-                                        });
-                                    }
+                                if self.drag_context.is_none() && bounds.contains(*pos) {
+                                    signal.selected = true;
+                                    self.drag_context = Some(DragContext {
+                                        entity: DragEntity::Signal(signal.id),
+                                    });
                                 }
                             }
 
@@ -314,25 +312,19 @@ impl Control for Ruler {
                             ui.release_mouse_capture();
 
                             if let Some(drag_context) = self.drag_context.take() {
-                                match drag_context.entity {
-                                    DragEntity::Signal(id) => {
-                                        if let Some(signal) = self
-                                            .signals
-                                            .borrow_mut()
-                                            .iter_mut()
-                                            .find(|s| s.id == id)
-                                        {
-                                            signal.selected = false;
+                                if let DragEntity::Signal(id) = drag_context.entity {
+                                    if let Some(signal) =
+                                        self.signals.borrow_mut().iter_mut().find(|s| s.id == id)
+                                    {
+                                        signal.selected = false;
 
-                                            ui.send_message(RulerMessage::move_signal(
-                                                self.handle,
-                                                MessageDirection::FromWidget,
-                                                id,
-                                                self.screen_to_value_space(pos.x),
-                                            ))
-                                        }
+                                        ui.send_message(RulerMessage::move_signal(
+                                            self.handle,
+                                            MessageDirection::FromWidget,
+                                            id,
+                                            self.screen_to_value_space(pos.x),
+                                        ))
                                     }
-                                    _ => (),
                                 }
                             }
                         }

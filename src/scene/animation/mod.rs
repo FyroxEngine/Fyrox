@@ -92,7 +92,7 @@ impl NodeTrait for AnimationPlayer {
     }
 
     fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base.restore_resources(resource_manager.clone());
+        self.base.restore_resources(resource_manager);
     }
 
     fn id(&self) -> Uuid {
