@@ -1,9 +1,7 @@
-use crate::animation::command::AddAnimationSignal;
-use crate::animation::ruler::SignalView;
 use crate::{
     animation::{
-        command::ReplaceTrackCurveCommand,
-        ruler::{RulerBuilder, RulerMessage},
+        command::{AddAnimationSignal, MoveAnimationSignal, ReplaceTrackCurveCommand},
+        ruler::{RulerBuilder, RulerMessage, SignalView},
         selection::{AnimationSelection, SelectedEntity},
         thumb::{ThumbBuilder, ThumbMessage},
         toolbar::{Toolbar, ToolbarAction},
@@ -12,10 +10,9 @@ use crate::{
     scene::{EditorScene, Selection},
     send_sync_message, Message,
 };
-use fyrox::animation::AnimationSignal;
-use fyrox::core::uuid::Uuid;
 use fyrox::{
-    core::{algebra::Vector2, math::Rect, pool::Handle},
+    animation::AnimationSignal,
+    core::{algebra::Vector2, math::Rect, pool::Handle, uuid::Uuid},
     engine::Engine,
     gui::{
         border::BorderBuilder,
@@ -270,6 +267,16 @@ impl AnimationEditor {
                             }
                             RulerMessage::RemoveSignal(_) => {
                                 // TODO
+                            }
+                            RulerMessage::MoveSignal { id, new_position } => {
+                                sender
+                                    .send(Message::do_scene_command(MoveAnimationSignal {
+                                        animation_player_handle: selection.animation_player,
+                                        animation_handle: selection.animation,
+                                        signal: *id,
+                                        time: *new_position,
+                                    }))
+                                    .unwrap();
                             }
                             _ => (),
                         }

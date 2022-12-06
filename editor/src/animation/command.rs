@@ -3,10 +3,13 @@ use crate::{
     command::Command,
     scene::{commands::SceneContext, Selection},
 };
-use fyrox::animation::AnimationSignal;
 use fyrox::{
-    animation::{Animation, NodeTrack},
-    core::{curve::Curve, pool::Handle, pool::Ticket},
+    animation::{Animation, AnimationSignal, NodeTrack},
+    core::{
+        curve::Curve,
+        pool::{Handle, Ticket},
+        uuid::Uuid,
+    },
     scene::{animation::AnimationPlayer, node::Node},
     utils::log::Log,
 };
@@ -442,5 +445,41 @@ impl Command for AddAnimationSignal {
     fn revert(&mut self, context: &mut SceneContext) {
         self.signal = fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .pop_signal();
+    }
+}
+
+#[derive(Debug)]
+pub struct MoveAnimationSignal {
+    pub animation_player_handle: Handle<Node>,
+    pub animation_handle: Handle<Animation>,
+    pub signal: Uuid,
+    pub time: f32,
+}
+
+impl MoveAnimationSignal {
+    fn swap(&mut self, context: &mut SceneContext) {
+        std::mem::swap(
+            &mut fetch_animation(self.animation_player_handle, self.animation_handle, context)
+                .signals_mut()
+                .iter_mut()
+                .find(|s| s.id == self.signal)
+                .unwrap()
+                .time,
+            &mut self.time,
+        );
+    }
+}
+
+impl Command for MoveAnimationSignal {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Move Animation Signal".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context)
     }
 }
