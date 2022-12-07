@@ -386,6 +386,18 @@ impl Control for Ruler {
             self.context_menu
                 .selected_position
                 .set(self.screen_to_value_space(ui.cursor_position().x));
+
+            let can_remove = self
+                .signals
+                .borrow()
+                .iter()
+                .any(|signal| signal.screen_bounds(self).contains(ui.cursor_position()));
+
+            ui.send_message(WidgetMessage::enabled(
+                self.context_menu.remove_signal,
+                MessageDirection::ToWidget,
+                can_remove,
+            ));
         }
     }
 }
