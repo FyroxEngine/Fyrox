@@ -315,11 +315,7 @@ impl Machine {
         &mut self.states
     }
 
-    pub(crate) fn evaluate_pose(
-        &mut self,
-        animations: &AnimationContainer,
-        dt: f32,
-    ) -> &AnimationPose {
+    pub fn evaluate_pose(&mut self, animations: &AnimationContainer, dt: f32) -> &AnimationPose {
         self.final_pose.reset();
 
         if self.active_state.is_some() || self.active_transition.is_some() {
