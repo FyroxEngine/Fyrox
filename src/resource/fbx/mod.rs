@@ -722,11 +722,14 @@ async fn convert(
         }
     }
 
-    let mut animations_container = AnimationContainer::new();
-    animations_container.add(animation);
-    AnimationPlayerBuilder::new(BaseBuilder::new().with_name("AnimationPlayer"))
-        .with_animations(animations_container)
-        .build(&mut scene.graph);
+    // Do not create animation player if there's no animation content.
+    if !animation.tracks().is_empty() {
+        let mut animations_container = AnimationContainer::new();
+        animations_container.add(animation);
+        AnimationPlayerBuilder::new(BaseBuilder::new().with_name("AnimationPlayer"))
+            .with_animations(animations_container)
+            .build(&mut scene.graph);
+    }
 
     // Link according to hierarchy
     for (&fbx_model_handle, node_handle) in fbx_model_to_node_map.iter() {
