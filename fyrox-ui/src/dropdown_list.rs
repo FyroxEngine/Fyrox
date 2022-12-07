@@ -121,6 +121,7 @@ impl Control for DropdownList {
                             items.clone(),
                         ));
                         self.items = items.clone();
+                        self.sync_selected_item_preview(ui);
                     }
                     &DropdownListMessage::AddItem(item) => {
                         ui.send_message(ListViewMessage::add_item(
@@ -139,31 +140,7 @@ impl Control for DropdownList {
                                 selection,
                             ));
 
-                            // Copy node from current selection in list view. This is not
-                            // always suitable because if an item has some visual behaviour
-                            // (change color on mouse hover, change something on click, etc)
-                            // it will be also reflected in selected item.
-                            if self.current.is_some() {
-                                ui.send_message(WidgetMessage::remove(
-                                    self.current,
-                                    MessageDirection::ToWidget,
-                                ));
-                            }
-                            if let Some(index) = selection {
-                                if let Some(item) = self.items.get(index) {
-                                    self.current = ui.copy_node(*item);
-                                    ui.send_message(WidgetMessage::link(
-                                        self.current,
-                                        MessageDirection::ToWidget,
-                                        self.main_grid,
-                                    ));
-                                    ui.node(self.current).request_update_visibility();
-                                } else {
-                                    self.current = Handle::NONE;
-                                }
-                            } else {
-                                self.current = Handle::NONE;
-                            }
+                            self.sync_selected_item_preview(ui);
 
                             if self.close_on_selection {
                                 ui.send_message(PopupMessage::close(
@@ -229,6 +206,34 @@ impl DropdownList {
 
     pub fn items(&self) -> &[Handle<UiNode>] {
         &self.items
+    }
+
+    fn sync_selected_item_preview(&mut self, ui: &mut UserInterface) {
+        // Copy node from current selection in list view. This is not
+        // always suitable because if an item has some visual behaviour
+        // (change color on mouse hover, change something on click, etc)
+        // it will be also reflected in selected item.
+        if self.current.is_some() {
+            ui.send_message(WidgetMessage::remove(
+                self.current,
+                MessageDirection::ToWidget,
+            ));
+        }
+        if let Some(index) = self.selection {
+            if let Some(item) = self.items.get(index) {
+                self.current = ui.copy_node(*item);
+                ui.send_message(WidgetMessage::link(
+                    self.current,
+                    MessageDirection::ToWidget,
+                    self.main_grid,
+                ));
+                ui.node(self.current).request_update_visibility();
+            } else {
+                self.current = Handle::NONE;
+            }
+        } else {
+            self.current = Handle::NONE;
+        }
     }
 }
 
