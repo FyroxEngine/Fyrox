@@ -372,14 +372,25 @@ impl Control for NodeSelectorWindow {
                     MessageDirection::ToWidget,
                 ));
             }
-        } else if message.data::<NodeSelectorMessage>().is_some() {
-            // Dispatch to inner selector.
+        } else if let Some(msg) = message.data::<NodeSelectorMessage>() {
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
             {
+                // Dispatch to inner selector.
                 let mut msg = message.clone();
                 msg.destination = self.selector;
                 ui.send_message(msg);
+            } else if message.destination() == self.selector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                // Enable "ok" button if selection is valid.
+                if let NodeSelectorMessage::Selection(selection) = msg {
+                    ui.send_message(WidgetMessage::enabled(
+                        self.ok,
+                        MessageDirection::ToWidget,
+                        !selection.is_empty(),
+                    ));
+                }
             }
         }
     }
@@ -438,6 +449,7 @@ impl NodeSelectorWindowBuilder {
                             .with_child({
                                 ok = ButtonBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_enabled(false)
                                         .with_width(100.0)
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
