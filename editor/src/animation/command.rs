@@ -509,3 +509,39 @@ impl Command for RemoveAnimationSignal {
         animation.insert_signal(self.signal_index, self.signal.take().unwrap());
     }
 }
+
+#[derive(Debug)]
+pub struct SetTrackEnabledCommand {
+    pub animation_player_handle: Handle<Node>,
+    pub animation_handle: Handle<Animation>,
+    pub track: Uuid,
+    pub enabled: bool,
+}
+
+impl SetTrackEnabledCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
+            .tracks_mut()
+            .iter_mut()
+            .find(|t| t.id() == self.track)
+            .unwrap();
+
+        let old = track.is_enabled();
+        track.enable(self.enabled);
+        self.enabled = old;
+    }
+}
+
+impl Command for SetTrackEnabledCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Set Track Enabled".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+}

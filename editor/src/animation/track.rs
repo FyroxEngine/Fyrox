@@ -2,7 +2,7 @@
 
 use crate::{
     animation::{
-        command::{AddTrackCommand, RemoveTrackCommand},
+        command::{AddTrackCommand, RemoveTrackCommand, SetTrackEnabledCommand},
         selection::{AnimationSelection, SelectedEntity},
     },
     load_image,
@@ -33,10 +33,13 @@ use fyrox::{
     fxhash::{FxHashMap, FxHashSet},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
+        check_box::{CheckBoxBuilder, CheckBoxMessage},
+        define_constructor,
+        draw::DrawingContext,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         menu::MenuItemMessage,
-        message::{MessageDirection, UiMessage},
+        message::{MessageDirection, OsEvent, UiMessage},
         popup::PopupBuilder,
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
@@ -44,15 +47,22 @@ use fyrox::{
         text_box::{TextBoxBuilder, TextCommitMode},
         tree::{Tree, TreeBuilder, TreeMessage, TreeRootBuilder, TreeRootMessage},
         utils::{make_cross, make_simple_tooltip},
-        widget::{WidgetBuilder, WidgetMessage},
+        widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
-        BRUSH_BRIGHT,
+        BuildContext, Control, NodeHandleMapping, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment, BRUSH_BRIGHT,
     },
     scene::{animation::AnimationPlayer, graph::Graph, node::Node, Scene},
     utils::log::Log,
 };
-use std::{any::TypeId, cmp::Ordering, collections::hash_map::Entry, rc::Rc, sync::mpsc::Sender};
+use std::{
+    any::{Any, TypeId},
+    cmp::Ordering,
+    collections::hash_map::Entry,
+    ops::{Deref, DerefMut},
+    rc::Rc,
+    sync::mpsc::Sender,
+};
 
 struct TrackContextMenu {
     menu: Handle<UiNode>,
@@ -73,6 +83,184 @@ impl TrackContextMenu {
             .build(ctx);
 
         Self { menu, remove_track }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TrackViewMessage {
+    TrackEnabled(bool),
+}
+
+impl TrackViewMessage {
+    define_constructor!(TrackViewMessage:TrackEnabled => fn track_enabled(bool), layout: false);
+}
+
+#[derive(Clone)]
+struct TrackView {
+    tree: Tree,
+    id: Uuid,
+    target: Handle<Node>,
+    track_enabled_switch: Handle<UiNode>,
+    track_enabled: bool,
+}
+
+impl Deref for TrackView {
+    type Target = Widget;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tree.widget
+    }
+}
+
+impl DerefMut for TrackView {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.tree.widget
+    }
+}
+
+impl Control for TrackView {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        self.tree.query_component(type_id).or_else(|| {
+            if type_id == TypeId::of::<Self>() {
+                Some(self)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
+        self.tree.resolve(node_map)
+    }
+
+    fn on_remove(&self, sender: &Sender<UiMessage>) {
+        self.tree.on_remove(sender)
+    }
+
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
+        self.tree.measure_override(ui, available_size)
+    }
+
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
+        self.tree.arrange_override(ui, final_size)
+    }
+
+    fn draw(&self, drawing_context: &mut DrawingContext) {
+        self.tree.draw(drawing_context)
+    }
+
+    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>) {
+        self.tree.update(dt, sender)
+    }
+
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.tree.handle_routed_message(ui, message);
+
+        if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
+            if message.destination() == self.track_enabled_switch
+                && message.direction() == MessageDirection::FromWidget
+                && self.track_enabled != *value
+            {
+                ui.send_message(TrackViewMessage::track_enabled(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    *value,
+                ));
+            }
+        } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data() {
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::ToWidget
+                && self.track_enabled != *enabled
+            {
+                self.track_enabled = *enabled;
+
+                ui.send_message(CheckBoxMessage::checked(
+                    self.track_enabled_switch,
+                    MessageDirection::ToWidget,
+                    Some(*enabled),
+                ));
+
+                ui.send_message(message.reverse());
+            }
+        }
+    }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        self.tree.preview_message(ui, message)
+    }
+
+    fn handle_os_event(
+        &mut self,
+        self_handle: Handle<UiNode>,
+        ui: &mut UserInterface,
+        event: &OsEvent,
+    ) {
+        self.tree.handle_os_event(self_handle, ui, event)
+    }
+}
+
+struct TrackViewBuilder {
+    tree_builder: TreeBuilder,
+    id: Uuid,
+    target: Handle<Node>,
+    name: String,
+    track_enabled: bool,
+}
+
+impl TrackViewBuilder {
+    pub fn new(tree_builder: TreeBuilder) -> Self {
+        Self {
+            tree_builder,
+            id: Default::default(),
+            target: Default::default(),
+            name: Default::default(),
+            track_enabled: true,
+        }
+    }
+
+    pub fn with_id(mut self, id: Uuid) -> Self {
+        self.id = id;
+        self
+    }
+
+    pub fn with_target(mut self, target: Handle<Node>) -> Self {
+        self.target = target;
+        self
+    }
+
+    pub fn with_name(mut self, name: String) -> Self {
+        self.name = name;
+        self
+    }
+
+    pub fn with_track_enabled(mut self, track_enabled: bool) -> Self {
+        self.track_enabled = track_enabled;
+        self
+    }
+
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let track_enabled_switch = CheckBoxBuilder::new(WidgetBuilder::new().with_height(18.0))
+            .with_content(
+                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                    .with_text(self.name)
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .build(ctx),
+            )
+            .checked(Some(self.track_enabled))
+            .build(ctx);
+
+        let track_view = TrackView {
+            tree: self
+                .tree_builder
+                .with_content(track_enabled_switch)
+                .build_tree(ctx),
+            id: self.id,
+            target: self.target,
+            track_enabled: self.track_enabled,
+            track_enabled_switch,
+        };
+
+        ctx.add_node(UiNode::new(track_view))
     }
 }
 
@@ -187,11 +375,6 @@ pub struct TrackList {
     track_views: FxHashMap<Uuid, Handle<UiNode>>,
     curve_views: FxHashMap<Uuid, Handle<UiNode>>,
     context_menu: TrackContextMenu,
-}
-
-struct TrackViewData {
-    id: Uuid,
-    target: Handle<Node>,
 }
 
 struct CurveViewData {
@@ -538,8 +721,7 @@ impl TrackList {
                         .iter()
                         .filter_map(|s| {
                             let selected_widget = ui.node(*s);
-                            if let Some(track_data) =
-                                selected_widget.user_data_ref::<TrackViewData>()
+                            if let Some(track_data) = selected_widget.query_component::<TrackView>()
                             {
                                 Some(SelectedEntity::Track(track_data.id))
                             } else if let Some(curve_data) =
@@ -605,6 +787,24 @@ impl TrackList {
                     }
                 }
             }
+        } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                if let Selection::Animation(ref selection) = editor_scene.selection {
+                    if let Some(track_view_ref) = ui
+                        .node(message.destination())
+                        .query_component::<TrackView>()
+                    {
+                        sender
+                            .send(Message::do_scene_command(SetTrackEnabledCommand {
+                                animation_player_handle: selection.animation_player,
+                                animation_handle: selection.animation,
+                                track: track_view_ref.id,
+                                enabled: *enabled,
+                            }))
+                            .unwrap()
+                    }
+                }
+            }
         }
     }
 
@@ -630,7 +830,7 @@ impl TrackList {
             Ordering::Less => {
                 for track_view in self.track_views.clone().values() {
                     let track_view_ref = ui.node(*track_view);
-                    let track_view_data = track_view_ref.user_data_ref::<TrackViewData>().unwrap();
+                    let track_view_data = track_view_ref.query_component::<TrackView>().unwrap();
                     if animation
                         .tracks()
                         .iter()
@@ -695,7 +895,7 @@ impl TrackList {
                         .track_views
                         .values()
                         .map(|v| ui.node(*v))
-                        .all(|v| v.user_data_ref::<TrackViewData>().unwrap().id != model_track.id())
+                        .all(|v| v.query_component::<TrackView>().unwrap().id != model_track.id())
                     {
                         let parent_group = match self.group_views.entry(model_track.target()) {
                             Entry::Occupied(entry) => *entry.get(),
@@ -757,21 +957,16 @@ impl TrackList {
                             })
                             .collect();
 
-                        let track_view = TreeBuilder::new(
-                            WidgetBuilder::new()
-                                .with_context_menu(self.context_menu.menu)
-                                .with_user_data(Rc::new(TrackViewData {
-                                    id: model_track.id(),
-                                    target: model_track.target(),
-                                })),
+                        let track_view = TrackViewBuilder::new(
+                            TreeBuilder::new(
+                                WidgetBuilder::new().with_context_menu(self.context_menu.menu),
+                            )
+                            .with_items(curves),
                         )
-                        .with_items(curves)
-                        .with_content(
-                            TextBuilder::new(WidgetBuilder::new())
-                                .with_text(format!("{}", model_track.binding()))
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .build(ctx),
-                        )
+                        .with_track_enabled(model_track.is_enabled())
+                        .with_id(model_track.id())
+                        .with_target(model_track.target())
+                        .with_name(format!("{}", model_track.binding()))
                         .build(ctx);
 
                         send_sync_message(
@@ -819,6 +1014,22 @@ impl TrackList {
                     any_track_selected,
                 ),
             );
+        }
+
+        for track_model in animation.tracks() {
+            if let Some(track_view) = self.track_views.get(&track_model.id()) {
+                let track_view_ref = ui.node(*track_view).query_component::<TrackView>().unwrap();
+                if track_view_ref.track_enabled != track_model.is_enabled() {
+                    send_sync_message(
+                        ui,
+                        TrackViewMessage::track_enabled(
+                            *track_view,
+                            MessageDirection::ToWidget,
+                            track_model.is_enabled(),
+                        ),
+                    );
+                }
+            }
         }
     }
 }
