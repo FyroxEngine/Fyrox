@@ -85,6 +85,7 @@
 //! locomotion and other is for combat. This means that locomotion machine will take control over
 //! lower body and combat machine will control upper body.
 
+use crate::scene::node::Node;
 use crate::{
     animation::{machine::event::LimitedEventQueue, AnimationContainer, AnimationPose},
     core::{
@@ -95,6 +96,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 pub use event::Event;
+use fxhash::FxHashMap;
 pub use node::{
     blend::{BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput},
     play::PlayAnimation,
@@ -116,56 +118,14 @@ pub struct Machine {
     parameters: ParameterContainer,
 
     #[reflect(hidden)]
-    nodes: Pool<PoseNode>,
-
-    #[reflect(hidden)]
-    transitions: Pool<Transition>,
-
-    #[reflect(hidden)]
-    states: Pool<State>,
-
-    #[reflect(hidden)]
-    active_state: Handle<State>,
-
-    #[reflect(hidden)]
-    entry_state: Handle<State>,
-
-    #[reflect(hidden)]
-    active_transition: Handle<Transition>,
+    layers: Vec<MachineLayer>,
 
     #[visit(skip)]
     #[reflect(hidden)]
     final_pose: AnimationPose,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    events: LimitedEventQueue,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    debug: bool,
 }
 
 impl Machine {
-    #[inline]
-    pub fn new() -> Self {
-        Self {
-            nodes: Default::default(),
-            states: Default::default(),
-            transitions: Default::default(),
-            final_pose: Default::default(),
-            active_state: Default::default(),
-            entry_state: Default::default(),
-            active_transition: Default::default(),
-            parameters: Default::default(),
-            events: LimitedEventQueue::new(2048),
-            debug: false,
-        }
-    }
-
-    #[inline]
-    pub fn add_node(&mut self, node: PoseNode) -> Handle<PoseNode> {
-        self.nodes.spawn(node)
-    }
-
     #[inline]
     pub fn set_parameter(&mut self, id: &str, new_value: Parameter) -> &mut Self {
         match self.parameters.get_mut(id) {
@@ -188,6 +148,105 @@ impl Machine {
     #[inline]
     pub fn parameters_mut(&mut self) -> &mut ParameterContainer {
         &mut self.parameters
+    }
+
+    #[inline]
+    pub fn layers(&self) -> &[MachineLayer] {
+        &self.layers
+    }
+
+    #[inline]
+    pub fn layers_mut(&mut self) -> &mut [MachineLayer] {
+        &mut self.layers
+    }
+
+    #[inline]
+    pub fn evaluate_pose(&mut self, animations: &AnimationContainer, dt: f32) -> &AnimationPose {
+        self.final_pose.reset();
+
+        for layer in self.layers.iter_mut() {
+            let weight = layer.weight;
+            let pose = layer.evaluate_pose(animations, &self.parameters, dt);
+
+            self.final_pose.blend_with(pose, weight);
+        }
+
+        &self.final_pose
+    }
+}
+
+#[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
+pub struct LayerMask {
+    #[reflect(hidden)]
+    bones: FxHashMap<Handle<Node>, bool>,
+}
+
+impl LayerMask {
+    pub fn should_animate(&self, node: Handle<Node>) -> bool {
+        self.bones.get(&node).cloned().unwrap_or(true)
+    }
+}
+
+#[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
+pub struct MachineLayer {
+    #[reflect(hidden)]
+    nodes: Pool<PoseNode>,
+
+    #[reflect(hidden)]
+    transitions: Pool<Transition>,
+
+    #[reflect(hidden)]
+    states: Pool<State>,
+
+    #[reflect(hidden)]
+    active_state: Handle<State>,
+
+    #[reflect(hidden)]
+    entry_state: Handle<State>,
+
+    #[reflect(hidden)]
+    active_transition: Handle<Transition>,
+
+    #[reflect(hidden)]
+    weight: f32,
+
+    #[reflect(hidden)]
+    mask: LayerMask,
+
+    #[visit(skip)]
+    #[reflect(hidden)]
+    final_pose: AnimationPose,
+
+    #[visit(skip)]
+    #[reflect(hidden)]
+    events: LimitedEventQueue,
+
+    #[visit(skip)]
+    #[reflect(hidden)]
+    debug: bool,
+}
+
+impl MachineLayer {
+    #[inline]
+    pub fn new() -> Self {
+        Self {
+            nodes: Default::default(),
+            states: Default::default(),
+            transitions: Default::default(),
+            final_pose: Default::default(),
+            active_state: Default::default(),
+            entry_state: Default::default(),
+            active_transition: Default::default(),
+            weight: 1.0,
+            events: LimitedEventQueue::new(2048),
+            debug: false,
+            mask: Default::default(),
+        }
+    }
+
+    #[inline]
+    pub fn add_node(&mut self, node: PoseNode) -> Handle<PoseNode> {
+        self.nodes.spawn(node)
     }
 
     #[inline]
@@ -314,13 +373,39 @@ impl Machine {
         &mut self.states
     }
 
-    pub fn evaluate_pose(&mut self, animations: &AnimationContainer, dt: f32) -> &AnimationPose {
+    #[inline]
+    pub fn set_weight(&mut self, weight: f32) {
+        self.weight = weight;
+    }
+
+    #[inline]
+    pub fn weight(&self) -> f32 {
+        self.weight
+    }
+
+    #[inline]
+    pub fn set_mask(&mut self, mask: LayerMask) -> LayerMask {
+        std::mem::replace(&mut self.mask, mask)
+    }
+
+    #[inline]
+    pub fn mask(&self) -> &LayerMask {
+        &self.mask
+    }
+
+    #[inline]
+    fn evaluate_pose(
+        &mut self,
+        animations: &AnimationContainer,
+        parameters: &ParameterContainer,
+        dt: f32,
+    ) -> &AnimationPose {
         self.final_pose.reset();
 
         if self.active_state.is_some() || self.active_transition.is_some() {
             // Gather actual poses for each state.
             for state in self.states.iter_mut() {
-                state.update(&self.nodes, &self.parameters, animations, dt);
+                state.update(&self.nodes, parameters, animations, dt);
             }
 
             if self.active_transition.is_none() {
@@ -332,7 +417,7 @@ impl Machine {
                         continue;
                     }
                     if let Some(Parameter::Rule(mut active)) =
-                        self.parameters.get(transition.rule()).cloned()
+                        parameters.get(transition.rule()).cloned()
                     {
                         if transition.invert_rule {
                             active = !active;
@@ -418,6 +503,10 @@ impl Machine {
                 }
             }
         }
+
+        self.final_pose
+            .local_poses
+            .retain(|h, _| self.mask.should_animate(*h));
 
         &self.final_pose
     }
