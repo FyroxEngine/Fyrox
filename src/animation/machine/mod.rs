@@ -87,7 +87,6 @@
 //! locomotion and other is for combat. This means that locomotion machine will take control over
 //! lower body and combat machine will control upper body.
 
-use crate::scene::node::Node;
 use crate::{
     animation::{machine::event::LimitedEventQueue, AnimationContainer, AnimationPose},
     core::{
@@ -95,6 +94,7 @@ use crate::{
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
+    scene::node::Node,
     utils::log::{Log, MessageKind},
 };
 pub use event::Event;
@@ -201,6 +201,8 @@ impl LayerMask {
 
 #[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
 pub struct MachineLayer {
+    name: String,
+
     #[reflect(hidden)]
     nodes: Pool<PoseNode>,
 
@@ -242,6 +244,7 @@ impl MachineLayer {
     #[inline]
     pub fn new() -> Self {
         Self {
+            name: Default::default(),
             nodes: Default::default(),
             states: Default::default(),
             transitions: Default::default(),
@@ -254,6 +257,16 @@ impl MachineLayer {
             debug: false,
             mask: Default::default(),
         }
+    }
+
+    #[inline]
+    pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
+        self.name = name.as_ref().to_owned();
+    }
+
+    #[inline]
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     #[inline]
