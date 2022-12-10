@@ -1,6 +1,3 @@
-use crate::absm::selection::SelectedEntity;
-use crate::scene::commands::{ChangeSelectionCommand, CommandGroup, SceneCommand};
-use crate::scene::{EditorScene, Selection};
 use crate::{
     absm::{
         command::{
@@ -11,16 +8,20 @@ use crate::{
         },
         connection::Connection,
         node::AbsmNode,
+        selection::SelectedEntity,
     },
     menu::create_menu_item,
+    scene::{
+        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        EditorScene, Selection,
+    },
     Message,
 };
-use fyrox::animation::machine::node::BasePoseNode;
-use fyrox::animation::machine::{
-    BlendAnimations, BlendAnimationsByIndex, Machine, PlayAnimation, PoseNode, State,
-};
-use fyrox::scene::node::Node;
 use fyrox::{
+    animation::machine::{
+        node::BasePoseNode, BlendAnimations, BlendAnimationsByIndex, MachineLayer, PlayAnimation,
+        PoseNode, State,
+    },
     core::pool::Handle,
     gui::{
         menu::MenuItemMessage,
@@ -30,6 +31,7 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, UiNode, UserInterface,
     },
+    scene::node::Node,
 };
 use std::sync::mpsc::Sender;
 
@@ -89,6 +91,7 @@ impl CanvasContextMenu {
         current_state: Handle<State>,
         ui: &mut UserInterface,
         absm_node_handle: Handle<Node>,
+        layer_index: usize,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             let position = ui
@@ -133,6 +136,7 @@ impl CanvasContextMenu {
                 sender
                     .send(Message::do_scene_command(AddPoseNodeCommand::new(
                         absm_node_handle,
+                        layer_index,
                         pose_node,
                     )))
                     .unwrap();
@@ -182,11 +186,12 @@ impl NodeContextMenu {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        machine: &Machine,
+        machine_layer: &MachineLayer,
         sender: &Sender<Message>,
         ui: &UserInterface,
         editor_scene: &EditorScene,
         absm_node_handle: Handle<Node>,
+        layer_index: usize,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.remove {
@@ -200,6 +205,7 @@ impl NodeContextMenu {
                         if let SelectedEntity::PoseNode(pose_node) = entry {
                             Some(SceneCommand::new(DeletePoseNodeCommand::new(
                                 absm_node_handle,
+                                layer_index,
                                 *pose_node,
                             )))
                         } else {
@@ -221,7 +227,8 @@ impl NodeContextMenu {
                 sender
                     .send(Message::do_scene_command(SetStateRootPoseCommand {
                         node_handle: absm_node_handle,
-                        handle: machine.node(root).parent_state,
+                        layer_index,
+                        handle: machine_layer.node(root).parent_state,
                         value: root,
                     }))
                     .unwrap();
@@ -265,8 +272,9 @@ impl ConnectionContextMenu {
         message: &UiMessage,
         ui: &mut UserInterface,
         sender: &Sender<Message>,
-        machine: &Machine,
+        machine_layer: &MachineLayer,
         absm_node_handle: Handle<Node>,
+        layer_index: usize,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination == self.remove {
@@ -288,7 +296,7 @@ impl ConnectionContextMenu {
                     .unwrap();
 
                 let model_handle = dest_node_ref.model_handle;
-                match machine.node(model_handle) {
+                match machine_layer.node(model_handle) {
                     PoseNode::PlayAnimation(_) => {
                         // No connections
                     }
@@ -296,6 +304,7 @@ impl ConnectionContextMenu {
                         .send(Message::do_scene_command(
                             SetBlendAnimationsPoseSourceCommand {
                                 node_handle: absm_node_handle,
+                                layer_index,
                                 handle: model_handle,
                                 index,
                                 value: Default::default(),
@@ -306,6 +315,7 @@ impl ConnectionContextMenu {
                         .send(Message::do_scene_command(
                             SetBlendAnimationByIndexInputPoseSourceCommand {
                                 node_handle: absm_node_handle,
+                                layer_index,
                                 handle: model_handle,
                                 index,
                                 value: Default::default(),

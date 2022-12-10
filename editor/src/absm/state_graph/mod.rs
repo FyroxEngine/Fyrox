@@ -12,7 +12,7 @@ use crate::{
     },
     send_sync_message, Message,
 };
-use fyrox::animation::machine::{State, Transition};
+use fyrox::animation::machine::{MachineLayer, State, Transition};
 use fyrox::scene::animation::absm::AnimationBlendingStateMachine;
 use fyrox::scene::node::Node;
 use fyrox::{
@@ -131,6 +131,7 @@ impl StateGraphViewer {
         sender: &Sender<Message>,
         absm_node_handle: Handle<Node>,
         absm_node: &AnimationBlendingStateMachine,
+        layer_index: usize,
         editor_scene: &EditorScene,
     ) {
         if message.destination() == self.canvas {
@@ -147,6 +148,7 @@ impl StateGraphViewer {
                             sender
                                 .send(Message::do_scene_command(AddTransitionCommand::new(
                                     absm_node_handle,
+                                    layer_index,
                                     Transition::new("Transition", source, dest, 1.0, ""),
                                 )))
                                 .unwrap();
@@ -162,6 +164,7 @@ impl StateGraphViewer {
                                 SceneCommand::new(MoveStateNodeCommand::new(
                                     absm_node_handle,
                                     state_handle,
+                                    layer_index,
                                     e.initial_position,
                                     new_position,
                                 ))
@@ -176,6 +179,7 @@ impl StateGraphViewer {
                         if message.direction() == MessageDirection::FromWidget {
                             let selection = Selection::Absm(AbsmSelection {
                                 absm_node_handle,
+                                layer: layer_index,
                                 entities: selection
                                     .iter()
                                     .filter_map(|n| {
@@ -219,27 +223,32 @@ impl StateGraphViewer {
             sender,
             absm_node_handle,
             absm_node,
+            layer_index,
             editor_scene,
         );
-        self.canvas_context_menu
-            .handle_ui_message(sender, message, ui, absm_node_handle);
+        self.canvas_context_menu.handle_ui_message(
+            sender,
+            message,
+            ui,
+            absm_node_handle,
+            layer_index,
+        );
         self.transition_context_menu.handle_ui_message(
             message,
             ui,
             sender,
             absm_node_handle,
+            layer_index,
             editor_scene,
         );
     }
 
     pub fn sync_to_model(
         &mut self,
-        absm_node: &AnimationBlendingStateMachine,
+        machine_layer: &MachineLayer,
         ui: &mut UserInterface,
         editor_scene: &EditorScene,
     ) {
-        let machine = absm_node.machine();
-
         let canvas = ui
             .node(self.canvas)
             .cast::<AbsmCanvas>()
@@ -259,10 +268,13 @@ impl StateGraphViewer {
             .filter(|c| ui.node(*c).has_component::<TransitionView>())
             .collect::<Vec<_>>();
 
-        match states.len().cmp(&(machine.states().alive_count() as usize)) {
+        match states
+            .len()
+            .cmp(&(machine_layer.states().alive_count() as usize))
+        {
             Ordering::Less => {
                 // A state was added.
-                for (state_handle, state) in machine.states().pair_iter() {
+                for (state_handle, state) in machine_layer.states().pair_iter() {
                     if states.iter().all(|state_view| {
                         ui.node(*state_view)
                             .query_component::<AbsmNode<State>>()
@@ -275,12 +287,12 @@ impl StateGraphViewer {
                                 .with_context_menu(self.node_context_menu.menu)
                                 .with_desired_position(state.position),
                         )
-                        .with_normal_color(if state_handle == machine.entry_state() {
+                        .with_normal_color(if state_handle == machine_layer.entry_state() {
                             NORMAL_ROOT_COLOR
                         } else {
                             NORMAL_BACKGROUND
                         })
-                        .with_selected_color(if state_handle == machine.entry_state() {
+                        .with_selected_color(if state_handle == machine_layer.entry_state() {
                             SELECTED_ROOT_COLOR
                         } else {
                             SELECTED_BACKGROUND
@@ -315,7 +327,7 @@ impl StateGraphViewer {
                         )
                     })
                 {
-                    if machine
+                    if machine_layer
                         .states()
                         .pair_iter()
                         .all(|(h, _)| h != state_model_handle)
@@ -342,7 +354,7 @@ impl StateGraphViewer {
                 .query_component::<AbsmNode<State>>()
                 .unwrap();
             let state_model_handle = state_node.model_handle;
-            let state_model_ref = &machine.states()[state_node.model_handle];
+            let state_model_ref = &machine_layer.states()[state_node.model_handle];
 
             if state_model_ref.name != state_node.name_value {
                 send_sync_message(
@@ -369,7 +381,7 @@ impl StateGraphViewer {
                 AbsmNodeMessage::normal_color(
                     *state,
                     MessageDirection::ToWidget,
-                    if state_model_handle == machine.entry_state() {
+                    if state_model_handle == machine_layer.entry_state() {
                         NORMAL_ROOT_COLOR
                     } else {
                         NORMAL_BACKGROUND
@@ -381,7 +393,7 @@ impl StateGraphViewer {
                 AbsmNodeMessage::selected_color(
                     *state,
                     MessageDirection::ToWidget,
-                    if state_model_handle == machine.entry_state() {
+                    if state_model_handle == machine_layer.entry_state() {
                         SELECTED_ROOT_COLOR
                     } else {
                         SELECTED_BACKGROUND
@@ -396,11 +408,11 @@ impl StateGraphViewer {
         // Sync transitions.
         match transitions
             .len()
-            .cmp(&(machine.transitions().alive_count() as usize))
+            .cmp(&(machine_layer.transitions().alive_count() as usize))
         {
             Ordering::Less => {
                 // A transition was added.
-                for (transition_handle, transition) in machine.transitions().pair_iter() {
+                for (transition_handle, transition) in machine_layer.transitions().pair_iter() {
                     if transitions.iter().all(|transition_view| {
                         ui.node(*transition_view)
                             .query_component::<TransitionView>()
@@ -466,7 +478,7 @@ impl StateGraphViewer {
                         )
                     })
                 {
-                    if machine
+                    if machine_layer
                         .transitions()
                         .pair_iter()
                         .all(|(h, _)| h != transition_model_handle)
