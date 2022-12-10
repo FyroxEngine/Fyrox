@@ -193,9 +193,36 @@ pub struct LayerMask {
     bones: FxHashMap<Handle<Node>, bool>,
 }
 
+impl From<FxHashMap<Handle<Node>, bool>> for LayerMask {
+    fn from(map: FxHashMap<Handle<Node>, bool>) -> Self {
+        Self { bones: map }
+    }
+}
+
 impl LayerMask {
+    #[inline]
+    pub fn add(&mut self, node: Handle<Node>, animate: bool) {
+        self.bones.insert(node, animate);
+    }
+
+    #[inline]
     pub fn should_animate(&self, node: Handle<Node>) -> bool {
         self.bones.get(&node).cloned().unwrap_or(true)
+    }
+
+    #[inline]
+    pub fn inner(&self) -> &FxHashMap<Handle<Node>, bool> {
+        &self.bones
+    }
+
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut FxHashMap<Handle<Node>, bool> {
+        &mut self.bones
+    }
+
+    #[inline]
+    pub fn into_inner(self) -> FxHashMap<Handle<Node>, bool> {
+        self.bones
     }
 }
 
