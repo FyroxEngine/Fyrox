@@ -163,6 +163,26 @@ impl Machine {
     }
 
     #[inline]
+    pub fn add_layer(&mut self, layer: MachineLayer) {
+        self.layers.push(layer)
+    }
+
+    #[inline]
+    pub fn remove_layer(&mut self, index: usize) -> MachineLayer {
+        self.layers.remove(index)
+    }
+
+    #[inline]
+    pub fn insert_layer(&mut self, index: usize, layer: MachineLayer) {
+        self.layers.insert(index, layer)
+    }
+
+    #[inline]
+    pub fn pop_layer(&mut self) -> Option<MachineLayer> {
+        self.layers.pop()
+    }
+
+    #[inline]
     pub fn layers(&self) -> &[MachineLayer] {
         &self.layers
     }
