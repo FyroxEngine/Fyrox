@@ -1,5 +1,6 @@
 use crate::menu::create_menu_item;
 use fyrox::{
+    animation::machine::Machine,
     core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
     scene::{
@@ -53,6 +54,7 @@ impl AnimationMenu {
                 let node = AnimationBlendingStateMachineBuilder::new(
                     BaseBuilder::new().with_name("Animation Blending State Machine"),
                 )
+                .with_machine(Machine::new())
                 .build_node();
                 Some(node)
             } else {
