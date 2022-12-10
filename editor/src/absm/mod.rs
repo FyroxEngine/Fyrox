@@ -261,30 +261,25 @@ impl AbsmEditor {
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         let prev_absm = self.prev_absm;
 
-        let (absm, layer_index) = match editor_scene.selection {
-            Selection::Absm(ref selection) => (selection.absm_node_handle, selection.layer),
-            Selection::Graph(ref selection) => {
-                (selection.nodes.first().cloned().unwrap_or_default(), 0)
-            }
-            _ => Default::default(),
-        };
+        let selection = fetch_selection(&editor_scene.selection);
 
         let ui = &mut engine.user_interface;
         let scene = &mut engine.scenes[editor_scene.scene];
 
         let absm_node = scene
             .graph
-            .try_get(absm)
+            .try_get(selection.absm_node_handle)
             .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>());
 
-        if absm != prev_absm {
+        if selection.absm_node_handle != prev_absm {
             self.parameter_panel.on_selection_changed(ui, absm_node);
-            self.prev_absm = absm;
+            self.prev_absm = selection.absm_node_handle;
         }
 
         if let Some(absm_node) = absm_node {
             self.parameter_panel.sync_to_model(ui, absm_node);
-            if let Some(layer) = absm_node.machine().layers().get(layer_index) {
+            self.toolbar.sync_to_model(absm_node, ui, &selection);
+            if let Some(layer) = absm_node.machine().layers().get(selection.layer) {
                 self.state_graph_viewer
                     .sync_to_model(layer, ui, editor_scene);
                 self.state_viewer.sync_to_model(ui, layer, editor_scene);
@@ -379,7 +374,9 @@ impl AbsmEditor {
                 self.preview_mode_data.is_some(),
             );
 
-            let action = self.toolbar.handle_ui_message(message);
+            let action = self
+                .toolbar
+                .handle_ui_message(message, editor_scene, sender);
 
             match action {
                 ToolbarAction::None => {}
