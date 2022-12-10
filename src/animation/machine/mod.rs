@@ -60,24 +60,26 @@
 //!
 //! let mut machine = Machine::new();
 //!
-//! let aim = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(aim_animation)));
-//! let walk = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(walk_animation)));
+//! let root_layer = &mut machine.layers_mut()[0];
+//!
+//! let aim = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(aim_animation)));
+//! let walk = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(walk_animation)));
 //!
 //! // Blend two animations together
-//! let blend_aim_walk = machine.add_node(PoseNode::BlendAnimations(
+//! let blend_aim_walk = root_layer.add_node(PoseNode::BlendAnimations(
 //!     BlendAnimations::new(vec![
 //!         BlendPose::new(PoseWeight::Constant(0.75), aim),
 //!         BlendPose::new(PoseWeight::Constant(0.25), walk)
 //!     ])
 //! ));
 //!
-//! let walk_state = machine.add_state(State::new("Walk", blend_aim_walk));
+//! let walk_state = root_layer.add_state(State::new("Walk", blend_aim_walk));
 //!
-//! let idle = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(idle_animation)));
-//! let idle_state = machine.add_state(State::new("Idle", idle));
+//! let idle = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(idle_animation)));
+//! let idle_state = root_layer.add_state(State::new("Idle", idle));
 //!
-//! machine.add_transition(Transition::new("Walk->Idle", walk_state, idle_state, 1.0, "WalkToIdle"));
-//! machine.add_transition(Transition::new("Idle->Walk", idle_state, walk_state, 1.0, "IdleToWalk"));
+//! root_layer.add_transition(Transition::new("Walk->Idle", walk_state, idle_state, 1.0, "WalkToIdle"));
+//! root_layer.add_transition(Transition::new("Idle->Walk", idle_state, walk_state, 1.0, "IdleToWalk"));
 //!
 //! ```
 //!
@@ -126,6 +128,16 @@ pub struct Machine {
 }
 
 impl Machine {
+    /// Creates a new animation blending state machine with a single animation layer.
+    #[inline]
+    pub fn new() -> Self {
+        Self {
+            parameters: Default::default(),
+            layers: vec![MachineLayer::new()],
+            final_pose: Default::default(),
+        }
+    }
+
     #[inline]
     pub fn set_parameter(&mut self, id: &str, new_value: Parameter) -> &mut Self {
         match self.parameters.get_mut(id) {
