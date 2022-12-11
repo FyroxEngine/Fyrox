@@ -65,6 +65,7 @@ impl CanvasContextMenu {
         message: &UiMessage,
         ui: &mut UserInterface,
         absm_node_handle: Handle<Node>,
+        layer_index: usize,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.create_state {
@@ -73,6 +74,7 @@ impl CanvasContextMenu {
                 sender
                     .send(Message::do_scene_command(AddStateCommand::new(
                         absm_node_handle,
+                        layer_index,
                         State {
                             position: ui.node(self.canvas).screen_to_local(screen_position),
                             name: "New State".to_string(),
@@ -138,6 +140,7 @@ impl NodeContextMenu {
         sender: &Sender<Message>,
         absm_node_handle: Handle<Node>,
         absm_node: &AnimationBlendingStateMachine,
+        layer_index: usize,
         editor_scene: &EditorScene,
     ) {
         let machine = absm_node.machine();
@@ -172,20 +175,19 @@ impl NodeContextMenu {
                     };
 
                 // Gather every transition that leads from/to any of states to remove.
-                let transitions_to_remove =
-                    machine
-                        .transitions()
-                        .pair_iter()
-                        .filter_map(|(handle, transition)| {
-                            if states_to_remove.iter().cloned().any(|state_to_remove| {
-                                state_to_remove == transition.source()
-                                    || state_to_remove == transition.dest()
-                            }) {
-                                Some(handle)
-                            } else {
-                                None
-                            }
-                        });
+                let transitions_to_remove = machine.layers()[layer_index]
+                    .transitions()
+                    .pair_iter()
+                    .filter_map(|(handle, transition)| {
+                        if states_to_remove.iter().cloned().any(|state_to_remove| {
+                            state_to_remove == transition.source()
+                                || state_to_remove == transition.dest()
+                        }) {
+                            Some(handle)
+                        } else {
+                            None
+                        }
+                    });
 
                 let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
                     Default::default(),
@@ -193,11 +195,19 @@ impl NodeContextMenu {
                 ))];
 
                 group.extend(transitions_to_remove.map(|transition| {
-                    SceneCommand::new(DeleteTransitionCommand::new(absm_node_handle, transition))
+                    SceneCommand::new(DeleteTransitionCommand::new(
+                        absm_node_handle,
+                        layer_index,
+                        transition,
+                    ))
                 }));
 
                 group.extend(states_to_remove.into_iter().map(|state| {
-                    SceneCommand::new(DeleteStateCommand::new(absm_node_handle, state))
+                    SceneCommand::new(DeleteStateCommand::new(
+                        absm_node_handle,
+                        layer_index,
+                        state,
+                    ))
                 }));
 
                 sender
@@ -207,6 +217,7 @@ impl NodeContextMenu {
                 sender
                     .send(Message::do_scene_command(SetMachineEntryStateCommand {
                         node_handle: absm_node_handle,
+                        layer: layer_index,
                         entry: ui
                             .node(self.placement_target)
                             .query_component::<AbsmNode<State>>()
@@ -255,6 +266,7 @@ impl TransitionContextMenu {
         ui: &mut UserInterface,
         sender: &Sender<Message>,
         absm_node_handle: Handle<Node>,
+        layer_index: usize,
         editor_scene: &EditorScene,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
@@ -271,6 +283,7 @@ impl TransitionContextMenu {
                     )),
                     SceneCommand::new(DeleteTransitionCommand::new(
                         absm_node_handle,
+                        layer_index,
                         transition_ref.model_handle,
                     )),
                 ];

@@ -4,13 +4,9 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
-use fyrox::scene::animation::absm::{
-    AnimationBlendingStateMachine, AnimationBlendingStateMachineBuilder,
-};
-use fyrox::scene::animation::AnimationPlayer;
 use fyrox::{
     animation::{
-        machine::{Machine, Parameter, PoseNode, State, Transition},
+        machine::{Machine, MachineLayer, Parameter, PoseNode, State, Transition},
         Animation, AnimationSignal,
     },
     core::{
@@ -34,6 +30,10 @@ use fyrox::{
     renderer::QualitySettings,
     resource::texture::TextureWrapMode,
     scene::{
+        animation::{
+            absm::{AnimationBlendingStateMachine, AnimationBlendingStateMachineBuilder},
+            AnimationPlayer,
+        },
         base::BaseBuilder,
         camera::{CameraBuilder, SkyBoxBuilder},
         collider::{Collider, ColliderBuilder, ColliderShape},
@@ -257,7 +257,7 @@ pub async fn load_animation<P: AsRef<Path>>(
 pub async fn create_play_animation_state<P: AsRef<Path>>(
     path: P,
     name: &str,
-    machine: &mut Machine,
+    machine_layer: &mut MachineLayer,
     scene: &mut Scene,
     model: Handle<Node>,
     resource_manager: ResourceManager,
@@ -270,10 +270,10 @@ pub async fn create_play_animation_state<P: AsRef<Path>>(
     // 1) Animation pose nodes (PoseNode) which provides poses for states.
     // 2) State - a node that uses connected pose for transitions. Transitions
     //    can be done only from state to state. Other nodes are just provides animations.
-    let node = machine.add_node(PoseNode::make_play_animation(animation));
+    let node = machine_layer.add_node(PoseNode::make_play_animation(animation));
 
     // Finally use new node and create state from it.
-    let state = machine.add_state(State::new(name, node));
+    let state = machine_layer.add_state(State::new(name, node));
 
     (animation, state)
 }
@@ -311,10 +311,12 @@ impl LocomotionMachine {
     ) -> Self {
         let mut machine = Machine::new();
 
+        let root_layer = &mut machine.layers_mut()[0];
+
         let (walk_animation, walk_state) = create_play_animation_state(
             "examples/data/mutant/walk.fbx",
             "Walk",
-            &mut machine,
+            root_layer,
             scene,
             model,
             resource_manager.clone(),
@@ -323,7 +325,7 @@ impl LocomotionMachine {
         let (_, idle_state) = create_play_animation_state(
             "examples/data/mutant/idle.fbx",
             "Idle",
-            &mut machine,
+            root_layer,
             scene,
             model,
             resource_manager.clone(),
@@ -334,7 +336,7 @@ impl LocomotionMachine {
         let (jump_animation, jump_state) = create_play_animation_state(
             "examples/data/mutant/jump.fbx",
             "Jump",
-            &mut machine,
+            root_layer,
             scene,
             model,
             resource_manager,
@@ -360,35 +362,35 @@ impl LocomotionMachine {
 
         // Add transitions between states. This is the "heart" of animation blending state machine
         // it defines how it will respond to input parameters.
-        machine.add_transition(Transition::new(
+        root_layer.add_transition(Transition::new(
             "Walk->Idle",
             walk_state,
             idle_state,
             0.30,
             Self::WALK_TO_IDLE,
         ));
-        machine.add_transition(Transition::new(
+        root_layer.add_transition(Transition::new(
             "Walk->Jump",
             walk_state,
             jump_state,
             0.20,
             Self::WALK_TO_JUMP,
         ));
-        machine.add_transition(Transition::new(
+        root_layer.add_transition(Transition::new(
             "Idle->Walk",
             idle_state,
             walk_state,
             0.30,
             Self::IDLE_TO_WALK,
         ));
-        machine.add_transition(Transition::new(
+        root_layer.add_transition(Transition::new(
             "Idle->Jump",
             idle_state,
             jump_state,
             0.25,
             Self::IDLE_TO_JUMP,
         ));
-        machine.add_transition(Transition::new(
+        root_layer.add_transition(Transition::new(
             "Jump->Idle",
             jump_state,
             idle_state,

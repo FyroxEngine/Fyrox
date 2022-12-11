@@ -21,7 +21,8 @@ define_universal_commands! {
     self,
     {
         let machine = fetch_machine(ctx, self.node_handle);
-        &mut machine.nodes_mut()[self.handle]
+        &mut machine.layers_mut()[self.layer_index].nodes_mut()[self.handle]
     },
-    node_handle: Handle<Node>
+    node_handle: Handle<Node>,
+    layer_index: usize
 }

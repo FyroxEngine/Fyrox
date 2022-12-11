@@ -30,10 +30,10 @@ use fxhash::FxHashMap;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
-    collections::{hash_map::Entry, HashMap},
+    collections::{hash_map::Entry, HashMap, HashSet},
     fmt::{Display, Formatter},
     fs::File,
-    hash::Hash,
+    hash::{BuildHasher, Hash},
     io::{BufWriter, Cursor, Read, Write},
     ops::{Deref, DerefMut, Range},
     path::{Path, PathBuf},
@@ -1736,6 +1736,43 @@ where
                 key.visit("Key", &mut region)?;
 
                 value.visit("Value", &mut region)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<K, S> Visit for HashSet<K, S>
+where
+    K: Visit + Default + Clone + Hash + Eq,
+    S: BuildHasher + Clone,
+{
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        let mut count = self.len() as u32;
+        count.visit("Count", &mut region)?;
+
+        if region.is_reading() {
+            self.clear();
+            for i in 0..(count as usize) {
+                let name = format!("Item{}", i);
+
+                let mut region = region.enter_region(name.as_str())?;
+
+                let mut key = K::default();
+                key.visit("Key", &mut region)?;
+
+                self.insert(key);
+            }
+        } else {
+            for (i, mut key) in self.clone().into_iter().enumerate() {
+                let name = format!("Item{}", i);
+
+                let mut region = region.enter_region(name.as_str())?;
+
+                key.visit("Key", &mut region)?;
             }
         }
 

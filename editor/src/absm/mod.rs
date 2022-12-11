@@ -3,6 +3,7 @@ use crate::{
         command::blend::{AddInputCommand, AddPoseSourceCommand},
         node::{AbsmNode, AbsmNodeMessage},
         parameter::ParameterPanel,
+        selection::AbsmSelection,
         state_graph::StateGraphViewer,
         state_viewer::StateViewer,
         toolbar::{Toolbar, ToolbarAction},
@@ -56,12 +57,37 @@ struct PreviewModeData {
     nodes: Vec<(Handle<Node>, Node)>,
 }
 
+fn fetch_selection(editor_selection: &Selection) -> AbsmSelection {
+    if let Selection::Absm(ref selection) = editor_selection {
+        // Some selection in an animation.
+        AbsmSelection {
+            absm_node_handle: selection.absm_node_handle,
+            layer: selection.layer,
+            entities: selection.entities.clone(),
+        }
+    } else if let Selection::Graph(ref selection) = editor_selection {
+        // Only some AnimationPlayer is selected.
+        AbsmSelection {
+            absm_node_handle: selection.nodes.first().cloned().unwrap_or_default(),
+            layer: 0,
+            entities: vec![],
+        }
+    } else {
+        // Stub in other cases.
+        AbsmSelection {
+            absm_node_handle: Default::default(),
+            layer: 0,
+            entities: vec![],
+        }
+    }
+}
+
 pub struct AbsmEditor {
     pub window: Handle<UiNode>,
     state_graph_viewer: StateGraphViewer,
     state_viewer: StateViewer,
     parameter_panel: ParameterPanel,
-    absm: Handle<Node>,
+    prev_absm: Handle<Node>,
     toolbar: Toolbar,
     preview_mode_data: Option<PreviewModeData>,
 }
@@ -126,7 +152,7 @@ impl AbsmEditor {
             state_graph_viewer,
             state_viewer,
             parameter_panel,
-            absm: Default::default(),
+            prev_absm: Default::default(),
             toolbar,
             preview_mode_data: None,
         }
@@ -157,7 +183,12 @@ impl AbsmEditor {
         });
     }
 
-    fn leave_preview_mode(&mut self, scene: &mut Scene, ui: &mut UserInterface) {
+    fn leave_preview_mode(
+        &mut self,
+        scene: &mut Scene,
+        ui: &mut UserInterface,
+        absm: Handle<Node>,
+    ) {
         ui.send_message(CheckBoxMessage::checked(
             self.toolbar.preview,
             MessageDirection::ToWidget,
@@ -174,7 +205,7 @@ impl AbsmEditor {
             scene.graph[handle] = node;
         }
 
-        let absm_node = scene.graph[self.absm]
+        let absm_node = scene.graph[absm]
             .query_component_mut::<AnimationBlendingStateMachine>()
             .unwrap();
 
@@ -193,30 +224,34 @@ impl AbsmEditor {
         if let Message::DoSceneCommand(_) | Message::UndoSceneCommand | Message::RedoSceneCommand =
             message
         {
-            if let Selection::Absm(ref selection) = editor_scene.selection {
-                let scene = &mut engine.scenes[editor_scene.scene];
+            let selection = fetch_selection(&editor_scene.selection);
 
-                if let Some(absm) = scene
+            let scene = &mut engine.scenes[editor_scene.scene];
+
+            if let Some(absm) = scene
+                .graph
+                .try_get_mut(selection.absm_node_handle)
+                .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
+            {
+                absm.set_enabled(false);
+
+                let animation_player_handle = absm.animation_player();
+
+                if let Some(animation_player) = scene
                     .graph
-                    .try_get_mut(selection.absm_node_handle)
-                    .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
+                    .try_get_mut(animation_player_handle)
+                    .and_then(|n| n.query_component_mut::<AnimationPlayer>())
                 {
-                    absm.set_enabled(false);
-
-                    let animation_player_handle = absm.animation_player();
-
-                    if let Some(animation_player) = scene
-                        .graph
-                        .try_get_mut(animation_player_handle)
-                        .and_then(|n| n.query_component_mut::<AnimationPlayer>())
-                    {
-                        if self.preview_mode_data.is_some() {
-                            for animation in animation_player.animations_mut().iter_mut() {
-                                animation.set_enabled(false);
-                            }
-
-                            self.leave_preview_mode(scene, &mut engine.user_interface);
+                    if self.preview_mode_data.is_some() {
+                        for animation in animation_player.animations_mut().iter_mut() {
+                            animation.set_enabled(false);
                         }
+
+                        self.leave_preview_mode(
+                            scene,
+                            &mut engine.user_interface,
+                            selection.absm_node_handle,
+                        );
                     }
                 }
             }
@@ -224,31 +259,31 @@ impl AbsmEditor {
     }
 
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
-        let prev_absm = self.absm;
+        let prev_absm = self.prev_absm;
 
-        self.absm = match editor_scene.selection {
-            Selection::Absm(ref selection) => selection.absm_node_handle,
-            Selection::Graph(ref selection) => selection.nodes.first().cloned().unwrap_or_default(),
-            _ => Default::default(),
-        };
+        let selection = fetch_selection(&editor_scene.selection);
 
         let ui = &mut engine.user_interface;
         let scene = &mut engine.scenes[editor_scene.scene];
 
         let absm_node = scene
             .graph
-            .try_get(self.absm)
+            .try_get(selection.absm_node_handle)
             .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>());
 
-        if self.absm != prev_absm {
+        if selection.absm_node_handle != prev_absm {
             self.parameter_panel.on_selection_changed(ui, absm_node);
+            self.prev_absm = selection.absm_node_handle;
         }
 
         if let Some(absm_node) = absm_node {
             self.parameter_panel.sync_to_model(ui, absm_node);
-            self.state_graph_viewer
-                .sync_to_model(absm_node, ui, editor_scene);
-            self.state_viewer.sync_to_model(ui, absm_node, editor_scene);
+            self.toolbar.sync_to_model(absm_node, ui, &selection);
+            if let Some(layer) = absm_node.machine().layers().get(selection.layer) {
+                self.state_graph_viewer
+                    .sync_to_model(layer, ui, editor_scene);
+                self.state_viewer.sync_to_model(ui, layer, editor_scene);
+            }
         } else {
             self.parameter_panel.reset(ui);
             self.state_graph_viewer.clear(ui);
@@ -270,25 +305,28 @@ impl AbsmEditor {
 
     pub fn handle_machine_events(&self, editor_scene: &EditorScene, engine: &mut Engine) {
         let scene = &mut engine.scenes[editor_scene.scene];
+        let selection = fetch_selection(&editor_scene.selection);
 
         if let Some(absm) = scene
             .graph
-            .try_get_mut(self.absm)
+            .try_get_mut(selection.absm_node_handle)
             .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
         {
-            let machine = absm.machine_mut();
+            let machine = absm.machine_mut().get_mut_silent();
 
-            while let Some(event) = machine.pop_event() {
-                match event {
-                    Event::ActiveStateChanged(state) => {
-                        self.state_graph_viewer
-                            .activate_state(&engine.user_interface, state);
+            for layer in machine.layers_mut() {
+                while let Some(event) = layer.pop_event() {
+                    match event {
+                        Event::ActiveStateChanged(state) => {
+                            self.state_graph_viewer
+                                .activate_state(&engine.user_interface, state);
+                        }
+                        Event::ActiveTransitionChanged(transition) => {
+                            self.state_graph_viewer
+                                .activate_transition(&engine.user_interface, transition);
+                        }
+                        _ => (),
                     }
-                    Event::ActiveTransitionChanged(transition) => {
-                        self.state_graph_viewer
-                            .activate_transition(&engine.user_interface, transition);
-                    }
-                    _ => (),
                 }
             }
         }
@@ -303,37 +341,48 @@ impl AbsmEditor {
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
         let ui = &mut engine.user_interface;
+        let selection = fetch_selection(&editor_scene.selection);
 
         if let Some(absm_node) = scene
             .graph
-            .try_get_mut(self.absm)
+            .try_get_mut(selection.absm_node_handle)
             .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
         {
             self.state_viewer.handle_ui_message(
                 message,
                 ui,
                 sender,
-                self.absm,
+                selection.absm_node_handle,
                 absm_node,
+                selection.layer,
                 editor_scene,
             );
             self.state_graph_viewer.handle_ui_message(
                 message,
                 ui,
                 sender,
-                self.absm,
+                selection.absm_node_handle,
                 absm_node,
+                selection.layer,
                 editor_scene,
             );
             self.parameter_panel.handle_ui_message(
                 message,
                 sender,
-                self.absm,
+                selection.absm_node_handle,
                 absm_node,
                 self.preview_mode_data.is_some(),
             );
 
-            let action = self.toolbar.handle_ui_message(message);
+            let action =
+                self.toolbar
+                    .handle_ui_message(message, editor_scene, sender, &scene.graph, ui);
+
+            let absm_node = scene
+                .graph
+                .try_get_mut(selection.absm_node_handle)
+                .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
+                .unwrap();
 
             match action {
                 ToolbarAction::None => {}
@@ -377,7 +426,7 @@ impl AbsmEditor {
                                 animation.set_enabled(false);
                             }
 
-                            self.leave_preview_mode(scene, ui);
+                            self.leave_preview_mode(scene, ui, selection.absm_node_handle);
                         }
                     }
                 }
@@ -387,7 +436,7 @@ impl AbsmEditor {
         if let Some(msg) = message.data::<AbsmNodeMessage>() {
             if let Some(absm_node) = scene
                 .graph
-                .try_get_mut(self.absm)
+                .try_get_mut(selection.absm_node_handle)
                 .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
             {
                 match msg {
@@ -396,8 +445,12 @@ impl AbsmEditor {
                             .node(message.destination())
                             .query_component::<AbsmNode<State>>()
                         {
-                            self.state_viewer
-                                .set_state(node.model_handle, absm_node, ui);
+                            self.state_viewer.set_state(
+                                node.model_handle,
+                                absm_node,
+                                selection.layer,
+                                ui,
+                            );
                             sender.send(Message::ForceSync).unwrap();
                         }
                     }
@@ -406,7 +459,8 @@ impl AbsmEditor {
                             .node(message.destination())
                             .query_component::<AbsmNode<PoseNode>>()
                         {
-                            let model_ref = &absm_node.machine().nodes()[node.model_handle];
+                            let model_ref = &absm_node.machine().layers()[selection.layer].nodes()
+                                [node.model_handle];
 
                             match model_ref {
                                 PoseNode::PlayAnimation(_) => {
@@ -415,8 +469,9 @@ impl AbsmEditor {
                                 PoseNode::BlendAnimations(_) => {
                                     sender
                                         .send(Message::do_scene_command(AddPoseSourceCommand::new(
-                                            self.absm,
+                                            selection.absm_node_handle,
                                             node.model_handle,
+                                            selection.layer,
                                             BlendPose::default(),
                                         )))
                                         .unwrap();
@@ -424,8 +479,9 @@ impl AbsmEditor {
                                 PoseNode::BlendAnimationsByIndex(_) => {
                                     sender
                                         .send(Message::do_scene_command(AddInputCommand::new(
-                                            self.absm,
+                                            selection.absm_node_handle,
                                             node.model_handle,
+                                            selection.layer,
                                             IndexedBlendInput::default(),
                                         )))
                                         .unwrap();

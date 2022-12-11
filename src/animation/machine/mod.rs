@@ -60,24 +60,26 @@
 //!
 //! let mut machine = Machine::new();
 //!
-//! let aim = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(aim_animation)));
-//! let walk = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(walk_animation)));
+//! let root_layer = &mut machine.layers_mut()[0];
+//!
+//! let aim = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(aim_animation)));
+//! let walk = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(walk_animation)));
 //!
 //! // Blend two animations together
-//! let blend_aim_walk = machine.add_node(PoseNode::BlendAnimations(
+//! let blend_aim_walk = root_layer.add_node(PoseNode::BlendAnimations(
 //!     BlendAnimations::new(vec![
 //!         BlendPose::new(PoseWeight::Constant(0.75), aim),
 //!         BlendPose::new(PoseWeight::Constant(0.25), walk)
 //!     ])
 //! ));
 //!
-//! let walk_state = machine.add_state(State::new("Walk", blend_aim_walk));
+//! let walk_state = root_layer.add_state(State::new("Walk", blend_aim_walk));
 //!
-//! let idle = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(idle_animation)));
-//! let idle_state = machine.add_state(State::new("Idle", idle));
+//! let idle = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(idle_animation)));
+//! let idle_state = root_layer.add_state(State::new("Idle", idle));
 //!
-//! machine.add_transition(Transition::new("Walk->Idle", walk_state, idle_state, 1.0, "WalkToIdle"));
-//! machine.add_transition(Transition::new("Idle->Walk", idle_state, walk_state, 1.0, "IdleToWalk"));
+//! root_layer.add_transition(Transition::new("Walk->Idle", walk_state, idle_state, 1.0, "WalkToIdle"));
+//! root_layer.add_transition(Transition::new("Idle->Walk", idle_state, walk_state, 1.0, "IdleToWalk"));
 //!
 //! ```
 //!
@@ -92,9 +94,11 @@ use crate::{
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
+    scene::node::Node,
     utils::log::{Log, MessageKind},
 };
 pub use event::Event;
+use fxhash::FxHashSet;
 pub use node::{
     blend::{BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput},
     play::PlayAnimation,
@@ -116,54 +120,22 @@ pub struct Machine {
     parameters: ParameterContainer,
 
     #[reflect(hidden)]
-    nodes: Pool<PoseNode>,
-
-    #[reflect(hidden)]
-    transitions: Pool<Transition>,
-
-    #[reflect(hidden)]
-    states: Pool<State>,
-
-    #[reflect(hidden)]
-    active_state: Handle<State>,
-
-    #[reflect(hidden)]
-    entry_state: Handle<State>,
-
-    #[reflect(hidden)]
-    active_transition: Handle<Transition>,
+    layers: Vec<MachineLayer>,
 
     #[visit(skip)]
     #[reflect(hidden)]
     final_pose: AnimationPose,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    events: LimitedEventQueue,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    debug: bool,
 }
 
 impl Machine {
+    /// Creates a new animation blending state machine with a single animation layer.
     #[inline]
     pub fn new() -> Self {
         Self {
-            nodes: Default::default(),
-            states: Default::default(),
-            transitions: Default::default(),
-            final_pose: Default::default(),
-            active_state: Default::default(),
-            entry_state: Default::default(),
-            active_transition: Default::default(),
             parameters: Default::default(),
-            events: LimitedEventQueue::new(2048),
-            debug: false,
+            layers: vec![MachineLayer::new()],
+            final_pose: Default::default(),
         }
-    }
-
-    #[inline]
-    pub fn add_node(&mut self, node: PoseNode) -> Handle<PoseNode> {
-        self.nodes.spawn(node)
     }
 
     #[inline]
@@ -188,6 +160,167 @@ impl Machine {
     #[inline]
     pub fn parameters_mut(&mut self) -> &mut ParameterContainer {
         &mut self.parameters
+    }
+
+    #[inline]
+    pub fn add_layer(&mut self, layer: MachineLayer) {
+        self.layers.push(layer)
+    }
+
+    #[inline]
+    pub fn remove_layer(&mut self, index: usize) -> MachineLayer {
+        self.layers.remove(index)
+    }
+
+    #[inline]
+    pub fn insert_layer(&mut self, index: usize, layer: MachineLayer) {
+        self.layers.insert(index, layer)
+    }
+
+    #[inline]
+    pub fn pop_layer(&mut self) -> Option<MachineLayer> {
+        self.layers.pop()
+    }
+
+    #[inline]
+    pub fn layers(&self) -> &[MachineLayer] {
+        &self.layers
+    }
+
+    #[inline]
+    pub fn layers_mut(&mut self) -> &mut [MachineLayer] {
+        &mut self.layers
+    }
+
+    #[inline]
+    pub fn evaluate_pose(&mut self, animations: &AnimationContainer, dt: f32) -> &AnimationPose {
+        self.final_pose.reset();
+
+        for layer in self.layers.iter_mut() {
+            let weight = layer.weight;
+            let pose = layer.evaluate_pose(animations, &self.parameters, dt);
+
+            self.final_pose.blend_with(pose, weight);
+        }
+
+        &self.final_pose
+    }
+}
+
+#[derive(Default, Debug, Visit, Reflect, Clone, PartialEq, Eq)]
+pub struct LayerMask {
+    #[reflect(hidden)]
+    excluded_bones: FxHashSet<Handle<Node>>,
+}
+
+impl From<FxHashSet<Handle<Node>>> for LayerMask {
+    fn from(map: FxHashSet<Handle<Node>>) -> Self {
+        Self {
+            excluded_bones: map,
+        }
+    }
+}
+
+impl LayerMask {
+    #[inline]
+    pub fn exclude_from_animation(&mut self, node: Handle<Node>) {
+        self.excluded_bones.insert(node);
+    }
+
+    #[inline]
+    pub fn should_animate(&self, node: Handle<Node>) -> bool {
+        !self.excluded_bones.contains(&node)
+    }
+
+    #[inline]
+    pub fn inner(&self) -> &FxHashSet<Handle<Node>> {
+        &self.excluded_bones
+    }
+
+    #[inline]
+    pub fn inner_mut(&mut self) -> &mut FxHashSet<Handle<Node>> {
+        &mut self.excluded_bones
+    }
+
+    #[inline]
+    pub fn into_inner(self) -> FxHashSet<Handle<Node>> {
+        self.excluded_bones
+    }
+}
+
+#[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
+pub struct MachineLayer {
+    name: String,
+
+    #[reflect(hidden)]
+    nodes: Pool<PoseNode>,
+
+    #[reflect(hidden)]
+    transitions: Pool<Transition>,
+
+    #[reflect(hidden)]
+    states: Pool<State>,
+
+    #[reflect(hidden)]
+    active_state: Handle<State>,
+
+    #[reflect(hidden)]
+    entry_state: Handle<State>,
+
+    #[reflect(hidden)]
+    active_transition: Handle<Transition>,
+
+    #[reflect(hidden)]
+    weight: f32,
+
+    #[reflect(hidden)]
+    mask: LayerMask,
+
+    #[visit(skip)]
+    #[reflect(hidden)]
+    final_pose: AnimationPose,
+
+    #[visit(skip)]
+    #[reflect(hidden)]
+    events: LimitedEventQueue,
+
+    #[visit(skip)]
+    #[reflect(hidden)]
+    debug: bool,
+}
+
+impl MachineLayer {
+    #[inline]
+    pub fn new() -> Self {
+        Self {
+            name: Default::default(),
+            nodes: Default::default(),
+            states: Default::default(),
+            transitions: Default::default(),
+            final_pose: Default::default(),
+            active_state: Default::default(),
+            entry_state: Default::default(),
+            active_transition: Default::default(),
+            weight: 1.0,
+            events: LimitedEventQueue::new(2048),
+            debug: false,
+            mask: Default::default(),
+        }
+    }
+
+    #[inline]
+    pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
+        self.name = name.as_ref().to_owned();
+    }
+
+    #[inline]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    #[inline]
+    pub fn add_node(&mut self, node: PoseNode) -> Handle<PoseNode> {
+        self.nodes.spawn(node)
     }
 
     #[inline]
@@ -314,13 +447,39 @@ impl Machine {
         &mut self.states
     }
 
-    pub fn evaluate_pose(&mut self, animations: &AnimationContainer, dt: f32) -> &AnimationPose {
+    #[inline]
+    pub fn set_weight(&mut self, weight: f32) {
+        self.weight = weight;
+    }
+
+    #[inline]
+    pub fn weight(&self) -> f32 {
+        self.weight
+    }
+
+    #[inline]
+    pub fn set_mask(&mut self, mask: LayerMask) -> LayerMask {
+        std::mem::replace(&mut self.mask, mask)
+    }
+
+    #[inline]
+    pub fn mask(&self) -> &LayerMask {
+        &self.mask
+    }
+
+    #[inline]
+    fn evaluate_pose(
+        &mut self,
+        animations: &AnimationContainer,
+        parameters: &ParameterContainer,
+        dt: f32,
+    ) -> &AnimationPose {
         self.final_pose.reset();
 
         if self.active_state.is_some() || self.active_transition.is_some() {
             // Gather actual poses for each state.
             for state in self.states.iter_mut() {
-                state.update(&self.nodes, &self.parameters, animations, dt);
+                state.update(&self.nodes, parameters, animations, dt);
             }
 
             if self.active_transition.is_none() {
@@ -332,7 +491,7 @@ impl Machine {
                         continue;
                     }
                     if let Some(Parameter::Rule(mut active)) =
-                        self.parameters.get(transition.rule()).cloned()
+                        parameters.get(transition.rule()).cloned()
                     {
                         if transition.invert_rule {
                             active = !active;
@@ -418,6 +577,10 @@ impl Machine {
                 }
             }
         }
+
+        self.final_pose
+            .local_poses
+            .retain(|h, _| self.mask.should_animate(*h));
 
         &self.final_pose
     }

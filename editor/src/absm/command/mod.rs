@@ -1,13 +1,11 @@
 use crate::{command::Command, scene::commands::SceneContext};
-use fyrox::animation::machine::{Machine, PoseNode, State};
-use fyrox::scene::animation::absm::AnimationBlendingStateMachine;
-use fyrox::scene::node::Node;
 use fyrox::{
-    animation::machine::Transition,
+    animation::machine::{LayerMask, Machine, MachineLayer, PoseNode, State, Transition},
     core::{
         algebra::Vector2,
         pool::{Handle, Ticket},
     },
+    scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
 };
 use std::fmt::Debug;
 
@@ -24,22 +22,29 @@ macro_rules! define_spawn_command {
             Unknown,
             NonExecuted {
                 node_handle: Handle<Node>,
+                layer_index: usize,
                 state: $ent_type,
             },
             Executed {
                 node_handle: Handle<Node>,
+                layer_index: usize,
                 handle: Handle<$ent_type>,
             },
             Reverted {
                 node_handle: Handle<Node>,
+                layer_index: usize,
                 ticket: Ticket<$ent_type>,
                 state: $ent_type,
             },
         }
 
         impl $name {
-            pub fn new(node_handle: Handle<Node>, state: $ent_type) -> Self {
-                Self::NonExecuted { node_handle, state }
+            pub fn new(node_handle: Handle<Node>, layer_index: usize, state: $ent_type) -> Self {
+                Self::NonExecuted {
+                    node_handle,
+                    layer_index,
+                    state,
+                }
             }
         }
 
@@ -50,22 +55,31 @@ macro_rules! define_spawn_command {
 
             fn execute(&mut self, context: &mut SceneContext) {
                 match std::mem::replace(self, $name::Unknown) {
-                    $name::NonExecuted { node_handle, state } => {
+                    $name::NonExecuted {
+                        node_handle,
+                        layer_index,
+                        state,
+                    } => {
                         let machine = fetch_machine(context, node_handle);
                         *self = $name::Executed {
                             node_handle,
-                            handle: machine.$container().spawn(state),
+                            layer_index,
+                            handle: machine.layers_mut()[layer_index].$container().spawn(state),
                         };
                     }
                     $name::Reverted {
                         node_handle,
+                        layer_index,
                         ticket,
                         state,
                     } => {
                         let machine = fetch_machine(context, node_handle);
                         *self = $name::Executed {
                             node_handle,
-                            handle: machine.$container().put_back(ticket, state),
+                            layer_index,
+                            handle: machine.layers_mut()[layer_index]
+                                .$container()
+                                .put_back(ticket, state),
                         }
                     }
                     _ => unreachable!(),
@@ -76,12 +90,16 @@ macro_rules! define_spawn_command {
                 match std::mem::replace(self, $name::Unknown) {
                     $name::Executed {
                         node_handle,
+                        layer_index,
                         handle,
                     } => {
                         let machine = fetch_machine(context, node_handle);
-                        let (ticket, state) = machine.$container().take_reserve(handle);
+                        let (ticket, state) = machine.layers_mut()[layer_index]
+                            .$container()
+                            .take_reserve(handle);
                         *self = $name::Reverted {
                             node_handle,
+                            layer_index,
                             ticket,
                             state,
                         }
@@ -93,12 +111,15 @@ macro_rules! define_spawn_command {
             fn finalize(&mut self, context: &mut SceneContext) {
                 if let $name::Reverted {
                     node_handle,
+                    layer_index,
                     ticket,
                     ..
                 } = std::mem::replace(self, $name::Unknown)
                 {
                     let machine = fetch_machine(context, node_handle);
-                    machine.$container().forget_ticket(ticket)
+                    machine.layers_mut()[layer_index]
+                        .$container()
+                        .forget_ticket(ticket)
                 }
             }
         }
@@ -112,23 +133,30 @@ pub enum AddStateCommand {
     Unknown,
     NonExecuted {
         node_handle: Handle<Node>,
+        layer_index: usize,
         state: State,
     },
     Executed {
         node_handle: Handle<Node>,
+        layer_index: usize,
         handle: Handle<State>,
         prev_entry_state: Handle<State>,
     },
     Reverted {
         node_handle: Handle<Node>,
+        layer_index: usize,
         ticket: Ticket<State>,
         state: State,
     },
 }
 
 impl AddStateCommand {
-    pub fn new(node_handle: Handle<Node>, state: State) -> Self {
-        Self::NonExecuted { node_handle, state }
+    pub fn new(node_handle: Handle<Node>, layer_index: usize, state: State) -> Self {
+        Self::NonExecuted {
+            node_handle,
+            layer_index,
+            state,
+        }
     }
 }
 
@@ -146,41 +174,51 @@ impl Command for AddStateCommand {
 
     fn execute(&mut self, context: &mut SceneContext) {
         match std::mem::replace(self, AddStateCommand::Unknown) {
-            AddStateCommand::NonExecuted { node_handle, state } => {
+            AddStateCommand::NonExecuted {
+                node_handle,
+                layer_index,
+                state,
+            } => {
                 let machine = fetch_machine(context, node_handle);
-                let handle = machine.add_state(state);
+                let layer = &mut machine.layers_mut()[layer_index];
 
-                let prev_entry_state = machine.entry_state();
+                let handle = layer.add_state(state);
+
+                let prev_entry_state = layer.entry_state();
 
                 // Set entry state if it wasn't set yet.
-                if machine.entry_state().is_none() {
-                    machine.set_entry_state(handle);
+                if layer.entry_state().is_none() {
+                    layer.set_entry_state(handle);
                 }
 
                 *self = AddStateCommand::Executed {
                     node_handle,
+                    layer_index,
                     handle,
                     prev_entry_state,
                 };
             }
             AddStateCommand::Reverted {
                 node_handle,
+                layer_index,
                 ticket,
                 state,
             } => {
                 let machine = fetch_machine(context, node_handle);
+                let layer = &mut machine.layers_mut()[layer_index];
 
-                let handle = machine.states_mut().put_back(ticket, state);
+                let handle = layer.states_mut().put_back(ticket, state);
 
-                let prev_entry_state = machine.entry_state();
+                let prev_entry_state = layer.entry_state();
 
                 // Set entry state if it wasn't set yet.
-                if machine.entry_state().is_none() {
-                    machine.set_entry_state(handle);
+                if layer.entry_state().is_none() {
+                    layer.set_entry_state(handle);
                 }
 
                 *self = AddStateCommand::Executed {
                     node_handle,
+                    layer_index,
                     handle,
                     prev_entry_state,
                 }
@@ -193,16 +231,21 @@ impl Command for AddStateCommand {
         match std::mem::replace(self, AddStateCommand::Unknown) {
             AddStateCommand::Executed {
                 node_handle,
+                layer_index,
                 handle,
                 prev_entry_state,
             } => {
                 let machine = fetch_machine(context, node_handle);
 
-                machine.set_entry_state(prev_entry_state);
+                let layer = &mut machine.layers_mut()[layer_index];
 
-                let (ticket, state) = machine.states_mut().take_reserve(handle);
+                layer.set_entry_state(prev_entry_state);
+
+                let (ticket, state) = layer.states_mut().take_reserve(handle);
+
                 *self = AddStateCommand::Reverted {
                     node_handle,
+                    layer_index,
                     ticket,
                     state,
                 }
@@ -214,12 +257,15 @@ impl Command for AddStateCommand {
     fn finalize(&mut self, context: &mut SceneContext) {
         if let AddStateCommand::Reverted {
             node_handle,
+            layer_index,
             ticket,
             ..
         } = std::mem::replace(self, AddStateCommand::Unknown)
         {
             let machine = fetch_machine(context, node_handle);
-            machine.states_mut().forget_ticket(ticket)
+            machine.layers_mut()[layer_index]
+                .states_mut()
+                .forget_ticket(ticket)
         }
     }
 }
@@ -229,23 +275,30 @@ pub enum AddPoseNodeCommand {
     Unknown,
     NonExecuted {
         node_handle: Handle<Node>,
+        layer_index: usize,
         node: PoseNode,
     },
     Executed {
         node_handle: Handle<Node>,
+        layer_index: usize,
         handle: Handle<PoseNode>,
         prev_root_node: Handle<PoseNode>,
     },
     Reverted {
         node_handle: Handle<Node>,
+        layer_index: usize,
         ticket: Ticket<PoseNode>,
         node: PoseNode,
     },
 }
 
 impl AddPoseNodeCommand {
-    pub fn new(node_handle: Handle<Node>, node: PoseNode) -> Self {
-        Self::NonExecuted { node_handle, node }
+    pub fn new(node_handle: Handle<Node>, layer_index: usize, node: PoseNode) -> Self {
+        Self::NonExecuted {
+            node_handle,
+            layer_index,
+            node,
+        }
     }
 }
 
@@ -256,13 +309,19 @@ impl Command for AddPoseNodeCommand {
 
     fn execute(&mut self, context: &mut SceneContext) {
         match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
-            AddPoseNodeCommand::NonExecuted { node_handle, node } => {
+            AddPoseNodeCommand::NonExecuted {
+                node_handle,
+                layer_index,
+                node,
+            } => {
                 let machine = fetch_machine(context, node_handle);
+                let layer = &mut machine.layers_mut()[layer_index];
+
                 let parent_state = node.parent_state;
 
-                let handle = machine.add_node(node);
+                let handle = layer.add_node(node);
 
-                let parent_state_ref = &mut machine.states_mut()[parent_state];
+                let parent_state_ref = &mut layer.states_mut()[parent_state];
                 let prev_root_node = parent_state_ref.root;
                 if parent_state_ref.root.is_none() {
                     parent_state_ref.root = handle;
@@ -270,21 +329,24 @@ impl Command for AddPoseNodeCommand {
 
                 *self = AddPoseNodeCommand::Executed {
                     node_handle,
+                    layer_index,
                     handle,
                     prev_root_node,
                 };
             }
             AddPoseNodeCommand::Reverted {
                 node_handle,
+                layer_index,
                 ticket,
                 node,
             } => {
                 let machine = fetch_machine(context, node_handle);
+                let layer = &mut machine.layers_mut()[layer_index];
                 let parent_state = node.parent_state;
 
-                let handle = machine.nodes_mut().put_back(ticket, node);
+                let handle = layer.nodes_mut().put_back(ticket, node);
 
-                let parent_state_ref = &mut machine.states_mut()[parent_state];
+                let parent_state_ref = &mut layer.states_mut()[parent_state];
                 let prev_root_node = parent_state_ref.root;
                 if parent_state_ref.root.is_none() {
                     parent_state_ref.root = handle;
@@ -292,6 +354,7 @@ impl Command for AddPoseNodeCommand {
 
                 *self = AddPoseNodeCommand::Executed {
                     node_handle,
+                    layer_index,
                     handle,
                     prev_root_node,
                 }
@@ -304,16 +367,19 @@ impl Command for AddPoseNodeCommand {
         match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
             AddPoseNodeCommand::Executed {
                 node_handle,
+                layer_index,
                 handle,
                 prev_root_node,
             } => {
                 let machine = fetch_machine(context, node_handle);
-                let (ticket, node) = machine.nodes_mut().take_reserve(handle);
+                let layer = &mut machine.layers_mut()[layer_index];
+                let (ticket, node) = layer.nodes_mut().take_reserve(handle);
 
-                machine.states_mut()[node.parent_state].root = prev_root_node;
+                layer.states_mut()[node.parent_state].root = prev_root_node;
 
                 *self = AddPoseNodeCommand::Reverted {
                     node_handle,
+                    layer_index,
                     ticket,
                     node,
                 }
@@ -325,12 +391,14 @@ impl Command for AddPoseNodeCommand {
     fn finalize(&mut self, context: &mut SceneContext) {
         if let AddPoseNodeCommand::Reverted {
             node_handle,
+            layer_index,
             ticket,
             ..
         } = std::mem::replace(self, AddPoseNodeCommand::Unknown)
         {
             let machine = fetch_machine(context, node_handle);
-            machine.nodes_mut().forget_ticket(ticket)
+            let layer = &mut machine.layers_mut()[layer_index];
+            layer.nodes_mut().forget_ticket(ticket)
         }
     }
 }
@@ -340,6 +408,7 @@ macro_rules! define_move_command {
         #[derive(Debug)]
         pub struct $name {
             absm_node_handle: Handle<Node>,
+            layer_index: usize,
             node: Handle<$ent_type>,
             old_position: Vector2<f32>,
             new_position: Vector2<f32>,
@@ -349,11 +418,13 @@ macro_rules! define_move_command {
             pub fn new(
                 absm_node_handle: Handle<Node>,
                 node: Handle<$ent_type>,
+                layer_index: usize,
                 old_position: Vector2<f32>,
                 new_position: Vector2<f32>,
             ) -> Self {
                 Self {
                     absm_node_handle,
+                    layer_index,
                     node,
                     old_position,
                     new_position,
@@ -368,7 +439,7 @@ macro_rules! define_move_command {
 
             fn set_position(&self, context: &mut SceneContext, position: Vector2<f32>) {
                 let machine = fetch_machine(context, self.absm_node_handle);
-                machine.$container()[self.node].position = position;
+                machine.layers_mut()[self.layer_index].$container()[self.node].position = position;
             }
         }
 
@@ -400,23 +471,31 @@ macro_rules! define_free_command {
             Unknown,
             NonExecuted {
                 node_handle: Handle<Node>,
+                layer_index: usize,
                 entity_handle: Handle<$ent_type>,
             },
             Executed {
                 node_handle: Handle<Node>,
+                layer_index: usize,
                 entity: $ent_type,
                 ticket: Ticket<$ent_type>,
             },
             Reverted {
                 node_handle: Handle<Node>,
+                layer_index: usize,
                 entity_handle: Handle<$ent_type>,
             },
         }
 
         impl $name {
-            pub fn new(node_handle: Handle<Node>, entity_handle: Handle<$ent_type>) -> Self {
+            pub fn new(
+                node_handle: Handle<Node>,
+                layer_index: usize,
+                entity_handle: Handle<$ent_type>,
+            ) -> Self {
                 Self::NonExecuted {
                     node_handle,
+                    layer_index,
                     entity_handle,
                 }
             }
@@ -431,16 +510,21 @@ macro_rules! define_free_command {
                 match std::mem::replace(self, Self::Unknown) {
                     Self::NonExecuted {
                         node_handle,
+                        layer_index,
                         entity_handle,
                     }
                     | Self::Reverted {
                         node_handle,
+                        layer_index,
                         entity_handle,
                     } => {
                         let machine = fetch_machine(context, node_handle);
-                        let (ticket, entity) = machine.$container().take_reserve(entity_handle);
+                        let (ticket, entity) = machine.layers_mut()[layer_index]
+                            .$container()
+                            .take_reserve(entity_handle);
                         *self = Self::Executed {
                             node_handle,
+                            layer_index,
                             entity,
                             ticket,
                         }
@@ -453,6 +537,7 @@ macro_rules! define_free_command {
                 match std::mem::replace(self, Self::Unknown) {
                     Self::Executed {
                         node_handle,
+                        layer_index,
                         entity,
                         ticket,
                     } => {
@@ -460,7 +545,10 @@ macro_rules! define_free_command {
 
                         *self = Self::Reverted {
                             node_handle,
-                            entity_handle: machine.$container().put_back(ticket, entity),
+                            layer_index,
+                            entity_handle: machine.layers_mut()[layer_index]
+                                .$container()
+                                .put_back(ticket, entity),
                         };
                     }
                     _ => unreachable!(),
@@ -471,11 +559,14 @@ macro_rules! define_free_command {
                 match std::mem::replace(self, Self::Unknown) {
                     Self::Executed {
                         node_handle,
+                        layer_index,
                         ticket,
                         ..
                     } => {
                         let machine = fetch_machine(context, node_handle);
-                        machine.$container().forget_ticket(ticket);
+                        machine.layers_mut()[layer_index]
+                            .$container()
+                            .forget_ticket(ticket);
                     }
                     _ => (),
                 }
@@ -495,14 +586,16 @@ macro_rules! define_push_element_to_collection_command {
         pub struct $name {
             pub node_handle: Handle<Node>,
             pub handle: $model_handle,
+            pub layer_index: usize,
             pub value: Option<$value_type>,
         }
 
         impl $name {
-            pub fn new(node_handle: Handle<Node>, handle: $model_handle, value: $value_type) -> Self {
+            pub fn new(node_handle: Handle<Node>, handle: $model_handle, layer_index: usize, value: $value_type) -> Self {
                 Self {
                     node_handle,
                     handle,
+                    layer_index,
                     value: Some(value)
                 }
             }
@@ -572,6 +665,7 @@ macro_rules! define_set_collection_element_command {
         pub struct $name {
             pub node_handle: Handle<Node>,
             pub handle: $model_handle,
+            pub layer_index: usize,
             pub index: usize,
             pub value: $value_type,
         }
@@ -605,15 +699,17 @@ macro_rules! define_set_collection_element_command {
 #[derive(Debug)]
 pub struct SetMachineEntryStateCommand {
     pub node_handle: Handle<Node>,
+    pub layer: usize,
     pub entry: Handle<State>,
 }
 
 impl SetMachineEntryStateCommand {
     fn swap(&mut self, context: &mut SceneContext) {
         let machine = fetch_machine(context, self.node_handle);
+        let layer = &mut machine.layers_mut()[self.layer];
 
-        let prev = machine.entry_state();
-        machine.set_entry_state(self.entry);
+        let prev = layer.entry_state();
+        layer.set_entry_state(self.entry);
         self.entry = prev;
     }
 }
@@ -669,7 +765,88 @@ macro_rules! define_absm_swap_command {
     };
 }
 
-define_absm_swap_command!(SetStateRootPoseCommand<Handle<State>, Handle<PoseNode>>[](self, context) {
+define_absm_swap_command!(SetStateRootPoseCommand<Handle<State>, Handle<PoseNode>>[layer_index: usize](self, context) {
     let machine = fetch_machine(context, self.node_handle);
-    &mut machine.states_mut()[self.handle].root
+    &mut machine.layers_mut()[self.layer_index].states_mut()[self.handle].root
 });
+
+#[derive(Debug)]
+pub struct SetLayerNameCommand {
+    pub absm_node_handle: Handle<Node>,
+    pub layer_index: usize,
+    pub name: String,
+}
+
+impl SetLayerNameCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        let layer =
+            &mut fetch_machine(context, self.absm_node_handle).layers_mut()[self.layer_index];
+        let prev = layer.name().to_string();
+        layer.set_name(self.name.clone());
+        self.name = prev;
+    }
+}
+
+impl Command for SetLayerNameCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Set Layer Name".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+}
+
+#[derive(Debug)]
+pub struct AddLayerCommand {
+    pub absm_node_handle: Handle<Node>,
+    pub layer: Option<MachineLayer>,
+}
+
+impl Command for AddLayerCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Add Layer".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        fetch_machine(context, self.absm_node_handle).add_layer(self.layer.take().unwrap());
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.layer = fetch_machine(context, self.absm_node_handle).pop_layer();
+    }
+}
+
+#[derive(Debug)]
+pub struct SetLayerMaskCommand {
+    pub absm_node_handle: Handle<Node>,
+    pub layer_index: usize,
+    pub mask: LayerMask,
+}
+
+impl SetLayerMaskCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        let layer =
+            &mut fetch_machine(context, self.absm_node_handle).layers_mut()[self.layer_index];
+        let old = layer.mask().clone();
+        layer.set_mask(std::mem::replace(&mut self.mask, old));
+    }
+}
+
+impl Command for SetLayerMaskCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Set Layer Mask".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+}

@@ -178,6 +178,7 @@ fn main() {
                             .query_component_ref::<AnimationBlendingStateMachine>()
                             .unwrap()
                             .machine()
+                            .layers()[0]
                             .active_state();
 
                         let animation_player = scene.graph[game_scene.player.animation_player]

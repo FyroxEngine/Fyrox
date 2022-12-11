@@ -227,16 +227,20 @@ impl Inspector {
                         {
                             if let Some(first) = selection.entities.first() {
                                 let machine = node.machine();
-                                match first {
-                                    SelectedEntity::Transition(transition) => {
-                                        Some(&machine.transitions()[*transition] as &dyn Reflect)
+                                if let Some(layer) = machine.layers().get(selection.layer) {
+                                    match first {
+                                        SelectedEntity::Transition(transition) => {
+                                            Some(&layer.transitions()[*transition] as &dyn Reflect)
+                                        }
+                                        SelectedEntity::State(state) => {
+                                            Some(&layer.states()[*state] as &dyn Reflect)
+                                        }
+                                        SelectedEntity::PoseNode(pose) => {
+                                            Some(&layer.nodes()[*pose] as &dyn Reflect)
+                                        }
                                     }
-                                    SelectedEntity::State(state) => {
-                                        Some(&machine.states()[*state] as &dyn Reflect)
-                                    }
-                                    SelectedEntity::PoseNode(pose) => {
-                                        Some(&machine.nodes()[*pose] as &dyn Reflect)
-                                    }
+                                } else {
+                                    None
                                 }
                             } else {
                                 None
@@ -350,16 +354,20 @@ impl Inspector {
                         {
                             if let Some(first) = selection.entities.first() {
                                 let machine = node.machine();
-                                match first {
-                                    SelectedEntity::Transition(transition) => {
-                                        Some(&machine.transitions()[*transition] as &dyn Reflect)
+                                if let Some(layer) = machine.layers().get(selection.layer) {
+                                    match first {
+                                        SelectedEntity::Transition(transition) => {
+                                            Some(&layer.transitions()[*transition] as &dyn Reflect)
+                                        }
+                                        SelectedEntity::State(state) => {
+                                            Some(&layer.states()[*state] as &dyn Reflect)
+                                        }
+                                        SelectedEntity::PoseNode(pose) => {
+                                            Some(&layer.nodes()[*pose] as &dyn Reflect)
+                                        }
                                     }
-                                    SelectedEntity::State(state) => {
-                                        Some(&machine.states()[*state] as &dyn Reflect)
-                                    }
-                                    SelectedEntity::PoseNode(pose) => {
-                                        Some(&machine.nodes()[*pose] as &dyn Reflect)
-                                    }
+                                } else {
+                                    None
                                 }
                             } else {
                                 None
@@ -459,6 +467,7 @@ impl Inspector {
                                             *transition,
                                             args,
                                             selection.absm_node_handle,
+                                            selection.layer,
                                         )
                                     }
                                     SelectedEntity::State(state) => {
@@ -466,6 +475,7 @@ impl Inspector {
                                             *state,
                                             args,
                                             selection.absm_node_handle,
+                                            selection.layer,
                                         )
                                     }
                                     SelectedEntity::PoseNode(pose) => {
@@ -473,6 +483,7 @@ impl Inspector {
                                             *pose,
                                             args,
                                             selection.absm_node_handle,
+                                            selection.layer,
                                         )
                                     }
                                 })
