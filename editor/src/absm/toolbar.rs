@@ -82,7 +82,8 @@ impl Toolbar {
                     layer_name = TextBoxBuilder::new(
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
-                            .with_tooltip(make_simple_tooltip(ctx, "Change selected layer name.")),
+                            .with_tooltip(make_simple_tooltip(ctx, "Change selected layer name."))
+                            .with_width(100.0),
                     )
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .build(ctx);
@@ -172,16 +173,15 @@ impl Toolbar {
             if message.destination() == self.layers
                 && message.direction() == MessageDirection::FromWidget
             {
-                if let Selection::Absm(ref selection) = editor_scene.selection {
-                    let mut new_selection = selection.clone();
-                    new_selection.layer = *index;
-                    sender
-                        .send(Message::do_scene_command(ChangeSelectionCommand::new(
-                            Selection::Absm(new_selection),
-                            editor_scene.selection.clone(),
-                        )))
-                        .unwrap();
-                }
+                let mut new_selection = selection.clone();
+                new_selection.layer = *index;
+                new_selection.entities.clear();
+                sender
+                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                        Selection::Absm(new_selection),
+                        editor_scene.selection.clone(),
+                    )))
+                    .unwrap();
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
             if message.destination() == self.layer_name
