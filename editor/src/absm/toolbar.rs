@@ -236,15 +236,22 @@ impl Toolbar {
                         }
                     }
 
-                    // TODO: Ideally we should preserve tree structure here.
-                    for node in unique_nodes.into_iter() {
-                        if let Some(target) = graph.try_get(node) {
-                            root.children.push(HierarchyNode {
-                                name: target.name_owned(),
-                                handle: node,
-                                children: Default::default(),
-                            });
-                        }
+                    let local_roots = unique_nodes
+                        .iter()
+                        .cloned()
+                        .filter(|n| {
+                            graph
+                                .try_get(*n)
+                                .map_or(false, |n| !unique_nodes.contains(&n.parent()))
+                        })
+                        .collect::<Vec<_>>();
+
+                    for local_root in local_roots {
+                        root.children.push(HierarchyNode::from_scene_node(
+                            local_root,
+                            editor_scene.editor_objects_root,
+                            graph,
+                        ));
                     }
 
                     self.node_selector = NodeSelectorWindowBuilder::new(
