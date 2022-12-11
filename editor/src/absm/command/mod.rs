@@ -1,6 +1,6 @@
 use crate::{command::Command, scene::commands::SceneContext};
 use fyrox::{
-    animation::machine::{Machine, MachineLayer, PoseNode, State, Transition},
+    animation::machine::{LayerMask, Machine, MachineLayer, PoseNode, State, Transition},
     core::{
         algebra::Vector2,
         pool::{Handle, Ticket},
@@ -818,5 +818,35 @@ impl Command for AddLayerCommand {
 
     fn revert(&mut self, context: &mut SceneContext) {
         self.layer = fetch_machine(context, self.absm_node_handle).pop_layer();
+    }
+}
+
+#[derive(Debug)]
+pub struct SetLayerMaskCommand {
+    pub absm_node_handle: Handle<Node>,
+    pub layer_index: usize,
+    pub mask: LayerMask,
+}
+
+impl SetLayerMaskCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        let layer =
+            &mut fetch_machine(context, self.absm_node_handle).layers_mut()[self.layer_index];
+        let old = layer.mask().clone();
+        layer.set_mask(std::mem::replace(&mut self.mask, old));
+    }
+}
+
+impl Command for SetLayerMaskCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Set Layer Mask".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context)
     }
 }

@@ -374,9 +374,15 @@ impl AbsmEditor {
                 self.preview_mode_data.is_some(),
             );
 
-            let action = self
-                .toolbar
-                .handle_ui_message(message, editor_scene, sender, ui);
+            let action =
+                self.toolbar
+                    .handle_ui_message(message, editor_scene, sender, &scene.graph, ui);
+
+            let absm_node = scene
+                .graph
+                .try_get_mut(selection.absm_node_handle)
+                .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
+                .unwrap();
 
             match action {
                 ToolbarAction::None => {}

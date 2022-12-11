@@ -30,9 +30,9 @@ use std::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HierarchyNode {
-    name: String,
-    handle: Handle<Node>,
-    children: Vec<HierarchyNode>,
+    pub name: String,
+    pub handle: Handle<Node>,
+    pub children: Vec<HierarchyNode>,
 }
 
 impl HierarchyNode {
@@ -58,6 +58,21 @@ impl HierarchyNode {
                 })
                 .collect(),
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn find_node(&mut self, node_handle: Handle<Node>) -> Option<&mut HierarchyNode> {
+        if self.handle == node_handle {
+            return Some(self);
+        }
+
+        for child in self.children.iter_mut() {
+            if let Some(node) = child.find_node(node_handle) {
+                return Some(node);
+            }
+        }
+
+        None
     }
 
     fn make_view(&self, ctx: &mut BuildContext) -> Handle<UiNode> {
@@ -155,6 +170,30 @@ impl Control for NodeSelector {
                     NodeSelectorMessage::Selection(selection) => {
                         if &self.selected != selection {
                             self.selected = selection.clone();
+
+                            let mut stack = vec![self.tree_root];
+                            let mut selected_trees = Vec::new();
+                            while let Some(node_handle) = stack.pop() {
+                                let node = ui.node(node_handle);
+
+                                if let Some(tree) = node.query_component::<Tree>() {
+                                    if self
+                                        .selected
+                                        .contains(&tree.user_data_ref::<TreeData>().unwrap().handle)
+                                    {
+                                        selected_trees.push(node_handle);
+                                    }
+                                }
+
+                                stack.extend_from_slice(node.children());
+                            }
+
+                            ui.send_message(TreeRootMessage::select(
+                                self.tree_root,
+                                MessageDirection::ToWidget,
+                                selected_trees,
+                            ));
+
                             ui.send_message(message.reverse());
                         }
                     }
