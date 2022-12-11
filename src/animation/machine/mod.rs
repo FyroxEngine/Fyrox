@@ -98,7 +98,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 pub use event::Event;
-use fxhash::FxHashMap;
+use fxhash::FxHashSet;
 pub use node::{
     blend::{BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput},
     play::PlayAnimation,
@@ -207,42 +207,44 @@ impl Machine {
     }
 }
 
-#[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
+#[derive(Default, Debug, Visit, Reflect, Clone, PartialEq, Eq)]
 pub struct LayerMask {
     #[reflect(hidden)]
-    bones: FxHashMap<Handle<Node>, bool>,
+    excluded_bones: FxHashSet<Handle<Node>>,
 }
 
-impl From<FxHashMap<Handle<Node>, bool>> for LayerMask {
-    fn from(map: FxHashMap<Handle<Node>, bool>) -> Self {
-        Self { bones: map }
+impl From<FxHashSet<Handle<Node>>> for LayerMask {
+    fn from(map: FxHashSet<Handle<Node>>) -> Self {
+        Self {
+            excluded_bones: map,
+        }
     }
 }
 
 impl LayerMask {
     #[inline]
-    pub fn add(&mut self, node: Handle<Node>, animate: bool) {
-        self.bones.insert(node, animate);
+    pub fn exclude_from_animation(&mut self, node: Handle<Node>) {
+        self.excluded_bones.insert(node);
     }
 
     #[inline]
     pub fn should_animate(&self, node: Handle<Node>) -> bool {
-        self.bones.get(&node).cloned().unwrap_or(true)
+        !self.excluded_bones.contains(&node)
     }
 
     #[inline]
-    pub fn inner(&self) -> &FxHashMap<Handle<Node>, bool> {
-        &self.bones
+    pub fn inner(&self) -> &FxHashSet<Handle<Node>> {
+        &self.excluded_bones
     }
 
     #[inline]
-    pub fn inner_mut(&mut self) -> &mut FxHashMap<Handle<Node>, bool> {
-        &mut self.bones
+    pub fn inner_mut(&mut self) -> &mut FxHashSet<Handle<Node>> {
+        &mut self.excluded_bones
     }
 
     #[inline]
-    pub fn into_inner(self) -> FxHashMap<Handle<Node>, bool> {
-        self.bones
+    pub fn into_inner(self) -> FxHashSet<Handle<Node>> {
+        self.excluded_bones
     }
 }
 
