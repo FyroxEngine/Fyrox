@@ -376,7 +376,7 @@ impl AbsmEditor {
 
             let action = self
                 .toolbar
-                .handle_ui_message(message, editor_scene, sender);
+                .handle_ui_message(message, editor_scene, sender, ui);
 
             match action {
                 ToolbarAction::None => {}

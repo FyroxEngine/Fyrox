@@ -1,13 +1,11 @@
 use crate::{command::Command, scene::commands::SceneContext};
-use fyrox::animation::machine::{Machine, PoseNode, State};
-use fyrox::scene::animation::absm::AnimationBlendingStateMachine;
-use fyrox::scene::node::Node;
 use fyrox::{
-    animation::machine::Transition,
+    animation::machine::{Machine, MachineLayer, PoseNode, State, Transition},
     core::{
         algebra::Vector2,
         pool::{Handle, Ticket},
     },
+    scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
 };
 use std::fmt::Debug;
 
@@ -771,3 +769,54 @@ define_absm_swap_command!(SetStateRootPoseCommand<Handle<State>, Handle<PoseNode
     let machine = fetch_machine(context, self.node_handle);
     &mut machine.layers_mut()[self.layer_index].states_mut()[self.handle].root
 });
+
+#[derive(Debug)]
+pub struct SetLayerNameCommand {
+    pub absm_node_handle: Handle<Node>,
+    pub layer_index: usize,
+    pub name: String,
+}
+
+impl SetLayerNameCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        let layer =
+            &mut fetch_machine(context, self.absm_node_handle).layers_mut()[self.layer_index];
+        let prev = layer.name().to_string();
+        layer.set_name(self.name.clone());
+        self.name = prev;
+    }
+}
+
+impl Command for SetLayerNameCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Set Layer Name".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+}
+
+#[derive(Debug)]
+pub struct AddLayerCommand {
+    pub absm_node_handle: Handle<Node>,
+    pub layer: Option<MachineLayer>,
+}
+
+impl Command for AddLayerCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Add Layer".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        fetch_machine(context, self.absm_node_handle).add_layer(self.layer.take().unwrap());
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.layer = fetch_machine(context, self.absm_node_handle).pop_layer();
+    }
+}

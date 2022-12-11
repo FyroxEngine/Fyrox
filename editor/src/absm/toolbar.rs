@@ -1,17 +1,24 @@
+use crate::absm::fetch_selection;
 use crate::{
-    absm::selection::AbsmSelection,
+    absm::{
+        command::{AddLayerCommand, SetLayerNameCommand},
+        selection::AbsmSelection,
+    },
     gui::make_dropdown_list_option,
     scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
-    Message,
+    send_sync_message, Message,
 };
 use fyrox::{
+    animation::machine::MachineLayer,
     core::pool::Handle,
     gui::{
+        button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
         message::{MessageDirection, UiMessage},
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
+        text::{TextBuilder, TextMessage},
+        text_box::{TextBox, TextBoxBuilder},
         widget::WidgetBuilder,
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
@@ -23,6 +30,8 @@ pub struct Toolbar {
     pub panel: Handle<UiNode>,
     pub preview: Handle<UiNode>,
     pub layers: Handle<UiNode>,
+    pub layer_name: Handle<UiNode>,
+    pub add_layer: Handle<UiNode>,
 }
 
 pub enum ToolbarAction {
@@ -35,6 +44,8 @@ impl Toolbar {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let preview;
         let layers;
+        let layer_name;
+        let add_layer;
         let panel = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_child({
@@ -50,6 +61,23 @@ impl Toolbar {
                     )
                     .build(ctx);
                     preview
+                })
+                .with_child({
+                    layer_name = TextBoxBuilder::new(
+                        WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                    )
+                    .build(ctx);
+                    layer_name
+                })
+                .with_child({
+                    add_layer = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_width(20.0),
+                    )
+                    .with_text("+")
+                    .build(ctx);
+                    add_layer
                 })
                 .with_child({
                     layers = DropdownListBuilder::new(
@@ -68,6 +96,8 @@ impl Toolbar {
             panel,
             preview,
             layers,
+            layer_name,
+            add_layer,
         }
     }
 
@@ -76,7 +106,10 @@ impl Toolbar {
         message: &UiMessage,
         editor_scene: &EditorScene,
         sender: &Sender<Message>,
+        ui: &UserInterface,
     ) -> ToolbarAction {
+        let selection = fetch_selection(&editor_scene.selection);
+
         if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
             if message.destination() == self.preview
                 && message.direction() == MessageDirection::FromWidget
@@ -101,6 +134,36 @@ impl Toolbar {
                         )))
                         .unwrap();
                 }
+            }
+        } else if let Some(TextMessage::Text(text)) = message.data() {
+            if message.destination() == self.layer_name
+                && message.direction() == MessageDirection::FromWidget
+            {
+                sender
+                    .send(Message::do_scene_command(SetLayerNameCommand {
+                        absm_node_handle: selection.absm_node_handle,
+                        layer_index: selection.layer,
+                        name: text.clone(),
+                    }))
+                    .unwrap();
+            }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.add_layer {
+                let mut layer = MachineLayer::new();
+
+                layer.set_name(
+                    ui.node(self.layer_name)
+                        .query_component::<TextBox>()
+                        .unwrap()
+                        .text(),
+                );
+
+                sender
+                    .send(Message::do_scene_command(AddLayerCommand {
+                        absm_node_handle: selection.absm_node_handle,
+                        layer: Some(layer),
+                    }))
+                    .unwrap();
             }
         }
 
@@ -131,5 +194,16 @@ impl Toolbar {
             MessageDirection::ToWidget,
             Some(selection.layer),
         ));
+
+        if let Some(layer) = absm_node.machine().layers().get(selection.layer) {
+            send_sync_message(
+                ui,
+                TextMessage::text(
+                    self.layer_name,
+                    MessageDirection::ToWidget,
+                    layer.name().to_string(),
+                ),
+            );
+        }
     }
 }
