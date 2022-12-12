@@ -185,6 +185,18 @@ impl Machine {
         }
     }
 
+    /// Sets a value for existing parameter with given id or registers new parameter with given id and provided value.
+    /// The method returns a reference to the machine, so the calls could be chained:
+    ///
+    /// ```rust
+    /// use fyrox::animation::machine::{Machine, Parameter};
+    ///
+    /// let mut machine = Machine::new();
+    ///
+    /// machine
+    ///     .set_parameter("Run", Parameter::Rule(true))
+    ///     .set_parameter("Jump", Parameter::Rule(false));
+    /// ```
     #[inline]
     pub fn set_parameter(&mut self, id: &str, new_value: Parameter) -> &mut Self {
         match self.parameters.get_mut(id) {
@@ -199,46 +211,55 @@ impl Machine {
         self
     }
 
+    /// Returns a shared reference to the container with all parameters used by the animation blending state machine.
     #[inline]
     pub fn parameters(&self) -> &ParameterContainer {
         &self.parameters
     }
 
+    /// Returns a mutable reference to the container with all parameters used by the animation blending state machine.
     #[inline]
     pub fn parameters_mut(&mut self) -> &mut ParameterContainer {
         &mut self.parameters
     }
 
+    /// Adds a new layer to the animation blending state machine.
     #[inline]
     pub fn add_layer(&mut self, layer: MachineLayer) {
         self.layers.push(layer)
     }
 
+    /// Removes a layer at given index. Panics if index is out-of-bounds.
     #[inline]
     pub fn remove_layer(&mut self, index: usize) -> MachineLayer {
         self.layers.remove(index)
     }
 
+    /// Inserts a layer at given position, panics in index is out-of-bounds.
     #[inline]
     pub fn insert_layer(&mut self, index: usize, layer: MachineLayer) {
         self.layers.insert(index, layer)
     }
 
+    /// Removes last layer from the list.
     #[inline]
     pub fn pop_layer(&mut self) -> Option<MachineLayer> {
         self.layers.pop()
     }
 
+    /// Returns a shared reference to the list of layers.
     #[inline]
     pub fn layers(&self) -> &[MachineLayer] {
         &self.layers
     }
 
+    /// Returns a mutable reference to the list of layers.
     #[inline]
     pub fn layers_mut(&mut self) -> &mut [MachineLayer] {
         &mut self.layers
     }
 
+    /// Computes final animation pose that could be then applied to a scene graph.
     #[inline]
     pub fn evaluate_pose(&mut self, animations: &AnimationContainer, dt: f32) -> &AnimationPose {
         self.final_pose.reset();
