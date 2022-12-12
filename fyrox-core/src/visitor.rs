@@ -1657,53 +1657,11 @@ where
     }
 }
 
-impl<K, V> Visit for FxHashMap<K, V>
+impl<K, V, S> Visit for HashMap<K, V, S>
 where
     K: Visit + Default + Clone + Hash + Eq,
     V: Visit + Default,
-{
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
-
-        let mut count = self.len() as u32;
-        count.visit("Count", &mut region)?;
-
-        if region.is_reading() {
-            self.clear();
-            for i in 0..(count as usize) {
-                let name = format!("Item{}", i);
-
-                let mut region = region.enter_region(name.as_str())?;
-
-                let mut key = K::default();
-                key.visit("Key", &mut region)?;
-
-                let mut value = V::default();
-                value.visit("Value", &mut region)?;
-
-                self.insert(key, value);
-            }
-        } else {
-            for (i, (key, value)) in self.iter_mut().enumerate() {
-                let name = format!("Item{}", i);
-
-                let mut region = region.enter_region(name.as_str())?;
-
-                let mut key = key.clone();
-                key.visit("Key", &mut region)?;
-
-                value.visit("Value", &mut region)?;
-            }
-        }
-
-        Ok(())
-    }
-}
-
-impl<K, V> Visit for HashMap<K, V>
-where
-    K: Visit + Default + Clone + Hash + Eq,
-    V: Visit + Default,
+    S: BuildHasher + Clone,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
