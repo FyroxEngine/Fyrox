@@ -14,7 +14,6 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 pub use event::Event;
-use fxhash::FxHashSet;
 pub use node::{
     blend::{BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput},
     play::PlayAnimation,
@@ -163,10 +162,8 @@ pub mod transition;
 /// Complex state machines quite hard to create from code, you should use ABSM editor instead whenever possible.
 #[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
 pub struct Machine {
-    #[reflect(hidden)]
     parameters: ParameterContainer,
 
-    #[reflect(hidden)]
     layers: Vec<MachineLayer>,
 
     #[visit(skip)]
@@ -277,41 +274,65 @@ impl Machine {
 
 #[derive(Default, Debug, Visit, Reflect, Clone, PartialEq, Eq)]
 pub struct LayerMask {
-    #[reflect(hidden)]
-    excluded_bones: FxHashSet<Handle<Node>>,
+    excluded_bones: Vec<Handle<Node>>,
 }
 
-impl From<FxHashSet<Handle<Node>>> for LayerMask {
-    fn from(map: FxHashSet<Handle<Node>>) -> Self {
-        Self {
-            excluded_bones: map,
-        }
+impl From<Vec<Handle<Node>>> for LayerMask {
+    fn from(mut excluded_bones: Vec<Handle<Node>>) -> Self {
+        excluded_bones.sort_by_key(|h| h.index());
+        Self { excluded_bones }
     }
 }
 
 impl LayerMask {
     #[inline]
     pub fn exclude_from_animation(&mut self, node: Handle<Node>) {
-        self.excluded_bones.insert(node);
+        let index = self
+            .excluded_bones
+            .partition_point(|h| h.index() < node.index());
+
+        self.excluded_bones.insert(index, node);
+    }
+
+    #[inline]
+    pub fn contains(&self, node: Handle<Node>) -> bool {
+        if let Ok(mut index) = self
+            .excluded_bones
+            .binary_search_by(|h| h.index().cmp(&node.index()))
+        {
+            // We could have multiple handles with the same index, but different generation.
+            // In this case we check every handle.
+            loop {
+                if let Some(current) = self.excluded_bones.get(index) {
+                    if current.index() == node.index() {
+                        if current.generation() == node.generation() {
+                            return true;
+                        }
+                    } else {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+
+                index += 1;
+            }
+        }
+        false
     }
 
     #[inline]
     pub fn should_animate(&self, node: Handle<Node>) -> bool {
-        !self.excluded_bones.contains(&node)
+        !self.contains(node)
     }
 
     #[inline]
-    pub fn inner(&self) -> &FxHashSet<Handle<Node>> {
+    pub fn inner(&self) -> &Vec<Handle<Node>> {
         &self.excluded_bones
     }
 
     #[inline]
-    pub fn inner_mut(&mut self) -> &mut FxHashSet<Handle<Node>> {
-        &mut self.excluded_bones
-    }
-
-    #[inline]
-    pub fn into_inner(self) -> FxHashSet<Handle<Node>> {
+    pub fn into_inner(self) -> Vec<Handle<Node>> {
         self.excluded_bones
     }
 }

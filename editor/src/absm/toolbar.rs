@@ -285,8 +285,7 @@ impl Toolbar {
             if message.destination() == self.node_selector
                 && message.direction() == MessageDirection::FromWidget
             {
-                let new_mask =
-                    LayerMask::from(FxHashSet::from_iter(mask_selection.iter().cloned()));
+                let new_mask = LayerMask::from(mask_selection.iter().cloned().collect::<Vec<_>>());
                 sender
                     .send(Message::do_scene_command(SetLayerMaskCommand {
                         absm_node_handle: selection.absm_node_handle,
