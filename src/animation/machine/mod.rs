@@ -1,91 +1,7 @@
 //! Animation blending state machine.
 //!
 //! Machine is used to blend multiple animation as well as perform automatic "smooth transition
-//! between states. Let have a quick look at simple machine graph:
-//!
-//! ```text
-//!                                                  +-------------+
-//!                                                  |  Idle Anim  |
-//!                                                  +------+------+
-//!                                                         |
-//!           Walk Weight                                   |
-//! +-----------+      +-------+           Walk->Idle Rule  |
-//! | Walk Anim +------+       |                            |
-//! +-----------+      |       |      +-------+         +---+---+
-//!                    | Blend |      |       +-------->+       |
-//!                    |       +------+ Walk  |         |  Idle |
-//! +-----------+      |       |      |       +<--------+       |
-//! | Aim Anim  +------+       |      +--+----+         +---+---+
-//! +-----------+      +-------+         |                  ^
-//!           Aim Weight                 | Idle->Walk Rule  |
-//!                                      |                  |
-//!                       Walk->Run Rule |    +---------+   | Run->Idle Rule
-//!                                      |    |         |   |
-//!                                      +--->+   Run   +---+
-//!                                           |         |
-//!                                           +----+----+
-//!                                                |
-//!                                                |
-//!                                         +------+------+
-//!                                         |  Run Anim   |
-//!                                         +-------------+
-//! ```
-//!
-//! Here we have Walk, Idle, Run states which uses different sources of poses:
-//! - Walk - is most complicated here - it uses result of blending between
-//!   Aim and Walk animations with different weights. This is useful if your
-//!   character can only walk or can walk *and* aim at the same time. Desired pose
-//!   determined by Walk Weight and Aim Weight parameters combination.
-//! - Run and idle both directly uses animation as pose source.
-//!
-//! There are four transitions between three states each with its own rule. Rule
-//! is just Rule parameter which can have boolean value that indicates that transition
-//! should be activated.
-//!
-//! Example:
-//!
-//! ```no_run
-//! use fyrox::{
-//!     animation::machine::{
-//!         Machine, State, Transition, PoseNode,
-//!         Parameter, PlayAnimation, PoseWeight, BlendAnimations, BlendPose
-//!     },
-//!     core::pool::Handle
-//! };
-//!
-//! // Assume that these are correct handles.
-//! let idle_animation = Handle::default();
-//! let walk_animation = Handle::default();
-//! let aim_animation = Handle::default();
-//!
-//! let mut machine = Machine::new();
-//!
-//! let root_layer = &mut machine.layers_mut()[0];
-//!
-//! let aim = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(aim_animation)));
-//! let walk = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(walk_animation)));
-//!
-//! // Blend two animations together
-//! let blend_aim_walk = root_layer.add_node(PoseNode::BlendAnimations(
-//!     BlendAnimations::new(vec![
-//!         BlendPose::new(PoseWeight::Constant(0.75), aim),
-//!         BlendPose::new(PoseWeight::Constant(0.25), walk)
-//!     ])
-//! ));
-//!
-//! let walk_state = root_layer.add_state(State::new("Walk", blend_aim_walk));
-//!
-//! let idle = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(idle_animation)));
-//! let idle_state = root_layer.add_state(State::new("Idle", idle));
-//!
-//! root_layer.add_transition(Transition::new("Walk->Idle", walk_state, idle_state, 1.0, "WalkToIdle"));
-//! root_layer.add_transition(Transition::new("Idle->Walk", idle_state, walk_state, 1.0, "IdleToWalk"));
-//!
-//! ```
-//!
-//! You can use multiple machines to animation single model - for example one machine can be for
-//! locomotion and other is for combat. This means that locomotion machine will take control over
-//! lower body and combat machine will control upper body.
+//! between states. See [`Machine`] docs for more info and examples.
 
 use crate::{
     animation::{machine::event::LimitedEventQueue, AnimationContainer, AnimationPose},
@@ -114,6 +30,137 @@ pub mod parameter;
 pub mod state;
 pub mod transition;
 
+/// Animation blending state machine is used to blend multiple animation as well as perform automatic smooth transitions
+/// between states.
+///
+/// # Terminology
+///
+/// `Node` - is a part of sub-graph that backs _states_ with animations. Typical nodes are `PlayAnimation`, `BlendAnimations`,
+/// `BlendAnimationsByIndex`, etc. Nodes can be connected forming a tree, some node could be marked as output - its animation
+/// will be used in parent state.
+/// `State` - is a final source of animation for blending. There could be any number of states, for example typical
+/// states are: `run`, `idle`, `jump` etc. A state could be marked as _entry_ state - it will be active at the first frame
+/// when using the machine. There is always one state active.
+/// `Transition` - is a connection between states that has transition time, a link to a parameter that defines whether the
+/// transition should be performed or not. Transition is directional; there could be any number of transitions between any
+/// number of states (loops are allowed).
+/// `Parameter` - is a named variable of a fixed type (see `Parameters` section for more info).
+/// `Layer` - is a separate state graph, there could be any number of layers - each with its own mask.
+/// `Mask` - a set of handles to nodes which will be excluded from animation on a layer.
+///
+/// Summarizing everything of this, we can describe animation blending state machine as a state graph, where each state has its
+/// own sub-graph (tree) that provides animation for blending. States can be connected via transitions.
+///
+/// # Parameters
+///
+/// Parameter is a named variable of a fixed type. Parameters are used as a data source in various places in the animation
+/// blending state machines. There are three main types of parameters:
+///
+/// `Rule` - boolean value that used as a trigger for transitions. When transition is using some rule, it checks the value
+/// of the parameter and if it is `true` transition starts.
+/// `Weight` - real number (`f32`) that is used a weight when you blending multiple animations into one.
+/// `Index` - natural number (`i32`) that is used as an animation selector.
+///
+/// Each parameter has a name, it could be pretty much any string.
+///
+/// # Layers
+///
+/// Layer is a separate state graph. Layers mainly used to animate different parts of humanoid (but not only) characters. For
+/// example there could a layer for upper body and a layer for lower body. Upper body layer could contain animations for aiming,
+/// melee attacks while lower body layer could contain animations for standing, running, crouching, etc. This gives you an
+/// ability to have running character that could aim or melee attack, or crouching and aiming, and so on with any combination.
+/// Both layers use the same set of parameters, so a change in a parameter will affect all layers that use it.
+///
+/// # Examples
+///
+/// Let have a quick look at simple state machine graph with a single layer:
+///
+/// ```text
+///                                                  +-------------+
+///                                                  |  Idle Anim  |
+///                                                  +------+------+
+///                                                         |
+///           Walk Weight                                   |
+/// +-----------+      +-------+           Walk->Idle Rule  |
+/// | Walk Anim +------+       |                            |
+/// +-----------+      |       |      +-------+         +---+---+
+///                    | Blend |      |       +-------->+       |
+///                    |       +------+ Walk  |         |  Idle |
+/// +-----------+      |       |      |       +<--------+       |
+/// | Aim Anim  +------+       |      +--+----+         +---+---+
+/// +-----------+      +-------+         |                  ^
+///           Aim Weight                 | Idle->Walk Rule  |
+///                                      |                  |
+///                       Walk->Run Rule |    +---------+   | Run->Idle Rule
+///                                      |    |         |   |
+///                                      +--->+   Run   +---+
+///                                           |         |
+///                                           +----+----+
+///                                                |
+///                                                |
+///                                         +------+------+
+///                                         |  Run Anim   |
+///                                         +-------------+
+/// ```
+///
+/// Here we have `Walk`, `Idle`, `Run` _states_ which uses different sources of poses:
+///
+/// - `Run` and `Idle` both directly uses respective animations as a pose source.
+/// - `Walk` - is the most complex here - it uses result of blending between `Aim` and `Walk` animations with different
+/// weights. This is useful if your character can only walk or can walk *and* aim at the same time. Desired pose
+/// determined by `Walk Weight` and `Aim Weight` parameters combination (see `Parameters` section for more info).
+/// **Note:** Such blending is almost never used on practice, instead you should use multiple animation layers. This
+/// serves only as an example that the machine can blend animations.
+///
+/// There are four transitions between three states each with its own _rule_. Rule is just Rule parameter which can
+/// have boolean value that indicates that transition should be activated. The machine on the image above can be created
+/// using code like so:
+///
+/// ```no_run
+/// use fyrox::{
+///     animation::machine::{
+///         Machine, State, Transition, PoseNode,
+///         Parameter, PlayAnimation, PoseWeight, BlendAnimations, BlendPose
+///     },
+///     core::pool::Handle
+/// };
+///
+/// // Assume that these are correct handles.
+/// let idle_animation = Handle::default();
+/// let walk_animation = Handle::default();
+/// let aim_animation = Handle::default();
+///
+/// let mut machine = Machine::new();
+///
+/// let root_layer = &mut machine.layers_mut()[0];
+///
+/// let aim = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(aim_animation)));
+/// let walk = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(walk_animation)));
+///
+/// // Blend two animations together
+/// let blend_aim_walk = root_layer.add_node(PoseNode::BlendAnimations(
+///     BlendAnimations::new(vec![
+///         BlendPose::new(PoseWeight::Constant(0.75), aim),
+///         BlendPose::new(PoseWeight::Constant(0.25), walk)
+///     ])
+/// ));
+///
+/// let walk_state = root_layer.add_state(State::new("Walk", blend_aim_walk));
+///
+/// let idle = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(idle_animation)));
+/// let idle_state = root_layer.add_state(State::new("Idle", idle));
+///
+/// root_layer.add_transition(Transition::new("Walk->Idle", walk_state, idle_state, 1.0, "WalkToIdle"));
+/// root_layer.add_transition(Transition::new("Idle->Walk", idle_state, walk_state, 1.0, "IdleToWalk"));
+///
+/// ```
+///
+/// This creates a machine with a single animation layer, fills it with some states that are backed by animation
+/// sources (either simple animation playback or animation blending). You can use multiple layers to animate a single
+/// model - for example one layer could be used for upper body of a character and other is lower body. This means that
+/// locomotion machine will take control over lower body and combat machine will control upper body.
+///
+/// Complex state machines quite hard to create from code, you should use ABSM editor instead whenever possible.
 #[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
 pub struct Machine {
     #[reflect(hidden)]
