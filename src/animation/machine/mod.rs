@@ -341,6 +341,10 @@ impl LayerMask {
 pub struct MachineLayer {
     name: String,
 
+    weight: f32,
+
+    mask: LayerMask,
+
     #[reflect(hidden)]
     nodes: Pool<PoseNode>,
 
@@ -358,12 +362,6 @@ pub struct MachineLayer {
 
     #[reflect(hidden)]
     active_transition: Handle<Transition>,
-
-    #[reflect(hidden)]
-    weight: f32,
-
-    #[reflect(hidden)]
-    mask: LayerMask,
 
     #[visit(skip)]
     #[reflect(hidden)]
