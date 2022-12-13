@@ -4,7 +4,7 @@ use crate::{
     scene::{commands::SceneContext, Selection},
 };
 use fyrox::{
-    animation::{Animation, AnimationSignal, NodeTrack},
+    animation::{track::Track, Animation, AnimationSignal},
     core::{
         curve::Curve,
         pool::{Handle, Ticket},
@@ -31,15 +31,11 @@ fn fetch_animation_player<'a>(
 pub struct AddTrackCommand {
     animation_player: Handle<Node>,
     animation: Handle<Animation>,
-    track: Option<NodeTrack>,
+    track: Option<Track>,
 }
 
 impl AddTrackCommand {
-    pub fn new(
-        animation_player: Handle<Node>,
-        animation: Handle<Animation>,
-        track: NodeTrack,
-    ) -> Self {
+    pub fn new(animation_player: Handle<Node>, animation: Handle<Animation>, track: Track) -> Self {
         Self {
             animation_player,
             animation,
@@ -70,7 +66,7 @@ pub struct RemoveTrackCommand {
     animation_player: Handle<Node>,
     animation: Handle<Animation>,
     index: usize,
-    track: Option<NodeTrack>,
+    track: Option<Track>,
 }
 
 impl RemoveTrackCommand {
@@ -389,19 +385,9 @@ fn fetch_animation<'a>(
     animation: Handle<Animation>,
     ctx: &'a mut SceneContext,
 ) -> &'a mut Animation {
-    let animation = fetch_animation_player(animation_player, ctx)
+    fetch_animation_player(animation_player, ctx)
         .animations_mut()
-        .index_mut(animation);
-
-    // TODO: Hack. Make sure that the animation will serialize all keyframes on all tracks.
-    // This is needed, because by default animation does not serialize its keyframes,
-    // instead it takes keyframes from parent prefab. This should be removed when "diff-like"
-    // prefabs is implemented.
-    for track in animation.tracks_mut() {
-        track.set_serialize_frames(true);
-    }
-
-    animation
+        .index_mut(animation)
 }
 
 define_animation_swap_command!(SetAnimationSpeedCommand<f32>(self, context) {

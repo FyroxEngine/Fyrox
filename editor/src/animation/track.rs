@@ -20,8 +20,9 @@ use crate::{
 use fyrox::{
     animation::{
         container::{TrackFramesContainer, TrackValueKind},
+        track::Track,
         value::{ValueBinding, ValueType},
-        Animation, NodeTrack,
+        Animation,
     },
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
@@ -678,7 +679,7 @@ impl TrackList {
                                 };
 
                                 if let Some((track_value_kind, actual_value_type)) = types {
-                                    let mut track = NodeTrack::new(
+                                    let mut track = Track::new(
                                         TrackFramesContainer::new(track_value_kind),
                                         ValueBinding::Property {
                                             name: property_path.path.clone(),
@@ -686,7 +687,6 @@ impl TrackList {
                                         },
                                     );
 
-                                    track.set_serialize_frames(true);
                                     track.set_target(self.selected_node);
 
                                     sender

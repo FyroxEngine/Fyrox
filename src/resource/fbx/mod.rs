@@ -10,9 +10,8 @@ mod document;
 pub mod error;
 mod scene;
 
-use crate::scene::animation::AnimationPlayerBuilder;
 use crate::{
-    animation::{track::Track, Animation, AnimationContainer, NodeTrack},
+    animation::{track::Track, Animation, AnimationContainer},
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3, Vector4},
         curve::{CurveKey, CurveKeyKind},
@@ -39,6 +38,7 @@ use crate::{
         model::{MaterialSearchOptions, ModelImportOptions},
     },
     scene::{
+        animation::AnimationPlayerBuilder,
         base::{BaseBuilder, InstanceId},
         graph::Graph,
         mesh::{
@@ -587,7 +587,7 @@ async fn convert_model(
         }
 
         fn fill_track<F: Fn(f32) -> f32>(
-            track: &mut NodeTrack,
+            track: &mut Track,
             fbx_scene: &FbxScene,
             fbx_track: &FbxAnimationCurveNode,
             default: Vector3<f32>,
@@ -635,7 +635,7 @@ async fn convert_model(
             }
         }
 
-        fn add_vec3_key(track: &mut NodeTrack, value: Vector3<f32>) {
+        fn add_vec3_key(track: &mut Track, value: Vector3<f32>) {
             let curves = track.frames_container_mut().curves_mut();
             curves[0].add_key(CurveKey::new(0.0, value.x, CurveKeyKind::Constant));
             curves[1].add_key(CurveKey::new(0.0, value.y, CurveKeyKind::Constant));

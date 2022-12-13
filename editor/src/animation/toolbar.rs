@@ -531,9 +531,6 @@ impl Toolbar {
                 if let Some(animation) = animation_player.animations().try_get(selection.animation)
                 {
                     let mut animation_clone = animation.clone();
-                    for track in animation_clone.tracks_mut() {
-                        track.set_serialize_frames(true);
-                    }
                     animation_clone.set_name(format!("{} Copy", animation.name()));
 
                     sender
@@ -660,10 +657,6 @@ impl Toolbar {
                             });
 
                             animation.set_enabled(false);
-
-                            for track in animation.tracks_mut() {
-                                track.set_serialize_frames(true);
-                            }
                         }
 
                         let group = CommandGroup::from(

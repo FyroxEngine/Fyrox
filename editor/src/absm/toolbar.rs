@@ -173,7 +173,7 @@ impl Toolbar {
             if message.destination() == self.layers
                 && message.direction() == MessageDirection::FromWidget
             {
-                let mut new_selection = selection.clone();
+                let mut new_selection = selection;
                 new_selection.layer = *index;
                 new_selection.entities.clear();
                 sender
@@ -271,7 +271,7 @@ impl Toolbar {
                     ));
 
                     if let Some(layer) = absm_node.machine().layers().get(selection.layer) {
-                        let selection = layer.mask().inner().iter().cloned().collect::<Vec<_>>();
+                        let selection = layer.mask().inner().to_vec();
 
                         ui.send_message(NodeSelectorMessage::selection(
                             self.node_selector,
@@ -285,7 +285,7 @@ impl Toolbar {
             if message.destination() == self.node_selector
                 && message.direction() == MessageDirection::FromWidget
             {
-                let new_mask = LayerMask::from(mask_selection.iter().cloned().collect::<Vec<_>>());
+                let new_mask = LayerMask::from(mask_selection.to_vec());
                 sender
                     .send(Message::do_scene_command(SetLayerMaskCommand {
                         absm_node_handle: selection.absm_node_handle,

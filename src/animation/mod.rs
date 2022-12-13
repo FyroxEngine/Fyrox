@@ -50,13 +50,11 @@ impl Default for AnimationSignal {
     }
 }
 
-pub type NodeTrack = Track<Handle<Node>>;
-
 #[derive(Debug, Reflect, Visit, PartialEq)]
 pub struct Animation {
     #[visit(optional)]
     name: String,
-    tracks: Vec<NodeTrack>,
+    tracks: Vec<Track>,
     time_position: f32,
     #[visit(optional)]
     time_slice: Range<f32>,
@@ -204,22 +202,22 @@ impl Animation {
 
     /// Adds new track to the animation. Animation can have unlimited number of tracks, each track is responsible
     /// for animation of a single scene node.
-    pub fn add_track(&mut self, track: NodeTrack) {
+    pub fn add_track(&mut self, track: Track) {
         self.tracks.push(track);
     }
 
     /// Removes a track at given index.
-    pub fn remove_track(&mut self, index: usize) -> NodeTrack {
+    pub fn remove_track(&mut self, index: usize) -> Track {
         self.tracks.remove(index)
     }
 
     /// Inserts a track at given index.
-    pub fn insert_track(&mut self, index: usize, track: NodeTrack) {
+    pub fn insert_track(&mut self, index: usize, track: Track) {
         self.tracks.insert(index, track)
     }
 
     /// Removes last track from the list of tracks of the animation.
-    pub fn pop_track(&mut self) -> Option<NodeTrack> {
+    pub fn pop_track(&mut self) -> Option<Track> {
         self.tracks.pop()
     }
 
@@ -236,7 +234,7 @@ impl Animation {
         }
     }
 
-    pub fn tracks(&self) -> &[NodeTrack] {
+    pub fn tracks(&self) -> &[Track] {
         &self.tracks
     }
 
@@ -337,7 +335,7 @@ impl Animation {
         self
     }
 
-    pub fn tracks_mut(&mut self) -> &mut [NodeTrack] {
+    pub fn tracks_mut(&mut self) -> &mut [Track] {
         &mut self.tracks
     }
 
@@ -368,7 +366,7 @@ impl Animation {
 
     pub fn retain_tracks<F>(&mut self, filter: F)
     where
-        F: FnMut(&NodeTrack) -> bool,
+        F: FnMut(&Track) -> bool,
     {
         self.tracks.retain(filter)
     }
@@ -413,13 +411,13 @@ impl Animation {
         }
     }
 
-    pub fn tracks_of(&self, handle: Handle<Node>) -> impl Iterator<Item = &NodeTrack> {
+    pub fn tracks_of(&self, handle: Handle<Node>) -> impl Iterator<Item = &Track> {
         self.tracks
             .iter()
             .filter(move |track| track.target() == handle)
     }
 
-    pub fn tracks_of_mut(&mut self, handle: Handle<Node>) -> impl Iterator<Item = &mut NodeTrack> {
+    pub fn tracks_of_mut(&mut self, handle: Handle<Node>) -> impl Iterator<Item = &mut Track> {
         self.tracks
             .iter_mut()
             .filter(move |track| track.target() == handle)

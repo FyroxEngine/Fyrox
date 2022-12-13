@@ -4,32 +4,20 @@ use crate::{
         value::{BoundValue, ValueBinding},
     },
     core::{pool::Handle, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
-    scene::{base::InstanceId, node::Node},
+    scene::node::Node,
 };
 use std::fmt::Debug;
 
-pub trait TrackTarget: Visit + Debug + Copy + Clone + Default + Reflect {}
-
-impl TrackTarget for Handle<Node> {}
-impl TrackTarget for InstanceId {}
-
 #[derive(Debug, Reflect, Clone, PartialEq)]
-pub struct Track<T>
-where
-    T: TrackTarget,
-{
+pub struct Track {
     binding: ValueBinding,
     frames: TrackFramesContainer,
     enabled: bool,
-    serialize_frames: bool,
-    target: T,
+    target: Handle<Node>,
     id: Uuid,
 }
 
-impl<T> Visit for Track<T>
-where
-    T: TrackTarget,
-{
+impl Visit for Track {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
@@ -37,39 +25,26 @@ where
         self.enabled.visit("Enabled", &mut region)?;
 
         let _ = self.binding.visit("Binding", &mut region); // Backward compatibility
-        let _ = self.serialize_frames.visit("SerializeFrames", &mut region); // Backward compatibility
         let _ = self.id.visit("Id", &mut region); // Backward compatibility
-
-        if self.serialize_frames {
-            self.frames.visit("Frames", &mut region)?;
-        }
+        let _ = self.frames.visit("Frames", &mut region); // Backward compatibility
 
         Ok(())
     }
 }
 
-impl<T> Default for Track<T>
-where
-    T: TrackTarget,
-{
+impl Default for Track {
     fn default() -> Self {
         Self {
             binding: ValueBinding::Position,
             frames: TrackFramesContainer::default(),
             enabled: true,
-            // Keep existing logic: animation instances do not save their frames on serialization,
-            // instead they're restoring it from respective animation resource.
-            serialize_frames: false,
             target: Default::default(),
             id: Uuid::new_v4(),
         }
     }
 }
 
-impl<T> Track<T>
-where
-    T: TrackTarget,
-{
+impl Track {
     pub fn new(container: TrackFramesContainer, binding: ValueBinding) -> Self {
         Self {
             frames: container,
@@ -110,11 +85,11 @@ where
         &self.binding
     }
 
-    pub fn set_target(&mut self, target: T) {
+    pub fn set_target(&mut self, target: Handle<Node>) {
         self.target = target;
     }
 
-    pub fn target(&self) -> T {
+    pub fn target(&self) -> Handle<Node> {
         self.target
     }
 
@@ -150,14 +125,6 @@ where
 
     pub fn is_enabled(&self) -> bool {
         self.enabled
-    }
-
-    pub fn set_serialize_frames(&mut self, state: bool) {
-        self.serialize_frames = state;
-    }
-
-    pub fn is_serializing_frames(&self) -> bool {
-        self.serialize_frames
     }
 
     pub fn id(&self) -> Uuid {
