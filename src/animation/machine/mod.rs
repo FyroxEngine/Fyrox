@@ -10,10 +10,11 @@ use crate::{
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
-    scene::node::Node,
     utils::log::{Log, MessageKind},
 };
+
 pub use event::Event;
+pub use mask::LayerMask;
 pub use node::{
     blend::{BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput},
     play::PlayAnimation,
@@ -24,6 +25,7 @@ pub use state::State;
 pub use transition::Transition;
 
 pub mod event;
+pub mod mask;
 pub mod node;
 pub mod parameter;
 pub mod state;
@@ -269,71 +271,6 @@ impl Machine {
         }
 
         &self.final_pose
-    }
-}
-
-#[derive(Default, Debug, Visit, Reflect, Clone, PartialEq, Eq)]
-pub struct LayerMask {
-    excluded_bones: Vec<Handle<Node>>,
-}
-
-impl From<Vec<Handle<Node>>> for LayerMask {
-    fn from(mut excluded_bones: Vec<Handle<Node>>) -> Self {
-        excluded_bones.sort_by_key(|h| h.index());
-        Self { excluded_bones }
-    }
-}
-
-impl LayerMask {
-    #[inline]
-    pub fn exclude_from_animation(&mut self, node: Handle<Node>) {
-        let index = self
-            .excluded_bones
-            .partition_point(|h| h.index() < node.index());
-
-        self.excluded_bones.insert(index, node);
-    }
-
-    #[inline]
-    pub fn contains(&self, node: Handle<Node>) -> bool {
-        if let Ok(mut index) = self
-            .excluded_bones
-            .binary_search_by(|h| h.index().cmp(&node.index()))
-        {
-            // We could have multiple handles with the same index, but different generation.
-            // In this case we check every handle.
-            loop {
-                if let Some(current) = self.excluded_bones.get(index) {
-                    if current.index() == node.index() {
-                        if current.generation() == node.generation() {
-                            return true;
-                        }
-                    } else {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-
-                index += 1;
-            }
-        }
-        false
-    }
-
-    #[inline]
-    pub fn should_animate(&self, node: Handle<Node>) -> bool {
-        !self.contains(node)
-    }
-
-    #[inline]
-    pub fn inner(&self) -> &Vec<Handle<Node>> {
-        &self.excluded_bones
-    }
-
-    #[inline]
-    pub fn into_inner(self) -> Vec<Handle<Node>> {
-        self.excluded_bones
     }
 }
 
