@@ -1489,6 +1489,11 @@ impl Editor {
     fn save_current_scene(&mut self, path: PathBuf) {
         let engine = &mut self.engine;
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.animation_editor
+                .try_leave_preview_mode(editor_scene, engine);
+            self.absm_editor
+                .try_leave_preview_mode(editor_scene, engine);
+
             match editor_scene.save(path.clone(), engine) {
                 Ok(message) => {
                     self.scene_viewer.set_title(

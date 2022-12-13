@@ -432,6 +432,29 @@ impl AnimationEditor {
         }
     }
 
+    pub fn try_leave_preview_mode(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+        let selection = fetch_selection(&editor_scene.selection);
+
+        let scene = &mut engine.scenes[editor_scene.scene];
+
+        if let Some(animation_player) = scene
+            .graph
+            .try_get_mut(selection.animation_player)
+            .and_then(|n| n.query_component_mut::<AnimationPlayer>())
+        {
+            if let Some(animation) = animation_player
+                .animations_mut()
+                .try_get_mut(selection.animation)
+            {
+                if self.preview_mode_data.is_some() {
+                    animation.set_enabled(false);
+
+                    self.leave_preview_mode(scene, &engine.user_interface);
+                }
+            }
+        }
+    }
+
     pub fn handle_message(
         &mut self,
         message: &Message,
@@ -442,26 +465,7 @@ impl AnimationEditor {
         if let Message::DoSceneCommand(_) | Message::UndoSceneCommand | Message::RedoSceneCommand =
             message
         {
-            let selection = fetch_selection(&editor_scene.selection);
-
-            let scene = &mut engine.scenes[editor_scene.scene];
-
-            if let Some(animation_player) = scene
-                .graph
-                .try_get_mut(selection.animation_player)
-                .and_then(|n| n.query_component_mut::<AnimationPlayer>())
-            {
-                if let Some(animation) = animation_player
-                    .animations_mut()
-                    .try_get_mut(selection.animation)
-                {
-                    if self.preview_mode_data.is_some() {
-                        animation.set_enabled(false);
-
-                        self.leave_preview_mode(scene, &engine.user_interface);
-                    }
-                }
-            }
+            self.try_leave_preview_mode(editor_scene, engine);
         }
     }
 

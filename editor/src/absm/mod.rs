@@ -214,6 +214,40 @@ impl AbsmEditor {
         self.parameter_panel.sync_to_model(ui, absm_node);
     }
 
+    pub fn try_leave_preview_mode(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+        let selection = fetch_selection(&editor_scene.selection);
+
+        let scene = &mut engine.scenes[editor_scene.scene];
+
+        if let Some(absm) = scene
+            .graph
+            .try_get_mut(selection.absm_node_handle)
+            .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
+        {
+            absm.set_enabled(false);
+
+            let animation_player_handle = absm.animation_player();
+
+            if let Some(animation_player) = scene
+                .graph
+                .try_get_mut(animation_player_handle)
+                .and_then(|n| n.query_component_mut::<AnimationPlayer>())
+            {
+                if self.preview_mode_data.is_some() {
+                    for animation in animation_player.animations_mut().iter_mut() {
+                        animation.set_enabled(false);
+                    }
+
+                    self.leave_preview_mode(
+                        scene,
+                        &mut engine.user_interface,
+                        selection.absm_node_handle,
+                    );
+                }
+            }
+        }
+    }
+
     pub fn handle_message(
         &mut self,
         message: &Message,
@@ -224,37 +258,7 @@ impl AbsmEditor {
         if let Message::DoSceneCommand(_) | Message::UndoSceneCommand | Message::RedoSceneCommand =
             message
         {
-            let selection = fetch_selection(&editor_scene.selection);
-
-            let scene = &mut engine.scenes[editor_scene.scene];
-
-            if let Some(absm) = scene
-                .graph
-                .try_get_mut(selection.absm_node_handle)
-                .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
-            {
-                absm.set_enabled(false);
-
-                let animation_player_handle = absm.animation_player();
-
-                if let Some(animation_player) = scene
-                    .graph
-                    .try_get_mut(animation_player_handle)
-                    .and_then(|n| n.query_component_mut::<AnimationPlayer>())
-                {
-                    if self.preview_mode_data.is_some() {
-                        for animation in animation_player.animations_mut().iter_mut() {
-                            animation.set_enabled(false);
-                        }
-
-                        self.leave_preview_mode(
-                            scene,
-                            &mut engine.user_interface,
-                            selection.absm_node_handle,
-                        );
-                    }
-                }
-            }
+            self.try_leave_preview_mode(editor_scene, engine);
         }
     }
 
