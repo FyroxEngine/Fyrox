@@ -6,7 +6,7 @@
 use crate::{
     animation::{
         machine::{
-            event::LimitedEventQueue, Event, LayerMask, Parameter, ParameterContainer, PoseNode,
+            event::FixedEventQueue, Event, LayerMask, Parameter, ParameterContainer, PoseNode,
             State, Transition,
         },
         AnimationContainer, AnimationPose,
@@ -95,7 +95,7 @@ pub struct MachineLayer {
 
     #[visit(skip)]
     #[reflect(hidden)]
-    events: LimitedEventQueue,
+    events: FixedEventQueue,
 
     #[visit(skip)]
     #[reflect(hidden)]
@@ -116,7 +116,7 @@ impl MachineLayer {
             entry_state: Default::default(),
             active_transition: Default::default(),
             weight: 1.0,
-            events: LimitedEventQueue::new(2048),
+            events: FixedEventQueue::new(2048),
             debug: false,
             mask: Default::default(),
         }

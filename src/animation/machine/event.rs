@@ -1,10 +1,15 @@
+//! State machine could produces a fixed set of events during its work, this module contains all the stuff
+//! needed to works with such events.
+
+#![warn(missing_docs)]
+
 use crate::{
     animation::machine::{State, Transition},
     core::pool::Handle,
 };
 use std::collections::VecDeque;
 
-/// Specific machine event.
+/// Specific state machine event.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     /// Occurs when enter some state. See module docs for example.
@@ -20,13 +25,15 @@ pub enum Event {
     ActiveTransitionChanged(Handle<Transition>),
 }
 
+/// A simple event queue with fixed capacity. It is used to store a fixed amount of events and discard any
+/// events when the queue is full.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LimitedEventQueue {
+pub struct FixedEventQueue {
     queue: VecDeque<Event>,
     limit: u32,
 }
 
-impl Default for LimitedEventQueue {
+impl Default for FixedEventQueue {
     fn default() -> Self {
         Self {
             queue: Default::default(),
@@ -35,7 +42,8 @@ impl Default for LimitedEventQueue {
     }
 }
 
-impl LimitedEventQueue {
+impl FixedEventQueue {
+    /// Creates a new queue with given limit.
     pub fn new(limit: u32) -> Self {
         Self {
             queue: VecDeque::with_capacity(limit as usize),
@@ -43,12 +51,14 @@ impl LimitedEventQueue {
         }
     }
 
+    /// Pushes an event to the queue.
     pub fn push(&mut self, event: Event) {
         if self.queue.len() < (self.limit as usize) {
             self.queue.push_back(event);
         }
     }
 
+    /// Pops an event from the queue.
     pub fn pop(&mut self) -> Option<Event> {
         self.queue.pop_front()
     }
