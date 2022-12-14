@@ -3,7 +3,7 @@
 
 use crate::{
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
-    scene::node::Node,
+    scene::{graph::Graph, node::Node},
 };
 
 /// Layer mask is a sort of blacklist that prevents layer from animating certain nodes. Its main use case is to
@@ -22,6 +22,22 @@ impl From<Vec<Handle<Node>>> for LayerMask {
 }
 
 impl LayerMask {
+    /// Creates a layer mask for every descendant node starting from specified `root` (included). It could
+    /// be useful if you have an entire node hierarchy (for example, lower part of a body) that needs to
+    /// be filtered out.
+    pub fn from_hierarchy(graph: &Graph, root: Handle<Node>) -> Self {
+        Self::from(graph.traverse_handle_iter(root).collect::<Vec<_>>())
+    }
+
+    /// Merges a given layer mask in the current mask, handles will be automatically de-duplicated.
+    pub fn merge(&mut self, other: LayerMask) {
+        for handle in other.into_inner() {
+            if !self.contains(handle) {
+                self.add(handle);
+            }
+        }
+    }
+
     /// Adds a node handle to the mask. You can add as many nodes here as you want and pretty much any handle,
     /// but you should keep handles only to nodes are affected by your animations. Otherwise you'll just make
     /// the inner container bigger and it will degrade in performance.
