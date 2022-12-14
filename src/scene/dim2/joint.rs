@@ -180,7 +180,7 @@ impl TypeUuidProvider for Joint {
 impl Joint {
     /// Sets new parameters of the joint.
     pub fn set_params(&mut self, params: JointParams) -> JointParams {
-        self.params.set(params)
+        self.params.set_value_and_mark_modified(params)
     }
 
     /// Returns a shared reference to the current joint parameters.
@@ -191,13 +191,13 @@ impl Joint {
     /// Returns a mutable reference to the current joint parameters. Obtaining the mutable reference
     /// will force the engine to do additional calculations to reflect changes to the physics engine.
     pub fn params_mut(&mut self) -> &mut JointParams {
-        self.params.get_mut()
+        self.params.get_value_mut_and_mark_modified()
     }
 
     /// Sets the first body of the joint. The handle should point to the RigidBody node, otherwise
     /// the joint will have no effect!
     pub fn set_body1(&mut self, handle: Handle<Node>) -> Handle<Node> {
-        self.body1.set(handle)
+        self.body1.set_value_and_mark_modified(handle)
     }
 
     /// Returns current first body of the joint.
@@ -208,7 +208,7 @@ impl Joint {
     /// Sets the second body of the joint. The handle should point to the RigidBody node, otherwise
     /// the joint will have no effect!
     pub fn set_body2(&mut self, handle: Handle<Node>) -> Handle<Node> {
-        self.body2.set(handle)
+        self.body2.set_value_and_mark_modified(handle)
     }
 
     /// Returns current second body of the joint.
@@ -218,7 +218,7 @@ impl Joint {
 
     /// Sets whether the connected bodies should ignore collisions with each other or not.  
     pub fn set_contacts_enabled(&mut self, enabled: bool) -> bool {
-        self.contacts_enabled.set(enabled)
+        self.contacts_enabled.set_value_and_mark_modified(enabled)
     }
 
     /// Returns true if contacts between connected bodies is enabled, false - otherwise.

@@ -547,7 +547,7 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_shape(&mut self, shape: ColliderShape) -> ColliderShape {
-        self.shape.set(shape)
+        self.shape.set_value_and_mark_modified(shape)
     }
 
     /// Returns shared reference to the collider shape.
@@ -568,7 +568,7 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn shape_mut(&mut self) -> &mut ColliderShape {
-        self.shape.get_mut()
+        self.shape.get_value_mut_and_mark_modified()
     }
 
     /// Sets the new restitution value. The exact meaning of possible values is somewhat complex,
@@ -581,7 +581,7 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_restitution(&mut self, restitution: f32) -> f32 {
-        self.restitution.set(restitution)
+        self.restitution.set_value_and_mark_modified(restitution)
     }
 
     /// Returns current restitution value of the collider.
@@ -604,7 +604,7 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_density(&mut self, density: Option<f32>) -> Option<f32> {
-        self.density.set(density)
+        self.density.set_value_and_mark_modified(density)
     }
 
     /// Returns current density of the collider.
@@ -622,7 +622,7 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_friction(&mut self, friction: f32) -> f32 {
-        self.friction.set(friction)
+        self.friction.set_value_and_mark_modified(friction)
     }
 
     /// Return current friction of the collider.
@@ -638,7 +638,7 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_collision_groups(&mut self, groups: InteractionGroups) -> InteractionGroups {
-        self.collision_groups.set(groups)
+        self.collision_groups.set_value_and_mark_modified(groups)
     }
 
     /// Returns current collision filtering options.
@@ -654,7 +654,7 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_solver_groups(&mut self, groups: InteractionGroups) -> InteractionGroups {
-        self.solver_groups.set(groups)
+        self.solver_groups.set_value_and_mark_modified(groups)
     }
 
     /// Returns current solver groups.
@@ -671,7 +671,7 @@ impl Collider {
     /// perform collision response, etc. Try avoid calling this method each frame for better
     /// performance.
     pub fn set_is_sensor(&mut self, is_sensor: bool) -> bool {
-        self.is_sensor.set(is_sensor)
+        self.is_sensor.set_value_and_mark_modified(is_sensor)
     }
 
     /// Returns true if the collider is sensor, false - otherwise.
@@ -690,7 +690,7 @@ impl Collider {
         &mut self,
         rule: CoefficientCombineRule,
     ) -> CoefficientCombineRule {
-        self.friction_combine_rule.set(rule)
+        self.friction_combine_rule.set_value_and_mark_modified(rule)
     }
 
     /// Returns current friction combine rule of the collider.
@@ -709,7 +709,8 @@ impl Collider {
         &mut self,
         rule: CoefficientCombineRule,
     ) -> CoefficientCombineRule {
-        self.restitution_combine_rule.set(rule)
+        self.restitution_combine_rule
+            .set_value_and_mark_modified(rule)
     }
 
     /// Returns current restitution combine rule of the collider.

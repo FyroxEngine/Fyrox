@@ -147,19 +147,19 @@ impl<T> InheritableVariable<T> {
     }
 
     /// Replaces value and also raises the [`VariableFlags::MODIFIED`] flag.
-    pub fn set(&mut self, value: T) -> T {
+    pub fn set_value_and_mark_modified(&mut self, value: T) -> T {
         self.mark_modified_and_need_sync();
         std::mem::replace(&mut self.value, value)
     }
 
     /// Replaces value and flags.
-    pub fn set_with_flags(&mut self, value: T, flags: VariableFlags) -> T {
+    pub fn set_value_with_flags(&mut self, value: T, flags: VariableFlags) -> T {
         self.flags.set(flags);
         std::mem::replace(&mut self.value, value)
     }
 
     /// Replaces current value without marking the variable modified.
-    pub fn set_silent(&mut self, value: T) -> T {
+    pub fn set_value_silent(&mut self, value: T) -> T {
         std::mem::replace(&mut self.value, value)
     }
 
@@ -169,7 +169,7 @@ impl<T> InheritableVariable<T> {
     }
 
     /// Returns a reference to the wrapped value.
-    pub fn get(&self) -> &T {
+    pub fn get_value_ref(&self) -> &T {
         &self.value
     }
 
@@ -178,7 +178,7 @@ impl<T> InheritableVariable<T> {
     /// # Important notes.
     ///
     /// The method raises `modified` flag, no matter if actual modification was made!
-    pub fn get_mut(&mut self) -> &mut T {
+    pub fn get_value_mut_and_mark_modified(&mut self) -> &mut T {
         self.mark_modified_and_need_sync();
         &mut self.value
     }
@@ -188,7 +188,7 @@ impl<T> InheritableVariable<T> {
     /// # Important notes.
     ///
     /// This method does not mark the value as modified!
-    pub fn get_mut_silent(&mut self) -> &mut T {
+    pub fn get_value_mut_silent(&mut self) -> &mut T {
         &mut self.value
     }
 
@@ -493,10 +493,12 @@ mod test {
         assert_eq!(parent, child);
 
         // Then modify parent's and child's values.
-        parent.other_value.set("Baz".to_string());
+        parent
+            .other_value
+            .set_value_and_mark_modified("Baz".to_string());
         assert!(ReflectInheritableVariable::is_modified(&parent.other_value),);
 
-        child.foo.value.set(3.21);
+        child.foo.value.set_value_and_mark_modified(3.21);
         assert!(ReflectInheritableVariable::is_modified(&child.foo.value));
 
         try_inherit_properties(&mut child, &parent).unwrap();

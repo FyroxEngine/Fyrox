@@ -381,7 +381,7 @@ impl Camera {
         viewport.position.y = viewport.position.y.clamp(0.0, 1.0);
         viewport.size.x = viewport.size.x.clamp(0.0, 1.0);
         viewport.size.y = viewport.size.y.clamp(0.0, 1.0);
-        self.viewport.set(viewport)
+        self.viewport.set_value_and_mark_modified(viewport)
     }
 
     /// Returns current viewport.
@@ -447,13 +447,13 @@ impl Camera {
     /// Returns current projection mode as mutable reference.
     #[inline]
     pub fn projection_mut(&mut self) -> &mut Projection {
-        self.projection.get_mut()
+        self.projection.get_value_mut_and_mark_modified()
     }
 
     /// Sets current projection mode.
     #[inline]
     pub fn set_projection(&mut self, projection: Projection) -> Projection {
-        self.projection.set(projection)
+        self.projection.set_value_and_mark_modified(projection)
     }
 
     /// Returns state of camera: enabled or not.
@@ -467,17 +467,17 @@ impl Camera {
     /// final picture.
     #[inline]
     pub fn set_enabled(&mut self, enabled: bool) -> bool {
-        self.enabled.set(enabled)
+        self.enabled.set_value_and_mark_modified(enabled)
     }
 
     /// Sets new skybox. Could be None if no skybox needed.
     pub fn set_skybox(&mut self, skybox: Option<SkyBox>) -> Option<SkyBox> {
-        self.sky_box.set(skybox)
+        self.sky_box.set_value_and_mark_modified(skybox)
     }
 
     /// Return optional mutable reference to current skybox.
     pub fn skybox_mut(&mut self) -> Option<&mut SkyBox> {
-        self.sky_box.get_mut().as_mut()
+        self.sky_box.get_value_mut_and_mark_modified().as_mut()
     }
 
     /// Return optional shared reference to current skybox.
@@ -487,17 +487,17 @@ impl Camera {
 
     /// Replaces the skybox.
     pub fn replace_skybox(&mut self, new: Option<SkyBox>) -> Option<SkyBox> {
-        std::mem::replace(self.sky_box.get_mut(), new)
+        std::mem::replace(self.sky_box.get_value_mut_and_mark_modified(), new)
     }
 
     /// Sets new environment.
     pub fn set_environment(&mut self, environment: Option<Texture>) -> Option<Texture> {
-        self.environment.set(environment)
+        self.environment.set_value_and_mark_modified(environment)
     }
 
     /// Return optional mutable reference to current environment.
     pub fn environment_mut(&mut self) -> Option<&mut Texture> {
-        self.environment.get_mut().as_mut()
+        self.environment.get_value_mut_and_mark_modified().as_mut()
     }
 
     /// Return optional shared reference to current environment.
@@ -554,7 +554,7 @@ impl Camera {
         &mut self,
         lut: Option<ColorGradingLut>,
     ) -> Option<ColorGradingLut> {
-        self.color_grading_lut.set(lut)
+        self.color_grading_lut.set_value_and_mark_modified(lut)
     }
 
     /// Returns current color grading map.
@@ -569,7 +569,8 @@ impl Camera {
 
     /// Enables or disables color grading.
     pub fn set_color_grading_enabled(&mut self, enable: bool) -> bool {
-        self.color_grading_enabled.set(enable)
+        self.color_grading_enabled
+            .set_value_and_mark_modified(enable)
     }
 
     /// Whether color grading enabled or not.
@@ -579,7 +580,7 @@ impl Camera {
 
     /// Sets new exposure. See `Exposure` struct docs for more info.
     pub fn set_exposure(&mut self, exposure: Exposure) -> Exposure {
-        self.exposure.set(exposure)
+        self.exposure.set_value_and_mark_modified(exposure)
     }
 
     /// Returns current exposure value.

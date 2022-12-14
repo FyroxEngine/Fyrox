@@ -761,7 +761,7 @@ async fn convert(
                 }
                 surface
                     .bones
-                    .set_silent(surface_bones.iter().copied().collect());
+                    .set_value_silent(surface_bones.iter().copied().collect());
 
                 let data_rc = surface.data();
                 let mut data = data_rc.lock();

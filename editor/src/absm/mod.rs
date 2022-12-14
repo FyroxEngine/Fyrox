@@ -209,7 +209,7 @@ impl AbsmEditor {
             .query_component_mut::<AnimationBlendingStateMachine>()
             .unwrap();
 
-        *absm_node.machine_mut().get_mut_silent() = preview_data.machine;
+        *absm_node.machine_mut().get_value_mut_silent() = preview_data.machine;
 
         self.parameter_panel.sync_to_model(ui, absm_node);
     }
@@ -316,7 +316,7 @@ impl AbsmEditor {
             .try_get_mut(selection.absm_node_handle)
             .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
         {
-            let machine = absm.machine_mut().get_mut_silent();
+            let machine = absm.machine_mut().get_value_mut_silent();
 
             for layer in machine.layers_mut() {
                 while let Some(event) = layer.pop_event() {

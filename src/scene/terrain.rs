@@ -359,7 +359,7 @@ impl Terrain {
     /// for example iff a decal has index == 0 and a mesh has index == 0, then decals will
     /// be applied. This allows you to apply decals only on needed surfaces.
     pub fn set_decal_layer_index(&mut self, index: u8) -> u8 {
-        self.decal_layer_index.set(index)
+        self.decal_layer_index.set_value_and_mark_modified(index)
     }
 
     /// Returns current decal index.
@@ -411,7 +411,7 @@ impl Terrain {
 
                 for (chunk_index, chunk) in self.chunks.iter_mut().enumerate() {
                     let chunk_position = chunk.local_position();
-                    let layer = &mut self.layers.get_mut()[layer];
+                    let layer = &mut self.layers.get_value_mut_and_mark_modified()[layer];
                     let mut texture_data = layer.chunk_masks[chunk_index].data_ref();
                     let mut texture_data_mut = texture_data.modify();
 
@@ -557,7 +557,7 @@ impl Terrain {
 
     /// Sets new terrain layers.
     pub fn set_layers(&mut self, layers: Vec<Layer>) -> Vec<Layer> {
-        self.layers.set(layers)
+        self.layers.set_value_and_mark_modified(layers)
     }
 
     /// Returns a reference to a slice with layers of the terrain.
@@ -567,29 +567,31 @@ impl Terrain {
 
     /// Returns a mutable reference to a slice with layers of the terrain.
     pub fn layers_mut(&mut self) -> &mut [Layer] {
-        self.layers.get_mut()
+        self.layers.get_value_mut_and_mark_modified()
     }
 
     /// Adds new layer to the chunk. It is possible to have different layer count per chunk
     /// in the same terrain, however it seems to not have practical usage, so try to keep
     /// equal layer count per each chunk in your terrains.
     pub fn add_layer(&mut self, layer: Layer) {
-        self.layers.get_mut().push(layer);
+        self.layers.get_value_mut_and_mark_modified().push(layer);
     }
 
     /// Removes given layers from the terrain.
     pub fn remove_layer(&mut self, layer: usize) -> Layer {
-        self.layers.get_mut().remove(layer)
+        self.layers.get_value_mut_and_mark_modified().remove(layer)
     }
 
     /// Tries to remove last layer from the terrain.
     pub fn pop_layer(&mut self) -> Option<Layer> {
-        self.layers.get_mut().pop()
+        self.layers.get_value_mut_and_mark_modified().pop()
     }
 
     /// Inserts new layer at given position in the terrain.
     pub fn insert_layer(&mut self, layer: Layer, index: usize) {
-        self.layers.get_mut().insert(index, layer)
+        self.layers
+            .get_value_mut_and_mark_modified()
+            .insert(index, layer)
     }
 
     /// Creates new layer with given parameters, but does **not** add it to the terrain.

@@ -85,7 +85,7 @@ impl PointLight {
     /// light volume that is used in light scattering.
     #[inline]
     pub fn set_radius(&mut self, radius: f32) -> f32 {
-        self.radius.set(radius.abs())
+        self.radius.set_value_and_mark_modified(radius.abs())
     }
 
     /// Returns radius of point light.
@@ -97,7 +97,7 @@ impl PointLight {
     /// Sets new shadow bias value. Bias will be used to offset fragment's depth before
     /// compare it with shadow map value, it is used to remove "shadow acne".
     pub fn set_shadow_bias(&mut self, bias: f32) -> f32 {
-        self.shadow_bias.set(bias)
+        self.shadow_bias.set_value_and_mark_modified(bias)
     }
 
     /// Returns current value of shadow bias.

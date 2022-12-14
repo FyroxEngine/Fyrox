@@ -1025,19 +1025,19 @@ impl Visit for Surface {
             if self.data.visit("Data", &mut region).is_err() {
                 let mut old_data: Option<SurfaceSharedData> = None;
                 old_data.visit("Data", &mut region)?;
-                self.data.set_silent(old_data.unwrap());
+                self.data.set_value_silent(old_data.unwrap());
             }
 
             if self.material.visit("Material", &mut region).is_err() {
                 let mut old_material: SharedMaterial = Default::default();
                 old_material.visit("Material", &mut region)?;
-                self.material.set_silent(old_material);
+                self.material.set_value_silent(old_material);
             }
 
             if self.bones.visit("Bones", &mut region).is_err() {
                 let mut old_bones: Vec<Handle<Node>> = Default::default();
                 old_bones.visit("Bones", &mut region)?;
-                self.bones.set_silent(old_bones);
+                self.bones.set_value_silent(old_bones);
             }
         } else {
             self.data.visit("Data", &mut region)?;
@@ -1096,7 +1096,7 @@ impl Surface {
 
     /// Sets new material for the surface.
     pub fn set_material(&mut self, material: SharedMaterial) {
-        self.material.set(material);
+        self.material.set_value_and_mark_modified(material);
     }
 
     /// Returns list of bones that affects the surface.

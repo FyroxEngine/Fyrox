@@ -43,7 +43,7 @@ impl Default for AnimationBlendingStateMachine {
 
 impl AnimationBlendingStateMachine {
     pub fn set_machine(&mut self, machine: Machine) {
-        self.machine.set(machine);
+        self.machine.set_value_and_mark_modified(machine);
     }
 
     pub fn machine(&self) -> &InheritableVariable<Machine> {
@@ -55,7 +55,8 @@ impl AnimationBlendingStateMachine {
     }
 
     pub fn set_animation_player(&mut self, animation_player: Handle<Node>) {
-        self.animation_player.set(animation_player);
+        self.animation_player
+            .set_value_and_mark_modified(animation_player);
     }
 
     pub fn animation_player(&self) -> Handle<Node> {
@@ -123,7 +124,7 @@ impl NodeTrait for AnimationBlendingStateMachine {
 
                 let pose = self
                     .machine
-                    .get_mut_silent()
+                    .get_value_mut_silent()
                     .evaluate_pose(&animation_player.animations, context.dt);
 
                 pose.apply_internal(context.nodes);

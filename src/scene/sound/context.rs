@@ -247,8 +247,8 @@ impl SoundContext {
     pub(crate) fn sync_with_sound(&self, sound: &mut Sound) {
         if let Some(source) = self.native.state().try_get_source_mut(sound.native.get()) {
             // Sync back.
-            sound.status.set_silent(source.status());
-            sound.playback_time.set_silent(source.playback_time());
+            sound.status.set_value_silent(source.status());
+            sound.playback_time.set_value_silent(source.playback_time());
         }
     }
 
@@ -336,7 +336,7 @@ impl SoundContext {
 
     pub(crate) fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
         for effect in self.effects.iter_mut() {
-            for input in effect.inputs.get_mut_silent().iter_mut() {
+            for input in effect.inputs.get_value_mut_silent().iter_mut() {
                 old_new_mapping.try_map(&mut input.sound);
             }
         }

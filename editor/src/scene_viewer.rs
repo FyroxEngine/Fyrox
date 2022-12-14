@@ -612,7 +612,7 @@ impl SceneViewer {
                                                     {
                                                         for animation in animation_player
                                                             .animations_mut()
-                                                            .get_mut_silent()
+                                                            .get_value_mut_silent()
                                                             .iter_mut()
                                                         {
                                                             animation.set_enabled(false);

@@ -72,7 +72,7 @@ fn set_animation_enabled(scene: &mut Scene, enabled: bool) {
         if let Some(animation_player) = node.query_component_mut::<AnimationPlayer>() {
             for animation in animation_player
                 .animations_mut()
-                .get_mut_silent()
+                .get_value_mut_silent()
                 .iter_mut()
             {
                 animation.set_enabled(enabled);

@@ -190,7 +190,8 @@ impl Transform {
     #[inline]
     fn set_position_internal(&mut self, local_position: Vector3<f32>) -> Vector3<f32> {
         self.dirty.set(true);
-        self.local_position.set(local_position)
+        self.local_position
+            .set_value_and_mark_modified(local_position)
     }
 
     /// Returns current rotation quaternion of transform.
@@ -214,7 +215,8 @@ impl Transform {
         local_rotation: UnitQuaternion<f32>,
     ) -> UnitQuaternion<f32> {
         self.dirty.set(true);
-        self.local_rotation.set(local_rotation)
+        self.local_rotation
+            .set_value_and_mark_modified(local_rotation)
     }
 
     /// Returns current scale factor of transform.
@@ -235,7 +237,7 @@ impl Transform {
     #[inline]
     fn set_scale_internal(&mut self, local_scale: Vector3<f32>) -> Vector3<f32> {
         self.dirty.set(true);
-        self.local_scale.set(local_scale)
+        self.local_scale.set_value_and_mark_modified(local_scale)
     }
 
     /// Sets pre-rotation of transform. Usually pre-rotation can be used to change
@@ -255,7 +257,7 @@ impl Transform {
         pre_rotation: UnitQuaternion<f32>,
     ) -> UnitQuaternion<f32> {
         self.dirty.set(true);
-        self.pre_rotation.set(pre_rotation)
+        self.pre_rotation.set_value_and_mark_modified(pre_rotation)
     }
 
     /// Returns current pre-rotation of transform.
@@ -282,7 +284,8 @@ impl Transform {
     ) -> UnitQuaternion<f32> {
         self.post_rotation_matrix = build_post_rotation_matrix(post_rotation);
         self.dirty.set(true);
-        self.post_rotation.set(post_rotation)
+        self.post_rotation
+            .set_value_and_mark_modified(post_rotation)
     }
 
     /// Returns current post-rotation of transform.
@@ -304,7 +307,8 @@ impl Transform {
     #[inline]
     fn set_rotation_offset_internal(&mut self, rotation_offset: Vector3<f32>) -> Vector3<f32> {
         self.dirty.set(true);
-        self.rotation_offset.set(rotation_offset)
+        self.rotation_offset
+            .set_value_and_mark_modified(rotation_offset)
     }
 
     /// Returns current rotation offset of transform.
@@ -327,7 +331,8 @@ impl Transform {
     #[inline]
     fn set_rotation_pivot_internal(&mut self, rotation_pivot: Vector3<f32>) -> Vector3<f32> {
         self.dirty.set(true);
-        self.rotation_pivot.set(rotation_pivot)
+        self.rotation_pivot
+            .set_value_and_mark_modified(rotation_pivot)
     }
 
     /// Returns current rotation pivot of transform.
@@ -350,7 +355,8 @@ impl Transform {
     #[inline]
     fn set_scaling_offset_internal(&mut self, scaling_offset: Vector3<f32>) -> Vector3<f32> {
         self.dirty.set(true);
-        self.scaling_offset.set(scaling_offset)
+        self.scaling_offset
+            .set_value_and_mark_modified(scaling_offset)
     }
 
     /// Returns current scaling offset of transform.
@@ -373,7 +379,8 @@ impl Transform {
     #[inline]
     fn set_scaling_pivot_internal(&mut self, scaling_pivot: Vector3<f32>) -> Vector3<f32> {
         self.dirty.set(true);
-        self.scaling_pivot.set(scaling_pivot)
+        self.scaling_pivot
+            .set_value_and_mark_modified(scaling_pivot)
     }
 
     /// Returns current scaling pivot of transform.
@@ -386,7 +393,8 @@ impl Transform {
     /// set_position(position() + offset)
     #[inline]
     pub fn offset(&mut self, vec: Vector3<f32>) -> &mut Self {
-        self.local_position.set(*self.local_position + vec);
+        self.local_position
+            .set_value_and_mark_modified(*self.local_position + vec);
         self.dirty.set(true);
         self
     }

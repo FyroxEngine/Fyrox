@@ -159,7 +159,7 @@ impl Rectangle {
 
     /// Sets new texture for the rectangle.
     pub fn set_texture(&mut self, texture: Option<Texture>) -> Option<Texture> {
-        self.texture.set(texture)
+        self.texture.set_value_and_mark_modified(texture)
     }
 
     /// Returns current color of the rectangle.
@@ -169,7 +169,7 @@ impl Rectangle {
 
     /// Sets color of the rectangle.
     pub fn set_color(&mut self, color: Color) -> Color {
-        self.color.set(color)
+        self.color.set_value_and_mark_modified(color)
     }
 
     /// Returns a rectangle that defines the region in texture which will be rendered. The coordinates are normalized
@@ -188,7 +188,7 @@ impl Rectangle {
     ///
     /// The default value is `(0, 0, 1, 1)` rectangle which corresponds to entire texture.
     pub fn set_uv_rect(&mut self, uv_rect: Rect<f32>) -> Rect<f32> {
-        self.uv_rect.set(uv_rect)
+        self.uv_rect.set_value_and_mark_modified(uv_rect)
     }
 }
 

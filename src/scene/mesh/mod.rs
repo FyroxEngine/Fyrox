@@ -148,7 +148,7 @@ impl TypeUuidProvider for Mesh {
 impl Mesh {
     /// Sets surfaces for the mesh.
     pub fn set_surfaces(&mut self, surfaces: Vec<Surface>) -> Vec<Surface> {
-        self.surfaces.set(surfaces)
+        self.surfaces.set_value_and_mark_modified(surfaces)
     }
 
     /// Returns shared reference to array of surfaces.
@@ -161,26 +161,28 @@ impl Mesh {
     #[inline]
     pub fn surfaces_mut(&mut self) -> &mut [Surface] {
         self.local_bounding_box_dirty.set(true);
-        self.surfaces.get_mut_silent()
+        self.surfaces.get_value_mut_silent()
     }
 
     /// Removes all surfaces from mesh.
     #[inline]
     pub fn clear_surfaces(&mut self) {
-        self.surfaces.get_mut().clear();
+        self.surfaces.get_value_mut_and_mark_modified().clear();
         self.local_bounding_box_dirty.set(true);
     }
 
     /// Adds new surface into mesh, can be used to procedurally generate meshes.
     #[inline]
     pub fn add_surface(&mut self, surface: Surface) {
-        self.surfaces.get_mut().push(surface);
+        self.surfaces
+            .get_value_mut_and_mark_modified()
+            .push(surface);
         self.local_bounding_box_dirty.set(true);
     }
 
     /// Sets new render path for the mesh.
     pub fn set_render_path(&mut self, render_path: RenderPath) -> RenderPath {
-        self.render_path.set(render_path)
+        self.render_path.set_value_and_mark_modified(render_path)
     }
 
     /// Returns current render path of the mesh.
@@ -250,7 +252,7 @@ impl Mesh {
     /// for example iff a decal has index == 0 and a mesh has index == 0, then decals will
     /// be applied. This allows you to apply decals only on needed surfaces.
     pub fn set_decal_layer_index(&mut self, index: u8) -> u8 {
-        self.decal_layer_index.set(index)
+        self.decal_layer_index.set_value_and_mark_modified(index)
     }
 
     /// Returns current decal index.

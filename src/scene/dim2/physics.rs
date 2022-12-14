@@ -643,10 +643,10 @@ impl PhysicsWorld {
 
                     rigid_body
                         .lin_vel
-                        .set_with_flags(*native.linvel(), VariableFlags::MODIFIED);
+                        .set_value_with_flags(*native.linvel(), VariableFlags::MODIFIED);
                     rigid_body
                         .ang_vel
-                        .set_with_flags(native.angvel(), VariableFlags::MODIFIED);
+                        .set_value_with_flags(native.angvel(), VariableFlags::MODIFIED);
                     rigid_body.sleeping = native.is_sleeping();
                 }
             }

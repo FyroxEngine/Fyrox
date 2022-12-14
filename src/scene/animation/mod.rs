@@ -56,7 +56,7 @@ impl AnimationPlayer {
     }
 
     pub fn set_animations(&mut self, animations: AnimationContainer) {
-        self.animations.set(animations);
+        self.animations.set_value_and_mark_modified(animations);
     }
 }
 
@@ -100,7 +100,7 @@ impl NodeTrait for AnimationPlayer {
     }
 
     fn update(&mut self, context: &mut UpdateContext) -> bool {
-        self.animations.get_mut_silent().update_animations(
+        self.animations.get_value_mut_silent().update_animations(
             context.nodes,
             self.auto_apply,
             context.dt,

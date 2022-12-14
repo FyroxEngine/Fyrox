@@ -77,7 +77,7 @@ impl NodeHandleMap {
         inheritable_handle: &mut InheritableVariable<Handle<Node>>,
     ) -> bool {
         if let Some(new_handle) = self.map.get(inheritable_handle) {
-            inheritable_handle.set_silent(*new_handle);
+            inheritable_handle.set_value_silent(*new_handle);
             true
         } else {
             false

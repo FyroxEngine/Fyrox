@@ -297,7 +297,7 @@ where
         &mut self,
         inheritable_resource: &mut InheritableVariable<Option<T>>,
     ) {
-        if let Some(shallow_resource) = inheritable_resource.get_mut_silent().as_mut() {
+        if let Some(shallow_resource) = inheritable_resource.get_value_mut_silent().as_mut() {
             let new_resource = self.request(shallow_resource.state().path());
             *shallow_resource = new_resource;
         }

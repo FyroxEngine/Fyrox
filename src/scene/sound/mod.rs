@@ -165,7 +165,7 @@ impl Sound {
         &mut self,
         buffer: Option<SoundBufferResource>,
     ) -> Option<SoundBufferResource> {
-        self.buffer.set(buffer)
+        self.buffer.set_value_and_mark_modified(buffer)
     }
 
     /// Returns current buffer if any.
@@ -181,7 +181,7 @@ impl Sound {
     /// may result in panic if source already deleted. Looping sources will never be automatically deleted
     /// because their playback never stops.
     pub fn set_play_once(&mut self, play_once: bool) -> bool {
-        self.play_once.set(play_once)
+        self.play_once.set_value_and_mark_modified(play_once)
     }
 
     /// Returns true if this source is marked for single play, false - otherwise.
@@ -193,7 +193,8 @@ impl Sound {
     /// time. Set it to 0.0 to make the sound fully 2D and 1.0 to make it fully 3D. Middle values
     /// will make sound proportionally 2D and 3D at the same time.
     pub fn set_spatial_blend(&mut self, k: f32) -> f32 {
-        self.spatial_blend.set(k.clamp(0.0, 1.0))
+        self.spatial_blend
+            .set_value_and_mark_modified(k.clamp(0.0, 1.0))
     }
 
     /// Returns spatial blend factor.
@@ -209,7 +210,7 @@ impl Sound {
     /// Physical volume has non-linear scale (logarithmic) so perception of sound at 0.25 gain
     /// will be different if logarithmic scale was used.
     pub fn set_gain(&mut self, gain: f32) -> f32 {
-        self.gain.set(gain)
+        self.gain.set_value_and_mark_modified(gain)
     }
 
     /// Returns current gain (volume) of sound. Value is in 0..1 range.
@@ -220,7 +221,8 @@ impl Sound {
     /// Sets panning coefficient. Value must be in -1..+1 range. Where -1 - only left channel will be audible,
     /// 0 - both, +1 - only right.
     pub fn set_panning(&mut self, panning: f32) -> f32 {
-        self.panning.set(panning.max(-1.0).min(1.0))
+        self.panning
+            .set_value_and_mark_modified(panning.max(-1.0).min(1.0))
     }
 
     /// Returns current panning coefficient in -1..+1 range. For more info see `set_panning`. Default value is 0.
@@ -246,18 +248,18 @@ impl Sound {
 
     /// Changes status to `Playing`.
     pub fn play(&mut self) {
-        self.status.set(Status::Playing);
+        self.status.set_value_and_mark_modified(Status::Playing);
     }
 
     /// Changes status to `Paused`
     pub fn pause(&mut self) {
-        self.status.set(Status::Paused);
+        self.status.set_value_and_mark_modified(Status::Paused);
     }
 
     /// Enabled or disables sound looping. Looping sound will never stop by itself, but can be stopped or paused
     /// by calling `stop` or `pause` methods. Useful for music, ambient sounds, etc.
     pub fn set_looping(&mut self, looping: bool) -> bool {
-        self.looping.set(looping)
+        self.looping.set_value_and_mark_modified(looping)
     }
 
     /// Returns looping status.
@@ -267,7 +269,7 @@ impl Sound {
 
     /// Sets sound pitch. Defines "tone" of sounds. Default value is 1.0
     pub fn set_pitch(&mut self, pitch: f64) -> f64 {
-        self.pitch.set(pitch.abs())
+        self.pitch.set_value_and_mark_modified(pitch.abs())
     }
 
     /// Returns pitch of sound source.
@@ -277,7 +279,7 @@ impl Sound {
 
     /// Stops sound source. Automatically rewinds streaming buffers.
     pub fn stop(&mut self) {
-        self.status.set(Status::Stopped);
+        self.status.set_value_and_mark_modified(Status::Stopped);
     }
 
     /// Returns playback duration.
@@ -287,12 +289,12 @@ impl Sound {
 
     /// Sets playback duration.
     pub fn set_playback_time(&mut self, time: Duration) -> Duration {
-        self.playback_time.set(time)
+        self.playback_time.set_value_and_mark_modified(time)
     }
 
     /// Sets radius of imaginable sphere around source in which no distance attenuation is applied.
     pub fn set_radius(&mut self, radius: f32) -> f32 {
-        self.radius.set(radius)
+        self.radius.set_value_and_mark_modified(radius)
     }
 
     /// Returns radius of source.
@@ -304,7 +306,8 @@ impl Sound {
     /// in various distance models. It is applicable only for InverseDistance and ExponentDistance
     /// distance models. See DistanceModel docs for formulae.
     pub fn set_rolloff_factor(&mut self, rolloff_factor: f32) -> f32 {
-        self.rolloff_factor.set(rolloff_factor)
+        self.rolloff_factor
+            .set_value_and_mark_modified(rolloff_factor)
     }
 
     /// Returns rolloff factor.
@@ -317,7 +320,7 @@ impl Sound {
     /// From listener's perspective this will sound like source has stopped decreasing its volume even
     /// if distance continue to grow.
     pub fn set_max_distance(&mut self, max_distance: f32) -> f32 {
-        self.max_distance.set(max_distance)
+        self.max_distance.set_value_and_mark_modified(max_distance)
     }
 
     /// Returns max distance.

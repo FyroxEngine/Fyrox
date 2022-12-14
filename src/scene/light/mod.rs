@@ -105,7 +105,7 @@ impl BaseLight {
     /// Sets color of light, alpha component of color is ignored.
     #[inline]
     pub fn set_color(&mut self, color: Color) -> Color {
-        self.color.set(color)
+        self.color.set_value_and_mark_modified(color)
     }
 
     /// Returns current color of light source.
@@ -117,7 +117,7 @@ impl BaseLight {
     /// Enables or disables shadows for light source.
     #[inline]
     pub fn set_cast_shadows(&mut self, value: bool) -> bool {
-        self.cast_shadows.set(value)
+        self.cast_shadows.set_value_and_mark_modified(value)
     }
 
     /// Returns true if light is able to cast shadows, false - otherwise.
@@ -136,7 +136,7 @@ impl BaseLight {
     /// as if you light source would be in fog.
     #[inline]
     pub fn set_scatter(&mut self, f: Vector3<f32>) -> Vector3<f32> {
-        self.scatter.set(f)
+        self.scatter.set_value_and_mark_modified(f)
     }
 
     /// Returns current scatter factor.
@@ -151,7 +151,7 @@ impl BaseLight {
     /// can be represented as directional light source with very high intensity.
     /// Other lights, however, will remain relatively dim.
     pub fn set_intensity(&mut self, intensity: f32) -> f32 {
-        self.intensity.set(intensity)
+        self.intensity.set_value_and_mark_modified(intensity)
     }
 
     /// Returns current intensity of the light.
@@ -168,7 +168,7 @@ impl BaseLight {
     /// Enables or disables light scattering.
     #[inline]
     pub fn enable_scatter(&mut self, state: bool) -> bool {
-        self.scatter_enabled.set(state)
+        self.scatter_enabled.set_value_and_mark_modified(state)
     }
 
     /// Returns true if light scattering is enabled, false - otherwise.

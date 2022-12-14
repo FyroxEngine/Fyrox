@@ -419,7 +419,7 @@ impl Base {
     }
 
     fn set_name_internal(&mut self, name: String) -> String {
-        self.name.set(name)
+        self.name.set_value_and_mark_modified(name)
     }
 
     /// Returns name of node.
@@ -471,7 +471,10 @@ impl Base {
     /// Sets a new set of properties of the node.
     #[inline]
     pub fn set_properties(&mut self, properties: Vec<Property>) -> Vec<Property> {
-        std::mem::replace(self.properties.get_mut(), properties)
+        std::mem::replace(
+            self.properties.get_value_mut_and_mark_modified(),
+            properties,
+        )
     }
 
     /// Sets lifetime of node in seconds, lifetime is useful for temporary objects.
@@ -485,7 +488,7 @@ impl Base {
     /// or deallocation of node takes very little amount of time.
     #[inline]
     pub fn set_lifetime(&mut self, time_seconds: Option<f32>) -> &mut Self {
-        self.lifetime.set(time_seconds);
+        self.lifetime.set_value_and_mark_modified(time_seconds);
         self
     }
 
@@ -540,7 +543,7 @@ impl Base {
     /// Sets local visibility of a node.
     #[inline]
     pub fn set_visibility(&mut self, visibility: bool) -> bool {
-        self.visibility.set(visibility)
+        self.visibility.set_value_and_mark_modified(visibility)
     }
 
     /// Returns local visibility of a node.
@@ -569,7 +572,7 @@ impl Base {
     /// rendering (dynamic + static lights (lightmaps))
     #[inline]
     pub fn set_mobility(&mut self, mobility: Mobility) -> Mobility {
-        self.mobility.set(mobility)
+        self.mobility.set_value_and_mark_modified(mobility)
     }
 
     /// Return current mobility of the node.
@@ -633,7 +636,8 @@ impl Base {
     /// further perspective divide. We can abuse this to shift z of fragment by some value.
     #[inline]
     pub fn set_depth_offset_factor(&mut self, factor: f32) -> f32 {
-        self.depth_offset.set(factor.abs().min(1.0).max(0.0))
+        self.depth_offset
+            .set_value_and_mark_modified(factor.abs().min(1.0).max(0.0))
     }
 
     /// Returns depth offset factor.
@@ -645,13 +649,13 @@ impl Base {
     /// Sets new lod group.
     #[inline]
     pub fn set_lod_group(&mut self, lod_group: Option<LodGroup>) -> Option<LodGroup> {
-        std::mem::replace(self.lod_group.get_mut(), lod_group)
+        std::mem::replace(self.lod_group.get_value_mut_and_mark_modified(), lod_group)
     }
 
     /// Extracts lod group, leaving None in the node.
     #[inline]
     pub fn take_lod_group(&mut self) -> Option<LodGroup> {
-        std::mem::take(self.lod_group.get_mut())
+        std::mem::take(self.lod_group.get_value_mut_and_mark_modified())
     }
 
     /// Returns shared reference to current lod group.
@@ -663,7 +667,7 @@ impl Base {
     /// Returns mutable reference to current lod group.
     #[inline]
     pub fn lod_group_mut(&mut self) -> Option<&mut LodGroup> {
-        self.lod_group.get_mut().as_mut()
+        self.lod_group.get_value_mut_and_mark_modified().as_mut()
     }
 
     /// Returns node tag.
@@ -681,7 +685,7 @@ impl Base {
     /// Sets new tag.
     #[inline]
     pub fn set_tag(&mut self, tag: String) -> String {
-        self.tag.set(tag)
+        self.tag.set_value_and_mark_modified(tag)
     }
 
     /// Return the frustum_culling flag
@@ -693,7 +697,8 @@ impl Base {
     /// Sets whether to use frustum culling or not
     #[inline]
     pub fn set_frustum_culling(&mut self, frustum_culling: bool) -> bool {
-        self.frustum_culling.set(frustum_culling)
+        self.frustum_culling
+            .set_value_and_mark_modified(frustum_culling)
     }
 
     /// Returns true if the node should cast shadows, false - otherwise.
@@ -705,7 +710,7 @@ impl Base {
     /// Sets whether the mesh should cast shadows or not.
     #[inline]
     pub fn set_cast_shadows(&mut self, cast_shadows: bool) -> bool {
-        self.cast_shadows.set(cast_shadows)
+        self.cast_shadows.set_value_and_mark_modified(cast_shadows)
     }
 
     /// Sets instance id of the node. See [`InstanceId`] for more info.
@@ -813,7 +818,7 @@ impl Base {
 
     /// Updates node lifetime and returns true if the node is still alive, false - otherwise.
     pub(crate) fn update_lifetime(&mut self, dt: f32) -> bool {
-        if let Some(lifetime) = self.lifetime.get_mut_silent().as_mut() {
+        if let Some(lifetime) = self.lifetime.get_value_mut_silent().as_mut() {
             *lifetime -= dt;
             *lifetime >= 0.0
         } else {
