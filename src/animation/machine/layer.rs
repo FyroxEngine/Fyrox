@@ -380,7 +380,7 @@ impl MachineLayer {
                                     MessageKind::Information,
                                     format!(
                                         "Leaving state: {}",
-                                        self.states[self.active_state].name()
+                                        self.states[self.active_state].name
                                     ),
                                 );
                             }
@@ -391,7 +391,7 @@ impl MachineLayer {
                                     MessageKind::Information,
                                     format!(
                                         "Entering state: {}",
-                                        self.states[transition.source()].name()
+                                        self.states[transition.source()].name
                                     ),
                                 );
                             }
@@ -440,7 +440,7 @@ impl MachineLayer {
                             MessageKind::Information,
                             format!(
                                 "Active state changed: {}",
-                                self.states[self.active_state].name()
+                                self.states[self.active_state].name
                             ),
                         );
                     }
