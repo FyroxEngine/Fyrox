@@ -39,6 +39,17 @@ pub struct AnimationSignal {
     pub enabled: bool,
 }
 
+impl AnimationSignal {
+    pub fn new(id: Uuid, name: &str, time: f32) -> Self {
+        Self {
+            id,
+            name: name.to_owned(),
+            time,
+            enabled: true,
+        }
+    }
+}
+
 impl Default for AnimationSignal {
     fn default() -> Self {
         Self {
