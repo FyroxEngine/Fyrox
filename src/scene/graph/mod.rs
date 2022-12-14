@@ -303,9 +303,27 @@ impl Graph {
         self.pool.try_borrow(handle)
     }
 
+    /// Tries to borrow a node and fetch its component of specified type.
+    pub fn try_get_of_type<T>(&self, handle: Handle<Node>) -> Option<&T>
+    where
+        T: 'static,
+    {
+        self.try_get(handle)
+            .and_then(|n| n.query_component_ref::<T>())
+    }
+
     /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
     pub fn try_get_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
         self.pool.try_borrow_mut(handle)
+    }
+
+    /// Tries to mutably borrow a node and fetch its component of specified type.
+    pub fn try_get_mut_of_type<T>(&mut self, handle: Handle<Node>) -> Option<&mut T>
+    where
+        T: 'static,
+    {
+        self.try_get_mut(handle)
+            .and_then(|n| n.query_component_mut::<T>())
     }
 
     /// Begins multi-borrow that allows you to as many (`N`) **unique** references to the graph
