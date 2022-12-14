@@ -1,7 +1,5 @@
 //! State is a final "container" for animation pose. See [`State`] docs for more info.
 
-#![warn(missing_docs)]
-
 use crate::{
     animation::{
         machine::{EvaluatePose, ParameterContainer, PoseNode},

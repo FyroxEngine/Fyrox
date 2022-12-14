@@ -1,8 +1,6 @@
 //! Layer mask is a sort of blacklist that prevents layer from animating certain nodes. See [`LayerMask`] docs
 //! for more info.
 
-#![warn(missing_docs)]
-
 use crate::{
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     scene::node::Node,

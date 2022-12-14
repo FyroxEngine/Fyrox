@@ -3,6 +3,8 @@
 //! Machine is used to blend multiple animation as well as perform automatic "smooth transition
 //! between states. See [`Machine`] docs for more info and examples.
 
+#![warn(missing_docs)]
+
 use crate::{
     animation::{AnimationContainer, AnimationPose},
     core::{
@@ -48,6 +50,7 @@ pub mod transition;
 /// `Parameter` - is a named variable of a fixed type (see `Parameters` section for more info).
 /// `Layer` - is a separate state graph, there could be any number of layers - each with its own mask.
 /// `Mask` - a set of handles to nodes which will be excluded from animation on a layer.
+/// `Pose` - a final result of blending multiple animation into one.
 ///
 /// Summarizing everything of this, we can describe animation blending state machine as a state graph, where each state has its
 /// own sub-graph (tree) that provides animation for blending. States can be connected via transitions.

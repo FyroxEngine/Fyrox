@@ -1,3 +1,5 @@
+//! Various animation blending nodes.
+
 use crate::{
     animation::{
         machine::{
@@ -16,10 +18,14 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-/// Weighted proxy for animation pose.
+/// Weighted proxy for animation pose. It has an input pose source and a weight, that tells in which proportion
+/// the pose should be blended into final pose.
 #[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct BlendPose {
+    /// Weight of the pose.
     pub weight: PoseWeight,
+
+    /// A source of animation pose.
     #[reflect(hidden)]
     pub pose_source: Handle<PoseNode>,
 }
@@ -52,19 +58,22 @@ impl BlendPose {
     }
 }
 
-/// Animation blend node. It takes multiple input poses and mixes them together into
-/// single pose with specified weights. Could be used to mix hit and run animations
-/// for example - once your character got hit, you set some significant weight for
-/// hit animation (0.8 for example) and lower weight for run animation (0.2) and it
-/// will look like your character got wounded while it still running (probably you
-/// should decrease speed here too). Weights can be parametrized, which means that
-/// you can dynamically change them in runtime. In our example we can decrease weight
-/// of hit animation over time and increase weight of run animation, so character will
-/// recover from his wounds.
+/// Animation blend node. It takes multiple input poses and mixes them together into single pose with specified
+/// weights. Could be used to mix hit and run animations for example - once your character got hit, you set some
+/// significant weight for hit animation (0.8 for example) and lower weight for run animation (0.2) and it will
+/// look like your character got wounded while it still running (probably you should decrease speed here too).
+/// Weights can be parametrized, which means that you can dynamically change them in runtime. In our example we
+/// can decrease weight of hit animation over time and increase weight of run animation, so character will recover
+/// from his wounds.
 #[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct BlendAnimations {
+    /// Base node.
     pub base: BasePoseNode,
+
+    /// A list of pose sources. See [`BlendPose`] docs for more info.
     pub pose_sources: Vec<BlendPose>,
+
+    /// Output pose of the node, contains final result of blending all input poses.
     #[visit(skip)]
     #[reflect(hidden)]
     pub output_pose: RefCell<AnimationPose>,
@@ -94,6 +103,7 @@ impl BlendAnimations {
         }
     }
 
+    /// Returns a set of handles to children pose nodes.
     pub fn children(&self) -> Vec<Handle<PoseNode>> {
         self.pose_sources.iter().map(|s| s.pose_source).collect()
     }
@@ -137,20 +147,46 @@ impl EvaluatePose for BlendAnimations {
     }
 }
 
+/// An animation pose with specific blend time. Blend time tells the engine how many time it should use to perform
+/// blending to this pose.
 #[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct IndexedBlendInput {
+    /// Blend time tells the engine how many time it should use to perform blending to this pose.
     pub blend_time: f32,
+
+    /// A handle to pose node source.
     #[reflect(hidden)]
     pub pose_source: Handle<PoseNode>,
 }
 
+/// A node that switches between given animations using index and smoothly blends from one animation to another
+/// while switching. It is very useful for situations when you need to switch between different animations. For
+/// example you could have an `aim` state, it is suitable for any weapon (you don't need to create a ton of states
+/// like `aim_rifle`, `aim_pistol`, etc), but actual weapon holding animation should be different based on actual
+/// weapon a character is holding. In this case you create a BlendAnimationsByIndex node, add a few inputs where
+/// each input uses different weapon holding animation and in your game all you need to do is to set an index
+/// parameter in the machine parameters. The node will automatically perform smooth transition between different
+/// animations.
 #[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct BlendAnimationsByIndex {
+    /// Base node.
     pub base: BasePoseNode,
+
+    /// A name of index parameter that will be used to switch between input poses.
     pub index_parameter: String,
+
+    /// A set of input poses.
     pub inputs: Vec<IndexedBlendInput>,
+
+    /// Index of a previously active input pose.
+    #[reflect(hidden)]
     pub prev_index: Cell<Option<u32>>,
+
+    /// Current blend time.
+    #[reflect(hidden)]
     pub blend_time: Cell<f32>,
+
+    /// Output pose of the node.
     #[visit(skip)]
     #[reflect(hidden)]
     pub output_pose: RefCell<AnimationPose>,
@@ -171,6 +207,7 @@ impl DerefMut for BlendAnimationsByIndex {
 }
 
 impl BlendAnimationsByIndex {
+    /// Creates new [`BlendAnimationsByIndex`] node using given index parameter name and a set of inputs.
     pub fn new(index_parameter: String, inputs: Vec<IndexedBlendInput>) -> Self {
         Self {
             base: Default::default(),
@@ -182,6 +219,7 @@ impl BlendAnimationsByIndex {
         }
     }
 
+    /// Return a set of handle of children nodes.
     pub fn children(&self) -> Vec<Handle<PoseNode>> {
         self.inputs.iter().map(|s| s.pose_source).collect()
     }

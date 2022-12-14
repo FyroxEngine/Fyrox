@@ -17,9 +17,8 @@ use crate::{
 use fyrox::{
     animation::{
         machine::{
-            node::{play::TimeSlice, BasePoseNode},
-            BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, Machine,
-            PlayAnimation, PoseWeight,
+            node::BasePoseNode, BlendAnimations, BlendAnimationsByIndex, BlendPose,
+            IndexedBlendInput, Machine, PlayAnimation, PoseWeight,
         },
         AnimationContainer,
     },
@@ -294,9 +293,6 @@ pub fn make_property_editors_container(
     container.insert(VecCollectionPropertyEditorDefinition::<BlendPose>::new());
     container.insert(EnumPropertyEditorDefinition::<PoseWeight>::new());
     container.insert(InspectablePropertyEditorDefinition::<PoseWeight>::new());
-    container.insert(InspectablePropertyEditorDefinition::<TimeSlice>::new());
-    container.insert(EnumPropertyEditorDefinition::<TimeSlice>::new_optional());
-    container.insert(InspectablePropertyEditorDefinition::<TimeSlice>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimationsByIndex>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimations>::new());
     container.insert(InspectablePropertyEditorDefinition::<PlayAnimation>::new());

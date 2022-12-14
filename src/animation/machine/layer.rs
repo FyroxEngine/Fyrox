@@ -1,8 +1,6 @@
 //! Layer is a separate state graph that usually animates only a part of nodes from animations. See docs of [`MachineLayer`]
 //! for more info.
 
-#![warn(missing_docs)]
-
 use crate::{
     animation::{
         machine::{

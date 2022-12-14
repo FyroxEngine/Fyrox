@@ -1,8 +1,6 @@
 //! State machine could produces a fixed set of events during its work, this module contains all the stuff
 //! needed to works with such events.
 
-#![warn(missing_docs)]
-
 use crate::{
     animation::machine::{State, Transition},
     core::pool::Handle,

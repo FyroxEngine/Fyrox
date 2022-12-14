@@ -1,3 +1,5 @@
+//! A simplest pose node that extracts pose from a specific animation and prepares it for further use.
+
 use crate::{
     animation::{
         machine::{
@@ -12,17 +14,24 @@ use crate::{
         visitor::prelude::*,
     },
 };
-use std::ops::Range;
 use std::{
     cell::{Ref, RefCell},
     ops::{Deref, DerefMut},
 };
 
-/// Machine node that plays specified animation.
+/// A simplest pose node that extracts pose from a specific animation and prepares it for further use.
+/// Animation handle should point to an animation in some animation container see [`AnimationContainer`] docs
+/// for more info.
 #[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct PlayAnimation {
+    /// Base node.
     pub base: BasePoseNode,
+
+    /// A handle to animation.
     pub animation: Handle<Animation>,
+
+    /// Output pose, it contains a filtered (see [`crate::animation::machine::LayerMask`] for more info) pose from
+    /// the animation specified by the `animation` field.
     #[visit(skip)]
     #[reflect(hidden)]
     pub output_pose: RefCell<AnimationPose>,
@@ -41,9 +50,6 @@ impl DerefMut for PlayAnimation {
         &mut self.base
     }
 }
-
-#[derive(Default, Debug, Visit, Clone, Reflect)]
-pub struct TimeSlice(pub Range<f32>);
 
 impl PlayAnimation {
     /// Creates new PlayAnimation node with given animation handle.
