@@ -205,30 +205,50 @@ impl Model {
 
     /// Tries to retarget animations from given model resource to a node hierarchy starting
     /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
+    /// adds retargetted animations to the specified animation player in the hierarchy of given `root`.
+    ///
+    /// # Panic
+    ///
+    /// Panics if `dest_animation_player` is invalid handle, or the node does not have [`AnimationPlayer`]
+    /// component.
+    pub fn retarget_animations_to_player(
+        &self,
+        root: Handle<Node>,
+        dest_animation_player: Handle<Node>,
+        graph: &mut Graph,
+    ) -> Vec<Handle<Animation>> {
+        let mut animation_handles = Vec::new();
+
+        let animations = self.retarget_animations_directly(root, graph);
+
+        let dest_animation_player = graph[dest_animation_player]
+            .query_component_mut::<AnimationPlayer>()
+            .unwrap();
+
+        for animation in animations {
+            animation_handles.push(dest_animation_player.animations_mut().add(animation));
+        }
+
+        animation_handles
+    }
+
+    /// Tries to retarget animations from given model resource to a node hierarchy starting
+    /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
     /// adds retargetted animations to a first animation player in the hierarchy of given `root`.
+    ///
+    /// # Panic
+    ///
+    /// Panics if there's no animation player in the given hierarchy (descendant nodes of `root`).
     pub fn retarget_animations(
         &self,
         root: Handle<Node>,
         graph: &mut Graph,
     ) -> Vec<Handle<Animation>> {
-        let mut animation_handles = Vec::new();
-
         let animation_player = graph.find(root, &mut |n| {
             n.query_component_ref::<AnimationPlayer>().is_some()
         });
 
-        let animations = self.retarget_animations_directly(root, graph);
-
-        if let Some(dest_animation_player) = graph
-            .try_get_mut(animation_player)
-            .and_then(|p| p.query_component_mut::<AnimationPlayer>())
-        {
-            for animation in animations {
-                animation_handles.push(dest_animation_player.animations_mut().add(animation));
-            }
-        }
-
-        animation_handles
+        self.retarget_animations_to_player(root, animation_player, graph)
     }
 }
 
