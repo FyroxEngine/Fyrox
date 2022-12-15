@@ -411,6 +411,13 @@ define_animation_swap_command!(SetAnimationNameCommand<String>(self, context) {
     self.value = old_name;
 });
 
+define_animation_swap_command!(SetAnimationLoopingCommand<bool>(self, context) {
+    let animation = fetch_animation(self.node_handle, self.animation_handle, context);
+    let old = animation.is_loop();
+    animation.set_loop(self.value);
+    self.value = old;
+});
+
 #[derive(Debug)]
 pub struct AddAnimationSignal {
     pub animation_player_handle: Handle<Node>,

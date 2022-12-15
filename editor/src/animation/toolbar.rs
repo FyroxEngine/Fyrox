@@ -1,8 +1,8 @@
 use crate::{
     animation::{
         command::{
-            AddAnimationCommand, RemoveAnimationCommand, SetAnimationNameCommand,
-            SetAnimationSpeedCommand, SetAnimationTimeSliceCommand,
+            AddAnimationCommand, RemoveAnimationCommand, SetAnimationLoopingCommand,
+            SetAnimationNameCommand, SetAnimationSpeedCommand, SetAnimationTimeSliceCommand,
         },
         selection::AnimationSelection,
     },
@@ -61,6 +61,7 @@ pub struct Toolbar {
     pub node_selector: Handle<UiNode>,
     pub file_selector: Handle<UiNode>,
     pub selected_import_root: Handle<Node>,
+    pub looping: Handle<UiNode>,
 }
 
 #[must_use]
@@ -88,6 +89,7 @@ impl Toolbar {
         let time_slice_start;
         let time_slice_end;
         let import;
+        let looping;
         let panel = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
@@ -232,6 +234,26 @@ impl Toolbar {
                                 )
                                 .build(ctx);
                                 clone_current_animation
+                            })
+                            .with_child({
+                                looping = CheckBoxBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(make_simple_tooltip(
+                                        ctx,
+                                        "Animation looping. Looped animation will play infinitely.",
+                                    )),
+                                )
+                                .with_content(
+                                    TextBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_vertical_alignment(VerticalAlignment::Center),
+                                    )
+                                    .with_text("Loop")
+                                    .build(ctx),
+                                )
+                                .build(ctx);
+                                looping
                             })
                             .with_child(
                                 ImageBuilder::new(
@@ -436,6 +458,7 @@ impl Toolbar {
             node_selector,
             file_selector,
             selected_import_root: Default::default(),
+            looping,
         }
     }
 
@@ -542,14 +565,22 @@ impl Toolbar {
                 }
             }
         } else if let Some(CheckBoxMessage::Check(Some(checked))) = message.data() {
-            if message.destination() == self.preview
-                && message.direction() == MessageDirection::FromWidget
-            {
-                return if *checked {
-                    ToolbarAction::EnterPreviewMode
-                } else {
-                    ToolbarAction::LeavePreviewMode
-                };
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.preview {
+                    return if *checked {
+                        ToolbarAction::EnterPreviewMode
+                    } else {
+                        ToolbarAction::LeavePreviewMode
+                    };
+                } else if message.destination() == self.looping {
+                    sender
+                        .send(Message::do_scene_command(SetAnimationLoopingCommand {
+                            node_handle: animation_player_handle,
+                            animation_handle: selection.animation,
+                            value: *checked,
+                        }))
+                        .unwrap();
+                }
             }
         } else if let Some(NumericUpDownMessage::<f32>::Value(value)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
@@ -787,6 +818,15 @@ impl Toolbar {
                     animation.speed(),
                 ),
             );
+
+            send_sync_message(
+                ui,
+                CheckBoxMessage::checked(
+                    self.looping,
+                    MessageDirection::ToWidget,
+                    Some(animation.is_loop()),
+                ),
+            );
         }
 
         for widget in [
@@ -797,6 +837,7 @@ impl Toolbar {
             self.time_slice_start,
             self.time_slice_end,
             self.clone_current_animation,
+            self.looping,
         ] {
             send_sync_message(
                 ui,
