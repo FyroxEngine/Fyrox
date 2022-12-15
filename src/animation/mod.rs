@@ -311,6 +311,18 @@ impl Animation {
         self.events.pop_front()
     }
 
+    pub fn events_ref(&self) -> &VecDeque<AnimationEvent> {
+        &self.events
+    }
+
+    pub fn events_mut(&mut self) -> &mut VecDeque<AnimationEvent> {
+        &mut self.events
+    }
+
+    pub fn events(&self) -> VecDeque<AnimationEvent> {
+        self.events.clone()
+    }
+
     pub fn time_position(&self) -> f32 {
         self.time_position
     }
