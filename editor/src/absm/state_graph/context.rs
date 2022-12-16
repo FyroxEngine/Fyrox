@@ -156,63 +156,63 @@ impl NodeContextMenu {
                     },
                 ))
             } else if message.destination == self.remove {
-                let states_to_remove =
-                    if let Selection::Absm(ref selection) = editor_scene.selection {
-                        selection
-                            .entities
-                            .iter()
-                            .cloned()
-                            .filter_map(|e| {
-                                if let SelectedEntity::State(handle) = e {
-                                    Some(handle)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                    } else {
-                        Default::default()
-                    };
+                if let Selection::Absm(ref selection) = editor_scene.selection {
+                    let states_to_remove = selection
+                        .entities
+                        .iter()
+                        .cloned()
+                        .filter_map(|e| {
+                            if let SelectedEntity::State(handle) = e {
+                                Some(handle)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
 
-                // Gather every transition that leads from/to any of states to remove.
-                let transitions_to_remove = machine.layers()[layer_index]
-                    .transitions()
-                    .pair_iter()
-                    .filter_map(|(handle, transition)| {
-                        if states_to_remove.iter().cloned().any(|state_to_remove| {
-                            state_to_remove == transition.source()
-                                || state_to_remove == transition.dest()
-                        }) {
-                            Some(handle)
-                        } else {
-                            None
-                        }
-                    });
+                    // Gather every transition that leads from/to any of states to remove.
+                    let transitions_to_remove = machine.layers()[layer_index]
+                        .transitions()
+                        .pair_iter()
+                        .filter_map(|(handle, transition)| {
+                            if states_to_remove.iter().cloned().any(|state_to_remove| {
+                                state_to_remove == transition.source()
+                                    || state_to_remove == transition.dest()
+                            }) {
+                                Some(handle)
+                            } else {
+                                None
+                            }
+                        });
 
-                let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
-                    Default::default(),
-                    editor_scene.selection.clone(),
-                ))];
+                    let mut new_selection = selection.clone();
+                    new_selection.entities.clear();
 
-                group.extend(transitions_to_remove.map(|transition| {
-                    SceneCommand::new(DeleteTransitionCommand::new(
-                        absm_node_handle,
-                        layer_index,
-                        transition,
-                    ))
-                }));
+                    let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
+                        Selection::Absm(new_selection),
+                        editor_scene.selection.clone(),
+                    ))];
 
-                group.extend(states_to_remove.into_iter().map(|state| {
-                    SceneCommand::new(DeleteStateCommand::new(
-                        absm_node_handle,
-                        layer_index,
-                        state,
-                    ))
-                }));
+                    group.extend(transitions_to_remove.map(|transition| {
+                        SceneCommand::new(DeleteTransitionCommand::new(
+                            absm_node_handle,
+                            layer_index,
+                            transition,
+                        ))
+                    }));
 
-                sender
-                    .send(Message::do_scene_command(CommandGroup::from(group)))
-                    .unwrap();
+                    group.extend(states_to_remove.into_iter().map(|state| {
+                        SceneCommand::new(DeleteStateCommand::new(
+                            absm_node_handle,
+                            layer_index,
+                            state,
+                        ))
+                    }));
+
+                    sender
+                        .send(Message::do_scene_command(CommandGroup::from(group)))
+                        .unwrap();
+                }
             } else if message.destination() == self.set_as_entry_state {
                 sender
                     .send(Message::do_scene_command(SetMachineEntryStateCommand {
@@ -271,26 +271,31 @@ impl TransitionContextMenu {
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination == self.remove {
-                let transition_ref = ui
-                    .node(self.placement_target)
-                    .query_component::<TransitionView>()
-                    .unwrap();
+                if let Selection::Absm(ref selection) = editor_scene.selection {
+                    let mut new_selection = selection.clone();
+                    new_selection.entities.clear();
 
-                let group = vec![
-                    SceneCommand::new(ChangeSelectionCommand::new(
-                        Default::default(),
-                        editor_scene.selection.clone(),
-                    )),
-                    SceneCommand::new(DeleteTransitionCommand::new(
-                        absm_node_handle,
-                        layer_index,
-                        transition_ref.model_handle,
-                    )),
-                ];
+                    let transition_ref = ui
+                        .node(self.placement_target)
+                        .query_component::<TransitionView>()
+                        .unwrap();
 
-                sender
-                    .send(Message::do_scene_command(CommandGroup::from(group)))
-                    .unwrap();
+                    let group = vec![
+                        SceneCommand::new(ChangeSelectionCommand::new(
+                            Selection::Absm(new_selection),
+                            editor_scene.selection.clone(),
+                        )),
+                        SceneCommand::new(DeleteTransitionCommand::new(
+                            absm_node_handle,
+                            layer_index,
+                            transition_ref.model_handle,
+                        )),
+                    ];
+
+                    sender
+                        .send(Message::do_scene_command(CommandGroup::from(group)))
+                        .unwrap();
+                }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu {
