@@ -28,6 +28,5 @@ jobs:
       - run: cargo audit --version
       # RUSTSEC-2020-0097: xcb - Soundness issue with base::Error
       # RUSTSEC-2022-0048: xml-rs is Unmaintained
-      # RUSTSEC-2021-0145: atty is Unmaintained
       # For more info: https://github.com/FyroxEngine/Fyrox/issues/208
-      - run: cargo audit --deny warnings --ignore RUSTSEC-2020-0097 --ignore RUSTSEC-2022-0048 --ignore RUSTSEC-2021-0145
+      - run: cargo audit --deny warnings --ignore RUSTSEC-2020-0097 --ignore RUSTSEC-2022-0048
