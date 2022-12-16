@@ -292,7 +292,6 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<BlendPose>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<BlendPose>::new());
     container.insert(EnumPropertyEditorDefinition::<PoseWeight>::new());
-    container.insert(InspectablePropertyEditorDefinition::<PoseWeight>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimationsByIndex>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimations>::new());
     container.insert(InspectablePropertyEditorDefinition::<PlayAnimation>::new());
