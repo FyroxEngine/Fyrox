@@ -195,12 +195,15 @@ impl NodeContextMenu {
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.remove {
-                let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
-                    Default::default(),
-                    editor_scene.selection.clone(),
-                ))];
-
                 if let Selection::Absm(ref selection) = editor_scene.selection {
+                    let mut new_selection = selection.clone();
+                    new_selection.entities.clear();
+
+                    let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
+                        Selection::Absm(new_selection),
+                        editor_scene.selection.clone(),
+                    ))];
+
                     group.extend(selection.entities.iter().filter_map(|entry| {
                         if let SelectedEntity::PoseNode(pose_node) = entry {
                             Some(SceneCommand::new(DeletePoseNodeCommand::new(
@@ -212,11 +215,11 @@ impl NodeContextMenu {
                             None
                         }
                     }));
-                }
 
-                sender
-                    .send(Message::do_scene_command(CommandGroup::from(group)))
-                    .unwrap();
+                    sender
+                        .send(Message::do_scene_command(CommandGroup::from(group)))
+                        .unwrap();
+                }
             } else if message.destination() == self.set_as_root {
                 let root = ui
                     .node(self.placement_target)
