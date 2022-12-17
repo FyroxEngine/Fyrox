@@ -1,23 +1,28 @@
-use crate::absm::command::blend::SetBlendAnimationsPoseSourceCommand;
-use crate::absm::selection::{AbsmSelection, SelectedEntity};
-use crate::scene::commands::{ChangeSelectionCommand, CommandGroup, SceneCommand};
-use crate::scene::{EditorScene, Selection};
+use crate::absm::fetch_selection;
 use crate::{
     absm::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
-        command::{blend::SetBlendAnimationByIndexInputPoseSourceCommand, MovePoseNodeCommand},
+        command::{
+            blend::{
+                SetBlendAnimationByIndexInputPoseSourceCommand, SetBlendAnimationsPoseSourceCommand,
+            },
+            MovePoseNodeCommand,
+        },
         connection::{Connection, ConnectionBuilder},
         node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
+        selection::{AbsmSelection, SelectedEntity},
         socket::{Socket, SocketBuilder, SocketDirection},
         state_viewer::context::{CanvasContextMenu, ConnectionContextMenu, NodeContextMenu},
         NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND, SELECTED_ROOT_COLOR,
     },
+    scene::{
+        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        EditorScene, Selection,
+    },
     send_sync_message, Message,
 };
-use fyrox::animation::machine::{MachineLayer, PoseNode, State};
-use fyrox::scene::animation::absm::AnimationBlendingStateMachine;
-use fyrox::scene::node::Node;
 use fyrox::{
+    animation::machine::{MachineLayer, PoseNode, State},
     core::pool::Handle,
     gui::{
         border::BorderBuilder,
@@ -26,9 +31,9 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
+    scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
 };
-use std::cmp::Ordering;
-use std::sync::mpsc::Sender;
+use std::{cmp::Ordering, sync::mpsc::Sender};
 
 mod context;
 
@@ -39,6 +44,7 @@ pub struct StateViewer {
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,
     connection_context_menu: ConnectionContextMenu,
+    last_selection: AbsmSelection,
 }
 
 fn create_socket(
@@ -117,6 +123,7 @@ impl StateViewer {
             canvas_context_menu,
             node_context_menu,
             connection_context_menu,
+            last_selection: AbsmSelection::default(),
         }
     }
 
@@ -332,31 +339,45 @@ impl StateViewer {
         editor_scene: &EditorScene,
     ) {
         if let Some(parent_state_ref) = machine_layer.states().try_borrow(self.state) {
-            let mut views = ui
-                .node(self.canvas)
-                .children()
-                .iter()
-                .cloned()
-                .filter(|h| {
-                    if let Some(pose_node) = ui.node(*h).query_component::<AbsmNode<PoseNode>>() {
-                        if machine_layer
-                            .nodes()
-                            .try_borrow(pose_node.model_handle)
-                            .map_or(false, |node| node.parent_state == self.state)
-                        {
-                            true
-                        } else {
-                            // Remove every node that does not belong to a state or its data model was
-                            // removed.
-                            ui.send_message(WidgetMessage::remove(*h, MessageDirection::ToWidget));
+            let current_selection = fetch_selection(&editor_scene.selection);
 
+            let mut views = Vec::new();
+            if current_selection.layer != self.last_selection.layer
+                || current_selection.absm_node_handle != self.last_selection.absm_node_handle
+            {
+                self.last_selection = current_selection.clone();
+                self.clear(ui);
+            } else {
+                views = ui
+                    .node(self.canvas)
+                    .children()
+                    .iter()
+                    .cloned()
+                    .filter(|h| {
+                        if let Some(pose_node) = ui.node(*h).query_component::<AbsmNode<PoseNode>>()
+                        {
+                            if machine_layer
+                                .nodes()
+                                .try_borrow(pose_node.model_handle)
+                                .map_or(false, |node| node.parent_state == self.state)
+                            {
+                                true
+                            } else {
+                                // Remove every node that does not belong to a state or its data model was
+                                // removed.
+                                ui.send_message(WidgetMessage::remove(
+                                    *h,
+                                    MessageDirection::ToWidget,
+                                ));
+
+                                false
+                            }
+                        } else {
                             false
                         }
-                    } else {
-                        false
-                    }
-                })
-                .collect::<Vec<_>>();
+                    })
+                    .collect::<Vec<_>>();
+            }
 
             let models = machine_layer
                 .nodes()
@@ -601,27 +622,23 @@ impl StateViewer {
             }
 
             // Sync selection.
-            let new_selection = if let Selection::Absm(ref selection) = editor_scene.selection {
-                selection
-                    .entities
-                    .iter()
-                    .filter_map(|entry| match entry {
-                        SelectedEntity::Transition(_) | SelectedEntity::State(_) => {
-                            // No such nodes possible to have on this canvas.
-                            None
-                        }
-                        SelectedEntity::PoseNode(pose_node) => views.iter().cloned().find(|s| {
-                            ui.node(*s)
-                                .query_component::<AbsmNode<PoseNode>>()
-                                .unwrap()
-                                .model_handle
-                                == *pose_node
-                        }),
-                    })
-                    .collect::<Vec<_>>()
-            } else {
-                Default::default()
-            };
+            let new_selection = current_selection
+                .entities
+                .iter()
+                .filter_map(|entry| match entry {
+                    SelectedEntity::Transition(_) | SelectedEntity::State(_) => {
+                        // No such nodes possible to have on this canvas.
+                        None
+                    }
+                    SelectedEntity::PoseNode(pose_node) => views.iter().cloned().find(|s| {
+                        ui.node(*s)
+                            .query_component::<AbsmNode<PoseNode>>()
+                            .unwrap()
+                            .model_handle
+                            == *pose_node
+                    }),
+                })
+                .collect::<Vec<_>>();
 
             send_sync_message(
                 ui,
