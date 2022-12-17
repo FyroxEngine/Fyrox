@@ -578,7 +578,7 @@ impl Widget {
 
     #[inline]
     pub fn set_width(&mut self, width: f32) -> &mut Self {
-        self.width = width.max(self.min_size.x).min(self.max_size.x);
+        self.width = width.clamp(self.min_size.x, self.max_size.x);
         self
     }
 
@@ -593,7 +593,7 @@ impl Widget {
 
     #[inline]
     pub fn set_height(&mut self, height: f32) -> &mut Self {
-        self.height = height.max(self.min_size.y).min(self.max_size.y);
+        self.height = height.clamp(self.min_size.y, self.max_size.y);
         self
     }
 

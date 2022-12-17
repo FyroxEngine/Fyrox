@@ -404,7 +404,7 @@ mod test {
         let mut visitor = Visitor::new();
         saved_tree.visit("Tree", &mut visitor).unwrap();
         visitor.save_binary(bin.clone()).unwrap();
-        let mut file = File::create(&txt).unwrap();
+        let mut file = File::create(txt).unwrap();
         file.write_all(visitor.save_text().as_bytes()).unwrap();
 
         // Load

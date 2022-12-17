@@ -32,7 +32,7 @@ impl Default for OnePole {
 }
 
 fn get_b1(fc: f32) -> f32 {
-    (-2.0 * std::f32::consts::PI * fc.min(1.0).max(0.0)).exp()
+    (-2.0 * std::f32::consts::PI * fc.clamp(0.0, 1.0)).exp()
 }
 
 impl OnePole {
@@ -54,7 +54,7 @@ impl OnePole {
 
     /// Sets pole of filter directly.
     pub fn set_pole(&mut self, pole: f32) {
-        self.b1 = pole.min(1.0).max(0.0);
+        self.b1 = pole.clamp(0.0, 1.0);
         self.a0 = 1.0 - self.b1;
     }
 

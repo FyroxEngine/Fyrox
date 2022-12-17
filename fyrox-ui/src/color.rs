@@ -114,7 +114,7 @@ impl AlphaBar {
             Orientation::Vertical => relative_pos.y / self.actual_local_size().y,
             Orientation::Horizontal => relative_pos.x / self.actual_local_size().x,
         };
-        k.min(1.0).max(0.0) * 255.0
+        k.clamp(0.0, 1.0) * 255.0
     }
 }
 
@@ -369,7 +369,7 @@ impl HueBar {
             Orientation::Vertical => relative_pos.y / self.actual_local_size().y,
             Orientation::Horizontal => relative_pos.x / self.actual_local_size().x,
         };
-        k.min(1.0).max(0.0) * 360.0
+        k.clamp(0.0, 1.0) * 360.0
     }
 }
 
@@ -522,17 +522,13 @@ crate::define_widget_deref!(SaturationBrightnessField);
 
 impl SaturationBrightnessField {
     fn saturation_at(&self, mouse_pos: Vector2<f32>) -> f32 {
-        ((mouse_pos.x - self.screen_position().x) / self.screen_bounds().w())
-            .min(1.0)
-            .max(0.0)
+        ((mouse_pos.x - self.screen_position().x) / self.screen_bounds().w()).clamp(0.0, 1.0)
             * 100.0
     }
 
     fn brightness_at(&self, mouse_pos: Vector2<f32>) -> f32 {
         100.0
-            - ((mouse_pos.y - self.screen_position().y) / self.screen_bounds().h())
-                .min(1.0)
-                .max(0.0)
+            - ((mouse_pos.y - self.screen_position().y) / self.screen_bounds().h()).clamp(0.0, 1.0)
                 * 100.0
     }
 }
@@ -636,7 +632,7 @@ impl Control for SaturationBrightnessField {
                 if message.direction() == MessageDirection::ToWidget {
                     match *msg {
                         SaturationBrightnessFieldMessage::Hue(hue) => {
-                            let clamped = hue.min(360.0).max(0.0);
+                            let clamped = hue.clamp(0.0, 360.0);
                             if self.hue != clamped {
                                 self.hue = clamped;
                                 ui.send_message(SaturationBrightnessFieldMessage::hue(
@@ -647,7 +643,7 @@ impl Control for SaturationBrightnessField {
                             }
                         }
                         SaturationBrightnessFieldMessage::Saturation(saturation) => {
-                            let clamped = saturation.min(100.0).max(0.0);
+                            let clamped = saturation.clamp(0.0, 100.0);
                             if self.saturation != clamped {
                                 self.saturation = clamped;
                                 ui.send_message(SaturationBrightnessFieldMessage::saturation(
@@ -658,7 +654,7 @@ impl Control for SaturationBrightnessField {
                             }
                         }
                         SaturationBrightnessFieldMessage::Brightness(brightness) => {
-                            let clamped = brightness.min(100.0).max(0.0);
+                            let clamped = brightness.clamp(0.0, 100.0);
                             if self.brightness != clamped {
                                 self.brightness = clamped;
                                 ui.send_message(SaturationBrightnessFieldMessage::brightness(

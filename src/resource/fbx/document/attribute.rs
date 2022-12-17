@@ -42,7 +42,7 @@ impl FbxAttribute {
             FbxAttribute::Double(val) => Ok(*val as i64),
             FbxAttribute::Float(val) => Ok(*val as i64),
             FbxAttribute::Integer(val) => Ok(i64::from(*val)),
-            FbxAttribute::Long(val) => Ok(*val as i64),
+            FbxAttribute::Long(val) => Ok(*val),
             FbxAttribute::Bool(val) => Ok(*val as i64),
             FbxAttribute::String(val) => match val.parse::<i64>() {
                 Ok(i) => Ok(i),

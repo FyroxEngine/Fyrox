@@ -256,7 +256,7 @@ impl Renderer2d {
                 };
 
             if frustum.is_intersects_aabb(&light.world_bounding_box()) {
-                let light_num = light_count as usize;
+                let light_num = light_count;
 
                 light_position[light_num] = light.global_position();
                 light_direction[light_num] = light.up_vector();

@@ -587,7 +587,7 @@ impl SceneViewer {
                                                 fyrox::core::futures::executor::block_on(
                                                     engine
                                                         .resource_manager
-                                                        .request_model(&relative_path),
+                                                        .request_model(relative_path),
                                                 )
                                             {
                                                 let scene = &mut engine.scenes[editor_scene.scene];
@@ -944,7 +944,7 @@ impl SceneViewer {
                             use_picking_loop: true,
                             only_meshes: false,
                         }) {
-                            let tex = engine.resource_manager.request_texture(&relative_path);
+                            let tex = engine.resource_manager.request_texture(relative_path);
                             let texture = tex.clone();
                             let texture = texture.state();
                             if let TextureState::Ok(_) = *texture {

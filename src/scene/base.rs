@@ -73,8 +73,8 @@ impl LevelOfDetail {
         let begin = begin.min(end);
         let end = end.max(begin);
         Self {
-            begin: begin.min(1.0).max(0.0),
-            end: end.min(1.0).max(0.0),
+            begin: begin.clamp(0.0, 1.0),
+            end: end.clamp(0.0, 1.0),
             objects,
         }
     }
@@ -82,7 +82,7 @@ impl LevelOfDetail {
     /// Sets new starting point in distance range. Input value will be clamped in
     /// (0; 1) range.
     pub fn set_begin(&mut self, percent: f32) {
-        self.begin = percent.min(1.0).max(0.0);
+        self.begin = percent.clamp(0.0, 1.0);
         if self.begin > self.end {
             std::mem::swap(&mut self.begin, &mut self.end);
         }
@@ -96,7 +96,7 @@ impl LevelOfDetail {
     /// Sets new end point in distance range. Input value will be clamped in
     /// (0; 1) range.
     pub fn set_end(&mut self, percent: f32) {
-        self.end = percent.min(1.0).max(0.0);
+        self.end = percent.clamp(0.0, 1.0);
         if self.end < self.begin {
             std::mem::swap(&mut self.begin, &mut self.end);
         }
@@ -637,7 +637,7 @@ impl Base {
     #[inline]
     pub fn set_depth_offset_factor(&mut self, factor: f32) -> f32 {
         self.depth_offset
-            .set_value_and_mark_modified(factor.abs().min(1.0).max(0.0))
+            .set_value_and_mark_modified(factor.abs().clamp(0.0, 1.0))
     }
 
     /// Returns depth offset factor.

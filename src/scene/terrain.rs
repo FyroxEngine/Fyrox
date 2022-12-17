@@ -440,7 +440,7 @@ impl Terrain {
                             if brush.shape.contains(center, pixel_position) {
                                 // We can draw on mask directly, without any problems because it has R8 pixel format.
                                 let data = texture_data_mut.data_mut();
-                                let pixel = &mut data[(z * texture_width + x) as usize];
+                                let pixel = &mut data[z * texture_width + x];
                                 *pixel = (*pixel as f32 + k * alpha * 255.0).min(255.0) as u8;
                             }
                         }

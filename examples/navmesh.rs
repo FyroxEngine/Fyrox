@@ -248,7 +248,7 @@ impl Plugin for Game {
                 WindowEvent::CursorMoved { position, .. } => {
                     let p: LogicalPosition<f32> =
                         position.to_logical(context.window.scale_factor());
-                    self.mouse_position = Vector2::new(p.x as f32, p.y as f32);
+                    self.mouse_position = Vector2::new(p.x, p.y);
                 }
                 _ => (),
             }

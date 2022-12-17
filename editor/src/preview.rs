@@ -272,7 +272,7 @@ impl PreviewPanel {
                             }
                             Mode::Rotate => {
                                 self.yaw -= delta.x;
-                                self.pitch = (self.pitch - delta.y).max(-90.0).min(90.0);
+                                self.pitch = (self.pitch - delta.y).clamp(-90.0, 90.0);
                             }
                         }
                         self.prev_mouse_pos = pos;

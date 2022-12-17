@@ -443,7 +443,7 @@ impl PathFixer {
                                                 .with_vertical_text_alignment(
                                                     VerticalAlignment::Center,
                                                 )
-                                                .with_text(&r.path().to_string_lossy())
+                                                .with_text(r.path().to_string_lossy())
                                                 .build(ctx),
                                             ),
                                         ))

@@ -418,7 +418,7 @@ macro_rules! impl_field_data {
     };
 }
 
-/// Proxy struct for plain data, we can't use Vec<u8> directly,
+/// Proxy struct for plain data, we can't use `Vec<u8>` directly,
 /// because it will serialize each byte as separate node.
 pub struct Data<'a> {
     vec: &'a mut Vec<u8>,
@@ -1446,7 +1446,7 @@ where
                 }
             } else {
                 // Remember that we already visited data Rc store.
-                region.rc_map.insert(raw as u64, self.clone());
+                region.rc_map.insert(raw, self.clone());
 
                 let raw = rc_to_raw(self);
                 unsafe { &mut *raw }.visit("RcData", &mut region)?;
@@ -1534,7 +1534,7 @@ where
                 }
             } else {
                 // Remember that we already visited data Rc store.
-                region.arc_map.insert(raw as u64, self.clone());
+                region.arc_map.insert(raw, self.clone());
 
                 let raw = arc_to_raw(self);
                 unsafe { &mut *raw }.visit("ArcData", &mut region)?;
@@ -1578,7 +1578,7 @@ where
                 } else {
                     // Create new value wrapped into Rc and deserialize it.
                     let rc = Rc::new(T::default());
-                    region.rc_map.insert(raw as u64, rc.clone());
+                    region.rc_map.insert(raw, rc.clone());
 
                     let raw = rc_to_raw(&rc);
                     unsafe { &mut *raw }.visit("RcData", &mut region)?;
@@ -1628,7 +1628,7 @@ where
                 } else {
                     // Create new value wrapped into Arc and deserialize it.
                     let arc = Arc::new(T::default());
-                    region.arc_map.insert(raw as u64, arc.clone());
+                    region.arc_map.insert(raw, arc.clone());
 
                     let raw = arc_to_raw(&arc);
                     unsafe { &mut *raw }.visit("ArcData", &mut region)?;

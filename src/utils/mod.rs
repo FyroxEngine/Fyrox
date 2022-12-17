@@ -462,7 +462,7 @@ pub fn virtual_key_code_name(code: VirtualKeyCode) -> &'static str {
     }
 }
 
-/// Helper function to convert Option<Arc<T>> to Option<Arc<dyn Any>>.
+/// Helper function to convert `Option<Arc<T>>` to `Option<Arc<dyn Any>>`.
 #[allow(clippy::manual_map)]
 pub fn into_any_arc<T: Any + Send + Sync>(
     opt: Option<Arc<T>>,

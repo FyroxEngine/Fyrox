@@ -277,7 +277,7 @@ impl SoundSource {
     /// Sets panning coefficient. Value must be in -1..+1 range. Where -1 - only left channel will be audible,
     /// 0 - both, +1 - only right.
     pub fn set_panning(&mut self, panning: f32) -> &mut Self {
-        self.panning = panning.max(-1.0).min(1.0);
+        self.panning = panning.clamp(-1.0, 1.0);
         self
     }
 
@@ -402,8 +402,7 @@ impl SoundSource {
         let distance = self
             .position
             .metric_distance(&listener.position())
-            .max(self.radius)
-            .min(self.max_distance);
+            .clamp(self.radius, self.max_distance);
         match distance_model {
             DistanceModel::None => 1.0,
             DistanceModel::InverseDistance => {

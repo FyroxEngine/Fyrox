@@ -39,10 +39,7 @@ impl Control for StackPanel {
                     child_constraint.x = self.widget.width();
                 }
 
-                child_constraint.x = child_constraint
-                    .x
-                    .min(self.max_width())
-                    .max(self.min_width());
+                child_constraint.x = child_constraint.x.clamp(self.min_width(), self.max_width());
             }
             Orientation::Horizontal => {
                 child_constraint.y = available_size.y;
@@ -53,8 +50,7 @@ impl Control for StackPanel {
 
                 child_constraint.y = child_constraint
                     .y
-                    .min(self.max_height())
-                    .max(self.min_height());
+                    .clamp(self.min_height(), self.max_height());
             }
         }
 

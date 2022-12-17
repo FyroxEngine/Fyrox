@@ -82,7 +82,7 @@ impl Control for ProgressBar {
 
 impl ProgressBar {
     pub fn set_progress(&mut self, progress: f32) {
-        self.progress = progress.min(1.0).max(0.0);
+        self.progress = progress.clamp(0.0, 1.0);
     }
 
     pub fn progress(&self) -> f32 {
@@ -118,7 +118,7 @@ impl ProgressBarBuilder {
     }
 
     pub fn with_progress(mut self, progress: f32) -> Self {
-        self.progress = progress.min(1.0).max(0.0);
+        self.progress = progress.clamp(0.0, 1.0);
         self
     }
 

@@ -1491,17 +1491,10 @@ impl Renderer {
                 );
             }
 
-            for camera in graph.linear_iter().filter_map(|node| {
-                if let Some(camera) = node.cast::<Camera>() {
-                    if camera.is_enabled() {
-                        Some(camera)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }) {
+            for camera in graph
+                .linear_iter()
+                .filter_map(|node| node.cast::<Camera>().filter(|&camera| camera.is_enabled()))
+            {
                 let viewport = camera.viewport_pixels(frame_size);
 
                 self.statistics += scene_associated_data.gbuffer.fill(GBufferRenderContext {

@@ -321,7 +321,7 @@ impl SoundContext {
         Self::HRTF_BLOCK_LEN * Self::HRTF_INTERPOLATION_STEPS;
 
     /// Creates new instance of context. Internally context starts new thread which will call render all
-    /// sound source and send samples to default output device. This method returns Arc<Mutex<Context>>
+    /// sound source and send samples to default output device. This method returns `Arc<Mutex<Context>>`
     /// because separate thread also uses context.
     pub fn new() -> Self {
         Self {

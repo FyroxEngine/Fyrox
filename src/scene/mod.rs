@@ -284,7 +284,7 @@ impl SceneLoader {
             if let Some(shallow_resource) = node.resource.clone() {
                 let resource = resource_manager
                     .clone()
-                    .request_model(&shallow_resource.state().path());
+                    .request_model(shallow_resource.state().path());
                 node.resource = Some(resource.clone());
                 resources.push(resource);
             }

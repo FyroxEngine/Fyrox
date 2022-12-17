@@ -33,9 +33,9 @@ impl Into<u32> for Color {
 impl From<Vector3<f32>> for Color {
     fn from(v: Vector3<f32>) -> Self {
         Self {
-            r: (v.x.max(0.0).min(1.0) * 255.0) as u8,
-            g: (v.y.max(0.0).min(1.0) * 255.0) as u8,
-            b: (v.z.max(0.0).min(1.0) * 255.0) as u8,
+            r: (v.x.clamp(0.0, 1.0) * 255.0) as u8,
+            g: (v.y.clamp(0.0, 1.0) * 255.0) as u8,
+            b: (v.z.clamp(0.0, 1.0) * 255.0) as u8,
             a: 255,
         }
     }
@@ -44,10 +44,10 @@ impl From<Vector3<f32>> for Color {
 impl From<Vector4<f32>> for Color {
     fn from(v: Vector4<f32>) -> Self {
         Self {
-            r: (v.x.max(0.0).min(1.0) * 255.0) as u8,
-            g: (v.y.max(0.0).min(1.0) * 255.0) as u8,
-            b: (v.z.max(0.0).min(1.0) * 255.0) as u8,
-            a: (v.w.max(0.0).min(1.0) * 255.0) as u8,
+            r: (v.x.clamp(0.0, 1.0) * 255.0) as u8,
+            g: (v.y.clamp(0.0, 1.0) * 255.0) as u8,
+            b: (v.z.clamp(0.0, 1.0) * 255.0) as u8,
+            a: (v.w.clamp(0.0, 1.0) * 255.0) as u8,
         }
     }
 }
@@ -66,9 +66,9 @@ impl Hsv {
     #[inline]
     pub fn new(hue: f32, saturation: f32, brightness: f32) -> Self {
         Self {
-            hue: hue.min(360.0).max(0.0),
-            saturation: saturation.min(100.0).max(0.0),
-            brightness: brightness.min(100.0).max(0.0),
+            hue: hue.clamp(0.0, 360.0),
+            saturation: saturation.clamp(0.0, 100.0),
+            brightness: brightness.clamp(0.0, 100.0),
         }
     }
 
@@ -79,7 +79,7 @@ impl Hsv {
 
     #[inline]
     pub fn set_hue(&mut self, hue: f32) {
-        self.hue = hue.min(360.0).max(0.0);
+        self.hue = hue.clamp(0.0, 360.0);
     }
 
     #[inline]
@@ -89,7 +89,7 @@ impl Hsv {
 
     #[inline]
     pub fn set_saturation(&mut self, saturation: f32) {
-        self.saturation = saturation.min(100.0).max(0.0);
+        self.saturation = saturation.clamp(0.0, 100.0);
     }
 
     #[inline]
@@ -99,7 +99,7 @@ impl Hsv {
 
     #[inline]
     pub fn set_brightness(&mut self, brightness: f32) {
-        self.brightness = brightness.min(100.0).max(0.0);
+        self.brightness = brightness.clamp(0.0, 100.0);
     }
 }
 

@@ -68,13 +68,7 @@ trait Device {
             {
                 fn sample_to_i16(sample: f32) -> i16 {
                     const SCALE: f32 = i16::MAX as f32;
-                    let clamped = if sample > 1.0 {
-                        1.0
-                    } else if sample < -1.0 {
-                        -1.0
-                    } else {
-                        sample
-                    };
+                    let clamped = sample.clamp(-1.0, 1.0);
                     (clamped * SCALE) as i16
                 }
 

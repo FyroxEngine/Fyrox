@@ -261,17 +261,17 @@ impl Font {
     fn pack(&mut self) {
         let border = 2;
         self.atlas_size = self.compute_atlas_size(border);
-        self.atlas = vec![0; (self.atlas_size * self.atlas_size) as usize];
+        self.atlas = vec![0; self.atlas_size * self.atlas_size];
         let k = 1.0 / self.atlas_size as f32;
         let mut rect_packer = RectPacker::new(self.atlas_size, self.atlas_size);
         for glyph in self.glyphs.iter_mut() {
             if let Some(bounds) =
                 rect_packer.find_free(glyph.bitmap_width + border, glyph.bitmap_height + border)
             {
-                let bw = (bounds.w() - border) as usize;
-                let bh = (bounds.h() - border) as usize;
-                let bx = (bounds.x() + border / 2) as usize;
-                let by = (bounds.y() + border / 2) as usize;
+                let bw = bounds.w() - border;
+                let bh = bounds.h() - border;
+                let bx = bounds.x() + border / 2;
+                let by = bounds.y() + border / 2;
 
                 let tw = bw as f32 * k;
                 let th = bh as f32 * k;

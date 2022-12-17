@@ -461,14 +461,13 @@ impl Control for Window {
                         if let Some(safe_border) = self.safe_border_size {
                             // Clamp new position in allowed bounds. This will prevent moving the window outside of main
                             // application window, thus leaving an opportunity to drag window to some other place.
-                            new_pos.x = new_pos
-                                .x
-                                .min((ui.screen_size().x - safe_border.x).abs())
-                                .max(-(self.actual_local_size().x - safe_border.x).abs());
+                            new_pos.x = new_pos.x.clamp(
+                                -(self.actual_local_size().x - safe_border.x).abs(),
+                                (ui.screen_size().x - safe_border.x).abs(),
+                            );
                             new_pos.y = new_pos
                                 .y
-                                .max(0.0)
-                                .min((ui.screen_size().y - safe_border.y).abs());
+                                .clamp(0.0, (ui.screen_size().y - safe_border.y).abs());
                         }
 
                         if self.is_dragging && self.desired_local_position() != new_pos {

@@ -357,13 +357,13 @@ impl Control for Tile {
                             TileContent::VerticalTiles {
                                 ref mut splitter, ..
                             } => {
-                                *splitter = ((pos.y - bounds.y()) / bounds.h()).max(0.0).min(1.0);
+                                *splitter = ((pos.y - bounds.y()) / bounds.h()).clamp(0.0, 1.0);
                                 self.invalidate_layout();
                             }
                             TileContent::HorizontalTiles {
                                 ref mut splitter, ..
                             } => {
-                                *splitter = ((pos.x - bounds.x()) / bounds.w()).max(0.0).min(1.0);
+                                *splitter = ((pos.x - bounds.x()) / bounds.w()).clamp(0.0, 1.0);
                                 self.invalidate_layout();
                             }
                             _ => (),

@@ -62,13 +62,13 @@ impl VertexAttributeDataType {
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Debug)]
 #[repr(u32)]
 pub enum VertexAttributeUsage {
-    /// Vertex position. Usually Vector2<f32> or Vector3<f32>.
+    /// Vertex position. Usually `Vector2<f32>` or `Vector3<f32>`.
     Position = 0,
-    /// Vertex normal. Usually Vector3<f32>, more rare Vector3<u16> (F16).
+    /// Vertex normal. Usually `Vector3<f32>`, more rare `Vector3<u16>` (F16).
     Normal = 1,
-    /// Vertex tangent. Usually Vector3<f32>.
+    /// Vertex tangent. Usually `Vector3<f32>`.
     Tangent = 2,
-    /// First texture coordinates. Usually Vector2<f32>.
+    /// First texture coordinates. Usually `Vector2<f32>`.
     /// It may be used for everything else, not only for texture coordinates.
     TexCoord0 = 3,
     /// Second texture coordinates.
@@ -85,9 +85,9 @@ pub enum VertexAttributeUsage {
     TexCoord6 = 9,
     /// Eighth texture coordinates.
     TexCoord7 = 10,
-    /// Bone weights. Usually Vector4<f32>.
+    /// Bone weights. Usually `Vector4<f32>`.
     BoneWeight = 11,
-    /// Bone indices. Usually Vector4<u8>.
+    /// Bone indices. Usually `Vector4<u8>`.
     BoneIndices = 12,
     /// Maximum amount of attribute kinds.
     Count,

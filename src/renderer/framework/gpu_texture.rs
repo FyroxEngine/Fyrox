@@ -505,7 +505,7 @@ impl<'a> TextureBinding<'a> {
             self.state.gl.tex_parameter_f32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MAX_ANISOTROPY_EXT,
-                anisotropy.max(1.0).min(max),
+                anisotropy.clamp(0.0, max),
             );
 
             // Set it to requested value, instead of hardware-limited. This will allow
@@ -889,7 +889,7 @@ impl<'a> TextureBinding<'a> {
                                 }
                             }
 
-                            mip_byte_offset += 6 * bytes_per_face as usize;
+                            mip_byte_offset += 6 * bytes_per_face;
                         } else {
                             // No need to add degenerated mips (0x1, 0x2, 4x0, etc).
                             break 'mip_loop2;

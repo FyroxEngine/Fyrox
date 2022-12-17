@@ -155,7 +155,7 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
                     self.handle,
                     MessageDirection::FromWidget,
                     ObjectValue {
-                        value: Box::new(T::default()),
+                        value: Box::<T>::default(),
                     },
                 ))
             }

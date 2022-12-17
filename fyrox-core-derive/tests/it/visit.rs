@@ -29,7 +29,7 @@ pub fn save_load<T: Visit>(test_name: &str, data: &mut T, data_default: &mut T) 
         data.visit("Data", &mut visitor).unwrap();
 
         visitor.save_binary(&bin).unwrap();
-        let mut file = File::create(&txt).unwrap();
+        let mut file = File::create(txt).unwrap();
         file.write_all(visitor.save_text().as_bytes()).unwrap();
     }
 

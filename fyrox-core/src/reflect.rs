@@ -139,8 +139,8 @@ impl<'a> PartialEq<Self> for FieldInfo<'a> {
 ///
 /// # Field attributes
 /// - `#[reflect(deref)]`: Delegate the field access with deref
-/// - `#[reflect(field = <method call>)]
-/// - `#[reflect(field_mut = <method call>)]
+/// - `#[reflect(field = <method call>)]`
+/// - `#[reflect(field_mut = <method call>)]`
 pub trait Reflect: Any {
     fn fields_info(&self) -> Vec<FieldInfo>;
 

@@ -203,7 +203,7 @@ impl RotationGizmo {
                     .try_normalize(std::f32::EPSILON)
                     .unwrap_or_default();
 
-                let angle_delta = old.dot(&new).max(-1.0).min(1.0).acos();
+                let angle_delta = old.dot(&new).clamp(-1.0, 1.0).acos();
                 let sign = old.cross(&new).dot(&oriented_axis).signum();
 
                 let static_axis = match self.mode {

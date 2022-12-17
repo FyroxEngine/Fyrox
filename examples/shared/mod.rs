@@ -754,8 +754,7 @@ impl Player {
                 let mouse_sens = 0.2 * dt;
                 self.controller.yaw -= (delta.0 as f32) * mouse_sens;
                 self.controller.pitch = (self.controller.pitch + (delta.1 as f32) * mouse_sens)
-                    .max(-90.0f32.to_radians())
-                    .min(90.0f32.to_radians());
+                    .clamp(-90.0f32.to_radians(), 90.0f32.to_radians());
             }
             _ => {}
         }

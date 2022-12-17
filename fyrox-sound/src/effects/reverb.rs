@@ -184,7 +184,7 @@ impl Reverb {
     /// Sets how much of input signal should be passed to output without any processing.
     /// Default value is 1.0.
     pub fn set_dry(&mut self, dry: f32) {
-        self.dry = dry.min(1.0).max(0.0);
+        self.dry = dry.clamp(0.0, 1.0);
     }
 
     /// Returns dry part.
@@ -198,7 +198,7 @@ impl Reverb {
     /// 0.5 - left is (left + right) * 0.5, right is (left + right) * 0.5
     /// and so on.
     pub fn set_wet(&mut self, wet: f32) {
-        self.wet = wet.min(1.0).max(0.0);
+        self.wet = wet.clamp(0.0, 1.0);
     }
 
     /// Returns stereo mixing coefficient.

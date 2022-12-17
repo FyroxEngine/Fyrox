@@ -143,8 +143,8 @@ impl CameraController {
 
     pub fn on_mouse_move(&mut self, delta: Vector2<f32>, settings: &CameraSettings) {
         if self.rotate {
-            self.yaw -= delta.x as f32 * 0.01;
-            self.pitch += delta.y as f32 * 0.01;
+            self.yaw -= delta.x * 0.01;
+            self.pitch += delta.y * 0.01;
             if self.pitch > 90.0f32.to_radians() {
                 self.pitch = 90.0f32.to_radians();
             }

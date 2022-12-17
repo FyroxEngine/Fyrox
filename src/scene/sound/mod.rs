@@ -222,7 +222,7 @@ impl Sound {
     /// 0 - both, +1 - only right.
     pub fn set_panning(&mut self, panning: f32) -> f32 {
         self.panning
-            .set_value_and_mark_modified(panning.max(-1.0).min(1.0))
+            .set_value_and_mark_modified(panning.clamp(-1.0, 1.0))
     }
 
     /// Returns current panning coefficient in -1..+1 range. For more info see `set_panning`. Default value is 0.

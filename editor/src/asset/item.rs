@@ -193,7 +193,7 @@ impl AssetItemBuilder {
                                         .on_row(1),
                                 )
                                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                                .with_text(&path.file_name().unwrap_or_default().to_string_lossy())
+                                .with_text(path.file_name().unwrap_or_default().to_string_lossy())
                                 .build(ctx),
                             ),
                     )
