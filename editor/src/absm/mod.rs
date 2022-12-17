@@ -268,7 +268,7 @@ impl AbsmEditor {
         let selection = fetch_selection(&editor_scene.selection);
 
         let ui = &mut engine.user_interface;
-        let scene = &mut engine.scenes[editor_scene.scene];
+        let scene = &engine.scenes[editor_scene.scene];
 
         let absm_node = scene
             .graph
@@ -286,7 +286,8 @@ impl AbsmEditor {
             if let Some(layer) = absm_node.machine().layers().get(selection.layer) {
                 self.state_graph_viewer
                     .sync_to_model(layer, ui, editor_scene);
-                self.state_viewer.sync_to_model(ui, layer, editor_scene);
+                self.state_viewer
+                    .sync_to_model(ui, layer, editor_scene, absm_node, &scene.graph);
             }
         } else {
             self.parameter_panel.reset(ui);

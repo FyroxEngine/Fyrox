@@ -1,4 +1,3 @@
-use crate::absm::fetch_selection;
 use crate::{
     absm::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
@@ -9,6 +8,7 @@ use crate::{
             MovePoseNodeCommand,
         },
         connection::{Connection, ConnectionBuilder},
+        fetch_selection,
         node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
         selection::{AbsmSelection, SelectedEntity},
         socket::{Socket, SocketBuilder, SocketDirection},
@@ -22,7 +22,10 @@ use crate::{
     send_sync_message, Message,
 };
 use fyrox::{
-    animation::machine::{MachineLayer, PoseNode, State},
+    animation::{
+        machine::{MachineLayer, PoseNode, State},
+        Animation,
+    },
     core::pool::Handle,
     gui::{
         border::BorderBuilder,
@@ -31,7 +34,11 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
-    scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
+    scene::{
+        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
+        graph::Graph,
+        node::Node,
+    },
 };
 use std::{cmp::Ordering, sync::mpsc::Sender};
 
@@ -86,6 +93,40 @@ fn fetch_socket_pose_node_model_handle(
         .query_component::<Socket>()
         .unwrap()
         .parent_node
+}
+
+fn make_play_animation_name(
+    graph: &Graph,
+    absm_node: &AnimationBlendingStateMachine,
+    animation: Handle<Animation>,
+) -> String {
+    if let Some(animation) = graph
+        .try_get_of_type::<AnimationPlayer>(absm_node.animation_player())
+        .and_then(|animation_player| animation_player.animations().try_get(animation))
+    {
+        format!("Play Animation: {}", animation.name())
+    } else {
+        "Play Animation: <UNASSIGNED>".to_owned()
+    }
+}
+
+fn make_pose_node_name(
+    model_ref: &PoseNode,
+    graph: &Graph,
+    absm_node: &AnimationBlendingStateMachine,
+) -> String {
+    match model_ref {
+        PoseNode::PlayAnimation(play_animation) => {
+            make_play_animation_name(graph, absm_node, play_animation.animation)
+        }
+        PoseNode::BlendAnimations(blend_animations) => {
+            format!("Blend {} Animations", blend_animations.pose_sources.len())
+        }
+        PoseNode::BlendAnimationsByIndex(blend_animations_by_index) => format!(
+            "Blend {} Animations By Index",
+            blend_animations_by_index.inputs.len()
+        ),
+    }
 }
 
 impl StateViewer {
@@ -337,6 +378,8 @@ impl StateViewer {
         ui: &mut UserInterface,
         machine_layer: &MachineLayer,
         editor_scene: &EditorScene,
+        absm_node: &AnimationBlendingStateMachine,
+        graph: &Graph,
     ) {
         if let Some(parent_state_ref) = machine_layer.states().try_borrow(self.state) {
             let current_selection = fetch_selection(&editor_scene.selection);
@@ -504,6 +547,14 @@ impl StateViewer {
                 let model_ref = &machine_layer.nodes()[model_handle];
                 let children = model_ref.children();
                 let position = view_ref.actual_local_position();
+
+                let new_name = make_pose_node_name(model_ref, graph, absm_node);
+                if new_name != view_ref.name_value {
+                    send_sync_message(
+                        ui,
+                        AbsmNodeMessage::name(view, MessageDirection::ToWidget, new_name),
+                    );
+                }
 
                 if view_ref.base.input_sockets.len() != children.len() {
                     let input_sockets = create_sockets(
