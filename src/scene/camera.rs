@@ -47,10 +47,10 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 /// it looks most realistic.
 #[derive(Reflect, Clone, Debug, PartialEq, Visit)]
 pub struct PerspectiveProjection {
-    /// Horizontal angle between look axis and a side of the viewing frustum. Larger values will
-    /// increase field of view and create fish-eye effect, smaller values could be used to create
-    /// "binocular" effect or scope effect.  
-    #[reflect(min_value = 0.0, max_value = 3.14159, step = 0.1)]
+    /// Vertical angle at the top of viewing frustum, in radians. Larger values will increase field
+    /// of view and create fish-eye effect, smaller values could be used to create "binocular" effect
+    /// or scope effect.  
+    #[reflect(min_value = 0.0, max_value = 6.28, step = 0.1)]
     pub fov: f32,
     /// Location of the near clipping plane. If it is larger than [`Self::z_far`] then it will be
     /// treated like far clipping plane.
