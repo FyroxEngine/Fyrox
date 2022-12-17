@@ -216,7 +216,7 @@ where
                             ui.send_message(TextMessage::text(
                                 self.name,
                                 MessageDirection::ToWidget,
-                                name.clone(),
+                                format!("{} ({})", self.name_value, self.model_handle),
                             ));
                         }
                     }
@@ -370,7 +370,7 @@ where
                     )
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                    .with_text(&self.name)
+                    .with_text(format!("{} ({})", self.name, self.model_handle))
                     .build(ctx);
                     name
                 })

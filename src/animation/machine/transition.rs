@@ -19,10 +19,10 @@ pub struct Transition {
 
     pub(crate) elapsed_time: f32,
 
-    #[reflect(hidden)]
+    #[reflect(read_only)]
     pub(crate) source: Handle<State>,
 
-    #[reflect(hidden)]
+    #[reflect(read_only)]
     pub(crate) dest: Handle<State>,
 
     /// Identifier of Rule parameter which defines is transition should be activated or not.

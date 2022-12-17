@@ -25,7 +25,7 @@ pub struct State {
     pub name: String,
 
     /// Root node of the state that provides the state with animation data.
-    #[reflect(hidden)]
+    #[reflect(read_only)]
     pub root: Handle<PoseNode>,
 }
 

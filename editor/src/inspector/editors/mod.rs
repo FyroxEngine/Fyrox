@@ -14,6 +14,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::animation::machine::{PoseNode, State};
 use fyrox::{
     animation::{
         machine::{
@@ -295,6 +296,9 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimationsByIndex>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimations>::new());
     container.insert(InspectablePropertyEditorDefinition::<PlayAnimation>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<Handle<PoseNode>>::new());
+    container.insert(InspectablePropertyEditorDefinition::<Handle<State>>::new());
 
     container.insert(AnimationPropertyEditorDefinition);
 
