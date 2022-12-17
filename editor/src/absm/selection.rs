@@ -1,6 +1,8 @@
-use fyrox::animation::machine::{PoseNode, State, Transition};
-use fyrox::core::pool::Handle;
-use fyrox::scene::node::Node;
+use fyrox::{
+    animation::machine::{PoseNode, State, Transition},
+    core::pool::Handle,
+    scene::node::Node,
+};
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SelectedEntity {
@@ -9,7 +11,7 @@ pub enum SelectedEntity {
     PoseNode(Handle<PoseNode>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct AbsmSelection {
     pub absm_node_handle: Handle<Node>,
     pub layer: usize,

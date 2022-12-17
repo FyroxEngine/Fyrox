@@ -1,21 +1,22 @@
-use crate::absm::selection::{AbsmSelection, SelectedEntity};
-use crate::scene::commands::{ChangeSelectionCommand, CommandGroup, SceneCommand};
-use crate::scene::{EditorScene, Selection};
 use crate::{
     absm::{
         canvas::{AbsmCanvas, AbsmCanvasBuilder, AbsmCanvasMessage},
         command::{AddTransitionCommand, MoveStateNodeCommand},
+        fetch_selection,
         node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
+        selection::{AbsmSelection, SelectedEntity},
         state_graph::context::{CanvasContextMenu, NodeContextMenu, TransitionContextMenu},
         transition::{TransitionBuilder, TransitionMessage, TransitionView},
         NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND, SELECTED_ROOT_COLOR,
     },
+    scene::{
+        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        EditorScene, Selection,
+    },
     send_sync_message, Message,
 };
-use fyrox::animation::machine::{MachineLayer, State, Transition};
-use fyrox::scene::animation::absm::AnimationBlendingStateMachine;
-use fyrox::scene::node::Node;
 use fyrox::{
+    animation::machine::{MachineLayer, State, Transition},
     core::pool::Handle,
     gui::{
         border::BorderBuilder,
@@ -24,9 +25,9 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
+    scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
 };
-use std::cmp::Ordering;
-use std::sync::mpsc::Sender;
+use std::{cmp::Ordering, sync::mpsc::Sender};
 
 mod context;
 
@@ -36,6 +37,7 @@ pub struct StateGraphViewer {
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,
     transition_context_menu: TransitionContextMenu,
+    last_selection: AbsmSelection,
 }
 
 fn fetch_state_node_model_handle(handle: Handle<UiNode>, ui: &UserInterface) -> Handle<State> {
@@ -80,6 +82,7 @@ impl StateGraphViewer {
             node_context_menu,
             canvas_context_menu,
             transition_context_menu,
+            last_selection: AbsmSelection::default(),
         }
     }
 
@@ -254,19 +257,31 @@ impl StateGraphViewer {
             .cast::<AbsmCanvas>()
             .expect("Must be AbsmCanvas!");
 
-        let mut states = canvas
-            .children()
-            .iter()
-            .cloned()
-            .filter(|c| ui.node(*c).has_component::<AbsmNode<State>>())
-            .collect::<Vec<_>>();
+        let current_selection = fetch_selection(&editor_scene.selection);
 
-        let mut transitions = canvas
-            .children()
-            .iter()
-            .cloned()
-            .filter(|c| ui.node(*c).has_component::<TransitionView>())
-            .collect::<Vec<_>>();
+        let mut states = Vec::new();
+        let mut transitions = Vec::new();
+        if self.last_selection.layer != current_selection.layer
+            || self.last_selection.absm_node_handle != current_selection.absm_node_handle
+        {
+            self.last_selection = current_selection.clone();
+            // Remove content of the previous layer/absm.
+            self.clear(ui);
+        } else {
+            states = canvas
+                .children()
+                .iter()
+                .cloned()
+                .filter(|c| ui.node(*c).has_component::<AbsmNode<State>>())
+                .collect::<Vec<_>>();
+
+            transitions = canvas
+                .children()
+                .iter()
+                .cloned()
+                .filter(|c| ui.node(*c).has_component::<TransitionView>())
+                .collect::<Vec<_>>();
+        }
 
         match states
             .len()
@@ -504,36 +519,30 @@ impl StateGraphViewer {
         }
 
         // Sync selection.
-        let new_selection = if let Selection::Absm(ref selection) = editor_scene.selection {
-            selection
-                .entities
-                .iter()
-                .filter_map(|entry| match entry {
-                    SelectedEntity::Transition(transition) => {
-                        transitions.iter().cloned().find(|t| {
-                            ui.node(*t)
-                                .query_component::<TransitionView>()
-                                .unwrap()
-                                .model_handle
-                                == *transition
-                        })
-                    }
-                    SelectedEntity::State(state) => states.iter().cloned().find(|s| {
-                        ui.node(*s)
-                            .query_component::<AbsmNode<State>>()
-                            .unwrap()
-                            .model_handle
-                            == *state
-                    }),
-                    SelectedEntity::PoseNode(_) => {
-                        // No such nodes possible to have on this canvas.
-                        None
-                    }
-                })
-                .collect::<Vec<_>>()
-        } else {
-            Default::default()
-        };
+        let new_selection = current_selection
+            .entities
+            .iter()
+            .filter_map(|entry| match entry {
+                SelectedEntity::Transition(transition) => transitions.iter().cloned().find(|t| {
+                    ui.node(*t)
+                        .query_component::<TransitionView>()
+                        .unwrap()
+                        .model_handle
+                        == *transition
+                }),
+                SelectedEntity::State(state) => states.iter().cloned().find(|s| {
+                    ui.node(*s)
+                        .query_component::<AbsmNode<State>>()
+                        .unwrap()
+                        .model_handle
+                        == *state
+                }),
+                SelectedEntity::PoseNode(_) => {
+                    // No such nodes possible to have on this canvas.
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
 
         send_sync_message(
             ui,
