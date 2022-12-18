@@ -593,6 +593,26 @@ impl AnimationContainer {
     }
 
     #[inline]
+    pub fn find_by_name_ref<S: AsRef<str>>(
+        &self,
+        name: S,
+    ) -> Option<(Handle<Animation>, &Animation)> {
+        self.pool
+            .pair_iter()
+            .find(|(_, animation)| animation.name == name.as_ref())
+    }
+
+    #[inline]
+    pub fn find_by_name_mut<S: AsRef<str>>(
+        &mut self,
+        name: S,
+    ) -> Option<(Handle<Animation>, &mut Animation)> {
+        self.pool
+            .pair_iter_mut()
+            .find(|(_, animation)| animation.name == name.as_ref())
+    }
+
+    #[inline]
     pub fn retain<P>(&mut self, pred: P)
     where
         P: FnMut(&Animation) -> bool,
