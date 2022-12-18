@@ -11,6 +11,7 @@ use crate::{
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
+    utils,
 };
 
 pub use event::Event;
@@ -259,6 +260,21 @@ impl Machine {
     #[inline]
     pub fn layers_mut(&mut self) -> &mut [MachineLayer] {
         &mut self.layers
+    }
+
+    /// Tries to find a layer by its name. Returns index of the layer and its reference.
+    #[inline]
+    pub fn find_layer_by_name_ref<S: AsRef<str>>(&self, name: S) -> Option<(usize, &MachineLayer)> {
+        utils::find_by_name_ref(self.layers.iter().enumerate(), name)
+    }
+
+    /// Tries to find a layer by its name. Returns index of the layer and its reference.
+    #[inline]
+    pub fn find_by_name_mut<S: AsRef<str>>(
+        &mut self,
+        name: S,
+    ) -> Option<(usize, &mut MachineLayer)> {
+        utils::find_by_name_mut(self.layers.iter_mut().enumerate(), name)
     }
 
     /// Computes final animation pose that could be then applied to a scene graph.

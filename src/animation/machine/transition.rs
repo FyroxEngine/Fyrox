@@ -3,6 +3,7 @@
 use crate::{
     animation::machine::State,
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
+    utils::NameProvider,
 };
 
 /// Transition is a connection between two states with a rule that defines possibility of actual transition with blending.
@@ -44,6 +45,12 @@ pub struct Transition {
 
     /// 0 - evaluates `src` pose, 1 - `dest`, 0..1 - blends `src` and `dest`
     pub(crate) blend_factor: f32,
+}
+
+impl NameProvider for Transition {
+    fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl Transition {

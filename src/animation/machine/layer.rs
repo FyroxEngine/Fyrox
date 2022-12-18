@@ -1,6 +1,7 @@
 //! Layer is a separate state graph that usually animates only a part of nodes from animations. See docs of [`MachineLayer`]
 //! for more info.
 
+use crate::utils::NameProvider;
 use crate::{
     animation::{
         machine::{
@@ -14,7 +15,10 @@ use crate::{
         reflect::prelude::*,
         visitor::prelude::*,
     },
-    utils::log::{Log, MessageKind},
+    utils::{
+        self,
+        log::{Log, MessageKind},
+    },
 };
 
 /// Layer is a separate state graph. Layers mainly used to animate different parts of humanoid (but not only) characters. For
@@ -98,6 +102,12 @@ pub struct MachineLayer {
     #[visit(skip)]
     #[reflect(hidden)]
     debug: bool,
+}
+
+impl NameProvider for MachineLayer {
+    fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl MachineLayer {
@@ -292,6 +302,24 @@ impl MachineLayer {
         &mut self.transitions
     }
 
+    /// Tries to find a transition by its name.
+    #[inline]
+    pub fn find_transition_by_name_ref<S: AsRef<str>>(
+        &self,
+        name: S,
+    ) -> Option<(Handle<Transition>, &Transition)> {
+        utils::find_by_name_ref(self.transitions.pair_iter(), name)
+    }
+
+    /// Tries to find a transition by its name.
+    #[inline]
+    pub fn find_transition_by_name_mut<S: AsRef<str>>(
+        &mut self,
+        name: S,
+    ) -> Option<(Handle<Transition>, &mut Transition)> {
+        utils::find_by_name_mut(self.transitions.pair_iter_mut(), name)
+    }
+
     /// Tries to borrow a state using its handle, panics if the handle is invalid.
     #[inline]
     pub fn state(&self, handle: Handle<State>) -> &State {
@@ -302,6 +330,24 @@ impl MachineLayer {
     #[inline]
     pub fn state_mut(&mut self, handle: Handle<State>) -> &mut State {
         &mut self.states[handle]
+    }
+
+    /// Tries to find a state by its name.
+    #[inline]
+    pub fn find_state_by_name_ref<S: AsRef<str>>(
+        &self,
+        name: S,
+    ) -> Option<(Handle<State>, &State)> {
+        utils::find_by_name_ref(self.states.pair_iter(), name)
+    }
+
+    /// Tries to find a state by its name.
+    #[inline]
+    pub fn find_state_by_name_mut<S: AsRef<str>>(
+        &mut self,
+        name: S,
+    ) -> Option<(Handle<State>, &mut State)> {
+        utils::find_by_name_mut(self.states.pair_iter_mut(), name)
     }
 
     /// Returns a reference to inner states container.

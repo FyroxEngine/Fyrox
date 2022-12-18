@@ -11,6 +11,7 @@ use crate::{
         reflect::prelude::*,
         visitor::prelude::*,
     },
+    utils::NameProvider,
 };
 use std::cell::Ref;
 
@@ -27,6 +28,12 @@ pub struct State {
     /// Root node of the state that provides the state with animation data.
     #[reflect(read_only)]
     pub root: Handle<PoseNode>,
+}
+
+impl NameProvider for State {
+    fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl State {

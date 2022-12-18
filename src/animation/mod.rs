@@ -11,7 +11,11 @@ use crate::{
         graph::{Graph, NodePool},
         node::Node,
     },
-    utils::log::{Log, MessageKind},
+    utils::{
+        self,
+        log::{Log, MessageKind},
+        NameProvider,
+    },
 };
 use fxhash::FxHashMap;
 use std::{
@@ -37,6 +41,12 @@ pub struct AnimationSignal {
     pub name: String,
     pub time: f32,
     pub enabled: bool,
+}
+
+impl NameProvider for AnimationSignal {
+    fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl AnimationSignal {
@@ -82,6 +92,12 @@ pub struct Animation {
     #[reflect(hidden)]
     #[visit(skip)]
     events: VecDeque<AnimationEvent>,
+}
+
+impl NameProvider for Animation {
+    fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -446,6 +462,24 @@ impl Animation {
             .filter(move |track| track.target() == handle)
     }
 
+    /// Tries to find a layer by its name. Returns index of the signal and its reference.
+    #[inline]
+    pub fn find_signal_by_name_ref<S: AsRef<str>>(
+        &self,
+        name: S,
+    ) -> Option<(usize, &AnimationSignal)> {
+        utils::find_by_name_ref(self.signals.iter().enumerate(), name)
+    }
+
+    /// Tries to find a signal by its name. Returns index of the signal and its reference.
+    #[inline]
+    pub fn find_by_name_mut<S: AsRef<str>>(
+        &mut self,
+        name: S,
+    ) -> Option<(usize, &mut AnimationSignal)> {
+        utils::find_by_name_mut(self.signals.iter_mut().enumerate(), name)
+    }
+
     pub fn remove_tracks(&mut self) {
         self.tracks.clear();
         self.time_slice = 0.0..0.0;
@@ -597,9 +631,7 @@ impl AnimationContainer {
         &self,
         name: S,
     ) -> Option<(Handle<Animation>, &Animation)> {
-        self.pool
-            .pair_iter()
-            .find(|(_, animation)| animation.name == name.as_ref())
+        utils::find_by_name_ref(self.pool.pair_iter(), name)
     }
 
     #[inline]
@@ -607,9 +639,7 @@ impl AnimationContainer {
         &mut self,
         name: S,
     ) -> Option<(Handle<Animation>, &mut Animation)> {
-        self.pool
-            .pair_iter_mut()
-            .find(|(_, animation)| animation.name == name.as_ref())
+        utils::find_by_name_mut(self.pool.pair_iter_mut(), name)
     }
 
     #[inline]

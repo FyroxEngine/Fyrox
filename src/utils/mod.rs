@@ -12,8 +12,8 @@ pub mod raw_mesh;
 pub mod uvgen;
 pub mod watcher;
 
-use crate::core::algebra::Vector2;
 use crate::{
+    core::algebra::Vector2,
     event::{ElementState, ModifiersState, MouseScrollDelta, VirtualKeyCode, WindowEvent},
     gui::{
         draw,
@@ -21,8 +21,7 @@ use crate::{
     },
     resource::texture::Texture,
 };
-use std::hash::Hasher;
-use std::{any::Any, sync::Arc};
+use std::{any::Any, hash::Hasher, sync::Arc};
 
 /// Translated key code to fyrox-ui key code.
 pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
@@ -495,4 +494,30 @@ pub fn value_as_u8_slice<T: Sized>(v: &T) -> &'_ [u8] {
 /// Performs hashing of a sized value by interpreting it as raw memory.
 pub fn hash_as_bytes<T: Sized, H: Hasher>(value: &T, hasher: &mut H) {
     hasher.write(value_as_u8_slice(value))
+}
+
+/// A trait for entities that have name.
+pub trait NameProvider {
+    /// Returns a reference to the name of the entity.
+    fn name(&self) -> &str;
+}
+
+/// Tries to find an entity by its name in a series of entities produced by an iterator.
+pub fn find_by_name_ref<'a, T, I, S, K>(mut iter: I, name: S) -> Option<(K, &'a T)>
+where
+    T: NameProvider,
+    I: Iterator<Item = (K, &'a T)>,
+    S: AsRef<str>,
+{
+    iter.find(|(_, value)| value.name() == name.as_ref())
+}
+
+/// Tries to find an entity by its name in a series of entities produced by an iterator.
+pub fn find_by_name_mut<'a, T, I, S, K>(mut iter: I, name: S) -> Option<(K, &'a mut T)>
+where
+    T: NameProvider,
+    I: Iterator<Item = (K, &'a mut T)>,
+    S: AsRef<str>,
+{
+    iter.find(|(_, value)| value.name() == name.as_ref())
 }
