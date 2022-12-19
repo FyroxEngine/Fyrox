@@ -499,7 +499,7 @@ impl MachineLayer {
         }
 
         self.final_pose
-            .local_poses
+            .poses_mut()
             .retain(|h, _| self.mask.should_animate(*h));
 
         &self.final_pose

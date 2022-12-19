@@ -1,75 +1,33 @@
 use crate::{
-    animation::{track::Track, value::BoundValueCollection},
+    animation::track::Track,
     core::{
         math::wrapf,
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
-        uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
     scene::{
         graph::{Graph, NodePool},
         node::Node,
     },
-    utils::{
-        self,
-        log::{Log, MessageKind},
-        NameProvider,
-    },
+    utils::{self, NameProvider},
 };
-use fxhash::FxHashMap;
 use std::{
-    collections::{hash_map::Entry, VecDeque},
+    collections::VecDeque,
     fmt::Debug,
     ops::{Index, IndexMut, Range},
 };
 
+pub use pose::{AnimationPose, NodePose};
+pub use signal::{AnimationEvent, AnimationSignal};
+
 pub mod container;
 pub mod machine;
+pub mod pose;
+pub mod signal;
 pub mod spritesheet;
 pub mod track;
 pub mod value;
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct AnimationEvent {
-    pub signal_id: Uuid,
-}
-
-#[derive(Clone, Debug, Visit, Reflect, PartialEq)]
-pub struct AnimationSignal {
-    pub id: Uuid,
-    pub name: String,
-    pub time: f32,
-    pub enabled: bool,
-}
-
-impl NameProvider for AnimationSignal {
-    fn name(&self) -> &str {
-        &self.name
-    }
-}
-
-impl AnimationSignal {
-    pub fn new(id: Uuid, name: &str, time: f32) -> Self {
-        Self {
-            id,
-            name: name.to_owned(),
-            time,
-            enabled: true,
-        }
-    }
-}
-
-impl Default for AnimationSignal {
-    fn default() -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            name: Default::default(),
-            time: 0.0,
-            enabled: true,
-        }
-    }
-}
 
 #[derive(Debug, Reflect, Visit, PartialEq)]
 pub struct Animation {
@@ -97,107 +55,6 @@ pub struct Animation {
 impl NameProvider for Animation {
     fn name(&self) -> &str {
         &self.name
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct LocalPose {
-    node: Handle<Node>,
-    values: BoundValueCollection,
-}
-
-impl Default for LocalPose {
-    fn default() -> Self {
-        Self {
-            node: Handle::NONE,
-            values: Default::default(),
-        }
-    }
-}
-
-impl LocalPose {
-    fn weighted_clone(&self, weight: f32) -> Self {
-        Self {
-            node: self.node,
-            values: self.values.weighted_clone(weight),
-        }
-    }
-
-    pub fn blend_with(&mut self, other: &LocalPose, weight: f32) {
-        self.values.blend_with(&other.values, weight)
-    }
-
-    pub fn values(&self) -> &BoundValueCollection {
-        &self.values
-    }
-}
-
-#[derive(Default, Debug, Clone, PartialEq)]
-pub struct AnimationPose {
-    local_poses: FxHashMap<Handle<Node>, LocalPose>,
-}
-
-impl AnimationPose {
-    pub fn clone_into(&self, dest: &mut AnimationPose) {
-        dest.reset();
-        for (handle, local_pose) in self.local_poses.iter() {
-            dest.local_poses.insert(*handle, local_pose.clone());
-        }
-    }
-
-    pub fn blend_with(&mut self, other: &AnimationPose, weight: f32) {
-        for (handle, other_pose) in other.local_poses.iter() {
-            if let Some(current_pose) = self.local_poses.get_mut(handle) {
-                current_pose.blend_with(other_pose, weight);
-            } else {
-                // There are no corresponding local pose, do fake blend between identity
-                // pose and other.
-                self.add_local_pose(other_pose.weighted_clone(weight));
-            }
-        }
-    }
-
-    fn add_local_pose(&mut self, local_pose: LocalPose) {
-        self.local_poses.insert(local_pose.node, local_pose);
-    }
-
-    pub fn reset(&mut self) {
-        self.local_poses.clear();
-    }
-
-    pub(crate) fn apply_internal(&self, nodes: &mut NodePool) {
-        for (node, local_pose) in self.local_poses.iter() {
-            if node.is_none() {
-                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else if let Some(node) = nodes.try_borrow_mut(*node) {
-                local_pose.values.apply(node);
-            }
-        }
-    }
-
-    pub fn apply(&self, graph: &mut Graph) {
-        for (node, local_pose) in self.local_poses.iter() {
-            if node.is_none() {
-                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else if let Some(node) = graph.try_get_mut(*node) {
-                local_pose.values.apply(node);
-            }
-        }
-    }
-
-    /// Calls given callback function for each node and allows you to apply pose with your own
-    /// rules. This could be useful if you need to ignore transform some part of pose for a node.
-    pub fn apply_with<C>(&self, graph: &mut Graph, mut callback: C)
-    where
-        C: FnMut(&mut Node, Handle<Node>, &LocalPose),
-    {
-        for (node, local_pose) in self.local_poses.iter() {
-            if node.is_none() {
-                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else if let Some(node_ref) = graph.try_get_mut(*node) {
-                callback(node_ref, *node, local_pose);
-            }
-        }
     }
 }
 
@@ -490,19 +347,7 @@ impl Animation {
         for track in self.tracks.iter() {
             if track.is_enabled() {
                 if let Some(bound_value) = track.fetch(self.time_position) {
-                    match self.pose.local_poses.entry(track.target()) {
-                        Entry::Occupied(entry) => {
-                            entry.into_mut().values.values.push(bound_value);
-                        }
-                        Entry::Vacant(entry) => {
-                            entry.insert(LocalPose {
-                                node: track.target(),
-                                values: BoundValueCollection {
-                                    values: vec![bound_value],
-                                },
-                            });
-                        }
-                    }
+                    self.pose.add_to_node_pose(track.target(), bound_value);
                 }
             }
         }
