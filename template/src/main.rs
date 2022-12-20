@@ -3,10 +3,11 @@
 use clap::{Parser, Subcommand};
 use convert_case::{Case, Casing};
 use std::{
+    fmt::Display,
     fs::{create_dir_all, remove_dir_all, File},
     io::Write,
     path::Path,
-    process::Command, fmt::Display,
+    process::Command,
 };
 use uuid::Uuid;
 
@@ -73,7 +74,7 @@ impl Display for NameErrors {
                 "The project name cannot be `{}` due to cargo's reserved keywords",
                 name
             ),
-            Self::Hyphen => write!(f, "The project name cannot contain `-`"), 
+            Self::Hyphen => write!(f, "The project name cannot contain `-`"),
         }
     }
 }
