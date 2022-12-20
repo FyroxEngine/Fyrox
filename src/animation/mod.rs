@@ -222,10 +222,12 @@ impl Clone for Animation {
 }
 
 impl Animation {
+    /// Sets a new name for the animation. The name then could be used to find the animation in a container.
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
         self.name = name.as_ref().to_owned();
     }
 
+    /// Returns current name of the animation.
     pub fn name(&self) -> &str {
         self.name.as_ref()
     }
@@ -264,10 +266,20 @@ impl Animation {
         }
     }
 
+    /// Returns a reference to tracks container.
     pub fn tracks(&self) -> &[Track] {
         &self.tracks
     }
 
+    /// Sets new time position of the animation. The actual time position the animation will have after the call,
+    /// can be different in two reasons:
+    ///
+    /// - If the animation is looping and the new time position is outside of the time slice of the animation, then
+    /// the actual time position will be wrapped to fit the time slice. For example, if you have an animation that has
+    /// `0.0..5.0s` time slice and you trying to set `7.5s` position, the actual time position will be `2.5s` (it
+    /// wraps the input value on the given time slice).
+    /// - If the animation is **not** looping and the new time position is outside of the time slice of the animation,
+    /// then the actual time position will be clamped to the time clice of the animation.
     pub fn set_time_position(&mut self, time: f32) -> &mut Self {
         if self.looped {
             self.time_position = wrapf(time, self.time_slice.start, self.time_slice.end);
@@ -279,7 +291,8 @@ impl Animation {
     }
 
     /// Sets new time slice of the animation in seconds. It defines a time interval in which the animation will
-    /// be played. Current playback position will be clamped to fit to new bounds.
+    /// be played. Current playback position will be clamped (or wrapped if the animation is looping) to fit to new
+    /// bounds.
     pub fn set_time_slice(&mut self, time_slice: Range<f32>) {
         assert!(time_slice.start <= time_slice.end);
 
@@ -289,10 +302,12 @@ impl Animation {
         self.set_time_position(self.time_position);
     }
 
+    /// Returns current time slice of the animation.
     pub fn time_slice(&self) -> Range<f32> {
         self.time_slice.clone()
     }
 
+    /// Rewinds the animation to the beginning.
     pub fn rewind(&mut self) -> &mut Self {
         self.set_time_position(self.time_slice.start)
     }
@@ -302,6 +317,8 @@ impl Animation {
         self.time_slice.end - self.time_slice.start
     }
 
+    /// Performs a single update tick and calculates an output pose. This method is low level, you should not use it
+    /// in normal circumstances - the engine will call it for you.
     pub fn tick(&mut self, dt: f32) {
         self.update_pose();
 
@@ -326,86 +343,113 @@ impl Animation {
         self.set_time_position(new_time_position);
     }
 
+    /// Extracts a first event from the events queue of the animation.
     pub fn pop_event(&mut self) -> Option<AnimationEvent> {
         self.events.pop_front()
     }
 
+    /// Returns a reference to inner events queue. It is useful when you need to iterate over the events, but
+    /// don't extract them from the queue.
     pub fn events_ref(&self) -> &VecDeque<AnimationEvent> {
         &self.events
     }
 
+    /// Return a mutable reference to inner events queue. Provides you a full controls over animation events,
+    /// you can even manually inject events in the queue.
     pub fn events_mut(&mut self) -> &mut VecDeque<AnimationEvent> {
         &mut self.events
     }
 
+    /// Clones the events queue and returns it to the caller.
     pub fn events(&self) -> VecDeque<AnimationEvent> {
         self.events.clone()
     }
 
+    /// Returns current time position of the animation. The time position is guaranteed to be in the range of
+    /// current time slice of the animation.
     pub fn time_position(&self) -> f32 {
         self.time_position
     }
 
-    pub fn speed(&self) -> f32 {
-        self.speed
-    }
-
-    pub fn set_loop(&mut self, state: bool) -> &mut Self {
-        self.looped = state;
-        self
-    }
-
-    pub fn is_loop(&self) -> bool {
-        self.looped
-    }
-
-    pub fn has_ended(&self) -> bool {
-        !self.looped && (self.time_position - self.time_slice.end).abs() <= f32::EPSILON
-    }
-
-    pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {
-        self.enabled = enabled;
-        self
-    }
-
-    pub fn is_enabled(&self) -> bool {
-        self.enabled
-    }
-
+    /// Sets new speed multiplier for the animation. By default it is set to 1.0. Negative values can be used
+    /// to play the animation in reverse.
     pub fn set_speed(&mut self, speed: f32) -> &mut Self {
         self.speed = speed;
         self
     }
 
+    /// Returns speed multiplier of the animation.
+    pub fn speed(&self) -> f32 {
+        self.speed
+    }
+
+    /// Enables or disables looping of the animation.
+    pub fn set_loop(&mut self, state: bool) -> &mut Self {
+        self.looped = state;
+        self
+    }
+
+    /// Returns `true` if the animation is looping, `false` - otherwise.
+    pub fn is_loop(&self) -> bool {
+        self.looped
+    }
+
+    /// Returns `true` if the animation was played until the end of current time slice of the animation, `false` -
+    /// otherwise. Looping animations will always return `false`.
+    pub fn has_ended(&self) -> bool {
+        !self.looped && (self.time_position - self.time_slice.end).abs() <= f32::EPSILON
+    }
+
+    /// Enables or disables the animation, disabled animations does not updated and their output pose will remain
+    /// the same. By default every animation is enabled.
+    pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {
+        self.enabled = enabled;
+        self
+    }
+
+    /// Returns `true` if the animation is enabled, `false` - otherwise.
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    /// Returns a mutable reference to the track container.
     pub fn tracks_mut(&mut self) -> &mut [Track] {
         &mut self.tracks
     }
 
+    /// Adds a new animation signal to the animation. See [`AnimationSignal`] docs for more info and examples.
     pub fn add_signal(&mut self, signal: AnimationSignal) -> &mut Self {
         self.signals.push(signal);
         self
     }
 
+    /// Removes last animation signal from the container of the animation.
     pub fn pop_signal(&mut self) -> Option<AnimationSignal> {
         self.signals.pop()
     }
 
+    /// Inserts a new animation signal at given position.
     pub fn insert_signal(&mut self, index: usize, signal: AnimationSignal) {
         self.signals.insert(index, signal)
     }
 
+    /// Removes an animation signal at given index.
     pub fn remove_signal(&mut self, index: usize) -> AnimationSignal {
         self.signals.remove(index)
     }
 
+    /// Returns a reference to the animation signals container.
     pub fn signals(&self) -> &[AnimationSignal] {
         &self.signals
     }
 
+    /// Returns a mutable reference to the inner animation signals container, allowing you to modify the signals.
     pub fn signals_mut(&mut self) -> &mut [AnimationSignal] {
         &mut self.signals
     }
 
+    /// Removes all tracks from the animation for which the given `filter` closure returns `false`. Could be useful
+    /// to remove undesired animation tracks.
     pub fn retain_tracks<F>(&mut self, filter: F)
     where
         F: FnMut(&Track) -> bool,
@@ -413,10 +457,9 @@ impl Animation {
         self.tracks.retain(filter)
     }
 
-    /// Enables or disables animation tracks for nodes in hierarchy starting from given root.
-    /// Could be useful to enable or disable animation for skeleton parts, i.e. you don't want
-    /// legs to be animated and you know that legs starts from torso bone, then you could do
-    /// this.
+    /// Enables or disables animation tracks for nodes in hierarchy starting from given root. Could be useful to enable
+    /// or disable animation for skeleton parts, i.e. you don't want legs to be animated and you know that legs starts
+    /// from torso bone, then you could do this.
     ///
     /// ```
     /// use fyrox::scene::node::Node;
@@ -429,8 +472,8 @@ impl Animation {
     /// }
     /// ```
     ///
-    /// After this legs won't be animated and animation could be blended together with run
-    /// animation so it will produce new animation - run and aim.
+    /// After this legs won't be animated and animation could be blended together with run animation so it will produce
+    /// new animation - run and aim.
     pub fn set_tracks_enabled_from(&mut self, handle: Handle<Node>, enabled: bool, graph: &Graph) {
         let mut stack = vec![handle];
         while let Some(node) = stack.pop() {
@@ -445,6 +488,7 @@ impl Animation {
         }
     }
 
+    /// Tries to find all tracks that refer to a given node and enables or disables them.
     pub fn set_node_track_enabled(&mut self, handle: Handle<Node>, enabled: bool) {
         for track in self.tracks.iter_mut() {
             if track.target() == handle {
@@ -453,12 +497,14 @@ impl Animation {
         }
     }
 
+    /// Returns an iterator that yields a number of references to tracks that refer to a given node.
     pub fn tracks_of(&self, handle: Handle<Node>) -> impl Iterator<Item = &Track> {
         self.tracks
             .iter()
             .filter(move |track| track.target() == handle)
     }
 
+    /// Returns an iterator that yields a number of references to tracks that refer to a given node.
     pub fn tracks_of_mut(&mut self, handle: Handle<Node>) -> impl Iterator<Item = &mut Track> {
         self.tracks
             .iter_mut()
@@ -483,6 +529,7 @@ impl Animation {
         utils::find_by_name_mut(self.signals.iter_mut().enumerate(), name)
     }
 
+    /// Removes all tracks from the animation.
     pub fn remove_tracks(&mut self) {
         self.tracks.clear();
     }
@@ -498,6 +545,7 @@ impl Animation {
         }
     }
 
+    /// Returns current pose of the animation (a final result that can be applied to a scene graph).
     pub fn pose(&self) -> &AnimationPose {
         &self.pose
     }
