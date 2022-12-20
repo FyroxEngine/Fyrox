@@ -37,25 +37,26 @@ enum Commands {
 }
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) {
-    let mut file = File::create(path).unwrap();
-    file.write_all(content.as_ref().as_bytes()).unwrap_or_else(
-        |x|panic!(
-            "Error happened while writing to file: {}.\nError:\n{}",
-            path.as_ref().to_string_lossy(),
-            x
-        )
-    );
+    let mut file = File::create(path.as_ref()).unwrap();
+    file.write_all(content.as_ref().as_bytes())
+        .unwrap_or_else(|x| {
+            panic!(
+                "Error happened while writing to file: {}.\nError:\n{}",
+                path.as_ref().to_string_lossy(),
+                x
+            )
+        });
 }
 
 fn write_file_binary<P: AsRef<Path>>(path: P, content: &[u8]) {
-    let mut file = File::create(path).unwrap();
-    file.write_all(content).unwrap_or_else(
-        |x|panic!(
+    let mut file = File::create(path.as_ref()).unwrap();
+    file.write_all(content).unwrap_or_else(|x| {
+        panic!(
             "Error happened while writing to file: {}.\nError:\n{}",
             path.as_ref().to_string_lossy(),
             x
         )
-    );
+    });
 }
 
 fn init_game(base_path: &Path, name: &str) {
