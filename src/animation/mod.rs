@@ -568,6 +568,8 @@ impl Default for Animation {
     }
 }
 
+/// A container for animations. It is a tiny wrapper around [`Pool`], you should never create the container yourself,
+/// it is managed by the engine.
 #[derive(Debug, Clone, Reflect, PartialEq)]
 pub struct AnimationContainer {
     pool: Pool<Animation>,
@@ -584,36 +586,43 @@ impl AnimationContainer {
         Self { pool: Pool::new() }
     }
 
+    /// Returns a total amount of animations in the container.
     #[inline]
     pub fn alive_count(&self) -> u32 {
         self.pool.alive_count()
     }
 
+    /// Returns an iterator yielding a references to animations in the container.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &Animation> {
         self.pool.iter()
     }
 
+    /// Returns an iterator yielding a pair (handle, reference) to animations in the container.
     #[inline]
     pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Animation>, &Animation)> {
         self.pool.pair_iter()
     }
 
+    /// Returns an iterator yielding a pair (handle, reference) to animations in the container.
     #[inline]
     pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Animation>, &mut Animation)> {
         self.pool.pair_iter_mut()
     }
 
+    /// Returns an iterator yielding a references to animations in the container.
     #[inline]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Animation> {
         self.pool.iter_mut()
     }
 
+    /// Adds a new animation to the container and returns its handle.
     #[inline]
     pub fn add(&mut self, animation: Animation) -> Handle<Animation> {
         self.pool.spawn(animation)
     }
 
+    /// Tries to remove an animation from the container by its handle.
     #[inline]
     pub fn remove(&mut self, handle: Handle<Animation>) -> Option<Animation> {
         self.pool.try_free(handle)
@@ -639,31 +648,37 @@ impl AnimationContainer {
         self.pool.forget_ticket(ticket)
     }
 
+    /// Removes all animations.
     #[inline]
     pub fn clear(&mut self) {
         self.pool.clear()
     }
 
+    /// Tries to borrow a reference to an animation in the container. Panics if the handle is invalid.
     #[inline]
     pub fn get(&self, handle: Handle<Animation>) -> &Animation {
         self.pool.borrow(handle)
     }
 
+    /// Tries to borrow a mutable reference to an animation in the container. Panics if the handle is invalid.
     #[inline]
     pub fn get_mut(&mut self, handle: Handle<Animation>) -> &mut Animation {
         self.pool.borrow_mut(handle)
     }
 
+    /// Tries to borrow a reference to an animation in the container.
     #[inline]
     pub fn try_get(&self, handle: Handle<Animation>) -> Option<&Animation> {
         self.pool.try_borrow(handle)
     }
 
+    /// Tries to borrow a mutable reference to an animation in the container.
     #[inline]
     pub fn try_get_mut(&mut self, handle: Handle<Animation>) -> Option<&mut Animation> {
         self.pool.try_borrow_mut(handle)
     }
 
+    /// Tries to find an animation by its name in the container.
     #[inline]
     pub fn find_by_name_ref<S: AsRef<str>>(
         &self,
@@ -672,6 +687,7 @@ impl AnimationContainer {
         utils::find_by_name_ref(self.pool.pair_iter(), name)
     }
 
+    /// Tries to find an animation by its name in the container.
     #[inline]
     pub fn find_by_name_mut<S: AsRef<str>>(
         &mut self,
@@ -680,6 +696,8 @@ impl AnimationContainer {
         utils::find_by_name_mut(self.pool.pair_iter_mut(), name)
     }
 
+    /// Removes every animation from the container that does not satisfy a particular condition represented by the given
+    /// closue.
     #[inline]
     pub fn retain<P>(&mut self, pred: P)
     where
@@ -688,6 +706,8 @@ impl AnimationContainer {
         self.pool.retain(pred)
     }
 
+    /// Updates all animations in the container and applies their poses to respective nodes. This method is intended to
+    /// be used only by the internals of the engine!
     pub fn update_animations(&mut self, nodes: &mut NodePool, apply: bool, dt: f32) {
         for animation in self.pool.iter_mut().filter(|anim| anim.enabled) {
             animation.tick(dt);
@@ -701,11 +721,10 @@ impl AnimationContainer {
     ///
     /// # Potential use cases
     ///
-    /// Sometimes there is a need to use animation events only from one frame,
-    /// in this case you should clear events each frame. This situation might come up
-    /// when you have multiple animations with signals, but at each frame not every
-    /// event gets processed. This might result in unwanted side effects, like multiple
-    /// attack events may result in huge damage in a single frame.
+    /// Sometimes there is a need to use animation events only from one frame, in this case you should clear events each frame.
+    /// This situation might come up when you have multiple animations with signals, but at each frame not every event gets
+    /// processed. This might result in unwanted side effects, like multiple attack events may result in huge damage in a single
+    /// frame.
     pub fn clear_animation_events(&mut self) {
         for animation in self.pool.iter_mut() {
             animation.events.clear();
