@@ -294,7 +294,7 @@ impl Animation {
     }
 
     pub fn rewind(&mut self) -> &mut Self {
-        self.set_time_position(0.0)
+        self.set_time_position(self.time_slice.start)
     }
 
     /// Returns length of the animation in seconds.
