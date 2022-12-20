@@ -3,6 +3,7 @@
 use clap::{Parser, Subcommand};
 use convert_case::{Case, Casing};
 use std::{
+    fmt::Display,
     fs::{create_dir_all, remove_dir_all, File},
     io::Write,
     path::Path,
@@ -57,6 +58,42 @@ fn write_file_binary<P: AsRef<Path>>(path: P, content: &[u8]) {
             x
         )
     });
+}
+
+#[derive(Debug)]
+enum NameErrors {
+    CargoReserved(String),
+    Hyphen,
+}
+
+impl Display for NameErrors {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CargoReserved(name) => write!(
+                f,
+                "The project name cannot be `{}` due to cargo's reserved keywords",
+                name
+            ),
+            Self::Hyphen => write!(f, "The project name cannot contain `-`"),
+        }
+    }
+}
+
+fn check_name(name: &str) -> Result<&str, NameErrors> {
+    const RESERVED_NAMES: [&str; 52] = [
+        "abstract", "alignof", "as", "become", "box", "break", "const", "continue", "crate", "do",
+        "else", "enum", "extern", "false", "final", "fn", "for", "if", "impl", "in", "let", "loop",
+        "macro", "match", "mod", "move", "mut", "offsetof", "override", "priv", "proc", "pub",
+        "pure", "ref", "return", "self", "sizeof", "static", "struct", "super", "test", "trait",
+        "true", "type", "typeof", "unsafe", "unsized", "use", "virtual", "where", "while", "yield",
+    ];
+    if RESERVED_NAMES.contains(&name) {
+        return Err(NameErrors::CargoReserved(name.to_string()));
+    }
+    if name.contains('-') {
+        return Err(NameErrors::Hyphen);
+    }
+    Ok(name)
 }
 
 fn init_game(base_path: &Path, name: &str) {
@@ -505,18 +542,23 @@ fn main() {
 
     match args.command {
         Commands::Init { name, style } => {
-            if name.contains('-') {
-                panic!("The project name cannot contain `-`.")
-            }
+            let name = check_name(&name);
+            let name = match name {
+                Ok(s) => s,
+                Err(name_error) => {
+                    println!("{}", name_error);
+                    return;
+                }
+            };
 
-            let base_path = Path::new(&name);
+            let base_path = Path::new(name);
 
             init_workspace(base_path);
             init_data(base_path, &style);
-            init_game(base_path, &name);
-            init_editor(base_path, &name);
-            init_executor(base_path, &name);
-            init_wasm_executor(base_path, &name);
+            init_game(base_path, name);
+            init_editor(base_path, name);
+            init_executor(base_path, name);
+            init_wasm_executor(base_path, name);
 
             println!("Project {} was generated successfully!", name);
             println!(
