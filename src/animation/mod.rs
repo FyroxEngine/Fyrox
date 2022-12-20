@@ -485,7 +485,6 @@ impl Animation {
 
     pub fn remove_tracks(&mut self) {
         self.tracks.clear();
-        self.time_slice = 0.0..0.0;
     }
 
     fn update_pose(&mut self) {
