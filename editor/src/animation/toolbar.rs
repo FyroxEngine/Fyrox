@@ -1,8 +1,9 @@
 use crate::{
     animation::{
         command::{
-            AddAnimationCommand, RemoveAnimationCommand, SetAnimationLoopingCommand,
-            SetAnimationNameCommand, SetAnimationSpeedCommand, SetAnimationTimeSliceCommand,
+            AddAnimationCommand, RemoveAnimationCommand, SetAnimationEnabledCommand,
+            SetAnimationLoopingCommand, SetAnimationNameCommand, SetAnimationSpeedCommand,
+            SetAnimationTimeSliceCommand,
         },
         selection::AnimationSelection,
     },
@@ -62,6 +63,7 @@ pub struct Toolbar {
     pub file_selector: Handle<UiNode>,
     pub selected_import_root: Handle<Node>,
     pub looping: Handle<UiNode>,
+    pub enabled: Handle<UiNode>,
 }
 
 #[must_use]
@@ -90,6 +92,7 @@ impl Toolbar {
         let time_slice_end;
         let import;
         let looping;
+        let enabled;
         let panel = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
@@ -254,6 +257,26 @@ impl Toolbar {
                                 )
                                 .build(ctx);
                                 looping
+                            })
+                            .with_child({
+                                enabled = CheckBoxBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(make_simple_tooltip(
+                                            ctx,
+                                            "Enables or disables the animation.",
+                                        )),
+                                )
+                                .with_content(
+                                    TextBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_vertical_alignment(VerticalAlignment::Center),
+                                    )
+                                    .with_text("Enabled")
+                                    .build(ctx),
+                                )
+                                .build(ctx);
+                                enabled
                             })
                             .with_child(
                                 ImageBuilder::new(
@@ -459,6 +482,7 @@ impl Toolbar {
             file_selector,
             selected_import_root: Default::default(),
             looping,
+            enabled,
         }
     }
 
@@ -575,6 +599,14 @@ impl Toolbar {
                 } else if message.destination() == self.looping {
                     sender
                         .send(Message::do_scene_command(SetAnimationLoopingCommand {
+                            node_handle: animation_player_handle,
+                            animation_handle: selection.animation,
+                            value: *checked,
+                        }))
+                        .unwrap();
+                } else if message.destination() == self.enabled {
+                    sender
+                        .send(Message::do_scene_command(SetAnimationEnabledCommand {
                             node_handle: animation_player_handle,
                             animation_handle: selection.animation,
                             value: *checked,
@@ -827,6 +859,15 @@ impl Toolbar {
                     Some(animation.is_loop()),
                 ),
             );
+
+            send_sync_message(
+                ui,
+                CheckBoxMessage::checked(
+                    self.enabled,
+                    MessageDirection::ToWidget,
+                    Some(animation.is_enabled()),
+                ),
+            );
         }
 
         for widget in [
@@ -838,6 +879,7 @@ impl Toolbar {
             self.time_slice_end,
             self.clone_current_animation,
             self.looping,
+            self.enabled,
         ] {
             send_sync_message(
                 ui,
