@@ -264,6 +264,10 @@ impl Lightmap {
                 return Err(LightmapGenerationError::Cancelled);
             }
 
+            if !light.is_globally_enabled() {
+                continue;
+            }
+
             if let Some(point) = light.cast::<PointLight>() {
                 lights.push(LightDefinition::Point(PointLightDefinition {
                     handle,
@@ -314,7 +318,7 @@ impl Lightmap {
 
         for (handle, node) in scene.graph.pair_iter() {
             if let Some(mesh) = node.cast::<Mesh>() {
-                if !mesh.global_visibility() {
+                if !mesh.global_visibility() || !mesh.is_globally_enabled() {
                     continue;
                 }
                 let global_transform = mesh.global_transform();

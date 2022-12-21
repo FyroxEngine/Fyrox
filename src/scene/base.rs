@@ -8,6 +8,7 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{ErasedHandle, Handle},
         reflect::prelude::*,
+        uuid::Uuid,
         variable::InheritableVariable,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
@@ -17,7 +18,6 @@ use crate::{
     script::{Script, ScriptTrait},
     utils::log::Log,
 };
-use fyrox_core::uuid::Uuid;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -403,6 +403,11 @@ pub struct Base {
     // Use it at your own risk only when you're completely sure what you are doing.
     #[reflect(setter = "set_script_internal")]
     pub(crate) script: Option<Script>,
+
+    enabled: InheritableVariable<bool>,
+
+    #[reflect(hidden)]
+    pub(crate) global_enabled: Cell<bool>,
 }
 
 impl Drop for Base {
@@ -826,6 +831,33 @@ impl Base {
         }
     }
 
+    /// Enables or disables scene node. Disabled scene nodes won't be updated (including scripts) or rendered.
+    ///
+    /// # Important notes
+    ///
+    /// Enabled/disabled state will affect children nodes. It means that if you have a node with children nodes,
+    /// and you disable the node, all children nodes will be disabled too even if their [`Self::is_enabled`] method
+    /// returns `true`.
+    #[inline]
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled.set_value_and_mark_modified(enabled);
+    }
+
+    /// Returns `true` if the node is enabled, `false` - otherwise. The return value does **not** include the state
+    /// of parent nodes. It should be considered as "local" enabled flag. To get actual enabled state, that includes
+    /// the state of parent nodes, use [`Self::is_globally_enabled`] method.
+    #[inline]
+    pub fn is_enabled(&self) -> bool {
+        *self.enabled
+    }
+
+    /// Returns `true` if the node and every parent up in hierarchy is enabled, `false` - otherwise. This method
+    /// returns "true" `enabled` flag. Its value could be different from the value returned by [`Self::is_enabled`].
+    #[inline]
+    pub fn is_globally_enabled(&self) -> bool {
+        self.global_enabled.get()
+    }
+
     pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
         if let Some(script) = self.script.as_mut() {
             script.restore_resources(resource_manager);
@@ -900,6 +932,7 @@ impl Visit for Base {
         let _ = self.frustum_culling.visit("FrustumCulling", &mut region);
         let _ = self.cast_shadows.visit("CastShadows", &mut region);
         let _ = self.instance_id.visit("InstanceId", &mut region);
+        let _ = self.enabled.visit("Enabled", &mut region);
 
         // Script visiting may fail for various reasons:
         //
@@ -937,6 +970,7 @@ pub struct BaseBuilder {
     cast_shadows: bool,
     script: Option<Script>,
     instance_id: InstanceId,
+    enabled: bool,
 }
 
 impl Default for BaseBuilder {
@@ -964,6 +998,7 @@ impl BaseBuilder {
             cast_shadows: true,
             script: None,
             instance_id: InstanceId(Uuid::new_v4()),
+            enabled: true,
         }
     }
 
@@ -999,6 +1034,12 @@ impl BaseBuilder {
     #[inline]
     pub fn with_inv_bind_pose_transform(mut self, inv_bind_pose: Matrix4<f32>) -> Self {
         self.inv_bind_pose_transform = inv_bind_pose;
+        self
+    }
+
+    /// Enables or disables the scene node.
+    pub fn with_enabled(mut self, enabled: bool) -> Self {
+        self.enabled = enabled;
         self
     }
 
@@ -1099,6 +1140,8 @@ impl BaseBuilder {
             cast_shadows: self.cast_shadows.into(),
             script: self.script,
             instance_id: InstanceId(Uuid::new_v4()),
+            enabled: self.enabled.into(),
+            global_enabled: Cell::new(true),
         }
     }
 }

@@ -126,7 +126,10 @@ impl BatchStorage {
         self.batches.clear();
         self.batch_map.clear();
 
-        for (handle, node) in graph.pair_iter() {
+        for (handle, node) in graph
+            .pair_iter()
+            .filter(|(_, node)| node.is_globally_enabled())
+        {
             if let Some(mesh) = node.cast::<Mesh>() {
                 for surface in mesh.surfaces().iter() {
                     let is_skinned = !surface.bones.is_empty();

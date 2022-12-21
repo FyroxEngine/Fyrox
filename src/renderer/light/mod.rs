@@ -437,7 +437,7 @@ impl DeferredLightRenderer {
         );
 
         for (light_handle, light) in scene.graph.pair_iter() {
-            if !light.global_visibility() {
+            if !light.global_visibility() || !light.is_globally_enabled() {
                 continue;
             }
 

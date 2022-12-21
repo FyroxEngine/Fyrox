@@ -885,11 +885,15 @@ impl Graph {
         ) {
             let node = &nodes[node_handle];
 
-            let (parent_global_transform, parent_visibility) =
+            let (parent_global_transform, parent_visibility, parent_enabled) =
                 if let Some(parent) = nodes.try_borrow(node.parent()) {
-                    (parent.global_transform(), parent.global_visibility())
+                    (
+                        parent.global_transform(),
+                        parent.global_visibility(),
+                        parent.is_globally_enabled(),
+                    )
                 } else {
-                    (Matrix4::identity(), true)
+                    (Matrix4::identity(), true, true)
                 };
 
             let new_global_transform = parent_global_transform * node.local_transform().matrix();
@@ -908,6 +912,7 @@ impl Graph {
             node.global_transform.set(new_global_transform);
             node.global_visibility
                 .set(parent_visibility && node.visibility());
+            node.global_enabled.set(parent_enabled && node.is_enabled());
 
             for &child in node.children() {
                 update_recursively(nodes, sound_context, physics, physics2d, child);
@@ -968,14 +973,18 @@ impl Graph {
             if let Some((ticket, mut node)) = self.pool.try_take_reserve(handle) {
                 node.transform_modified.set(false);
 
-                let is_alive = node.update(&mut UpdateContext {
-                    frame_size,
-                    dt,
-                    nodes: &mut self.pool,
-                    physics: &mut self.physics,
-                    physics2d: &mut self.physics2d,
-                    sound_context: &mut self.sound_context,
-                });
+                let is_alive = if node.is_globally_enabled() {
+                    node.update(&mut UpdateContext {
+                        frame_size,
+                        dt,
+                        nodes: &mut self.pool,
+                        physics: &mut self.physics,
+                        physics2d: &mut self.physics2d,
+                        sound_context: &mut self.sound_context,
+                    })
+                } else {
+                    true
+                };
 
                 self.pool.put_back(ticket, node);
 

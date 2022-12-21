@@ -7,13 +7,12 @@ pub mod error;
 pub mod executor;
 pub mod resource_manager;
 
-use crate::engine::resource_manager::ResourceWaitContext;
 use crate::{
     asset::ResourceState,
     core::{algebra::Vector2, futures::executor::block_on, instant, pool::Handle},
     engine::{
         error::EngineError,
-        resource_manager::{container::event::ResourceEvent, ResourceManager},
+        resource_manager::{container::event::ResourceEvent, ResourceManager, ResourceWaitContext},
     },
     event::Event,
     event_loop::{ControlFlow, EventLoop},
@@ -425,6 +424,10 @@ where
     // instance.
     let mut script = match context.scene.graph.try_get_mut(context.handle) {
         Some(node) => {
+            if !node.is_globally_enabled() {
+                return;
+            }
+
             if let Some(script) = node.script.take() {
                 script
             } else {
