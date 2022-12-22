@@ -1,8 +1,7 @@
 use crate::{
-    device::{Device, FeedCallback, MixContext, NativeSample},
+    device::{Device, MixContext},
     error::SoundError,
 };
-use std::mem::size_of;
 
 pub struct DummySoundDevice;
 
