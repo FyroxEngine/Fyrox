@@ -582,7 +582,7 @@ impl Default for AnimationContainer {
 }
 
 impl AnimationContainer {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self { pool: Pool::new() }
     }
 
