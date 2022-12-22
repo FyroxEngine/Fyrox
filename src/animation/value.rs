@@ -124,16 +124,6 @@ impl TrackValue {
         }
     }
 
-    pub fn boxed_value(&self) -> Box<dyn Reflect> {
-        match self {
-            TrackValue::Vector3(v) => Box::new(*v),
-            TrackValue::UnitQuaternion(v) => Box::new(*v),
-            TrackValue::Real(v) => Box::new(*v),
-            TrackValue::Vector2(v) => Box::new(*v),
-            TrackValue::Vector4(v) => Box::new(*v),
-        }
-    }
-
     pub fn numeric_type_cast(&self, value_type: ValueType) -> Option<Box<dyn Reflect>> {
         fn convert_vec2<T>(vec2: &Vector2<f32>) -> Vector2<T>
         where
@@ -280,10 +270,6 @@ impl BoundValue {
             binding: self.binding.clone(),
             value,
         })
-    }
-
-    pub fn boxed_value(&self) -> Box<dyn Reflect> {
-        self.value.boxed_value()
     }
 }
 
