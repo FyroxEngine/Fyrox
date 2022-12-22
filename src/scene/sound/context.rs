@@ -235,7 +235,10 @@ impl SoundContext {
     }
 
     pub(crate) fn remove_sound(&mut self, sound: Handle<SoundSource>) {
-        self.native.state().remove_source(sound);
+        let mut state = self.native.state();
+        if state.is_valid_handle(sound) {
+            state.remove_source(sound);
+        }
     }
 
     pub(crate) fn set_sound_position(&mut self, sound: &Sound) {
@@ -253,6 +256,12 @@ impl SoundContext {
     }
 
     pub(crate) fn sync_to_sound(&mut self, sound: &Sound) {
+        if !sound.is_globally_enabled() {
+            self.remove_sound(sound.native.get());
+            sound.native.set(Default::default());
+            return;
+        }
+
         if sound.native.get().is_some() {
             let mut state = self.native.state();
             let source = state.source_mut(sound.native.get());

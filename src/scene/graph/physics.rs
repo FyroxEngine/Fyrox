@@ -1017,15 +1017,21 @@ impl PhysicsWorld {
     }
 
     pub(crate) fn remove_body(&mut self, handle: RigidBodyHandle) {
-        assert!(self.bodies.map.remove_by_key(&handle).is_some());
-        self.bodies.set.remove(
-            handle,
-            &mut self.islands,
-            &mut self.colliders.set,
-            &mut self.joints.set,
-            &mut self.multibody_joints.set,
-            true,
-        );
+        if self
+            .bodies
+            .set
+            .remove(
+                handle,
+                &mut self.islands,
+                &mut self.colliders.set,
+                &mut self.joints.set,
+                &mut self.multibody_joints.set,
+                true,
+            )
+            .is_some()
+        {
+            assert!(self.bodies.map.remove_by_key(&handle).is_some());
+        }
     }
 
     pub(super) fn add_collider(
@@ -1069,8 +1075,9 @@ impl PhysicsWorld {
     }
 
     pub(crate) fn remove_joint(&mut self, handle: ImpulseJointHandle) {
-        assert!(self.joints.map.remove_by_key(&handle).is_some());
-        self.joints.set.remove(handle, false);
+        if self.joints.set.remove(handle, false).is_some() {
+            assert!(self.joints.map.remove_by_key(&handle).is_some());
+        }
     }
 
     /// Draws physics world. Very useful for debugging, it allows you to see where are
@@ -1205,6 +1212,12 @@ impl PhysicsWorld {
         handle: Handle<Node>,
         rigid_body_node: &scene::rigidbody::RigidBody,
     ) {
+        if !rigid_body_node.is_globally_enabled() {
+            self.remove_body(rigid_body_node.native.get());
+            rigid_body_node.native.set(Default::default());
+            return;
+        }
+
         // Important notes!
         // 1) `get_mut` is **very** expensive because it forces physics engine to recalculate contacts
         //    and a lot of other stuff, this is why we need `anything_changed` flag.
@@ -1348,6 +1361,12 @@ impl PhysicsWorld {
         handle: Handle<Node>,
         collider_node: &scene::collider::Collider,
     ) {
+        if !collider_node.is_globally_enabled() {
+            self.remove_collider(collider_node.native.get());
+            collider_node.native.set(Default::default());
+            return;
+        }
+
         let anything_changed =
             collider_node.transform_modified.get() || collider_node.needs_sync_model();
 
@@ -1473,6 +1492,12 @@ impl PhysicsWorld {
         handle: Handle<Node>,
         joint: &scene::joint::Joint,
     ) {
+        if !joint.is_globally_enabled() {
+            self.remove_joint(joint.native.get());
+            joint.native.set(ImpulseJointHandle(Default::default()));
+            return;
+        }
+
         if let Some(native) = self.joints.set.get_mut(joint.native.get()) {
             joint.body1.try_sync_model(|v| {
                 if let Some(rigid_body_node) = nodes

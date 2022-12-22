@@ -84,6 +84,10 @@ impl NodeTrait for Listener {
     }
 
     fn sync_native(&self, _self_handle: Handle<Node>, context: &mut SyncContext) {
+        if !self.is_globally_enabled() {
+            return;
+        }
+
         let mut state = context.sound_context.native.state();
         let native = state.listener_mut();
         native.set_position(self.global_position());
