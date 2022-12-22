@@ -412,7 +412,7 @@ pub struct EngineInitParams<'a> {
     pub events_loop: &'a EventLoop<()>,
     /// Whether to use vertical synchronization or not. V-sync will force your game to render
     /// frames with the synchronization rate of your monitor (which is ~60 FPS). Keep in mind
-    /// vertical synchronization could not be available on your OS and engine might fail to
+    /// vertical synchronization might not be available on your OS and engine might fail to
     /// initialize if v-sync is on.
     pub vsync: bool,
 }
