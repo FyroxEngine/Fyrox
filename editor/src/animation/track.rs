@@ -19,7 +19,7 @@ use crate::{
 };
 use fyrox::{
     animation::{
-        container::{TrackFramesContainer, TrackValueKind},
+        container::{TrackDataContainer, TrackValueKind},
         track::Track,
         value::{ValueBinding, ValueType},
         Animation,
@@ -680,7 +680,7 @@ impl TrackList {
 
                                 if let Some((track_value_kind, actual_value_type)) = types {
                                     let mut track = Track::new(
-                                        TrackFramesContainer::new(track_value_kind),
+                                        TrackDataContainer::new(track_value_kind),
                                         ValueBinding::Property {
                                             name: property_path.path.clone(),
                                             value_type: actual_value_type,

@@ -1,6 +1,6 @@
 use crate::{
     animation::{
-        container::{TrackFramesContainer, TrackValueKind},
+        container::{TrackDataContainer, TrackValueKind},
         value::{BoundValue, ValueBinding},
     },
     core::{pool::Handle, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
@@ -11,7 +11,7 @@ use std::fmt::Debug;
 #[derive(Debug, Reflect, Clone, PartialEq)]
 pub struct Track {
     binding: ValueBinding,
-    frames: TrackFramesContainer,
+    frames: TrackDataContainer,
     enabled: bool,
     target: Handle<Node>,
     id: Uuid,
@@ -36,7 +36,7 @@ impl Default for Track {
     fn default() -> Self {
         Self {
             binding: ValueBinding::Position,
-            frames: TrackFramesContainer::default(),
+            frames: TrackDataContainer::default(),
             enabled: true,
             target: Default::default(),
             id: Uuid::new_v4(),
@@ -45,7 +45,7 @@ impl Default for Track {
 }
 
 impl Track {
-    pub fn new(container: TrackFramesContainer, binding: ValueBinding) -> Self {
+    pub fn new(container: TrackDataContainer, binding: ValueBinding) -> Self {
         Self {
             frames: container,
             binding,
@@ -55,7 +55,7 @@ impl Track {
 
     pub fn new_position() -> Self {
         Self {
-            frames: TrackFramesContainer::new(TrackValueKind::Vector3),
+            frames: TrackDataContainer::new(TrackValueKind::Vector3),
             binding: ValueBinding::Position,
             ..Default::default()
         }
@@ -63,7 +63,7 @@ impl Track {
 
     pub fn new_rotation() -> Self {
         Self {
-            frames: TrackFramesContainer::new(TrackValueKind::UnitQuaternion),
+            frames: TrackDataContainer::new(TrackValueKind::UnitQuaternion),
             binding: ValueBinding::Rotation,
             ..Default::default()
         }
@@ -71,7 +71,7 @@ impl Track {
 
     pub fn new_scale() -> Self {
         Self {
-            frames: TrackFramesContainer::new(TrackValueKind::Vector3),
+            frames: TrackDataContainer::new(TrackValueKind::Vector3),
             binding: ValueBinding::Scale,
             ..Default::default()
         }
@@ -93,18 +93,15 @@ impl Track {
         self.target
     }
 
-    pub fn frames_container(&self) -> &TrackFramesContainer {
+    pub fn frames_container(&self) -> &TrackDataContainer {
         &self.frames
     }
 
-    pub fn frames_container_mut(&mut self) -> &mut TrackFramesContainer {
+    pub fn frames_container_mut(&mut self) -> &mut TrackDataContainer {
         &mut self.frames
     }
 
-    pub fn set_frames_container(
-        &mut self,
-        container: TrackFramesContainer,
-    ) -> TrackFramesContainer {
+    pub fn set_frames_container(&mut self, container: TrackDataContainer) -> TrackDataContainer {
         std::mem::replace(&mut self.frames, container)
     }
 

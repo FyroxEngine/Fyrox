@@ -113,7 +113,7 @@ pub mod value;
 /// ```rust
 /// use fyrox::{
 ///     animation::{
-///         container::{TrackFramesContainer, TrackValueKind},
+///         container::{TrackDataContainer, TrackValueKind},
 ///         track::Track,
 ///         value::ValueBinding,
 ///         Animation,
@@ -131,19 +131,14 @@ pub mod value;
 /// };
 ///
 /// fn create_animation(node: Handle<Node>) -> Animation {
-///     let mut frames_container = TrackFramesContainer::new(TrackValueKind::Vector3);
+///     let mut frames_container = TrackDataContainer::new(TrackValueKind::Vector3);
 ///
-///     // We'll animate only X coordinate.
-///     let x_curve = Curve::from(vec![
+///     // We'll animate only X coordinate (at index 0).
+///     frames_container.curves_mut()[0] = Curve::from(vec![
 ///         CurveKey::new(0.5, 2.0, CurveKeyKind::Linear),
 ///         CurveKey::new(0.75, 1.0, CurveKeyKind::Linear),
 ///         CurveKey::new(1.0, 3.0, CurveKeyKind::Linear),
 ///     ]);
-///
-///     // Three curves because position is X, Y, Z vector;
-///     frames_container.add_curve(x_curve);
-///     frames_container.add_curve(Curve::default());
-///     frames_container.add_curve(Curve::default());
 ///
 ///     // Create a track that will animated the node using the curve above.
 ///     let mut track = Track::new(frames_container, ValueBinding::Position);

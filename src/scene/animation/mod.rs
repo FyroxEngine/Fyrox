@@ -37,7 +37,7 @@ mod kek {}
 /// ```rust
 /// use fyrox::{
 ///     animation::{
-///         container::{TrackFramesContainer, TrackValueKind},
+///         container::{TrackDataContainer, TrackValueKind},
 ///         track::Track,
 ///         value::ValueBinding,
 ///         Animation, AnimationContainer,
@@ -50,10 +50,10 @@ mod kek {}
 /// };
 ///
 /// fn create_bounce_animation(animated_node: Handle<Node>) -> Animation {
-///     let mut frames_container = TrackFramesContainer::new(TrackValueKind::Vector3);
+///     let mut frames_container = TrackDataContainer::new(TrackValueKind::Vector3);
 ///
-///     // We'll animate only Y coordinate.
-///     let y_curve = Curve::from(vec![
+///     // We'll animate only Y coordinate (at index 1).
+///     frames_container.curves_mut()[1] = Curve::from(vec![
 ///         CurveKey::new(0.1, 1.0, CurveKeyKind::Linear),
 ///         CurveKey::new(0.2, 0.0, CurveKeyKind::Linear),
 ///         CurveKey::new(0.3, 0.75, CurveKeyKind::Linear),
@@ -61,11 +61,6 @@ mod kek {}
 ///         CurveKey::new(0.5, 0.25, CurveKeyKind::Linear),
 ///         CurveKey::new(0.6, 0.0, CurveKeyKind::Linear),
 ///     ]);
-///
-///     // Three curves because position is X, Y, Z vector;
-///     frames_container.add_curve(Curve::default());
-///     frames_container.add_curve(y_curve);
-///     frames_container.add_curve(Curve::default());
 ///
 ///     // Create a track that will animated the node using the curve above.
 ///     let mut track = Track::new(frames_container, ValueBinding::Position);
