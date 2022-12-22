@@ -1,3 +1,6 @@
+//! A module that contains everything related to numeric values of animation tracks. See [`TrackValue`] docs
+//! for more info.
+
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
@@ -11,57 +14,104 @@ use crate::{
 };
 use std::fmt::{Debug, Display, Formatter};
 
+/// An actual type of a property value.
 #[derive(Visit, Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ValueType {
+    /// `bool`
     Bool,
+    /// `f32`
     F32,
+    /// `f64`
     F64,
+    /// `u64`
     U64,
+    /// `i64`
     I64,
+    /// `u32`
     U32,
+    /// `i32`
     I32,
+    /// `u16`
     U16,
+    /// `i16`
     I16,
+    /// `u8`
     U8,
+    /// `i8`
     I8,
 
+    /// `Vector2<bool>`
     Vector2Bool,
+    /// `Vector2<f32>`
     Vector2F32,
+    /// `Vector2<f64>`
     Vector2F64,
+    /// `Vector2<u64>`
     Vector2U64,
+    /// `Vector2<i64>`
     Vector2I64,
+    /// `Vector2<u32>`
     Vector2U32,
+    /// `Vector2<i32>`
     Vector2I32,
+    /// `Vector2<u16>`
     Vector2U16,
+    /// `Vector2<i16>`
     Vector2I16,
+    /// `Vector2<u8>`
     Vector2U8,
+    /// `Vector2<i8>`
     Vector2I8,
 
+    /// `Vector3<bool>`
     Vector3Bool,
+    /// `Vector3<f32>`
     Vector3F32,
+    /// `Vector3<f64>`
     Vector3F64,
+    /// `Vector3<u64>`
     Vector3U64,
+    /// `Vector3<i64>`
     Vector3I64,
+    /// `Vector3<u32>`
     Vector3U32,
+    /// `Vector3<i32>`
     Vector3I32,
+    /// `Vector3<u16>`
     Vector3U16,
+    /// `Vector3<i16>`
     Vector3I16,
+    /// `Vector3<u8>`
     Vector3U8,
+    /// `Vector3<i8>`
     Vector3I8,
 
+    /// `Vector4<bool>`
     Vector4Bool,
+    /// `Vector4<f32>`
     Vector4F32,
+    /// `Vector4<f64>`
     Vector4F64,
+    /// `Vector4<u64>`
     Vector4U64,
+    /// `Vector4<i64>`
     Vector4I64,
+    /// `Vector4<u32>`
     Vector4U32,
+    /// `Vector4<i32>`
     Vector4I32,
+    /// `Vector4<u16>`
     Vector4U16,
+    /// `Vector4<i16>`
     Vector4I16,
+    /// `Vector4<u8>`
     Vector4U8,
+    /// `Vector4<i8>`
     Vector4I8,
 
+    /// `UnitQuaternion<f32>`
     UnitQuaternionF32,
+    /// `UnitQuaternion<f64>`
     UnitQuaternionF64,
 }
 
@@ -71,6 +121,9 @@ impl Default for ValueType {
     }
 }
 
+/// A real value that can be produced by an animation track. Animations always operate on real numbers (`f32`) for any kind
+/// of machine numeric types (including `bool`). This is needed to be able to blend values; final blending result is then
+/// converted to an actual machine type of a target property.
 #[derive(Clone, Debug, PartialEq)]
 pub enum TrackValue {
     /// A real number.
@@ -90,6 +143,7 @@ pub enum TrackValue {
 }
 
 impl TrackValue {
+    /// Clones the value and applies the given weight to it.
     pub fn weighted_clone(&self, weight: f32) -> Self {
         match self {
             TrackValue::Real(v) => TrackValue::Real(*v * weight),
@@ -100,6 +154,8 @@ impl TrackValue {
         }
     }
 
+    /// Mixes (blends) the current value with an other value using the given weight. Blending is possible only if the types
+    /// are the same.
     pub fn blend_with(&mut self, other: &Self, weight: f32) {
         match (self, other) {
             (Self::Real(a), Self::Real(b)) => *a += *b * weight,
@@ -111,6 +167,8 @@ impl TrackValue {
         }
     }
 
+    /// Tries to calculate intermediate value between the current and an other using interpolation coefficient. Interpolation
+    /// will fail if the types of current and the other values don't match.
     pub fn interpolate(&self, other: &Self, t: f32) -> Option<Self> {
         match (self, other) {
             (Self::Real(a), Self::Real(b)) => Some(Self::Real(lerpf(*a, *b, t))),
@@ -124,6 +182,8 @@ impl TrackValue {
         }
     }
 
+    /// Tries to perform a numeric type casting of the current value to some other and returns a boxed value, that can
+    /// be used to set the value using reflection.
     pub fn numeric_type_cast(&self, value_type: ValueType) -> Option<Box<dyn Reflect>> {
         fn convert_vec2<T>(vec2: &Vector2<f32>) -> Vector2<T>
         where
@@ -226,12 +286,25 @@ impl TrackValue {
     }
 }
 
+/// Value binding tells the animation system to which of the many properties to set track's value. It has special
+/// cases for the most used properties and a generic one for arbitrary properties. Arbitrary properties are set using
+/// reflection system, while the special cases handles bindings to standard properties (such as position, scaling, or
+/// rotation) for optimization. Reflection is quite slow to be used as the universal property setting mechanism.  
 #[derive(Clone, Visit, Reflect, Debug, PartialEq, Eq)]
 pub enum ValueBinding {
+    /// A binding to position of a scene node.
     Position,
+    /// A binding to scale of a scene node.
     Scale,
+    /// A binding to rotation of a scene node.
     Rotation,
-    Property { name: String, value_type: ValueType },
+    /// A binding to an arbitrary property of a scene node.
+    Property {
+        /// A path to a property (`foo.bar.baz[1].foobar@EnumVariant.stuff`)
+        name: String,
+        /// Actual property type (only numeric properties are supported).
+        value_type: ValueType,
+    },
 }
 
 impl Display for ValueBinding {
@@ -245,13 +318,17 @@ impl Display for ValueBinding {
     }
 }
 
+/// A value that is bound to a property.
 #[derive(Clone, Debug, PartialEq)]
 pub struct BoundValue {
+    /// A property to which the value is bound to.
     pub binding: ValueBinding,
+    /// The new value for the property the binding points to.
     pub value: TrackValue,
 }
 
 impl BoundValue {
+    /// Performs a weighted clone of the value. See [`TrackValue::weighted_clone`] for more info.
     pub fn weighted_clone(&self, weight: f32) -> Self {
         Self {
             binding: self.binding.clone(),
@@ -259,11 +336,15 @@ impl BoundValue {
         }
     }
 
+    /// Blends the current value with an other value using the given weight. See [`TrackValue::blend_with`] for
+    /// more info.
     pub fn blend_with(&mut self, other: &Self, weight: f32) {
         assert_eq!(self.binding, other.binding);
         self.value.blend_with(&other.value, weight);
     }
 
+    /// Tries to interpolate the current value with some other using the given interpolation coefficient. See
+    /// [`TrackValue::interpolate`] for more info.
     pub fn interpolate(&self, other: &Self, t: f32) -> Option<Self> {
         assert_eq!(self.binding, other.binding);
         self.value.interpolate(&other.value, t).map(|value| Self {
@@ -273,12 +354,15 @@ impl BoundValue {
     }
 }
 
+/// A collection of values that are bounds to some properties.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct BoundValueCollection {
+    /// Actual values collection.
     pub values: Vec<BoundValue>,
 }
 
 impl BoundValueCollection {
+    /// Performs a weighted clone of the collection. See [`TrackValue::weighted_clone`] docs for more info.
     pub fn weighted_clone(&self, weight: f32) -> Self {
         Self {
             values: self
@@ -289,6 +373,8 @@ impl BoundValueCollection {
         }
     }
 
+    /// Tries to blend each value of the current collection with a respective (by binding) value in the other collection.
+    /// See [`TrackValue::blend_with`] docs for more info.
     pub fn blend_with(&mut self, other: &Self, weight: f32) {
         for value in self.values.iter_mut() {
             if let Some(other_value) = other.values.iter().find(|v| v.binding == value.binding) {
@@ -297,6 +383,9 @@ impl BoundValueCollection {
         }
     }
 
+    /// Tries to interpolate each value of the current collection with a respective (by binding) value in the other
+    /// collection and returns the new collection of interpolated values. See [`TrackValue::interpolate`] docs for more
+    /// info.
     pub fn interpolate(&self, other: &Self, t: f32) -> Self {
         let mut new_values = Vec::new();
         for value in self.values.iter() {
@@ -308,6 +397,7 @@ impl BoundValueCollection {
         Self { values: new_values }
     }
 
+    /// Tries to set each value from the collection to the respective property (by binding) of the given scene node.
     pub fn apply(&self, node_ref: &mut Node) {
         for bound_value in self.values.iter() {
             match bound_value.binding {
