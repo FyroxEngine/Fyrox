@@ -19,12 +19,6 @@ mod alsa;
 mod coreaudio;
 
 // The dummy target works on all platforms
-#[cfg(not(any(
-    target_os = "windows",
-    target_os = "linux",
-    target_os = "macos",
-    target_arch = "wasm32"
-)))]
 mod dummy;
 
 #[cfg(target_arch = "wasm32")]
@@ -81,13 +75,17 @@ trait Device {
 
 /// Transfer ownership of device to separate mixer thread. It will
 /// call the callback with a specified rate to get data to send to a physical device.
-pub(crate) fn run_device<F: FnMut(&mut [(f32, f32)]) + Send + 'static>(
-    #[allow(unused_variables)] buffer_len_bytes: u32,
-    #[allow(unused_variables)] callback: F,
-) {
+#[allow(unused_variables)]
+pub(crate) fn run_device<F>(headless: bool, buffer_len_bytes: u32, callback: F)
+where
+    F: FnMut(&mut [(f32, f32)]) + Send + 'static,
+{
     #[cfg(not(target_arch = "wasm32"))]
-    {
-        std::thread::spawn(move || {
+    std::thread::spawn(move || {
+        if headless {
+            let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback).unwrap();
+            device.run();
+        } else {
             #[cfg(target_os = "windows")]
             let mut device = dsound::DirectSoundDevice::new(buffer_len_bytes, callback).unwrap();
             #[cfg(target_os = "linux")]
@@ -98,13 +96,19 @@ pub(crate) fn run_device<F: FnMut(&mut [(f32, f32)]) + Send + 'static>(
             #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
             let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback).unwrap();
             device.run()
-        });
-    }
+        }
+    });
 
     #[cfg(target_arch = "wasm32")]
     {
-        let mut device = web::WebAudioDevice::new(buffer_len_bytes, callback);
-        device.run();
-        std::mem::forget(device);
+        if headless {
+            let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback);
+            device.run();
+            std::mem::forget(device);
+        } else {
+            let mut device = web::WebAudioDevice::new(buffer_len_bytes, callback);
+            device.run();
+            std::mem::forget(device);
+        }
     }
 }

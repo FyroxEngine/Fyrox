@@ -415,6 +415,9 @@ pub struct EngineInitParams<'a> {
     /// vertical synchronization might not be available on your OS and engine might fail to
     /// initialize if v-sync is on.
     pub vsync: bool,
+    /// Run the engine without opening a window (TODO) and without sound.
+    /// Useful for dedicated game servers or running on CI.
+    pub headless: bool,
 }
 
 fn process_node<T>(context: &mut ScriptContext, func: &mut T)
@@ -512,6 +515,7 @@ impl Engine {
     ///     serialization_context,
     ///     events_loop: &evt,
     ///     vsync: false,
+    ///     headless: false,
     /// })
     /// .unwrap();
     /// ```
@@ -524,6 +528,7 @@ impl Engine {
             resource_manager,
             events_loop,
             vsync,
+            headless,
         } = params;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -585,7 +590,11 @@ impl Engine {
         let glow_context =
             { unsafe { glow::Context::from_loader_function(|s| context.get_proc_address(s)) } };
 
-        let sound_engine = SoundEngine::new();
+        let sound_engine = if headless {
+            SoundEngine::new_headless()
+        } else {
+            SoundEngine::new()
+        };
 
         let renderer = Renderer::new(
             glow_context,

@@ -69,6 +69,7 @@ impl Executor {
             serialization_context,
             events_loop: &event_loop,
             vsync,
+            headless: false,
         })
         .unwrap();
 
