@@ -1,7 +1,4 @@
-use crate::{
-    device::{Device, MixContext},
-    error::SoundError,
-};
+use crate::device::{Device, MixContext};
 
 pub struct DummySoundDevice;
 
@@ -9,8 +6,8 @@ impl DummySoundDevice {
     pub fn new<F: FnMut(&mut [(f32, f32)]) + Send + 'static>(
         _buffer_len_bytes: u32,
         _callback: F,
-    ) -> Result<Self, SoundError> {
-        Ok(Self)
+    ) -> Self {
+        Self
     }
 }
 

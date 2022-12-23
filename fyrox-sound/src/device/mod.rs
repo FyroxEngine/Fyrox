@@ -83,7 +83,7 @@ where
     #[cfg(not(target_arch = "wasm32"))]
     std::thread::spawn(move || {
         if headless {
-            let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback).unwrap();
+            let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback);
             device.run();
         } else {
             #[cfg(target_os = "windows")]
@@ -94,7 +94,7 @@ where
             let mut device =
                 coreaudio::CoreaudioSoundDevice::new(buffer_len_bytes, callback).unwrap();
             #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
-            let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback).unwrap();
+            let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback);
             device.run()
         }
     });
