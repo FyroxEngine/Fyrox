@@ -16,10 +16,20 @@ pub struct SoundEngine {
 }
 
 impl SoundEngine {
-    /// Creates new instance of a sound engine. It is possible to have multiple engine running at
+    /// Creates new instance of the sound engine. It is possible to have multiple engines running at
     /// the same time, but you shouldn't do this because you can create multiple contexts which
     /// should cover 99% of use cases.
     pub fn new() -> Arc<Mutex<Self>> {
+        Self::new_inner(false)
+    }
+
+    /// Like `new()` but won't use any OS sound devices.
+    /// Can be useful for running on CI where those might not be available.
+    pub fn new_headless() -> Arc<Mutex<Self>> {
+        Self::new_inner(true)
+    }
+
+    fn new_inner(headless: bool) -> Arc<Mutex<Self>> {
         let engine = Arc::new(Mutex::new(Self {
             contexts: Default::default(),
             master_gain: 1.0,
@@ -28,7 +38,7 @@ impl SoundEngine {
         // Run the default output device. Internally it creates separate thread, so we have
         // to share sound engine instance with it, this is the only reason why it is wrapped
         // in Arc<Mutex<>>
-        device::run_device(4 * SoundContext::SAMPLES_PER_CHANNEL as u32, {
+        device::run_device(headless, 4 * SoundContext::SAMPLES_PER_CHANNEL as u32, {
             let state = engine.clone();
             move |buf| {
                 if let Ok(mut state) = state.lock() {

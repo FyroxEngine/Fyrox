@@ -411,9 +411,15 @@ pub struct EngineInitParams<'a> {
     pub events_loop: &'a EventLoop<()>,
     /// Whether to use vertical synchronization or not. V-sync will force your game to render
     /// frames with the synchronization rate of your monitor (which is ~60 FPS). Keep in mind
-    /// vertical synchronization could not be available on your OS and engine might fail to
+    /// vertical synchronization might not be available on your OS and engine might fail to
     /// initialize if v-sync is on.
     pub vsync: bool,
+    /// (experimental) Run the engine without opening a window (TODO) and without sound.
+    /// Useful for dedicated game servers or running on CI.
+    ///
+    /// Headless support is incomplete, for progress see
+    /// <https://github.com/FyroxEngine/Fyrox/issues/222>.
+    pub headless: bool,
 }
 
 fn process_node<T>(context: &mut ScriptContext, func: &mut T)
@@ -515,6 +521,7 @@ impl Engine {
     ///     serialization_context,
     ///     events_loop: &evt,
     ///     vsync: false,
+    ///     headless: false,
     /// })
     /// .unwrap();
     /// ```
@@ -527,6 +534,7 @@ impl Engine {
             resource_manager,
             events_loop,
             vsync,
+            headless,
         } = params;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -588,7 +596,11 @@ impl Engine {
         let glow_context =
             { unsafe { glow::Context::from_loader_function(|s| context.get_proc_address(s)) } };
 
-        let sound_engine = SoundEngine::new();
+        let sound_engine = if headless {
+            SoundEngine::new_headless()
+        } else {
+            SoundEngine::new()
+        };
 
         let renderer = Renderer::new(
             glow_context,
