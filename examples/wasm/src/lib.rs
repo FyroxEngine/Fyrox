@@ -282,6 +282,7 @@ pub fn main_js() {
         serialization_context,
         events_loop: &event_loop,
         vsync: true,
+        headless: false,
     })
     .unwrap();
 

@@ -415,8 +415,11 @@ pub struct EngineInitParams<'a> {
     /// vertical synchronization might not be available on your OS and engine might fail to
     /// initialize if v-sync is on.
     pub vsync: bool,
-    /// Run the engine without opening a window (TODO) and without sound.
+    /// (experimental) Run the engine without opening a window (TODO) and without sound.
     /// Useful for dedicated game servers or running on CI.
+    ///
+    /// Headless support is incomplete, for progress see
+    /// https://github.com/FyroxEngine/Fyrox/issues/222
     pub headless: bool,
 }
 

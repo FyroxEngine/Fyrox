@@ -333,6 +333,7 @@ fn main() {
         serialization_context,
         events_loop: &event_loop,
         vsync: false,
+        headless: false,
     })
     .unwrap();
 
