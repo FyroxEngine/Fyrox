@@ -419,7 +419,7 @@ pub struct EngineInitParams<'a> {
     /// Useful for dedicated game servers or running on CI.
     ///
     /// Headless support is incomplete, for progress see
-    /// https://github.com/FyroxEngine/Fyrox/issues/222
+    /// <https://github.com/FyroxEngine/Fyrox/issues/222>.
     pub headless: bool,
 }
 
