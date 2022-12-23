@@ -1,3 +1,5 @@
+//! Pose is a set of property values of a node ([`NodePose`]) or a set of nodes ([`AnimationPose`]).
+
 use crate::{
     animation::{value::BoundValue, value::BoundValueCollection},
     core::pool::Handle,
@@ -7,9 +9,14 @@ use crate::{
 use fxhash::FxHashMap;
 use std::collections::hash_map::Entry;
 
+/// A "captured" state of properties of some animated scene node. The pose can be considered as container of values of some
+/// properties.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NodePose {
+    /// A handle of an animated node.
     pub node: Handle<Node>,
+
+    /// A set of property values.
     pub values: BoundValueCollection,
 }
 
@@ -23,6 +30,7 @@ impl Default for NodePose {
 }
 
 impl NodePose {
+    /// Performs a weighted cloning of the pose. See [`super::value::TrackValue::weighted_clone`] docs for more info.
     fn weighted_clone(&self, weight: f32) -> Self {
         Self {
             node: self.node,
@@ -30,21 +38,21 @@ impl NodePose {
         }
     }
 
+    /// Performs a blending of the current with some other pose. See [`super::value::TrackValue::blend_with`] docs for more
+    /// info.
     pub fn blend_with(&mut self, other: &NodePose, weight: f32) {
         self.values.blend_with(&other.values, weight)
     }
-
-    pub fn values(&self) -> &BoundValueCollection {
-        &self.values
-    }
 }
 
+/// Animations pose is a set of node poses. See [`NodePose`] docs for more info.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct AnimationPose {
     poses: FxHashMap<Handle<Node>, NodePose>,
 }
 
 impl AnimationPose {
+    /// Clears the set of node poses in the given animation pose and clones poses from the current animation pose to the given.
     pub fn clone_into(&self, dest: &mut AnimationPose) {
         dest.reset();
         for (handle, local_pose) in self.poses.iter() {
@@ -52,6 +60,8 @@ impl AnimationPose {
         }
     }
 
+    /// Blends current animation pose with another using a weight coefficient. Missing node poses (from either animation poses)
+    /// will become a weighted copies of a respective node pose.
     pub fn blend_with(&mut self, other: &AnimationPose, weight: f32) {
         for (handle, other_pose) in other.poses.iter() {
             if let Some(current_pose) = self.poses.get_mut(handle) {
@@ -68,7 +78,7 @@ impl AnimationPose {
         self.poses.insert(local_pose.node, local_pose);
     }
 
-    pub fn add_to_node_pose(&mut self, node: Handle<Node>, bound_value: BoundValue) {
+    pub(super) fn add_to_node_pose(&mut self, node: Handle<Node>, bound_value: BoundValue) {
         match self.poses.entry(node) {
             Entry::Occupied(entry) => {
                 entry.into_mut().values.values.push(bound_value);
@@ -84,14 +94,17 @@ impl AnimationPose {
         }
     }
 
+    /// Clears the pose.
     pub fn reset(&mut self) {
         self.poses.clear();
     }
 
+    /// Returns a reference to inner node pose map.
     pub fn poses(&self) -> &FxHashMap<Handle<Node>, NodePose> {
         &self.poses
     }
 
+    /// Returns a reference to inner node pose map.
     pub fn poses_mut(&mut self) -> &mut FxHashMap<Handle<Node>, NodePose> {
         &mut self.poses
     }
@@ -106,6 +119,7 @@ impl AnimationPose {
         }
     }
 
+    /// Tries to set each value to the each property from the animation pose to respective scene nodes.
     pub fn apply(&self, graph: &mut Graph) {
         for (node, local_pose) in self.poses.iter() {
             if node.is_none() {

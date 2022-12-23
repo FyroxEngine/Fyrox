@@ -1,3 +1,5 @@
+//! Track is responsible in animating a property of a single scene node. See [`Track`] docs for more info.
+
 use crate::{
     animation::{
         container::{TrackDataContainer, TrackValueKind},
@@ -8,6 +10,9 @@ use crate::{
 };
 use std::fmt::Debug;
 
+/// Track is responsible in animating a property of a single scene node. The track consists up to 4 parametric curves
+/// that contains the actual property data. Parametric curves allows the engine to perform various interpolations between
+/// key values.
 #[derive(Debug, Reflect, Clone, PartialEq)]
 pub struct Track {
     binding: ValueBinding,
@@ -45,6 +50,8 @@ impl Default for Track {
 }
 
 impl Track {
+    /// Creates a new track that will animate a property in the given binding. The `container` must have enough parametric
+    /// curves to be able to produces property values.
     pub fn new(container: TrackDataContainer, binding: ValueBinding) -> Self {
         Self {
             frames: container,
@@ -53,6 +60,7 @@ impl Track {
         }
     }
 
+    /// Creates a new track that is responsible in animating a position property of a scene node.
     pub fn new_position() -> Self {
         Self {
             frames: TrackDataContainer::new(TrackValueKind::Vector3),
@@ -61,6 +69,7 @@ impl Track {
         }
     }
 
+    /// Creates a new track that is responsible in animating a rotation property of a scene node.
     pub fn new_rotation() -> Self {
         Self {
             frames: TrackDataContainer::new(TrackValueKind::UnitQuaternion),
@@ -69,6 +78,7 @@ impl Track {
         }
     }
 
+    /// Creates a new track that is responsible in animating a scaling property of a scene node.
     pub fn new_scale() -> Self {
         Self {
             frames: TrackDataContainer::new(TrackValueKind::Vector3),
@@ -77,34 +87,42 @@ impl Track {
         }
     }
 
+    /// Sets new track binding. See [`ValueBinding`] docs for more info.
     pub fn set_binding(&mut self, binding: ValueBinding) {
         self.binding = binding;
     }
 
+    /// Returns current track binding.
     pub fn binding(&self) -> &ValueBinding {
         &self.binding
     }
 
+    /// Sets a handle of a node that will be animated.
     pub fn set_target(&mut self, target: Handle<Node>) {
         self.target = target;
     }
 
+    /// Returns a handle of a node that will be animated.
     pub fn target(&self) -> Handle<Node> {
         self.target
     }
 
-    pub fn frames_container(&self) -> &TrackDataContainer {
+    /// Returns a reference to the data container.
+    pub fn data_container(&self) -> &TrackDataContainer {
         &self.frames
     }
 
-    pub fn frames_container_mut(&mut self) -> &mut TrackDataContainer {
+    /// Returns a reference to the data container.
+    pub fn data_container_mut(&mut self) -> &mut TrackDataContainer {
         &mut self.frames
     }
 
-    pub fn set_frames_container(&mut self, container: TrackDataContainer) -> TrackDataContainer {
+    /// Sets new data container and returns the previous one.
+    pub fn set_data_container(&mut self, container: TrackDataContainer) -> TrackDataContainer {
         std::mem::replace(&mut self.frames, container)
     }
 
+    /// Tries to get a new property value at a given time position.
     pub fn fetch(&self, time: f32) -> Option<BoundValue> {
         self.frames.fetch(time).map(|v| BoundValue {
             binding: self.binding.clone(),
@@ -112,18 +130,22 @@ impl Track {
         })
     }
 
-    pub fn enable(&mut self, enabled: bool) {
+    /// Enables or disables the track. Disabled tracks won't animate their nodes/properties.
+    pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
 
-    pub fn time_length(&self) -> f32 {
-        self.frames.time_length()
-    }
-
+    /// Returns `true` if the track is enabled, `false` - otherwise.
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
 
+    /// Returns length of the track in seconds.
+    pub fn time_length(&self) -> f32 {
+        self.frames.time_length()
+    }
+
+    /// Returns the id of the track.
     pub fn id(&self) -> Uuid {
         self.id
     }

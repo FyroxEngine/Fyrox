@@ -932,7 +932,7 @@ impl TrackList {
                         let ctx = &mut ui.build_ctx();
 
                         let curves = model_track
-                            .frames_container()
+                            .data_container()
                             .curves_ref()
                             .iter()
                             .enumerate()

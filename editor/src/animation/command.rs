@@ -111,7 +111,7 @@ impl ReplaceTrackCurveCommand {
             [self.animation]
             .tracks_mut()
         {
-            for curve in track.frames_container_mut().curves_mut() {
+            for curve in track.data_container_mut().curves_mut() {
                 if curve.id() == self.curve.id() {
                     std::mem::swap(&mut self.curve, curve);
                     return;
@@ -527,7 +527,7 @@ impl SetTrackEnabledCommand {
             .unwrap();
 
         let old = track.is_enabled();
-        track.enable(self.enabled);
+        track.set_enabled(self.enabled);
         self.enabled = old;
     }
 }

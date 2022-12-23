@@ -1,6 +1,8 @@
 //! Animation allows you to change properties of scene nodes at runtime using a set of key frames.
 //! See [`Animation`] docs for more info.
 
+#![warn(missing_docs)]
+
 use crate::{
     animation::track::Track,
     core::{
@@ -474,7 +476,7 @@ impl Animation {
         while let Some(node) = stack.pop() {
             for track in self.tracks.iter_mut() {
                 if track.target() == node {
-                    track.enable(enabled);
+                    track.set_enabled(enabled);
                 }
             }
             for child in graph[node].children() {
@@ -487,7 +489,7 @@ impl Animation {
     pub fn set_node_track_enabled(&mut self, handle: Handle<Node>, enabled: bool) {
         for track in self.tracks.iter_mut() {
             if track.target() == handle {
-                track.enable(enabled);
+                track.set_enabled(enabled);
             }
         }
     }
@@ -577,6 +579,7 @@ impl Default for AnimationContainer {
 }
 
 impl AnimationContainer {
+    /// Creates an empty animation container.
     pub fn new() -> Self {
         Self { pool: Pool::new() }
     }

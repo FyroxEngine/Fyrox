@@ -555,7 +555,7 @@ impl AnimationEditor {
                 // TODO: Support multi-selection.
                 if let Some(SelectedEntity::Curve(selected_curve_id)) = selection.entities.first() {
                     if let Some(selected_curve) = animation.tracks().iter().find_map(|t| {
-                        t.frames_container()
+                        t.data_container()
                             .curves_ref()
                             .iter()
                             .find(|c| &c.id() == selected_curve_id)
