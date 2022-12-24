@@ -140,10 +140,10 @@ fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
                     new_brush,
                 ));
             }
+
+            *index += 1;
         }
     }
-
-    *index += 1;
 
     for &item in node.children() {
         colorize(item, ui, index);
