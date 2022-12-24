@@ -334,13 +334,8 @@ impl Graph {
         self.pool.begin_multi_borrow()
     }
 
-    /// Destroys node and its children recursively.
-    ///
-    /// # Notes
-    ///
-    /// This method does not remove references to the node in other places like animations,
-    /// physics, etc. You should prefer to use [Scene::remove_node](crate::scene::Scene::remove_node) -
-    /// it automatically breaks all associations between nodes.
+    /// Destroys the node and its children recursively. Scripts of the destroyed nodes will be removed in the next
+    /// update tick.
     #[inline]
     pub fn remove_node(&mut self, node_handle: Handle<Node>) {
         self.unlink_internal(node_handle);

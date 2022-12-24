@@ -352,16 +352,6 @@ impl Scene {
         }
     }
 
-    /// Removes node from scene with all associated entities, like animations etc. This method
-    /// should be used all times instead of [Graph::remove_node](crate::scene::graph::Graph::remove_node).
-    ///
-    /// # Panics
-    ///
-    /// Panics if handle is invalid.
-    pub fn remove_node(&mut self, handle: Handle<Node>) {
-        self.graph.remove_node(handle)
-    }
-
     /// Synchronizes the state of the scene with external resources.
     pub fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Starting resolve...");

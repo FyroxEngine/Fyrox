@@ -1175,11 +1175,11 @@ mod test {
                     assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
 
                     // Now destroy every node with script, next iteration should correctly destroy attached scripts.
-                    let scene = &mut scene_container[scene_handle];
-                    scene.remove_node(node_handle);
-                    scene.remove_node(handle_on_init);
-                    scene.remove_node(handle_on_start);
-                    scene.remove_node(handle_on_update1);
+                    let graph = &mut scene_container[scene_handle].graph;
+                    graph.remove_node(node_handle);
+                    graph.remove_node(handle_on_init);
+                    graph.remove_node(handle_on_start);
+                    graph.remove_node(handle_on_update1);
                 }
                 2 => {
                     assert_eq!(rx.try_recv(), Ok(Event::Destroyed(node_handle)));
