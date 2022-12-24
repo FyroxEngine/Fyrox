@@ -137,9 +137,10 @@ impl<T: 'static> Control for SceneItem<T> {
                             self.warning_icon,
                             MessageDirection::ToWidget,
                         ));
+                        self.warning_icon = Handle::NONE;
                     }
                     Err(msg) => {
-                        let warning_icon = ImageBuilder::new(
+                        self.warning_icon = ImageBuilder::new(
                             WidgetBuilder::new()
                                 .with_width(20.0)
                                 .with_height(20.0)
@@ -154,7 +155,7 @@ impl<T: 'static> Control for SceneItem<T> {
                         .build(&mut ui.build_ctx());
 
                         ui.send_message(WidgetMessage::link(
-                            warning_icon,
+                            self.warning_icon,
                             MessageDirection::ToWidget,
                             self.grid,
                         ));

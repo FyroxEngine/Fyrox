@@ -422,7 +422,12 @@ impl WorldViewer {
                                         item,
                                     ),
                                 );
-                                self.node_to_view_map.remove(&child_node);
+                                if let Some(existing_view) = self.node_to_view_map.get(&child_node)
+                                {
+                                    if *existing_view == item {
+                                        self.node_to_view_map.remove(&child_node);
+                                    }
+                                }
                             } else {
                                 self.stack.push((item, child_node));
                             }
