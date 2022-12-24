@@ -22,8 +22,10 @@ use crate::{
     engine::resource_manager::ResourceManager,
     scene::{
         base::{Base, BaseBuilder},
+        collider::Collider,
         graph::Graph,
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider, UpdateContext},
+        Scene,
     },
     utils::log::Log,
 };
@@ -547,6 +549,18 @@ impl NodeTrait for RigidBody {
         );
 
         self.base.update_lifetime(context.dt)
+    }
+
+    fn validate(&self, scene: &Scene) -> Result<(), String> {
+        for &child in self.children() {
+            if scene.graph.try_get_of_type::<Collider>(child).is_some() {
+                return Ok(());
+            }
+        }
+
+        Err("The 3D rigid body must have at least one 3D collider as a \
+        direct child node to work correctly!"
+            .to_string())
     }
 }
 
