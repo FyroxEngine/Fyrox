@@ -411,7 +411,7 @@ impl NodeTrait for RigidBody {
         Self::type_uuid()
     }
 
-    fn clean_up(&mut self, graph: &mut Graph) {
+    fn on_removed_from_graph(&mut self, graph: &mut Graph) {
         graph.physics2d.remove_body(self.native.get());
         self.native.set(RigidBodyHandle::invalid());
 

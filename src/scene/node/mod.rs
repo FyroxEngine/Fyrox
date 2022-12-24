@@ -161,7 +161,7 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
 
     /// Gives an opportunity to perform clean up after the node was extracted from the scene graph
     /// (or deleted).
-    fn clean_up(&mut self, #[allow(unused_variables)] graph: &mut Graph) {}
+    fn on_removed_from_graph(&mut self, #[allow(unused_variables)] graph: &mut Graph) {}
 
     /// Synchronizes internal state of the node with components of scene graph. It has limited usage
     /// and mostly allows you to sync the state of backing entity with the state of the node.

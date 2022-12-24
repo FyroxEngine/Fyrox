@@ -349,7 +349,7 @@ impl Graph {
 
             // Remove associated entities.
             let mut node = self.pool.free(handle);
-            node.clean_up(self);
+            node.on_removed_from_graph(self);
 
             self.event_broadcaster
                 .broadcast(GraphEvent::Removed(handle));
@@ -1066,7 +1066,7 @@ impl Graph {
 
     pub(crate) fn take_reserve_internal(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
         let (ticket, mut node) = self.pool.take_reserve(handle);
-        node.clean_up(self);
+        node.on_removed_from_graph(self);
         (ticket, node)
     }
 
