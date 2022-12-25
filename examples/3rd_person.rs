@@ -155,7 +155,8 @@ fn main() {
                         // ************************
                     }
 
-                    game.engine.update(fixed_timestep, control_flow, &mut lag);
+                    game.engine
+                        .update(fixed_timestep, control_flow, &mut lag, Default::default());
                     lag -= fixed_timestep;
                 }
 

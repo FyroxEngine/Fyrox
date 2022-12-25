@@ -394,7 +394,7 @@ fn main() {
                         MessageDirection::ToWidget,
                         format!("Example 04 - User Interface\nFPS: {}", fps),
                     ));
-                    engine.update(fixed_timestep, control_flow, &mut lag);
+                    engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
                     lag -= fixed_timestep;
                 }
 

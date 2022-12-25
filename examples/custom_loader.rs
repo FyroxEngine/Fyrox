@@ -220,7 +220,7 @@ fn main() {
             previous = Instant::now();
             lag += elapsed.as_secs_f32();
             while lag >= fixed_timestep {
-                engine.update(fixed_timestep, control_flow, &mut lag);
+                engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
                 lag -= fixed_timestep;
             }
 
