@@ -22,11 +22,10 @@ use fyrox::{
     },
     engine::Engine,
     scene::{
-        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
         base::BaseBuilder,
         camera::Camera,
         debug::{Line, SceneDrawingContext},
-        graph::Graph,
+        graph::{Graph, GraphUpdateSwitches},
         light::{point::PointLight, spot::SpotLight},
         mesh::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
@@ -59,6 +58,7 @@ pub struct EditorScene {
     pub camera_controller: CameraController,
     pub navmeshes: NavmeshContainer,
     pub preview_camera: Handle<Node>,
+    pub graph_switches: GraphUpdateSwitches,
 }
 
 pub fn is_scene_needs_to_be_saved(editor_scene: Option<&EditorScene>) -> bool {
@@ -67,21 +67,6 @@ pub fn is_scene_needs_to_be_saved(editor_scene: Option<&EditorScene>) -> bool {
         .map_or(false, |s| s.has_unsaved_changes || s.path.is_none())
 }
 
-fn set_animation_enabled(scene: &mut Scene, enabled: bool) {
-    for node in scene.graph.linear_iter_mut() {
-        if let Some(animation_player) = node.query_component_mut::<AnimationPlayer>() {
-            for animation in animation_player
-                .animations_mut()
-                .get_value_mut_silent()
-                .iter_mut()
-            {
-                animation.set_enabled(enabled);
-            }
-        } else if let Some(absm) = node.query_component_mut::<AnimationBlendingStateMachine>() {
-            absm.set_enabled(enabled);
-        }
-    }
-}
 impl EditorScene {
     pub fn from_native_scene(
         mut scene: Scene,
@@ -96,9 +81,6 @@ impl EditorScene {
             path.as_ref()
                 .and_then(|p| settings.camera.camera_settings.get(p)),
         );
-
-        // Disable all animations and state machines.
-        set_animation_enabled(&mut scene, false);
 
         // Freeze physics simulation in while editing scene by setting time step to zero.
         scene.graph.physics.integration_parameters.dt = Some(0.0);
@@ -137,6 +119,13 @@ impl EditorScene {
             clipboard: Default::default(),
             has_unsaved_changes: false,
             preview_camera: Default::default(),
+            graph_switches: GraphUpdateSwitches {
+                physics2d: true,
+                physics: true,
+                sound: false,
+                // Update only editor's camera.
+                node_overrides: Some(Default::default()),
+            },
         }
     }
 
@@ -145,9 +134,6 @@ impl EditorScene {
 
         let editor_root = self.editor_objects_root;
         let (mut pure_scene, _) = scene.clone(&mut |node, _| node != editor_root);
-
-        // Disable all animations and state machines back.
-        set_animation_enabled(&mut pure_scene, true);
 
         // Reset state of nodes. For some nodes (such as particles systems) we use scene as preview
         // so before saving scene, we have to reset state of such nodes.
@@ -216,6 +202,25 @@ impl EditorScene {
 
             Err(reason)
         }
+    }
+
+    pub fn update(&mut self, engine: &mut Engine, dt: f32, settings: &Settings) {
+        self.draw_auxiliary_geometry(engine, settings);
+
+        let scene = &mut engine.scenes[self.scene];
+
+        let node_overrides = self.graph_switches.node_overrides.as_mut().unwrap();
+        for handle in scene.graph.traverse_handle_iter(self.editor_objects_root) {
+            node_overrides.insert(handle);
+        }
+
+        let camera = scene.graph[self.camera_controller.camera].as_camera_mut();
+
+        camera.projection_mut().set_z_near(settings.graphics.z_near);
+        camera.projection_mut().set_z_far(settings.graphics.z_far);
+
+        self.camera_controller
+            .update(&mut scene.graph, &settings.camera, dt);
     }
 
     pub fn draw_auxiliary_geometry(&mut self, engine: &mut Engine, settings: &Settings) {

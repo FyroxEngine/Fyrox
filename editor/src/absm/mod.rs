@@ -11,6 +11,7 @@ use crate::{
     scene::{EditorScene, Selection},
     Message,
 };
+use fyrox::fxhash::FxHashSet;
 use fyrox::{
     animation::machine::{BlendPose, Event, IndexedBlendInput, Machine, PoseNode, State},
     core::{color::Color, pool::Handle},
@@ -161,9 +162,10 @@ impl AbsmEditor {
     fn enter_preview_mode(
         &mut self,
         machine: Machine,
-        animation_targets: Vec<Handle<Node>>,
+        animation_targets: FxHashSet<Handle<Node>>,
         scene: &Scene,
         ui: &UserInterface,
+        node_overrides: &mut FxHashSet<Handle<Node>>,
     ) {
         assert!(self.preview_mode_data.is_none());
 
@@ -172,6 +174,11 @@ impl AbsmEditor {
             MessageDirection::ToWidget,
             Some(true),
         ));
+
+        // Allow the engine to update the nodes affected by animations.
+        for &target in &animation_targets {
+            assert!(node_overrides.insert(target));
+        }
 
         // Save state of affected nodes.
         self.preview_mode_data = Some(PreviewModeData {
@@ -188,6 +195,7 @@ impl AbsmEditor {
         scene: &mut Scene,
         ui: &mut UserInterface,
         absm: Handle<Node>,
+        node_overrides: &mut FxHashSet<Handle<Node>>,
     ) {
         ui.send_message(CheckBoxMessage::checked(
             self.toolbar.preview,
@@ -202,6 +210,7 @@ impl AbsmEditor {
 
         // Revert state of nodes.
         for (handle, node) in preview_data.nodes {
+            assert!(node_overrides.remove(&handle));
             scene.graph[handle] = node;
         }
 
@@ -214,36 +223,27 @@ impl AbsmEditor {
         self.parameter_panel.sync_to_model(ui, absm_node);
     }
 
-    pub fn try_leave_preview_mode(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
-        let selection = fetch_selection(&editor_scene.selection);
+    pub fn try_leave_preview_mode(&mut self, editor_scene: &mut EditorScene, engine: &mut Engine) {
+        if self.preview_mode_data.is_some() {
+            let selection = fetch_selection(&editor_scene.selection);
 
-        let scene = &mut engine.scenes[editor_scene.scene];
+            let scene = &mut engine.scenes[editor_scene.scene];
 
-        if let Some(absm) = scene
-            .graph
-            .try_get_mut(selection.absm_node_handle)
-            .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
-        {
-            absm.set_enabled(false);
-
-            let animation_player_handle = absm.animation_player();
-
-            if let Some(animation_player) = scene
+            if let Some(absm) = scene
                 .graph
-                .try_get_mut(animation_player_handle)
-                .and_then(|n| n.query_component_mut::<AnimationPlayer>())
+                .try_get_mut(selection.absm_node_handle)
+                .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
             {
-                if self.preview_mode_data.is_some() {
-                    for animation in animation_player.animations_mut().iter_mut() {
-                        animation.set_enabled(false);
-                    }
+                let node_overrides = editor_scene.graph_switches.node_overrides.as_mut().unwrap();
+                assert!(node_overrides.remove(&selection.absm_node_handle));
+                assert!(node_overrides.remove(&absm.animation_player()));
 
-                    self.leave_preview_mode(
-                        scene,
-                        &mut engine.user_interface,
-                        selection.absm_node_handle,
-                    );
-                }
+                self.leave_preview_mode(
+                    scene,
+                    &mut engine.user_interface,
+                    selection.absm_node_handle,
+                    node_overrides,
+                );
             }
         }
     }
@@ -251,7 +251,7 @@ impl AbsmEditor {
     pub fn handle_message(
         &mut self,
         message: &Message,
-        editor_scene: &EditorScene,
+        editor_scene: &mut EditorScene,
         engine: &mut Engine,
     ) {
         // Leave preview mode before execution of any scene command.
@@ -342,7 +342,7 @@ impl AbsmEditor {
         message: &UiMessage,
         engine: &mut Engine,
         sender: &Sender<Message>,
-        editor_scene: &EditorScene,
+        editor_scene: &mut EditorScene,
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
         let ui = &mut engine.user_interface;
@@ -392,11 +392,13 @@ impl AbsmEditor {
             match action {
                 ToolbarAction::None => {}
                 ToolbarAction::EnterPreviewMode => {
-                    absm_node.set_enabled(true);
+                    let node_overrides =
+                        editor_scene.graph_switches.node_overrides.as_mut().unwrap();
+                    assert!(node_overrides.insert(selection.absm_node_handle));
+                    assert!(node_overrides.insert(absm_node.animation_player()));
 
                     let machine = (**absm_node.machine()).clone();
 
-                    // Enable all animations in the player.
                     let animation_player = absm_node.animation_player();
 
                     if let Some(animation_player) = scene
@@ -404,35 +406,35 @@ impl AbsmEditor {
                         .try_get_mut(animation_player)
                         .and_then(|n| n.query_component_mut::<AnimationPlayer>())
                     {
-                        let mut animation_targets = Vec::new();
+                        let mut animation_targets = FxHashSet::default();
                         for animation in animation_player.animations_mut().iter_mut() {
-                            animation.set_enabled(true);
-
                             for track in animation.tracks() {
-                                animation_targets.push(track.target());
+                                animation_targets.insert(track.target());
                             }
                         }
 
-                        self.enter_preview_mode(machine, animation_targets, scene, ui);
+                        self.enter_preview_mode(
+                            machine,
+                            animation_targets,
+                            scene,
+                            ui,
+                            node_overrides,
+                        );
                     }
                 }
                 ToolbarAction::LeavePreviewMode => {
                     if self.preview_mode_data.is_some() {
-                        absm_node.set_enabled(false);
+                        let node_overrides =
+                            editor_scene.graph_switches.node_overrides.as_mut().unwrap();
+                        assert!(node_overrides.remove(&selection.absm_node_handle));
+                        assert!(node_overrides.remove(&absm_node.animation_player()));
 
-                        // Disable all animations in the player.
-                        let animation_player = absm_node.animation_player();
-                        if let Some(animation_player) = scene
-                            .graph
-                            .try_get_mut(animation_player)
-                            .and_then(|n| n.query_component_mut::<AnimationPlayer>())
-                        {
-                            for animation in animation_player.animations_mut().iter_mut() {
-                                animation.set_enabled(false);
-                            }
-
-                            self.leave_preview_mode(scene, ui, selection.absm_node_handle);
-                        }
+                        self.leave_preview_mode(
+                            scene,
+                            ui,
+                            selection.absm_node_handle,
+                            node_overrides,
+                        );
                     }
                 }
             }

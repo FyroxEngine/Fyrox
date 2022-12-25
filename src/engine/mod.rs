@@ -23,14 +23,14 @@ use crate::{
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{model::Model, texture::TextureKind},
     scene::{
-        base::ScriptMessage, node::constructor::NodeConstructorContainer, sound::SoundEngine,
-        Scene, SceneContainer,
+        base::ScriptMessage, graph::GraphUpdateSwitches,
+        node::constructor::NodeConstructorContainer, sound::SoundEngine, Scene, SceneContainer,
     },
     script::{constructor::ScriptConstructorContainer, Script, ScriptContext, ScriptDeinitContext},
     utils::log::Log,
     window::{Window, WindowBuilder},
 };
-use fxhash::FxHashSet;
+use fxhash::{FxHashMap, FxHashSet};
 use std::{
     collections::{HashSet, VecDeque},
     sync::{
@@ -675,8 +675,14 @@ impl Engine {
     /// all the time that was spent in heavy calculation. The engine does **not** use this variable itself,
     /// but the plugins attach may use it, that's why you need to provide it. If you don't use plugins, then
     /// put `&mut 0.0` here.
-    pub fn update(&mut self, dt: f32, control_flow: &mut ControlFlow, lag: &mut f32) {
-        self.pre_update(dt, control_flow, lag);
+    pub fn update(
+        &mut self,
+        dt: f32,
+        control_flow: &mut ControlFlow,
+        lag: &mut f32,
+        switches: FxHashMap<Handle<Scene>, GraphUpdateSwitches>,
+    ) {
+        self.pre_update(dt, control_flow, lag, switches);
         self.post_update(dt);
     }
 
@@ -694,7 +700,13 @@ impl Engine {
     /// all the time that was spent in heavy calculation. The engine does **not** use this variable itself,
     /// but the plugins attach may use it, that's why you need to provide it. If you don't use plugins, then
     /// put `&mut 0.0` here.
-    pub fn pre_update(&mut self, dt: f32, control_flow: &mut ControlFlow, lag: &mut f32) {
+    pub fn pre_update(
+        &mut self,
+        dt: f32,
+        control_flow: &mut ControlFlow,
+        lag: &mut f32,
+        switches: FxHashMap<Handle<Scene>, GraphUpdateSwitches>,
+    ) {
         let inner_size = self.get_window().inner_size();
         let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
@@ -702,7 +714,7 @@ impl Engine {
         self.renderer.update_caches(dt);
         self.handle_model_events();
 
-        for scene in self.scenes.iter_mut().filter(|s| s.enabled) {
+        for (handle, scene) in self.scenes.pair_iter_mut().filter(|(_, s)| s.enabled) {
             let frame_size = scene.render_target.as_ref().map_or(window_size, |rt| {
                 if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
                     Vector2::new(width as f32, height as f32)
@@ -711,7 +723,11 @@ impl Engine {
                 }
             });
 
-            scene.update(frame_size, dt);
+            scene.update(
+                frame_size,
+                dt,
+                switches.get(&handle).cloned().unwrap_or_default(),
+            );
         }
 
         self.update_plugins(dt, control_flow, lag);

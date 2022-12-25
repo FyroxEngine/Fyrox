@@ -53,6 +53,7 @@ use crate::{
     script::ScriptTrait,
     utils::log::{Log, MessageKind},
 };
+use fxhash::FxHashSet;
 use rapier3d::geometry::ColliderHandle;
 use std::{
     fmt::Debug,
@@ -207,6 +208,30 @@ fn clear_links(mut node: Node) -> Node {
     node.children.clear();
     node.parent = Handle::NONE;
     node
+}
+
+/// A set of switches that allows you to disable a particular step of graph update pipeline.
+#[derive(Clone, PartialEq, Eq)]
+pub struct GraphUpdateSwitches {
+    /// Enables or disables update of the 2D physics.
+    pub physics2d: bool,
+    /// Enables or disables update of the 3D physics.
+    pub physics: bool,
+    /// Enables or disables update of the sound system.
+    pub sound: bool,
+    /// A set of nodes that will be updated, everything else won't be updated.
+    pub node_overrides: Option<FxHashSet<Handle<Node>>>,
+}
+
+impl Default for GraphUpdateSwitches {
+    fn default() -> Self {
+        Self {
+            physics2d: true,
+            physics: true,
+            sound: true,
+            node_overrides: Default::default(),
+        }
+    }
 }
 
 impl Graph {
@@ -941,8 +966,38 @@ impl Graph {
         }
     }
 
-    /// Updates nodes in graph using given delta time. There is no need to call it manually.
-    pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
+    fn update_node(&mut self, handle: Handle<Node>, frame_size: Vector2<f32>, dt: f32) {
+        if let Some((ticket, mut node)) = self.pool.try_take_reserve(handle) {
+            node.transform_modified.set(false);
+
+            let is_alive = if node.is_globally_enabled() {
+                node.update(&mut UpdateContext {
+                    frame_size,
+                    dt,
+                    nodes: &mut self.pool,
+                    physics: &mut self.physics,
+                    physics2d: &mut self.physics2d,
+                    sound_context: &mut self.sound_context,
+                })
+            } else {
+                true
+            };
+
+            self.pool.put_back(ticket, node);
+
+            if !is_alive {
+                self.remove_node(handle);
+            }
+        }
+    }
+
+    /// Updates nodes in the graph using given delta time.
+    ///
+    /// # Update Switches
+    ///
+    /// Update switches allows you to disable update for parts of the update pipeline, it could be useful for editors
+    /// where you need to have preview mode to update only specific set of nodes, etc.
+    pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32, switches: GraphUpdateSwitches) {
         let last_time = instant::Instant::now();
         self.update_hierarchical_data();
         self.performance_statistics.hierarchical_properties_time =
@@ -952,40 +1007,31 @@ impl Graph {
         self.sync_native();
         self.performance_statistics.sync_time = instant::Instant::now() - last_time;
 
-        self.physics.performance_statistics.reset();
-        self.physics.update(dt);
-        self.performance_statistics.physics = self.physics.performance_statistics.clone();
+        if switches.physics {
+            self.physics.performance_statistics.reset();
+            self.physics.update(dt);
+            self.performance_statistics.physics = self.physics.performance_statistics.clone();
+        }
 
-        self.physics2d.performance_statistics.reset();
-        self.physics2d.update(dt);
-        self.performance_statistics.physics2d = self.physics2d.performance_statistics.clone();
+        if switches.physics2d {
+            self.physics2d.performance_statistics.reset();
+            self.physics2d.update(dt);
+            self.performance_statistics.physics2d = self.physics2d.performance_statistics.clone();
+        }
 
-        self.sound_context.update(&self.pool);
-        self.performance_statistics.sound_update_time = self.sound_context.full_render_duration();
+        if switches.sound {
+            self.sound_context.update(&self.pool);
+            self.performance_statistics.sound_update_time =
+                self.sound_context.full_render_duration();
+        }
 
-        for i in 0..self.pool.get_capacity() {
-            let handle = self.pool.handle_from_index(i);
-            if let Some((ticket, mut node)) = self.pool.try_take_reserve(handle) {
-                node.transform_modified.set(false);
-
-                let is_alive = if node.is_globally_enabled() {
-                    node.update(&mut UpdateContext {
-                        frame_size,
-                        dt,
-                        nodes: &mut self.pool,
-                        physics: &mut self.physics,
-                        physics2d: &mut self.physics2d,
-                        sound_context: &mut self.sound_context,
-                    })
-                } else {
-                    true
-                };
-
-                self.pool.put_back(ticket, node);
-
-                if !is_alive {
-                    self.remove_node(handle);
-                }
+        if let Some(overrides) = switches.node_overrides.as_ref() {
+            for handle in overrides {
+                self.update_node(*handle, frame_size, dt);
+            }
+        } else {
+            for i in 0..self.pool.get_capacity() {
+                self.update_node(self.pool.handle_from_index(i), frame_size, dt);
             }
         }
     }

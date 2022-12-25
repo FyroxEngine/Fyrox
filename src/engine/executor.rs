@@ -173,7 +173,7 @@ impl Executor {
                     lag += elapsed.as_secs_f32();
 
                     while lag >= fixed_time_step {
-                        engine.update(fixed_time_step, control_flow, &mut lag);
+                        engine.update(fixed_time_step, control_flow, &mut lag, Default::default());
                         lag -= fixed_time_step;
                     }
 

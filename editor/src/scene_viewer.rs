@@ -36,7 +36,6 @@ use fyrox::{
     },
     resource::texture::{Texture, TextureState},
     scene::{
-        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
         camera::{Camera, Projection},
         node::Node,
     },
@@ -603,26 +602,6 @@ impl SceneViewer {
                                                     .graph
                                                     .traverse_handle_iter(instance)
                                                     .collect::<FxHashSet<Handle<Node>>>();
-
-                                                // Disable animations and state machines.
-                                                for handle in nodes.iter() {
-                                                    let node = &mut scene.graph[*handle];
-                                                    if let Some(animation_player) =
-                                                        node.query_component_mut::<AnimationPlayer>()
-                                                    {
-                                                        for animation in animation_player
-                                                            .animations_mut()
-                                                            .get_value_mut_silent()
-                                                            .iter_mut()
-                                                        {
-                                                            animation.set_enabled(false);
-                                                        }
-                                                    } else if let Some(absm) =
-                                                        node.query_component_mut::<AnimationBlendingStateMachine>()
-                                                    {
-                                                        absm.set_enabled(false);
-                                                    }
-                                                }
 
                                                 self.preview_instance =
                                                     Some(PreviewInstance { instance, nodes });

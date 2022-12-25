@@ -72,6 +72,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use fyrox::fxhash::FxHashMap;
 use fyrox::{
     core::{
         algebra::{Matrix3, Vector2},
@@ -1138,7 +1139,7 @@ impl Editor {
         );
         self.animation_editor.handle_ui_message(
             message,
-            self.scene.as_ref(),
+            self.scene.as_mut(),
             engine,
             &self.message_sender,
         );
@@ -1757,7 +1758,7 @@ impl Editor {
                     );
                 }
 
-                if let Some(scene) = self.scene.as_ref() {
+                if let Some(scene) = self.scene.as_mut() {
                     self.animation_editor
                         .handle_message(&message, scene, &mut self.engine);
                     self.absm_editor
@@ -1892,26 +1893,11 @@ impl Editor {
         self.handle_resize();
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            editor_scene.update(&mut self.engine, dt, &self.settings);
+
             self.absm_editor.update(editor_scene, &mut self.engine);
 
-            editor_scene.draw_auxiliary_geometry(&mut self.engine, &self.settings);
-
-            let scene = &mut self.engine.scenes[editor_scene.scene];
-
-            let camera = scene.graph[editor_scene.camera_controller.camera].as_camera_mut();
-
-            camera
-                .projection_mut()
-                .set_z_near(self.settings.graphics.z_near);
-            camera
-                .projection_mut()
-                .set_z_far(self.settings.graphics.z_far);
-
-            let graph = &mut scene.graph;
-
-            editor_scene
-                .camera_controller
-                .update(graph, &self.settings.camera, dt);
+            let scene = &self.engine.scenes[editor_scene.scene];
 
             // Save camera current camera settings for current scene to be able to load them
             // on next launch.
@@ -2112,9 +2098,17 @@ fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
     while editor.game_loop_data.lag >= FIXED_TIMESTEP {
         editor.game_loop_data.lag -= FIXED_TIMESTEP;
 
-        editor
-            .engine
-            .pre_update(FIXED_TIMESTEP, control_flow, &mut editor.game_loop_data.lag);
+        let mut switches = FxHashMap::default();
+        if let Some(scene) = editor.scene.as_ref() {
+            switches.insert(scene.scene, scene.graph_switches.clone());
+        }
+
+        editor.engine.pre_update(
+            FIXED_TIMESTEP,
+            control_flow,
+            &mut editor.game_loop_data.lag,
+            switches,
+        );
 
         editor.update(FIXED_TIMESTEP);
 

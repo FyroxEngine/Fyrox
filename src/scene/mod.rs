@@ -27,6 +27,7 @@ pub mod terrain;
 pub mod transform;
 pub mod visibility;
 
+use crate::scene::graph::GraphUpdateSwitches;
 use crate::{
     core::{
         algebra::Vector2,
@@ -489,8 +490,8 @@ impl Scene {
     /// Performs single update tick with given delta time from last frame. Internally
     /// it updates physics, animations, and each graph node. In most cases there is
     /// no need to call it directly, engine automatically updates all available scenes.
-    pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
-        self.graph.update(frame_size, dt);
+    pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32, switches: GraphUpdateSwitches) {
+        self.graph.update(frame_size, dt, switches);
         self.performance_statistics.graph = self.graph.performance_statistics.clone();
     }
 

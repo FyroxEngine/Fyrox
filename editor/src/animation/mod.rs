@@ -17,6 +17,7 @@ use fyrox::{
     animation::AnimationSignal,
     core::{algebra::Vector2, math::Rect, pool::Handle, uuid::Uuid},
     engine::Engine,
+    fxhash::FxHashSet,
     gui::{
         border::BorderBuilder,
         check_box::CheckBoxMessage,
@@ -175,7 +176,7 @@ impl AnimationEditor {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        editor_scene: Option<&EditorScene>,
+        editor_scene: Option<&mut EditorScene>,
         engine: &mut Engine,
         sender: &Sender<Message>,
     ) {
@@ -304,31 +305,58 @@ impl AnimationEditor {
                 match toolbar_action {
                     ToolbarAction::None => {}
                     ToolbarAction::EnterPreviewMode => {
+                        let node_overrides =
+                            editor_scene.graph_switches.node_overrides.as_mut().unwrap();
+                        assert!(node_overrides.insert(selection.animation_player));
+
+                        let animation_player_node =
+                            scene.graph.try_get_mut(selection.animation_player).unwrap();
+
+                        // Save state of animation player first.
+                        let initial_animation_player_handle = selection.animation_player;
+                        let initial_animation_player = animation_player_node.clone_box();
+
+                        // Now we can freely modify the state of the animation player in the scene - all
+                        // changes will be reverted at the exit of the preview mode.
+                        let animation_player = animation_player_node
+                            .query_component_mut::<AnimationPlayer>()
+                            .unwrap();
+
                         animation_player.set_auto_apply(true);
-                        if let Some(animation) = animation_player
-                            .animations_mut()
-                            .try_get_mut(selection.animation)
-                        {
+
+                        let animations = animation_player.animations_mut();
+
+                        // Disable every animation, except preview one.
+                        for (handle, animation) in animations.pair_iter_mut() {
+                            animation.set_enabled(handle == selection.animation);
+                        }
+
+                        if let Some(animation) = animations.try_get_mut(selection.animation) {
                             animation.rewind();
 
-                            let animation_targets =
-                                animation.tracks().iter().map(|t| t.target()).collect();
+                            let animation_targets = animation
+                                .tracks()
+                                .iter()
+                                .map(|t| t.target())
+                                .collect::<FxHashSet<_>>();
 
                             self.enter_preview_mode(
+                                initial_animation_player_handle,
+                                initial_animation_player,
                                 animation_targets,
                                 scene,
                                 &engine.user_interface,
+                                node_overrides,
                             );
                         }
                     }
                     ToolbarAction::LeavePreviewMode => {
-                        animation_player.set_auto_apply(false);
-                        if let Some(animation) = animation_player
-                            .animations_mut()
-                            .try_get_mut(selection.animation)
-                        {
-                            animation.set_enabled(false);
-                            self.leave_preview_mode(scene, &engine.user_interface);
+                        if self.preview_mode_data.is_some() {
+                            self.leave_preview_mode(
+                                scene,
+                                &engine.user_interface,
+                                editor_scene.graph_switches.node_overrides.as_mut().unwrap(),
+                            );
                         }
                     }
                     ToolbarAction::SelectAnimation(animation) => {
@@ -358,20 +386,24 @@ impl AnimationEditor {
                             ));
                     }
                     ToolbarAction::PlayPause => {
-                        if let Some(animation) = animation_player
-                            .animations_mut()
-                            .try_get_mut(selection.animation)
-                        {
-                            animation.set_enabled(!animation.is_enabled());
+                        if self.preview_mode_data.is_some() {
+                            if let Some(animation) = animation_player
+                                .animations_mut()
+                                .try_get_mut(selection.animation)
+                            {
+                                animation.set_enabled(!animation.is_enabled());
+                            }
                         }
                     }
                     ToolbarAction::Stop => {
-                        if let Some(animation) = animation_player
-                            .animations_mut()
-                            .try_get_mut(selection.animation)
-                        {
-                            animation.rewind();
-                            animation.set_enabled(false);
+                        if self.preview_mode_data.is_some() {
+                            if let Some(animation) = animation_player
+                                .animations_mut()
+                                .try_get_mut(selection.animation)
+                            {
+                                animation.rewind();
+                                animation.set_enabled(false);
+                            }
                         }
                     }
                 }
@@ -401,24 +433,41 @@ impl AnimationEditor {
 
     fn enter_preview_mode(
         &mut self,
-        animation_targets: Vec<Handle<Node>>,
+        initial_animation_player_handle: Handle<Node>,
+        initial_animation_player: Node,
+        animation_targets: FxHashSet<Handle<Node>>,
         scene: &Scene,
         ui: &UserInterface,
+        node_overrides: &mut FxHashSet<Handle<Node>>,
     ) {
         assert!(self.preview_mode_data.is_none());
 
         self.toolbar.on_preview_mode_changed(ui, true);
 
-        // Save state of affected nodes.
-        self.preview_mode_data = Some(PreviewModeData {
+        for &target in &animation_targets {
+            assert!(node_overrides.insert(target));
+        }
+
+        let mut data = PreviewModeData {
             nodes: animation_targets
                 .into_iter()
                 .map(|t| (t, scene.graph[t].clone_box()))
                 .collect(),
-        });
+        };
+
+        data.nodes
+            .push((initial_animation_player_handle, initial_animation_player));
+
+        // Save state of affected nodes.
+        self.preview_mode_data = Some(data);
     }
 
-    fn leave_preview_mode(&mut self, scene: &mut Scene, ui: &UserInterface) {
+    fn leave_preview_mode(
+        &mut self,
+        scene: &mut Scene,
+        ui: &UserInterface,
+        node_overrides: &mut FxHashSet<Handle<Node>>,
+    ) {
         self.toolbar.on_preview_mode_changed(ui, false);
 
         let preview_data = self
@@ -428,37 +477,27 @@ impl AnimationEditor {
 
         // Revert state of nodes.
         for (handle, node) in preview_data.nodes {
+            assert!(node_overrides.remove(&handle));
             scene.graph[handle] = node;
         }
     }
 
-    pub fn try_leave_preview_mode(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
-        let selection = fetch_selection(&editor_scene.selection);
+    pub fn try_leave_preview_mode(&mut self, editor_scene: &mut EditorScene, engine: &mut Engine) {
+        if self.preview_mode_data.is_some() {
+            let scene = &mut engine.scenes[editor_scene.scene];
 
-        let scene = &mut engine.scenes[editor_scene.scene];
-
-        if let Some(animation_player) = scene
-            .graph
-            .try_get_mut(selection.animation_player)
-            .and_then(|n| n.query_component_mut::<AnimationPlayer>())
-        {
-            if let Some(animation) = animation_player
-                .animations_mut()
-                .try_get_mut(selection.animation)
-            {
-                if self.preview_mode_data.is_some() {
-                    animation.set_enabled(false);
-
-                    self.leave_preview_mode(scene, &engine.user_interface);
-                }
-            }
+            self.leave_preview_mode(
+                scene,
+                &engine.user_interface,
+                editor_scene.graph_switches.node_overrides.as_mut().unwrap(),
+            );
         }
     }
 
     pub fn handle_message(
         &mut self,
         message: &Message,
-        editor_scene: &EditorScene,
+        editor_scene: &mut EditorScene,
         engine: &mut Engine,
     ) {
         // Leave preview mode before execution of any scene command.
