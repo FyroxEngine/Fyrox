@@ -1,6 +1,5 @@
-use crate::command::universal::set_entity_field;
 use crate::{
-    command::Command,
+    command::{universal::set_entity_field, Command},
     define_universal_commands,
     scene::{
         clipboard::DeepCloneResult, commands::graph::DeleteSubGraphCommand, EditorScene,
@@ -8,12 +7,14 @@ use crate::{
     },
     GameEngine, Message,
 };
-use fyrox::core::reflect::Reflect;
-use fyrox::utils::log::Log;
 use fyrox::{
-    core::{pool::Handle, reflect::ResolvePath},
+    core::{
+        pool::Handle,
+        reflect::{Reflect, ResolvePath},
+    },
     engine::{resource_manager::ResourceManager, SerializationContext},
     scene::{graph::SubGraph, node::Node, Scene},
+    utils::log::Log,
 };
 use std::{
     ops::{Deref, DerefMut},
@@ -205,23 +206,25 @@ impl Command for ChangeSelectionCommand {
     }
 
     fn execute(&mut self, context: &mut SceneContext) {
+        let old_selection = self.old_selection.clone();
         let new_selection = self.swap();
         if new_selection != context.editor_scene.selection {
             context.editor_scene.selection = new_selection;
             context
                 .message_sender
-                .send(Message::SelectionChanged)
+                .send(Message::SelectionChanged { old_selection })
                 .unwrap();
         }
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
+        let old_selection = self.old_selection.clone();
         let new_selection = self.swap();
         if new_selection != context.editor_scene.selection {
             context.editor_scene.selection = new_selection;
             context
                 .message_sender
-                .send(Message::SelectionChanged)
+                .send(Message::SelectionChanged { old_selection })
                 .unwrap();
         }
     }

@@ -72,7 +72,6 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::fxhash::FxHashMap;
 use fyrox::{
     core::{
         algebra::{Matrix3, Vector2},
@@ -87,6 +86,7 @@ use fyrox::{
     engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
+    fxhash::FxHashMap,
     gui::{
         brush::Brush,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
@@ -102,14 +102,14 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface, VerticalAlignment,
     },
-    material::SharedMaterial,
-    material::{shader::Shader, Material, PropertyValue},
+    material::{shader::Shader, Material, PropertyValue, SharedMaterial},
     plugin::PluginConstructor,
     resource::texture::{CompressionOptions, Texture, TextureKind},
     scene::{
         camera::{Camera, Projection},
         mesh::Mesh,
         node::Node,
+        particle_system::ParticleSystem,
         Scene, SceneLoader,
     },
     utils::{
@@ -205,7 +205,9 @@ pub enum Message {
     UndoSceneCommand,
     RedoSceneCommand,
     ClearSceneCommandStack,
-    SelectionChanged,
+    SelectionChanged {
+        old_selection: Selection,
+    },
     SaveScene(PathBuf),
     LoadScene(PathBuf),
     CloseScene,
@@ -1675,6 +1677,39 @@ impl Editor {
         processed
     }
 
+    fn on_selection_changed(&mut self, old_selection: Selection) {
+        if let Some(editor_scene) = self.scene.as_mut() {
+            let scene = &self.engine.scenes[editor_scene.scene];
+            let node_overrides = editor_scene.graph_switches.node_overrides.as_mut().unwrap();
+
+            if let Selection::Graph(old_graph_selection) = old_selection {
+                // Disable particle systems from previous selection.
+                for node_handle in old_graph_selection.nodes {
+                    if scene
+                        .graph
+                        .try_get_of_type::<ParticleSystem>(node_handle)
+                        .is_some()
+                    {
+                        assert!(node_overrides.remove(&node_handle));
+                    }
+                }
+            }
+
+            if let Selection::Graph(ref new_graph_selection) = editor_scene.selection {
+                // Enable particle systems from new selection.
+                for &node_handle in &new_graph_selection.nodes {
+                    if scene
+                        .graph
+                        .try_get_of_type::<ParticleSystem>(node_handle)
+                        .is_some()
+                    {
+                        assert!(node_overrides.insert(node_handle));
+                    }
+                }
+            }
+        }
+    }
+
     fn update(&mut self, dt: f32) {
         scope_profile!();
 
@@ -1780,8 +1815,9 @@ impl Editor {
                     Message::ClearSceneCommandStack => {
                         needs_sync |= self.clear_scene_command_stack();
                     }
-                    Message::SelectionChanged => {
+                    Message::SelectionChanged { old_selection } => {
                         self.world_viewer.sync_selection = true;
+                        self.on_selection_changed(old_selection);
                     }
                     Message::SaveScene(path) => self.save_current_scene(path),
                     Message::LoadScene(scene_path) => {

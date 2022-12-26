@@ -323,7 +323,7 @@ impl Inspector {
         engine: &mut GameEngine,
         sender: &Sender<Message>,
     ) {
-        if let Message::SelectionChanged = message {
+        if let Message::SelectionChanged { .. } = message {
             let scene = &engine.scenes[editor_scene.scene];
 
             engine

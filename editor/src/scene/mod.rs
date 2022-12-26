@@ -32,7 +32,6 @@ use fyrox::{
             Mesh,
         },
         node::Node,
-        particle_system::ParticleSystem,
         pivot::PivotBuilder,
         Scene,
     },
@@ -134,15 +133,6 @@ impl EditorScene {
 
         let editor_root = self.editor_objects_root;
         let (mut pure_scene, _) = scene.clone(&mut |node, _| node != editor_root);
-
-        // Reset state of nodes. For some nodes (such as particles systems) we use scene as preview
-        // so before saving scene, we have to reset state of such nodes.
-        for node in pure_scene.graph.linear_iter_mut() {
-            if let Some(particle_system) = node.cast_mut::<ParticleSystem>() {
-                // Particle system must not save generated vertices.
-                particle_system.clear_particles();
-            }
-        }
 
         pure_scene.navmeshes.clear();
 
@@ -269,7 +259,6 @@ impl EditorScene {
 
             if let Some(mesh) = node.cast::<Mesh>() {
                 if settings.show_tbn {
-                    // TODO: Add switch to settings to turn this on/off
                     let transform = node.global_transform();
 
                     for surface in mesh.surfaces() {
