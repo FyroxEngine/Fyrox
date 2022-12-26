@@ -150,8 +150,9 @@ pub struct ParticleSystem {
     #[reflect(setter = "set_soft_boundary_sharpness_factor")]
     soft_boundary_sharpness_factor: InheritableVariable<f32>,
 
-    #[reflect(setter = "set_enabled")]
-    enabled: InheritableVariable<bool>,
+    #[reflect(setter = "play")]
+    #[visit(rename = "enabled")]
+    is_playing: InheritableVariable<bool>,
 
     #[reflect(hidden)]
     particles: Vec<Particle>,
@@ -206,15 +207,15 @@ impl ParticleSystem {
         *self.soft_boundary_sharpness_factor
     }
 
-    /// Enables or disables particle system. Disabled particle system remains in "frozen" state
-    /// until enabled again.
-    pub fn set_enabled(&mut self, enabled: bool) -> bool {
-        self.enabled.set_value_and_mark_modified(enabled)
+    /// Plays or pauses the particle system. Paused particle system remains in "frozen" state
+    /// until played again again. You can manually reset state of the system by calling [`Self::clear_particles`].
+    pub fn play(&mut self, is_playing: bool) -> bool {
+        self.is_playing.set_value_and_mark_modified(is_playing)
     }
 
     /// Returns current particle system status.
-    pub fn is_enabled(&self) -> bool {
-        *self.enabled
+    pub fn is_playing(&self) -> bool {
+        *self.is_playing
     }
 
     /// Sets soft boundary sharpness factor. This value defines how wide soft boundary will be.
@@ -373,7 +374,7 @@ impl NodeTrait for ParticleSystem {
     fn update(&mut self, context: &mut UpdateContext) -> bool {
         let dt = context.dt;
 
-        if *self.enabled {
+        if *self.is_playing {
             for emitter in self.emitters.get_value_mut_silent().iter_mut() {
                 emitter.tick(dt);
             }
@@ -443,7 +444,7 @@ pub struct ParticleSystemBuilder {
     particles: Vec<Particle>,
     color_over_lifetime: Option<ColorGradient>,
     soft_boundary_sharpness_factor: f32,
-    enabled: bool,
+    is_playing: bool,
 }
 
 impl ParticleSystemBuilder {
@@ -457,7 +458,7 @@ impl ParticleSystemBuilder {
             acceleration: Vector3::new(0.0, -9.81, 0.0),
             color_over_lifetime: None,
             soft_boundary_sharpness_factor: 2.5,
-            enabled: true,
+            is_playing: true,
         }
     }
 
@@ -505,8 +506,8 @@ impl ParticleSystemBuilder {
     }
 
     /// Sets initial particle system state.
-    pub fn with_enabled(mut self, enabled: bool) -> Self {
-        self.enabled = enabled;
+    pub fn with_playing(mut self, enabled: bool) -> Self {
+        self.is_playing = enabled;
         self
     }
 
@@ -520,7 +521,7 @@ impl ParticleSystemBuilder {
             acceleration: self.acceleration.into(),
             color_over_lifetime: self.color_over_lifetime.into(),
             soft_boundary_sharpness_factor: self.soft_boundary_sharpness_factor.into(),
-            enabled: self.enabled.into(),
+            is_playing: self.is_playing.into(),
         }
     }
 
@@ -553,7 +554,7 @@ mod test {
         let parent = ParticleSystemBuilder::new(BaseBuilder::new())
             .with_texture(create_test_texture())
             .with_acceleration(Vector3::new(1.0, 0.0, 0.0))
-            .with_enabled(false)
+            .with_playing(false)
             .build_node();
 
         let mut child = ParticleSystemBuilder::new(BaseBuilder::new()).build_particle_system();
