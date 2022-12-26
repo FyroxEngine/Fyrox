@@ -27,6 +27,7 @@ mod log;
 mod material;
 mod menu;
 mod overlay;
+mod particle;
 mod preview;
 mod scene;
 mod scene_viewer;
@@ -58,6 +59,7 @@ use crate::{
     material::MaterialEditor,
     menu::{Menu, MenuContext, Panels},
     overlay::OverlayRenderPass,
+    particle::ParticleSystemPreviewControlPanel,
     scene::{
         commands::{
             graph::AddModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
@@ -485,6 +487,7 @@ pub struct Editor {
     build_profile: BuildProfile,
     scene_settings: SceneSettingsWindow,
     animation_editor: AnimationEditor,
+    particle_system_control_panel: ParticleSystemPreviewControlPanel,
 }
 
 impl Editor {
@@ -589,6 +592,7 @@ impl Editor {
         let inspector = Inspector::new(ctx, message_sender.clone());
         let animation_editor = AnimationEditor::new(ctx);
         let absm_editor = AbsmEditor::new(ctx, message_sender.clone());
+        let particle_system_control_panel = ParticleSystemPreviewControlPanel::new(ctx);
 
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()
@@ -701,7 +705,11 @@ impl Editor {
                             })
                             .build(ctx)
                     }))
-                    .with_floating_windows(vec![animation_editor.window, absm_editor.window])
+                    .with_floating_windows(vec![
+                        animation_editor.window,
+                        absm_editor.window,
+                        particle_system_control_panel.window,
+                    ])
                     .build(ctx),
                 ),
         )
@@ -784,6 +792,7 @@ impl Editor {
             build_window,
             build_profile: BuildProfile::Debug,
             scene_settings,
+            particle_system_control_panel,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move));
@@ -1147,6 +1156,8 @@ impl Editor {
         );
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.particle_system_control_panel
+                .handle_ui_message(message, editor_scene, engine);
             self.absm_editor
                 .handle_ui_message(message, engine, &self.message_sender, editor_scene);
             self.audio_panel
@@ -1785,6 +1796,12 @@ impl Editor {
                     .handle_message(&message, &self.message_sender);
 
                 if let Some(editor_scene) = self.scene.as_ref() {
+                    self.particle_system_control_panel.handle_message(
+                        &message,
+                        editor_scene,
+                        &mut self.engine,
+                    );
+
                     self.inspector.handle_message(
                         &message,
                         editor_scene,
