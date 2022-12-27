@@ -269,7 +269,7 @@ impl StateViewer {
                             if message.direction() == MessageDirection::FromWidget {
                                 let selection = Selection::Absm(AbsmSelection {
                                     absm_node_handle,
-                                    layer: layer_index,
+                                    layer: Some(layer_index),
                                     entities: selection
                                         .iter()
                                         .filter_map(|n| {

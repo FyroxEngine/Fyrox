@@ -227,17 +227,21 @@ impl Inspector {
                         {
                             if let Some(first) = selection.entities.first() {
                                 let machine = node.machine();
-                                if let Some(layer) = machine.layers().get(selection.layer) {
-                                    match first {
-                                        SelectedEntity::Transition(transition) => {
-                                            Some(&layer.transitions()[*transition] as &dyn Reflect)
+                                if let Some(layer_index) = selection.layer {
+                                    if let Some(layer) = machine.layers().get(layer_index) {
+                                        match first {
+                                            SelectedEntity::Transition(transition) => Some(
+                                                &layer.transitions()[*transition] as &dyn Reflect,
+                                            ),
+                                            SelectedEntity::State(state) => {
+                                                Some(&layer.states()[*state] as &dyn Reflect)
+                                            }
+                                            SelectedEntity::PoseNode(pose) => {
+                                                Some(&layer.nodes()[*pose] as &dyn Reflect)
+                                            }
                                         }
-                                        SelectedEntity::State(state) => {
-                                            Some(&layer.states()[*state] as &dyn Reflect)
-                                        }
-                                        SelectedEntity::PoseNode(pose) => {
-                                            Some(&layer.nodes()[*pose] as &dyn Reflect)
-                                        }
+                                    } else {
+                                        None
                                     }
                                 } else {
                                     None
@@ -354,17 +358,21 @@ impl Inspector {
                         {
                             if let Some(first) = selection.entities.first() {
                                 let machine = node.machine();
-                                if let Some(layer) = machine.layers().get(selection.layer) {
-                                    match first {
-                                        SelectedEntity::Transition(transition) => {
-                                            Some(&layer.transitions()[*transition] as &dyn Reflect)
+                                if let Some(layer_index) = selection.layer {
+                                    if let Some(layer) = machine.layers().get(layer_index) {
+                                        match first {
+                                            SelectedEntity::Transition(transition) => Some(
+                                                &layer.transitions()[*transition] as &dyn Reflect,
+                                            ),
+                                            SelectedEntity::State(state) => {
+                                                Some(&layer.states()[*state] as &dyn Reflect)
+                                            }
+                                            SelectedEntity::PoseNode(pose) => {
+                                                Some(&layer.nodes()[*pose] as &dyn Reflect)
+                                            }
                                         }
-                                        SelectedEntity::State(state) => {
-                                            Some(&layer.states()[*state] as &dyn Reflect)
-                                        }
-                                        SelectedEntity::PoseNode(pose) => {
-                                            Some(&layer.nodes()[*pose] as &dyn Reflect)
-                                        }
+                                    } else {
+                                        None
                                     }
                                 } else {
                                     None
@@ -458,36 +466,40 @@ impl Inspector {
                             .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
                             .is_some()
                         {
-                            selection
-                                .entities
-                                .iter()
-                                .filter_map(|ent| match ent {
-                                    SelectedEntity::Transition(transition) => {
-                                        make_set_transition_property_command(
-                                            *transition,
-                                            args,
-                                            selection.absm_node_handle,
-                                            selection.layer,
-                                        )
-                                    }
-                                    SelectedEntity::State(state) => {
-                                        make_set_state_property_command(
-                                            *state,
-                                            args,
-                                            selection.absm_node_handle,
-                                            selection.layer,
-                                        )
-                                    }
-                                    SelectedEntity::PoseNode(pose) => {
-                                        make_set_pose_property_command(
-                                            *pose,
-                                            args,
-                                            selection.absm_node_handle,
-                                            selection.layer,
-                                        )
-                                    }
-                                })
-                                .collect()
+                            if let Some(layer_index) = selection.layer {
+                                selection
+                                    .entities
+                                    .iter()
+                                    .filter_map(|ent| match ent {
+                                        SelectedEntity::Transition(transition) => {
+                                            make_set_transition_property_command(
+                                                *transition,
+                                                args,
+                                                selection.absm_node_handle,
+                                                layer_index,
+                                            )
+                                        }
+                                        SelectedEntity::State(state) => {
+                                            make_set_state_property_command(
+                                                *state,
+                                                args,
+                                                selection.absm_node_handle,
+                                                layer_index,
+                                            )
+                                        }
+                                        SelectedEntity::PoseNode(pose) => {
+                                            make_set_pose_property_command(
+                                                *pose,
+                                                args,
+                                                selection.absm_node_handle,
+                                                layer_index,
+                                            )
+                                        }
+                                    })
+                                    .collect()
+                            } else {
+                                vec![]
+                            }
                         } else {
                             vec![]
                         }

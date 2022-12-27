@@ -174,7 +174,7 @@ impl Toolbar {
                 && message.direction() == MessageDirection::FromWidget
             {
                 let mut new_selection = selection;
-                new_selection.layer = *index;
+                new_selection.layer = Some(*index);
                 new_selection.entities.clear();
                 sender
                     .send(Message::do_scene_command(ChangeSelectionCommand::new(
@@ -187,13 +187,15 @@ impl Toolbar {
             if message.destination() == self.layer_name
                 && message.direction() == MessageDirection::FromWidget
             {
-                sender
-                    .send(Message::do_scene_command(SetLayerNameCommand {
-                        absm_node_handle: selection.absm_node_handle,
-                        layer_index: selection.layer,
-                        name: text.clone(),
-                    }))
-                    .unwrap();
+                if let Some(layer_index) = selection.layer {
+                    sender
+                        .send(Message::do_scene_command(SetLayerNameCommand {
+                            absm_node_handle: selection.absm_node_handle,
+                            layer_index,
+                            name: text.clone(),
+                        }))
+                        .unwrap();
+                }
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_layer {
@@ -270,14 +272,16 @@ impl Toolbar {
                         true,
                     ));
 
-                    if let Some(layer) = absm_node.machine().layers().get(selection.layer) {
-                        let selection = layer.mask().inner().to_vec();
+                    if let Some(layer_index) = selection.layer {
+                        if let Some(layer) = absm_node.machine().layers().get(layer_index) {
+                            let selection = layer.mask().inner().to_vec();
 
-                        ui.send_message(NodeSelectorMessage::selection(
-                            self.node_selector,
-                            MessageDirection::ToWidget,
-                            selection,
-                        ));
+                            ui.send_message(NodeSelectorMessage::selection(
+                                self.node_selector,
+                                MessageDirection::ToWidget,
+                                selection,
+                            ));
+                        }
                     }
                 }
             }
@@ -285,21 +289,23 @@ impl Toolbar {
             if message.destination() == self.node_selector
                 && message.direction() == MessageDirection::FromWidget
             {
-                let new_mask = LayerMask::from(mask_selection.to_vec());
-                sender
-                    .send(Message::do_scene_command(SetLayerMaskCommand {
-                        absm_node_handle: selection.absm_node_handle,
-                        layer_index: selection.layer,
-                        mask: new_mask,
-                    }))
-                    .unwrap();
+                if let Some(layer_index) = selection.layer {
+                    let new_mask = LayerMask::from(mask_selection.to_vec());
+                    sender
+                        .send(Message::do_scene_command(SetLayerMaskCommand {
+                            absm_node_handle: selection.absm_node_handle,
+                            layer_index,
+                            mask: new_mask,
+                        }))
+                        .unwrap();
 
-                ui.send_message(WidgetMessage::remove(
-                    self.node_selector,
-                    MessageDirection::ToWidget,
-                ));
+                    ui.send_message(WidgetMessage::remove(
+                        self.node_selector,
+                        MessageDirection::ToWidget,
+                    ));
 
-                self.node_selector = Handle::NONE;
+                    self.node_selector = Handle::NONE;
+                }
             }
         }
 
@@ -329,19 +335,21 @@ impl Toolbar {
             DropdownListMessage::selection(
                 self.layers,
                 MessageDirection::ToWidget,
-                Some(selection.layer),
+                selection.layer,
             ),
         );
 
-        if let Some(layer) = absm_node.machine().layers().get(selection.layer) {
-            send_sync_message(
-                ui,
-                TextMessage::text(
-                    self.layer_name,
-                    MessageDirection::ToWidget,
-                    layer.name().to_string(),
-                ),
-            );
+        if let Some(layer_index) = selection.layer {
+            if let Some(layer) = absm_node.machine().layers().get(layer_index) {
+                send_sync_message(
+                    ui,
+                    TextMessage::text(
+                        self.layer_name,
+                        MessageDirection::ToWidget,
+                        layer.name().to_string(),
+                    ),
+                );
+            }
         }
     }
 }

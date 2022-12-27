@@ -14,7 +14,7 @@ pub enum SelectedEntity {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct AbsmSelection {
     pub absm_node_handle: Handle<Node>,
-    pub layer: usize,
+    pub layer: Option<usize>,
     pub entities: Vec<SelectedEntity>,
 }
 
