@@ -170,6 +170,7 @@ pub mod transition;
 pub struct Machine {
     parameters: ParameterContainer,
 
+    #[visit(optional)]
     layers: Vec<MachineLayer>,
 
     #[visit(skip)]
