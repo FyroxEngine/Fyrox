@@ -1,13 +1,13 @@
 use crate::{
     absm::{
-        command::{AddLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
+        command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
         fetch_selection,
         selection::AbsmSelection,
     },
     gui::make_dropdown_list_option,
     load_image,
     scene::{
-        commands::ChangeSelectionCommand,
+        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         EditorScene, Selection,
     },
@@ -26,7 +26,7 @@ use fyrox::{
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
         text_box::{TextBox, TextBoxBuilder},
-        utils::make_simple_tooltip,
+        utils::{make_cross, make_simple_tooltip},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
@@ -45,6 +45,7 @@ pub struct Toolbar {
     pub layers: Handle<UiNode>,
     pub layer_name: Handle<UiNode>,
     pub add_layer: Handle<UiNode>,
+    pub remove_layer: Handle<UiNode>,
     pub edit_mask: Handle<UiNode>,
     pub node_selector: Handle<UiNode>,
 }
@@ -61,6 +62,7 @@ impl Toolbar {
         let layers;
         let layer_name;
         let add_layer;
+        let remove_layer;
         let edit_mask;
         let panel = StackPanelBuilder::new(
             WidgetBuilder::new()
@@ -104,6 +106,17 @@ impl Toolbar {
                     add_layer
                 })
                 .with_child({
+                    remove_layer = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_width(20.0)
+                            .with_tooltip(make_simple_tooltip(ctx, "Removes the current layer.")),
+                    )
+                    .with_content(make_cross(ctx, 12.0, 2.0))
+                    .build(ctx);
+                    remove_layer
+                })
+                .with_child({
                     layers = DropdownListBuilder::new(
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
@@ -144,6 +157,7 @@ impl Toolbar {
             layers,
             layer_name,
             add_layer,
+            remove_layer,
             edit_mask,
             node_selector: Handle::NONE,
         }
@@ -282,6 +296,36 @@ impl Toolbar {
                                 selection,
                             ));
                         }
+                    }
+                }
+            } else if message.destination() == self.remove_layer {
+                if let Some(absm_node) = graph
+                    .try_get_of_type::<AnimationBlendingStateMachine>(selection.absm_node_handle)
+                {
+                    if let Some(layer_index) = selection.layer {
+                        let mut commands = Vec::new();
+
+                        commands.push(SceneCommand::new(ChangeSelectionCommand::new(
+                            Selection::Absm(AbsmSelection {
+                                absm_node_handle: selection.absm_node_handle,
+                                layer: if absm_node.machine().layers().len() > 1 {
+                                    Some(0)
+                                } else {
+                                    None
+                                },
+                                entities: vec![],
+                            }),
+                            editor_scene.selection.clone(),
+                        )));
+
+                        commands.push(SceneCommand::new(RemoveLayerCommand::new(
+                            selection.absm_node_handle,
+                            layer_index,
+                        )));
+
+                        sender
+                            .send(Message::do_scene_command(CommandGroup::from(commands)))
+                            .unwrap();
                     }
                 }
             }

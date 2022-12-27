@@ -822,6 +822,39 @@ impl Command for AddLayerCommand {
 }
 
 #[derive(Debug)]
+pub struct RemoveLayerCommand {
+    pub absm_node_handle: Handle<Node>,
+    pub layer_index: usize,
+    pub layer: Option<MachineLayer>,
+}
+
+impl RemoveLayerCommand {
+    pub fn new(absm_node_handle: Handle<Node>, layer_index: usize) -> Self {
+        Self {
+            absm_node_handle,
+            layer_index,
+            layer: None,
+        }
+    }
+}
+
+impl Command for RemoveLayerCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        format!("Remove {} Layer", self.layer_index)
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.layer =
+            Some(fetch_machine(context, self.absm_node_handle).remove_layer(self.layer_index));
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        fetch_machine(context, self.absm_node_handle)
+            .insert_layer(self.layer_index, self.layer.take().unwrap());
+    }
+}
+
+#[derive(Debug)]
 pub struct SetLayerMaskCommand {
     pub absm_node_handle: Handle<Node>,
     pub layer_index: usize,
