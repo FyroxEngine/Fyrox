@@ -408,10 +408,10 @@ impl StateViewer {
                             } else {
                                 // Remove every node that does not belong to a state or its data model was
                                 // removed.
-                                ui.send_message(WidgetMessage::remove(
-                                    *h,
-                                    MessageDirection::ToWidget,
-                                ));
+                                send_sync_message(
+                                    ui,
+                                    WidgetMessage::remove(*h, MessageDirection::ToWidget),
+                                );
 
                                 false
                             }
@@ -621,7 +621,7 @@ impl StateViewer {
             // removing every connection and create new.
             for child in ui.node(self.canvas).children().iter().cloned() {
                 if ui.node(child).has_component::<Connection>() {
-                    ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+                    send_sync_message(ui, WidgetMessage::remove(child, MessageDirection::ToWidget));
                 }
             }
 
@@ -710,7 +710,10 @@ impl StateViewer {
         } else {
             // Clean the canvas.
             for child in ui.node(self.canvas).children() {
-                ui.send_message(WidgetMessage::remove(*child, MessageDirection::ToWidget));
+                send_sync_message(
+                    ui,
+                    WidgetMessage::remove(*child, MessageDirection::ToWidget),
+                );
             }
         }
     }

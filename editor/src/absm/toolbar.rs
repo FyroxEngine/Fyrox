@@ -319,17 +319,19 @@ impl Toolbar {
             .map(|l| make_dropdown_list_option(&mut ui.build_ctx(), l.name()))
             .collect();
 
-        ui.send_message(DropdownListMessage::items(
-            self.layers,
-            MessageDirection::ToWidget,
-            layers,
-        ));
+        send_sync_message(
+            ui,
+            DropdownListMessage::items(self.layers, MessageDirection::ToWidget, layers),
+        );
 
-        ui.send_message(DropdownListMessage::selection(
-            self.layers,
-            MessageDirection::ToWidget,
-            Some(selection.layer),
-        ));
+        send_sync_message(
+            ui,
+            DropdownListMessage::selection(
+                self.layers,
+                MessageDirection::ToWidget,
+                Some(selection.layer),
+            ),
+        );
 
         if let Some(layer) = absm_node.machine().layers().get(selection.layer) {
             send_sync_message(

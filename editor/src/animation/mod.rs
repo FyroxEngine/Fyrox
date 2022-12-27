@@ -599,11 +599,14 @@ impl AnimationEditor {
                             .iter()
                             .find(|c| &c.id() == selected_curve_id)
                     }) {
-                        engine.user_interface.send_message(CurveEditorMessage::sync(
-                            self.curve_editor,
-                            MessageDirection::ToWidget,
-                            selected_curve.clone(),
-                        ));
+                        send_sync_message(
+                            &engine.user_interface,
+                            CurveEditorMessage::sync(
+                                self.curve_editor,
+                                MessageDirection::ToWidget,
+                                selected_curve.clone(),
+                            ),
+                        );
                     }
                     is_curve_selected = true;
                 }
@@ -617,24 +620,33 @@ impl AnimationEditor {
         if !is_animation_selected || !is_animation_player_selected {
             self.track_list.clear(ui);
 
-            ui.send_message(CurveEditorMessage::zoom(
-                self.curve_editor,
-                MessageDirection::ToWidget,
-                Vector2::new(1.0, 1.0),
-            ));
-            ui.send_message(CurveEditorMessage::view_position(
-                self.curve_editor,
-                MessageDirection::ToWidget,
-                Vector2::default(),
-            ));
+            send_sync_message(
+                ui,
+                CurveEditorMessage::zoom(
+                    self.curve_editor,
+                    MessageDirection::ToWidget,
+                    Vector2::new(1.0, 1.0),
+                ),
+            );
+            send_sync_message(
+                ui,
+                CurveEditorMessage::view_position(
+                    self.curve_editor,
+                    MessageDirection::ToWidget,
+                    Vector2::default(),
+                ),
+            );
         }
 
         if !is_animation_selected || !is_animation_player_selected || !is_curve_selected {
-            ui.send_message(CurveEditorMessage::sync(
-                self.curve_editor,
-                MessageDirection::ToWidget,
-                Default::default(),
-            ));
+            send_sync_message(
+                ui,
+                CurveEditorMessage::sync(
+                    self.curve_editor,
+                    MessageDirection::ToWidget,
+                    Default::default(),
+                ),
+            );
         }
 
         if !is_animation_player_selected {
