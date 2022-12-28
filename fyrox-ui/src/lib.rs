@@ -49,6 +49,7 @@ pub mod text_box;
 pub mod tree;
 pub mod ttf;
 pub mod utils;
+pub mod uuid;
 pub mod vec;
 pub mod vector_image;
 pub mod widget;
@@ -59,7 +60,7 @@ use crate::{
     brush::Brush,
     canvas::Canvas,
     core::{
-        algebra::Vector2,
+        algebra::{Matrix3, Vector2},
         color::Color,
         math::Rect,
         pool::{Handle, Pool},
@@ -76,15 +77,14 @@ use crate::{
 };
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::algebra::Matrix3;
-use std::collections::hash_map::Entry;
-use std::rc::Rc;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
+    collections::hash_map::Entry,
     collections::VecDeque,
     fmt::Debug,
     ops::{Deref, DerefMut, Index, IndexMut},
+    rc::Rc,
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
 };
 
