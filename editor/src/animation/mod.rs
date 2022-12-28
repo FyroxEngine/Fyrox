@@ -10,7 +10,7 @@ use crate::{
         toolbar::{Toolbar, ToolbarAction},
         track::TrackList,
     },
-    scene::{EditorScene, Selection},
+    scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
     send_sync_message, Message,
 };
 use fyrox::{
@@ -32,7 +32,7 @@ use fyrox::{
 };
 use std::sync::mpsc::Sender;
 
-mod command;
+pub mod command;
 mod ruler;
 pub mod selection;
 mod thumb;
@@ -295,6 +295,18 @@ impl AnimationEditor {
                                         signal: *id,
                                         time: *new_position,
                                     }))
+                                    .unwrap();
+                            }
+                            RulerMessage::SelectSignal(id) => {
+                                sender
+                                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                                        Selection::Animation(AnimationSelection {
+                                            animation_player: selection.animation_player,
+                                            animation: selection.animation,
+                                            entities: vec![SelectedEntity::Signal(*id)],
+                                        }),
+                                        editor_scene.selection.clone(),
+                                    )))
                                     .unwrap();
                             }
                             _ => (),

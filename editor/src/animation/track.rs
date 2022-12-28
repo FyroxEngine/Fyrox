@@ -998,6 +998,7 @@ impl TrackList {
                         self.track_views.get(id).cloned()
                     }
                     SelectedEntity::Curve(id) => self.curve_views.get(id).cloned(),
+                    SelectedEntity::Signal(_) => None,
                 })
                 .collect();
 

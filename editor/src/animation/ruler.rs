@@ -35,6 +35,7 @@ pub enum RulerMessage {
     RemoveSignal(Uuid),
     SyncSignals(Vec<SignalView>),
     MoveSignal { id: Uuid, new_position: f32 },
+    SelectSignal(Uuid),
 }
 
 impl RulerMessage {
@@ -45,6 +46,7 @@ impl RulerMessage {
     define_constructor!(RulerMessage:RemoveSignal => fn remove_signal(Uuid), layout: false);
     define_constructor!(RulerMessage:SyncSignals => fn sync_signals(Vec<SignalView>), layout: false);
     define_constructor!(RulerMessage:MoveSignal => fn move_signal(id: Uuid, new_position: f32), layout: false);
+    define_constructor!(RulerMessage:SelectSignal => fn select_signal(Uuid), layout: false);
 }
 
 #[derive(Clone)]
@@ -269,7 +271,8 @@ impl Control for Ruler {
                     }
                     RulerMessage::AddSignal(_)
                     | RulerMessage::RemoveSignal(_)
-                    | RulerMessage::MoveSignal { .. } => {
+                    | RulerMessage::MoveSignal { .. }
+                    | RulerMessage::SelectSignal(_) => {
                         // Do nothing. These messages are only for output.
                     }
                     RulerMessage::SyncSignals(signals) => {
@@ -294,6 +297,12 @@ impl Control for Ruler {
                                     self.drag_context = Some(DragContext {
                                         entity: DragEntity::Signal(signal.id),
                                     });
+
+                                    ui.send_message(RulerMessage::select_signal(
+                                        self.handle,
+                                        MessageDirection::FromWidget,
+                                        signal.id,
+                                    ));
                                 }
                             }
 

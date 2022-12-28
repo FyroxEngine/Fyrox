@@ -6,6 +6,7 @@ use crate::{
         },
         selection::SelectedEntity,
     },
+    animation::{self, command::signal::make_animation_signal_property_command},
     inspector::{
         editors::make_property_editors_container,
         handlers::{
@@ -219,11 +220,35 @@ impl Inspector {
                         .sound_context
                         .try_get_effect(selection.effects[0])
                         .map(|e| e as &dyn Reflect),
+                    Selection::Animation(selection) => {
+                        if let Some(animation) = scene
+                            .graph
+                            .try_get_of_type::<AnimationPlayer>(selection.animation_player)
+                            .and_then(|player| player.animations().try_get(selection.animation))
+                        {
+                            if let Some(animation::selection::SelectedEntity::Signal(id)) =
+                                selection.entities.first()
+                            {
+                                if let Some(signal) =
+                                    animation.signals().iter().find(|s| s.id == *id)
+                                {
+                                    Some(signal as &dyn Reflect)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
                     Selection::Absm(selection) => {
                         if let Some(node) = scene
                             .graph
-                            .try_get(selection.absm_node_handle)
-                            .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
+                            .try_get_of_type::<AnimationBlendingStateMachine>(
+                                selection.absm_node_handle,
+                            )
                         {
                             if let Some(first) = selection.entities.first() {
                                 let machine = node.machine();
@@ -350,6 +375,29 @@ impl Inspector {
                         .sound_context
                         .try_get_effect(selection.effects[0])
                         .map(|e| e as &dyn Reflect),
+                    Selection::Animation(selection) => {
+                        if let Some(animation) = scene
+                            .graph
+                            .try_get_of_type::<AnimationPlayer>(selection.animation_player)
+                            .and_then(|player| player.animations().try_get(selection.animation))
+                        {
+                            if let Some(animation::selection::SelectedEntity::Signal(id)) =
+                                selection.entities.first()
+                            {
+                                if let Some(signal) =
+                                    animation.signals().iter().find(|s| s.id == *id)
+                                {
+                                    Some(signal as &dyn Reflect)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
                     Selection::Absm(selection) => {
                         if let Some(node) = scene
                             .graph
@@ -459,6 +507,33 @@ impl Inspector {
                         .iter()
                         .filter_map(|&handle| make_set_effect_property_command(handle, args))
                         .collect::<Vec<_>>(),
+                    Selection::Animation(selection) => {
+                        if scene
+                            .graph
+                            .try_get_of_type::<AnimationPlayer>(selection.animation_player)
+                            .and_then(|player| player.animations().try_get(selection.animation))
+                            .is_some()
+                        {
+                            selection
+                                .entities
+                                .iter()
+                                .filter_map(|e| {
+                                    if let animation::selection::SelectedEntity::Signal(id) = e {
+                                        make_animation_signal_property_command(
+                                            *id,
+                                            args,
+                                            selection.animation_player,
+                                            selection.animation,
+                                        )
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect()
+                        } else {
+                            vec![]
+                        }
+                    }
                     Selection::Absm(selection) => {
                         if scene
                             .graph

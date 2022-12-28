@@ -18,6 +18,8 @@ use std::{
     ops::{IndexMut, Range},
 };
 
+pub mod signal;
+
 fn fetch_animation_player<'a>(
     handle: Handle<Node>,
     context: &'a mut SceneContext,

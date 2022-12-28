@@ -1,5 +1,5 @@
-use fyrox::animation::Animation;
 use fyrox::{
+    animation::Animation,
     core::{pool::Handle, uuid::Uuid},
     scene::node::Node,
 };
@@ -8,6 +8,7 @@ use fyrox::{
 pub enum SelectedEntity {
     Track(Uuid),
     Curve(Uuid),
+    Signal(Uuid),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
