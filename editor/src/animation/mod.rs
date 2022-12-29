@@ -245,6 +245,10 @@ impl AnimationEditor {
                 } else if let Some(msg) = message.data::<RulerMessage>() {
                     if message.destination() == self.ruler
                         && message.direction() == MessageDirection::FromWidget
+                        && animation_player
+                            .animations()
+                            .try_get(selection.animation)
+                            .is_some()
                     {
                         match msg {
                             RulerMessage::Value(value) => {
