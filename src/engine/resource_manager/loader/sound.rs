@@ -15,7 +15,7 @@ use fyrox_sound::buffer::{
 use serde::{Deserialize, Serialize};
 
 /// Defines sound buffer resource import options.
-#[derive(Clone, Deserialize, Serialize, Default, Reflect)]
+#[derive(Clone, Deserialize, Serialize, Default, Debug, Reflect)]
 pub struct SoundBufferImportOptions {
     /// Whether the buffer is streaming or not.
     pub stream: bool,

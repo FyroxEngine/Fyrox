@@ -5,10 +5,9 @@ mod std_impls;
 
 pub use fyrox_core_derive::Reflect;
 
-use std::fmt::{Display, Formatter};
 use std::{
     any::{Any, TypeId},
-    fmt::{self, Debug},
+    fmt::{self, Debug, Display, Formatter},
 };
 
 pub mod prelude {
@@ -141,7 +140,14 @@ impl<'a> PartialEq<Self> for FieldInfo<'a> {
 /// - `#[reflect(deref)]`: Delegate the field access with deref
 /// - `#[reflect(field = <method call>)]`
 /// - `#[reflect(field_mut = <method call>)]`
-pub trait Reflect: Any {
+///
+/// # Additional Trait Bounds
+///
+/// `Reflect` restricted to types that implement `Debug` trait, this is needed to convert the actual value
+/// to string. `Display` isn't used here, because it can't be derived and it is very tedious to implement it
+/// for every type that should support `Reflect` trait. It is a good compromise between development speed
+/// and the quality of the string output.
+pub trait Reflect: Any + Debug {
     fn fields_info(&self) -> Vec<FieldInfo>;
 
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
@@ -573,19 +579,6 @@ impl dyn ReflectList {
     pub fn get_reflect_index_mut<T: Reflect + 'static>(&mut self, index: usize) -> Option<&mut T> {
         self.reflect_index_mut(index)
             .and_then(|reflect| reflect.downcast_mut())
-    }
-}
-
-// for simple `#[derive(Debug)]`
-impl fmt::Debug for dyn Reflect {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(fmt, "dyn Reflect")
-    }
-}
-
-impl fmt::Debug for dyn Reflect + 'static + Send {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(fmt, "dyn Reflect")
     }
 }
 

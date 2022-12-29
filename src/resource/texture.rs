@@ -289,7 +289,7 @@ impl Default for TextureData {
 ///     compression: NoCompression,    
 /// )
 /// ```
-#[derive(Clone, Deserialize, Serialize, Reflect)]
+#[derive(Clone, Deserialize, Serialize, Debug, Reflect)]
 pub struct TextureImportOptions {
     #[serde(default)]
     pub(crate) minification_filter: TextureMinificationFilter,

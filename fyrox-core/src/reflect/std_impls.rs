@@ -1,5 +1,6 @@
 //! `Reflect` implementations for `std` types
 
+use std::fmt::Debug;
 use std::{
     any::Any,
     cell::Cell,
@@ -146,7 +147,7 @@ impl<T: Reflect + 'static> ReflectList for Vec<T> {
 impl_reflect! { pub struct Uuid; }
 
 impl_reflect! {
-    pub struct Cell<T>;
+    pub struct Cell<T: Debug + Copy>;
 }
 
 impl_reflect! {
