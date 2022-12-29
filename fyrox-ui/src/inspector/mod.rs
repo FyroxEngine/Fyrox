@@ -1,7 +1,11 @@
 use crate::{
     border::BorderBuilder,
     check_box::CheckBoxBuilder,
-    core::{algebra::Vector2, pool::Handle, reflect::CastError},
+    core::{
+        algebra::Vector2,
+        pool::Handle,
+        reflect::{CastError, Reflect, ResolvePath},
+    },
     define_constructor,
     expander::ExpanderBuilder,
     formatted_text::WrapMode,
@@ -10,16 +14,19 @@ use crate::{
         PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorDefinitionContainer,
         PropertyEditorInstance, PropertyEditorMessageContext, PropertyEditorTranslationContext,
     },
+    menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
     message::{MessageDirection, UiMessage},
+    popup::PopupBuilder,
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     utils::{make_arrow, make_simple_tooltip, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::reflect::{Reflect, ResolvePath};
+use copypasta::ClipboardProvider;
 use std::{
     any::{Any, TypeId},
+    cell::Cell,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     rc::Rc,
@@ -336,6 +343,8 @@ pub struct ContextEntry {
     pub property_owner_type_id: TypeId,
     pub property_editor_definition: Rc<dyn PropertyEditorDefinition>,
     pub property_editor: Handle<UiNode>,
+    pub property_debug_output: String,
+    pub property_container: Handle<UiNode>,
 }
 
 impl PartialEq for ContextEntry {
@@ -351,9 +360,17 @@ impl PartialEq for ContextEntry {
     }
 }
 
+#[derive(Default, Clone)]
+pub struct Menu {
+    pub copy_value_as_string: Handle<UiNode>,
+    pub menu: Handle<UiNode>,
+    pub target: Cell<Handle<UiNode>>,
+}
+
 #[derive(Clone)]
 pub struct InspectorContext {
     pub stack_panel: Handle<UiNode>,
+    pub menu: Menu,
     pub entries: Vec<ContextEntry>,
     pub property_definitions: Rc<PropertyEditorDefinitionContainer>,
     pub environment: Option<Rc<dyn InspectorEnvironment>>,
@@ -370,6 +387,7 @@ impl Default for InspectorContext {
     fn default() -> Self {
         Self {
             stack_panel: Default::default(),
+            menu: Default::default(),
             entries: Default::default(),
             property_definitions: Rc::new(PropertyEditorDefinitionContainer::new()),
             environment: None,
@@ -499,10 +517,11 @@ impl InspectorContext {
         let mut entries = Vec::new();
 
         let editors = object
-            .fields_info()
+            .fields()
             .iter()
+            .zip(object.fields_info().iter())
             .enumerate()
-            .map(|(i, info)| {
+            .map(|(i, (property, info))| {
                 let description = if info.description.is_empty() {
                     info.display_name.to_string()
                 } else {
@@ -541,6 +560,8 @@ impl InspectorContext {
                                 property_editor_definition: definition.clone(),
                                 property_name: info.name.to_string(),
                                 property_owner_type_id: info.owner_type_id,
+                                property_debug_output: format!("{:#?}", property),
+                                property_container: container,
                             });
 
                             if info.read_only {
@@ -579,11 +600,33 @@ impl InspectorContext {
             })
             .collect::<Vec<_>>();
 
-        let stack_panel =
-            StackPanelBuilder::new(WidgetBuilder::new().with_children(editors)).build(ctx);
+        let copy_value_as_string;
+        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+            .with_content(
+                StackPanelBuilder::new(WidgetBuilder::new().with_child({
+                    copy_value_as_string = MenuItemBuilder::new(WidgetBuilder::new())
+                        .with_content(MenuItemContent::text("Copy Value as String"))
+                        .build(ctx);
+                    copy_value_as_string
+                }))
+                .build(ctx),
+            )
+            .build(ctx);
+
+        let stack_panel = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .with_context_menu(menu)
+                .with_children(editors),
+        )
+        .build(ctx);
 
         Self {
             stack_panel,
+            menu: Menu {
+                copy_value_as_string,
+                menu,
+                target: Default::default(),
+            },
             entries,
             property_definitions: definition_container,
             sync_flag,
@@ -707,6 +750,30 @@ impl Control for Inspector {
             }
         }
     }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        if message.destination() == self.context.menu.copy_value_as_string {
+            if let Some(MenuItemMessage::Click) = message.data() {
+                let position = ui.node(self.context.menu.menu).screen_position();
+
+                let mut parent_handle = ui.hit_test_unrestricted(position - Vector2::new(1.0, 1.0));
+
+                while let Some(parent) = ui.try_get_node(parent_handle) {
+                    for entry in self.context.entries.iter() {
+                        if entry.property_container == parent_handle {
+                            let _ = ui
+                                .clipboard_mut()
+                                .unwrap()
+                                .set_contents(entry.property_debug_output.clone());
+                            break;
+                        }
+                    }
+
+                    parent_handle = parent.parent;
+                }
+            }
+        }
+    }
 }
 
 pub struct InspectorBuilder {
@@ -739,6 +806,7 @@ impl InspectorBuilder {
             widget: self
                 .widget_builder
                 .with_child(self.context.stack_panel)
+                .with_preview_messages(true)
                 .build(),
             context: self.context,
         };
