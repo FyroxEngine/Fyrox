@@ -6,7 +6,7 @@ use crate::{
     message::{MessageDirection, UiMessage},
     text::{TextBuilder, TextMessage},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UiNode, UserInterface,
+    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use std::{
     any::{Any, TypeId},
@@ -98,7 +98,8 @@ impl UuidEditorBuilder {
                         WidgetBuilder::new()
                             .on_column(0)
                             .on_row(0)
-                            .with_margin(Thickness::uniform(1.0)),
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_vertical_alignment(VerticalAlignment::Center),
                     )
                     .with_text(self.value.to_string())
                     .build(ctx);
@@ -109,6 +110,7 @@ impl UuidEditorBuilder {
                         WidgetBuilder::new()
                             .on_column(1)
                             .on_row(0)
+                            .with_width(24.0)
                             .with_margin(Thickness::uniform(1.0)),
                     )
                     .with_text("^/v")

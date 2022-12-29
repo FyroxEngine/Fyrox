@@ -5,6 +5,7 @@ use crate::{
         math::{Rect, SmoothAngle},
         pool::Handle,
         reflect::{FieldInfo, FieldValue, Reflect},
+        uuid::Uuid,
     },
     inspector::{
         editors::{
@@ -20,6 +21,7 @@ use crate::{
             range::RangePropertyEditorDefinition,
             rect::RectPropertyEditorDefinition,
             string::StringPropertyEditorDefinition,
+            uuid::UuidPropertyEditorDefinition,
             vec::{
                 Vec2PropertyEditorDefinition, Vec3PropertyEditorDefinition,
                 Vec4PropertyEditorDefinition,
@@ -54,6 +56,7 @@ pub mod quat;
 pub mod range;
 pub mod rect;
 pub mod string;
+pub mod uuid;
 pub mod vec;
 
 pub struct PropertyEditorBuildContext<'a, 'b, 'c> {
@@ -148,36 +151,36 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<String>::new());
 
         // NumericType + InheritableVariable<NumericType>
-        reg_property_editor! { container, NumericPropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
-        reg_property_editor! { container, InheritablePropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, NumericPropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
+        reg_property_editor! { container, InheritablePropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
 
         // Vector4<NumericType> + InheritableVariable<Vector4>
-        reg_property_editor! { container, Vec4PropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, Vec4PropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
             Vector4<f64>, Vector4<f32>, Vector4<i64>, Vector4<u64>, Vector4<i32>, Vector4<u32>,
             Vector4<i16>, Vector4<u16>, Vector4<i8>, Vector4<u8>, Vector4<usize>, Vector4<isize>
-        };
+        }
 
         // Vector3<NumericType> + InheritableVariable<Vector3>
-        reg_property_editor! { container, Vec3PropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, Vec3PropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
             Vector3<f64>, Vector3<f32>, Vector3<i64>, Vector3<u64>, Vector3<i32>, Vector3<u32>,
             Vector3<i16>, Vector3<u16>, Vector3<i8>, Vector3<u8>, Vector3<usize>, Vector3<isize>
-        };
+        }
 
         // Vector2<NumericType> + InheritableVariable<Vector2>
-        reg_property_editor! { container, Vec2PropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, Vec2PropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
             Vector2<f64>, Vector2<f32>, Vector2<i64>, Vector2<u64>, Vector2<i32>, Vector2<u32>,
             Vector2<i16>, Vector2<u16>, Vector2<i8>, Vector2<u8>, Vector2<usize>, Vector2<isize>
-        };
+        }
 
         // Range<NumericType> + InheritableVariable<Range<NumericType>>
-        reg_property_editor! { container, RangePropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, RangePropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
             Range<f64>, Range<f32>, Range<i64>, Range<u64>, Range<i32>, Range<u32>,
             Range<i16>, Range<u16>, Range<i8>, Range<u8>, Range<usize>, Range<isize>
-        };
+        }
 
         // UnitQuaternion + InheritableVariable<UnitQuaternion>
         container.insert(QuatPropertyEditorDefinition::<f64>::default());
@@ -190,14 +193,14 @@ impl PropertyEditorDefinitionContainer {
         reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
             Rect<f64>, Rect<f32>, Rect<i64>, Rect<u64>, Rect<i32>, Rect<u32>,
             Rect<i16>, Rect<u16>, Rect<i8>, Rect<u8>, Rect<usize>, Rect<isize>
-        };
+        }
 
         // Option<NumericType> + InheritableVariable<Option<NumericType>>
-        reg_property_editor! { container, EnumPropertyEditorDefinition: new_optional, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, EnumPropertyEditorDefinition: new_optional, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
             Option<f64>, Option<f32>, Option<i64>, Option<u64>, Option<i32>, Option<u32>,
             Option<i16>, Option<u16>, Option<i8>, Option<u8>, Option<usize>, Option<isize>
-        };
+        }
 
         // Color + InheritableVariable<Color>
         container.insert(ColorPropertyEditorDefinition);
@@ -205,21 +208,25 @@ impl PropertyEditorDefinitionContainer {
 
         // [NumericType; 1..N]
         reg_array_property_editor! { container, f64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-        reg_array_property_editor! { container, f32, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-        reg_array_property_editor! { container, u64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-        reg_array_property_editor! { container, i64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-        reg_array_property_editor! { container, u32, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-        reg_array_property_editor! { container, i32, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-        reg_array_property_editor! { container, u16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-        reg_array_property_editor! { container, i16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-        reg_array_property_editor! { container, u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-        reg_array_property_editor! { container, i8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-        reg_array_property_editor! { container, u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-        reg_array_property_editor! { container, usize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-        reg_array_property_editor! { container, isize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, f32, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, u64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, i64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, u32, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, i32, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, u16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, i16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, i8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, usize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, isize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
 
         // SmoothAngle
         container.register_inheritable_inspectable::<SmoothAngle>();
+
+        // Uuid + InheritableVariable<Uuid>
+        container.insert(UuidPropertyEditorDefinition);
+        container.insert(InheritablePropertyEditorDefinition::<Uuid>::new());
 
         container
     }
