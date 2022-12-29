@@ -1021,7 +1021,7 @@ impl Control for TextBox {
                                 }
                             }
                             KeyCode::C if ui.keyboard_modifiers().control => {
-                                if let Some(clipboard) = ui.clipboard_mut() {
+                                if let Some(mut clipboard) = ui.clipboard_mut() {
                                     if let Some(selection_range) = self.selection_range.as_ref() {
                                         if let (Some(begin), Some(end)) = (
                                             self.position_to_char_index_unclamped(
@@ -1043,7 +1043,7 @@ impl Control for TextBox {
                                 }
                             }
                             KeyCode::V if ui.keyboard_modifiers().control => {
-                                if let Some(clipboard) = ui.clipboard_mut() {
+                                if let Some(mut clipboard) = ui.clipboard_mut() {
                                     if let Ok(content) = clipboard.get_contents() {
                                         if let Some(selection_range) = self.selection_range {
                                             self.remove_range(ui, selection_range);

@@ -78,7 +78,7 @@ fn open_in_explorer<P: AsRef<OsStr>>(path: P) {
 }
 
 fn put_path_to_clipboard(engine: &mut Engine, path: &OsStr) {
-    if let Some(clipboard) = engine.user_interface.clipboard_mut() {
+    if let Some(mut clipboard) = engine.user_interface.clipboard_mut() {
         Log::verify(clipboard.set_contents(path.to_string_lossy().to_string()));
     }
 }

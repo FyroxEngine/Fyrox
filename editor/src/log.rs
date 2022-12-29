@@ -64,7 +64,7 @@ impl ContextMenu {
                     .and_then(|n| n.query_component::<Text>())
                 {
                     let text = field.text();
-                    if let Some(clipboard) = engine.user_interface.clipboard_mut() {
+                    if let Some(mut clipboard) = engine.user_interface.clipboard_mut() {
                         let _ = clipboard.set_contents(text);
                     }
                 }

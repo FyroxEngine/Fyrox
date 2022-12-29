@@ -79,9 +79,8 @@ use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
 use std::{
     any::{Any, TypeId},
-    cell::Cell,
-    collections::hash_map::Entry,
-    collections::VecDeque,
+    cell::{Cell, Ref, RefCell, RefMut},
+    collections::{hash_map::Entry, VecDeque},
     fmt::Debug,
     ops::{Deref, DerefMut, Index, IndexMut},
     rc::Rc,
@@ -614,7 +613,7 @@ pub struct UserInterface {
     cursor_icon: CursorIcon,
     active_tooltip: Option<TooltipEntry>,
     preview_set: FxHashSet<Handle<UiNode>>,
-    clipboard: Option<ClipboardContext>,
+    clipboard: Option<RefCell<ClipboardContext>>,
     layout_events_receiver: Receiver<LayoutEvent>,
     layout_events_sender: Sender<LayoutEvent>,
     need_update_global_transform: bool,
@@ -734,7 +733,7 @@ impl UserInterface {
             cursor_icon: Default::default(),
             active_tooltip: Default::default(),
             preview_set: Default::default(),
-            clipboard: ClipboardContext::new().ok(),
+            clipboard: ClipboardContext::new().ok().map(|c| RefCell::new(c)),
             layout_events_receiver,
             layout_events_sender,
             need_update_global_transform: Default::default(),
@@ -1001,12 +1000,12 @@ impl UserInterface {
         &self.drawing_context
     }
 
-    pub fn clipboard(&self) -> Option<&ClipboardContext> {
-        self.clipboard.as_ref()
+    pub fn clipboard(&self) -> Option<Ref<ClipboardContext>> {
+        self.clipboard.as_ref().map(|v| v.borrow())
     }
 
-    pub fn clipboard_mut(&mut self) -> Option<&mut ClipboardContext> {
-        self.clipboard.as_mut()
+    pub fn clipboard_mut(&self) -> Option<RefMut<ClipboardContext>> {
+        self.clipboard.as_ref().map(|v| v.borrow_mut())
     }
 
     pub fn arrange_node(&self, handle: Handle<UiNode>, final_rect: &Rect<f32>) -> bool {
