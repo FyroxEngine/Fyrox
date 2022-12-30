@@ -519,7 +519,7 @@ impl Animation {
 
     /// Tries to find a signal by its name. Returns index of the signal and its reference.
     #[inline]
-    pub fn find_by_name_mut<S: AsRef<str>>(
+    pub fn find_signal_by_name_mut<S: AsRef<str>>(
         &mut self,
         name: S,
     ) -> Option<(usize, &mut AnimationSignal)> {
