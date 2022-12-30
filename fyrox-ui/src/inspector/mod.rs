@@ -564,7 +564,7 @@ impl InspectorContext {
                                 property_name: info.name.to_string(),
                                 property_owner_type_id: info.owner_type_id,
                                 property_debug_output: if generate_property_string_values {
-                                    format!("{:#?}", property)
+                                    format!("{:?}", property)
                                 } else {
                                     Default::default()
                                 },
