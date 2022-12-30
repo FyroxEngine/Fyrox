@@ -194,7 +194,7 @@ impl Inspector {
             .context()
             .clone();
 
-        if let Err(sync_errors) = ctx.sync(obj, ui, 0) {
+        if let Err(sync_errors) = ctx.sync(obj, ui, 0, true) {
             for error in sync_errors {
                 Log::writeln(
                     MessageKind::Error,
@@ -334,6 +334,7 @@ impl Inspector {
             Some(environment),
             MSG_SYNC_FLAG,
             0,
+            true,
         );
 
         self.needs_sync = false;

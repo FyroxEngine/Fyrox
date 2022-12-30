@@ -74,6 +74,7 @@ where
     environment: Option<Rc<dyn InspectorEnvironment>>,
     definition_container: Option<Rc<PropertyEditorDefinitionContainer>>,
     layer_index: usize,
+    generate_property_string_values: bool,
 }
 
 fn create_item_views(
@@ -104,6 +105,7 @@ fn create_items<'a, T, I>(
     ctx: &mut BuildContext,
     sync_flag: u64,
     layer_index: usize,
+    generate_property_string_values: bool,
 ) -> Vec<Item>
 where
     T: Reflect + 'static,
@@ -118,6 +120,7 @@ where
                 environment.clone(),
                 sync_flag,
                 layer_index,
+                generate_property_string_values,
             );
 
             let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -141,6 +144,7 @@ where
             environment: None,
             definition_container: None,
             layer_index: 0,
+            generate_property_string_values: false,
         }
     }
 
@@ -151,6 +155,14 @@ where
 
     pub fn with_environment(mut self, environment: Option<Rc<dyn InspectorEnvironment>>) -> Self {
         self.environment = environment;
+        self
+    }
+
+    pub fn with_generate_property_string_values(
+        mut self,
+        generate_property_string_values: bool,
+    ) -> Self {
+        self.generate_property_string_values = generate_property_string_values;
         self
     }
 
@@ -183,6 +195,7 @@ where
                     ctx,
                     sync_flag,
                     self.layer_index + 1,
+                    self.generate_property_string_values,
                 )
             })
             .unwrap_or_default();
@@ -275,6 +288,7 @@ where
         let PropertyEditorMessageContext {
             instance,
             ui,
+            generate_property_string_values,
             property_info,
             ..
         } = ctx;
@@ -300,7 +314,7 @@ where
                 .expect("Must be Inspector!")
                 .context()
                 .clone();
-            if let Err(e) = ctx.sync(obj, ui, layer_index + 1) {
+            if let Err(e) = ctx.sync(obj, ui, layer_index + 1, generate_property_string_values) {
                 error_group.extend(e.into_iter())
             }
         }

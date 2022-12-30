@@ -66,6 +66,7 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c> {
     pub definition_container: Rc<PropertyEditorDefinitionContainer>,
     pub sync_flag: u64,
     pub layer_index: usize,
+    pub generate_property_string_values: bool,
 }
 
 pub struct PropertyEditorMessageContext<'a, 'b> {
@@ -76,6 +77,7 @@ pub struct PropertyEditorMessageContext<'a, 'b> {
     pub definition_container: Rc<PropertyEditorDefinitionContainer>,
     pub layer_index: usize,
     pub environment: Option<Rc<dyn InspectorEnvironment>>,
+    pub generate_property_string_values: bool,
 }
 
 pub struct PropertyEditorTranslationContext<'b, 'c> {

@@ -174,6 +174,7 @@ where
     definition_container: Option<Rc<PropertyEditorDefinitionContainer>>,
     add: Handle<UiNode>,
     layer_index: usize,
+    generate_property_string_values: bool,
 }
 
 fn create_item_views(
@@ -204,6 +205,7 @@ fn create_items<'a, T, I>(
     ctx: &mut BuildContext,
     sync_flag: u64,
     layer_index: usize,
+    generate_property_string_values: bool,
 ) -> Vec<Item>
 where
     T: CollectionItem,
@@ -218,6 +220,7 @@ where
                 environment.clone(),
                 sync_flag,
                 layer_index,
+                generate_property_string_values,
             );
 
             let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -254,6 +257,7 @@ where
             definition_container: None,
             add: Default::default(),
             layer_index: 0,
+            generate_property_string_values: false,
         }
     }
 
@@ -285,6 +289,14 @@ where
         self
     }
 
+    pub fn with_generate_property_string_values(
+        mut self,
+        generate_property_string_values: bool,
+    ) -> Self {
+        self.generate_property_string_values = generate_property_string_values;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext, sync_flag: u64) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
@@ -301,6 +313,7 @@ where
                     ctx,
                     sync_flag,
                     self.layer_index + 1,
+                    self.generate_property_string_values,
                 )
             })
             .unwrap_or_default();
@@ -418,6 +431,7 @@ where
             definition_container,
             layer_index,
             environment,
+            generate_property_string_values,
         } = ctx;
 
         let instance_ref = if let Some(instance) = ui.node(instance).cast::<CollectionEditor<T>>() {
@@ -439,6 +453,7 @@ where
                 &mut ui.build_ctx(),
                 sync_flag,
                 layer_index + 1,
+                generate_property_string_values,
             );
 
             Ok(Some(CollectionEditorMessage::items(
@@ -458,7 +473,8 @@ where
                     .expect("Must be Inspector!")
                     .context()
                     .clone();
-                if let Err(e) = ctx.sync(obj, ui, layer_index + 1) {
+                if let Err(e) = ctx.sync(obj, ui, layer_index + 1, generate_property_string_values)
+                {
                     error_group.extend(e.into_iter())
                 }
             }

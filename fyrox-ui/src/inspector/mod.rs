@@ -513,6 +513,7 @@ impl InspectorContext {
         environment: Option<Rc<dyn InspectorEnvironment>>,
         sync_flag: u64,
         layer_index: usize,
+        generate_property_string_values: bool,
     ) -> Self {
         let mut entries = Vec::new();
 
@@ -539,6 +540,7 @@ impl InspectorContext {
                         definition_container: definition_container.clone(),
                         sync_flag,
                         layer_index,
+                        generate_property_string_values,
                     }) {
                         Ok(instance) => {
                             let (container, editor) = match instance {
@@ -555,12 +557,17 @@ impl InspectorContext {
                                     (container, editor)
                                 }
                             };
+
                             entries.push(ContextEntry {
                                 property_editor: editor,
                                 property_editor_definition: definition.clone(),
                                 property_name: info.name.to_string(),
                                 property_owner_type_id: info.owner_type_id,
-                                property_debug_output: format!("{:#?}", property),
+                                property_debug_output: if generate_property_string_values {
+                                    format!("{:#?}", property)
+                                } else {
+                                    Default::default()
+                                },
                                 property_container: container,
                             });
 
@@ -639,6 +646,7 @@ impl InspectorContext {
         object: &dyn Reflect,
         ui: &mut UserInterface,
         layer_index: usize,
+        generate_property_string_values: bool,
     ) -> Result<(), Vec<InspectorError>> {
         let mut sync_errors = Vec::new();
 
@@ -657,6 +665,7 @@ impl InspectorContext {
                         definition_container: self.property_definitions.clone(),
                         layer_index,
                         environment: self.environment.clone(),
+                        generate_property_string_values,
                     };
 
                     match constructor.create_message(ctx) {

@@ -66,6 +66,7 @@ where
             ctx.environment.clone(),
             ctx.sync_flag,
             ctx.layer_index + 1,
+            ctx.generate_property_string_values,
         );
 
         let editor;
@@ -101,7 +102,12 @@ where
             .expect("Must be Inspector!")
             .context()
             .clone();
-        if let Err(e) = inspector_context.sync(value, ctx.ui, ctx.layer_index + 1) {
+        if let Err(e) = inspector_context.sync(
+            value,
+            ctx.ui,
+            ctx.layer_index + 1,
+            ctx.generate_property_string_values,
+        ) {
             error_group.extend(e.into_iter())
         }
 

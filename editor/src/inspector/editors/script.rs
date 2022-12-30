@@ -143,6 +143,7 @@ impl ScriptPropertyEditorBuilder {
         environment: Option<Rc<dyn InspectorEnvironment>>,
         sync_flag: u64,
         layer_index: usize,
+        generate_property_string_values: bool,
         script: &Option<Script>,
         definition_container: Rc<PropertyEditorDefinitionContainer>,
         ctx: &mut BuildContext,
@@ -155,6 +156,7 @@ impl ScriptPropertyEditorBuilder {
                 environment,
                 sync_flag,
                 layer_index,
+                generate_property_string_values,
             )
         });
 
@@ -277,6 +279,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                     ctx.environment.clone(),
                     ctx.sync_flag,
                     ctx.layer_index,
+                    ctx.generate_property_string_values,
                     value,
                     ctx.definition_container.clone(),
                     ctx.build_context,
@@ -367,6 +370,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                         ctx.environment.clone(),
                         ctx.sync_flag,
                         ctx.layer_index + 1,
+                        ctx.generate_property_string_values,
                     )
                 })
                 .unwrap_or_default();
@@ -385,7 +389,12 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 .clone();
 
             if let Some(value) = value.as_ref() {
-                if let Err(e) = inspector_ctx.sync(value, ctx.ui, layer_index + 1) {
+                if let Err(e) = inspector_ctx.sync(
+                    value,
+                    ctx.ui,
+                    layer_index + 1,
+                    ctx.generate_property_string_values,
+                ) {
                     Err(InspectorError::Group(e))
                 } else {
                     Ok(None)

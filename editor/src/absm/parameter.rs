@@ -76,6 +76,7 @@ impl ParameterPanel {
                     None,
                     MSG_SYNC_FLAG,
                     0,
+                    true,
                 )
             })
             .unwrap_or_default();
@@ -107,7 +108,7 @@ impl ParameterPanel {
             .context()
             .clone();
 
-        if let Err(sync_errors) = ctx.sync(absm_node.machine().parameters(), ui, 0) {
+        if let Err(sync_errors) = ctx.sync(absm_node.machine().parameters(), ui, 0, true) {
             for error in sync_errors {
                 Log::err(format!("Failed to sync property. Reason: {:?}", error))
             }

@@ -55,6 +55,7 @@ pub struct EnumPropertyEditor<T: InspectableEnum> {
     pub environment: Option<Rc<dyn InspectorEnvironment>>,
     pub sync_flag: u64,
     pub layer_index: usize,
+    pub generate_property_string_values: bool,
 }
 
 impl<T: InspectableEnum> Debug for EnumPropertyEditor<T> {
@@ -74,6 +75,7 @@ impl<T: InspectableEnum> Clone for EnumPropertyEditor<T> {
             environment: self.environment.clone(),
             sync_flag: self.sync_flag,
             layer_index: self.layer_index,
+            generate_property_string_values: self.generate_property_string_values,
         }
     }
 }
@@ -117,6 +119,7 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
                     self.environment.clone(),
                     self.sync_flag,
                     self.layer_index,
+                    self.generate_property_string_values,
                 );
 
                 ui.send_message(InspectorMessage::context(
@@ -165,6 +168,7 @@ pub struct EnumPropertyEditorBuilder {
     sync_flag: u64,
     variant_selector: Handle<UiNode>,
     layer_index: usize,
+    generate_property_string_values: bool,
 }
 
 impl EnumPropertyEditorBuilder {
@@ -176,6 +180,7 @@ impl EnumPropertyEditorBuilder {
             sync_flag: 0,
             variant_selector: Handle::NONE,
             layer_index: 0,
+            generate_property_string_values: false,
         }
     }
 
@@ -207,6 +212,14 @@ impl EnumPropertyEditorBuilder {
         self
     }
 
+    pub fn with_generate_property_string_values(
+        mut self,
+        generate_property_string_values: bool,
+    ) -> Self {
+        self.generate_property_string_values = generate_property_string_values;
+        self
+    }
+
     pub fn build<T: InspectableEnum>(
         self,
         ctx: &mut BuildContext,
@@ -224,6 +237,7 @@ impl EnumPropertyEditorBuilder {
             self.environment.clone(),
             self.sync_flag,
             self.layer_index,
+            self.generate_property_string_values,
         );
 
         let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -243,6 +257,7 @@ impl EnumPropertyEditorBuilder {
             environment: self.environment,
             sync_flag: self.sync_flag,
             layer_index: self.layer_index,
+            generate_property_string_values: self.generate_property_string_values,
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -418,6 +433,7 @@ where
                 environment,
                 ctx.sync_flag,
                 ctx.layer_index + 1,
+                ctx.generate_property_string_values,
             );
 
             Ok(Some(InspectorMessage::context(
@@ -435,7 +451,12 @@ where
                 .context()
                 .clone();
 
-            if let Err(e) = inspector_ctx.sync(value, ctx.ui, layer_index + 1) {
+            if let Err(e) = inspector_ctx.sync(
+                value,
+                ctx.ui,
+                layer_index + 1,
+                ctx.generate_property_string_values,
+            ) {
                 Err(InspectorError::Group(e))
             } else {
                 Ok(None)

@@ -89,6 +89,7 @@ impl SceneSettingsWindow {
             None,
             MSG_SYNC_FLAG,
             0,
+            false,
         );
 
         ui.send_message(InspectorMessage::context(
