@@ -9,6 +9,7 @@ use crate::{
         math::wrapf,
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
+        uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
     scene::{
@@ -332,6 +333,7 @@ impl Animation {
                 if self.events.len() < 32 {
                     self.events.push_back(AnimationEvent {
                         signal_id: signal.id,
+                        name: signal.name.clone(),
                     });
                 }
             }
@@ -524,6 +526,13 @@ impl Animation {
         name: S,
     ) -> Option<(usize, &mut AnimationSignal)> {
         utils::find_by_name_mut(self.signals.iter_mut().enumerate(), name)
+    }
+
+    /// Returns `true` if there's a signal with given name and id.
+    #[inline]
+    pub fn has_signal<S: AsRef<str>>(&self, name: S, id: Uuid) -> bool {
+        self.find_signal_by_name_ref(name)
+            .map_or(false, |(_, s)| s.id == id)
     }
 
     /// Removes all tracks from the animation.

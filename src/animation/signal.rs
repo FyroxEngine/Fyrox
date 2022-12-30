@@ -6,10 +6,13 @@ use crate::{
 };
 
 /// An event happened in an animation.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct AnimationEvent {
     /// An id of an animation event.
     pub signal_id: Uuid,
+
+    /// Name of the signal emitted the event.
+    pub name: String,
 }
 
 /// Signal is a named marker on specific time position on the animation timeline. Signal will emit an event if the animation playback
