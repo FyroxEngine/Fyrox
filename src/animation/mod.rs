@@ -359,9 +359,9 @@ impl Animation {
         &mut self.events
     }
 
-    /// Clones the events queue and returns it to the caller.
-    pub fn events(&self) -> VecDeque<AnimationEvent> {
-        self.events.clone()
+    /// Takes the events queue and returns it to the caller, leaving the internal queue empty.
+    pub fn take_events(&mut self) -> VecDeque<AnimationEvent> {
+        std::mem::take(&mut self.events)
     }
 
     /// Returns current time position of the animation. The time position is guaranteed to be in the range of
