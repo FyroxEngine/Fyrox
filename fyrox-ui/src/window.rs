@@ -37,6 +37,9 @@ pub enum WindowMessage {
     /// instead of putting window in system tray, it just collapses internal content panel.
     Minimize(bool),
 
+    /// Forces the window to take the inner size of main application window.
+    Maximize,
+
     /// Whether or not window can be minimized by _ mark. false hides _ mark.
     CanMinimize(bool),
 
@@ -69,6 +72,7 @@ impl WindowMessage {
     define_constructor!(WindowMessage:OpenModal => fn open_modal(center: bool), layout: false);
     define_constructor!(WindowMessage:Close => fn close(), layout: false);
     define_constructor!(WindowMessage:Minimize => fn minimize(bool), layout: false);
+    define_constructor!(WindowMessage:Maximize => fn maximize(), layout: false);
     define_constructor!(WindowMessage:CanMinimize => fn can_minimize(bool), layout: false);
     define_constructor!(WindowMessage:CanClose => fn can_close(bool), layout: false);
     define_constructor!(WindowMessage:CanResize => fn can_resize(bool), layout: false);
@@ -91,10 +95,12 @@ pub struct Window {
     pub is_dragging: bool,
     pub minimized: bool,
     pub can_minimize: bool,
+    pub can_maximize: bool,
     pub can_close: bool,
     pub can_resize: bool,
     pub header: Handle<UiNode>,
     pub minimize_button: Handle<UiNode>,
+    pub maximize_button: Handle<UiNode>,
     pub close_button: Handle<UiNode>,
     pub drag_delta: Vector2<f32>,
     pub content: Handle<UiNode>,
@@ -152,6 +158,7 @@ impl Control for Window {
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.header);
         node_map.resolve(&mut self.minimize_button);
+        node_map.resolve(&mut self.maximize_button);
         node_map.resolve(&mut self.close_button);
         node_map.resolve(&mut self.title);
         node_map.resolve(&mut self.title_grid);
@@ -352,6 +359,11 @@ impl Control for Window {
                     MessageDirection::ToWidget,
                     !self.minimized,
                 ));
+            } else if message.destination() == self.maximize_button {
+                ui.send_message(WindowMessage::maximize(
+                    self.handle(),
+                    MessageDirection::ToWidget,
+                ));
             } else if message.destination() == self.close_button {
                 ui.send_message(WindowMessage::close(
                     self.handle(),
@@ -426,6 +438,23 @@ impl Control for Window {
                                 ));
                             }
                         }
+                    }
+                    WindowMessage::Maximize => {
+                        ui.send_message(WidgetMessage::desired_position(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            Vector2::default(),
+                        ));
+                        ui.send_message(WidgetMessage::width(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            ui.screen_size.x,
+                        ));
+                        ui.send_message(WidgetMessage::height(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            ui.screen_size.y,
+                        ));
                     }
                     &WindowMessage::CanMinimize(value) => {
                         if self.can_minimize != value {
@@ -588,9 +617,11 @@ pub struct WindowBuilder {
     pub title: Option<WindowTitle>,
     pub can_close: bool,
     pub can_minimize: bool,
+    pub can_maximize: bool,
     pub open: bool,
     pub close_button: Option<Handle<UiNode>>,
     pub minimize_button: Option<Handle<UiNode>>,
+    pub maximize_button: Option<Handle<UiNode>>,
     // Warning: Any dependant builders must take this into account!
     pub modal: bool,
     pub can_resize: bool,
@@ -636,6 +667,7 @@ fn make_text_title(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
 enum HeaderButton {
     Close,
     Minimize,
+    Maximize,
 }
 
 fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
@@ -645,10 +677,12 @@ fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
             .with_vertical_alignment(match button {
                 HeaderButton::Close => VerticalAlignment::Center,
                 HeaderButton::Minimize => VerticalAlignment::Bottom,
+                HeaderButton::Maximize => VerticalAlignment::Center,
             })
             .with_margin(match button {
                 HeaderButton::Close => Thickness::uniform(0.0),
                 HeaderButton::Minimize => Thickness::bottom(3.0),
+                HeaderButton::Maximize => Thickness::bottom(0.0),
             })
             .with_foreground(BRUSH_BRIGHT),
     )
@@ -673,6 +707,34 @@ fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
                 end: Vector2::new(12.0, 0.0),
                 thickness: 3.0,
             }]
+        }
+        HeaderButton::Maximize => {
+            let size = 12.0;
+            let thickness = 3.0;
+            let half_thickness = thickness * 0.5;
+
+            vec![
+                Primitive::Line {
+                    begin: Vector2::new(0.0, half_thickness),
+                    end: Vector2::new(size, half_thickness),
+                    thickness,
+                },
+                Primitive::Line {
+                    begin: Vector2::new(size - half_thickness, 0.0),
+                    end: Vector2::new(size - half_thickness, size),
+                    thickness,
+                },
+                Primitive::Line {
+                    begin: Vector2::new(size, size - half_thickness),
+                    end: Vector2::new(0.0, size - half_thickness),
+                    thickness,
+                },
+                Primitive::Line {
+                    begin: Vector2::new(half_thickness, size),
+                    end: Vector2::new(half_thickness, 0.0),
+                    thickness,
+                },
+            ]
         }
     })
     .build(ctx)
@@ -702,9 +764,11 @@ impl WindowBuilder {
             title: None,
             can_close: true,
             can_minimize: true,
+            can_maximize: true,
             open: true,
             close_button: None,
             minimize_button: None,
+            maximize_button: None,
             modal: false,
             can_resize: true,
             safe_border_size: Some(Vector2::new(25.0, 20.0)),
@@ -726,6 +790,11 @@ impl WindowBuilder {
         self
     }
 
+    pub fn with_maximize_button(mut self, button: Handle<UiNode>) -> Self {
+        self.minimize_button = Some(button);
+        self
+    }
+
     pub fn with_close_button(mut self, button: Handle<UiNode>) -> Self {
         self.close_button = Some(button);
         self
@@ -738,6 +807,11 @@ impl WindowBuilder {
 
     pub fn can_minimize(mut self, can_minimize: bool) -> Self {
         self.can_minimize = can_minimize;
+        self
+    }
+
+    pub fn can_maximize(mut self, can_minimize: bool) -> Self {
+        self.can_maximize = can_minimize;
         self
     }
 
@@ -763,6 +837,7 @@ impl WindowBuilder {
 
     pub fn build_window(self, ctx: &mut BuildContext) -> Window {
         let minimize_button;
+        let maximize_button;
         let close_button;
 
         let title;
@@ -814,6 +889,17 @@ impl WindowBuilder {
                                 minimize_button
                             })
                             .with_child({
+                                maximize_button = self.maximize_button.unwrap_or_else(|| {
+                                    make_header_button(ctx, HeaderButton::Maximize)
+                                });
+                                ctx[maximize_button]
+                                    .set_visibility(self.can_maximize)
+                                    .set_width(30.0)
+                                    .set_row(0)
+                                    .set_column(2);
+                                maximize_button
+                            })
+                            .with_child({
                                 close_button = self.close_button.unwrap_or_else(|| {
                                     make_header_button(ctx, HeaderButton::Close)
                                 });
@@ -821,11 +907,12 @@ impl WindowBuilder {
                                     .set_width(30.0)
                                     .set_visibility(self.can_close)
                                     .set_row(0)
-                                    .set_column(2);
+                                    .set_column(3);
                                 close_button
                             }),
                     )
                     .add_column(Column::stretch())
+                    .add_column(Column::auto())
                     .add_column(Column::auto())
                     .add_column(Column::auto())
                     .add_row(Row::stretch())
@@ -869,10 +956,12 @@ impl WindowBuilder {
             is_dragging: false,
             minimized: false,
             can_minimize: self.can_minimize,
+            can_maximize: self.can_maximize,
             can_close: self.can_close,
             can_resize: self.can_resize,
             header,
             minimize_button,
+            maximize_button,
             close_button,
             drag_delta: Default::default(),
             content: self.content,
