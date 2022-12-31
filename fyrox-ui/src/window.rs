@@ -108,6 +108,7 @@ pub struct Window {
     pub title: Handle<UiNode>,
     pub title_grid: Handle<UiNode>,
     pub safe_border_size: Option<Vector2<f32>>,
+    pub prev_bounds: Option<Rect<f32>>,
 }
 
 const GRIP_SIZE: f32 = 6.0;
@@ -440,20 +441,32 @@ impl Control for Window {
                         }
                     }
                     WindowMessage::Maximize => {
+                        let current_size = self.actual_local_size();
+                        let current_position = self.actual_local_position();
+                        let new_bounds = self
+                            .prev_bounds
+                            .replace(Rect::new(
+                                current_position.x,
+                                current_position.y,
+                                current_size.x,
+                                current_size.y,
+                            ))
+                            .unwrap_or(Rect::new(0.0, 0.0, ui.screen_size.x, ui.screen_size.y));
+
                         ui.send_message(WidgetMessage::desired_position(
                             self.handle,
                             MessageDirection::ToWidget,
-                            Vector2::default(),
+                            new_bounds.position,
                         ));
                         ui.send_message(WidgetMessage::width(
                             self.handle,
                             MessageDirection::ToWidget,
-                            ui.screen_size.x,
+                            new_bounds.w(),
                         ));
                         ui.send_message(WidgetMessage::height(
                             self.handle,
                             MessageDirection::ToWidget,
-                            ui.screen_size.y,
+                            new_bounds.h(),
                         ));
                     }
                     &WindowMessage::CanMinimize(value) => {
@@ -515,6 +528,19 @@ impl Control for Window {
                             let initial_position = self.screen_position();
                             self.initial_position = initial_position;
                             self.is_dragging = true;
+
+                            if let Some(prev_bounds) = self.prev_bounds.take() {
+                                ui.send_message(WidgetMessage::width(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                    prev_bounds.w(),
+                                ));
+                                ui.send_message(WidgetMessage::height(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                    prev_bounds.h(),
+                                ));
+                            }
 
                             ui.send_message(message.reverse());
                         }
@@ -979,6 +1005,7 @@ impl WindowBuilder {
             ]),
             title,
             title_grid,
+            prev_bounds: None,
         }
     }
 
