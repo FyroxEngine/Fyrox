@@ -451,7 +451,9 @@ impl Control for Window {
                                 current_size.x,
                                 current_size.y,
                             ))
-                            .unwrap_or(Rect::new(0.0, 0.0, ui.screen_size.x, ui.screen_size.y));
+                            .unwrap_or_else(|| {
+                                Rect::new(0.0, 0.0, ui.screen_size.x, ui.screen_size.y)
+                            });
 
                         ui.send_message(WidgetMessage::desired_position(
                             self.handle,

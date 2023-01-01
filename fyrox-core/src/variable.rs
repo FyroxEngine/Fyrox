@@ -517,7 +517,7 @@ mod test {
         assert!(va.value_equals(&vb))
     }
 
-    #[derive(Reflect)]
+    #[derive(Reflect, Debug)]
     enum SomeEnum {
         Bar(InheritableVariable<f32>),
         Baz {

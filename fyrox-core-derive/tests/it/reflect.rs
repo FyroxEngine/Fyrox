@@ -8,17 +8,17 @@ use std::ops::{Deref, DerefMut};
 use fyrox_core::reflect::*;
 
 #[allow(dead_code)]
-#[derive(Reflect)]
+#[derive(Reflect, Debug)]
 pub struct Struct {
     field: usize,
     #[reflect(hidden)]
     hidden: usize,
 }
 
-#[derive(Reflect)]
+#[derive(Reflect, Debug)]
 pub struct Tuple(usize, usize);
 
-#[derive(Reflect)]
+#[derive(Reflect, Debug)]
 pub enum Enum {
     Named { field: usize },
     Tuple(usize),
@@ -81,6 +81,7 @@ fn reflect_field_accessors() {
 
 #[test]
 fn reflect_containers() {
+    #[derive(Debug)]
     struct DerefContainer<T> {
         data: T,
     }
@@ -98,7 +99,7 @@ fn reflect_containers() {
         }
     }
 
-    #[derive(Reflect)]
+    #[derive(Reflect, Debug)]
     struct X {
         #[reflect(deref)]
         container: DerefContainer<Struct>,
@@ -117,7 +118,7 @@ fn reflect_containers() {
 
     assert_eq!(x.get_resolve_path::<usize>("container.field"), Ok(&0));
 
-    #[derive(Reflect)]
+    #[derive(Reflect, Debug)]
     #[reflect(bounds = "T: Reflect")]
     struct B<T> {
         #[reflect(deref)]
@@ -137,7 +138,7 @@ fn reflect_containers() {
 
 #[test]
 fn reflect_path() {
-    #[derive(Reflect)]
+    #[derive(Reflect, Debug)]
     struct Hierarchy {
         s: Struct,
         e: Enum,
@@ -177,12 +178,12 @@ fn reflect_list_path() {
     let data = vec![vec![0usize, 1], vec![2, 3, 4]];
     assert_eq!(data.get_resolve_path("[0][1]"), Ok(&1usize));
 
-    #[derive(Reflect)]
+    #[derive(Reflect, Debug)]
     struct X {
         data: Vec<usize>,
     }
 
-    #[derive(Reflect)]
+    #[derive(Reflect, Debug)]
     struct A {
         xs: Vec<X>,
     }
@@ -201,7 +202,7 @@ fn reflect_list_path() {
 
 #[test]
 fn reflect_custom_setter() {
-    #[derive(Reflect)]
+    #[derive(Reflect, Debug)]
     pub struct Wrapper<T> {
         #[reflect(setter = "set_value")]
         value: T,
@@ -229,7 +230,7 @@ fn reflect_custom_setter() {
 
 #[test]
 fn reflect_fields_list_of_struct() {
-    #[derive(Reflect)]
+    #[derive(Reflect, Debug)]
     struct Foo {
         field_a: f32,
         field_b: String,
@@ -250,7 +251,7 @@ fn reflect_fields_list_of_struct() {
 
 #[test]
 fn reflect_fields_list_of_enum() {
-    #[derive(Reflect)]
+    #[derive(Reflect, Debug)]
     enum Foo {
         Bar { field_a: f32 },
         Baz { field_b: u32, field_c: String },
@@ -513,7 +514,7 @@ fn inspect_enum() {
 #[test]
 fn inspect_prop_key_constants() {
     #[allow(dead_code)]
-    #[derive(Reflect)]
+    #[derive(Reflect, Debug)]
     pub struct SStruct {
         field: usize,
         #[reflect(hidden)]
@@ -526,11 +527,11 @@ fn inspect_prop_key_constants() {
     // hidden properties
     // assert_eq!(SStruct::HIDDEN, "hidden");
 
-    #[derive(Reflect)]
+    #[derive(Reflect, Debug)]
     pub struct STuple(usize);
     assert_eq!(STuple::F_0, "0");
 
-    #[derive(Reflect)]
+    #[derive(Reflect, Debug)]
     #[allow(unused)]
     pub enum E {
         Tuple(usize),

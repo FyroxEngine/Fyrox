@@ -138,6 +138,7 @@ fn main() {
         None,
         1,
         0,
+        true,
     );
     engine
         .user_interface

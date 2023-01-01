@@ -733,7 +733,7 @@ impl UserInterface {
             cursor_icon: Default::default(),
             active_tooltip: Default::default(),
             preview_set: Default::default(),
-            clipboard: ClipboardContext::new().ok().map(|c| RefCell::new(c)),
+            clipboard: ClipboardContext::new().ok().map(RefCell::new),
             layout_events_receiver,
             layout_events_sender,
             need_update_global_transform: Default::default(),
