@@ -1509,6 +1509,13 @@ impl Editor {
             self.absm_editor
                 .try_leave_preview_mode(editor_scene, engine);
 
+            if !self.settings.recent.scenes.contains(&path) {
+                self.settings.recent.scenes.push(path.clone());
+                self.menu
+                    .file_menu
+                    .update_recent_files_list(&mut engine.user_interface, &self.settings);
+            }
+
             match editor_scene.save(path.clone(), engine) {
                 Ok(message) => {
                     self.scene_viewer.set_title(
