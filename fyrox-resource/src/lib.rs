@@ -100,13 +100,23 @@ where
 }
 
 /// See module docs.
-#[derive(Debug, Visit)]
+#[derive(Visit)]
 pub struct Resource<T, E>
 where
     T: ResourceData,
     E: ResourceLoadError,
 {
     state: Option<Arc<Mutex<ResourceState<T, E>>>>,
+}
+
+impl<T, E> Debug for Resource<T, E>
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Resource")
+    }
 }
 
 impl<T, E> PartialEq for Resource<T, E>
