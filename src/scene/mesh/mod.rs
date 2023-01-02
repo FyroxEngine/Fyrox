@@ -267,6 +267,20 @@ impl NodeTrait for Mesh {
     /// Returns current bounding box. Bounding box presented in *local coordinates*
     /// WARNING: This method does *not* includes bounds of bones!
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        if self.local_bounding_box_dirty.get() {
+            let mut bounding_box = AxisAlignedBoundingBox::default();
+            for surface in self.surfaces.iter() {
+                let data = surface.data();
+                let data = data.lock();
+                for view in data.vertex_buffer.iter() {
+                    bounding_box
+                        .add_point(view.read_3_f32(VertexAttributeUsage::Position).unwrap());
+                }
+            }
+            self.local_bounding_box.set(bounding_box);
+            self.local_bounding_box_dirty.set(false);
+        }
+
         self.local_bounding_box.get()
     }
 
@@ -288,20 +302,6 @@ impl NodeTrait for Mesh {
     }
 
     fn update(&mut self, context: &mut UpdateContext) -> bool {
-        if self.local_bounding_box_dirty.get() {
-            let mut bounding_box = AxisAlignedBoundingBox::default();
-            for surface in self.surfaces.iter() {
-                let data = surface.data();
-                let data = data.lock();
-                for view in data.vertex_buffer.iter() {
-                    bounding_box
-                        .add_point(view.read_3_f32(VertexAttributeUsage::Position).unwrap());
-                }
-            }
-            self.local_bounding_box.set(bounding_box);
-            self.local_bounding_box_dirty.set(false);
-        }
-
         if self.surfaces.iter().any(|s| !s.bones.is_empty()) {
             let mut world_aabb = self
                 .local_bounding_box()
