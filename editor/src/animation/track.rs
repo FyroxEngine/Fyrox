@@ -790,18 +790,30 @@ impl TrackList {
         } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
                 if let Selection::Animation(ref selection) = editor_scene.selection {
-                    if let Some(track_view_ref) = ui
-                        .node(message.destination())
-                        .query_component::<TrackView>()
+                    if let Some(animation_player) = scene
+                        .graph
+                        .try_get(selection.animation_player)
+                        .and_then(|n| n.query_component_ref::<AnimationPlayer>())
                     {
-                        sender
-                            .send(Message::do_scene_command(SetTrackEnabledCommand {
-                                animation_player_handle: selection.animation_player,
-                                animation_handle: selection.animation,
-                                track: track_view_ref.id,
-                                enabled: *enabled,
-                            }))
-                            .unwrap()
+                        if animation_player
+                            .animations()
+                            .try_get(selection.animation)
+                            .is_some()
+                        {
+                            if let Some(track_view_ref) = ui
+                                .node(message.destination())
+                                .query_component::<TrackView>()
+                            {
+                                sender
+                                    .send(Message::do_scene_command(SetTrackEnabledCommand {
+                                        animation_player_handle: selection.animation_player,
+                                        animation_handle: selection.animation,
+                                        track: track_view_ref.id,
+                                        enabled: *enabled,
+                                    }))
+                                    .unwrap()
+                            }
+                        }
                     }
                 }
             }
