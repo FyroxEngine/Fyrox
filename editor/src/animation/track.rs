@@ -795,23 +795,27 @@ impl TrackList {
                         .try_get(selection.animation_player)
                         .and_then(|n| n.query_component_ref::<AnimationPlayer>())
                     {
-                        if animation_player
-                            .animations()
-                            .try_get(selection.animation)
-                            .is_some()
+                        if let Some(animation) =
+                            animation_player.animations().try_get(selection.animation)
                         {
                             if let Some(track_view_ref) = ui
                                 .node(message.destination())
                                 .query_component::<TrackView>()
                             {
-                                sender
-                                    .send(Message::do_scene_command(SetTrackEnabledCommand {
-                                        animation_player_handle: selection.animation_player,
-                                        animation_handle: selection.animation,
-                                        track: track_view_ref.id,
-                                        enabled: *enabled,
-                                    }))
-                                    .unwrap()
+                                if animation
+                                    .tracks()
+                                    .iter()
+                                    .any(|t| t.id() == track_view_ref.id)
+                                {
+                                    sender
+                                        .send(Message::do_scene_command(SetTrackEnabledCommand {
+                                            animation_player_handle: selection.animation_player,
+                                            animation_handle: selection.animation,
+                                            track: track_view_ref.id,
+                                            enabled: *enabled,
+                                        }))
+                                        .unwrap()
+                                }
                             }
                         }
                     }
