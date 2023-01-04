@@ -199,6 +199,10 @@ pub struct Script {
 }
 
 impl Reflect for Script {
+    fn type_name(&self) -> &'static str {
+        self.instance.type_name()
+    }
+
     fn fields_info(&self) -> Vec<FieldInfo> {
         self.instance.fields_info()
     }

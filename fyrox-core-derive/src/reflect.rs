@@ -421,6 +421,10 @@ fn gen_impl(
     quote! {
         #[allow(warnings)]
         impl #impl_generics Reflect for #ty_ident #ty_generics #where_clause {
+            fn type_name(&self) -> &'static str {
+                std::any::type_name::<Self>()
+            }
+
             fn fields_info(&self) -> Vec<FieldInfo> {
                 #metadata
             }

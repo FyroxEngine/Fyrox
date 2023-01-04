@@ -244,6 +244,10 @@ impl<T> Reflect for InheritableVariable<T>
 where
     T: Reflect + Clone + PartialEq + Debug,
 {
+    fn type_name(&self) -> &'static str {
+        self.value.type_name()
+    }
+
     fn fields_info(&self) -> Vec<FieldInfo> {
         self.value.fields_info()
     }

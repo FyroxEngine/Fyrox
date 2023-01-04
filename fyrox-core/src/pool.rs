@@ -105,6 +105,10 @@ where
 }
 
 impl<T: Reflect> Reflect for Pool<T> {
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
+
     fn fields_info(&self) -> Vec<FieldInfo> {
         vec![]
     }
