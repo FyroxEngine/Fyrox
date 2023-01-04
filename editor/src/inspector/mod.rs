@@ -15,6 +15,7 @@ use crate::{
         },
     },
     scene::{commands::effect::make_set_effect_property_command, EditorScene, Selection},
+    send_sync_message,
     utils::window_content,
     Brush, CommandGroup, GameEngine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
@@ -30,7 +31,7 @@ use fyrox::{
         },
         message::{MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
-        text::TextBuilder,
+        text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
@@ -90,6 +91,7 @@ pub struct Inspector {
     needs_sync: bool,
     node_property_changed_handler: SceneNodePropertyChangedHandler,
     warning_text: Handle<UiNode>,
+    type_name_text: Handle<UiNode>,
 }
 
 #[macro_export]
@@ -140,6 +142,7 @@ impl Inspector {
             Only common properties will be editable!";
 
         let warning_text;
+        let type_name_text;
         let inspector;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::text("Inspector"))
@@ -159,8 +162,19 @@ impl Inspector {
                             .build(ctx);
                             warning_text
                         })
+                        .with_child({
+                            type_name_text = TextBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::left(4.0))
+                                    .on_row(1),
+                            )
+                            .with_wrap(WrapMode::Word)
+                            .with_text("kekw")
+                            .build(ctx);
+                            type_name_text
+                        })
                         .with_child(
-                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
+                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
                                 .with_content({
                                     inspector =
                                         InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
@@ -169,6 +183,7 @@ impl Inspector {
                                 .build(ctx),
                         ),
                 )
+                .add_row(Row::auto())
                 .add_row(Row::auto())
                 .add_row(Row::stretch())
                 .add_column(Column::stretch())
@@ -183,6 +198,7 @@ impl Inspector {
             needs_sync: true,
             node_property_changed_handler: SceneNodePropertyChangedHandler,
             warning_text,
+            type_name_text,
         }
     }
 
@@ -344,6 +360,15 @@ impl Inspector {
             MessageDirection::ToWidget,
             context,
         ));
+
+        send_sync_message(
+            ui,
+            TextMessage::text(
+                self.type_name_text,
+                MessageDirection::ToWidget,
+                format!("Type Name: {}", obj.type_name()),
+            ),
+        );
     }
 
     pub fn handle_message(
