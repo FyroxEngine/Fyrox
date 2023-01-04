@@ -2,7 +2,7 @@ use crate::{
     gui::make_image_button_with_tooltip,
     load_image,
     scene::{
-        commands::{graph::LinkNodesCommand, ChangeSelectionCommand},
+        commands::{graph::LinkNodesCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
         EditorScene, Selection,
     },
     send_sync_message,
@@ -727,26 +727,38 @@ impl WorldViewer {
                 ui.node(dropped).cast::<SceneItem<Node>>(),
                 ui.node(target).cast::<SceneItem<Node>>(),
             ) {
-                // Make sure we won't create any loops - child must not have parent in its
-                // descendants.
-                let mut attach = true;
-                let graph = &engine.scenes[editor_scene.scene].graph;
-                let mut p = parent.entity_handle;
-                while p.is_some() {
-                    if p == child.entity_handle {
-                        attach = false;
-                        break;
-                    }
-                    p = graph[p].parent();
-                }
+                if let Selection::Graph(ref selection) = editor_scene.selection {
+                    if selection.nodes.contains(&child.entity_handle) {
+                        let mut commands = Vec::new();
 
-                if attach {
-                    self.sender
-                        .send(Message::do_scene_command(LinkNodesCommand::new(
-                            child.entity_handle,
-                            parent.entity_handle,
-                        )))
-                        .unwrap();
+                        for &node_handle in selection.nodes.iter() {
+                            // Make sure we won't create any loops - child must not have parent in its
+                            // descendants.
+                            let mut attach = true;
+                            let graph = &engine.scenes[editor_scene.scene].graph;
+                            let mut p = parent.entity_handle;
+                            while p.is_some() {
+                                if p == node_handle {
+                                    attach = false;
+                                    break;
+                                }
+                                p = graph[p].parent();
+                            }
+
+                            if attach {
+                                commands.push(SceneCommand::new(LinkNodesCommand::new(
+                                    node_handle,
+                                    parent.entity_handle,
+                                )));
+                            }
+                        }
+
+                        if !commands.is_empty() {
+                            self.sender
+                                .send(Message::do_scene_command(CommandGroup::from(commands)))
+                                .unwrap();
+                        }
+                    }
                 }
             }
         }
