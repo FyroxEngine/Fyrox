@@ -1,6 +1,5 @@
-use crate::camera::PickingOptions;
 use crate::{
-    camera::CameraController,
+    camera::{CameraController, PickingOptions},
     interaction::{
         calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo, plane::PlaneKind,
         InteractionMode,
@@ -13,16 +12,19 @@ use crate::{
     world::graph::selection::GraphSelection,
     GameEngine, Message,
 };
-use fyrox::fxhash::FxHashSet;
-use fyrox::scene::camera::{Camera, Projection};
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         math::plane::Plane,
-        math::round_to_step,
         pool::Handle,
     },
-    scene::{graph::Graph, node::Node, Scene},
+    fxhash::FxHashSet,
+    scene::{
+        camera::{Camera, Projection},
+        graph::Graph,
+        node::Node,
+        Scene,
+    },
 };
 use std::sync::mpsc::Sender;
 
@@ -239,32 +241,14 @@ impl MoveContext {
             .map(|p| self.plane_kind.project_point(p))
         {
             for entry in self.objects.iter_mut() {
-                let mut new_local_position = entry.initial_local_position
-                    + entry.initial_parent_inv_global_transform.transform_vector(
-                        &self.gizmo_local_transform.transform_vector(
-                            &(picked_position_gizmo_space + entry.initial_offset_gizmo_space),
+                entry.new_local_position = settings.move_mode_settings.try_snap_vector_to_grid(
+                    entry.initial_local_position
+                        + entry.initial_parent_inv_global_transform.transform_vector(
+                            &self.gizmo_local_transform.transform_vector(
+                                &(picked_position_gizmo_space + entry.initial_offset_gizmo_space),
+                            ),
                         ),
-                    );
-
-                // Snap to grid if needed.
-                if settings.move_mode_settings.grid_snapping {
-                    new_local_position = Vector3::new(
-                        round_to_step(
-                            new_local_position.x,
-                            settings.move_mode_settings.x_snap_step,
-                        ),
-                        round_to_step(
-                            new_local_position.y,
-                            settings.move_mode_settings.y_snap_step,
-                        ),
-                        round_to_step(
-                            new_local_position.z,
-                            settings.move_mode_settings.z_snap_step,
-                        ),
-                    );
-                }
-
-                entry.new_local_position = new_local_position;
+                );
             }
         }
     }

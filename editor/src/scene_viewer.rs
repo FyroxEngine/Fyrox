@@ -616,7 +616,8 @@ impl SceneViewer {
                                 let cursor_pos = engine.user_interface.cursor_position();
                                 let rel_pos = cursor_pos - screen_bounds.position;
                                 let graph = &mut engine.scenes[editor_scene.scene].graph;
-                                if let Some(result) =
+
+                                let position = if let Some(result) =
                                     editor_scene.camera_controller.pick(PickingOptions {
                                         cursor_pos: rel_pos,
                                         graph,
@@ -628,40 +629,34 @@ impl SceneViewer {
                                         // We need info only about closest intersection.
                                         use_picking_loop: false,
                                         only_meshes: false,
-                                    })
-                                {
-                                    graph[preview.instance]
-                                        .local_transform_mut()
-                                        .set_position(result.position);
+                                    }) {
+                                    Some(result.position)
                                 } else {
                                     // In case of empty space, check intersection with oXZ plane (3D) or oXY (2D).
-                                    if let Some(camera) = graph
-                                        [editor_scene.camera_controller.camera]
-                                        .cast::<Camera>()
-                                    {
-                                        let normal = match camera.projection() {
-                                            Projection::Perspective(_) => {
-                                                Vector3::new(0.0, 1.0, 0.0)
-                                            }
-                                            Projection::Orthographic(_) => {
-                                                Vector3::new(0.0, 0.0, 1.0)
-                                            }
-                                        };
+                                    let camera = graph[editor_scene.camera_controller.camera]
+                                        .query_component_ref::<Camera>()
+                                        .unwrap();
 
-                                        let plane = Plane::from_normal_and_point(
-                                            &normal,
-                                            &Default::default(),
-                                        )
-                                        .unwrap_or_default();
+                                    let normal = match camera.projection() {
+                                        Projection::Perspective(_) => Vector3::new(0.0, 1.0, 0.0),
+                                        Projection::Orthographic(_) => Vector3::new(0.0, 0.0, 1.0),
+                                    };
 
-                                        let ray = camera.make_ray(rel_pos, frame_size);
+                                    let plane =
+                                        Plane::from_normal_and_point(&normal, &Default::default())
+                                            .unwrap_or_default();
 
-                                        if let Some(point) = ray.plane_intersection_point(&plane) {
-                                            graph[preview.instance]
-                                                .local_transform_mut()
-                                                .set_position(point);
-                                        }
-                                    }
+                                    let ray = camera.make_ray(rel_pos, frame_size);
+
+                                    ray.plane_intersection_point(&plane)
+                                };
+
+                                if let Some(position) = position {
+                                    graph[preview.instance].local_transform_mut().set_position(
+                                        settings
+                                            .move_mode_settings
+                                            .try_snap_vector_to_grid(position),
+                                    );
                                 }
                             }
                         }
