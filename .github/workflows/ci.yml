@@ -40,7 +40,7 @@ jobs:
         # and none of the other targets such as examples *currently* have tests
         # so we don't use it. It should be added later when the issue is fixed:
         # https://github.com/rust-lang/cargo/issues/6669
-        run: cargo test --verbose --workspace --all-features
+        run: cargo test --verbose --workspace --all-features --profile github-ci
 
   wasm:
     name: Wasm CI
