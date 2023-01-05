@@ -160,6 +160,77 @@ impl Control for Tree {
                                         selection.push(self.handle);
                                     }
                                     Some(selection)
+                                } else if keyboard_modifiers.shift {
+                                    // Select range.
+                                    let mut first_position = None;
+                                    let mut this_position = None;
+                                    let mut flat_hierarchy = Vec::new();
+
+                                    fn visit_widget(
+                                        this_tree: &Tree,
+                                        handle: Handle<UiNode>,
+                                        ui: &UserInterface,
+                                        selection: &[Handle<UiNode>],
+                                        hierarchy: &mut Vec<Handle<UiNode>>,
+                                        first_position: &mut Option<usize>,
+                                        this_position: &mut Option<usize>,
+                                    ) {
+                                        let node = if handle == this_tree.handle {
+                                            *this_position = Some(hierarchy.len());
+
+                                            hierarchy.push(handle);
+
+                                            &this_tree.widget
+                                        } else {
+                                            let node = ui.node(handle);
+
+                                            if let Some(first) = selection.first() {
+                                                if *first == handle {
+                                                    *first_position = Some(hierarchy.len());
+                                                }
+                                            }
+
+                                            if node.query_component::<Tree>().is_some() {
+                                                hierarchy.push(handle);
+                                            }
+
+                                            node
+                                        };
+
+                                        for &child in node.children() {
+                                            visit_widget(
+                                                this_tree,
+                                                child,
+                                                ui,
+                                                selection,
+                                                hierarchy,
+                                                first_position,
+                                                this_position,
+                                            );
+                                        }
+                                    }
+
+                                    visit_widget(
+                                        self,
+                                        tree_root_handle,
+                                        ui,
+                                        &tree_root.selected,
+                                        &mut flat_hierarchy,
+                                        &mut first_position,
+                                        &mut this_position,
+                                    );
+
+                                    if let (Some(this_position), Some(first_position)) =
+                                        (this_position, first_position)
+                                    {
+                                        Some(if first_position < this_position {
+                                            flat_hierarchy[first_position..=this_position].to_vec()
+                                        } else {
+                                            flat_hierarchy[this_position..=first_position].to_vec()
+                                        })
+                                    } else {
+                                        Some(vec![])
+                                    }
                                 } else if !self.is_selected {
                                     Some(vec![self.handle()])
                                 } else {
