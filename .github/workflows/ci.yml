@@ -34,7 +34,7 @@ jobs:
       - run: rustc --version && cargo --version
       - name: Build
         # Use build instead of check since it needs to be built for tests anyway
-        run: cargo build --verbose --workspace --all-targets --all-features
+        run: cargo build --verbose --workspace --all-targets --all-features --profile github-ci
       - name: Test
         # Currently --all-targets *disables* running doc-tests
         # and none of the other targets such as examples *currently* have tests
