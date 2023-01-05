@@ -169,7 +169,6 @@ impl Inspector {
                                     .on_row(1),
                             )
                             .with_wrap(WrapMode::Word)
-                            .with_text("kekw")
                             .build(ctx);
                             type_name_text
                         })

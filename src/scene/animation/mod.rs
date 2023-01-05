@@ -22,8 +22,6 @@ use std::ops::{Deref, DerefMut};
 
 pub mod absm;
 
-mod kek {}
-
 /// Animation player is a node that contains multiple animations. It updates and plays all the animations.
 /// The node could be a source of animations for animation blending state machines. To learn more about
 /// animations, see [`crate::animation::Animation`] docs.
