@@ -470,43 +470,134 @@ impl Control for Tile {
                 _ => {}
             }
             // We can catch any message from window while it docked.
-        } else if let Some(WindowMessage::Move(_)) = message.data::<WindowMessage>() {
-            // Check if we dragging child window.
-            let content_moved = match self.content {
-                TileContent::Window(window) => window == message.destination(),
-                _ => false,
-            };
+        } else if let Some(msg) = message.data::<WindowMessage>() {
+            match msg {
+                WindowMessage::Move(_) => {
+                    // Check if we dragging child window.
+                    let content_moved = match self.content {
+                        TileContent::Window(window) => window == message.destination(),
+                        _ => false,
+                    };
 
-            if content_moved {
-                if let Some(window) = ui.node(message.destination()).cast::<Window>() {
-                    if window.drag_delta().norm() > 20.0 {
-                        ui.send_message(TileMessage::content(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                            TileContent::Empty,
-                        ));
+                    if content_moved {
+                        if let Some(window) = ui.node(message.destination()).cast::<Window>() {
+                            if window.drag_delta().norm() > 20.0 {
+                                ui.send_message(TileMessage::content(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                    TileContent::Empty,
+                                ));
 
-                        ui.send_message(WidgetMessage::unlink(
-                            message.destination(),
-                            MessageDirection::ToWidget,
-                        ));
+                                ui.send_message(WidgetMessage::unlink(
+                                    message.destination(),
+                                    MessageDirection::ToWidget,
+                                ));
 
-                        ui.send_message(WindowMessage::can_resize(
-                            message.destination(),
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
+                                ui.send_message(WindowMessage::can_resize(
+                                    message.destination(),
+                                    MessageDirection::ToWidget,
+                                    true,
+                                ));
 
-                        if let Some((_, docking_manager)) =
-                            ui.try_borrow_by_type_up::<DockingManager>(self.parent())
-                        {
-                            docking_manager
-                                .floating_windows
-                                .borrow_mut()
-                                .push(message.destination());
+                                if let Some((_, docking_manager)) =
+                                    ui.try_borrow_by_type_up::<DockingManager>(self.parent())
+                                {
+                                    docking_manager
+                                        .floating_windows
+                                        .borrow_mut()
+                                        .push(message.destination());
+                                }
+                            }
                         }
                     }
                 }
+                WindowMessage::Close => match self.content {
+                    TileContent::VerticalTiles { tiles, .. }
+                    | TileContent::HorizontalTiles { tiles, .. } => {
+                        let closed_window = message.destination();
+
+                        fn try_get_tile_window(
+                            tile: Handle<UiNode>,
+                            ui: &UserInterface,
+                            window: Handle<UiNode>,
+                        ) -> Option<Handle<UiNode>> {
+                            if let Some(tile_ref) = ui.node(tile).query_component::<Tile>() {
+                                if let TileContent::Window(tile_window) = tile_ref.content {
+                                    if tile_window == window {
+                                        return Some(tile_window);
+                                    }
+                                }
+                            }
+                            None
+                        }
+
+                        for (tile_a_index, tile_b_index) in [(0, 1), (1, 0)] {
+                            let tile_a = tiles[tile_a_index];
+                            let tile_b = tiles[tile_b_index];
+                            if let Some(tile_window) =
+                                try_get_tile_window(tile_a, ui, closed_window)
+                            {
+                                if let Some(tile_b_ref) = ui.node(tile_b).query_component::<Tile>()
+                                {
+                                    ui.send_message(WidgetMessage::unlink(
+                                        tile_window,
+                                        MessageDirection::ToWidget,
+                                    ));
+
+                                    match tile_b_ref.content {
+                                        TileContent::Empty => {}
+                                        TileContent::Window(window) => {
+                                            ui.send_message(WidgetMessage::unlink(
+                                                window,
+                                                MessageDirection::ToWidget,
+                                            ));
+                                        }
+                                        TileContent::VerticalTiles {
+                                            tiles: sub_tiles, ..
+                                        }
+                                        | TileContent::HorizontalTiles {
+                                            tiles: sub_tiles, ..
+                                        } => {
+                                            for tile in sub_tiles {
+                                                ui.send_message(WidgetMessage::unlink(
+                                                    tile,
+                                                    MessageDirection::ToWidget,
+                                                ));
+                                            }
+                                        }
+                                    }
+
+                                    ui.send_message(TileMessage::content(
+                                        self.handle,
+                                        MessageDirection::ToWidget,
+                                        tile_b_ref.content.clone(),
+                                    ));
+
+                                    // Destroy tiles.
+                                    for &tile in &tiles {
+                                        ui.send_message(WidgetMessage::remove(
+                                            tile,
+                                            MessageDirection::ToWidget,
+                                        ));
+                                    }
+
+                                    if let Some((_, docking_manager)) =
+                                        ui.try_borrow_by_type_up::<DockingManager>(self.parent())
+                                    {
+                                        docking_manager
+                                            .floating_windows
+                                            .borrow_mut()
+                                            .push(closed_window);
+                                    }
+
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                },
+                _ => (),
             }
         }
     }
