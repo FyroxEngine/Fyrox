@@ -281,7 +281,7 @@ impl WorldViewer {
                 )
                 .add_column(Column::stretch())
                 .add_row(Row::strict(24.0))
-                .add_row(Row::strict(24.0))
+                .add_row(Row::strict(20.0))
                 .add_row(Row::strict(24.0))
                 .add_row(Row::stretch())
                 .build(ctx),

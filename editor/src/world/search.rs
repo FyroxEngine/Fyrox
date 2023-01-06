@@ -1,12 +1,13 @@
 use crate::Message;
-use fyrox::gui::text::TextMessage;
 use fyrox::{
     core::pool::Handle,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
+        text::TextMessage,
         text_box::{TextBoxBuilder, TextCommitMode},
+        utils::make_cross,
         widget::WidgetBuilder,
         BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
@@ -39,7 +40,7 @@ impl SearchBar {
                             .with_margin(Thickness::left(1.0))
                             .on_column(1),
                     )
-                    .with_text("X")
+                    .with_content(make_cross(ctx, 12.0, 2.0))
                     .build(ctx);
                     reset
                 }),
