@@ -25,10 +25,11 @@ use fyrox::{
     },
     engine::Engine,
     gui::{
+        border::BorderBuilder,
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
-        decorator::{Decorator, DecoratorMessage},
+        decorator::{Decorator, DecoratorBuilder, DecoratorMessage},
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
         scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
@@ -38,10 +39,12 @@ use fyrox::{
             Tree, TreeBuilder, TreeExpansionStrategy, TreeMessage, TreeRoot, TreeRootBuilder,
             TreeRootMessage,
         },
+        ttf::{FontBuilder, SharedFont},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
+        wrap_panel::WrapPanelBuilder,
+        BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
+        BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
     },
     scene::{graph::Graph, node::Node, Scene},
     utils::log::Log,
@@ -72,6 +75,7 @@ pub struct WorldViewer {
     scroll_view: Handle<UiNode>,
     item_context_menu: ItemContextMenu,
     node_to_view_map: HashMap<Handle<Node>, Handle<UiNode>>,
+    small_font: SharedFont,
 }
 
 fn make_graph_node_item(
@@ -167,6 +171,13 @@ fn make_folder(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
 
 impl WorldViewer {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>, settings: &Settings) -> Self {
+        let small_font = SharedFont::new(
+            FontBuilder::new()
+                .with_height(11.0)
+                .build_builtin()
+                .unwrap(),
+        );
+
         let tree_root;
         let node_path;
         let collapse_all;
@@ -245,30 +256,18 @@ impl WorldViewer {
                             .build(ctx),
                         )
                         .with_child(search_bar.container)
-                        .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(2)
-                                    .on_column(0)
-                                    .with_opacity(Some(0.4)),
-                            )
-                            .with_text("Breadcrumbs")
-                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                            .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                            .build(ctx),
-                        )
-                        .with_child(
-                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
-                                .with_content({
-                                    node_path = StackPanelBuilder::new(WidgetBuilder::new())
-                                        .with_orientation(Orientation::Horizontal)
-                                        .build(ctx);
-                                    node_path
-                                })
-                                .build(ctx),
-                        )
                         .with_child({
-                            scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(3))
+                            node_path = WrapPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(3)
+                                    .with_vertical_alignment(VerticalAlignment::Top),
+                            )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx);
+                            node_path
+                        })
+                        .with_child({
+                            scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
                                 .with_content({
                                     tree_root = TreeRootBuilder::new(WidgetBuilder::new())
                                         .with_items(vec![graph_folder])
@@ -282,8 +281,8 @@ impl WorldViewer {
                 .add_column(Column::stretch())
                 .add_row(Row::strict(24.0))
                 .add_row(Row::strict(20.0))
-                .add_row(Row::strict(24.0))
                 .add_row(Row::stretch())
+                .add_row(Row::auto())
                 .build(ctx),
             )
             .build(ctx);
@@ -308,6 +307,7 @@ impl WorldViewer {
             item_context_menu,
             node_to_view_map: Default::default(),
             filter: Default::default(),
+            small_font,
         }
     }
 
@@ -329,9 +329,29 @@ impl WorldViewer {
         associated_item: Handle<UiNode>,
         ui: &mut UserInterface,
     ) {
-        let element = ButtonBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-            .with_text(name)
-            .build(&mut ui.build_ctx());
+        let ctx = &mut ui.build_ctx();
+
+        let element = ButtonBuilder::new(WidgetBuilder::new().with_height(20.0))
+            .with_back(
+                DecoratorBuilder::new(BorderBuilder::new(
+                    WidgetBuilder::new().with_foreground(BRUSH_PRIMARY),
+                ))
+                .with_normal_brush(BRUSH_PRIMARY)
+                .with_hover_brush(BRUSH_BRIGHT_BLUE)
+                .build(ctx),
+            )
+            .with_content(
+                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_text(if self.breadcrumbs.is_empty() {
+                        name.to_owned()
+                    } else {
+                        format!("{} >", name)
+                    })
+                    .with_font(self.small_font.clone())
+                    .build(ctx),
+            )
+            .build(ctx);
 
         send_sync_message(
             ui,
@@ -369,7 +389,7 @@ impl WorldViewer {
                             .unwrap_or_default()
                     });
                     assert!(view.is_some());
-                    self.build_breadcrumb(&format!("{} ({})", node.name(), node_handle), view, ui);
+                    self.build_breadcrumb(&format!("{}({})", node.name(), node_handle), view, ui);
 
                     node_handle = node.parent();
                 }
