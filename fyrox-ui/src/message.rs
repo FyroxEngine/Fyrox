@@ -14,10 +14,12 @@
 //! internal library code can send such messages without a risk of breaking anything.
 
 use crate::{
-    core::{algebra::Vector2, pool::Handle},
+    core::{algebra::Vector2, pool::Handle, reflect::prelude::*},
     UiNode,
 };
+use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, fmt::Debug, rc::Rc};
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 #[macro_export]
 macro_rules! define_constructor {
@@ -286,7 +288,20 @@ pub enum OsEvent {
     MouseWheel(f32, f32),
 }
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Default)]
+#[derive(
+    Debug,
+    Hash,
+    Ord,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Default,
+    Serialize,
+    Deserialize,
+    Reflect,
+)]
 pub struct KeyboardModifiers {
     pub alt: bool,
     pub shift: bool,
@@ -300,7 +315,22 @@ impl KeyboardModifiers {
     }
 }
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
+#[derive(
+    Debug,
+    Hash,
+    Ord,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+    Serialize,
+    Deserialize,
+    Reflect,
+)]
 #[repr(u32)]
 pub enum KeyCode {
     Key1,

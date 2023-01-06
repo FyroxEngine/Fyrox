@@ -51,6 +51,7 @@ pub mod color;
 pub mod enumeration;
 pub mod inherit;
 pub mod inspectable;
+pub mod key;
 pub mod numeric;
 pub mod quat;
 pub mod range;
