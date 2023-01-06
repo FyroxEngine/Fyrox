@@ -1,9 +1,10 @@
 use crate::{
     camera::PickingOptions, gui::make_dropdown_list_option,
-    gui::make_dropdown_list_option_with_height, load_image, utils::enable_widget, AddModelCommand,
-    AssetItem, AssetKind, BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder,
-    EditorScene, GameEngine, GraphSelection, InteractionMode, InteractionModeKind, Message, Mode,
-    SceneCommand, Selection, SetMeshTextureCommand, Settings,
+    gui::make_dropdown_list_option_with_height, load_image, settings::keys::KeyBindings,
+    utils::enable_widget, AddModelCommand, AssetItem, AssetKind, BuildProfile,
+    ChangeSelectionCommand, CommandGroup, DropdownListBuilder, EditorScene, GameEngine,
+    GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand, Selection,
+    SetMeshTextureCommand, Settings,
 };
 use fyrox::{
     core::{
@@ -555,12 +556,24 @@ impl SceneViewer {
                         self.on_mouse_move(pos, editor_scene, interaction_mode, engine, settings)
                     }
                     WidgetMessage::KeyUp(key) => {
-                        if self.on_key_up(key, editor_scene, interaction_mode, engine) {
+                        if self.on_key_up(
+                            key,
+                            editor_scene,
+                            interaction_mode,
+                            engine,
+                            &settings.key_bindings,
+                        ) {
                             message.set_handled(true);
                         }
                     }
                     WidgetMessage::KeyDown(key) => {
-                        if self.on_key_down(key, editor_scene, interaction_mode, engine) {
+                        if self.on_key_down(
+                            key,
+                            editor_scene,
+                            interaction_mode,
+                            engine,
+                            &settings.key_bindings,
+                        ) {
                             message.set_handled(true);
                         }
                     }
@@ -731,8 +744,9 @@ impl SceneViewer {
         editor_scene: &mut EditorScene,
         active_interaction_mode: Option<&mut Box<dyn InteractionMode>>,
         engine: &mut Engine,
+        key_bindings: &KeyBindings,
     ) -> bool {
-        if editor_scene.camera_controller.on_key_up(key) {
+        if editor_scene.camera_controller.on_key_up(key_bindings, key) {
             return true;
         }
 
@@ -752,8 +766,12 @@ impl SceneViewer {
         editor_scene: &mut EditorScene,
         active_interaction_mode: Option<&mut Box<dyn InteractionMode>>,
         engine: &mut Engine,
+        key_bindings: &KeyBindings,
     ) -> bool {
-        if editor_scene.camera_controller.on_key_down(key) {
+        if editor_scene
+            .camera_controller
+            .on_key_down(key_bindings, key)
+        {
             return true;
         }
 

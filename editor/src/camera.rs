@@ -1,3 +1,4 @@
+use crate::settings::keys::KeyBindings;
 use crate::{settings::camera::CameraSettings, utils::built_in_skybox, SceneCameraSettings};
 use fyrox::{
     core::{
@@ -201,80 +202,65 @@ impl CameraController {
     }
 
     #[must_use]
-    pub fn on_key_up(&mut self, key: KeyCode) -> bool {
-        match key {
-            KeyCode::W => {
-                self.move_forward = false;
-                true
-            }
-            KeyCode::S => {
-                self.move_backward = false;
-                true
-            }
-            KeyCode::A => {
-                self.move_left = false;
-                true
-            }
-            KeyCode::D => {
-                self.move_right = false;
-                true
-            }
-            KeyCode::Space | KeyCode::Q => {
-                self.move_up = false;
-                true
-            }
-            KeyCode::E => {
-                self.move_down = false;
-                true
-            }
-            KeyCode::LControl | KeyCode::LShift => {
-                self.speed_factor = 1.0;
-                true
-            }
-            _ => false,
+    pub fn on_key_up(&mut self, key_bindings: &KeyBindings, key: KeyCode) -> bool {
+        if key_bindings.move_forward == key {
+            self.move_forward = false;
+            true
+        } else if key_bindings.move_back == key {
+            self.move_backward = false;
+            true
+        } else if key_bindings.move_left == key {
+            self.move_left = false;
+            true
+        } else if key_bindings.move_right == key {
+            self.move_right = false;
+            true
+        } else if key_bindings.move_up == key {
+            self.move_up = false;
+            true
+        } else if key_bindings.move_down == key {
+            self.move_down = false;
+            true
+        } else if key_bindings.slow_down == key || key_bindings.speed_up == key {
+            self.speed_factor = 1.0;
+            true
+        } else {
+            false
         }
     }
 
     #[must_use]
-    pub fn on_key_down(&mut self, key: KeyCode) -> bool {
+    pub fn on_key_down(&mut self, key_bindings: &KeyBindings, key: KeyCode) -> bool {
         if !self.rotate || self.drag {
             return false;
         }
 
-        match key {
-            KeyCode::W => {
-                self.move_forward = true;
-                true
-            }
-            KeyCode::S => {
-                self.move_backward = true;
-                true
-            }
-            KeyCode::A => {
-                self.move_left = true;
-                true
-            }
-            KeyCode::D => {
-                self.move_right = true;
-                true
-            }
-            KeyCode::Space | KeyCode::Q => {
-                self.move_up = true;
-                true
-            }
-            KeyCode::E => {
-                self.move_down = true;
-                true
-            }
-            KeyCode::LControl => {
-                self.speed_factor = 2.0;
-                true
-            }
-            KeyCode::LShift => {
-                self.speed_factor = 0.25;
-                true
-            }
-            _ => false,
+        if key_bindings.move_forward == key {
+            self.move_forward = true;
+            true
+        } else if key_bindings.move_back == key {
+            self.move_backward = true;
+            true
+        } else if key_bindings.move_left == key {
+            self.move_left = true;
+            true
+        } else if key_bindings.move_right == key {
+            self.move_right = true;
+            true
+        } else if key_bindings.move_up == key {
+            self.move_up = true;
+            true
+        } else if key_bindings.move_down == key {
+            self.move_down = true;
+            true
+        } else if key_bindings.speed_up == key {
+            self.speed_factor = 2.0;
+            true
+        } else if key_bindings.slow_down == key {
+            self.speed_factor = 0.25;
+            true
+        } else {
+            false
         }
     }
 

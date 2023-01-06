@@ -97,7 +97,8 @@ use fyrox::{
         file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        message::{KeyCode, MessageDirection, UiMessage},
+        key::HotKey,
+        message::{MessageDirection, UiMessage},
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
         ttf::Font,
         widget::{WidgetBuilder, WidgetMessage},
@@ -980,107 +981,96 @@ impl Editor {
         let engine = &mut self.engine;
 
         if let Some(WidgetMessage::KeyDown(key)) = message.data() {
-            match key {
-                KeyCode::Y if modifiers.control => {
-                    sender.send(Message::RedoSceneCommand).unwrap();
-                }
-                KeyCode::Z if modifiers.control => {
-                    sender.send(Message::UndoSceneCommand).unwrap();
-                }
-                KeyCode::Key1 => {
-                    sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Select))
-                        .unwrap();
-                }
-                KeyCode::Key2 => {
-                    sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Move))
-                        .unwrap();
-                }
-                KeyCode::Key3 => {
-                    sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
-                        .unwrap();
-                }
-                KeyCode::Key4 => {
-                    sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Scale))
-                        .unwrap();
-                }
-                KeyCode::Key5 => {
-                    sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
-                        .unwrap();
-                }
-                KeyCode::Key6 => {
-                    sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
-                        .unwrap();
-                }
-                KeyCode::L if modifiers.control => {
-                    sender.send(Message::OpenLoadSceneDialog).unwrap();
-                }
-                KeyCode::S if modifiers.control => {
-                    if let Some(scene) = self.scene.as_ref() {
-                        if let Some(path) = scene.path.as_ref() {
-                            self.message_sender
-                                .send(Message::SaveScene(path.clone()))
-                                .unwrap();
-                        } else {
-                            // Scene wasn't saved yet, open Save As dialog.
-                            engine
-                                .user_interface
-                                .send_message(WindowMessage::open_modal(
-                                    self.save_file_selector,
-                                    MessageDirection::ToWidget,
-                                    true,
-                                ));
-                        }
+            let hot_key = HotKey::Some {
+                code: *key,
+                modifiers,
+            };
+            let key_bindings = &self.settings.key_bindings;
+
+            if hot_key == key_bindings.redo {
+                sender.send(Message::RedoSceneCommand).unwrap();
+            } else if hot_key == key_bindings.undo {
+                sender.send(Message::UndoSceneCommand).unwrap();
+            } else if hot_key == key_bindings.enable_select_mode {
+                sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Select))
+                    .unwrap();
+            } else if hot_key == key_bindings.enable_move_mode {
+                sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Move))
+                    .unwrap();
+            } else if hot_key == key_bindings.enable_rotate_mode {
+                sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
+                    .unwrap();
+            } else if hot_key == key_bindings.enable_scale_mode {
+                sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Scale))
+                    .unwrap();
+            } else if hot_key == key_bindings.enable_navmesh_mode {
+                sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
+                    .unwrap();
+            } else if hot_key == key_bindings.enable_terrain_mode {
+                sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
+                    .unwrap();
+            } else if hot_key == key_bindings.load_scene {
+                sender.send(Message::OpenLoadSceneDialog).unwrap();
+            } else if hot_key == key_bindings.save_scene {
+                if let Some(scene) = self.scene.as_ref() {
+                    if let Some(path) = scene.path.as_ref() {
+                        self.message_sender
+                            .send(Message::SaveScene(path.clone()))
+                            .unwrap();
+                    } else {
+                        // Scene wasn't saved yet, open Save As dialog.
+                        engine
+                            .user_interface
+                            .send_message(WindowMessage::open_modal(
+                                self.save_file_selector,
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
                     }
                 }
-                KeyCode::C if modifiers.control => {
-                    if let Some(editor_scene) = self.scene.as_mut() {
-                        if let Selection::Graph(graph_selection) = &editor_scene.selection {
-                            editor_scene.clipboard.fill_from_selection(
-                                graph_selection,
-                                editor_scene.scene,
-                                engine,
-                            );
-                        }
+            } else if hot_key == key_bindings.copy_selection {
+                if let Some(editor_scene) = self.scene.as_mut() {
+                    if let Selection::Graph(graph_selection) = &editor_scene.selection {
+                        editor_scene.clipboard.fill_from_selection(
+                            graph_selection,
+                            editor_scene.scene,
+                            engine,
+                        );
                     }
                 }
-                KeyCode::V if modifiers.control => {
-                    if let Some(editor_scene) = self.scene.as_mut() {
-                        if !editor_scene.clipboard.is_empty() {
+            } else if hot_key == key_bindings.paste {
+                if let Some(editor_scene) = self.scene.as_mut() {
+                    if !editor_scene.clipboard.is_empty() {
+                        sender
+                            .send(Message::do_scene_command(PasteCommand::new(
+                                engine.scenes[editor_scene.scene].graph.get_root(),
+                            )))
+                            .unwrap();
+                    }
+                }
+            } else if hot_key == key_bindings.new_scene {
+                sender.send(Message::NewScene).unwrap();
+            } else if hot_key == key_bindings.close_scene {
+                sender.send(Message::CloseScene).unwrap();
+            } else if hot_key == key_bindings.remove_selection {
+                if let Some(editor_scene) = self.scene.as_mut() {
+                    if !editor_scene.selection.is_empty() {
+                        if let Selection::Graph(_) = editor_scene.selection {
                             sender
-                                .send(Message::do_scene_command(PasteCommand::new(
-                                    engine.scenes[editor_scene.scene].graph.get_root(),
+                                .send(Message::DoSceneCommand(make_delete_selection_command(
+                                    editor_scene,
+                                    engine,
                                 )))
                                 .unwrap();
                         }
                     }
                 }
-                KeyCode::N if modifiers.control => {
-                    sender.send(Message::NewScene).unwrap();
-                }
-                KeyCode::Q if modifiers.control => {
-                    sender.send(Message::CloseScene).unwrap();
-                }
-                KeyCode::Delete => {
-                    if let Some(editor_scene) = self.scene.as_mut() {
-                        if !editor_scene.selection.is_empty() {
-                            if let Selection::Graph(_) = editor_scene.selection {
-                                sender
-                                    .send(Message::DoSceneCommand(make_delete_selection_command(
-                                        editor_scene,
-                                        engine,
-                                    )))
-                                    .unwrap();
-                            }
-                        }
-                    }
-                }
-                _ => (),
             }
         }
     }

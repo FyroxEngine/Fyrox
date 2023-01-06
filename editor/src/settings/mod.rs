@@ -1,10 +1,10 @@
 use crate::{
     inspector::editors::make_property_editors_container,
-    settings::navmesh::NavmeshSettings,
     settings::{
         camera::CameraSettings, debugging::DebuggingSettings, graphics::GraphicsSettings,
-        model::ModelSettings, move_mode::MoveInteractionModeSettings, recent::RecentFiles,
-        rotate_mode::RotateInteractionModeSettings, selection::SelectionSettings,
+        keys::KeyBindings, model::ModelSettings, move_mode::MoveInteractionModeSettings,
+        navmesh::NavmeshSettings, recent::RecentFiles, rotate_mode::RotateInteractionModeSettings,
+        selection::SelectionSettings,
     },
     GameEngine, Message, MSG_SYNC_FLAG,
 };
@@ -17,6 +17,7 @@ use fyrox::{
             editors::{
                 enumeration::EnumPropertyEditorDefinition,
                 inspectable::InspectablePropertyEditorDefinition,
+                key::{HotKeyPropertyEditorDefinition, KeyBindingPropertyEditorDefinition},
                 PropertyEditorDefinitionContainer,
             },
             InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction, PropertyChanged,
@@ -38,6 +39,7 @@ use std::{fs::File, path::PathBuf, rc::Rc, sync::mpsc::Sender};
 pub mod camera;
 pub mod debugging;
 pub mod graphics;
+pub mod keys;
 pub mod model;
 pub mod move_mode;
 pub mod navmesh;
@@ -62,6 +64,7 @@ pub struct Settings {
     pub model: ModelSettings,
     pub camera: CameraSettings,
     pub navmesh: NavmeshSettings,
+    pub key_bindings: KeyBindings,
     #[reflect(hidden)]
     pub recent: RecentFiles,
 }
@@ -129,6 +132,9 @@ impl Settings {
         >::new());
         container.insert(InspectablePropertyEditorDefinition::<ModelSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<NavmeshSettings>::new());
+        container.insert(InspectablePropertyEditorDefinition::<KeyBindings>::new());
+        container.insert(HotKeyPropertyEditorDefinition);
+        container.insert(KeyBindingPropertyEditorDefinition);
 
         Rc::new(container)
     }
