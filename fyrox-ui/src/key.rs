@@ -168,7 +168,7 @@ impl Control for HotKeyEditor {
                             MessageDirection::ToWidget,
                             HotKey::Some {
                                 code: *key,
-                                modifiers: ui.keyboard_modifiers.clone(),
+                                modifiers: ui.keyboard_modifiers,
                             },
                         ));
 
