@@ -114,7 +114,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "0.28""#,
+fyrox = "0.29""#,
             name,
         ),
     );
@@ -232,7 +232,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "0.28"
+fyrox = "0.29"
 {} = {{ path = "../game" }}"#,
             name,
         ),
@@ -277,7 +277,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-fyrox = "0.28"
+fyrox = "0.29"
 {} = {{ path = "../game" }}"#,
             name,
         ),
@@ -380,8 +380,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "0.28"
-fyroxed_base = "0.15"
+fyrox = "0.29"
+fyroxed_base = "0.16"
 {} = {{ path = "../game" }}"#,
             name,
         ),
