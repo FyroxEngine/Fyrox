@@ -1,5 +1,10 @@
-# 0.29 (WIP)
+# 0.30 (WIP)
 
+# 0.29
+
+- Animation system rework.
+- Animation Editor.
+- Animation Blending State Machine Editor.
 - Fixed potential crash when joint was initialized earlier than connected rigid bodies.
 - Model instantiation scaling now used for prefab preview.
 - Fixed lots of potential sources of panic in perspective and ortho projections.
@@ -32,8 +37,7 @@ physics integration parameters, ambient lighting color, various flags, etc.
   - Shows small exclamation mark if there's something wrong with a node
 - Share tooltip across widgets on clone
 - Fixed color picker: brightness-saturation grid wasn't visible
-- Added support for Collider intersection check
-- Animation resource.
+- Added support for Collider intersection check (kudos to [@Thomas Hauth](https://github.com/ThomasHauth))
 - Animation system refactoring
   - Use curves for numeric properties.
   - Ability to animate arbitrary numeric properties via reflection.
@@ -48,6 +52,83 @@ while iterating over them.
 - `fyrox::gui::utils::make_cross` - small helper to create a vector image of a cross
 - `FieldInfo::type_name` - allows to get type name of a field without using unstable 
 `std::any::type_name_of_val`
+- `PathVertex::g_score` penalty for A* pathfinding (kudos to [@cordain](https://github.com/Cordain))
+- Added `Default`, `Debug`,`Clone` impls for `RawMesh`
+- Name and uuid for `Curve`
+- Send curve when adding new keys in the `CurveEditor` widget
+- Preserve curve and keys id in the curve editor widget
+- Correctly wrap `Audio Panel` in docking manager tile (kudos to [@iRaiko](https://github.com/iRaiko))
+- `AsyncSceneLoader` - cross-platform (wasm included) asynchronous scene loader
+- Added support for wasm in fyrox-template - now fyrox-template generates `executor-wasm` crate which is a special 
+version of executor for webassembly
+- Non-blocking resource waiting before processing scene scripts
+- Added missing property editor for sound status
+- Sync sound buffer first, then playback position
+- Property editor for `Machine` type.
+- Rectangle+RectangleFilled primitives for `VectorImage` widget
+- Draw x values in curve editor widget at the top of the view
+- Ability to show/hide axes values in the curve editor widget
+- Use messages to modify view position and zoom in the curve editor (helps to catch the moment when zoom or view 
+position changes)
+- Fixed UI messages not being passed to plugins based on when they happened during frame (kudos to 
+[@bolshoytoster](https://github.com/bolshoytoster))
+- Ability to explicitly set animation time slice instead of length.
+- Cloning a node now produces exact clone.
+- Ability to set min, max values, step, precision for numericupdown widget
+- Prevent panic when trying to iterate over pool items using reflection
+- Split `Model::retarget_animations` in two separate methods
+- Smart movement move for move gizmo (kudos to [@Zoltan Haindrich](https://github.com/kgyrtkirk))
+- `Reflect::set_field_by_path`
+- Ability to add zones for highlighting in the `CurveEditor`
+- Ability to zoom non-uniformly via shift or ctrl pressed during zooming in the `CurveEditor` widget
+- Animation signals rework
+  - uuid instead of numeric identifier
+  - added name for signals
+  - removed getters/setters
+  - added more signal management methods
+- `Animation::pop_signal`
+- Refactored animation blending state machine to support animation layers
+- `Visit` impl for `HashSet`
+- Ability to set layer mask in the absm editor
+- Added animation system documentation.
+- `Graph::try_get_of_type+try_get_mut_of_type`
+- Rename `InheritableVariable` methods to remove ambiguity
+- `Model::retarget_animations_to_player`
+- Use correct property editor for `PoseWeight`
+- Show handles of absm entities in the editor
+- Show more info on absm nodes
+  - PlayAnimation nodes shows name of the animation
+  - blend nodes shows the amount of animations blended
+- `AnimationContainer::find_by_name_ref/mut`
+- Ability to search various animation entities by their names
+- Add more information to panic messages in `fyrox-template` (kudos to [@lenscas](https://github.com/lenscas))
+- Check for reserved names in `fyrox-template` (kudos to [@TheEggShark](https://github.com/TheEggShark))
+- Ability to enable/disable scene nodes
+- Basic support for headless mode for server part of games (kudos to [@martin-t](https://github.com/martin-t))
+- Removed `Scene::remove_node`
+- Rename `NodeTrait::clean_up` -> `NodeTrait::on_removed_from_graph`
+- Fixed colorization in the world viewer
+- Ability to disable steps of update pipeline of the graph
+- Preview mode for animation player, animation blending state machine, particle system nodes.
+- Rename colliding `ParticleSystem::set_enabled` method to `play`
+- Particle system preview control panel
+- Property editor for `Uuid` type.
+- Restrict `Reflect` trait on `Debug`.
+- Optional ability to `Copy Value as String` for properties in `Inspector` widget
+- Pass animation signal name to animation event - makes much easier to respond to multiple animation events with the 
+same name
+- Ability to maximize ui windows
+- `Animation::take_events`
+- `Reflect::type_name`
+- Show type name of selected object in the inspector
+- Fixed multiple nodes parenting in the world viewer
+- Apply grid snapping when instantiating a prefab
+- Added range selection for tree widget (Shift + Click)
+- Docking manager now collapses tiles when closing a docked window
+- Improved search bar style in the world viewer
+- Improved breadcrumbs in the world viewer
+- `HotKey` + `KeyBinding` + respective property editors
+- Ability to change editor controls.
 
 # 0.28
 
