@@ -151,7 +151,7 @@ pub struct ParticleSystem {
     soft_boundary_sharpness_factor: InheritableVariable<f32>,
 
     #[reflect(setter = "play")]
-    #[visit(rename = "enabled")]
+    #[visit(rename = "Enabled")]
     is_playing: InheritableVariable<bool>,
 
     #[reflect(hidden)]
