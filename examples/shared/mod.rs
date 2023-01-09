@@ -515,10 +515,13 @@ impl Player {
 
         let model_handle = model_resource.instantiate(scene);
 
-        let animation_player = scene.graph.find(model_handle, &mut |n| {
-            n.query_component_ref::<AnimationPlayer>().is_some()
-        });
-        assert!(animation_player.is_some());
+        let animation_player = scene
+            .graph
+            .find(model_handle, &mut |n| {
+                n.query_component_ref::<AnimationPlayer>().is_some()
+            })
+            .unwrap()
+            .0;
 
         let body_height = 0.5;
 

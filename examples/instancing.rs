@@ -105,9 +105,13 @@ impl SceneLoader {
                     .get(0)
                     .unwrap();
 
-                let animation_player_handle = scene.graph.find(model_handle, &mut |n| {
-                    n.query_component_ref::<AnimationPlayer>().is_some()
-                });
+                let animation_player_handle = scene
+                    .graph
+                    .find(model_handle, &mut |n| {
+                        n.query_component_ref::<AnimationPlayer>().is_some()
+                    })
+                    .unwrap()
+                    .0;
 
                 (**scene.graph[animation_player_handle]
                     .query_component_mut::<AnimationPlayer>()

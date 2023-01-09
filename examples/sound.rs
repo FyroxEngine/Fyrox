@@ -98,7 +98,9 @@ fn main() {
                                 .graph
                                 .find(load_result.player.animation_player, &mut |n| {
                                     n.query_component_ref::<AnimationPlayer>().is_some()
-                                });
+                                })
+                                .unwrap()
+                                .0;
 
                             // Once scene is fully loaded, add some signals to walking animation.
                             (**load_result.scene.graph[animation_player]

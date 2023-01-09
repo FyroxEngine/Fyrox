@@ -179,20 +179,25 @@ impl Model {
                     // to nodes of internal scene.
                     for (i, ref_track) in src_anim.tracks().iter().enumerate() {
                         let ref_node = &data.scene.graph[ref_track.target()];
+                        let track = &mut anim_copy.tracks_mut()[i];
                         // Find instantiated node that corresponds to node in resource
-                        let instance_node = graph.find_by_name(root, ref_node.name());
-                        if instance_node.is_none() {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!(
-                                    "Failed to retarget animation {:?} for node {}",
-                                    data.path(),
-                                    ref_node.name()
-                                ),
-                            );
+                        match graph.find_by_name(root, ref_node.name()) {
+                            Some((instance_node, _)) => {
+                                // One-to-one track mapping so there is [i] indexing.
+                                track.set_target(instance_node);
+                            }
+                            None => {
+                                track.set_target(Handle::NONE);
+                                Log::writeln(
+                                    MessageKind::Error,
+                                    format!(
+                                        "Failed to retarget animation {:?} for node {}",
+                                        data.path(),
+                                        ref_node.name()
+                                    ),
+                                );
+                            }
                         }
-                        // One-to-one track mapping so there is [i] indexing.
-                        anim_copy.tracks_mut()[i].set_target(instance_node);
                     }
 
                     retargetted_animations.push(anim_copy);
@@ -244,11 +249,13 @@ impl Model {
         root: Handle<Node>,
         graph: &mut Graph,
     ) -> Vec<Handle<Animation>> {
-        let animation_player = graph.find(root, &mut |n| {
+        if let Some((animation_player, _)) = graph.find(root, &mut |n| {
             n.query_component_ref::<AnimationPlayer>().is_some()
-        });
-
-        self.retarget_animations_to_player(root, animation_player, graph)
+        }) {
+            self.retarget_animations_to_player(root, animation_player, graph)
+        } else {
+            Default::default()
+        }
     }
 }
 
@@ -471,9 +478,9 @@ impl ModelData {
         &self.scene
     }
 
-    /// Tries to find node in resource by its name. Returns Handle::NONE if
-    /// no node was found.
-    pub fn find_node_by_name(&self, name: &str) -> Handle<Node> {
+    /// Searches for a node in the model, starting from specified node using the specified closure. Returns a tuple with a
+    /// handle and a reference to the found node. If nothing is found, it returns [`None`].
+    pub fn find_node_by_name(&self, name: &str) -> Option<(Handle<Node>, &Node)> {
         self.scene.graph.find_by_name_from_root(name)
     }
 

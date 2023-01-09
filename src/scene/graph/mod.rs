@@ -447,43 +447,46 @@ impl Graph {
         Handle::NONE
     }
 
-    /// Searches node using specified compare closure starting from specified node. If nothing
-    /// was found [`Handle::NONE`] is returned.
-    pub fn find<C>(&self, root_node: Handle<Node>, cmp: &mut C) -> Handle<Node>
+    /// Searches for a node starting from specified node using the specified closure. Returns a tuple with a handle and
+    /// a reference to the found node. If nothing is found, it returns [`None`].
+    pub fn find<C>(&self, root_node: Handle<Node>, cmp: &mut C) -> Option<(Handle<Node>, &Node)>
     where
         C: FnMut(&Node) -> bool,
     {
         let root = &self.pool[root_node];
         if cmp(root) {
-            root_node
+            Some((root_node, root))
         } else {
-            let mut result: Handle<Node> = Handle::NONE;
-            for child in root.children() {
-                let child_handle = self.find(*child, cmp);
-                if !child_handle.is_none() {
-                    result = child_handle;
-                    break;
+            for &child in root.children() {
+                let result = self.find(child, cmp);
+                if result.is_some() {
+                    return result;
                 }
             }
-            result
+
+            None
         }
     }
 
-    /// Searches node with specified name starting from specified node. If nothing was found,
-    /// [`Handle::NONE`] is returned.
-    pub fn find_by_name(&self, root_node: Handle<Node>, name: &str) -> Handle<Node> {
+    /// Searches for a node with the specified name starting from the specified node. Returns a tuple with a handle and
+    /// a reference to the found node. If nothing is found, it returns [`None`].
+    pub fn find_by_name(
+        &self,
+        root_node: Handle<Node>,
+        name: &str,
+    ) -> Option<(Handle<Node>, &Node)> {
         self.find(root_node, &mut |node| node.name() == name)
     }
 
-    /// Searches node with specified name starting from root. If nothing was found, `Handle::NONE`
-    /// is returned.
-    pub fn find_by_name_from_root(&self, name: &str) -> Handle<Node> {
+    /// Searches for a node with the specified name starting from the graph root. Returns a tuple with a handle and
+    /// a reference to the found node. If nothing is found, it returns [`None`].
+    pub fn find_by_name_from_root(&self, name: &str) -> Option<(Handle<Node>, &Node)> {
         self.find_by_name(self.root, name)
     }
 
-    /// Searches for a **first** node with a script of given type `S` in the hierarchy starting
-    /// from given `root_node`.
-    pub fn find_first_by_script<S>(&self, root_node: Handle<Node>) -> Handle<Node>
+    /// Searches for a **first** node with a script of the given type `S` in the hierarchy starting from the
+    /// given `root_node`.
+    pub fn find_first_by_script<S>(&self, root_node: Handle<Node>) -> Option<(Handle<Node>, &Node)>
     where
         S: ScriptTrait,
     {
@@ -492,9 +495,9 @@ impl Graph {
         })
     }
 
-    /// Searches node using specified compare closure starting from root. If nothing was found,
-    /// `Handle::NONE` is returned.
-    pub fn find_from_root<C>(&self, cmp: &mut C) -> Handle<Node>
+    /// Searches node using specified compare closure starting from root. Returns a tuple with a handle and
+    /// a reference to the found node. If nothing is found, it returns [`None`].
+    pub fn find_from_root<C>(&self, cmp: &mut C) -> Option<(Handle<Node>, &Node)>
     where
         C: FnMut(&Node) -> bool,
     {
@@ -834,8 +837,8 @@ impl Graph {
                                 n.original_handle_in_resource == resource_node.parent()
                             });
 
-                            if parent.is_some() {
-                                self.link_nodes(copy, parent);
+                            if let Some((parent_handle, _)) = parent {
+                                self.link_nodes(copy, parent_handle);
                             } else {
                                 // Fail-safe route - link with root of instance.
                                 self.link_nodes(copy, instance_root);

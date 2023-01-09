@@ -93,21 +93,33 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
                 0.0,
                 0.33,
                 vec![LodControlledObject(
-                    scene.graph.find_by_name(model_handle, "metroLOD0"),
+                    scene
+                        .graph
+                        .find_by_name(model_handle, "metroLOD0")
+                        .unwrap()
+                        .0,
                 )],
             ),
             LevelOfDetail::new(
                 0.33,
                 0.66,
                 vec![LodControlledObject(
-                    scene.graph.find_by_name(model_handle, "metroLOD1"),
+                    scene
+                        .graph
+                        .find_by_name(model_handle, "metroLOD1")
+                        .unwrap()
+                        .0,
                 )],
             ),
             LevelOfDetail::new(
                 0.66,
                 1.0,
                 vec![LodControlledObject(
-                    scene.graph.find_by_name(model_handle, "metroLOD2"),
+                    scene
+                        .graph
+                        .find_by_name(model_handle, "metroLOD2")
+                        .unwrap()
+                        .0,
                 )],
             ),
         ],
