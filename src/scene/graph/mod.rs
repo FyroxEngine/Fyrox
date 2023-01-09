@@ -447,29 +447,76 @@ impl Graph {
         Handle::NONE
     }
 
-    /// Searches for a node starting from specified node using the specified closure. Returns a tuple with a handle and
-    /// a reference to the found node. If nothing is found, it returns [`None`].
+    /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
+    /// with a handle and a reference to the found node. If nothing is found, it returns [`None`].
     pub fn find<C>(&self, root_node: Handle<Node>, cmp: &mut C) -> Option<(Handle<Node>, &Node)>
     where
         C: FnMut(&Node) -> bool,
     {
-        let root = &self.pool[root_node];
-        if cmp(root) {
-            Some((root_node, root))
-        } else {
-            for &child in root.children() {
-                let result = self.find(child, cmp);
-                if result.is_some() {
-                    return result;
-                }
+        self.pool.try_borrow(root_node).and_then(|root| {
+            if cmp(root) {
+                Some((root_node, root))
+            } else {
+                root.children().iter().find_map(|c| self.find(*c, cmp))
             }
-
-            None
-        }
+        })
     }
 
-    /// Searches for a node with the specified name starting from the specified node. Returns a tuple with a handle and
-    /// a reference to the found node. If nothing is found, it returns [`None`].
+    /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
+    /// with a handle and a reference to the mapped value. If nothing is found, it returns [`None`].
+    pub fn find_map<C, T>(&self, root_node: Handle<Node>, cmp: &mut C) -> Option<(Handle<Node>, &T)>
+    where
+        C: FnMut(&Node) -> Option<&T>,
+        T: ?Sized,
+    {
+        self.pool.try_borrow(root_node).and_then(|root| {
+            if let Some(x) = cmp(root) {
+                Some((root_node, x))
+            } else {
+                root.children().iter().find_map(|c| self.find_map(*c, cmp))
+            }
+        })
+    }
+
+    /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
+    /// with a handle and a reference to the found node. If nothing is found, it returns [`None`].
+    pub fn find_up<C>(&self, root_node: Handle<Node>, cmp: &mut C) -> Option<(Handle<Node>, &Node)>
+    where
+        C: FnMut(&Node) -> bool,
+    {
+        let mut handle = root_node;
+        while let Some(node) = self.pool.try_borrow(handle) {
+            if cmp(node) {
+                return Some((handle, node));
+            }
+            handle = node.parent;
+        }
+        None
+    }
+
+    /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
+    /// with a handle and a reference to the mapped value. If nothing is found, it returns [`None`].
+    pub fn find_up_map<C, T>(
+        &self,
+        root_node: Handle<Node>,
+        cmp: &mut C,
+    ) -> Option<(Handle<Node>, &T)>
+    where
+        C: FnMut(&Node) -> Option<&T>,
+        T: ?Sized,
+    {
+        let mut handle = root_node;
+        while let Some(node) = self.pool.try_borrow(handle) {
+            if let Some(x) = cmp(node) {
+                return Some((handle, x));
+            }
+            handle = node.parent;
+        }
+        None
+    }
+
+    /// Searches for a node with the specified name down the tree starting from the specified node. Returns a tuple with
+    /// a handle and a reference to the found node. If nothing is found, it returns [`None`].
     pub fn find_by_name(
         &self,
         root_node: Handle<Node>,
@@ -478,8 +525,18 @@ impl Graph {
         self.find(root_node, &mut |node| node.name() == name)
     }
 
-    /// Searches for a node with the specified name starting from the graph root. Returns a tuple with a handle and
-    /// a reference to the found node. If nothing is found, it returns [`None`].
+    /// Searches for a node with the specified name up the tree starting from the specified node. Returns a tuple with a
+    /// handle and a reference to the found node. If nothing is found, it returns [`None`].
+    pub fn find_up_by_name(
+        &self,
+        root_node: Handle<Node>,
+        name: &str,
+    ) -> Option<(Handle<Node>, &Node)> {
+        self.find_up(root_node, &mut |node| node.name() == name)
+    }
+
+    /// Searches for a node with the specified name down the tree starting from the graph root. Returns a tuple with a
+    /// handle and a reference to the found node. If nothing is found, it returns [`None`].
     pub fn find_by_name_from_root(&self, name: &str) -> Option<(Handle<Node>, &Node)> {
         self.find_by_name(self.root, name)
     }
@@ -1390,6 +1447,8 @@ impl Visit for Graph {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::base::BaseBuilder;
+    use crate::scene::pivot::PivotBuilder;
     use crate::{
         core::pool::Handle,
         scene::{graph::Graph, node::Node, pivot::Pivot},
@@ -1409,5 +1468,56 @@ mod test {
         graph.add_node(Node::new(Pivot::default()));
         graph.add_node(Node::new(Pivot::default()));
         assert_eq!(graph.pool.alive_count(), 4);
+    }
+
+    #[test]
+    fn test_graph_search() {
+        let mut graph = Graph::new();
+
+        // Root_
+        //      |_A_
+        //          |_B
+        //          |_C_
+        //             |_D
+        let b;
+        let c;
+        let d;
+        let a = PivotBuilder::new(BaseBuilder::new().with_name("A").with_children(&[
+            {
+                b = PivotBuilder::new(BaseBuilder::new().with_name("B")).build(&mut graph);
+                b
+            },
+            {
+                c = PivotBuilder::new(BaseBuilder::new().with_name("C").with_children(&[{
+                    d = PivotBuilder::new(BaseBuilder::new().with_name("D")).build(&mut graph);
+                    d
+                }]))
+                .build(&mut graph);
+                c
+            },
+        ]))
+        .build(&mut graph);
+
+        // Test down search.
+        assert!(graph.find_by_name(a, "X").is_none());
+        assert_eq!(graph.find_by_name(a, "A").unwrap().0, a);
+        assert_eq!(graph.find_by_name(a, "D").unwrap().0, d);
+
+        let result = graph
+            .find_map(a, &mut |n| if n.name() == "D" { Some("D") } else { None })
+            .unwrap();
+        assert_eq!(result.0, d);
+        assert_eq!(result.1, "D");
+
+        // Test up search.
+        assert!(graph.find_up_by_name(d, "X").is_none());
+        assert_eq!(graph.find_up_by_name(d, "D").unwrap().0, d);
+        assert_eq!(graph.find_up_by_name(d, "A").unwrap().0, a);
+
+        let result = graph
+            .find_up_map(d, &mut |n| if n.name() == "A" { Some("A") } else { None })
+            .unwrap();
+        assert_eq!(result.0, a);
+        assert_eq!(result.1, "A");
     }
 }
