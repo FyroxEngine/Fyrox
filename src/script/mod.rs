@@ -5,7 +5,7 @@
 use crate::{
     core::{
         pool::Handle,
-        reflect::{Reflect, ReflectArray, ReflectList},
+        reflect::{FieldInfo, Reflect, ReflectArray, ReflectList},
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -15,14 +15,48 @@ use crate::{
     scene::{node::Node, Scene},
     utils::{component::ComponentProvider, log::Log},
 };
-use fyrox_core::reflect::FieldInfo;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
     ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
 };
 
 pub mod constructor;
+
+/// An event from a script.
+pub trait ScriptEvent: Any {
+    /// Returns `self` as `&dyn Any`
+    fn as_any_ref(&self) -> &dyn Any;
+
+    /// Returns `self` as `&dyn Any`
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+
+impl dyn ScriptEvent {
+    /// Tries to cast the event to a particular type.
+    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
+        self.as_any_ref().downcast_ref::<T>()
+    }
+
+    /// Tries to cast the event to a particular type.
+    pub fn downcast_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        self.as_any_mut().downcast_mut::<T>()
+    }
+}
+
+impl<T> ScriptEvent for T
+where
+    T: 'static,
+{
+    fn as_any_ref(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
 
 /// Base script trait is used to automatically implement some trait to reduce amount of boilerplate code.
 pub trait BaseScript: Visit + Reflect + Send + Debug + 'static {
@@ -40,7 +74,7 @@ where
 }
 
 /// A set of data, that provides contextual information for script methods.
-pub struct ScriptContext<'a, 'b> {
+pub struct ScriptContext<'a, 'b, 'c> {
     /// Amount of time that passed from last call. It has valid values only when called from `on_update`.
     pub dt: f32,
 
@@ -70,10 +104,14 @@ pub struct ScriptContext<'a, 'b> {
 
     /// A reference to resource manager, use it to load resources.
     pub resource_manager: &'a ResourceManager,
+
+    /// An event sender. Every event sent via this sender will be then passed to every [`ScriptTrait::on_event`]
+    /// method of every script.
+    pub event_sender: &'c Sender<Box<dyn ScriptEvent>>,
 }
 
 /// A set of data that will be passed to a script instance just before its destruction.
-pub struct ScriptDeinitContext<'a, 'b> {
+pub struct ScriptDeinitContext<'a, 'b, 'c> {
     /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
     /// this value is **not** guaranteed to match real time. A user can change delta time with
     /// which the engine "ticks" and this delta time affects elapsed time.
@@ -94,6 +132,10 @@ pub struct ScriptDeinitContext<'a, 'b> {
     /// Handle to a parent scene node. Use it with caution because parent node could be deleted already and
     /// any unchecked borrowing using the handle will cause panic!
     pub node_handle: Handle<Node>,
+
+    /// An event sender. Every event sent via this sender will be then passed to every [`ScriptTrait::on_event`]
+    /// method of every script.
+    pub event_sender: &'c Sender<Box<dyn ScriptEvent>>,
 }
 
 /// Script is a set predefined methods that are called on various stages by the engine. It is used to add
@@ -142,6 +184,15 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// handle is saved, only path to resource is saved. When you loading a save, you must ask resource
     /// manager to restore handles.
     fn restore_resources(&mut self, #[allow(unused_variables)] resource_manager: ResourceManager) {}
+
+    /// Allows you to react to certain script events. It could be used for communication between scripts; to
+    /// bypass borrowing issues.
+    fn on_event(
+        &mut self,
+        #[allow(unused_variables)] event: &mut dyn ScriptEvent,
+        #[allow(unused_variables)] ctx: &mut ScriptContext,
+    ) {
+    }
 
     /// Script instance type UUID. The value will be used for serialization, to write type
     /// identifier to a data source so the engine can restore the script from data source.
@@ -332,13 +383,13 @@ impl Script {
     /// Performs downcasting to a particular type.
     #[inline]
     pub fn cast<T: ScriptTrait>(&self) -> Option<&T> {
-        self.instance.as_any().downcast_ref::<T>()
+        fyrox_core::reflect::Reflect::as_any(&self.instance).downcast_ref::<T>()
     }
 
     /// Performs downcasting to a particular type.
     #[inline]
     pub fn cast_mut<T: ScriptTrait>(&mut self) -> Option<&mut T> {
-        self.instance.as_any_mut().downcast_mut::<T>()
+        fyrox_core::reflect::Reflect::as_any_mut(&mut self.instance).downcast_mut::<T>()
     }
 
     /// Tries to borrow a component of given type.

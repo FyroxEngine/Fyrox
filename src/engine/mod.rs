@@ -26,15 +26,18 @@ use crate::{
         base::ScriptMessage, graph::GraphUpdateSwitches,
         node::constructor::NodeConstructorContainer, sound::SoundEngine, Scene, SceneContainer,
     },
-    script::{constructor::ScriptConstructorContainer, Script, ScriptContext, ScriptDeinitContext},
+    script::{
+        constructor::ScriptConstructorContainer, Script, ScriptContext, ScriptDeinitContext,
+        ScriptEvent,
+    },
     utils::log::Log,
     window::{Window, WindowBuilder},
 };
-use fxhash::{FxHashMap, FxHashSet};
+use fxhash::FxHashMap;
 use std::{
     collections::{HashSet, VecDeque},
     sync::{
-        mpsc::{channel, Receiver},
+        mpsc::{channel, Receiver, Sender},
         Arc, Mutex,
     },
     time::Duration,
@@ -113,15 +116,21 @@ pub struct Engine {
     script_processor: ScriptProcessor,
 }
 
+pub(crate) struct ScriptedScene {
+    handle: Handle<Scene>,
+    event_sender: Sender<Box<dyn ScriptEvent>>,
+    event_receiver: Receiver<Box<dyn ScriptEvent>>,
+}
+
 #[derive(Default)]
 struct ScriptProcessor {
     wait_list: Vec<ResourceWaitContext>,
-    scripted_scenes: FxHashSet<Handle<Scene>>,
+    scripted_scenes: Vec<ScriptedScene>,
 }
 
 impl ScriptProcessor {
     fn has_scripted_scene(&self, scene: Handle<Scene>) -> bool {
-        self.scripted_scenes.contains(&scene)
+        self.scripted_scenes.iter().any(|s| s.handle == scene)
     }
 
     fn register_scripted_scene(
@@ -130,10 +139,15 @@ impl ScriptProcessor {
         scenes: &mut SceneContainer,
         resource_manager: &ResourceManager,
     ) {
-        // Register the scene and ensure that it wasn't registered previously.
-        let added = self.scripted_scenes.insert(scene);
+        // Ensure that the scene wasn't registered previously.
+        assert!(!self.has_scripted_scene(scene));
 
-        assert!(added);
+        let (tx, rx) = channel();
+        self.scripted_scenes.push(ScriptedScene {
+            handle: scene,
+            event_sender: tx,
+            event_receiver: rx,
+        });
 
         let graph = &mut scenes[scene].graph;
 
@@ -166,10 +180,10 @@ impl ScriptProcessor {
         }
 
         self.scripted_scenes
-            .retain(|handle| scenes.is_valid_handle(*handle));
+            .retain(|s| scenes.is_valid_handle(s.handle));
 
-        'scene_loop: for &scene_handle in self.scripted_scenes.iter() {
-            let scene = &mut scenes[scene_handle];
+        'scene_loop: for scripted_scene in self.scripted_scenes.iter() {
+            let scene = &mut scenes[scripted_scene.handle];
 
             // Disabled scenes should not update their scripts.
             if !scene.enabled {
@@ -200,6 +214,7 @@ impl ScriptProcessor {
                     handle: Default::default(),
                     scene,
                     resource_manager,
+                    event_sender: &scripted_scene.event_sender,
                 };
 
                 'init_loop: for init_loop_iteration in 0..max_iterations {
@@ -279,6 +294,24 @@ impl ScriptProcessor {
                 }
             }
 
+            // Process events.
+            while let Ok(mut event) = scripted_scene.event_receiver.try_recv() {
+                process_scripts(
+                    scene,
+                    plugins,
+                    resource_manager,
+                    &scripted_scene.event_sender,
+                    dt,
+                    elapsed_time,
+                    |s, ctx| {
+                        debug_assert!(s.initialized);
+                        debug_assert!(s.started);
+
+                        s.on_event(&mut *event, ctx)
+                    },
+                )
+            }
+
             // As the last step, destroy queued scripts.
             let mut context = ScriptDeinitContext {
                 elapsed_time,
@@ -286,6 +319,7 @@ impl ScriptProcessor {
                 resource_manager,
                 scene,
                 node_handle: Default::default(),
+                event_sender: &scripted_scene.event_sender,
             };
             while let Some((handle, mut script)) = destruction_queue.pop_front() {
                 context.node_handle = handle;
@@ -298,13 +332,14 @@ impl ScriptProcessor {
 
         // Process scripts from destroyed scenes.
         for (handle, mut detached_scene) in scenes.destruction_list.drain(..) {
-            if self.scripted_scenes.contains(&handle) {
+            if let Some(scripted_scene) = self.scripted_scenes.iter().find(|s| s.handle == handle) {
                 let mut context = ScriptDeinitContext {
                     elapsed_time,
                     plugins,
                     resource_manager,
                     scene: &mut detached_scene,
                     node_handle: Default::default(),
+                    event_sender: &scripted_scene.event_sender,
                 };
 
                 // Destroy every script instance from nodes that were still alive.
@@ -460,6 +495,7 @@ pub(crate) fn process_scripts<T>(
     scene: &mut Scene,
     plugins: &mut [Box<dyn Plugin>],
     resource_manager: &ResourceManager,
+    event_sender: &Sender<Box<dyn ScriptEvent>>,
     dt: f32,
     elapsed_time: f32,
     mut func: T,
@@ -473,6 +509,7 @@ pub(crate) fn process_scripts<T>(
         handle: Default::default(),
         scene,
         resource_manager,
+        event_sender,
     };
 
     for node_index in 0..context.scene.graph.capacity() {
@@ -858,20 +895,28 @@ impl Engine {
         scene: Handle<Scene>,
         dt: f32,
     ) {
-        let scene = &mut self.scenes[scene];
-        if scene.enabled {
-            process_scripts(
-                scene,
-                &mut self.plugins,
-                &self.resource_manager,
-                dt,
-                self.elapsed_time,
-                |script, context| {
-                    if script.initialized {
-                        script.on_os_event(event, context);
-                    }
-                },
-            )
+        if let Some(scripted_scene) = self
+            .script_processor
+            .scripted_scenes
+            .iter()
+            .find(|s| s.handle == scene)
+        {
+            let scene = &mut self.scenes[scene];
+            if scene.enabled {
+                process_scripts(
+                    scene,
+                    &mut self.plugins,
+                    &self.resource_manager,
+                    &scripted_scene.event_sender,
+                    dt,
+                    self.elapsed_time,
+                    |script, context| {
+                        if script.initialized {
+                            script.on_os_event(event, context);
+                        }
+                    },
+                )
+            }
         }
     }
 
@@ -1017,6 +1062,7 @@ impl Drop for Engine {
 
 #[cfg(test)]
 mod test {
+    use crate::script::ScriptEvent;
     use crate::{
         core::{pool::Handle, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
         engine::{resource_manager::ResourceManager, ScriptProcessor},
@@ -1032,6 +1078,7 @@ mod test {
         Started(Handle<Node>),
         Updated(Handle<Node>),
         Destroyed(Handle<Node>),
+        EventReceived(Handle<Node>),
     }
 
     #[derive(Debug, Clone, Reflect, Visit)]
@@ -1205,6 +1252,132 @@ mod test {
 
                     // Every instance holding sender died, so receiver is disconnected from sender.
                     assert_eq!(rx.try_recv(), Err(TryRecvError::Disconnected));
+                }
+                _ => (),
+            }
+        }
+    }
+
+    enum MyEvent {
+        Foo(usize),
+        Bar(String),
+    }
+
+    #[derive(Debug, Clone, Reflect, Visit)]
+    struct ScriptListeningToEvents {
+        index: u32,
+        #[reflect(hidden)]
+        #[visit(skip)]
+        sender: Sender<Event>,
+    }
+
+    impl_component_provider!(ScriptListeningToEvents);
+
+    impl ScriptTrait for ScriptListeningToEvents {
+        fn on_event(&mut self, event: &mut dyn ScriptEvent, ctx: &mut ScriptContext) {
+            let typed_event = event.downcast_ref::<MyEvent>().unwrap();
+            match self.index {
+                0 => {
+                    if let MyEvent::Foo(num) = typed_event {
+                        assert_eq!(*num, 123);
+                        self.sender.send(Event::EventReceived(ctx.handle)).unwrap();
+                    } else {
+                        unreachable!()
+                    }
+                }
+                1 => {
+                    if let MyEvent::Bar(string) = typed_event {
+                        assert_eq!(string, "Foobar");
+                        self.sender.send(Event::EventReceived(ctx.handle)).unwrap();
+                    } else {
+                        unreachable!()
+                    }
+                }
+                _ => (),
+            }
+
+            self.index += 1;
+        }
+
+        fn id(&self) -> Uuid {
+            Uuid::new_v4()
+        }
+    }
+
+    #[derive(Debug, Clone, Reflect, Visit)]
+    struct ScriptSendingEvents {
+        index: u32,
+    }
+
+    impl_component_provider!(ScriptSendingEvents);
+
+    impl ScriptTrait for ScriptSendingEvents {
+        fn on_update(&mut self, ctx: &mut ScriptContext) {
+            match self.index {
+                0 => ctx.event_sender.send(Box::new(MyEvent::Foo(123))).unwrap(),
+                1 => ctx
+                    .event_sender
+                    .send(Box::new(MyEvent::Bar("Foobar".to_string())))
+                    .unwrap(),
+                _ => (),
+            }
+            self.index += 1;
+        }
+
+        fn id(&self) -> Uuid {
+            Uuid::new_v4()
+        }
+    }
+
+    #[test]
+    fn test_events() {
+        let resource_manager = ResourceManager::new(Default::default());
+        let mut scene = Scene::new();
+
+        let (tx, rx) = mpsc::channel();
+
+        PivotBuilder::new(
+            BaseBuilder::new().with_script(Script::new(ScriptSendingEvents { index: 0 })),
+        )
+        .build(&mut scene.graph);
+
+        let receiver_events = PivotBuilder::new(BaseBuilder::new().with_script(Script::new(
+            ScriptListeningToEvents {
+                sender: tx,
+                index: 0,
+            },
+        )))
+        .build(&mut scene.graph);
+
+        let mut scene_container = SceneContainer::new(Default::default());
+
+        let scene_handle = scene_container.add(scene);
+
+        let mut script_processor = ScriptProcessor::default();
+
+        script_processor.register_scripted_scene(
+            scene_handle,
+            &mut scene_container,
+            &resource_manager,
+        );
+
+        for iteration in 0..2 {
+            script_processor.handle_scripts(
+                &mut scene_container,
+                &mut Default::default(),
+                &resource_manager,
+                0.0,
+                0.0,
+            );
+
+            match iteration {
+                0 => {
+                    assert_eq!(rx.try_recv(), Ok(Event::EventReceived(receiver_events)));
+                    assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
+                }
+                1 => {
+                    assert_eq!(rx.try_recv(), Ok(Event::EventReceived(receiver_events)));
+                    assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
                 }
                 _ => (),
             }
