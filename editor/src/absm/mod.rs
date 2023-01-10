@@ -329,7 +329,7 @@ impl AbsmEditor {
             for layer in machine.layers_mut() {
                 while let Some(event) = layer.pop_event() {
                     match event {
-                        Event::ActiveStateChanged(state) => {
+                        Event::ActiveStateChanged { new: state, .. } => {
                             self.state_graph_viewer
                                 .activate_state(&engine.user_interface, state);
                         }

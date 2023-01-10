@@ -476,8 +476,10 @@ impl MachineLayer {
                         .push(Event::ActiveTransitionChanged(self.active_transition));
 
                     self.active_state = transition.dest();
-                    self.events
-                        .push(Event::ActiveStateChanged(self.active_state));
+                    self.events.push(Event::ActiveStateChanged {
+                        prev: transition.source(),
+                        new: transition.dest(),
+                    });
 
                     if self.debug {
                         Log::writeln(

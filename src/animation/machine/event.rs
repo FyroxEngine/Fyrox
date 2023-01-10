@@ -16,8 +16,14 @@ pub enum Event {
     /// Occurs when leaving some state. See module docs for example.
     StateLeave(Handle<State>),
 
-    /// Occurs when transition is done and new active state was set.
-    ActiveStateChanged(Handle<State>),
+    /// Occurs when a transition is done and a new active state was set.
+    ActiveStateChanged {
+        /// Previously active state.
+        prev: Handle<State>,
+
+        /// New active state.
+        new: Handle<State>,
+    },
 
     /// Occurs when active transition was changed.
     ActiveTransitionChanged(Handle<Transition>),
