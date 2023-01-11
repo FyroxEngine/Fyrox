@@ -23,12 +23,12 @@ use crate::{
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{model::Model, texture::TextureKind},
     scene::{
-        base::ScriptMessage, graph::GraphUpdateSwitches,
+        base::NodeScriptMessage, graph::GraphUpdateSwitches,
         node::constructor::NodeConstructorContainer, sound::SoundEngine, Scene, SceneContainer,
     },
     script::{
         constructor::ScriptConstructorContainer, RoutingStrategy, Script, ScriptContext,
-        ScriptDeinitContext, ScriptEvent, ScriptEventSender,
+        ScriptDeinitContext, ScriptMessage, ScriptMessageSender,
     },
     utils::log::Log,
     window::{Window, WindowBuilder},
@@ -118,8 +118,8 @@ pub struct Engine {
 
 pub(crate) struct ScriptedScene {
     handle: Handle<Scene>,
-    event_sender: ScriptEventSender,
-    event_receiver: Receiver<ScriptEvent>,
+    message_sender: ScriptMessageSender,
+    message_receiver: Receiver<ScriptMessage>,
 }
 
 #[derive(Default)]
@@ -145,8 +145,8 @@ impl ScriptProcessor {
         let (tx, rx) = channel();
         self.scripted_scenes.push(ScriptedScene {
             handle: scene,
-            event_sender: ScriptEventSender { sender: tx },
-            event_receiver: rx,
+            message_sender: ScriptMessageSender { sender: tx },
+            message_receiver: rx,
         });
 
         let graph = &mut scenes[scene].graph;
@@ -156,7 +156,7 @@ impl ScriptProcessor {
         for (handle, _) in graph.pair_iter() {
             graph
                 .script_message_sender
-                .send(ScriptMessage::InitializeScript { handle })
+                .send(NodeScriptMessage::InitializeScript { handle })
                 .unwrap();
         }
 
@@ -214,7 +214,7 @@ impl ScriptProcessor {
                     handle: Default::default(),
                     scene,
                     resource_manager,
-                    event_sender: &scripted_scene.event_sender,
+                    message_sender: &scripted_scene.message_sender,
                 };
 
                 'init_loop: for init_loop_iteration in 0..max_iterations {
@@ -224,7 +224,7 @@ impl ScriptProcessor {
                     // and these will be correctly initialized on current frame.
                     while let Ok(event) = context.scene.graph.script_message_receiver.try_recv() {
                         match event {
-                            ScriptMessage::InitializeScript { handle } => {
+                            NodeScriptMessage::InitializeScript { handle } => {
                                 context.handle = handle;
 
                                 process_node(&mut context, &mut |script, context| {
@@ -237,7 +237,7 @@ impl ScriptProcessor {
                                     start_queue.push_back(handle);
                                 });
                             }
-                            ScriptMessage::DestroyScript { handle, script } => {
+                            NodeScriptMessage::DestroyScript { handle, script } => {
                                 // Destruction is delayed to the end of the frame.
                                 destruction_queue.push_back((handle, script));
                             }
@@ -294,10 +294,10 @@ impl ScriptProcessor {
                 }
             }
 
-            // Process events.
-            while let Ok(event) = scripted_scene.event_receiver.try_recv() {
-                match event {
-                    ScriptEvent::Targeted {
+            // Process messages..
+            while let Ok(message) = scripted_scene.message_receiver.try_recv() {
+                match message {
+                    ScriptMessage::Targeted {
                         target,
                         mut payload,
                     } => {
@@ -308,12 +308,12 @@ impl ScriptProcessor {
                             handle: target,
                             scene,
                             resource_manager,
-                            event_sender: &scripted_scene.event_sender,
+                            message_sender: &scripted_scene.message_sender,
                         };
 
-                        process_node(&mut context, &mut |s, ctx| s.on_event(&mut *payload, ctx))
+                        process_node(&mut context, &mut |s, ctx| s.on_message(&mut *payload, ctx))
                     }
-                    ScriptEvent::Hierarchical {
+                    ScriptMessage::Hierarchical {
                         root,
                         routing,
                         mut payload,
@@ -330,11 +330,11 @@ impl ScriptProcessor {
                                     handle: node,
                                     scene,
                                     resource_manager,
-                                    event_sender: &scripted_scene.event_sender,
+                                    message_sender: &scripted_scene.message_sender,
                                 };
 
                                 process_node(&mut context, &mut |s, ctx| {
-                                    s.on_event(&mut *payload, ctx)
+                                    s.on_message(&mut *payload, ctx)
                                 });
 
                                 node = parent;
@@ -349,23 +349,23 @@ impl ScriptProcessor {
                                     handle: node,
                                     scene,
                                     resource_manager,
-                                    event_sender: &scripted_scene.event_sender,
+                                    message_sender: &scripted_scene.message_sender,
                                 };
 
                                 process_node(&mut context, &mut |s, ctx| {
-                                    s.on_event(&mut *payload, ctx)
+                                    s.on_message(&mut *payload, ctx)
                                 });
                             }
                         }
                     },
-                    ScriptEvent::Global { mut payload } => process_scripts(
+                    ScriptMessage::Global { mut payload } => process_scripts(
                         scene,
                         plugins,
                         resource_manager,
-                        &scripted_scene.event_sender,
+                        &scripted_scene.message_sender,
                         dt,
                         elapsed_time,
-                        |s, ctx| s.on_event(&mut *payload, ctx),
+                        |s, ctx| s.on_message(&mut *payload, ctx),
                     ),
                 }
             }
@@ -377,7 +377,7 @@ impl ScriptProcessor {
                 resource_manager,
                 scene,
                 node_handle: Default::default(),
-                event_sender: &scripted_scene.event_sender,
+                message_sender: &scripted_scene.message_sender,
             };
             while let Some((handle, mut script)) = destruction_queue.pop_front() {
                 context.node_handle = handle;
@@ -397,7 +397,7 @@ impl ScriptProcessor {
                     resource_manager,
                     scene: &mut detached_scene,
                     node_handle: Default::default(),
-                    event_sender: &scripted_scene.event_sender,
+                    message_sender: &scripted_scene.message_sender,
                 };
 
                 // Destroy every script instance from nodes that were still alive.
@@ -553,7 +553,7 @@ pub(crate) fn process_scripts<T>(
     scene: &mut Scene,
     plugins: &mut [Box<dyn Plugin>],
     resource_manager: &ResourceManager,
-    event_sender: &ScriptEventSender,
+    message_sender: &ScriptMessageSender,
     dt: f32,
     elapsed_time: f32,
     mut func: T,
@@ -567,7 +567,7 @@ pub(crate) fn process_scripts<T>(
         handle: Default::default(),
         scene,
         resource_manager,
-        event_sender,
+        message_sender,
     };
 
     for node_index in 0..context.scene.graph.capacity() {
@@ -965,7 +965,7 @@ impl Engine {
                     scene,
                     &mut self.plugins,
                     &self.resource_manager,
-                    &scripted_scene.event_sender,
+                    &scripted_scene.message_sender,
                     dt,
                     self.elapsed_time,
                     |script, context| {
@@ -1120,7 +1120,7 @@ impl Drop for Engine {
 
 #[cfg(test)]
 mod test {
-    use crate::script::{ScriptEvent, ScriptEventPayload};
+    use crate::script::ScriptMessagePayload;
     use crate::{
         core::{pool::Handle, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
         engine::{resource_manager::ResourceManager, ScriptProcessor},
@@ -1316,27 +1316,27 @@ mod test {
         }
     }
 
-    enum MyEvent {
+    enum MyMessage {
         Foo(usize),
         Bar(String),
     }
 
     #[derive(Debug, Clone, Reflect, Visit)]
-    struct ScriptListeningToEvents {
+    struct ScriptListeningToMessages {
         index: u32,
         #[reflect(hidden)]
         #[visit(skip)]
         sender: Sender<Event>,
     }
 
-    impl_component_provider!(ScriptListeningToEvents);
+    impl_component_provider!(ScriptListeningToMessages);
 
-    impl ScriptTrait for ScriptListeningToEvents {
-        fn on_event(&mut self, event: &mut dyn ScriptEventPayload, ctx: &mut ScriptContext) {
-            let typed_event = event.downcast_ref::<MyEvent>().unwrap();
+    impl ScriptTrait for ScriptListeningToMessages {
+        fn on_message(&mut self, message: &mut dyn ScriptMessagePayload, ctx: &mut ScriptContext) {
+            let typed_message = message.downcast_ref::<MyMessage>().unwrap();
             match self.index {
                 0 => {
-                    if let MyEvent::Foo(num) = typed_event {
+                    if let MyMessage::Foo(num) = typed_message {
                         assert_eq!(*num, 123);
                         self.sender.send(Event::EventReceived(ctx.handle)).unwrap();
                     } else {
@@ -1344,7 +1344,7 @@ mod test {
                     }
                 }
                 1 => {
-                    if let MyEvent::Bar(string) = typed_event {
+                    if let MyMessage::Bar(string) = typed_message {
                         assert_eq!(string, "Foobar");
                         self.sender.send(Event::EventReceived(ctx.handle)).unwrap();
                     } else {
@@ -1363,19 +1363,19 @@ mod test {
     }
 
     #[derive(Debug, Clone, Reflect, Visit)]
-    struct ScriptSendingEvents {
+    struct ScriptSendingMessages {
         index: u32,
     }
 
-    impl_component_provider!(ScriptSendingEvents);
+    impl_component_provider!(ScriptSendingMessages);
 
-    impl ScriptTrait for ScriptSendingEvents {
+    impl ScriptTrait for ScriptSendingMessages {
         fn on_update(&mut self, ctx: &mut ScriptContext) {
             match self.index {
-                0 => ctx.event_sender.send_global(MyEvent::Foo(123)),
+                0 => ctx.message_sender.send_global(MyMessage::Foo(123)),
                 1 => ctx
-                    .event_sender
-                    .send_global(MyEvent::Bar("Foobar".to_string())),
+                    .message_sender
+                    .send_global(MyMessage::Bar("Foobar".to_string())),
                 _ => (),
             }
             self.index += 1;
@@ -1387,19 +1387,19 @@ mod test {
     }
 
     #[test]
-    fn test_events() {
+    fn test_messages() {
         let resource_manager = ResourceManager::new(Default::default());
         let mut scene = Scene::new();
 
         let (tx, rx) = mpsc::channel();
 
         PivotBuilder::new(
-            BaseBuilder::new().with_script(Script::new(ScriptSendingEvents { index: 0 })),
+            BaseBuilder::new().with_script(Script::new(ScriptSendingMessages { index: 0 })),
         )
         .build(&mut scene.graph);
 
-        let receiver_events = PivotBuilder::new(BaseBuilder::new().with_script(Script::new(
-            ScriptListeningToEvents {
+        let receiver_messages = PivotBuilder::new(BaseBuilder::new().with_script(Script::new(
+            ScriptListeningToMessages {
                 sender: tx,
                 index: 0,
             },
@@ -1429,11 +1429,11 @@ mod test {
 
             match iteration {
                 0 => {
-                    assert_eq!(rx.try_recv(), Ok(Event::EventReceived(receiver_events)));
+                    assert_eq!(rx.try_recv(), Ok(Event::EventReceived(receiver_messages)));
                     assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
                 }
                 1 => {
-                    assert_eq!(rx.try_recv(), Ok(Event::EventReceived(receiver_events)));
+                    assert_eq!(rx.try_recv(), Ok(Event::EventReceived(receiver_messages)));
                     assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
                 }
                 _ => (),

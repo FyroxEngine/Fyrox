@@ -24,8 +24,8 @@ use std::{
 
 pub mod constructor;
 
-/// A script event's payload.
-pub trait ScriptEventPayload: Any {
+/// A script message's payload.
+pub trait ScriptMessagePayload: Any {
     /// Returns `self` as `&dyn Any`
     fn as_any_ref(&self) -> &dyn Any;
 
@@ -33,7 +33,7 @@ pub trait ScriptEventPayload: Any {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-impl dyn ScriptEventPayload {
+impl dyn ScriptMessagePayload {
     /// Tries to cast the payload to a particular type.
     pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
         self.as_any_ref().downcast_ref::<T>()
@@ -45,7 +45,7 @@ impl dyn ScriptEventPayload {
     }
 }
 
-impl<T> ScriptEventPayload for T
+impl<T> ScriptMessagePayload for T
 where
     T: 'static,
 {
@@ -58,86 +58,86 @@ where
     }
 }
 
-/// Defines how a script event will be delivered for each node in a hierarchy.
+/// Defines how a script message will be delivered for each node in a hierarchy.
 pub enum RoutingStrategy {
-    /// An event will be passed to the specified root node and then to every node up in the hierarchy.
+    /// An message will be passed to the specified root node and then to every node up in the hierarchy.
     Up,
-    /// An event will be passed to every node down the tree in the hierarchy.
+    /// An message will be passed to every node down the tree in the hierarchy.
     Down,
 }
 
-/// An event for a node with a script.
-pub enum ScriptEvent {
-    /// An event for a specific scene node.
+/// An message for a node with a script.
+pub enum ScriptMessage {
+    /// An message for a specific scene node.
     Targeted {
         /// A handle of a target scene node.
         target: Handle<Node>,
 
-        /// Actual event payload.
-        payload: Box<dyn ScriptEventPayload>,
+        /// Actual message payload.
+        payload: Box<dyn ScriptMessagePayload>,
     },
 
-    /// An event for a hierarchy of nodes.
+    /// An message for a hierarchy of nodes.
     Hierarchical {
-        /// Starting node in a scene graph. Event will be delivered to each node in hierarchy in the order
+        /// Starting node in a scene graph. Message will be delivered to each node in hierarchy in the order
         /// defined by `routing`.
         root: Handle<Node>,
 
-        /// [Routing strategy](RoutingStrategy) for the event.
+        /// [Routing strategy](RoutingStrategy) for the message.
         routing: RoutingStrategy,
 
-        /// Actual event payload.
-        payload: Box<dyn ScriptEventPayload>,
+        /// Actual message payload.
+        payload: Box<dyn ScriptMessagePayload>,
     },
 
-    /// An event that will be delivered for **every** scene node.
+    /// An message that will be delivered for **every** scene node.
     Global {
-        /// Actual event payload.
-        payload: Box<dyn ScriptEventPayload>,
+        /// Actual message payload.
+        payload: Box<dyn ScriptMessagePayload>,
     },
 }
 
-/// A script event sender.
+/// A script message sender.
 #[derive(Clone)]
-pub struct ScriptEventSender {
-    pub(crate) sender: Sender<ScriptEvent>,
+pub struct ScriptMessageSender {
+    pub(crate) sender: Sender<ScriptMessage>,
 }
 
-impl ScriptEventSender {
-    /// Send a generic script event.
-    pub fn send(&self, event: ScriptEvent) {
-        if self.sender.send(event).is_err() {
+impl ScriptMessageSender {
+    /// Send a generic script message.
+    pub fn send(&self, message: ScriptMessage) {
+        if self.sender.send(message).is_err() {
             Log::err("Failed to send script message, it means the scene is already deleted!");
         }
     }
 
-    /// Sends a targeted script event with the given payload.
+    /// Sends a targeted script message with the given payload.
     pub fn send_to_target<T>(&self, target: Handle<Node>, payload: T)
     where
         T: 'static,
     {
-        self.send(ScriptEvent::Targeted {
+        self.send(ScriptMessage::Targeted {
             target,
             payload: Box::new(payload),
         })
     }
 
-    /// Sends a global script event with the given payload.
+    /// Sends a global script message with the given payload.
     pub fn send_global<T>(&self, payload: T)
     where
         T: 'static,
     {
-        self.send(ScriptEvent::Global {
+        self.send(ScriptMessage::Global {
             payload: Box::new(payload),
         })
     }
 
-    /// Sends a hierarchical script event with the given payload.
+    /// Sends a hierarchical script message with the given payload.
     pub fn send_hierarchical<T>(&self, root: Handle<Node>, routing: RoutingStrategy, payload: T)
     where
         T: 'static,
     {
-        self.send(ScriptEvent::Hierarchical {
+        self.send(ScriptMessage::Hierarchical {
             root,
             routing,
             payload: Box::new(payload),
@@ -192,9 +192,9 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// A reference to resource manager, use it to load resources.
     pub resource_manager: &'a ResourceManager,
 
-    /// An event sender. Every event sent via this sender will be then passed to every [`ScriptTrait::on_event`]
+    /// An message sender. Every message sent via this sender will be then passed to every [`ScriptTrait::on_message`]
     /// method of every script.
-    pub event_sender: &'c ScriptEventSender,
+    pub message_sender: &'c ScriptMessageSender,
 }
 
 /// A set of data that will be passed to a script instance just before its destruction.
@@ -220,9 +220,9 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
     /// any unchecked borrowing using the handle will cause panic!
     pub node_handle: Handle<Node>,
 
-    /// An event sender. Every event sent via this sender will be then passed to every [`ScriptTrait::on_event`]
+    /// An message sender. Every message sent via this sender will be then passed to every [`ScriptTrait::on_message`]
     /// method of every script.
-    pub event_sender: &'c ScriptEventSender,
+    pub message_sender: &'c ScriptMessageSender,
 }
 
 /// Script is a set predefined methods that are called on various stages by the engine. It is used to add
@@ -272,11 +272,11 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// manager to restore handles.
     fn restore_resources(&mut self, #[allow(unused_variables)] resource_manager: ResourceManager) {}
 
-    /// Allows you to react to certain script events. It could be used for communication between scripts; to
+    /// Allows you to react to certain script messages. It could be used for communication between scripts; to
     /// bypass borrowing issues.
-    fn on_event(
+    fn on_message(
         &mut self,
-        #[allow(unused_variables)] event: &mut dyn ScriptEventPayload,
+        #[allow(unused_variables)] message: &mut dyn ScriptMessagePayload,
         #[allow(unused_variables)] ctx: &mut ScriptContext,
     ) {
     }

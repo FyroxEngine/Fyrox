@@ -36,7 +36,7 @@ use crate::{
     resource::model::{Model, NodeMapping},
     scene::{
         self,
-        base::ScriptMessage,
+        base::NodeScriptMessage,
         camera::Camera,
         dim2::{self},
         graph::{
@@ -133,9 +133,9 @@ pub struct Graph {
     pub event_broadcaster: GraphEventBroadcaster,
 
     #[reflect(hidden)]
-    pub(crate) script_message_sender: Sender<ScriptMessage>,
+    pub(crate) script_message_sender: Sender<NodeScriptMessage>,
     #[reflect(hidden)]
-    pub(crate) script_message_receiver: Receiver<ScriptMessage>,
+    pub(crate) script_message_receiver: Receiver<NodeScriptMessage>,
 }
 
 impl Default for Graph {
@@ -282,7 +282,7 @@ impl Graph {
         self.event_broadcaster.broadcast(GraphEvent::Added(handle));
         if has_script {
             self.script_message_sender
-                .send(ScriptMessage::InitializeScript { handle })
+                .send(NodeScriptMessage::InitializeScript { handle })
                 .unwrap();
         }
 

@@ -257,7 +257,7 @@ pub struct Property {
 }
 
 /// A script message from scene node. It is used for deferred initialization/deinitialization.
-pub enum ScriptMessage {
+pub enum NodeScriptMessage {
     /// A script was set to a node and needs to be initialized.
     InitializeScript {
         /// Node handle.
@@ -314,7 +314,7 @@ pub struct Base {
     pub(crate) self_handle: Handle<Node>,
 
     #[reflect(hidden)]
-    pub(crate) script_message_sender: Option<Sender<ScriptMessage>>,
+    pub(crate) script_message_sender: Option<Sender<NodeScriptMessage>>,
 
     #[reflect(setter = "set_name_internal")]
     pub(crate) name: InheritableVariable<String>,
@@ -738,7 +738,7 @@ impl Base {
         // Send script to the graph to destroy script instances correctly.
         if let Some(script) = self.script.take() {
             if let Some(sender) = self.script_message_sender.as_ref() {
-                Log::verify(sender.send(ScriptMessage::DestroyScript {
+                Log::verify(sender.send(NodeScriptMessage::DestroyScript {
                     script,
                     handle: self.self_handle,
                 }));
@@ -759,7 +759,7 @@ impl Base {
         self.script = script;
         if let Some(sender) = self.script_message_sender.as_ref() {
             if self.script.is_some() {
-                Log::verify(sender.send(ScriptMessage::InitializeScript {
+                Log::verify(sender.send(NodeScriptMessage::InitializeScript {
                     handle: self.self_handle,
                 }));
             }
