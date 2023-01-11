@@ -1,23 +1,19 @@
-use fyrox::core::sstorage::ImmutableString;
-use fyrox::renderer::framework::framebuffer::BlendParameters;
-use fyrox::renderer::framework::geometry_buffer::{GeometryBuffer, GeometryBufferKind};
-use fyrox::renderer::framework::state::{BlendFactor, BlendFunc};
 use fyrox::{
-    core::{algebra::Matrix4, math::Matrix4Ext},
+    core::{algebra::Matrix4, math::Matrix4Ext, sstorage::ImmutableString},
     renderer::{
         framework::{
             error::FrameworkError,
-            framebuffer::DrawParameters,
+            framebuffer::{BlendParameters, DrawParameters},
+            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
             gpu_program::{GpuProgram, UniformLocation},
-            state::PipelineState,
+            state::{BlendFactor, BlendFunc, PipelineState},
         },
         RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
     },
     resource::texture::{CompressionOptions, Texture},
     scene::mesh::surface::SurfaceData,
 };
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 struct OverlayShader {
     program: GpuProgram,
@@ -56,6 +52,7 @@ pub struct OverlayRenderPass {
     shader: OverlayShader,
     sound_icon: Texture,
     light_icon: Texture,
+    pub pictogram_size: f32,
 }
 
 impl OverlayRenderPass {
@@ -79,6 +76,7 @@ impl OverlayRenderPass {
                 false,
             )
             .unwrap(),
+            pictogram_size: 0.33,
         }))
     }
 }
@@ -138,7 +136,7 @@ impl SceneRenderPass for OverlayRenderPass {
                         .set_matrix4(&shader.world_matrix, &world_matrix)
                         .set_vector3(&shader.camera_side_vector, &camera_side)
                         .set_vector3(&shader.camera_up_vector, &camera_up)
-                        .set_f32(&shader.size, 0.33)
+                        .set_f32(&shader.size, self.pictogram_size)
                         .set_texture(&shader.diffuse_texture, &icon);
                 },
             );

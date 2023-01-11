@@ -124,9 +124,11 @@ use fyrox::{
 };
 use std::{
     any::TypeId,
+    cell::RefCell,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
     process::Stdio,
+    rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc::{self, channel, Receiver, Sender},
@@ -489,6 +491,7 @@ pub struct Editor {
     scene_settings: SceneSettingsWindow,
     animation_editor: AnimationEditor,
     particle_system_control_panel: ParticleSystemPreviewControlPanel,
+    overlay_pass: Rc<RefCell<OverlayRenderPass>>,
 }
 
 impl Editor {
@@ -533,7 +536,7 @@ impl Editor {
         );
 
         let overlay_pass = OverlayRenderPass::new(engine.renderer.pipeline_state());
-        engine.renderer.add_render_pass(overlay_pass);
+        engine.renderer.add_render_pass(overlay_pass.clone());
 
         let (message_sender, message_receiver) = mpsc::channel();
 
@@ -794,6 +797,7 @@ impl Editor {
             build_profile: BuildProfile::Debug,
             scene_settings,
             particle_system_control_panel,
+            overlay_pass,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move));
@@ -1774,6 +1778,8 @@ impl Editor {
         if let Some(scene) = self.scene.as_ref() {
             self.animation_editor.update(scene, &self.engine);
         }
+
+        self.overlay_pass.borrow_mut().pictogram_size = self.settings.debugging.pictogram_size;
 
         let mut iterations = 1;
         while iterations > 0 {
