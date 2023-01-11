@@ -27,8 +27,8 @@ use crate::{
         node::constructor::NodeConstructorContainer, sound::SoundEngine, Scene, SceneContainer,
     },
     script::{
-        constructor::ScriptConstructorContainer, Script, ScriptContext, ScriptDeinitContext,
-        ScriptEvent,
+        constructor::ScriptConstructorContainer, RoutingStrategy, Script, ScriptContext,
+        ScriptDeinitContext, ScriptEvent, ScriptEventSender,
     },
     utils::log::Log,
     window::{Window, WindowBuilder},
@@ -37,7 +37,7 @@ use fxhash::FxHashMap;
 use std::{
     collections::{HashSet, VecDeque},
     sync::{
-        mpsc::{channel, Receiver, Sender},
+        mpsc::{channel, Receiver},
         Arc, Mutex,
     },
     time::Duration,
@@ -118,8 +118,8 @@ pub struct Engine {
 
 pub(crate) struct ScriptedScene {
     handle: Handle<Scene>,
-    event_sender: Sender<Box<dyn ScriptEvent>>,
-    event_receiver: Receiver<Box<dyn ScriptEvent>>,
+    event_sender: ScriptEventSender,
+    event_receiver: Receiver<ScriptEvent>,
 }
 
 #[derive(Default)]
@@ -145,7 +145,7 @@ impl ScriptProcessor {
         let (tx, rx) = channel();
         self.scripted_scenes.push(ScriptedScene {
             handle: scene,
-            event_sender: tx,
+            event_sender: ScriptEventSender { sender: tx },
             event_receiver: rx,
         });
 
@@ -295,21 +295,79 @@ impl ScriptProcessor {
             }
 
             // Process events.
-            while let Ok(mut event) = scripted_scene.event_receiver.try_recv() {
-                process_scripts(
-                    scene,
-                    plugins,
-                    resource_manager,
-                    &scripted_scene.event_sender,
-                    dt,
-                    elapsed_time,
-                    |s, ctx| {
-                        debug_assert!(s.initialized);
-                        debug_assert!(s.started);
+            while let Ok(event) = scripted_scene.event_receiver.try_recv() {
+                match event {
+                    ScriptEvent::Targeted {
+                        target,
+                        mut payload,
+                    } => {
+                        let mut context = ScriptContext {
+                            dt,
+                            elapsed_time,
+                            plugins,
+                            handle: target,
+                            scene,
+                            resource_manager,
+                            event_sender: &scripted_scene.event_sender,
+                        };
 
-                        s.on_event(&mut *event, ctx)
+                        process_node(&mut context, &mut |s, ctx| s.on_event(&mut *payload, ctx))
+                    }
+                    ScriptEvent::Hierarchical {
+                        root,
+                        routing,
+                        mut payload,
+                    } => match routing {
+                        RoutingStrategy::Up => {
+                            let mut node = root;
+                            while let Some(node_ref) = scene.graph.try_get(node) {
+                                let parent = node_ref.parent();
+
+                                let mut context = ScriptContext {
+                                    dt,
+                                    elapsed_time,
+                                    plugins,
+                                    handle: node,
+                                    scene,
+                                    resource_manager,
+                                    event_sender: &scripted_scene.event_sender,
+                                };
+
+                                process_node(&mut context, &mut |s, ctx| {
+                                    s.on_event(&mut *payload, ctx)
+                                });
+
+                                node = parent;
+                            }
+                        }
+                        RoutingStrategy::Down => {
+                            for node in scene.graph.traverse_handle_iter(root).collect::<Vec<_>>() {
+                                let mut context = ScriptContext {
+                                    dt,
+                                    elapsed_time,
+                                    plugins,
+                                    handle: node,
+                                    scene,
+                                    resource_manager,
+                                    event_sender: &scripted_scene.event_sender,
+                                };
+
+                                process_node(&mut context, &mut |s, ctx| {
+                                    s.on_event(&mut *payload, ctx)
+                                });
+                            }
+                        }
                     },
-                )
+                    ScriptEvent::Global { mut payload } => process_scripts(
+                        scene,
+                        plugins,
+                        resource_manager,
+                        &scripted_scene.event_sender,
+                        dt,
+                        elapsed_time,
+                        |s, ctx| s.on_event(&mut *payload, ctx),
+                    ),
+                }
             }
 
             // As the last step, destroy queued scripts.
@@ -495,7 +553,7 @@ pub(crate) fn process_scripts<T>(
     scene: &mut Scene,
     plugins: &mut [Box<dyn Plugin>],
     resource_manager: &ResourceManager,
-    event_sender: &Sender<Box<dyn ScriptEvent>>,
+    event_sender: &ScriptEventSender,
     dt: f32,
     elapsed_time: f32,
     mut func: T,
@@ -1062,7 +1120,7 @@ impl Drop for Engine {
 
 #[cfg(test)]
 mod test {
-    use crate::script::ScriptEvent;
+    use crate::script::{ScriptEvent, ScriptEventPayload};
     use crate::{
         core::{pool::Handle, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
         engine::{resource_manager::ResourceManager, ScriptProcessor},
@@ -1274,7 +1332,7 @@ mod test {
     impl_component_provider!(ScriptListeningToEvents);
 
     impl ScriptTrait for ScriptListeningToEvents {
-        fn on_event(&mut self, event: &mut dyn ScriptEvent, ctx: &mut ScriptContext) {
+        fn on_event(&mut self, event: &mut dyn ScriptEventPayload, ctx: &mut ScriptContext) {
             let typed_event = event.downcast_ref::<MyEvent>().unwrap();
             match self.index {
                 0 => {
@@ -1314,11 +1372,10 @@ mod test {
     impl ScriptTrait for ScriptSendingEvents {
         fn on_update(&mut self, ctx: &mut ScriptContext) {
             match self.index {
-                0 => ctx.event_sender.send(Box::new(MyEvent::Foo(123))).unwrap(),
+                0 => ctx.event_sender.send_global(MyEvent::Foo(123)),
                 1 => ctx
                     .event_sender
-                    .send(Box::new(MyEvent::Bar("Foobar".to_string())))
-                    .unwrap(),
+                    .send_global(MyEvent::Bar("Foobar".to_string())),
                 _ => (),
             }
             self.index += 1;

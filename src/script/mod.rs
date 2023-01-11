@@ -24,8 +24,8 @@ use std::{
 
 pub mod constructor;
 
-/// An event from a script.
-pub trait ScriptEvent: Any {
+/// A script event's payload.
+pub trait ScriptEventPayload: Any {
     /// Returns `self` as `&dyn Any`
     fn as_any_ref(&self) -> &dyn Any;
 
@@ -33,19 +33,19 @@ pub trait ScriptEvent: Any {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-impl dyn ScriptEvent {
-    /// Tries to cast the event to a particular type.
+impl dyn ScriptEventPayload {
+    /// Tries to cast the payload to a particular type.
     pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
         self.as_any_ref().downcast_ref::<T>()
     }
 
-    /// Tries to cast the event to a particular type.
+    /// Tries to cast the payload to a particular type.
     pub fn downcast_mut<T: 'static>(&mut self) -> Option<&mut T> {
         self.as_any_mut().downcast_mut::<T>()
     }
 }
 
-impl<T> ScriptEvent for T
+impl<T> ScriptEventPayload for T
 where
     T: 'static,
 {
@@ -55,6 +55,93 @@ where
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+}
+
+/// Defines how a script event will be delivered for each node in a hierarchy.
+pub enum RoutingStrategy {
+    /// An event will be passed to the specified root node and then to every node up in the hierarchy.
+    Up,
+    /// An event will be passed to every node down the tree in the hierarchy.
+    Down,
+}
+
+/// An event for a node with a script.
+pub enum ScriptEvent {
+    /// An event for a specific scene node.
+    Targeted {
+        /// A handle of a target scene node.
+        target: Handle<Node>,
+
+        /// Actual event payload.
+        payload: Box<dyn ScriptEventPayload>,
+    },
+
+    /// An event for a hierarchy of nodes.
+    Hierarchical {
+        /// Starting node in a scene graph. Event will be delivered to each node in hierarchy in the order
+        /// defined by `routing`.
+        root: Handle<Node>,
+
+        /// [Routing strategy](RoutingStrategy) for the event.
+        routing: RoutingStrategy,
+
+        /// Actual event payload.
+        payload: Box<dyn ScriptEventPayload>,
+    },
+
+    /// An event that will be delivered for **every** scene node.
+    Global {
+        /// Actual event payload.
+        payload: Box<dyn ScriptEventPayload>,
+    },
+}
+
+/// A script event sender.
+#[derive(Clone)]
+pub struct ScriptEventSender {
+    pub(crate) sender: Sender<ScriptEvent>,
+}
+
+impl ScriptEventSender {
+    /// Send a generic script event.
+    pub fn send(&self, event: ScriptEvent) {
+        if self.sender.send(event).is_err() {
+            Log::err("Failed to send script message, it means the scene is already deleted!");
+        }
+    }
+
+    /// Sends a targeted script event with the given payload.
+    pub fn send_to_target<T>(&self, target: Handle<Node>, payload: T)
+    where
+        T: 'static,
+    {
+        self.send(ScriptEvent::Targeted {
+            target,
+            payload: Box::new(payload),
+        })
+    }
+
+    /// Sends a global script event with the given payload.
+    pub fn send_global<T>(&self, payload: T)
+    where
+        T: 'static,
+    {
+        self.send(ScriptEvent::Global {
+            payload: Box::new(payload),
+        })
+    }
+
+    /// Sends a hierarchical script event with the given payload.
+    pub fn send_hierarchical<T>(&self, root: Handle<Node>, routing: RoutingStrategy, payload: T)
+    where
+        T: 'static,
+    {
+        self.send(ScriptEvent::Hierarchical {
+            root,
+            routing,
+            payload: Box::new(payload),
+        })
     }
 }
 
@@ -107,7 +194,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
 
     /// An event sender. Every event sent via this sender will be then passed to every [`ScriptTrait::on_event`]
     /// method of every script.
-    pub event_sender: &'c Sender<Box<dyn ScriptEvent>>,
+    pub event_sender: &'c ScriptEventSender,
 }
 
 /// A set of data that will be passed to a script instance just before its destruction.
@@ -135,7 +222,7 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
 
     /// An event sender. Every event sent via this sender will be then passed to every [`ScriptTrait::on_event`]
     /// method of every script.
-    pub event_sender: &'c Sender<Box<dyn ScriptEvent>>,
+    pub event_sender: &'c ScriptEventSender,
 }
 
 /// Script is a set predefined methods that are called on various stages by the engine. It is used to add
@@ -189,7 +276,7 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// bypass borrowing issues.
     fn on_event(
         &mut self,
-        #[allow(unused_variables)] event: &mut dyn ScriptEvent,
+        #[allow(unused_variables)] event: &mut dyn ScriptEventPayload,
         #[allow(unused_variables)] ctx: &mut ScriptContext,
     ) {
     }
