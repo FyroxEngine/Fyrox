@@ -215,7 +215,7 @@ impl MachineLayer {
     ///         Event::StateLeave(state_handle) => {
     ///             // Occurs when a state is just left.
     ///         }
-    ///         Event::ActiveStateChanged(state_handle) => {
+    ///         Event::ActiveStateChanged { prev, new } => {
     ///             // Occurs when active state has changed.
     ///         }
     ///         Event::ActiveTransitionChanged(transition_handle) => {
