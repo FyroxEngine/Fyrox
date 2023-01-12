@@ -23,19 +23,25 @@ use crate::{
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{model::Model, texture::TextureKind},
     scene::{
-        base::NodeScriptMessage, graph::GraphUpdateSwitches,
-        node::constructor::NodeConstructorContainer, sound::SoundEngine, Scene, SceneContainer,
+        base::NodeScriptMessage,
+        graph::GraphUpdateSwitches,
+        node::{constructor::NodeConstructorContainer, Node},
+        sound::SoundEngine,
+        Scene, SceneContainer,
     },
     script::{
         constructor::ScriptConstructorContainer, RoutingStrategy, Script, ScriptContext,
-        ScriptDeinitContext, ScriptMessage, ScriptMessageSender,
+        ScriptDeinitContext, ScriptMessage, ScriptMessageContext, ScriptMessageKind,
+        ScriptMessageSender,
     },
     utils::log::Log,
     window::{Window, WindowBuilder},
 };
-use fxhash::FxHashMap;
+use fxhash::{FxHashMap, FxHashSet};
 use std::{
+    any::TypeId,
     collections::{HashSet, VecDeque},
+    ops::Deref,
     sync::{
         mpsc::{channel, Receiver},
         Arc, Mutex,
@@ -116,10 +122,145 @@ pub struct Engine {
     script_processor: ScriptProcessor,
 }
 
+/// Performs dispatch of script messages.
+pub struct ScriptMessageDispatcher {
+    type_groups: FxHashMap<TypeId, FxHashSet<Handle<Node>>>,
+    message_receiver: Receiver<ScriptMessage>,
+}
+
+impl ScriptMessageDispatcher {
+    fn new(message_receiver: Receiver<ScriptMessage>) -> Self {
+        Self {
+            type_groups: Default::default(),
+            message_receiver,
+        }
+    }
+
+    /// Subscribes a node to receive any message of the given type `T`. Subscription is automatically removed
+    /// if the node dies.
+    pub fn subscribe_to<T: 'static>(&mut self, receiver: Handle<Node>) {
+        self.type_groups
+            .entry(TypeId::of::<T>())
+            .and_modify(|v| {
+                v.insert(receiver);
+            })
+            .or_insert_with(|| FxHashSet::from_iter([receiver]));
+    }
+
+    /// Unsubscribes a node from receiving any messages of the given type `T`.  
+    pub fn unsubscribe_from<T: 'static>(&mut self, receiver: Handle<Node>) {
+        if let Some(group) = self.type_groups.get_mut(&TypeId::of::<T>()) {
+            group.remove(&receiver);
+        }
+    }
+
+    /// Unsubscribes a node from receiving any messages.  
+    pub fn unsubscribe(&mut self, receiver: Handle<Node>) {
+        for group in self.type_groups.values_mut() {
+            group.remove(&receiver);
+        }
+    }
+
+    fn dispatch_messages(
+        &self,
+        scene: &mut Scene,
+        plugins: &mut Vec<Box<dyn Plugin>>,
+        resource_manager: &ResourceManager,
+        dt: f32,
+        elapsed_time: f32,
+        message_sender: &ScriptMessageSender,
+    ) {
+        while let Ok(message) = self.message_receiver.try_recv() {
+            let mut payload = message.payload;
+            if let Some(receivers) = self.type_groups.get(&payload.deref().type_id()) {
+                match message.kind {
+                    ScriptMessageKind::Targeted(target) => {
+                        let mut context = ScriptMessageContext {
+                            dt,
+                            elapsed_time,
+                            plugins,
+                            handle: target,
+                            scene,
+                            resource_manager,
+                            message_sender,
+                        };
+
+                        process_node_message(&mut context, &mut |s, ctx| {
+                            s.on_message(&mut *payload, ctx)
+                        })
+                    }
+                    ScriptMessageKind::Hierarchical { root, routing } => match routing {
+                        RoutingStrategy::Up => {
+                            let mut node = root;
+                            while let Some(node_ref) = scene.graph.try_get(node) {
+                                let parent = node_ref.parent();
+
+                                let mut context = ScriptMessageContext {
+                                    dt,
+                                    elapsed_time,
+                                    plugins,
+                                    handle: node,
+                                    scene,
+                                    resource_manager,
+                                    message_sender,
+                                };
+
+                                if receivers.contains(&node) {
+                                    process_node_message(&mut context, &mut |s, ctx| {
+                                        s.on_message(&mut *payload, ctx)
+                                    });
+                                }
+
+                                node = parent;
+                            }
+                        }
+                        RoutingStrategy::Down => {
+                            for node in scene.graph.traverse_handle_iter(root).collect::<Vec<_>>() {
+                                let mut context = ScriptMessageContext {
+                                    dt,
+                                    elapsed_time,
+                                    plugins,
+                                    handle: node,
+                                    scene,
+                                    resource_manager,
+                                    message_sender,
+                                };
+
+                                if receivers.contains(&node) {
+                                    process_node_message(&mut context, &mut |s, ctx| {
+                                        s.on_message(&mut *payload, ctx)
+                                    });
+                                }
+                            }
+                        }
+                    },
+                    ScriptMessageKind::Global => {
+                        for &node in receivers {
+                            let mut context = ScriptMessageContext {
+                                dt,
+                                elapsed_time,
+                                plugins,
+                                handle: node,
+                                scene,
+                                resource_manager,
+                                message_sender,
+                            };
+
+                            process_node_message(&mut context, &mut |s, ctx| {
+                                s.on_message(&mut *payload, ctx)
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub(crate) struct ScriptedScene {
     handle: Handle<Scene>,
     message_sender: ScriptMessageSender,
-    message_receiver: Receiver<ScriptMessage>,
+    message_dispatcher: ScriptMessageDispatcher,
 }
 
 #[derive(Default)]
@@ -146,7 +287,7 @@ impl ScriptProcessor {
         self.scripted_scenes.push(ScriptedScene {
             handle: scene,
             message_sender: ScriptMessageSender { sender: tx },
-            message_receiver: rx,
+            message_dispatcher: ScriptMessageDispatcher::new(rx),
         });
 
         let graph = &mut scenes[scene].graph;
@@ -182,7 +323,7 @@ impl ScriptProcessor {
         self.scripted_scenes
             .retain(|s| scenes.is_valid_handle(s.handle));
 
-        'scene_loop: for scripted_scene in self.scripted_scenes.iter() {
+        'scene_loop: for scripted_scene in self.scripted_scenes.iter_mut() {
             let scene = &mut scenes[scripted_scene.handle];
 
             // Disabled scenes should not update their scripts.
@@ -215,6 +356,7 @@ impl ScriptProcessor {
                     scene,
                     resource_manager,
                     message_sender: &scripted_scene.message_sender,
+                    message_dispatcher: &mut scripted_scene.message_dispatcher,
                 };
 
                 'init_loop: for init_loop_iteration in 0..max_iterations {
@@ -294,81 +436,15 @@ impl ScriptProcessor {
                 }
             }
 
-            // Process messages..
-            while let Ok(message) = scripted_scene.message_receiver.try_recv() {
-                match message {
-                    ScriptMessage::Targeted {
-                        target,
-                        mut payload,
-                    } => {
-                        let mut context = ScriptContext {
-                            dt,
-                            elapsed_time,
-                            plugins,
-                            handle: target,
-                            scene,
-                            resource_manager,
-                            message_sender: &scripted_scene.message_sender,
-                        };
-
-                        process_node(&mut context, &mut |s, ctx| s.on_message(&mut *payload, ctx))
-                    }
-                    ScriptMessage::Hierarchical {
-                        root,
-                        routing,
-                        mut payload,
-                    } => match routing {
-                        RoutingStrategy::Up => {
-                            let mut node = root;
-                            while let Some(node_ref) = scene.graph.try_get(node) {
-                                let parent = node_ref.parent();
-
-                                let mut context = ScriptContext {
-                                    dt,
-                                    elapsed_time,
-                                    plugins,
-                                    handle: node,
-                                    scene,
-                                    resource_manager,
-                                    message_sender: &scripted_scene.message_sender,
-                                };
-
-                                process_node(&mut context, &mut |s, ctx| {
-                                    s.on_message(&mut *payload, ctx)
-                                });
-
-                                node = parent;
-                            }
-                        }
-                        RoutingStrategy::Down => {
-                            for node in scene.graph.traverse_handle_iter(root).collect::<Vec<_>>() {
-                                let mut context = ScriptContext {
-                                    dt,
-                                    elapsed_time,
-                                    plugins,
-                                    handle: node,
-                                    scene,
-                                    resource_manager,
-                                    message_sender: &scripted_scene.message_sender,
-                                };
-
-                                process_node(&mut context, &mut |s, ctx| {
-                                    s.on_message(&mut *payload, ctx)
-                                });
-                            }
-                        }
-                    },
-                    ScriptMessage::Global { mut payload } => process_scripts(
-                        scene,
-                        plugins,
-                        resource_manager,
-                        &scripted_scene.message_sender,
-                        dt,
-                        elapsed_time,
-                        |s, ctx| s.on_message(&mut *payload, ctx),
-                    ),
-                }
-            }
+            // Process messages.
+            scripted_scene.message_dispatcher.dispatch_messages(
+                scene,
+                plugins,
+                resource_manager,
+                dt,
+                elapsed_time,
+                &scripted_scene.message_sender,
+            );
 
             // As the last step, destroy queued scripts.
             let mut context = ScriptDeinitContext {
@@ -381,6 +457,9 @@ impl ScriptProcessor {
             };
             while let Some((handle, mut script)) = destruction_queue.pop_front() {
                 context.node_handle = handle;
+
+                // Unregister self in message dispatcher.
+                scripted_scene.message_dispatcher.unsubscribe(handle);
 
                 // `on_deinit` could also spawn new nodes, but we won't take those into account on
                 // this frame. They'll be correctly handled on next frame.
@@ -515,45 +594,53 @@ pub struct EngineInitParams<'a> {
     pub headless: bool,
 }
 
-fn process_node<T>(context: &mut ScriptContext, func: &mut T)
-where
-    T: FnMut(&mut Script, &mut ScriptContext),
-{
-    // Take a script from node. We're temporarily taking ownership over script
-    // instance.
-    let mut script = match context.scene.graph.try_get_mut(context.handle) {
-        Some(node) => {
-            if !node.is_globally_enabled() {
-                return;
-            }
+macro_rules! define_process_node {
+    ($name:ident, $ctx_type:ty) => {
+        fn $name<T>(context: &mut $ctx_type, func: &mut T)
+        where
+            T: FnMut(&mut Script, &mut $ctx_type),
+        {
+            // Take a script from node. We're temporarily taking ownership over script
+            // instance.
+            let mut script = match context.scene.graph.try_get_mut(context.handle) {
+                Some(node) => {
+                    if !node.is_globally_enabled() {
+                        return;
+                    }
 
-            if let Some(script) = node.script.take() {
-                script
-            } else {
-                // No script.
-                return;
+                    if let Some(script) = node.script.take() {
+                        script
+                    } else {
+                        // No script.
+                        return;
+                    }
+                }
+                None => {
+                    // Invalid handle.
+                    return;
+                }
+            };
+
+            func(&mut script, context);
+
+            // Put the script back to the node. We must do a checked borrow, because it is possible
+            // that the node is already destroyed by script logic.
+            if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
+                node.script = Some(script);
             }
-        }
-        None => {
-            // Invalid handle.
-            return;
         }
     };
-
-    func(&mut script, context);
-
-    // Put the script back to the node. We must do a checked borrow, because it is possible
-    // that the node is already destroyed by script logic.
-    if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
-        node.script = Some(script);
-    }
 }
+
+define_process_node!(process_node, ScriptContext);
+define_process_node!(process_node_message, ScriptMessageContext);
 
 pub(crate) fn process_scripts<T>(
     scene: &mut Scene,
     plugins: &mut [Box<dyn Plugin>],
     resource_manager: &ResourceManager,
     message_sender: &ScriptMessageSender,
+    message_dispatcher: &mut ScriptMessageDispatcher,
     dt: f32,
     elapsed_time: f32,
     mut func: T,
@@ -568,6 +655,7 @@ pub(crate) fn process_scripts<T>(
         scene,
         resource_manager,
         message_sender,
+        message_dispatcher,
     };
 
     for node_index in 0..context.scene.graph.capacity() {
@@ -956,7 +1044,7 @@ impl Engine {
         if let Some(scripted_scene) = self
             .script_processor
             .scripted_scenes
-            .iter()
+            .iter_mut()
             .find(|s| s.handle == scene)
         {
             let scene = &mut self.scenes[scene];
@@ -966,6 +1054,7 @@ impl Engine {
                     &mut self.plugins,
                     &self.resource_manager,
                     &scripted_scene.message_sender,
+                    &mut scripted_scene.message_dispatcher,
                     dt,
                     self.elapsed_time,
                     |script, context| {
@@ -1120,7 +1209,7 @@ impl Drop for Engine {
 
 #[cfg(test)]
 mod test {
-    use crate::script::ScriptMessagePayload;
+    use crate::script::{ScriptMessageContext, ScriptMessagePayload};
     use crate::{
         core::{pool::Handle, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
         engine::{resource_manager::ResourceManager, ScriptProcessor},
@@ -1332,7 +1421,15 @@ mod test {
     impl_component_provider!(ScriptListeningToMessages);
 
     impl ScriptTrait for ScriptListeningToMessages {
-        fn on_message(&mut self, message: &mut dyn ScriptMessagePayload, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) {
+            ctx.message_dispatcher.subscribe_to::<MyMessage>(ctx.handle);
+        }
+
+        fn on_message(
+            &mut self,
+            message: &mut dyn ScriptMessagePayload,
+            ctx: &mut ScriptMessageContext,
+        ) {
             let typed_message = message.downcast_ref::<MyMessage>().unwrap();
             match self.index {
                 0 => {

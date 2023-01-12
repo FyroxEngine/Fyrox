@@ -9,7 +9,7 @@ use crate::{
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
-    engine::resource_manager::ResourceManager,
+    engine::{resource_manager::ResourceManager, ScriptMessageDispatcher},
     event::Event,
     plugin::Plugin,
     scene::{node::Node, Scene},
@@ -66,35 +66,33 @@ pub enum RoutingStrategy {
     Down,
 }
 
-/// An message for a node with a script.
-pub enum ScriptMessage {
-    /// An message for a specific scene node.
-    Targeted {
-        /// A handle of a target scene node.
-        target: Handle<Node>,
+/// A script message of a particular kind.
+pub struct ScriptMessage {
+    /// Actual message payload.
+    pub payload: Box<dyn ScriptMessagePayload>,
+    /// Actual script message kind.
+    pub kind: ScriptMessageKind,
+}
 
-        /// Actual message payload.
-        payload: Box<dyn ScriptMessagePayload>,
-    },
+/// An message for a node with a script.
+pub enum ScriptMessageKind {
+    /// An message for a specific scene node. It will be delivered only if the node is subscribed to receive
+    /// messages of a particular type.
+    Targeted(Handle<Node>),
 
     /// An message for a hierarchy of nodes.
     Hierarchical {
         /// Starting node in a scene graph. Message will be delivered to each node in hierarchy in the order
-        /// defined by `routing`.
+        /// defined by `routing` if the node is subscribed to receive messages of a particular type.
         root: Handle<Node>,
 
         /// [Routing strategy](RoutingStrategy) for the message.
         routing: RoutingStrategy,
-
-        /// Actual message payload.
-        payload: Box<dyn ScriptMessagePayload>,
     },
 
-    /// An message that will be delivered for **every** scene node.
-    Global {
-        /// Actual message payload.
-        payload: Box<dyn ScriptMessagePayload>,
-    },
+    /// An message that will be delivered for **every** scene node that is subscribed to receive messages
+    /// of a particular type.
+    Global,
 }
 
 /// A script message sender.
@@ -116,9 +114,9 @@ impl ScriptMessageSender {
     where
         T: 'static,
     {
-        self.send(ScriptMessage::Targeted {
-            target,
+        self.send(ScriptMessage {
             payload: Box::new(payload),
+            kind: ScriptMessageKind::Targeted(target),
         })
     }
 
@@ -127,8 +125,9 @@ impl ScriptMessageSender {
     where
         T: 'static,
     {
-        self.send(ScriptMessage::Global {
+        self.send(ScriptMessage {
             payload: Box::new(payload),
+            kind: ScriptMessageKind::Global,
         })
     }
 
@@ -137,10 +136,9 @@ impl ScriptMessageSender {
     where
         T: 'static,
     {
-        self.send(ScriptMessage::Hierarchical {
-            root,
-            routing,
+        self.send(ScriptMessage {
             payload: Box::new(payload),
+            kind: ScriptMessageKind::Hierarchical { root, routing },
         })
     }
 }
@@ -162,6 +160,47 @@ where
 
 /// A set of data, that provides contextual information for script methods.
 pub struct ScriptContext<'a, 'b, 'c> {
+    /// Amount of time that passed from last call. It has valid values only when called from `on_update`.
+    pub dt: f32,
+
+    /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
+    /// this value is **not** guaranteed to match real time. A user can change delta time with
+    /// which the engine "ticks" and this delta time affects elapsed time.
+    pub elapsed_time: f32,
+
+    /// A reference to the plugin which the script instance belongs to. You can use it to access plugin data
+    /// inside script methods. For example you can store some "global" data in the plugin - for example a
+    /// controls configuration, some entity managers and so on.
+    pub plugins: &'a mut [Box<dyn Plugin>],
+
+    /// Handle of a node to which the script instance belongs to. To access the node itself use `scene` field:
+    ///
+    /// ```rust
+    /// # use fyrox::script::ScriptContext;
+    /// # fn foo(context: ScriptContext) {
+    /// let node_mut = &mut context.scene.graph[context.handle];
+    /// # }
+    /// ```
+    pub handle: Handle<Node>,
+
+    /// A reference to a scene the script instance belongs to. You have full mutable access to scene content
+    /// in most of the script methods.
+    pub scene: &'b mut Scene,
+
+    /// A reference to resource manager, use it to load resources.
+    pub resource_manager: &'a ResourceManager,
+
+    /// An message sender. Every message sent via this sender will be then passed to every [`ScriptTrait::on_message`]
+    /// method of every script.
+    pub message_sender: &'c ScriptMessageSender,
+
+    /// A message dispatcher. If you need to receive messages of a particular type, you must subscribe to a type
+    /// explicitly. See [`ScriptTrait::on_message`] for more examples.
+    pub message_dispatcher: &'c mut ScriptMessageDispatcher,
+}
+
+/// A set of data, that provides contextual information for script methods.
+pub struct ScriptMessageContext<'a, 'b, 'c> {
     /// Amount of time that passed from last call. It has valid values only when called from `on_update`.
     pub dt: f32,
 
@@ -273,11 +312,56 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     fn restore_resources(&mut self, #[allow(unused_variables)] resource_manager: ResourceManager) {}
 
     /// Allows you to react to certain script messages. It could be used for communication between scripts; to
-    /// bypass borrowing issues.
+    /// bypass borrowing issues. If you need to receive messages of a particular type, you must subscribe to a type
+    /// explicitly. Usually it is done in [`ScriptTrait::on_start`] method:
+    ///
+    /// ```rust
+    /// use fyrox::{
+    ///     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
+    ///     impl_component_provider,
+    ///     scene::node::TypeUuidProvider,
+    ///     script::ScriptTrait,
+    ///     script::{ScriptContext, ScriptMessageContext, ScriptMessagePayload},
+    /// };
+    ///
+    /// struct Message;
+    ///
+    /// #[derive(Reflect, Visit, Debug, Clone)]
+    /// struct MyScript {}
+    ///
+    /// # impl TypeUuidProvider for MyScript {
+    /// #     fn type_uuid() -> Uuid {
+    /// #         todo!();
+    /// #     }
+    /// # }
+    ///
+    /// # impl_component_provider!(MyScript);
+    ///
+    /// impl ScriptTrait for MyScript {
+    ///     fn on_start(&mut self, ctx: &mut ScriptContext) {
+    ///         // Subscription is mandatory to receive any message of the type!
+    ///         ctx.message_dispatcher.subscribe_to::<Message>(ctx.handle)
+    ///     }
+    ///
+    ///     fn on_message(
+    ///         &mut self,
+    ///         message: &mut dyn ScriptMessagePayload,
+    ///         ctx: &mut ScriptMessageContext,
+    ///     ) {
+    ///         if let Some(message) = message.downcast_ref::<Message>() {
+    ///             // Do something.
+    ///         }
+    ///     }
+    ///
+    ///     # fn id(&self) -> Uuid {
+    ///     #     Self::type_uuid()
+    ///     # }
+    /// }
+    /// ```
     fn on_message(
         &mut self,
         #[allow(unused_variables)] message: &mut dyn ScriptMessagePayload,
-        #[allow(unused_variables)] ctx: &mut ScriptContext,
+        #[allow(unused_variables)] ctx: &mut ScriptMessageContext,
     ) {
     }
 
