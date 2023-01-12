@@ -175,19 +175,21 @@ impl ScriptMessageDispatcher {
             if let Some(receivers) = self.type_groups.get(&payload.deref().type_id()) {
                 match message.kind {
                     ScriptMessageKind::Targeted(target) => {
-                        let mut context = ScriptMessageContext {
-                            dt,
-                            elapsed_time,
-                            plugins,
-                            handle: target,
-                            scene,
-                            resource_manager,
-                            message_sender,
-                        };
+                        if receivers.contains(&target) {
+                            let mut context = ScriptMessageContext {
+                                dt,
+                                elapsed_time,
+                                plugins,
+                                handle: target,
+                                scene,
+                                resource_manager,
+                                message_sender,
+                            };
 
-                        process_node_message(&mut context, &mut |s, ctx| {
-                            s.on_message(&mut *payload, ctx)
-                        })
+                            process_node_message(&mut context, &mut |s, ctx| {
+                                s.on_message(&mut *payload, ctx)
+                            })
+                        }
                     }
                     ScriptMessageKind::Hierarchical { root, routing } => match routing {
                         RoutingStrategy::Up => {
