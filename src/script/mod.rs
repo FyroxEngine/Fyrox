@@ -17,7 +17,7 @@ use crate::{
 };
 use std::{
     any::{Any, TypeId},
-    fmt::Debug,
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -25,7 +25,7 @@ use std::{
 pub mod constructor;
 
 /// A script message's payload.
-pub trait ScriptMessagePayload: Any {
+pub trait ScriptMessagePayload: Any + Send {
     /// Returns `self` as `&dyn Any`
     fn as_any_ref(&self) -> &dyn Any;
 
@@ -47,7 +47,7 @@ impl dyn ScriptMessagePayload {
 
 impl<T> ScriptMessagePayload for T
 where
-    T: 'static,
+    T: 'static + Send,
 {
     fn as_any_ref(&self) -> &dyn Any {
         self
@@ -101,6 +101,12 @@ pub struct ScriptMessageSender {
     pub(crate) sender: Sender<ScriptMessage>,
 }
 
+impl Debug for ScriptMessageSender {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ScriptMessageSender")
+    }
+}
+
 impl ScriptMessageSender {
     /// Send a generic script message.
     pub fn send(&self, message: ScriptMessage) {
@@ -112,7 +118,7 @@ impl ScriptMessageSender {
     /// Sends a targeted script message with the given payload.
     pub fn send_to_target<T>(&self, target: Handle<Node>, payload: T)
     where
-        T: 'static,
+        T: 'static + Send,
     {
         self.send(ScriptMessage {
             payload: Box::new(payload),
@@ -123,7 +129,7 @@ impl ScriptMessageSender {
     /// Sends a global script message with the given payload.
     pub fn send_global<T>(&self, payload: T)
     where
-        T: 'static,
+        T: 'static + Send,
     {
         self.send(ScriptMessage {
             payload: Box::new(payload),
@@ -134,7 +140,7 @@ impl ScriptMessageSender {
     /// Sends a hierarchical script message with the given payload.
     pub fn send_hierarchical<T>(&self, root: Handle<Node>, routing: RoutingStrategy, payload: T)
     where
-        T: 'static,
+        T: 'static + Send,
     {
         self.send(ScriptMessage {
             payload: Box::new(payload),
