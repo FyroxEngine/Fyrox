@@ -666,12 +666,10 @@ impl NodeTrait for Terrain {
         Self::type_uuid()
     }
 
-    fn update(&mut self, context: &mut UpdateContext) -> bool {
+    fn update(&mut self, _context: &mut UpdateContext) {
         for chunk in self.chunks.iter_mut() {
             chunk.update();
         }
-
-        self.base.update_lifetime(context.dt)
     }
 }
 

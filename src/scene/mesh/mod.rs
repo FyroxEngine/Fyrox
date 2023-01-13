@@ -301,7 +301,7 @@ impl NodeTrait for Mesh {
         Self::type_uuid()
     }
 
-    fn update(&mut self, context: &mut UpdateContext) -> bool {
+    fn update(&mut self, context: &mut UpdateContext) {
         if self.surfaces.iter().any(|s| !s.bones.is_empty()) {
             let mut world_aabb = self
                 .local_bounding_box()
@@ -323,8 +323,6 @@ impl NodeTrait for Mesh {
                     .transform(&self.global_transform()),
             );
         }
-
-        self.base.update_lifetime(context.dt)
     }
 }
 

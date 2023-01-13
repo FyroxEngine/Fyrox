@@ -179,13 +179,12 @@ impl NodeTrait for AnimationPlayer {
         Self::type_uuid()
     }
 
-    fn update(&mut self, context: &mut UpdateContext) -> bool {
+    fn update(&mut self, context: &mut UpdateContext) {
         self.animations.get_value_mut_silent().update_animations(
             context.nodes,
             self.auto_apply,
             context.dt,
         );
-        self.base.update_lifetime(context.dt)
     }
 }
 

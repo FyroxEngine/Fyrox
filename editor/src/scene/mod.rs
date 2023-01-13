@@ -122,6 +122,9 @@ impl EditorScene {
                 physics2d: true,
                 physics: true,
                 sound: false,
+                // Prevent engine to update lifetime of the nodes and to delete "dead" nodes. Otherwise
+                // the editor will crash if some node is "dead".
+                delete_dead_nodes: false,
                 // Update only editor's camera.
                 node_overrides: Some(Default::default()),
             },

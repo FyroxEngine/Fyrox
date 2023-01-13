@@ -374,11 +374,16 @@ impl NodeTrait for Sound {
         }
     }
 
-    fn update(&mut self, context: &mut UpdateContext) -> bool {
-        context.sound_context.sync_with_sound(self);
+    fn is_alive(&self) -> bool {
+        if self.is_play_once() {
+            self.status() != Status::Stopped
+        } else {
+            true
+        }
+    }
 
-        self.base.update_lifetime(context.dt)
-            && !(self.is_play_once() && self.status() == Status::Stopped)
+    fn update(&mut self, context: &mut UpdateContext) {
+        context.sound_context.sync_with_sound(self);
     }
 }
 

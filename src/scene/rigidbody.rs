@@ -537,7 +537,7 @@ impl NodeTrait for RigidBody {
         }
     }
 
-    fn update(&mut self, context: &mut UpdateContext) -> bool {
+    fn update(&mut self, context: &mut UpdateContext) {
         context.physics.sync_rigid_body_node(
             self,
             // Rigid body can be root node of a scene, in this case it does not have a parent.
@@ -547,8 +547,6 @@ impl NodeTrait for RigidBody {
                 .map(|p| p.global_transform())
                 .unwrap_or_else(Matrix4::identity),
         );
-
-        self.base.update_lifetime(context.dt)
     }
 
     fn validate(&self, scene: &Scene) -> Result<(), String> {

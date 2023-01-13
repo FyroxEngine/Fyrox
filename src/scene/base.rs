@@ -324,9 +324,9 @@ pub struct Base {
     #[reflect(setter = "set_visibility")]
     visibility: InheritableVariable<bool>,
 
-    // Maximum amount of Some(time) that node will "live" or None
-    // if node has undefined lifetime.
-    #[reflect(hidden)] // TEMPORARILY HIDDEN. It causes crashes when set from the editor.
+    #[reflect(
+        description = "Maximum amount of Some(time) that node will \"live\" or None if the node has unlimited lifetime."
+    )]
     pub(crate) lifetime: InheritableVariable<Option<f32>>,
 
     #[reflect(min_value = 0.0, max_value = 1.0, step = 0.1)]
@@ -819,16 +819,6 @@ impl Base {
     #[inline]
     pub fn script_inner(&mut self) -> &mut Option<Script> {
         &mut self.script
-    }
-
-    /// Updates node lifetime and returns true if the node is still alive, false - otherwise.
-    pub(crate) fn update_lifetime(&mut self, dt: f32) -> bool {
-        if let Some(lifetime) = self.lifetime.get_value_mut_silent().as_mut() {
-            *lifetime -= dt;
-            *lifetime >= 0.0
-        } else {
-            true
-        }
     }
 
     /// Enables or disables scene node. Disabled scene nodes won't be updated (including scripts) or rendered.

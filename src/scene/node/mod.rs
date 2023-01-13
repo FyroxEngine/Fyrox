@@ -182,11 +182,13 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
     ) {
     }
 
-    /// Updates internal state of the node and returns true if the node is still alive,
-    /// or false - otherwise. "Dead" nodes automatically removed from the parent graph.
-    fn update(&mut self, context: &mut UpdateContext) -> bool {
-        self.deref_mut().update_lifetime(context.dt)
+    /// The methods is used to manage lifetime of scene nodes, depending on their internal logic.
+    fn is_alive(&self) -> bool {
+        true
     }
+
+    /// Updates internal state of the node.
+    fn update(&mut self, #[allow(unused_variables)] context: &mut UpdateContext) {}
 
     /// Validates internal state of a scene node. It can check handles validity, if a handle "points"
     /// to a node of particular type, if node's parameters are in range, etc. It's main usage is to

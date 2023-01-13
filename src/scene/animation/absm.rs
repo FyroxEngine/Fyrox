@@ -178,7 +178,7 @@ impl NodeTrait for AnimationBlendingStateMachine {
         Self::type_uuid()
     }
 
-    fn update(&mut self, context: &mut UpdateContext) -> bool {
+    fn update(&mut self, context: &mut UpdateContext) {
         if let Some(animation_player) = context
             .nodes
             .try_borrow_mut(*self.animation_player)
@@ -195,7 +195,6 @@ impl NodeTrait for AnimationBlendingStateMachine {
 
             pose.apply_internal(context.nodes);
         }
-        self.base.update_lifetime(context.dt)
     }
 
     fn validate(&self, scene: &Scene) -> Result<(), String> {

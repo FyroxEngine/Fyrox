@@ -371,7 +371,7 @@ impl NodeTrait for ParticleSystem {
         Self::type_uuid()
     }
 
-    fn update(&mut self, context: &mut UpdateContext) -> bool {
+    fn update(&mut self, context: &mut UpdateContext) {
         let dt = context.dt;
 
         if *self.is_playing {
@@ -429,8 +429,6 @@ impl NodeTrait for ParticleSystem {
                 }
             }
         }
-
-        self.base.update_lifetime(dt)
     }
 }
 

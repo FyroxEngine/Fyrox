@@ -221,6 +221,9 @@ pub struct GraphUpdateSwitches {
     pub sound: bool,
     /// A set of nodes that will be updated, everything else won't be updated.
     pub node_overrides: Option<FxHashSet<Handle<Node>>>,
+    /// Enables or disables deletion of the nodes with ended lifetime (lifetime <= 0.0). If set to `false` the lifetime
+    /// of the nodes won't be changed.
+    pub delete_dead_nodes: bool,
 }
 
 impl Default for GraphUpdateSwitches {
@@ -230,6 +233,7 @@ impl Default for GraphUpdateSwitches {
             physics: true,
             sound: true,
             node_overrides: Default::default(),
+            delete_dead_nodes: true,
         }
     }
 }
@@ -1026,11 +1030,19 @@ impl Graph {
         }
     }
 
-    fn update_node(&mut self, handle: Handle<Node>, frame_size: Vector2<f32>, dt: f32) {
+    fn update_node(
+        &mut self,
+        handle: Handle<Node>,
+        frame_size: Vector2<f32>,
+        dt: f32,
+        delete_dead_nodes: bool,
+    ) {
         if let Some((ticket, mut node)) = self.pool.try_take_reserve(handle) {
             node.transform_modified.set(false);
 
-            let is_alive = if node.is_globally_enabled() {
+            let mut is_alive = node.is_alive();
+
+            if node.is_globally_enabled() {
                 node.update(&mut UpdateContext {
                     frame_size,
                     dt,
@@ -1038,14 +1050,21 @@ impl Graph {
                     physics: &mut self.physics,
                     physics2d: &mut self.physics2d,
                     sound_context: &mut self.sound_context,
-                })
-            } else {
-                true
-            };
+                });
+
+                if delete_dead_nodes {
+                    if let Some(lifetime) = node.lifetime.get_value_mut_silent().as_mut() {
+                        *lifetime -= dt;
+                        if *lifetime <= 0.0 {
+                            is_alive = false;
+                        }
+                    }
+                }
+            }
 
             self.pool.put_back(ticket, node);
 
-            if !is_alive {
+            if !is_alive && delete_dead_nodes {
                 self.remove_node(handle);
             }
         }
@@ -1087,11 +1106,16 @@ impl Graph {
 
         if let Some(overrides) = switches.node_overrides.as_ref() {
             for handle in overrides {
-                self.update_node(*handle, frame_size, dt);
+                self.update_node(*handle, frame_size, dt, switches.delete_dead_nodes);
             }
         } else {
             for i in 0..self.pool.get_capacity() {
-                self.update_node(self.pool.handle_from_index(i), frame_size, dt);
+                self.update_node(
+                    self.pool.handle_from_index(i),
+                    frame_size,
+                    dt,
+                    switches.delete_dead_nodes,
+                );
             }
         }
     }

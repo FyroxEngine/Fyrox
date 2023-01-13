@@ -625,7 +625,7 @@ impl NodeTrait for Camera {
         Self::type_uuid()
     }
 
-    fn update(&mut self, context: &mut UpdateContext) -> bool {
+    fn update(&mut self, context: &mut UpdateContext) {
         self.calculate_matrices(context.frame_size);
 
         self.visibility_cache.clear();
@@ -636,8 +636,6 @@ impl NodeTrait for Camera {
             self.projection().z_far(),
             Some(&[&Frustum::from(self.view_projection_matrix()).unwrap_or_default()]),
         );
-
-        self.base.update_lifetime(context.dt)
     }
 }
 
