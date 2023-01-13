@@ -1297,6 +1297,11 @@ impl PhysicsWorld {
                         .gravity_scale
                         .try_sync_model(|v| native.set_gravity_scale(v, false));
 
+                    // We must reset any forces applied at previous update step, otherwise physics engine
+                    // will keep pushing the rigid body infinitely.
+                    native.reset_forces(false);
+                    native.reset_torques(false);
+
                     while let Some(action) = actions.pop_front() {
                         match action {
                             ApplyAction::Force(force) => native.add_force(force, false),
