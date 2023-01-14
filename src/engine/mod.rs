@@ -428,6 +428,18 @@ impl ScriptProcessor {
                             script.on_update(context);
                         });
                     }
+
+                    // Dispatch messages and go to the next iteration of update loop. This is needed, because
+                    // `ScriptTrait::on_message` can spawn new scripts that must be correctly updated on this
+                    // frame (to prevent one-frame lag).
+                    scripted_scene.message_dispatcher.dispatch_messages(
+                        scene,
+                        plugins,
+                        resource_manager,
+                        dt,
+                        elapsed_time,
+                        &scripted_scene.message_sender,
+                    );
                 }
 
                 if update_loop_iteration == max_iterations - 1 {
@@ -437,16 +449,6 @@ impl ScriptProcessor {
                     )
                 }
             }
-
-            // Process messages.
-            scripted_scene.message_dispatcher.dispatch_messages(
-                scene,
-                plugins,
-                resource_manager,
-                dt,
-                elapsed_time,
-                &scripted_scene.message_sender,
-            );
 
             // As the last step, destroy queued scripts.
             let mut context = ScriptDeinitContext {
