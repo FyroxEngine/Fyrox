@@ -720,7 +720,7 @@ fn make_ui_frame_buffer(
             width: frame_size.x as usize,
             height: frame_size.y as usize,
         },
-        PixelKind::RGBA8,
+        PixelKind::SRGBA8,
         MinificationFilter::Linear,
         MagnificationFilter::Linear,
         1,
