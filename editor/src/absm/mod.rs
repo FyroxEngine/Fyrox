@@ -326,18 +326,20 @@ impl AbsmEditor {
         {
             let machine = absm.machine_mut().get_value_mut_silent();
 
-            for layer in machine.layers_mut() {
-                while let Some(event) = layer.pop_event() {
-                    match event {
-                        Event::ActiveStateChanged { new: state, .. } => {
-                            self.state_graph_viewer
-                                .activate_state(&engine.user_interface, state);
+            if let Some(layer_index) = selection.layer {
+                if let Some(layer) = machine.layers_mut().get_mut(layer_index) {
+                    while let Some(event) = layer.pop_event() {
+                        match event {
+                            Event::ActiveStateChanged { new: state, .. } => {
+                                self.state_graph_viewer
+                                    .activate_state(&engine.user_interface, state);
+                            }
+                            Event::ActiveTransitionChanged(transition) => {
+                                self.state_graph_viewer
+                                    .activate_transition(&engine.user_interface, transition);
+                            }
+                            _ => (),
                         }
-                        Event::ActiveTransitionChanged(transition) => {
-                            self.state_graph_viewer
-                                .activate_transition(&engine.user_interface, transition);
-                        }
-                        _ => (),
                     }
                 }
             }
