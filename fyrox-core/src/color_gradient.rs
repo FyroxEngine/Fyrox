@@ -12,8 +12,19 @@ pub struct GradientPoint {
 }
 
 impl GradientPoint {
+    #[inline]
     pub fn new(location: f32, color: Color) -> Self {
         Self { location, color }
+    }
+
+    #[inline]
+    pub fn color(&self) -> Color {
+        self.color
+    }
+
+    #[inline]
+    pub fn location(&self) -> f32 {
+        self.location
     }
 }
 
@@ -55,6 +66,8 @@ impl Default for ColorGradient {
 }
 
 impl ColorGradient {
+    pub const STUB_COLOR: Color = Color::WHITE;
+
     pub fn new() -> Self {
         Self { points: Vec::new() }
     }
@@ -70,8 +83,7 @@ impl ColorGradient {
 
     pub fn get_color(&self, location: f32) -> Color {
         if self.points.is_empty() {
-            // stub - opaque white
-            return Color::WHITE;
+            return Self::STUB_COLOR;
         } else if self.points.len() == 1 {
             // single point - just return its color
             return self.points.first().unwrap().color;
@@ -117,6 +129,10 @@ impl ColorGradient {
             let t = (location - pt_a.location) / span;
             pt_a.color.lerp(pt_b.color, t)
         }
+    }
+
+    pub fn points(&self) -> &[GradientPoint] {
+        &self.points
     }
 
     pub fn clear(&mut self) {
