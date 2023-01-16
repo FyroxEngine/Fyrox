@@ -18,7 +18,7 @@ use fyrox::{
     animation::{
         machine::{
             node::BasePoseNode,
-            transition::{AndNode, LogicNode, NotNode, OrNode},
+            transition::{AndNode, LogicNode, NotNode, OrNode, XorNode},
             BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, Machine,
             PlayAnimation, PoseNode, PoseWeight, State,
         },
@@ -312,6 +312,7 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<LogicNode>::new());
     container.insert(InspectablePropertyEditorDefinition::<AndNode>::new());
     container.insert(InspectablePropertyEditorDefinition::<OrNode>::new());
+    container.insert(InspectablePropertyEditorDefinition::<XorNode>::new());
     container.insert(InspectablePropertyEditorDefinition::<NotNode>::new());
 
     container
