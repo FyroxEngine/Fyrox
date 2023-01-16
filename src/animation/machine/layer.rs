@@ -1,12 +1,11 @@
 //! Layer is a separate state graph that usually animates only a part of nodes from animations. See docs of [`MachineLayer`]
 //! for more info.
 
-use crate::utils::NameProvider;
 use crate::{
     animation::{
         machine::{
-            event::FixedEventQueue, Event, LayerMask, Parameter, ParameterContainer, PoseNode,
-            State, Transition,
+            event::FixedEventQueue, Event, LayerMask, ParameterContainer, PoseNode, State,
+            Transition,
         },
         AnimationContainer, AnimationPose,
     },
@@ -18,6 +17,7 @@ use crate::{
     utils::{
         self,
         log::{Log, MessageKind},
+        NameProvider,
     },
 };
 
@@ -410,44 +410,34 @@ impl MachineLayer {
                     {
                         continue;
                     }
-                    if let Some(Parameter::Rule(mut active)) =
-                        parameters.get(transition.rule()).cloned()
-                    {
-                        if transition.invert_rule {
-                            active = !active;
+
+                    if transition.condition.calculate_value(parameters) {
+                        self.events.push(Event::StateLeave(self.active_state));
+                        if self.debug {
+                            Log::writeln(
+                                MessageKind::Information,
+                                format!("Leaving state: {}", self.states[self.active_state].name),
+                            );
                         }
 
-                        if active {
-                            self.events.push(Event::StateLeave(self.active_state));
-                            if self.debug {
-                                Log::writeln(
-                                    MessageKind::Information,
-                                    format!(
-                                        "Leaving state: {}",
-                                        self.states[self.active_state].name
-                                    ),
-                                );
-                            }
-
-                            self.events.push(Event::StateEnter(transition.source()));
-                            if self.debug {
-                                Log::writeln(
-                                    MessageKind::Information,
-                                    format!(
-                                        "Entering state: {}",
-                                        self.states[transition.source()].name
-                                    ),
-                                );
-                            }
-
-                            self.active_state = Handle::NONE;
-
-                            self.active_transition = handle;
-                            self.events
-                                .push(Event::ActiveTransitionChanged(self.active_transition));
-
-                            break;
+                        self.events.push(Event::StateEnter(transition.source()));
+                        if self.debug {
+                            Log::writeln(
+                                MessageKind::Information,
+                                format!(
+                                    "Entering state: {}",
+                                    self.states[transition.source()].name
+                                ),
+                            );
                         }
+
+                        self.active_state = Handle::NONE;
+
+                        self.active_transition = handle;
+                        self.events
+                            .push(Event::ActiveTransitionChanged(self.active_transition));
+
+                        break;
                     }
                 }
             }

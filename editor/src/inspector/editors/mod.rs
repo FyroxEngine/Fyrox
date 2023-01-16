@@ -14,12 +14,13 @@ use crate::{
     },
     Message,
 };
-use fyrox::animation::machine::{PoseNode, State};
 use fyrox::{
     animation::{
         machine::{
-            node::BasePoseNode, BlendAnimations, BlendAnimationsByIndex, BlendPose,
-            IndexedBlendInput, Machine, PlayAnimation, PoseWeight,
+            node::BasePoseNode,
+            transition::{AndNode, LogicNode, NotNode, OrNode},
+            BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, Machine,
+            PlayAnimation, PoseNode, PoseWeight, State,
         },
         AnimationContainer,
     },
@@ -307,6 +308,11 @@ pub fn make_property_editors_container(
 
     container.insert(MachinePropertyEditorDefinition);
     container.insert(InheritablePropertyEditorDefinition::<Machine>::new());
+
+    container.insert(EnumPropertyEditorDefinition::<LogicNode>::new());
+    container.insert(InspectablePropertyEditorDefinition::<AndNode>::new());
+    container.insert(InspectablePropertyEditorDefinition::<OrNode>::new());
+    container.insert(InspectablePropertyEditorDefinition::<NotNode>::new());
 
     container
 }
