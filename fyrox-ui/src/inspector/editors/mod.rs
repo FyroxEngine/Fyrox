@@ -2,6 +2,7 @@ use crate::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         color::Color,
+        color_gradient::ColorGradient,
         math::{Rect, SmoothAngle},
         pool::Handle,
         reflect::{FieldInfo, FieldValue, Reflect},
@@ -12,7 +13,7 @@ use crate::{
             array::ArrayPropertyEditorDefinition,
             bool::BoolPropertyEditorDefinition,
             collection::{CollectionItem, VecCollectionPropertyEditorDefinition},
-            color::ColorPropertyEditorDefinition,
+            color::{ColorGradientPropertyEditorDefinition, ColorPropertyEditorDefinition},
             enumeration::{EnumPropertyEditorDefinition, InspectableEnum},
             inherit::InheritablePropertyEditorDefinition,
             inspectable::InspectablePropertyEditorDefinition,
@@ -230,6 +231,10 @@ impl PropertyEditorDefinitionContainer {
         // Uuid + InheritableVariable<Uuid>
         container.insert(UuidPropertyEditorDefinition);
         container.insert(InheritablePropertyEditorDefinition::<Uuid>::new());
+
+        // Color Gradient.
+        container.insert(ColorGradientPropertyEditorDefinition);
+        container.insert(InheritablePropertyEditorDefinition::<ColorGradient>::new());
 
         container
     }

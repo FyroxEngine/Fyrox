@@ -24,6 +24,8 @@ use std::{
     sync::mpsc::Sender,
 };
 
+pub mod gradient;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum HueBarMessage {
     /// Sets new hue value.
@@ -193,6 +195,38 @@ fn push_gradient_rect(
 
 const CHECKERBOARD_SIZE: f32 = 6.0;
 
+pub fn draw_checker_board(
+    bounds: Rect<f32>,
+    clip_bounds: Rect<f32>,
+    size: f32,
+    drawing_context: &mut DrawingContext,
+) {
+    let h_amount = (bounds.w() / size).ceil() as usize;
+    let v_amount = (bounds.h() / size).ceil() as usize;
+    for y in 0..v_amount {
+        for x in 0..h_amount {
+            let rect = Rect::new(
+                bounds.x() + x as f32 * size,
+                bounds.y() + y as f32 * size,
+                size,
+                size,
+            );
+            let color = if (x + y) & 1 == 0 {
+                Color::opaque(127, 127, 127)
+            } else {
+                Color::WHITE
+            };
+            drawing_context.push_rect_multicolor(&rect, [color; 4]);
+        }
+    }
+    drawing_context.commit(
+        clip_bounds,
+        Brush::Solid(Color::WHITE),
+        CommandTexture::None,
+        None,
+    );
+}
+
 impl Control for AlphaBar {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
@@ -206,29 +240,11 @@ impl Control for AlphaBar {
         let bounds = self.bounding_rect();
 
         // Draw checker board first.
-        let h_amount = (bounds.w() / CHECKERBOARD_SIZE).ceil() as usize;
-        let v_amount = (bounds.h() / CHECKERBOARD_SIZE).ceil() as usize;
-        for y in 0..v_amount {
-            for x in 0..h_amount {
-                let rect = Rect::new(
-                    bounds.x() + x as f32 * CHECKERBOARD_SIZE,
-                    bounds.y() + y as f32 * CHECKERBOARD_SIZE,
-                    CHECKERBOARD_SIZE,
-                    CHECKERBOARD_SIZE,
-                );
-                let color = if (x + y) & 1 == 0 {
-                    Color::opaque(127, 127, 127)
-                } else {
-                    Color::WHITE
-                };
-                drawing_context.push_rect_multicolor(&rect, [color; 4]);
-            }
-        }
-        drawing_context.commit(
+        draw_checker_board(
+            bounds,
             self.clip_bounds(),
-            Brush::Solid(Color::WHITE),
-            CommandTexture::None,
-            None,
+            CHECKERBOARD_SIZE,
+            drawing_context,
         );
 
         // Then draw alpha gradient.
