@@ -1232,6 +1232,8 @@ impl Control for ColorField {
                     MessageDirection::ToWidget,
                     self.color,
                 ));
+
+                message.set_handled(true);
             }
         } else if let Some(&ColorFieldMessage::Color(color)) = message.data::<ColorFieldMessage>() {
             if message.destination() == self.handle
