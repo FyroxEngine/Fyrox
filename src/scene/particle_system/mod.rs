@@ -73,7 +73,6 @@
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
-        color::Color,
         color_gradient::ColorGradient,
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
@@ -143,9 +142,9 @@ pub struct ParticleSystem {
     #[reflect(setter = "set_acceleration")]
     acceleration: InheritableVariable<Vector3<f32>>,
 
-    #[visit(rename = "ColorGradient")]
+    #[visit(rename = "ColorGradient", optional)]
     #[reflect(setter = "set_color_over_lifetime_gradient")]
-    color_over_lifetime: InheritableVariable<Option<ColorGradient>>,
+    color_over_lifetime: InheritableVariable<ColorGradient>,
 
     #[reflect(setter = "set_soft_boundary_sharpness_factor")]
     soft_boundary_sharpness_factor: InheritableVariable<f32>,
@@ -194,10 +193,7 @@ impl ParticleSystem {
     }
 
     /// Sets new "color curve" that will evaluate color over lifetime.
-    pub fn set_color_over_lifetime_gradient(
-        &mut self,
-        gradient: Option<ColorGradient>,
-    ) -> Option<ColorGradient> {
+    pub fn set_color_over_lifetime_gradient(&mut self, gradient: ColorGradient) -> ColorGradient {
         self.color_over_lifetime
             .set_value_and_mark_modified(gradient)
     }
@@ -419,12 +415,9 @@ impl NodeTrait for ParticleSystem {
                             particle.size = 0.0;
                         }
                         particle.rotation += particle.rotation_speed * dt;
-                        if let Some(color_over_lifetime) = self.color_over_lifetime.as_ref() {
-                            let k = particle.lifetime / particle.initial_lifetime;
-                            particle.color = color_over_lifetime.get_color(k);
-                        } else {
-                            particle.color = Color::WHITE;
-                        }
+
+                        let k = particle.lifetime / particle.initial_lifetime;
+                        particle.color = self.color_over_lifetime.get_color(k);
                     }
                 }
             }
@@ -440,7 +433,7 @@ pub struct ParticleSystemBuilder {
     texture: Option<Texture>,
     acceleration: Vector3<f32>,
     particles: Vec<Particle>,
-    color_over_lifetime: Option<ColorGradient>,
+    color_over_lifetime: ColorGradient,
     soft_boundary_sharpness_factor: f32,
     is_playing: bool,
 }
@@ -454,7 +447,7 @@ impl ParticleSystemBuilder {
             texture: None,
             particles: Default::default(),
             acceleration: Vector3::new(0.0, -9.81, 0.0),
-            color_over_lifetime: None,
+            color_over_lifetime: Default::default(),
             soft_boundary_sharpness_factor: 2.5,
             is_playing: true,
         }
@@ -492,7 +485,7 @@ impl ParticleSystemBuilder {
 
     /// Sets color gradient over lifetime for particle system.
     pub fn with_color_over_lifetime_gradient(mut self, color_over_lifetime: ColorGradient) -> Self {
-        self.color_over_lifetime = Some(color_over_lifetime);
+        self.color_over_lifetime = color_over_lifetime;
         self
     }
 
