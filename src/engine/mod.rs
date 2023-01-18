@@ -41,6 +41,7 @@ use fxhash::{FxHashMap, FxHashSet};
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
+    fmt::{Display, Formatter},
     ops::Deref,
     sync::{
         mpsc::{channel, Receiver},
@@ -74,6 +75,29 @@ impl SerializationContext {
     }
 }
 
+/// Performance statistics.
+#[derive(Debug, Default)]
+pub struct PerformanceStatistics {
+    /// Amount of time spent in the UI system.
+    pub ui_time: Duration,
+
+    /// Amount of time spent in updating/initializing/destructing scripts of all scenes.
+    pub scripts_time: Duration,
+
+    /// Amount of time spent in plugins updating.
+    pub plugins_time: Duration,
+}
+
+impl Display for PerformanceStatistics {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "Performance Statistics:\n\tUI: {:?}\n\tScripts: {:?}\n\tPlugins: {:?}",
+            self.ui_time, self.scripts_time, self.plugins_time
+        )
+    }
+}
+
 /// See module docs.
 pub struct Engine {
     #[cfg(not(target_arch = "wasm32"))]
@@ -92,10 +116,8 @@ pub struct Engine {
     pub resource_manager: ResourceManager,
     /// All available scenes in the engine.
     pub scenes: SceneContainer,
-    /// The time user interface took for internal needs. TODO: This is not the right place
-    /// for such statistics, probably it is best to make separate structure to hold all
-    /// such data.
-    pub ui_time: Duration,
+
+    performance_statistics: PerformanceStatistics,
 
     model_events_receiver: Receiver<ResourceEvent<Model>>,
 
@@ -810,7 +832,7 @@ impl Engine {
             scenes: SceneContainer::new(sound_engine.clone()),
             sound_engine,
             user_interface: UserInterface::new(Vector2::new(client_size.x, client_size.y)),
-            ui_time: Default::default(),
+            performance_statistics: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             context,
             #[cfg(target_arch = "wasm32")]
@@ -931,7 +953,7 @@ impl Engine {
 
         let time = instant::Instant::now();
         self.user_interface.update(window_size, dt);
-        self.ui_time = instant::Instant::now() - time;
+        self.performance_statistics.ui_time = instant::Instant::now() - time;
         self.elapsed_time += dt;
     }
 
@@ -950,6 +972,7 @@ impl Engine {
     }
 
     fn handle_scripts(&mut self, dt: f32) {
+        let time = instant::Instant::now();
         self.script_processor.handle_scripts(
             &mut self.scenes,
             &mut self.plugins,
@@ -957,9 +980,12 @@ impl Engine {
             dt,
             self.elapsed_time,
         );
+        self.performance_statistics.scripts_time = instant::Instant::now() - time;
     }
 
     fn update_plugins(&mut self, dt: f32, control_flow: &mut ControlFlow, lag: &mut f32) {
+        let time = instant::Instant::now();
+
         if self.plugins_enabled {
             let mut context = PluginContext {
                 scenes: &mut self.scenes,
@@ -973,6 +999,7 @@ impl Engine {
                 sound_engine: SoundEngineHelper {
                     engine: &self.sound_engine,
                 },
+                performance_statistics: &self.performance_statistics,
             };
 
             for plugin in self.plugins.iter_mut() {
@@ -992,6 +1019,7 @@ impl Engine {
                     sound_engine: SoundEngineHelper {
                         engine: &self.sound_engine,
                     },
+                    performance_statistics: &self.performance_statistics,
                 };
 
                 for plugin in self.plugins.iter_mut() {
@@ -999,6 +1027,8 @@ impl Engine {
                 }
             }
         }
+
+        self.performance_statistics.plugins_time = instant::Instant::now() - time;
     }
 
     /// Processes an OS event by every registered plugin.
@@ -1025,6 +1055,7 @@ impl Engine {
                         sound_engine: SoundEngineHelper {
                             engine: &self.sound_engine,
                         },
+                        performance_statistics: &self.performance_statistics,
                     },
                     control_flow,
                 );
@@ -1152,6 +1183,7 @@ impl Engine {
                             sound_engine: SoundEngineHelper {
                                 engine: &self.sound_engine,
                             },
+                            performance_statistics: &self.performance_statistics,
                         },
                     ));
                 }
@@ -1172,6 +1204,7 @@ impl Engine {
                         sound_engine: SoundEngineHelper {
                             engine: &self.sound_engine,
                         },
+                        performance_statistics: &self.performance_statistics,
                     });
                 }
             }

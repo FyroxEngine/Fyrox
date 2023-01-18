@@ -4,7 +4,7 @@
 
 use crate::{
     core::pool::Handle,
-    engine::{resource_manager::ResourceManager, SerializationContext},
+    engine::{resource_manager::ResourceManager, PerformanceStatistics, SerializationContext},
     event::Event,
     event_loop::ControlFlow,
     gui::{message::UiMessage, UserInterface},
@@ -13,8 +13,7 @@ use crate::{
     window::Window,
 };
 use fyrox_sound::engine::SoundEngine;
-use std::sync::Mutex;
-use std::{any::Any, sync::Arc};
+use std::{any::Any, sync::Arc, sync::Mutex};
 
 /// Plugin constructor is a first step of 2-stage plugin initialization. It is responsible for plugin script
 /// registration and for creating actual plugin instance.
@@ -105,6 +104,9 @@ pub struct PluginContext<'a, 'b> {
 
     /// Sound engine allows you to change global sound parameters, such as master gain, etc.
     pub sound_engine: SoundEngineHelper<'a>,
+
+    /// Performance statistics from the last frame.
+    pub performance_statistics: &'a PerformanceStatistics,
 }
 
 /// Base plugin automatically implements type casting for plugins.
