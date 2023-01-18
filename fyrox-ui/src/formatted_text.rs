@@ -190,7 +190,10 @@ impl FormattedText {
         let mut width = 0.0;
         let font = self.font.0.lock();
         for index in range {
-            width += font.glyph_advance(self.text[index].char_code);
+            // We can't trust the range values, check to prevent panic.
+            if let Some(glyph) = self.text.get(index) {
+                width += font.glyph_advance(glyph.char_code);
+            }
         }
         width
     }
