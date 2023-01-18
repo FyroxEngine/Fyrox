@@ -404,6 +404,72 @@ impl ParticleSystem {
     pub fn texture_ref(&self) -> Option<&Texture> {
         self.texture.as_ref()
     }
+
+    fn tick(&mut self, dt: f32) {
+        for emitter in self.emitters.get_value_mut_silent().iter_mut() {
+            emitter.tick(dt);
+        }
+
+        for (i, emitter) in self.emitters.get_value_mut_silent().iter_mut().enumerate() {
+            for _ in 0..emitter.particles_to_spawn {
+                let mut particle = Particle {
+                    emitter_index: i as u32,
+                    ..Particle::default()
+                };
+                emitter.alive_particles += 1;
+                emitter.emit(&mut particle, &mut self.rng);
+                if let Some(free_index) = self.free_particles.pop() {
+                    self.particles[free_index as usize] = particle;
+                } else {
+                    self.particles.push(particle);
+                }
+            }
+        }
+
+        let acceleration_offset = self.acceleration.scale(dt * dt);
+
+        for (i, particle) in self.particles.iter_mut().enumerate() {
+            if particle.alive {
+                particle.lifetime += dt;
+                if particle.lifetime >= particle.initial_lifetime {
+                    self.free_particles.push(i as u32);
+                    if let Some(emitter) = self
+                        .emitters
+                        .get_value_mut_and_mark_modified()
+                        .get_mut(particle.emitter_index as usize)
+                    {
+                        emitter.alive_particles -= 1;
+                    }
+                    particle.alive = false;
+                    particle.lifetime = particle.initial_lifetime;
+                } else {
+                    particle.velocity += acceleration_offset;
+                    particle.position += particle.velocity;
+                    particle.size += particle.size_modifier * dt;
+                    if particle.size < 0.0 {
+                        particle.size = 0.0;
+                    }
+                    particle.rotation += particle.rotation_speed * dt;
+
+                    let k = particle.lifetime / particle.initial_lifetime;
+                    particle.color = self.color_over_lifetime.get_color(k);
+                }
+            }
+        }
+    }
+
+    /// Simulates particle system for the given `time` with given time step (`dt`). `dt` is usually `1.0 / 60.0`.
+    pub fn rewind(&mut self, dt: f32, time: f32) {
+        assert!(dt > 0.0);
+
+        self.clear_particles();
+
+        let mut t = 0.0;
+        while t < time {
+            self.tick(dt);
+            t += dt;
+        }
+    }
 }
 
 impl Default for ParticleSystem {
@@ -440,56 +506,7 @@ impl NodeTrait for ParticleSystem {
         let dt = context.dt;
 
         if *self.is_playing {
-            for emitter in self.emitters.get_value_mut_silent().iter_mut() {
-                emitter.tick(dt);
-            }
-
-            for (i, emitter) in self.emitters.get_value_mut_silent().iter_mut().enumerate() {
-                for _ in 0..emitter.particles_to_spawn {
-                    let mut particle = Particle {
-                        emitter_index: i as u32,
-                        ..Particle::default()
-                    };
-                    emitter.alive_particles += 1;
-                    emitter.emit(&mut particle, &mut self.rng);
-                    if let Some(free_index) = self.free_particles.pop() {
-                        self.particles[free_index as usize] = particle;
-                    } else {
-                        self.particles.push(particle);
-                    }
-                }
-            }
-
-            let acceleration_offset = self.acceleration.scale(dt * dt);
-
-            for (i, particle) in self.particles.iter_mut().enumerate() {
-                if particle.alive {
-                    particle.lifetime += dt;
-                    if particle.lifetime >= particle.initial_lifetime {
-                        self.free_particles.push(i as u32);
-                        if let Some(emitter) = self
-                            .emitters
-                            .get_value_mut_and_mark_modified()
-                            .get_mut(particle.emitter_index as usize)
-                        {
-                            emitter.alive_particles -= 1;
-                        }
-                        particle.alive = false;
-                        particle.lifetime = particle.initial_lifetime;
-                    } else {
-                        particle.velocity += acceleration_offset;
-                        particle.position += particle.velocity;
-                        particle.size += particle.size_modifier * dt;
-                        if particle.size < 0.0 {
-                            particle.size = 0.0;
-                        }
-                        particle.rotation += particle.rotation_speed * dt;
-
-                        let k = particle.lifetime / particle.initial_lifetime;
-                        particle.color = self.color_over_lifetime.get_color(k);
-                    }
-                }
-            }
+            self.tick(dt);
         }
     }
 }
