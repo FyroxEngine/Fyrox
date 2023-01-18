@@ -76,7 +76,7 @@ use fyrox::{
                 base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
                 sphere::SphereEmitter, Emitter,
             },
-            EmitterWrapper,
+            EmitterWrapper, ParticleSystemRng,
         },
         rigidbody::RigidBodyType,
         sound::{
@@ -314,6 +314,8 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<OrNode>::new());
     container.insert(InspectablePropertyEditorDefinition::<XorNode>::new());
     container.insert(InspectablePropertyEditorDefinition::<NotNode>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<ParticleSystemRng>::new());
 
     container
 }
