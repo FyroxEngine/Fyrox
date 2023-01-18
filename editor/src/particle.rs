@@ -21,6 +21,7 @@ pub struct ParticleSystemPreviewControlPanel {
     play: Handle<UiNode>,
     pause: Handle<UiNode>,
     stop: Handle<UiNode>,
+    rewind: Handle<UiNode>,
 }
 
 impl ParticleSystemPreviewControlPanel {
@@ -28,6 +29,7 @@ impl ParticleSystemPreviewControlPanel {
         let play;
         let pause;
         let stop;
+        let rewind;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .open(false)
             .with_title(WindowTitle::text("Particle System"))
@@ -36,7 +38,7 @@ impl ParticleSystemPreviewControlPanel {
                     WidgetBuilder::new()
                         .with_child({
                             play = ButtonBuilder::new(
-                                WidgetBuilder::new().on_row(0).on_column(0).with_width(80.0),
+                                WidgetBuilder::new().on_row(0).on_column(0).with_width(60.0),
                             )
                             .with_text("Play")
                             .build(ctx);
@@ -44,7 +46,7 @@ impl ParticleSystemPreviewControlPanel {
                         })
                         .with_child({
                             pause = ButtonBuilder::new(
-                                WidgetBuilder::new().on_row(0).on_column(1).with_width(80.0),
+                                WidgetBuilder::new().on_row(0).on_column(1).with_width(60.0),
                             )
                             .with_text("Pause")
                             .build(ctx);
@@ -52,14 +54,23 @@ impl ParticleSystemPreviewControlPanel {
                         })
                         .with_child({
                             stop = ButtonBuilder::new(
-                                WidgetBuilder::new().on_row(0).on_column(2).with_width(80.0),
+                                WidgetBuilder::new().on_row(0).on_column(2).with_width(60.0),
                             )
                             .with_text("Stop")
                             .build(ctx);
                             stop
+                        })
+                        .with_child({
+                            rewind = ButtonBuilder::new(
+                                WidgetBuilder::new().on_row(0).on_column(3).with_width(60.0),
+                            )
+                            .with_text("Rewind")
+                            .build(ctx);
+                            rewind
                         }),
                 )
                 .add_row(Row::stretch())
+                .add_column(Column::stretch())
                 .add_column(Column::stretch())
                 .add_column(Column::stretch())
                 .add_column(Column::stretch())
@@ -72,6 +83,7 @@ impl ParticleSystemPreviewControlPanel {
             play,
             pause,
             stop,
+            rewind,
         }
     }
 
@@ -124,6 +136,8 @@ impl ParticleSystemPreviewControlPanel {
                             particle_system.play(false);
                         } else if message.destination() == self.stop {
                             particle_system.play(false);
+                            particle_system.clear_particles();
+                        } else if message.destination() == self.rewind {
                             particle_system.clear_particles();
                         }
                     }
