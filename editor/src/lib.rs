@@ -112,7 +112,6 @@ use fyrox::{
         camera::{Camera, Projection},
         mesh::Mesh,
         node::Node,
-        particle_system::ParticleSystem,
         Scene, SceneLoader,
     },
     utils::{
@@ -1498,6 +1497,8 @@ impl Editor {
     fn save_current_scene(&mut self, path: PathBuf) {
         let engine = &mut self.engine;
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.particle_system_control_panel
+                .leave_preview_mode(editor_scene, engine);
             self.animation_editor
                 .try_leave_preview_mode(editor_scene, engine);
             self.absm_editor
@@ -1689,39 +1690,6 @@ impl Editor {
         processed
     }
 
-    fn on_selection_changed(&mut self, old_selection: Selection) {
-        if let Some(editor_scene) = self.scene.as_mut() {
-            let scene = &self.engine.scenes[editor_scene.scene];
-            let node_overrides = editor_scene.graph_switches.node_overrides.as_mut().unwrap();
-
-            if let Selection::Graph(old_graph_selection) = old_selection {
-                // Disable particle systems from previous selection.
-                for node_handle in old_graph_selection.nodes {
-                    if scene
-                        .graph
-                        .try_get_of_type::<ParticleSystem>(node_handle)
-                        .is_some()
-                    {
-                        assert!(node_overrides.remove(&node_handle));
-                    }
-                }
-            }
-
-            if let Selection::Graph(ref new_graph_selection) = editor_scene.selection {
-                // Enable particle systems from new selection.
-                for &node_handle in &new_graph_selection.nodes {
-                    if scene
-                        .graph
-                        .try_get_of_type::<ParticleSystem>(node_handle)
-                        .is_some()
-                    {
-                        assert!(node_overrides.insert(node_handle));
-                    }
-                }
-            }
-        }
-    }
-
     fn update(&mut self, dt: f32) {
         scope_profile!();
 
@@ -1799,12 +1767,6 @@ impl Editor {
                     .handle_message(&message, &self.message_sender);
 
                 if let Some(editor_scene) = self.scene.as_ref() {
-                    self.particle_system_control_panel.handle_message(
-                        &message,
-                        editor_scene,
-                        &mut self.engine,
-                    );
-
                     self.inspector.handle_message(
                         &message,
                         editor_scene,
@@ -1813,11 +1775,16 @@ impl Editor {
                     );
                 }
 
-                if let Some(scene) = self.scene.as_mut() {
+                if let Some(editor_scene) = self.scene.as_mut() {
+                    self.particle_system_control_panel.handle_message(
+                        &message,
+                        editor_scene,
+                        &mut self.engine,
+                    );
                     self.animation_editor
-                        .handle_message(&message, scene, &mut self.engine);
+                        .handle_message(&message, editor_scene, &mut self.engine);
                     self.absm_editor
-                        .handle_message(&message, scene, &mut self.engine);
+                        .handle_message(&message, editor_scene, &mut self.engine);
                 }
 
                 self.scene_viewer.handle_message(&message, &mut self.engine);
@@ -1835,9 +1802,8 @@ impl Editor {
                     Message::ClearSceneCommandStack => {
                         needs_sync |= self.clear_scene_command_stack();
                     }
-                    Message::SelectionChanged { old_selection } => {
+                    Message::SelectionChanged { .. } => {
                         self.world_viewer.sync_selection = true;
-                        self.on_selection_changed(old_selection);
                     }
                     Message::SaveScene(path) => self.save_current_scene(path),
                     Message::LoadScene(scene_path) => {
