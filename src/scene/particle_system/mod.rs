@@ -154,6 +154,12 @@ impl ParticleSystemRng {
             rng: StdRng::seed_from_u64(seed),
         }
     }
+
+    /// Resets the state of PRNG.
+    #[inline]
+    pub fn reset(&mut self) {
+        self.rng = StdRng::seed_from_u64(self.rng_seed);
+    }
 }
 
 impl RngCore for ParticleSystemRng {
@@ -462,6 +468,7 @@ impl ParticleSystem {
     pub fn rewind(&mut self, dt: f32, time: f32) {
         assert!(dt > 0.0);
 
+        self.rng.reset();
         self.clear_particles();
 
         let mut t = 0.0;
