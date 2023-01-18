@@ -1,6 +1,6 @@
 use crate::{
     scene::{EditorScene, Selection},
-    Message,
+    Message, FIXED_TIMESTEP,
 };
 use fyrox::{
     core::pool::Handle,
@@ -10,10 +10,11 @@ use fyrox::{
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
+        numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UiNode,
+        BuildContext, Thickness, UiNode, VerticalAlignment,
     },
     scene::{node::Node, particle_system::ParticleSystem},
 };
@@ -25,7 +26,10 @@ pub struct ParticleSystemPreviewControlPanel {
     pause: Handle<UiNode>,
     stop: Handle<UiNode>,
     rewind: Handle<UiNode>,
+    time: Handle<UiNode>,
+    set_time: Handle<UiNode>,
     particle_systems_state: Vec<(Handle<Node>, Node)>,
+    desired_playback_time: f32,
 }
 
 impl ParticleSystemPreviewControlPanel {
@@ -35,61 +39,137 @@ impl ParticleSystemPreviewControlPanel {
         let pause;
         let stop;
         let rewind;
-        let window = WindowBuilder::new(WidgetBuilder::new())
+
+        let grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child({
+                    preview = CheckBoxBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .on_column(0)
+                            .with_vertical_alignment(VerticalAlignment::Center)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_content(
+                        TextBuilder::new(
+                            WidgetBuilder::new()
+                                .with_vertical_alignment(VerticalAlignment::Center)
+                                .with_margin(Thickness::uniform(1.0)),
+                        )
+                        .with_text("Preview")
+                        .build(ctx),
+                    )
+                    .build(ctx);
+                    preview
+                })
+                .with_child({
+                    play = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .on_column(1)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_text("Play")
+                    .build(ctx);
+                    play
+                })
+                .with_child({
+                    pause = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .on_column(2)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_text("Pause")
+                    .build(ctx);
+                    pause
+                })
+                .with_child({
+                    stop = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .on_column(3)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_text("Stop")
+                    .build(ctx);
+                    stop
+                })
+                .with_child({
+                    rewind = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .on_column(4)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_text("Rewind")
+                    .build(ctx);
+                    rewind
+                }),
+        )
+        .add_row(Row::stretch())
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
+        .add_column(Column::stretch())
+        .add_column(Column::stretch())
+        .add_column(Column::stretch())
+        .build(ctx);
+
+        let time;
+        let set_time;
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(70.0))
             .open(false)
             .with_title(WindowTitle::text("Particle System"))
             .with_content(
                 GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            preview =
-                                CheckBoxBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
-                                    .with_content(
-                                        TextBuilder::new(WidgetBuilder::new())
-                                            .with_text("Preview")
-                                            .build(ctx),
+                    WidgetBuilder::new().with_child(grid).with_child(
+                        GridBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(1)
+                                .on_column(0)
+                                .with_child(
+                                    TextBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_column(0)
+                                            .with_vertical_alignment(VerticalAlignment::Center)
+                                            .with_margin(Thickness::uniform(1.0)),
                                     )
+                                    .with_text("Playback Time")
+                                    .build(ctx),
+                                )
+                                .with_child({
+                                    time = NumericUpDownBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_column(1)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_min_value(0.0f32)
+                                    .with_max_value(10.0 * 60.0) // 10 Minutes
+                                    .with_value(0.0f32)
                                     .build(ctx);
-                            preview
-                        })
-                        .with_child({
-                            play = ButtonBuilder::new(
-                                WidgetBuilder::new().on_row(0).on_column(1).with_width(60.0),
-                            )
-                            .with_text("Play")
-                            .build(ctx);
-                            play
-                        })
-                        .with_child({
-                            pause = ButtonBuilder::new(
-                                WidgetBuilder::new().on_row(0).on_column(2).with_width(60.0),
-                            )
-                            .with_text("Pause")
-                            .build(ctx);
-                            pause
-                        })
-                        .with_child({
-                            stop = ButtonBuilder::new(
-                                WidgetBuilder::new().on_row(0).on_column(3).with_width(60.0),
-                            )
-                            .with_text("Stop")
-                            .build(ctx);
-                            stop
-                        })
-                        .with_child({
-                            rewind = ButtonBuilder::new(
-                                WidgetBuilder::new().on_row(0).on_column(4).with_width(60.0),
-                            )
-                            .with_text("Rewind")
-                            .build(ctx);
-                            rewind
-                        }),
+                                    time
+                                })
+                                .with_child({
+                                    set_time = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_column(2)
+                                            .with_width(33.0)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Set")
+                                    .build(ctx);
+                                    set_time
+                                }),
+                        )
+                        .add_row(Row::stretch())
+                        .add_column(Column::auto())
+                        .add_column(Column::stretch())
+                        .add_column(Column::auto())
+                        .build(ctx),
+                    ),
                 )
                 .add_row(Row::stretch())
-                .add_column(Column::stretch())
-                .add_column(Column::stretch())
-                .add_column(Column::stretch())
-                .add_column(Column::stretch())
+                .add_row(Row::stretch())
                 .add_column(Column::stretch())
                 .build(ctx),
             )
@@ -101,8 +181,11 @@ impl ParticleSystemPreviewControlPanel {
             pause,
             stop,
             rewind,
+            time,
             preview,
             particle_systems_state: Default::default(),
+            set_time,
+            desired_playback_time: 0.0,
         }
     }
 
@@ -198,6 +281,8 @@ impl ParticleSystemPreviewControlPanel {
                             particle_system.clear_particles();
                         } else if message.destination() == self.rewind {
                             particle_system.clear_particles();
+                        } else if message.destination() == self.set_time {
+                            particle_system.rewind(FIXED_TIMESTEP, self.desired_playback_time);
                         }
                     }
                 }
@@ -210,6 +295,13 @@ impl ParticleSystemPreviewControlPanel {
                     } else {
                         self.leave_preview_mode(editor_scene, engine);
                     }
+                }
+            } else if let Some(NumericUpDownMessage::Value(desired_playback_time)) = message.data()
+            {
+                if message.destination() == self.time
+                    && message.direction() == MessageDirection::FromWidget
+                {
+                    self.desired_playback_time = *desired_playback_time;
                 }
             }
         }
