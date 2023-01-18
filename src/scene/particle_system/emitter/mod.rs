@@ -8,7 +8,7 @@ use crate::{
             base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
             sphere::SphereEmitter,
         },
-        Particle,
+        Particle, ParticleSystemRng,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -22,7 +22,7 @@ pub mod sphere;
 /// Emit trait must be implemented for any particle system emitter.
 pub trait Emit {
     /// Initializes state of particle using given emitter and particle system.
-    fn emit(&self, particle: &mut Particle);
+    fn emit(&self, particle: &mut Particle, rng: &mut ParticleSystemRng);
 }
 
 /// See module docs.
@@ -80,8 +80,8 @@ impl Visit for Emitter {
 }
 
 impl Emit for Emitter {
-    fn emit(&self, particle: &mut Particle) {
-        static_dispatch!(self, emit, particle)
+    fn emit(&self, particle: &mut Particle, rng: &mut ParticleSystemRng) {
+        static_dispatch!(self, emit, particle, rng)
     }
 }
 

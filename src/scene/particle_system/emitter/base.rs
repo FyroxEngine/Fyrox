@@ -5,7 +5,7 @@ use crate::{
         algebra::Vector3, color::Color, numeric_range::RangeExt, reflect::prelude::*,
         visitor::prelude::*,
     },
-    scene::particle_system::Particle,
+    scene::particle_system::{Particle, ParticleSystemRng},
 };
 use std::ops::Range;
 
@@ -212,19 +212,19 @@ impl BaseEmitter {
 
     /// Initializes particle with new state. Every custom emitter must call this method,
     /// otherwise you will get weird behavior of emitted particles.
-    pub fn emit(&self, particle: &mut Particle) {
+    pub fn emit(&self, particle: &mut Particle, rng: &mut ParticleSystemRng) {
         particle.lifetime = 0.0;
-        particle.initial_lifetime = self.lifetime.random();
+        particle.initial_lifetime = self.lifetime.random(rng);
         particle.color = Color::WHITE;
-        particle.size = self.size.random();
-        particle.size_modifier = self.size_modifier.random();
+        particle.size = self.size.random(rng);
+        particle.size_modifier = self.size_modifier.random(rng);
         particle.velocity = Vector3::new(
-            self.x_velocity.random(),
-            self.y_velocity.random(),
-            self.z_velocity.random(),
+            self.x_velocity.random(rng),
+            self.y_velocity.random(rng),
+            self.z_velocity.random(rng),
         );
-        particle.rotation = self.rotation.random();
-        particle.rotation_speed = self.rotation_speed.random();
+        particle.rotation = self.rotation.random(rng);
+        particle.rotation_speed = self.rotation_speed.random(rng);
     }
 
     /// Sets new position of emitter in local coordinates.

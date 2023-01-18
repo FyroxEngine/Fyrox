@@ -1,14 +1,14 @@
 //! Vertical cylinder emitter.
 
-use crate::core::numeric_range::RangeExt;
 use crate::{
-    core::{algebra::Vector3, reflect::prelude::*, visitor::prelude::*},
+    core::{algebra::Vector3, numeric_range::RangeExt, reflect::prelude::*, visitor::prelude::*},
     scene::particle_system::{
         emitter::{
             base::{BaseEmitter, BaseEmitterBuilder},
             Emit, Emitter,
         },
         particle::Particle,
+        ParticleSystemRng,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -48,11 +48,11 @@ impl DerefMut for CylinderEmitter {
 }
 
 impl Emit for CylinderEmitter {
-    fn emit(&self, particle: &mut Particle) {
+    fn emit(&self, particle: &mut Particle, rng: &mut ParticleSystemRng) {
         // Disk point picking extended in 3D - http://mathworld.wolfram.com/DiskPointPicking.html
-        let scale: f32 = (0.0..1.0).random();
-        let theta = (0.0..2.0 * std::f32::consts::PI).random();
-        let z = (0.0..self.height).random();
+        let scale: f32 = (0.0..1.0).random(rng);
+        let theta = (0.0..2.0 * std::f32::consts::PI).random(rng);
+        let z = (0.0..self.height).random(rng);
         let radius = scale.sqrt() * self.radius;
         let x = radius * theta.cos();
         let y = radius * theta.sin();

@@ -28,17 +28,17 @@ pub trait RangeExt<T>
 where
     T: Num + PartialOrd + SampleUniform + Copy,
 {
-    fn random(&self) -> T;
+    fn random<R: Rng>(&self, rng: &mut R) -> T;
 
     fn clamp_value(&self, value: &mut T) -> T;
 }
 
 impl<T: Num + PartialOrd + SampleUniform + Copy> RangeExt<T> for Range<T> {
     #[inline]
-    fn random(&self) -> T {
+    fn random<R: Rng>(&self, rng: &mut R) -> T {
         let start = min(self.start, self.end);
         let end = max(self.start, self.end);
-        rand::thread_rng().gen_range(Range { start, end })
+        rng.gen_range(Range { start, end })
     }
 
     #[inline]

@@ -2,6 +2,7 @@
 //! layer.
 
 use crate::core::numeric_range::RangeExt;
+use crate::scene::particle_system::ParticleSystemRng;
 use crate::{
     core::{algebra::Vector3, reflect::prelude::*, visitor::prelude::*},
     scene::particle_system::{
@@ -94,13 +95,13 @@ impl Default for CuboidEmitter {
 }
 
 impl Emit for CuboidEmitter {
-    fn emit(&self, particle: &mut Particle) {
-        self.emitter.emit(particle);
+    fn emit(&self, particle: &mut Particle, rng: &mut ParticleSystemRng) {
+        self.emitter.emit(particle, rng);
         let position = self.position();
         particle.position = Vector3::new(
-            position.x + (-self.half_width..self.half_width).random(),
-            position.y + (-self.half_height..self.half_height).random(),
-            position.z + (-self.half_depth..self.half_depth).random(),
+            position.x + (-self.half_width..self.half_width).random(rng),
+            position.y + (-self.half_height..self.half_height).random(rng),
+            position.z + (-self.half_depth..self.half_depth).random(rng),
         )
     }
 }

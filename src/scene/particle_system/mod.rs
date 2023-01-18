@@ -70,6 +70,7 @@
 //! }
 //! ```
 
+use crate::rand::{Error, RngCore};
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
@@ -82,6 +83,7 @@ use crate::{
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
+    rand::{prelude::StdRng, SeedableRng},
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
@@ -128,6 +130,69 @@ impl Visit for EmitterWrapper {
     }
 }
 
+/// Pseudo-random numbers generator for particle systems.
+#[derive(Debug, Clone, Reflect)]
+pub struct ParticleSystemRng {
+    rng_seed: u64,
+
+    #[reflect(hidden)]
+    rng: StdRng,
+}
+
+impl Default for ParticleSystemRng {
+    fn default() -> Self {
+        Self::new(0xDEADBEEF)
+    }
+}
+
+impl ParticleSystemRng {
+    /// Creates new PRNG with a given seed. Fixed seed guarantees that particle system's behaviour will be
+    /// deterministic.
+    pub fn new(seed: u64) -> Self {
+        Self {
+            rng_seed: seed,
+            rng: StdRng::seed_from_u64(seed),
+        }
+    }
+}
+
+impl RngCore for ParticleSystemRng {
+    #[inline]
+    fn next_u32(&mut self) -> u32 {
+        self.rng.next_u32()
+    }
+
+    #[inline]
+    fn next_u64(&mut self) -> u64 {
+        self.rng.next_u64()
+    }
+
+    #[inline]
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        self.rng.fill_bytes(dest)
+    }
+
+    #[inline]
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
+        self.rng.try_fill_bytes(dest)
+    }
+}
+
+impl Visit for ParticleSystemRng {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut guard = visitor.enter_region(name)?;
+
+        self.rng_seed.visit("Seed", &mut guard)?;
+
+        // Re-initialize the RNG to keep determinism.
+        if guard.is_reading() {
+            self.rng = StdRng::seed_from_u64(self.rng_seed);
+        }
+
+        Ok(())
+    }
+}
+
 /// See module docs.
 #[derive(Debug, Visit, Clone, Reflect)]
 pub struct ParticleSystem {
@@ -158,6 +223,9 @@ pub struct ParticleSystem {
 
     #[reflect(hidden)]
     free_particles: Vec<u32>,
+
+    #[visit(optional)]
+    rng: ParticleSystemRng,
 }
 
 impl Deref for ParticleSystem {
@@ -383,7 +451,7 @@ impl NodeTrait for ParticleSystem {
                         ..Particle::default()
                     };
                     emitter.alive_particles += 1;
-                    emitter.emit(&mut particle);
+                    emitter.emit(&mut particle, &mut self.rng);
                     if let Some(free_index) = self.free_particles.pop() {
                         self.particles[free_index as usize] = particle;
                     } else {
@@ -437,6 +505,7 @@ pub struct ParticleSystemBuilder {
     color_over_lifetime: ColorGradient,
     soft_boundary_sharpness_factor: f32,
     is_playing: bool,
+    rng: ParticleSystemRng,
 }
 
 impl ParticleSystemBuilder {
@@ -451,6 +520,7 @@ impl ParticleSystemBuilder {
             color_over_lifetime: Default::default(),
             soft_boundary_sharpness_factor: 2.5,
             is_playing: true,
+            rng: ParticleSystemRng::default(),
         }
     }
 
@@ -503,6 +573,12 @@ impl ParticleSystemBuilder {
         self
     }
 
+    /// Sets desired pseudo-random numbers generator.
+    pub fn with_rng(mut self, rng: ParticleSystemRng) -> Self {
+        self.rng = rng;
+        self
+    }
+
     fn build_particle_system(self) -> ParticleSystem {
         ParticleSystem {
             base: self.base_builder.build_base(),
@@ -514,6 +590,7 @@ impl ParticleSystemBuilder {
             color_over_lifetime: self.color_over_lifetime.into(),
             soft_boundary_sharpness_factor: self.soft_boundary_sharpness_factor.into(),
             is_playing: self.is_playing.into(),
+            rng: self.rng,
         }
     }
 
