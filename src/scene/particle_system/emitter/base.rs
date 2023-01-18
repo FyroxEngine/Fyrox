@@ -48,7 +48,7 @@ pub struct BaseEmitter {
     pub(crate) particles_to_spawn: u32,
     resurrect_particles: bool,
     #[reflect(hidden)]
-    spawned_particles: u64,
+    pub(crate) spawned_particles: u64,
 }
 
 /// Emitter builder allows you to construct emitter in declarative manner.

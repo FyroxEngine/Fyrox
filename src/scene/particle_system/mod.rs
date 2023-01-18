@@ -229,6 +229,7 @@ impl ParticleSystem {
         self.free_particles.clear();
         for emitter in self.emitters.get_value_mut_silent().iter_mut() {
             emitter.alive_particles = 0;
+            emitter.spawned_particles = 0;
         }
     }
 
