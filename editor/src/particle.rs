@@ -1,6 +1,6 @@
 use crate::{
     scene::{EditorScene, Selection},
-    Message, FIXED_TIMESTEP,
+    send_sync_message, Message, FIXED_TIMESTEP,
 };
 use fyrox::{
     core::pool::Handle,
@@ -256,6 +256,11 @@ impl ParticleSystemPreviewControlPanel {
 
             assert!(node_overrides.remove(&particle_system_handle));
         }
+
+        send_sync_message(
+            &engine.user_interface,
+            CheckBoxMessage::checked(self.preview, MessageDirection::ToWidget, Some(false)),
+        );
     }
 
     pub fn handle_ui_message(
