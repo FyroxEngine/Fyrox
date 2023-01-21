@@ -152,7 +152,7 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
     let field_body = quote! {
         match name {
             #(
-                #prop_values => Some(#fields),
+                #prop_values => Some(#fields as &dyn Reflect),
             )*
             _ => None,
         }
@@ -161,7 +161,7 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
     let field_mut_body = quote! {
         match name {
             #(
-                #prop_values => Some(#field_muts),
+                #prop_values => Some(#field_muts as &mut dyn Reflect),
             )*
             _ => None,
         }
@@ -170,7 +170,7 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
     let fields_body = quote! {
         vec! [
             #(
-                #fields,
+                #fields as &dyn Reflect,
             )*
         ]
     };
@@ -178,7 +178,7 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
     let fields_mut_body = quote! {
         vec! [
             #(
-                #field_muts,
+                #field_muts as &mut dyn Reflect,
             )*
         ]
     };
@@ -276,21 +276,21 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
 
             let fields_list_raw = quote! {
                 #(
-                    #fields,
+                    #fields as &dyn Reflect,
                 )*
             };
 
             let fields_mut_list_raw = quote! {
                 #(
-                    #field_muts,
+                    #field_muts as &mut dyn Reflect,
                 )*
             };
 
             let fields = quote! {
                 #(
                     #prop_values => match self {
-                        #matcher => #fields,
-                        _ => return None,
+                        #matcher => Some(#fields as &dyn Reflect),
+                        _ => None,
                     },
                 )*
             };
@@ -298,31 +298,22 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             let field_muts = quote! {
                 #(
                     #prop_values => match self {
-                        #matcher => #field_muts,
-                        _ => return None,
+                        #matcher => Some(#field_muts as &mut dyn Reflect),
+                        _ => None,
                     },
                 )*
             };
 
             fields_list.push(quote! {
-                match self {
-                    #matcher => return vec![ #fields_list_raw ],
-                    _ => (),
-                }
+                #matcher => vec![ #fields_list_raw ],
             });
 
             fields_list_mut.push(quote! {
-                match self {
-                    #matcher => return vec![ #fields_mut_list_raw ],
-                    _ => (),
-                }
+                #matcher => vec![ #fields_mut_list_raw ],
             });
 
             fields_info.push(quote! {
-                match self {
-                    #matcher => return  { #metadata },
-                    _ => (),
-                }
+                #matcher => { #metadata },
             });
 
             (fields, field_muts)
@@ -341,45 +332,48 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
         )
     } else {
         let field_body = quote! {
-            Some(match name {
+            match name {
                 #(
                     #fields
                 )*
-                _ => return None,
-            })
+                _ => None,
+            }
         };
 
         let field_mut_body = quote! {
-            Some(match name {
+            match name {
                 #(
                     #field_muts
                 )*
-                _ => return None,
-            })
+                _ => None,
+            }
         };
 
         let fields_body = quote! {
-            #(
-                #fields_list
-            )*
-
-            vec![]
+            match self {
+                #(
+                    #fields_list
+                )*
+                _ => vec![]
+            }
         };
 
         let fields_mut_body = quote! {
-            #(
-                #fields_list_mut
-            )*
-
-            vec![]
+            match self {
+                #(
+                    #fields_list_mut
+                )*
+                _ => vec![]
+            }
         };
 
         let fields_metadata_body = quote! {
-            #(
-                #fields_info
-            )*
-
-            vec![]
+            match self {
+                #(
+                    #fields_info
+                )*
+                _ => vec![]
+            }
         };
 
         self::gen_impl(
@@ -425,8 +419,9 @@ fn gen_impl(
                 std::any::type_name::<Self>()
             }
 
-            fn fields_info(&self) -> Vec<FieldInfo> {
-                #metadata
+            fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+                let value = {#metadata};
+                func(value)
             }
 
             fn into_any(self: Box<Self>) -> Box<dyn ::core::any::Any> {
@@ -444,36 +439,40 @@ fn gen_impl(
 
             #set_field
 
-            fn as_any(&self) -> &dyn ::core::any::Any {
-                self
+            fn as_any(&self, func: &mut dyn FnMut(&dyn ::core::any::Any)) {
+                func(self)
             }
 
-            fn as_any_mut(&mut self) -> &mut dyn ::core::any::Any {
-                self
+            fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn ::core::any::Any)) {
+                func(self)
             }
 
-            fn as_reflect(&self) -> &dyn Reflect {
-                self
+            fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+                func(self as &dyn Reflect)
             }
 
-            fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
-                self
+            fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+                func(self as &mut dyn Reflect)
             }
 
-            fn fields(&self) -> Vec<&dyn Reflect> {
-                #fields
+            fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
+                let value = {#fields};
+                func(value)
             }
 
-            fn fields_mut(&mut self) -> Vec<&mut dyn Reflect> {
-                #fields_mut
+            fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
+                let value = {#fields_mut};
+                func(value)
             }
 
-            fn field(&self, name: &str) -> Option<&dyn Reflect> {
-                #field
+            fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+                let value = {#field};
+                func(value)
             }
 
-            fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
-                #field_mut
+            fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>))  {
+                let value = {#field_mut};
+                func(value)
             }
 
             #as_array_impl

@@ -5,6 +5,8 @@ mod std_impls;
 
 pub use fyrox_core_derive::Reflect;
 
+use parking_lot::Mutex;
+use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     fmt::{self, Debug, Display, Formatter},
@@ -150,17 +152,17 @@ impl<'a> PartialEq<Self> for FieldInfo<'a> {
 pub trait Reflect: Any + Debug {
     fn type_name(&self) -> &'static str;
 
-    fn fields_info(&self) -> Vec<FieldInfo>;
+    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>));
 
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
-    fn as_any(&self) -> &dyn Any;
+    fn as_any(&self, func: &mut dyn FnMut(&dyn Any));
 
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any));
 
-    fn as_reflect(&self) -> &dyn Reflect;
+    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect));
 
-    fn as_reflect_mut(&mut self) -> &mut dyn Reflect;
+    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect));
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>>;
 
@@ -170,51 +172,177 @@ pub trait Reflect: Any + Debug {
         &mut self,
         field: &str,
         value: Box<dyn Reflect>,
-    ) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-        match self.field_mut(field) {
-            Some(f) => f.set(value),
-            None => Err(value),
-        }
+        func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),
+    ) {
+        let mut opt_value = Some(value);
+        self.field_mut(field, &mut move |field| {
+            let value = opt_value.take().unwrap();
+            match field {
+                Some(f) => func(f.set(value)),
+                None => func(Err(value)),
+            };
+        });
     }
 
-    fn fields(&self) -> Vec<&dyn Reflect> {
-        vec![]
+    fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
+        func(vec![])
     }
 
-    fn fields_mut(&mut self) -> Vec<&mut dyn Reflect> {
-        vec![]
+    fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
+        func(vec![])
     }
 
-    fn field(&self, _name: &str) -> Option<&dyn Reflect> {
-        None
+    fn field(
+        &self,
+        #[allow(unused_variables)] name: &str,
+        func: &mut dyn FnMut(Option<&dyn Reflect>),
+    ) {
+        func(None)
     }
 
-    fn field_mut(&mut self, _name: &str) -> Option<&mut dyn Reflect> {
-        None
+    fn field_mut(
+        &mut self,
+        #[allow(unused_variables)] name: &str,
+        func: &mut dyn FnMut(Option<&mut dyn Reflect>),
+    ) {
+        func(None)
     }
 
-    fn as_array(&self) -> Option<&dyn ReflectArray> {
-        None
+    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
+        func(None)
     }
 
-    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
-        None
+    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
+        func(None)
     }
 
-    fn as_list(&self) -> Option<&dyn ReflectList> {
-        None
+    fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
+        func(None)
     }
 
-    fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
-        None
+    fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
+        func(None)
     }
 
-    fn as_inheritable_variable(&self) -> Option<&dyn ReflectInheritableVariable> {
-        None
+    fn as_inheritable_variable(
+        &self,
+        func: &mut dyn FnMut(Option<&dyn ReflectInheritableVariable>),
+    ) {
+        func(None)
     }
 
-    fn as_inheritable_variable_mut(&mut self) -> Option<&mut dyn ReflectInheritableVariable> {
-        None
+    fn as_inheritable_variable_mut(
+        &mut self,
+        func: &mut dyn FnMut(Option<&mut dyn ReflectInheritableVariable>),
+    ) {
+        func(None)
+    }
+}
+
+impl<T: Reflect + Clone> Reflect for Arc<Mutex<T>> {
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<T>()
+    }
+
+    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+        let guard = self.lock();
+        guard.fields_info(func)
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        // Clone the inner value and box it.
+        Box::new(self.lock().clone())
+    }
+
+    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+        let guard = self.lock();
+        (*guard).as_any(func)
+    }
+
+    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+        let mut guard = self.lock();
+        (*guard).as_any_mut(func)
+    }
+
+    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        let guard = self.lock();
+        (*guard).as_reflect(func)
+    }
+
+    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        let mut guard = self.lock();
+        (*guard).as_reflect_mut(func)
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        let mut guard = self.lock();
+        guard.set(value)
+    }
+
+    fn set_field(
+        &mut self,
+        field: &str,
+        value: Box<dyn Reflect>,
+        func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),
+    ) {
+        let mut guard = self.lock();
+        guard.set_field(field, value, func)
+    }
+
+    fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
+        let guard = self.lock();
+        guard.fields(func)
+    }
+
+    fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
+        let mut guard = self.lock();
+        guard.fields_mut(func)
+    }
+
+    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        let guard = self.lock();
+        guard.field(name, func)
+    }
+
+    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+        let mut guard = self.lock();
+        guard.field_mut(name, func)
+    }
+
+    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
+        let guard = self.lock();
+        guard.as_array(func)
+    }
+
+    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
+        let mut guard = self.lock();
+        guard.as_array_mut(func)
+    }
+
+    fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
+        let guard = self.lock();
+        guard.as_list(func)
+    }
+
+    fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
+        let mut guard = self.lock();
+        guard.as_list_mut(func)
+    }
+
+    fn as_inheritable_variable(
+        &self,
+        func: &mut dyn FnMut(Option<&dyn ReflectInheritableVariable>),
+    ) {
+        let guard = self.lock();
+        guard.as_inheritable_variable(func)
+    }
+
+    fn as_inheritable_variable_mut(
+        &mut self,
+        func: &mut dyn FnMut(Option<&mut dyn ReflectInheritableVariable>),
+    ) {
+        let mut guard = self.lock();
+        guard.as_inheritable_variable_mut(func)
     }
 }
 
@@ -315,46 +443,74 @@ impl<'a> Display for ReflectPathError<'a> {
 }
 
 pub trait ResolvePath {
-    fn resolve_path<'r, 'p>(
-        &'r self,
+    fn resolve_path<'p>(
+        &self,
         path: &'p str,
-    ) -> Result<&'r dyn Reflect, ReflectPathError<'p>>;
+        func: &mut dyn FnMut(Result<&dyn Reflect, ReflectPathError<'p>>),
+    );
 
-    fn resolve_path_mut<'r, 'p>(
-        &'r mut self,
+    fn resolve_path_mut<'p>(
+        &mut self,
         path: &'p str,
-    ) -> Result<&'r mut dyn Reflect, ReflectPathError<'p>>;
+        func: &mut dyn FnMut(Result<&mut dyn Reflect, ReflectPathError<'p>>),
+    );
 
-    fn get_resolve_path<'r, 'p, T: Reflect>(
-        &'r self,
+    fn get_resolve_path<'p, T: Reflect>(
+        &self,
         path: &'p str,
-    ) -> Result<&'r T, ReflectPathError<'p>> {
-        self.resolve_path(path)
-            .and_then(|r| r.downcast_ref().ok_or(ReflectPathError::InvalidDowncast))
+        func: &mut dyn FnMut(Result<&T, ReflectPathError<'p>>),
+    ) {
+        self.resolve_path(path, &mut |resolve_result| {
+            match resolve_result {
+                Ok(value) => {
+                    value.downcast_ref(&mut |result| {
+                        match result {
+                            Some(value) => {
+                                func(Ok(value));
+                            }
+                            None => {
+                                func(Err(ReflectPathError::InvalidDowncast));
+                            }
+                        };
+                    });
+                }
+                Err(err) => {
+                    func(Err(err));
+                }
+            };
+        })
     }
 
-    fn get_resolve_path_mut<'r, 'p, T: Reflect>(
-        &'r mut self,
+    fn get_resolve_path_mut<'p, T: Reflect>(
+        &mut self,
         path: &'p str,
-    ) -> Result<&'r mut T, ReflectPathError<'p>> {
-        self.resolve_path_mut(path)
-            .and_then(|r| r.downcast_mut().ok_or(ReflectPathError::InvalidDowncast))
+        func: &mut dyn FnMut(Result<&mut T, ReflectPathError<'p>>),
+    ) {
+        self.resolve_path_mut(path, &mut |result| match result {
+            Ok(value) => value.downcast_mut(&mut |result| match result {
+                Some(value) => func(Ok(value)),
+                None => func(Err(ReflectPathError::InvalidDowncast)),
+            }),
+            Err(err) => func(Err(err)),
+        })
     }
 }
 
 impl<T: Reflect> ResolvePath for T {
-    fn resolve_path<'r, 'p>(
-        &'r self,
+    fn resolve_path<'p>(
+        &self,
         path: &'p str,
-    ) -> Result<&'r dyn Reflect, ReflectPathError<'p>> {
-        (self as &dyn Reflect).resolve_path(path)
+        func: &mut dyn FnMut(Result<&dyn Reflect, ReflectPathError<'p>>),
+    ) {
+        (self as &dyn Reflect).resolve_path(path, func)
     }
 
-    fn resolve_path_mut<'r, 'p>(
-        &'r mut self,
+    fn resolve_path_mut<'p>(
+        &mut self,
         path: &'p str,
-    ) -> Result<&'r mut dyn Reflect, ReflectPathError<'p>> {
-        (self as &mut dyn Reflect).resolve_path_mut(path)
+        func: &mut dyn FnMut(Result<&mut dyn Reflect, ReflectPathError<'p>>),
+    ) {
+        (self as &mut dyn Reflect).resolve_path_mut(path, func)
     }
 }
 
@@ -376,20 +532,24 @@ pub fn path_to_components(path: &str) -> Vec<Component> {
 
 /// Helper methods over [`Reflect`] types
 pub trait GetField {
-    fn get_field<T: 'static>(&self, name: &str) -> Option<&T>;
+    fn get_field<T: 'static>(&self, name: &str, func: &mut dyn FnMut(Option<&T>));
 
-    fn get_field_mut<T: 'static>(&mut self, _name: &str) -> Option<&mut T>;
+    fn get_field_mut<T: 'static>(&mut self, _name: &str, func: &mut dyn FnMut(Option<&mut T>));
 }
 
 impl<R: Reflect> GetField for R {
-    fn get_field<T: 'static>(&self, name: &str) -> Option<&T> {
-        self.field(name)
-            .and_then(|reflect| reflect.as_any().downcast_ref())
+    fn get_field<T: 'static>(&self, name: &str, func: &mut dyn FnMut(Option<&T>)) {
+        self.field(name, &mut |field| match field {
+            None => func(None),
+            Some(reflect) => reflect.as_any(&mut |any| func(any.downcast_ref())),
+        })
     }
 
-    fn get_field_mut<T: 'static>(&mut self, name: &str) -> Option<&mut T> {
-        self.field_mut(name)
-            .and_then(|reflect| reflect.as_any_mut().downcast_mut())
+    fn get_field_mut<T: 'static>(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut T>)) {
+        self.field_mut(name, &mut |field| match field {
+            None => func(None),
+            Some(reflect) => reflect.as_any_mut(&mut |any| func(any.downcast_mut())),
+        })
     }
 }
 
@@ -439,69 +599,93 @@ impl<'p> Component<'p> {
         Ok((Self::Field(path), ""))
     }
 
-    fn resolve<'r>(
+    fn resolve(
         &self,
-        reflect: &'r dyn Reflect,
-    ) -> Result<&'r dyn Reflect, ReflectPathError<'p>> {
+        reflect: &dyn Reflect,
+        func: &mut dyn FnMut(Result<&dyn Reflect, ReflectPathError<'p>>),
+    ) {
         match self {
-            Self::Field(path) => reflect
-                .field(path)
-                .ok_or(ReflectPathError::UnknownField { s: path }),
+            Self::Field(path) => reflect.field(path, &mut |field| {
+                func(field.ok_or(ReflectPathError::UnknownField { s: path }))
+            }),
             Self::Index(path) => {
-                let list = reflect.as_array().ok_or(ReflectPathError::NotAnArray)?;
-                let index = path
-                    .parse::<usize>()
-                    .map_err(|_| ReflectPathError::InvalidIndexSyntax { s: path })?;
-                list.reflect_index(index)
-                    .ok_or(ReflectPathError::NoItemForIndex { s: path })
+                reflect.as_array(&mut |array| match array {
+                    Some(list) => match path.parse::<usize>() {
+                        Ok(index) => match list.reflect_index(index) {
+                            None => func(Err(ReflectPathError::NoItemForIndex { s: path })),
+                            Some(value) => func(Ok(value)),
+                        },
+                        Err(_) => func(Err(ReflectPathError::InvalidIndexSyntax { s: path })),
+                    },
+                    None => func(Err(ReflectPathError::NotAnArray)),
+                });
             }
         }
     }
 
-    fn resolve_mut<'r>(
+    fn resolve_mut(
         &self,
-        reflect: &'r mut dyn Reflect,
-    ) -> Result<&'r mut dyn Reflect, ReflectPathError<'p>> {
+        reflect: &mut dyn Reflect,
+        func: &mut dyn FnMut(Result<&mut dyn Reflect, ReflectPathError<'p>>),
+    ) {
         match self {
-            Self::Field(path) => reflect
-                .field_mut(path)
-                .ok_or(ReflectPathError::UnknownField { s: path }),
+            Self::Field(path) => reflect.field_mut(path, &mut |field| {
+                func(field.ok_or(ReflectPathError::UnknownField { s: path }))
+            }),
             Self::Index(path) => {
-                let list = reflect.as_array_mut().ok_or(ReflectPathError::NotAnArray)?;
-                let index = path
-                    .parse::<usize>()
-                    .map_err(|_| ReflectPathError::InvalidIndexSyntax { s: path })?;
-                list.reflect_index_mut(index)
-                    .ok_or(ReflectPathError::NoItemForIndex { s: path })
+                reflect.as_array_mut(&mut |array| match array {
+                    Some(list) => match path.parse::<usize>() {
+                        Ok(index) => match list.reflect_index_mut(index) {
+                            None => func(Err(ReflectPathError::NoItemForIndex { s: path })),
+                            Some(value) => func(Ok(value)),
+                        },
+                        Err(_) => func(Err(ReflectPathError::InvalidIndexSyntax { s: path })),
+                    },
+                    None => func(Err(ReflectPathError::NotAnArray)),
+                });
             }
         }
     }
 }
 
 impl ResolvePath for dyn Reflect {
-    fn resolve_path<'r, 'p>(
-        &'r self,
+    fn resolve_path<'p>(
+        &self,
         path: &'p str,
-    ) -> Result<&'r dyn Reflect, ReflectPathError<'p>> {
-        let (component, r) = Component::next(path)?;
-        let child = component.resolve(self)?;
-        if r.is_empty() {
-            Ok(child)
-        } else {
-            child.resolve_path(r)
+        func: &mut dyn FnMut(Result<&dyn Reflect, ReflectPathError<'p>>),
+    ) {
+        match Component::next(path) {
+            Ok((component, r)) => component.resolve(self, &mut |result| match result {
+                Ok(child) => {
+                    if r.is_empty() {
+                        func(Ok(child))
+                    } else {
+                        child.resolve_path(r, func)
+                    }
+                }
+                Err(err) => func(Err(err)),
+            }),
+            Err(err) => func(Err(err)),
         }
     }
 
-    fn resolve_path_mut<'r, 'p>(
-        &'r mut self,
+    fn resolve_path_mut<'p>(
+        &mut self,
         path: &'p str,
-    ) -> Result<&'r mut dyn Reflect, ReflectPathError<'p>> {
-        let (component, r) = Component::next(path)?;
-        let child = component.resolve_mut(self)?;
-        if r.is_empty() {
-            Ok(child)
-        } else {
-            child.resolve_path_mut(r)
+        func: &mut dyn FnMut(Result<&mut dyn Reflect, ReflectPathError<'p>>),
+    ) {
+        match Component::next(path) {
+            Ok((component, r)) => component.resolve_mut(self, &mut |result| match result {
+                Ok(child) => {
+                    if r.is_empty() {
+                        func(Ok(child))
+                    } else {
+                        child.resolve_path_mut(r, func)
+                    }
+                }
+                Err(err) => func(Err(err)),
+            }),
+            Err(err) => func(Err(err)),
         }
     }
 }
@@ -534,13 +718,13 @@ impl dyn Reflect {
     }
 
     #[inline]
-    pub fn downcast_ref<T: Reflect>(&self) -> Option<&T> {
-        self.as_any().downcast_ref::<T>()
+    pub fn downcast_ref<T: Reflect>(&self, func: &mut dyn FnMut(Option<&T>)) {
+        self.as_any(&mut |any| func(any.downcast_ref::<T>()))
     }
 
     #[inline]
-    pub fn downcast_mut<T: Reflect>(&mut self) -> Option<&mut T> {
-        self.as_any_mut().downcast_mut::<T>()
+    pub fn downcast_mut<T: Reflect>(&mut self, func: &mut dyn FnMut(Option<&mut T>)) {
+        self.as_any_mut(&mut |any| func(any.downcast_mut::<T>()))
     }
 
     /// Sets a field by its path in the given entity. This method always uses [`Reflect::set_field`] which means,
@@ -550,37 +734,33 @@ impl dyn Reflect {
         &mut self,
         path: &'p str,
         value: Box<dyn Reflect>,
-    ) -> Result<Box<dyn Reflect>, SetFieldByPathError<'p>> {
-        let (parent_entity, field_path) = if let Some(separator_position) = path.rfind('.') {
+        func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldByPathError<'p>>),
+    ) {
+        if let Some(separator_position) = path.rfind('.') {
+            let mut opt_value = Some(value);
             let parent_path = &path[..separator_position];
             let field = &path[(separator_position + 1)..];
-            let parent_entity = match self.resolve_path_mut(parent_path) {
+            self.resolve_path_mut(parent_path, &mut |result| match result {
                 Err(reason) => {
-                    return Err(SetFieldByPathError::InvalidPath { reason, value });
+                    func(Err(SetFieldByPathError::InvalidPath {
+                        reason,
+                        value: opt_value.take().unwrap(),
+                    }));
                 }
-                Ok(property) => property,
-            };
-            (parent_entity, field)
+                Ok(property) => {
+                    property.set_field(field, opt_value.take().unwrap(), &mut |result| match result
+                    {
+                        Ok(value) => func(Ok(value)),
+                        Err(e) => func(Err(SetFieldByPathError::InvalidValue(e))),
+                    })
+                }
+            });
         } else {
-            (self, path)
-        };
-
-        parent_entity
-            .set_field(field_path, value)
-            .map_err(|e| SetFieldByPathError::InvalidValue(e))
-    }
-}
-
-// Make it a trait?
-impl dyn ReflectList {
-    pub fn get_reflect_index<T: Reflect + 'static>(&self, index: usize) -> Option<&T> {
-        self.reflect_index(index)
-            .and_then(|reflect| reflect.downcast_ref())
-    }
-
-    pub fn get_reflect_index_mut<T: Reflect + 'static>(&mut self, index: usize) -> Option<&mut T> {
-        self.reflect_index_mut(index)
-            .and_then(|reflect| reflect.downcast_mut())
+            self.set_field(path, value, &mut |result| match result {
+                Ok(value) => func(Ok(value)),
+                Err(e) => func(Err(SetFieldByPathError::InvalidValue(e))),
+            });
+        }
     }
 }
 
@@ -591,44 +771,36 @@ macro_rules! blank_reflect {
             std::any::type_name::<Self>()
         }
 
-        fn fields_info(&self) -> Vec<FieldInfo> {
-            vec![]
+        fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+            func(vec![])
         }
 
         fn into_any(self: Box<Self>) -> Box<dyn Any> {
             self
         }
 
-        fn as_any(&self) -> &dyn Any {
-            self
+        fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+            func(self)
         }
 
-        fn as_any_mut(&mut self) -> &mut dyn Any {
-            self
+        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+            func(self)
         }
 
-        fn as_reflect(&self) -> &dyn Reflect {
-            self
+        fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+            func(self)
         }
 
-        fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
-            self
+        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+            func(self)
         }
 
-        fn field(&self, name: &str) -> Option<&dyn Reflect> {
-            if name == "self" {
-                Some(self)
-            } else {
-                None
-            }
+        fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+            func(if name == "self" { Some(self) } else { None })
         }
 
-        fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
-            if name == "self" {
-                Some(self)
-            } else {
-                None
-            }
+        fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+            func(if name == "self" { Some(self) } else { None })
         }
 
         fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
@@ -645,56 +817,56 @@ macro_rules! delegate_reflect {
             self.deref().type_name()
         }
 
-        fn fields_info(&self) -> Vec<FieldInfo> {
-            self.deref().fields_info()
+        fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+            self.deref().fields_info(func)
         }
 
         fn into_any(self: Box<Self>) -> Box<dyn Any> {
             (*self).into_any()
         }
 
-        fn as_any(&self) -> &dyn Any {
-            self.deref().as_any()
+        fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+            self.deref().as_any(func)
         }
 
-        fn as_any_mut(&mut self) -> &mut dyn Any {
-            self.deref_mut().as_any_mut()
+        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+            self.deref_mut().as_any_mut(func)
         }
 
-        fn as_reflect(&self) -> &dyn Reflect {
-            self.deref().as_reflect()
+        fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+            self.deref().as_reflect(func)
         }
 
-        fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
-            self.deref_mut().as_reflect_mut()
+        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+            self.deref_mut().as_reflect_mut(func)
         }
 
         fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
             self.deref_mut().set(value)
         }
 
-        fn field(&self, name: &str) -> Option<&dyn Reflect> {
-            self.deref().field(name)
+        fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+            self.deref().field(name, func)
         }
 
-        fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
-            self.deref_mut().field_mut(name)
+        fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+            self.deref_mut().field_mut(name, func)
         }
 
-        fn as_array(&self) -> Option<&dyn ReflectArray> {
-            self.deref().as_array()
+        fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
+            self.deref().as_array(func)
         }
 
-        fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
-            self.deref_mut().as_array_mut()
+        fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
+            self.deref_mut().as_array_mut(func)
         }
 
-        fn as_list(&self) -> Option<&dyn ReflectList> {
-            self.deref().as_list()
+        fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
+            self.deref().as_list(func)
         }
 
-        fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
-            self.deref_mut().as_list_mut()
+        fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
+            self.deref_mut().as_list_mut(func)
         }
     };
 }

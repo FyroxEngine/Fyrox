@@ -109,28 +109,28 @@ impl<T: Reflect> Reflect for Pool<T> {
         std::any::type_name::<Self>()
     }
 
-    fn fields_info(&self) -> Vec<FieldInfo> {
-        vec![]
+    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+        func(vec![])
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
         self
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
+    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+        func(self)
     }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+        func(self)
     }
 
-    fn as_reflect(&self) -> &dyn Reflect {
-        self
+    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        func(self)
     }
 
-    fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
-        self
+    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        func(self)
     }
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
@@ -138,30 +138,22 @@ impl<T: Reflect> Reflect for Pool<T> {
         Ok(Box::new(this))
     }
 
-    fn field(&self, _name: &str) -> Option<&dyn Reflect> {
-        None
+    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
+        func(Some(self))
     }
 
-    fn field_mut(&mut self, _name: &str) -> Option<&mut dyn Reflect> {
-        None
-    }
-
-    fn as_array(&self) -> Option<&dyn ReflectArray> {
-        Some(self)
-    }
-
-    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
-        Some(self)
+    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
+        func(Some(self))
     }
 }
 
 impl<T: Reflect> ReflectArray for Pool<T> {
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
-        self.at(index as u32).map(|p| p.as_reflect())
+        self.at(index as u32).map(|p| p as &dyn Reflect)
     }
 
     fn reflect_index_mut(&mut self, index: usize) -> Option<&mut dyn Reflect> {
-        self.at_mut(index as u32).map(|p| p.as_reflect_mut())
+        self.at_mut(index as u32).map(|p| p as &mut dyn Reflect)
     }
 
     fn reflect_len(&self) -> usize {

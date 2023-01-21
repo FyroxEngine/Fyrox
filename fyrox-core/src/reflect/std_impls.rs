@@ -61,12 +61,12 @@ impl_reflect_tuple! {
 impl<const N: usize, T: Reflect> Reflect for [T; N] {
     blank_reflect!();
 
-    fn as_array(&self) -> Option<&dyn ReflectArray> {
-        Some(self)
+    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
+        func(Some(self))
     }
 
-    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
-        Some(self)
+    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
+        func(Some(self))
     }
 }
 
