@@ -51,6 +51,10 @@ pub trait BaseNodeTrait: Any + Debug + Deref<Target = Base> + DerefMut + Send {
     /// because internally nodes may (and most likely will) contain handles to other nodes. To
     /// correctly clone a node you have to use [copy_node](struct.Graph.html#method.copy_node).
     fn clone_box(&self) -> Node;
+
+    fn as_any_ref(&self) -> &dyn Any;
+
+    fn as_any_ref_mut(&mut self) -> &mut dyn Any;
 }
 
 impl<T> BaseNodeTrait for T
@@ -59,6 +63,14 @@ where
 {
     fn clone_box(&self) -> Node {
         Node(Box::new(self.clone()))
+    }
+
+    fn as_any_ref(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_ref_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -336,7 +348,7 @@ impl Node {
     /// }
     /// ```
     pub fn cast<T: NodeTrait>(&self) -> Option<&T> {
-        self.0.as_any().downcast_ref::<T>()
+        self.0.as_any_ref().downcast_ref::<T>()
     }
 
     /// Performs downcasting to a particular type.
@@ -352,7 +364,7 @@ impl Node {
     /// }
     /// ```
     pub fn cast_mut<T: NodeTrait>(&mut self) -> Option<&mut T> {
-        self.0.as_any_mut().downcast_mut::<T>()
+        self.0.as_any_ref_mut().downcast_mut::<T>()
     }
 
     /// Allows a node to provide access to a component of specified type.

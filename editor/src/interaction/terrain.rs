@@ -446,21 +446,21 @@ impl BrushPanel {
                                 Brush::SHAPE => match inner.name.as_ref() {
                                     BrushShape::CIRCLE_RADIUS => {
                                         if let BrushShape::Circle { ref mut radius } = brush.shape {
-                                            *radius = args.cast_value().cloned()?;
+                                            *radius = args.cast_clone()?;
                                         }
                                     }
                                     BrushShape::RECTANGLE_WIDTH => {
                                         if let BrushShape::Rectangle { ref mut width, .. } =
                                             brush.shape
                                         {
-                                            *width = args.cast_value().cloned()?;
+                                            *width = args.cast_clone()?;
                                         }
                                     }
                                     BrushShape::RECTANGLE_LENGTH => {
                                         if let BrushShape::Rectangle { ref mut length, .. } =
                                             brush.shape
                                         {
-                                            *length = args.cast_value().cloned()?;
+                                            *length = args.cast_clone()?;
                                         }
                                     }
                                     _ => (),
@@ -470,7 +470,7 @@ impl BrushPanel {
                                         if let BrushMode::ModifyHeightMap { ref mut amount } =
                                             brush.mode
                                         {
-                                            *amount = args.cast_value().cloned()?;
+                                            *amount = args.cast_clone()?;
                                         }
                                     }
                                     BrushMode::DRAW_ON_MASK_LAYER => {
@@ -493,7 +493,7 @@ impl BrushPanel {
                                         if let BrushMode::DrawOnMask { ref mut alpha, .. } =
                                             brush.mode
                                         {
-                                            *alpha = args.cast_value().cloned()?;
+                                            *alpha = args.cast_clone()?;
                                         }
                                     }
                                     _ => (),

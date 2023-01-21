@@ -117,46 +117,69 @@ impl PropertyAction {
         self,
         path: &str,
         target: &mut dyn Reflect,
-    ) -> Result<Option<Box<dyn Reflect>>, Self> {
+        result_callback: &mut dyn FnMut(Result<Option<Box<dyn Reflect>>, Self>),
+    ) {
         match self {
             PropertyAction::Modify { value } => {
-                if let Ok(field) = target.resolve_path_mut(path) {
-                    if let Err(value) = field.set(value) {
-                        Err(Self::Modify { value })
+                let mut value = Some(value);
+                target.resolve_path_mut(path, &mut |result| {
+                    if let Ok(field) = result {
+                        if let Err(value) = field.set(value.take().unwrap()) {
+                            result_callback(Err(Self::Modify { value }))
+                        } else {
+                            result_callback(Ok(None))
+                        }
                     } else {
-                        Ok(None)
+                        result_callback(Err(Self::Modify {
+                            value: value.take().unwrap(),
+                        }))
                     }
-                } else {
-                    Err(Self::Modify { value })
-                }
+                });
             }
             PropertyAction::AddItem { value } => {
-                if let Ok(field) = target.resolve_path_mut(path) {
-                    if let Some(list) = field.as_list_mut() {
-                        return if let Err(value) = list.reflect_push(value) {
-                            Err(Self::AddItem { value })
+                let mut value = Some(value);
+                target.resolve_path_mut(path, &mut |result| {
+                    if let Ok(field) = result {
+                        field.as_list_mut(&mut |result| {
+                            if let Some(list) = result {
+                                if let Err(value) = list.reflect_push(value.take().unwrap()) {
+                                    result_callback(Err(Self::AddItem { value }))
+                                } else {
+                                    result_callback(Ok(None))
+                                }
+                            } else {
+                                result_callback(Err(Self::AddItem {
+                                    value: value.take().unwrap(),
+                                }))
+                            }
+                        })
+                    } else {
+                        result_callback(Err(Self::AddItem {
+                            value: value.take().unwrap(),
+                        }))
+                    }
+                })
+            }
+            PropertyAction::RemoveItem { index } => target.resolve_path_mut(path, &mut |result| {
+                if let Ok(field) = result {
+                    field.as_list_mut(&mut |result| {
+                        if let Some(list) = result {
+                            if let Some(value) = list.reflect_remove(index) {
+                                return result_callback(Ok(Some(value)));
+                            } else {
+                                result_callback(Err(Self::RemoveItem { index }))
+                            }
                         } else {
-                            Ok(None)
-                        };
-                    }
-                }
-
-                Err(Self::AddItem { value })
-            }
-            PropertyAction::RemoveItem { index } => {
-                if let Ok(field) = target.resolve_path_mut(path) {
-                    if let Some(list) = field.as_list_mut() {
-                        if let Some(value) = list.reflect_remove(index) {
-                            return Ok(Some(value));
+                            result_callback(Err(Self::RemoveItem { index }))
                         }
-                    }
+                    })
+                } else {
+                    result_callback(Err(Self::RemoveItem { index }))
                 }
-
-                Err(Self::RemoveItem { index })
-            }
+            }),
             PropertyAction::Revert => {
                 // Unsupported due to lack of context (a reference to parent entity).
-                Err(Self::Revert)
+                result_callback(Err(Self::Revert))
             }
         }
     }
@@ -202,22 +225,23 @@ impl PartialEq for ObjectValue {
 }
 
 impl ObjectValue {
-    pub fn cast_value<T: 'static>(&self) -> Option<&T> {
-        (*self.value).as_any().downcast_ref::<T>()
+    pub fn cast_value<T: 'static>(&self, func: &mut dyn FnMut(Option<&T>)) {
+        (*self.value).as_any(&mut |any| func(any.downcast_ref::<T>()))
     }
 
-    pub fn cast_clone<T: Clone + 'static>(&self) -> Option<T> {
-        (*self.value).as_any().downcast_ref::<T>().cloned()
+    pub fn cast_clone<T: Clone + 'static>(&self, func: &mut dyn FnMut(Option<T>)) {
+        (*self.value).as_any(&mut |any| func(any.downcast_ref::<T>().cloned()))
     }
 
     pub fn try_override<T: Clone + 'static>(&self, value: &mut T) -> bool {
-        (*self.value)
-            .as_any()
-            .downcast_ref::<T>()
-            .map_or(false, |v| {
-                *value = v.clone();
-                true
-            })
+        let mut result = false;
+        (*self.value).as_any(&mut |any| {
+            if let Some(self_value) = any.downcast_ref::<T>() {
+                *value = self_value.clone();
+                result = true;
+            }
+        });
+        false
     }
 
     pub fn into_box_reflect(self) -> Box<dyn Reflect> {
@@ -517,12 +541,22 @@ impl InspectorContext {
     ) -> Self {
         let mut entries = Vec::new();
 
-        let editors = object
-            .fields()
-            .iter()
-            .zip(object.fields_info().iter())
-            .enumerate()
-            .map(|(i, (property, info))| {
+        let mut fields_text = Vec::new();
+        object.fields(&mut |fields| {
+            for field in fields {
+                fields_text.push(if generate_property_string_values {
+                    format!("{:?}", field)
+                } else {
+                    Default::default()
+                })
+            }
+        });
+
+        let mut editors = Vec::new();
+        object.fields_info(&mut |fields_info| {
+            for (i, (field_text, info)) in
+                fields_text.iter().zip(fields_info.into_iter()).enumerate()
+            {
                 let description = if info.description.is_empty() {
                     info.display_name.to_string()
                 } else {
@@ -533,9 +567,9 @@ impl InspectorContext {
                     .definitions()
                     .get(&info.value.type_id())
                 {
-                    match definition.create_instance(PropertyEditorBuildContext {
+                    let editor = match definition.create_instance(PropertyEditorBuildContext {
                         build_context: ctx,
-                        property_info: info,
+                        property_info: &info,
                         environment: environment.clone(),
                         definition_container: definition_container.clone(),
                         sync_flag,
@@ -563,11 +597,7 @@ impl InspectorContext {
                                 property_editor_definition: definition.clone(),
                                 property_name: info.name.to_string(),
                                 property_owner_type_id: info.owner_type_id,
-                                property_debug_output: if generate_property_string_values {
-                                    format!("{:?}", property)
-                                } else {
-                                    Default::default()
-                                },
+                                property_debug_output: field_text.clone(),
                                 property_container: container,
                             });
 
@@ -591,9 +621,11 @@ impl InspectorContext {
                             &description,
                             ctx,
                         ),
-                    }
+                    };
+
+                    editors.push(editor);
                 } else {
-                    make_simple_property_container(
+                    editors.push(make_simple_property_container(
                         create_header(ctx, info.display_name, layer_index),
                         TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                             .with_wrap(WrapMode::Word)
@@ -602,10 +634,10 @@ impl InspectorContext {
                             .build(ctx),
                         &description,
                         ctx,
-                    )
+                    ));
                 }
-            })
-            .collect::<Vec<_>>();
+            }
+        });
 
         let copy_value_as_string;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
@@ -650,36 +682,38 @@ impl InspectorContext {
     ) -> Result<(), Vec<InspectorError>> {
         let mut sync_errors = Vec::new();
 
-        for info in object.fields_info() {
-            if let Some(constructor) = self
-                .property_definitions
-                .definitions()
-                .get(&info.value.type_id())
-            {
-                if let Some(property_editor) = self.find_property_editor(info.name) {
-                    let ctx = PropertyEditorMessageContext {
-                        sync_flag: self.sync_flag,
-                        instance: property_editor.property_editor,
-                        ui,
-                        property_info: &info,
-                        definition_container: self.property_definitions.clone(),
-                        layer_index,
-                        environment: self.environment.clone(),
-                        generate_property_string_values,
-                    };
+        object.fields_info(&mut |fields_info| {
+            for info in fields_info {
+                if let Some(constructor) = self
+                    .property_definitions
+                    .definitions()
+                    .get(&info.value.type_id())
+                {
+                    if let Some(property_editor) = self.find_property_editor(info.name) {
+                        let ctx = PropertyEditorMessageContext {
+                            sync_flag: self.sync_flag,
+                            instance: property_editor.property_editor,
+                            ui,
+                            property_info: &info,
+                            definition_container: self.property_definitions.clone(),
+                            layer_index,
+                            environment: self.environment.clone(),
+                            generate_property_string_values,
+                        };
 
-                    match constructor.create_message(ctx) {
-                        Ok(message) => {
-                            if let Some(mut message) = message {
-                                message.flags = self.sync_flag;
-                                ui.send_message(message);
+                        match constructor.create_message(ctx) {
+                            Ok(message) => {
+                                if let Some(mut message) = message {
+                                    message.flags = self.sync_flag;
+                                    ui.send_message(message);
+                                }
                             }
+                            Err(e) => sync_errors.push(e),
                         }
-                        Err(e) => sync_errors.push(e),
                     }
                 }
             }
-        }
+        });
 
         if sync_errors.is_empty() {
             Ok(())

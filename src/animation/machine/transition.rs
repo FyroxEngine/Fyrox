@@ -44,8 +44,8 @@ macro_rules! define_two_args_node {
                 type_name::<Self>()
             }
 
-            fn fields_info(&self) -> Vec<FieldInfo> {
-                vec![
+            fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+                func(vec![
                     FieldInfo {
                         owner_type_id: TypeId::of::<Self>(),
                         name: "Lhs",
@@ -72,27 +72,27 @@ macro_rules! define_two_args_node {
                         step: None,
                         precision: None,
                     },
-                ]
+                ])
             }
 
             fn into_any(self: Box<Self>) -> Box<dyn Any> {
                 self
             }
 
-            fn as_any(&self) -> &dyn Any {
-                self
+            fn as_any(&self, func: &mut dyn FnMut(&dyn ::core::any::Any)) {
+                func(self)
             }
 
-            fn as_any_mut(&mut self) -> &mut dyn Any {
-                self
+            fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn ::core::any::Any)) {
+                func(self)
             }
 
-            fn as_reflect(&self) -> &dyn Reflect {
-                self
+            fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+                func(self)
             }
 
-            fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
-                self
+            fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+                func(self)
             }
 
             fn set(
@@ -103,28 +103,32 @@ macro_rules! define_two_args_node {
                 Ok(Box::new(this))
             }
 
-            fn fields(&self) -> Vec<&dyn Reflect> {
-                vec![&self.lhs, &self.rhs]
+            fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
+                func(vec![&self.lhs, &self.rhs])
             }
 
-            fn fields_mut(&mut self) -> Vec<&mut dyn Reflect> {
-                vec![&mut self.lhs, &mut self.rhs]
+           fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
+                func(vec![&mut self.lhs, &mut self.rhs])
             }
 
-            fn field(&self, name: &str) -> Option<&dyn Reflect> {
-                match name {
+            fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+                func(match name {
                     "Lhs" => Some(&self.lhs),
                     "Rhs" => Some(&self.rhs),
                     _ => None,
-                }
+                })
             }
 
-            fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
-                match name {
+            fn field_mut(
+                &mut self,
+                name: &str,
+                func: &mut dyn FnMut(Option<&mut dyn Reflect>),
+            ) {
+                func(match name {
                     "Lhs" => Some(&mut self.lhs),
                     "Rhs" => Some(&mut self.rhs),
                     _ => None,
-                }
+                })
             }
         }
     };
@@ -173,8 +177,8 @@ impl Reflect for NotNode {
         type_name::<Self>()
     }
 
-    fn fields_info(&self) -> Vec<FieldInfo> {
-        vec![FieldInfo {
+    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+        func(vec![FieldInfo {
             owner_type_id: TypeId::of::<Self>(),
             name: "Lhs",
             display_name: "Lhs",
@@ -186,27 +190,27 @@ impl Reflect for NotNode {
             max_value: None,
             step: None,
             precision: None,
-        }]
+        }])
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
         self
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
+    fn as_any(&self, func: &mut dyn FnMut(&dyn ::core::any::Any)) {
+        func(self)
     }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn ::core::any::Any)) {
+        func(self)
     }
 
-    fn as_reflect(&self) -> &dyn Reflect {
-        self
+    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        func(self)
     }
 
-    fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
-        self
+    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        func(self)
     }
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
@@ -214,26 +218,26 @@ impl Reflect for NotNode {
         Ok(Box::new(this))
     }
 
-    fn fields(&self) -> Vec<&dyn Reflect> {
-        vec![&self.lhs]
+    fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
+        func(vec![&self.lhs])
     }
 
-    fn fields_mut(&mut self) -> Vec<&mut dyn Reflect> {
-        vec![&mut self.lhs]
+    fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
+        func(vec![&mut self.lhs])
     }
 
-    fn field(&self, name: &str) -> Option<&dyn Reflect> {
-        match name {
+    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        func(match name {
             "Lhs" => Some(&self.lhs),
             _ => None,
-        }
+        })
     }
 
-    fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
-        match name {
+    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+        func(match name {
             "Lhs" => Some(&mut self.lhs),
             _ => None,
-        }
+        })
     }
 }
 

@@ -153,6 +153,10 @@ impl ScriptMessageSender {
 pub trait BaseScript: Visit + Reflect + Send + Debug + 'static {
     /// Creates exact copy of the script.
     fn clone_box(&self) -> Box<dyn ScriptTrait>;
+
+    fn as_any_ref(&self) -> &dyn Any;
+
+    fn as_any_ref_mut(&mut self) -> &mut dyn Any;
 }
 
 impl<T> BaseScript for T
@@ -161,6 +165,14 @@ where
 {
     fn clone_box(&self) -> Box<dyn ScriptTrait> {
         Box::new(self.clone())
+    }
+
+    fn as_any_ref(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_ref_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -431,64 +443,64 @@ impl Reflect for Script {
         self.instance.type_name()
     }
 
-    fn fields_info(&self) -> Vec<FieldInfo> {
-        self.instance.fields_info()
+    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+        self.instance.fields_info(func)
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
         self.instance.into_any()
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self.instance.deref().as_any()
+    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+        self.instance.deref().as_any(func)
     }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self.instance.deref_mut().as_any_mut()
+    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+        self.instance.deref_mut().as_any_mut(func)
     }
 
-    fn as_reflect(&self) -> &dyn Reflect {
-        self.instance.deref().as_reflect()
+    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        self.instance.deref().as_reflect(func)
     }
 
-    fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
-        self.instance.deref_mut().as_reflect_mut()
+    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        self.instance.deref_mut().as_reflect_mut(func)
     }
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         self.instance.deref_mut().set(value)
     }
 
-    fn fields(&self) -> Vec<&dyn Reflect> {
-        self.instance.deref().fields()
+    fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
+        self.instance.deref().fields(func)
     }
 
-    fn fields_mut(&mut self) -> Vec<&mut dyn Reflect> {
-        self.instance.deref_mut().fields_mut()
+    fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
+        self.instance.deref_mut().fields_mut(func)
     }
 
-    fn field(&self, name: &str) -> Option<&dyn Reflect> {
-        self.instance.deref().field(name)
+    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        self.instance.deref().field(name, func)
     }
 
-    fn field_mut(&mut self, name: &str) -> Option<&mut dyn Reflect> {
-        self.instance.deref_mut().field_mut(name)
+    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+        self.instance.deref_mut().field_mut(name, func)
     }
 
-    fn as_array(&self) -> Option<&dyn ReflectArray> {
-        self.instance.deref().as_array()
+    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
+        self.instance.deref().as_array(func)
     }
 
-    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
-        self.instance.deref_mut().as_array_mut()
+    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
+        self.instance.deref_mut().as_array_mut(func)
     }
 
-    fn as_list(&self) -> Option<&dyn ReflectList> {
-        self.instance.deref().as_list()
+    fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
+        self.instance.deref().as_list(func)
     }
 
-    fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
-        self.instance.deref_mut().as_list_mut()
+    fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
+        self.instance.deref_mut().as_list_mut(func)
     }
 }
 
@@ -560,13 +572,13 @@ impl Script {
     /// Performs downcasting to a particular type.
     #[inline]
     pub fn cast<T: ScriptTrait>(&self) -> Option<&T> {
-        fyrox_core::reflect::Reflect::as_any(&self.instance).downcast_ref::<T>()
+        self.instance.as_any_ref().downcast_ref::<T>()
     }
 
     /// Performs downcasting to a particular type.
     #[inline]
     pub fn cast_mut<T: ScriptTrait>(&mut self) -> Option<&mut T> {
-        fyrox_core::reflect::Reflect::as_any_mut(&mut self.instance).downcast_mut::<T>()
+        self.instance.as_any_ref_mut().downcast_mut::<T>()
     }
 
     /// Tries to borrow a component of given type.

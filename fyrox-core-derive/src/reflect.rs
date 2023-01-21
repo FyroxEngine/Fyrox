@@ -209,7 +209,7 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
     let set_fields = props.iter().map(|p| {
         let setter = p.field.setter.as_ref().unwrap();
         quote! {{
-            match value.take() {
+            func(match value.take() {
                 Ok(value) => {
                     let prev = self.#setter(value);
                     Ok(Box::new(prev))
@@ -217,7 +217,7 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
                 Err(current) => {
                     Err(current)
                 }
-            }
+            })
         }}
     });
 
@@ -227,10 +227,14 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
                 #prop_values => #set_fields,
             )*
             _ => {
-                match self.field_mut(name) {
-                    Some(f) => f.set(value),
-                    None => Err(value),
-                }
+                let mut opt_value = Some(value);
+                self.field_mut(name, &mut move |field| {
+                    let value = opt_value.take().unwrap();
+                    match field {
+                        Some(f) => func(f.set(value)),
+                        None => func(Err(value)),
+                    };
+                });
             },
         }
     })
@@ -406,7 +410,7 @@ fn gen_impl(
 
     let set_field = set_field.map(|set_field| {
         quote! {
-            fn set_field(&mut self, name: &str, value: Box<dyn Reflect>,) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+            fn set_field(&mut self, name: &str, value: Box<dyn Reflect>, func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),) {
                 #set_field
             }
         }
