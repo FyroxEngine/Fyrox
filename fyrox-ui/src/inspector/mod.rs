@@ -113,6 +113,7 @@ impl PropertyAction {
     }
 
     /// Tries to apply the action to a given target.
+    #[allow(clippy::type_complexity)]
     pub fn apply(
         self,
         path: &str,
@@ -165,7 +166,7 @@ impl PropertyAction {
                     field.as_list_mut(&mut |result| {
                         if let Some(list) = result {
                             if let Some(value) = list.reflect_remove(index) {
-                                return result_callback(Ok(Some(value)));
+                                result_callback(Ok(Some(value)))
                             } else {
                                 result_callback(Err(Self::RemoveItem { index }))
                             }

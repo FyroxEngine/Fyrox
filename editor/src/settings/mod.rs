@@ -143,7 +143,7 @@ impl Settings {
         PropertyAction::from_field_kind(&property_changed.value).apply(
             &property_changed.path(),
             self,
-            &mut |result| Log::verify(result),
+            &mut Log::verify,
         );
     }
 }

@@ -144,6 +144,10 @@ impl<T: Reflect + 'static> ReflectList for Vec<T> {
     }
 }
 
+impl Reflect for () {
+    blank_reflect!();
+}
+
 impl_reflect! { pub struct Uuid; }
 
 impl_reflect! {
@@ -282,6 +286,7 @@ impl<T: Reflect + Clone> Reflect for Mutex<T> {
     impl_mutex_reflect!(self, { self.lock() });
 }
 
+#[allow(clippy::mut_mutex_lock)]
 impl<T: Reflect + Clone> Reflect for std::sync::Mutex<T> {
     impl_mutex_reflect!(self, { self.lock().unwrap() });
 }

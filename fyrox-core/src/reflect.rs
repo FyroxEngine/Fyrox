@@ -170,6 +170,7 @@ pub trait Reflect: Any + Debug {
 
     /// Calls user method specified with `#[reflect(setter = ..)]` or falls back to
     /// [`Reflect::field_mut`]
+    #[allow(clippy::type_complexity)]
     fn set_field(
         &mut self,
         field: &str,
