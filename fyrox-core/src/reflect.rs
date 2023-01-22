@@ -4,16 +4,13 @@ mod external_impls;
 mod std_impls;
 
 pub use fyrox_core_derive::Reflect;
-
-use parking_lot::Mutex;
-use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     fmt::{self, Debug, Display, Formatter},
 };
 
 pub mod prelude {
-    pub use super::{FieldInfo, Reflect};
+    pub use super::{FieldInfo, Reflect, ReflectArray, ReflectList, ResolvePath};
 }
 
 /// A value of a field..
@@ -236,113 +233,6 @@ pub trait Reflect: Any + Debug {
         func: &mut dyn FnMut(Option<&mut dyn ReflectInheritableVariable>),
     ) {
         func(None)
-    }
-}
-
-impl<T: Reflect + Clone> Reflect for Arc<Mutex<T>> {
-    fn type_name(&self) -> &'static str {
-        std::any::type_name::<T>()
-    }
-
-    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
-        let guard = self.lock();
-        guard.fields_info(func)
-    }
-
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        // Clone the inner value and box it.
-        Box::new(self.lock().clone())
-    }
-
-    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
-        let guard = self.lock();
-        (*guard).as_any(func)
-    }
-
-    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
-        let mut guard = self.lock();
-        (*guard).as_any_mut(func)
-    }
-
-    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        let guard = self.lock();
-        (*guard).as_reflect(func)
-    }
-
-    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        let mut guard = self.lock();
-        (*guard).as_reflect_mut(func)
-    }
-
-    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-        let mut guard = self.lock();
-        guard.set(value)
-    }
-
-    fn set_field(
-        &mut self,
-        field: &str,
-        value: Box<dyn Reflect>,
-        func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),
-    ) {
-        let mut guard = self.lock();
-        guard.set_field(field, value, func)
-    }
-
-    fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
-        let guard = self.lock();
-        guard.fields(func)
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
-        let mut guard = self.lock();
-        guard.fields_mut(func)
-    }
-
-    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-        let guard = self.lock();
-        guard.field(name, func)
-    }
-
-    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-        let mut guard = self.lock();
-        guard.field_mut(name, func)
-    }
-
-    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
-        let guard = self.lock();
-        guard.as_array(func)
-    }
-
-    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
-        let mut guard = self.lock();
-        guard.as_array_mut(func)
-    }
-
-    fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
-        let guard = self.lock();
-        guard.as_list(func)
-    }
-
-    fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
-        let mut guard = self.lock();
-        guard.as_list_mut(func)
-    }
-
-    fn as_inheritable_variable(
-        &self,
-        func: &mut dyn FnMut(Option<&dyn ReflectInheritableVariable>),
-    ) {
-        let guard = self.lock();
-        guard.as_inheritable_variable(func)
-    }
-
-    fn as_inheritable_variable_mut(
-        &mut self,
-        func: &mut dyn FnMut(Option<&mut dyn ReflectInheritableVariable>),
-    ) {
-        let mut guard = self.lock();
-        guard.as_inheritable_variable_mut(func)
     }
 }
 
@@ -760,6 +650,33 @@ impl dyn Reflect {
                 Ok(value) => func(Ok(value)),
                 Err(e) => func(Err(SetFieldByPathError::InvalidValue(e))),
             });
+        }
+    }
+}
+
+// Make it a trait?
+impl dyn ReflectList {
+    pub fn get_reflect_index<T: Reflect + 'static>(
+        &self,
+        index: usize,
+        func: &mut dyn FnMut(Option<&T>),
+    ) {
+        if let Some(reflect) = self.reflect_index(index) {
+            reflect.downcast_ref(func)
+        } else {
+            func(None)
+        }
+    }
+
+    pub fn get_reflect_index_mut<T: Reflect + 'static>(
+        &mut self,
+        index: usize,
+        func: &mut dyn FnMut(Option<&mut T>),
+    ) {
+        if let Some(reflect) = self.reflect_index_mut(index) {
+            reflect.downcast_mut(func)
+        } else {
+            func(None)
         }
     }
 }
