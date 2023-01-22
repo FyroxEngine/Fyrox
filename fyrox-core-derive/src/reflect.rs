@@ -122,6 +122,7 @@ fn quote_field_prop(
             min_value: #min_value,
             max_value: #max_value,
             value: #field_getter,
+            reflect_value: #field_getter,
             step: #step,
             precision: #precision,
             description: #description,

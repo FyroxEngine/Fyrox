@@ -382,79 +382,97 @@ impl Command for RevertSceneNodePropertyCommand {
             let resource_data = resource.data_ref();
             let parent = &resource_data.get_scene().graph[child.original_handle_in_resource()];
 
-            child.as_reflect_mut(&mut |child| {
-                child.resolve_path_mut(&self.path, &mut |result| {
-                    match result {
-                        Ok(child_field) => {
-                            child_field.as_inheritable_variable_mut(&mut |child_inheritable| {
-                                if child_inheritable.is_some() {
-                                    parent.as_reflect(&mut |parent| {
-                                        parent.resolve_path(&self.path, &mut |result| {
-                                            match result {
-                                                Ok(parent_field) => {
-                                                    parent_field.as_inheritable_variable(&mut |parent_field| {
-                                                        if let Some(parent_inheritable) = parent_field {
-                                                            child.set_field_by_path(
-                                                                &self.path,
-                                                                parent_inheritable.clone_value_box(),
-                                                                &mut |result| {
-                                                                    match result {
-                                                                        Ok(old_value) => {
-                                                                            self.value = Some(old_value);
-                                                                            // Reset modified flag.
-                                                                            reset_property_modified_flag(child, &self.path);
-                                                                        }
-                                                                        Err(_) => Log::err(format!(
-                                                                            "Failed to revert property {}. Reason: no such property!",
-                                                                            self.path
-                                                                        )),
-                                                                    }
-                                                                },
-                                                            );
-                                                        }
-                                                    })
+            let mut parent_value = None;
 
-
-                                                }
-                                                Err(e) => Log::err(format!(
-                                                    "Failed to resolve parent path {}. Reason: {:?}",
-                                                    self.path, e
-                                                )),
-                                            }
-                                        })
-
-
-                                    })
-                                } else {
-                                    Log::err(format!("Property {} is not inheritable!", self.path))
-                                }
-                            })
+            // Find and clone parent's value first.
+            parent.as_reflect(&mut |parent| {
+                parent.resolve_path(&self.path, &mut |result| match result {
+                    Ok(parent_field) => parent_field.as_inheritable_variable(&mut |parent_field| {
+                        if let Some(parent_inheritable) = parent_field {
+                            parent_value = Some(parent_inheritable.clone_value_box());
                         }
-                        Err(e) => Log::err(format!(
-                            "Failed to resolve child path {}. Reason: {:?}",
-                            self.path, e
-                        )),
+                    }),
+                    Err(e) => Log::err(format!(
+                        "Failed to resolve parent path {}. Reason: {:?}",
+                        self.path, e
+                    )),
+                })
+            });
+
+            // Check whether the child's field is inheritable.
+            let mut is_inheritable = false;
+
+            child.as_reflect_mut(&mut |child| {
+                child.resolve_path_mut(&self.path, &mut |result| match result {
+                    Ok(child_field) => {
+                        child_field.as_inheritable_variable_mut(&mut |child_inheritable| {
+                            if child_inheritable.is_some() {
+                                is_inheritable = true;
+                            } else {
+                                Log::err(format!("Property {} is not inheritable!", self.path))
+                            }
+                        })
                     }
+                    Err(e) => Log::err(format!(
+                        "Failed to resolve child path {}. Reason: {:?}",
+                        self.path, e
+                    )),
                 });
             });
-        } else {
-            // Just remove "modified" flag.
-            if let Ok(field) = child.as_reflect_mut().resolve_path_mut(&self.path) {
-                if let Some(inheritable_field) = field.as_inheritable_variable_mut() {
-                    self.was_modified = inheritable_field.is_modified();
-                    if self.was_modified {
-                        inheritable_field.reset_modified_flag();
+
+            // Try to apply it to the child.
+            if is_inheritable {
+                if let Some(parent_value) = parent_value {
+                    let mut was_set = false;
+
+                    let mut parent_value = Some(parent_value);
+                    child.as_reflect_mut(&mut |child| {
+                        child.set_field_by_path(
+                            &self.path,
+                            parent_value.take().unwrap(),
+                            &mut |result| match result {
+                                Ok(old_value) => {
+                                    self.value = Some(old_value);
+
+                                    was_set = true;
+                                }
+                                Err(_) => Log::err(format!(
+                                    "Failed to revert property {}. Reason: no such property!",
+                                    self.path
+                                )),
+                            },
+                        );
+                    });
+
+                    if was_set {
+                        // Reset modified flag.
+                        reset_property_modified_flag(child, &self.path);
                     }
                 }
             }
+        } else {
+            // Just remove "modified" flag.
+            child.resolve_path_mut(&self.path, &mut |result| {
+                if let Ok(field) = result {
+                    field.as_inheritable_variable_mut(&mut |result| {
+                        if let Some(inheritable_field) = result {
+                            self.was_modified = inheritable_field.is_modified();
+                            if self.was_modified {
+                                inheritable_field.reset_modified_flag();
+                            }
+                        }
+                    })
+                }
+            })
         }
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
         // If the property was modified, then simply set it to previous value to make it modified again.
         if let Some(old_value) = self.value.take() {
+            let mut old_value = Some(old_value);
             context.scene.graph[self.handle].as_reflect_mut(&mut |node| {
-                node.set_field_by_path(&self.path, old_value, &mut |result| {
+                node.set_field_by_path(&self.path, old_value.take().unwrap(), &mut |result| {
                     if result.is_err() {
                         Log::err(format!(
                             "Failed to revert property {}. Reason: no such property!",

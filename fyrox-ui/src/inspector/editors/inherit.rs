@@ -180,7 +180,7 @@ where
 
 impl<T> Debug for InheritablePropertyEditorDefinition<T>
 where
-    T: FieldValue,
+    T: Reflect + FieldValue,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "InheritablePropertyEditorDefinition")
@@ -189,7 +189,7 @@ where
 
 fn make_proxy<'a, 'b, T>(property_info: &'b FieldInfo<'a>) -> Result<FieldInfo<'a>, InspectorError>
 where
-    T: FieldValue,
+    T: Reflect + FieldValue,
     'b: 'a,
 {
     let value = property_info.cast_value::<InheritableVariable<T>>()?;
@@ -199,6 +199,7 @@ where
         name: property_info.name,
         display_name: property_info.display_name,
         value: &**value,
+        reflect_value: &**value,
         read_only: property_info.read_only,
         min_value: property_info.min_value,
         max_value: property_info.max_value,
@@ -211,7 +212,7 @@ where
 
 impl<T> PropertyEditorDefinition for InheritablePropertyEditorDefinition<T>
 where
-    T: FieldValue,
+    T: Reflect + FieldValue,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<InheritableVariable<T>>()

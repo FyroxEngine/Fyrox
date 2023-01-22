@@ -64,6 +64,9 @@ pub struct FieldInfo<'a> {
     /// than the actual field, the `value` is guaranteed to be a reference to the real value.
     pub value: &'a dyn FieldValue,
 
+    /// A reference to the value casted to `Reflect`.
+    pub reflect_value: &'a dyn Reflect,
+
     /// A property is not meant to be edited.
     pub read_only: bool,
 

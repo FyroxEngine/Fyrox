@@ -576,7 +576,8 @@ impl TrackList {
                     for property_path in selected_properties {
                         node.resolve_path(&property_path.path, &mut |result| match result {
                             Ok(property) => {
-                                let property_type = property.as_any().type_id();
+                                let mut property_type = TypeId::of::<u32>();
+                                property.as_any(&mut |any| property_type = any.type_id());
 
                                 let types = if property_type == TypeId::of::<f32>() {
                                     Some((TrackValueKind::Real, ValueType::F32))

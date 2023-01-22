@@ -26,8 +26,9 @@ macro_rules! define_universal_commands {
             path: &str,
             func: F,
         ) {
+            let mut func = Some(func);
              entity.resolve_path_mut(path, &mut |result| match  result {
-                Ok(field) => func(field),
+                Ok(field) => func.take().unwrap()(field),
                 Err(e) => fyrox::utils::log::Log::err(format!(
                     "There is no such property {}! Reason: {:?}",
                     path, e
