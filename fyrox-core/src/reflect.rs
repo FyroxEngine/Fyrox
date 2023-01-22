@@ -10,7 +10,9 @@ use std::{
 };
 
 pub mod prelude {
-    pub use super::{FieldInfo, Reflect, ReflectArray, ReflectList, ResolvePath};
+    pub use super::{
+        FieldInfo, Reflect, ReflectArray, ReflectList, ResolvePath, SetFieldByPathError,
+    };
 }
 
 /// A value of a field..

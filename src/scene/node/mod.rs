@@ -448,3 +448,62 @@ impl Visit for Node {
         self.0.visit(name, visitor)
     }
 }
+
+impl Reflect for Node {
+    fn type_name(&self) -> &'static str {
+        self.0.deref().type_name()
+    }
+
+    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+        self.0.deref().fields_info(func)
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self.0.into_any()
+    }
+
+    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+        self.0.deref().as_any(func)
+    }
+
+    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+        self.0.deref_mut().as_any_mut(func)
+    }
+
+    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        self.0.deref().as_reflect(func)
+    }
+
+    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        self.0.deref_mut().as_reflect_mut(func)
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        self.0.deref_mut().set(value)
+    }
+
+    fn set_field(
+        &mut self,
+        field: &str,
+        value: Box<dyn Reflect>,
+        func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),
+    ) {
+        self.0.deref_mut().set_field(field, value, func)
+    }
+
+    fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
+        self.0.deref().fields(func)
+    }
+
+    fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
+        self.0.deref_mut().fields_mut(func)
+    }
+
+    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        self.0.deref().field(name, func)
+    }
+
+    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+        self.0.deref_mut().field_mut(name, func)
+    }
+}

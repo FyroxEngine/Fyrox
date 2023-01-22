@@ -140,9 +140,10 @@ impl Settings {
     }
 
     fn handle_property_changed(&mut self, property_changed: &PropertyChanged) {
-        Log::verify(
-            PropertyAction::from_field_kind(&property_changed.value)
-                .apply(&property_changed.path(), self),
+        PropertyAction::from_field_kind(&property_changed.value).apply(
+            &property_changed.path(),
+            self,
+            &mut |result| Log::verify(result),
         );
     }
 }

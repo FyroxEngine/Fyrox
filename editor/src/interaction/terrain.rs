@@ -433,10 +433,14 @@ impl BrushPanel {
                 match msg.value {
                     FieldKind::Object(ref args) => match msg.name.as_ref() {
                         Brush::SHAPE => {
-                            brush.shape = args.cast_value().cloned()?;
+                            args.cast_clone(&mut |result| {
+                                brush.shape = result.unwrap();
+                            });
                         }
                         Brush::MODE => {
-                            brush.mode = args.cast_value().cloned()?;
+                            args.cast_clone(&mut |result| {
+                                brush.mode = result.unwrap();
+                            });
                         }
                         _ => (),
                     },
@@ -446,21 +450,27 @@ impl BrushPanel {
                                 Brush::SHAPE => match inner.name.as_ref() {
                                     BrushShape::CIRCLE_RADIUS => {
                                         if let BrushShape::Circle { ref mut radius } = brush.shape {
-                                            *radius = args.cast_clone()?;
+                                            args.cast_clone(&mut |result| {
+                                                *radius = result.unwrap();
+                                            });
                                         }
                                     }
                                     BrushShape::RECTANGLE_WIDTH => {
                                         if let BrushShape::Rectangle { ref mut width, .. } =
                                             brush.shape
                                         {
-                                            *width = args.cast_clone()?;
+                                            args.cast_clone(&mut |result| {
+                                                *width = result.unwrap();
+                                            });
                                         }
                                     }
                                     BrushShape::RECTANGLE_LENGTH => {
                                         if let BrushShape::Rectangle { ref mut length, .. } =
                                             brush.shape
                                         {
-                                            *length = args.cast_clone()?;
+                                            args.cast_clone(&mut |result| {
+                                                *length = result.unwrap();
+                                            });
                                         }
                                     }
                                     _ => (),
@@ -470,7 +480,9 @@ impl BrushPanel {
                                         if let BrushMode::ModifyHeightMap { ref mut amount } =
                                             brush.mode
                                         {
-                                            *amount = args.cast_clone()?;
+                                            args.cast_clone(&mut |result| {
+                                                *amount = result.unwrap();
+                                            });
                                         }
                                     }
                                     BrushMode::DRAW_ON_MASK_LAYER => {
@@ -482,10 +494,10 @@ impl BrushPanel {
                                             if node.is_terrain() {
                                                 let terrain = node.as_terrain();
 
-                                                *layer = args
-                                                    .cast_value::<usize>()
-                                                    .cloned()?
-                                                    .min(terrain.layers().len());
+                                                args.cast_clone::<usize>(&mut |result| {
+                                                    *layer =
+                                                        result.unwrap().min(terrain.layers().len());
+                                                });
                                             }
                                         }
                                     }
@@ -493,7 +505,9 @@ impl BrushPanel {
                                         if let BrushMode::DrawOnMask { ref mut alpha, .. } =
                                             brush.mode
                                         {
-                                            *alpha = args.cast_clone()?;
+                                            args.cast_clone(&mut |result| {
+                                                *alpha = result.unwrap();
+                                            });
                                         }
                                     }
                                     _ => (),

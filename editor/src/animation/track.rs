@@ -17,6 +17,7 @@ use crate::{
     },
     send_sync_message, utils, Message,
 };
+use fyrox::core::reflect::ResolvePath;
 use fyrox::{
     animation::{
         container::{TrackDataContainer, TrackValueKind},
@@ -27,7 +28,6 @@ use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         pool::Handle,
-        reflect::ResolvePath,
         uuid::Uuid,
         variable::InheritableVariable,
     },
@@ -531,6 +531,11 @@ impl TrackList {
                 if let Some(first) = selection.first() {
                     self.selected_node = *first;
 
+                    let mut descriptors = Vec::new();
+                    scene.graph[*first].as_reflect(&mut |node| {
+                        descriptors = object_to_property_tree("", node);
+                    });
+
                     self.property_selector = PropertySelectorWindowBuilder::new(
                                 WindowBuilder::new(
                                     WidgetBuilder::new().with_width(300.0).with_height(400.0),
@@ -552,10 +557,7 @@ impl TrackList {
 
                             UnitQuaternion<f32>
                         })))
-                                .with_property_descriptors(object_to_property_tree(
-                                    "",
-                                    scene.graph[*first].as_reflect(),
-                                ))
+                                .with_property_descriptors(descriptors)
                                 .build(&mut ui.build_ctx());
 
                     ui.send_message(WindowMessage::open_modal(
@@ -572,7 +574,7 @@ impl TrackList {
             {
                 if let Some(node) = scene.graph.try_get(self.selected_node) {
                     for property_path in selected_properties {
-                        match node.as_reflect().resolve_path(&property_path.path) {
+                        node.resolve_path(&property_path.path, &mut |result| match result {
                             Ok(property) => {
                                 let property_type = property.as_any().type_id();
 
@@ -704,7 +706,7 @@ impl TrackList {
                                     property_path, e
                                 ));
                             }
-                        }
+                        })
                     }
                 } else {
                     Log::err("Invalid node handle!");

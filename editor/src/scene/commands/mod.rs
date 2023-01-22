@@ -1,5 +1,5 @@
 use crate::{
-    command::{universal::set_entity_field, Command},
+    command::Command,
     define_universal_commands,
     scene::{
         clipboard::DeepCloneResult, commands::graph::DeleteSubGraphCommand, EditorScene,
@@ -8,10 +8,7 @@ use crate::{
     GameEngine, Message,
 };
 use fyrox::{
-    core::{
-        pool::Handle,
-        reflect::{Reflect, ResolvePath},
-    },
+    core::{pool::Handle, reflect::prelude::*},
     engine::{resource_manager::ResourceManager, SerializationContext},
     scene::{graph::SubGraph, node::Node, Scene},
     utils::log::Log,
@@ -363,6 +360,16 @@ impl RevertSceneNodePropertyCommand {
     }
 }
 
+fn reset_property_modified_flag(entity: &mut dyn Reflect, path: &str) {
+    entity.as_reflect_mut(&mut |entity| {
+        entity.resolve_path_mut(path, &mut |result| {
+            result
+                .unwrap()
+                .as_inheritable_variable_mut(&mut |result| result.unwrap().reset_modified_flag())
+        })
+    })
+}
+
 impl Command for RevertSceneNodePropertyCommand {
     fn name(&mut self, _context: &SceneContext) -> String {
         format!("Revert {} Property", self.path)
@@ -375,52 +382,61 @@ impl Command for RevertSceneNodePropertyCommand {
             let resource_data = resource.data_ref();
             let parent = &resource_data.get_scene().graph[child.original_handle_in_resource()];
 
-            match child.as_reflect_mut().resolve_path_mut(&self.path) {
-                Ok(child_field) => {
-                    if child_field.as_inheritable_variable_mut().is_some() {
-                        match parent.as_reflect().resolve_path(&self.path) {
-                            Ok(parent_field) => {
-                                if let Some(parent_inheritable) =
-                                    parent_field.as_inheritable_variable()
-                                {
-                                    match set_entity_field(
-                                        child.as_reflect_mut(),
-                                        &self.path,
-                                        parent_inheritable.clone_value_box(),
-                                    ) {
-                                        Ok(old_value) => {
-                                            self.value = Some(old_value);
+            child.as_reflect_mut(&mut |child| {
+                child.resolve_path_mut(&self.path, &mut |result| {
+                    match result {
+                        Ok(child_field) => {
+                            child_field.as_inheritable_variable_mut(&mut |child_inheritable| {
+                                if child_inheritable.is_some() {
+                                    parent.as_reflect(&mut |parent| {
+                                        parent.resolve_path(&self.path, &mut |result| {
+                                            match result {
+                                                Ok(parent_field) => {
+                                                    parent_field.as_inheritable_variable(&mut |parent_field| {
+                                                        if let Some(parent_inheritable) = parent_field {
+                                                            child.set_field_by_path(
+                                                                &self.path,
+                                                                parent_inheritable.clone_value_box(),
+                                                                &mut |result| {
+                                                                    match result {
+                                                                        Ok(old_value) => {
+                                                                            self.value = Some(old_value);
+                                                                            // Reset modified flag.
+                                                                            reset_property_modified_flag(child, &self.path);
+                                                                        }
+                                                                        Err(_) => Log::err(format!(
+                                                                            "Failed to revert property {}. Reason: no such property!",
+                                                                            self.path
+                                                                        )),
+                                                                    }
+                                                                },
+                                                            );
+                                                        }
+                                                    })
 
-                                            // Reset modified flag. `unwrap`s here is ok because we've already checked
-                                            // that they won't fail.
-                                            child.as_reflect_mut()
-                                                .resolve_path_mut(&self.path)
-                                                .unwrap()
-                                                .as_inheritable_variable_mut()
-                                                .unwrap()
-                                                .reset_modified_flag();
-                                        }
-                                        Err(_) => Log::err(format!(
-                                            "Failed to revert property {}. Reason: no such property!",
-                                            self.path
-                                        )),
-                                    }
+
+                                                }
+                                                Err(e) => Log::err(format!(
+                                                    "Failed to resolve parent path {}. Reason: {:?}",
+                                                    self.path, e
+                                                )),
+                                            }
+                                        })
+
+
+                                    })
+                                } else {
+                                    Log::err(format!("Property {} is not inheritable!", self.path))
                                 }
-                            }
-                            Err(e) => Log::err(format!(
-                                "Failed to resolve parent path {}. Reason: {:?}",
-                                self.path, e
-                            )),
+                            })
                         }
-                    } else {
-                        Log::err(format!("Property {} is not inheritable!", self.path))
+                        Err(e) => Log::err(format!(
+                            "Failed to resolve child path {}. Reason: {:?}",
+                            self.path, e
+                        )),
                     }
-                }
-                Err(e) => Log::err(format!(
-                    "Failed to resolve child path {}. Reason: {:?}",
-                    self.path, e
-                )),
-            }
+                });
+            });
         } else {
             // Just remove "modified" flag.
             if let Ok(field) = child.as_reflect_mut().resolve_path_mut(&self.path) {
@@ -437,28 +453,29 @@ impl Command for RevertSceneNodePropertyCommand {
     fn revert(&mut self, context: &mut SceneContext) {
         // If the property was modified, then simply set it to previous value to make it modified again.
         if let Some(old_value) = self.value.take() {
-            if set_entity_field(
-                context.scene.graph[self.handle].as_reflect_mut(),
-                &self.path,
-                old_value,
-            )
-            .is_err()
-            {
-                Log::err(format!(
-                    "Failed to revert property {}. Reason: no such property!",
-                    self.path
-                ))
-            }
+            context.scene.graph[self.handle].as_reflect_mut(&mut |node| {
+                node.set_field_by_path(&self.path, old_value, &mut |result| {
+                    if result.is_err() {
+                        Log::err(format!(
+                            "Failed to revert property {}. Reason: no such property!",
+                            self.path
+                        ))
+                    }
+                });
+            })
         } else if self.was_modified {
             // Set modified flag back.
-            if let Ok(field) = context.scene.graph[self.handle]
-                .as_reflect_mut()
-                .resolve_path_mut(&self.path)
-            {
-                if let Some(inheritable_field) = field.as_inheritable_variable_mut() {
-                    inheritable_field.mark_modified();
-                }
-            }
+            context.scene.graph[self.handle].as_reflect_mut(&mut |node| {
+                node.resolve_path_mut(&self.path, &mut |result| {
+                    if let Ok(field) = result {
+                        field.as_inheritable_variable_mut(&mut |result| {
+                            if let Some(inheritable_field) = result {
+                                inheritable_field.mark_modified();
+                            }
+                        })
+                    }
+                })
+            })
         }
     }
 }
@@ -472,5 +489,5 @@ define_universal_commands!(
     ctx,
     handle,
     self,
-    { ctx.scene.graph[self.handle].as_reflect_mut() },
+    { &mut ctx.scene.graph[self.handle] as &mut dyn Reflect },
 );

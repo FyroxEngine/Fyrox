@@ -6,7 +6,7 @@ use crate::{
 };
 use fyrox::{
     animation::Animation,
-    core::{pool::Handle, reflect::ResolvePath, uuid::Uuid},
+    core::{pool::Handle, reflect::prelude::*, uuid::Uuid},
     scene::node::Node,
 };
 
