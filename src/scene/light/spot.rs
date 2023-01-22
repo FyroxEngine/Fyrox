@@ -291,8 +291,7 @@ impl SpotLightBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::core::reflect::Reflect;
-    use crate::core::variable::try_inherit_properties;
+    use crate::scene::base::test::inherit_node_properties;
     use crate::{
         resource::texture::test::create_test_texture,
         scene::{
@@ -317,7 +316,7 @@ mod test {
         let mut child =
             SpotLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new())).build_spot_light();
 
-        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+        inherit_node_properties(&mut child, &parent);
 
         let parent = parent.cast::<SpotLight>().unwrap();
 

@@ -154,8 +154,10 @@ pub trait BaseScript: Visit + Reflect + Send + Debug + 'static {
     /// Creates exact copy of the script.
     fn clone_box(&self) -> Box<dyn ScriptTrait>;
 
+    /// Casts self as `Any`
     fn as_any_ref(&self) -> &dyn Any;
 
+    /// Casts self as `Any`
     fn as_any_ref_mut(&mut self) -> &mut dyn Any;
 }
 
@@ -572,13 +574,16 @@ impl Script {
     /// Performs downcasting to a particular type.
     #[inline]
     pub fn cast<T: ScriptTrait>(&self) -> Option<&T> {
-        self.instance.as_any_ref().downcast_ref::<T>()
+        self.instance.deref().as_any_ref().downcast_ref::<T>()
     }
 
     /// Performs downcasting to a particular type.
     #[inline]
     pub fn cast_mut<T: ScriptTrait>(&mut self) -> Option<&mut T> {
-        self.instance.as_any_ref_mut().downcast_mut::<T>()
+        self.instance
+            .deref_mut()
+            .as_any_ref_mut()
+            .downcast_mut::<T>()
     }
 
     /// Tries to borrow a component of given type.
@@ -637,7 +642,11 @@ mod test {
             field: InheritableVariable::new(3.21),
         }));
 
-        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+        child.as_reflect_mut(&mut |child| {
+            parent.as_reflect(&mut |parent| {
+                try_inherit_properties(child, parent).unwrap();
+            })
+        });
 
         assert_eq!(
             *child.script().unwrap().cast::<MyScript>().unwrap().field,
@@ -655,7 +664,11 @@ mod test {
             field: InheritableVariable::new(3.21),
         });
 
-        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+        child.as_reflect_mut(&mut |child| {
+            parent.as_reflect(&mut |parent| {
+                try_inherit_properties(child, parent).unwrap();
+            })
+        });
 
         assert_eq!(*child.cast::<MyScript>().unwrap().field, 3.21);
     }
@@ -670,7 +683,11 @@ mod test {
             field: InheritableVariable::new(3.21),
         }));
 
-        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+        child.as_reflect_mut(&mut |child| {
+            parent.as_reflect(&mut |parent| {
+                try_inherit_properties(child, parent).unwrap();
+            })
+        });
 
         assert_eq!(
             *child.as_ref().unwrap().cast::<MyScript>().unwrap().field,

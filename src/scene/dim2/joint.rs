@@ -370,8 +370,7 @@ impl JointBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::core::reflect::Reflect;
-    use crate::core::variable::try_inherit_properties;
+    use crate::scene::base::test::inherit_node_properties;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         dim2::joint::{BallJoint, Joint, JointBuilder, JointParams},
@@ -385,7 +384,7 @@ mod test {
 
         let mut child = JointBuilder::new(BaseBuilder::new()).build_joint();
 
-        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+        inherit_node_properties(&mut child, &parent);
 
         let parent = parent.cast::<Joint>().unwrap();
 

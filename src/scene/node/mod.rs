@@ -52,8 +52,10 @@ pub trait BaseNodeTrait: Any + Debug + Deref<Target = Base> + DerefMut + Send {
     /// correctly clone a node you have to use [copy_node](struct.Graph.html#method.copy_node).
     fn clone_box(&self) -> Node;
 
+    /// Casts self as `Any`
     fn as_any_ref(&self) -> &dyn Any;
 
+    /// Casts self as `Any`
     fn as_any_ref_mut(&mut self) -> &mut dyn Any;
 }
 

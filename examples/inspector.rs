@@ -131,22 +131,23 @@ fn main() {
         model_handle,
     } = fyrox::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
-    let inspector_context = InspectorContext::from_object(
-        scene.graph[model_handle].as_reflect(),
-        &mut engine.user_interface.build_ctx(),
-        interface.definition_container.clone(),
-        None,
-        1,
-        0,
-        true,
-    );
-    engine
-        .user_interface
-        .send_message(InspectorMessage::context(
+    let user_interface = &mut engine.user_interface;
+    scene.graph[model_handle].as_reflect(&mut |object| {
+        let inspector_context = InspectorContext::from_object(
+            object,
+            &mut user_interface.build_ctx(),
+            interface.definition_container.clone(),
+            None,
+            1,
+            0,
+            true,
+        );
+        user_interface.send_message(InspectorMessage::context(
             interface.inspector,
             MessageDirection::ToWidget,
             inspector_context,
         ));
+    });
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some
@@ -200,26 +201,25 @@ fn main() {
                             if let FieldKind::Object(ref value) = args.value {
                                 match args.name.as_str() {
                                     "local_scale" => {
-                                        scene.graph[model_handle].local_transform_mut().set_scale(
-                                            *value.cast_value::<Vector3<f32>>().unwrap(),
-                                        );
+                                        value.cast_clone::<Vector3<f32>>(&mut |result| {
+                                            scene.graph[model_handle]
+                                                .local_transform_mut()
+                                                .set_scale(result.unwrap());
+                                        });
                                     }
-                                    "visibility" => {
-                                        scene.graph[model_handle]
-                                            .set_visibility(*value.cast_value::<bool>().unwrap());
-                                    }
+                                    "visibility" => value.cast_clone::<bool>(&mut |result| {
+                                        scene.graph[model_handle].set_visibility(result.unwrap());
+                                    }),
                                     "local_rotation" => {
-                                        scene.graph[model_handle]
-                                            .local_transform_mut()
-                                            .set_rotation(
-                                                *value.cast_value::<UnitQuaternion<f32>>().unwrap(),
-                                            );
+                                        value.cast_clone::<UnitQuaternion<f32>>(&mut |result| {
+                                            scene.graph[model_handle]
+                                                .local_transform_mut()
+                                                .set_rotation(result.unwrap());
+                                        });
                                     }
-                                    "name" => {
-                                        scene.graph[model_handle].set_name(
-                                            value.cast_value::<String>().unwrap().clone(),
-                                        );
-                                    }
+                                    "name" => value.cast_clone::<String>(&mut |result| {
+                                        scene.graph[model_handle].set_name(result.unwrap())
+                                    }),
                                     // TODO: Add rest of properties.
                                     _ => (),
                                 }

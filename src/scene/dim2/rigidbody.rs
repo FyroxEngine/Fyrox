@@ -612,8 +612,7 @@ impl RigidBodyBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::core::reflect::Reflect;
-    use crate::core::variable::try_inherit_properties;
+    use crate::scene::base::test::inherit_node_properties;
     use crate::{
         core::algebra::Vector2,
         scene::{
@@ -642,7 +641,7 @@ mod test {
 
         let mut child = RigidBodyBuilder::new(BaseBuilder::new()).build_rigid_body();
 
-        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+        inherit_node_properties(&mut child, &parent);
 
         let parent = parent.cast::<RigidBody>().unwrap();
 

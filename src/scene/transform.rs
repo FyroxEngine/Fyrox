@@ -643,7 +643,6 @@ impl TransformBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::core::reflect::Reflect;
     use crate::core::variable::try_inherit_properties;
     use crate::{
         core::algebra::{UnitQuaternion, Vector3},
@@ -666,7 +665,7 @@ mod test {
 
         let mut child = TransformBuilder::new().build();
 
-        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+        try_inherit_properties(&mut child, &parent).unwrap();
 
         check_inheritable_properties_equality(&child, &parent);
     }
