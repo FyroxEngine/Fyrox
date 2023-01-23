@@ -1,5 +1,5 @@
 use fyrox::{
-    core::{algebra::Vector2, pool::Handle, reflect::Reflect},
+    core::{algebra::Vector2, pool::Handle, reflect::Reflect, sstorage::ImmutableString},
     fxhash::FxHashSet,
     gui::{
         border::BorderBuilder,
@@ -140,8 +140,10 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                 format!("{}.{}", parent_path, field_info.name)
             };
 
-            field_ref.as_array(&mut |array| {
-                if let Some(array) = array {
+            let mut processed = true;
+
+            field_ref.as_array(&mut |array| match array {
+                Some(array) => {
                     let mut descriptor = PropertyDescriptor {
                         path: path.clone(),
                         display_name: field_info.display_name.to_owned(),
@@ -157,23 +159,79 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                         descriptor.children_properties.push(PropertyDescriptor {
                             path: item_path.clone(),
                             display_name: format!("[{}]", i),
-                            type_name: field_info.type_name,
-                            type_id: field_info.value.type_id(),
+                            type_name: item.type_name(),
+                            type_id: item.type_id(),
                             read_only: field_info.read_only,
                             children_properties: object_to_property_tree(&item_path, item),
                         })
                     }
-                } else {
-                    descriptors.push(PropertyDescriptor {
+
+                    descriptors.push(descriptor);
+                }
+                None => {
+                    processed = false;
+                }
+            });
+
+            if !processed {
+                field_ref.as_hash_map(&mut |result| match result {
+                    Some(hash_map) => {
+                        let mut descriptor = PropertyDescriptor {
+                            path: path.clone(),
+                            display_name: field_info.display_name.to_owned(),
+                            type_name: field_info.type_name,
+                            type_id: field_info.value.type_id(),
+                            children_properties: Default::default(),
+                            read_only: field_info.read_only,
+                        };
+
+                        for i in 0..hash_map.reflect_len() {
+                            let (key, value) = hash_map.reflect_get_at(i).unwrap();
+
+                            // TODO: Here we just using `Debug` impl to obtain string representation for keys. This is
+                            // fine for most cases in the engine.
+                            let mut key_str = format!("{:?}", key);
+
+                            let mut is_key_string = false;
+                            key.downcast_ref::<String>(&mut |string| {
+                                is_key_string |= string.is_some()
+                            });
+                            key.downcast_ref::<ImmutableString>(&mut |string| {
+                                is_key_string |= string.is_some()
+                            });
+
+                            if is_key_string {
+                                // Strip quotes at the beginning and the end, because Debug impl for String adds
+                                // quotes at the beginning and the end, but we want raw value.
+                                // TODO: This is unreliable mechanism.
+                                key_str.remove(0);
+                                key_str.pop();
+                            }
+
+                            let item_path = format!("{}[{}]", path, key_str);
+
+                            descriptor.children_properties.push(PropertyDescriptor {
+                                path: item_path.clone(),
+                                display_name: format!("[{}]", key_str),
+                                type_name: value.type_name(),
+                                type_id: value.type_id(),
+                                read_only: field_info.read_only,
+                                children_properties: object_to_property_tree(&item_path, value),
+                            })
+                        }
+
+                        descriptors.push(descriptor);
+                    }
+                    None => descriptors.push(PropertyDescriptor {
                         display_name: field_info.display_name.to_owned(),
                         type_name: field_info.type_name,
                         type_id: field_info.value.type_id(),
                         read_only: field_info.read_only,
                         children_properties: object_to_property_tree(&path, field_ref),
                         path: path.clone(),
-                    })
-                }
-            })
+                    }),
+                })
+            }
         }
     });
 
