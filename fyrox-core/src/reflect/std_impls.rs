@@ -223,6 +223,18 @@ where
         self.values_mut().nth(index).map(|v| v as &mut dyn Reflect)
     }
 
+    fn reflect_get_at(&self, index: usize) -> Option<(&dyn Reflect, &dyn Reflect)> {
+        self.iter()
+            .nth(index)
+            .map(|(k, v)| (k as &dyn Reflect, v as &dyn Reflect))
+    }
+
+    fn reflect_get_at_mut(&mut self, index: usize) -> Option<(&dyn Reflect, &mut dyn Reflect)> {
+        self.iter_mut()
+            .nth(index)
+            .map(|(k, v)| (k as &dyn Reflect, v as &mut dyn Reflect))
+    }
+
     fn reflect_remove(
         &mut self,
         key: &dyn Reflect,

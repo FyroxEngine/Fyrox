@@ -286,6 +286,8 @@ pub trait ReflectHashMap: Reflect {
     );
     fn reflect_get_nth_value_ref(&self, index: usize) -> Option<&dyn Reflect>;
     fn reflect_get_nth_value_mut(&mut self, index: usize) -> Option<&mut dyn Reflect>;
+    fn reflect_get_at(&self, index: usize) -> Option<(&dyn Reflect, &dyn Reflect)>;
+    fn reflect_get_at_mut(&mut self, index: usize) -> Option<(&dyn Reflect, &mut dyn Reflect)>;
     fn reflect_remove(&mut self, key: &dyn Reflect, func: &mut dyn FnMut(Option<Box<dyn Reflect>>));
 }
 
