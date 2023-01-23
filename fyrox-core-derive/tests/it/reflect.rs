@@ -3,6 +3,7 @@
 #![allow(clippy::disallowed_names)] // Useless in tests
 
 use std::any::TypeId;
+use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
 use fyrox_core::parking_lot::Mutex;
@@ -578,5 +579,63 @@ fn test_reflect_mutex() {
 
     foo.get_resolve_path::<u32>("hidden", &mut |result| {
         assert!(result.is_err());
+    });
+}
+
+#[test]
+fn test_hash_map() {
+    let mut hash_map = HashMap::new();
+
+    let foo_key = "foo".to_string();
+    hash_map.insert(
+        foo_key.clone(),
+        Struct {
+            field: 123,
+            hidden: 0,
+        },
+    );
+
+    let bar_key = "bar".to_string();
+    hash_map.insert(
+        bar_key.clone(),
+        Struct {
+            field: 321,
+            hidden: 0,
+        },
+    );
+
+    hash_map.as_hash_map(&mut |result| {
+        let hash_map = result.unwrap();
+        assert_eq!(hash_map.reflect_len(), 2);
+
+        hash_map.reflect_get(&foo_key, &mut |result| {
+            result
+                .unwrap()
+                .downcast_ref::<Struct>(&mut |result| assert_eq!(result.unwrap().field, 123))
+        })
+    });
+
+    hash_map.as_hash_map_mut(&mut |result| {
+        let hash_map = result.unwrap();
+        hash_map.reflect_get_mut(&bar_key, &mut |result| {
+            result
+                .unwrap()
+                .downcast_mut::<Struct>(&mut |result| result.unwrap().field = 555)
+        })
+    });
+
+    // Check path resolution.
+    #[derive(Reflect, Debug)]
+    struct Something {
+        hash_map: HashMap<String, Struct>,
+    }
+
+    let something = Something { hash_map };
+
+    something.get_resolve_path::<usize>("hash_map[foo].field", &mut |result| {
+        assert_eq!(*result.unwrap(), 123)
+    });
+    something.get_resolve_path::<usize>("hash_map[bar].field", &mut |result| {
+        assert_eq!(*result.unwrap(), 555)
     });
 }

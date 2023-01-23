@@ -7,11 +7,13 @@ pub use fyrox_core_derive::Reflect;
 use std::{
     any::{Any, TypeId},
     fmt::{self, Debug, Display, Formatter},
+    mem::ManuallyDrop,
 };
 
 pub mod prelude {
     pub use super::{
-        FieldInfo, Reflect, ReflectArray, ReflectList, ResolvePath, SetFieldByPathError,
+        FieldInfo, Reflect, ReflectArray, ReflectHashMap, ReflectInheritableVariable, ReflectList,
+        ResolvePath, SetFieldByPathError,
     };
 }
 
@@ -240,6 +242,14 @@ pub trait Reflect: Any + Debug {
     ) {
         func(None)
     }
+
+    fn as_hash_map(&self, func: &mut dyn FnMut(Option<&dyn ReflectHashMap>)) {
+        func(None)
+    }
+
+    fn as_hash_map_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHashMap>)) {
+        func(None)
+    }
 }
 
 /// [`Reflect`] sub trait for working with slices.
@@ -259,6 +269,24 @@ pub trait ReflectList: ReflectArray {
         index: usize,
         value: Box<dyn Reflect>,
     ) -> Result<(), Box<dyn Reflect>>;
+}
+
+pub trait ReflectHashMap: Reflect {
+    fn reflect_insert(
+        &mut self,
+        key: Box<dyn Reflect>,
+        value: Box<dyn Reflect>,
+    ) -> Option<Box<dyn Reflect>>;
+    fn reflect_len(&self) -> usize;
+    fn reflect_get(&self, key: &dyn Reflect, func: &mut dyn FnMut(Option<&dyn Reflect>));
+    fn reflect_get_mut(
+        &mut self,
+        key: &dyn Reflect,
+        func: &mut dyn FnMut(Option<&mut dyn Reflect>),
+    );
+    fn reflect_get_nth_value_ref(&self, index: usize) -> Option<&dyn Reflect>;
+    fn reflect_get_nth_value_mut(&mut self, index: usize) -> Option<&mut dyn Reflect>;
+    fn reflect_remove(&mut self, key: &dyn Reflect, func: &mut dyn FnMut(Option<Box<dyn Reflect>>));
 }
 
 pub trait ReflectInheritableVariable: Reflect + Debug {
@@ -453,6 +481,52 @@ impl<R: Reflect> GetField for R {
 // impl dyn Trait
 // --------------------------------------------------------------------------------
 
+// SAFETY: String usage is safe in immutable contexts only. Calling `ManuallyDrop::drop`
+// (running strings destructor) on the returned value will cause crash!
+unsafe fn make_fake_string_from_slice(string: &str) -> ManuallyDrop<String> {
+    ManuallyDrop::new(String::from_utf8_unchecked(Vec::from_raw_parts(
+        string.as_bytes().as_ptr() as *mut _,
+        string.as_bytes().len(),
+        string.as_bytes().len(),
+    )))
+}
+
+fn try_fetch_by_str_path_ref(
+    hash_map: &dyn ReflectHashMap,
+    path: &str,
+    func: &mut dyn FnMut(Option<&dyn Reflect>),
+) {
+    // Create fake string here first, this is needed to avoid memory allocations..
+    // SAFETY: We won't drop the fake string or mutate it.
+    let fake_string_key = unsafe { make_fake_string_from_slice(path) };
+
+    hash_map.reflect_get(&*fake_string_key, &mut |result| match result {
+        Some(value) => func(Some(value)),
+        None => hash_map.reflect_get(&ImmutableString::new(path) as &dyn Reflect, func),
+    });
+}
+
+fn try_fetch_by_str_path_mut(
+    hash_map: &mut dyn ReflectHashMap,
+    path: &str,
+    func: &mut dyn FnMut(Option<&mut dyn Reflect>),
+) {
+    // Create fake string here first, this is needed to avoid memory allocations..
+    // SAFETY: We won't drop the fake string or mutate it.
+    let fake_string_key = unsafe { make_fake_string_from_slice(path) };
+
+    let mut succeeded = true;
+
+    hash_map.reflect_get_mut(&*fake_string_key, &mut |result| match result {
+        Some(value) => func(Some(value)),
+        None => succeeded = false,
+    });
+
+    if !succeeded {
+        hash_map.reflect_get_mut(&ImmutableString::new(path) as &dyn Reflect, func)
+    }
+}
+
 /// Simple path parser / reflect path component
 pub enum Component<'p> {
     Field(&'p str),
@@ -505,15 +579,22 @@ impl<'p> Component<'p> {
                 func(field.ok_or(ReflectPathError::UnknownField { s: path }))
             }),
             Self::Index(path) => {
-                reflect.as_array(&mut |array| match array {
-                    Some(list) => match path.parse::<usize>() {
-                        Ok(index) => match list.reflect_index(index) {
+                reflect.as_array(&mut |result| match result {
+                    Some(array) => match path.parse::<usize>() {
+                        Ok(index) => match array.reflect_index(index) {
                             None => func(Err(ReflectPathError::NoItemForIndex { s: path })),
                             Some(value) => func(Ok(value)),
                         },
                         Err(_) => func(Err(ReflectPathError::InvalidIndexSyntax { s: path })),
                     },
-                    None => func(Err(ReflectPathError::NotAnArray)),
+                    None => reflect.as_hash_map(&mut |result| match result {
+                        Some(hash_map) => {
+                            try_fetch_by_str_path_ref(hash_map, path, &mut |result| {
+                                func(result.ok_or(ReflectPathError::NoItemForIndex { s: path }))
+                            })
+                        }
+                        None => func(Err(ReflectPathError::NotAnArray)),
+                    }),
                 });
             }
         }
@@ -529,6 +610,7 @@ impl<'p> Component<'p> {
                 func(field.ok_or(ReflectPathError::UnknownField { s: path }))
             }),
             Self::Index(path) => {
+                let mut succeeded = true;
                 reflect.as_array_mut(&mut |array| match array {
                     Some(list) => match path.parse::<usize>() {
                         Ok(index) => match list.reflect_index_mut(index) {
@@ -537,8 +619,19 @@ impl<'p> Component<'p> {
                         },
                         Err(_) => func(Err(ReflectPathError::InvalidIndexSyntax { s: path })),
                     },
-                    None => func(Err(ReflectPathError::NotAnArray)),
+                    None => succeeded = false,
                 });
+
+                if !succeeded {
+                    reflect.as_hash_map_mut(&mut |result| match result {
+                        Some(hash_map) => {
+                            try_fetch_by_str_path_mut(hash_map, path, &mut |result| {
+                                func(result.ok_or(ReflectPathError::NoItemForIndex { s: path }))
+                            })
+                        }
+                        None => func(Err(ReflectPathError::NotAnArray)),
+                    })
+                }
             }
         }
     }
@@ -794,6 +887,7 @@ macro_rules! delegate_reflect {
     };
 }
 
+use crate::sstorage::ImmutableString;
 use crate::variable::{InheritError, VariableFlags};
 pub use blank_reflect;
 pub use delegate_reflect;

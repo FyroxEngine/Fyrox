@@ -2,7 +2,8 @@
 
 use crate::{
     delegate_reflect,
-    reflect::{blank_reflect, prelude::*, ReflectArray, ReflectInheritableVariable, ReflectList},
+    reflect::{blank_reflect, prelude::*, ReflectList},
+    sstorage::ImmutableString,
     uuid::Uuid,
 };
 use fyrox_core_derive::impl_reflect;
@@ -10,7 +11,9 @@ use parking_lot::Mutex;
 use std::{
     any::Any,
     cell::Cell,
+    collections::HashMap,
     fmt::Debug,
+    hash::{BuildHasher, Hash},
     ops::{Deref, DerefMut, Range},
     sync::Arc,
     time::{Duration, Instant},
@@ -34,6 +37,7 @@ impl_blank_reflect! {
     String,
     std::path::PathBuf,
     Duration, Instant,
+    ImmutableString
 }
 
 macro_rules! impl_reflect_tuple {
@@ -141,6 +145,96 @@ impl<T: Reflect + 'static> ReflectList for Vec<T> {
     ) -> Result<(), Box<dyn Reflect>> {
         self.insert(index, *value.downcast::<T>()?);
         Ok(())
+    }
+}
+
+impl<K, V, S> Reflect for HashMap<K, V, S>
+where
+    K: Reflect + Debug + Eq + Hash + 'static,
+    V: Reflect + Debug + 'static,
+    S: BuildHasher + 'static,
+{
+    blank_reflect!();
+
+    fn as_hash_map(&self, func: &mut dyn FnMut(Option<&dyn ReflectHashMap>)) {
+        func(Some(self))
+    }
+
+    fn as_hash_map_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHashMap>)) {
+        func(Some(self))
+    }
+}
+
+impl<K, V, S> ReflectHashMap for HashMap<K, V, S>
+where
+    K: Reflect + Debug + Eq + Hash + 'static,
+    V: Reflect + Debug + 'static,
+    S: BuildHasher + 'static,
+{
+    fn reflect_insert(
+        &mut self,
+        key: Box<dyn Reflect>,
+        value: Box<dyn Reflect>,
+    ) -> Option<Box<dyn Reflect>> {
+        if let Ok(key) = key.downcast::<K>() {
+            if let Ok(value) = value.downcast::<V>() {
+                if let Some(previous) = self.insert(*key, *value) {
+                    return Some(Box::new(previous));
+                }
+            }
+        }
+
+        None
+    }
+
+    fn reflect_len(&self) -> usize {
+        self.len()
+    }
+
+    fn reflect_get(&self, key: &dyn Reflect, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        key.downcast_ref::<K>(&mut |result| match result {
+            Some(key) => match self.get(key) {
+                Some(value) => func(Some(value as &dyn Reflect)),
+                None => func(None),
+            },
+            None => func(None),
+        })
+    }
+
+    fn reflect_get_mut(
+        &mut self,
+        key: &dyn Reflect,
+        func: &mut dyn FnMut(Option<&mut dyn Reflect>),
+    ) {
+        key.downcast_ref::<K>(&mut |result| match result {
+            Some(key) => match self.get_mut(key) {
+                Some(value) => func(Some(value as &mut dyn Reflect)),
+                None => func(None),
+            },
+            None => func(None),
+        })
+    }
+
+    fn reflect_get_nth_value_ref(&self, index: usize) -> Option<&dyn Reflect> {
+        self.values().nth(index).map(|v| v as &dyn Reflect)
+    }
+
+    fn reflect_get_nth_value_mut(&mut self, index: usize) -> Option<&mut dyn Reflect> {
+        self.values_mut().nth(index).map(|v| v as &mut dyn Reflect)
+    }
+
+    fn reflect_remove(
+        &mut self,
+        key: &dyn Reflect,
+        func: &mut dyn FnMut(Option<Box<dyn Reflect>>),
+    ) {
+        key.downcast_ref::<K>(&mut |result| match result {
+            Some(key) => func(
+                self.remove(key)
+                    .map(|value| Box::new(value) as Box<dyn Reflect>),
+            ),
+            None => func(None),
+        })
     }
 }
 
