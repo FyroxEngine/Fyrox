@@ -129,46 +129,54 @@ impl PropertyDescriptor {
 
 pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<PropertyDescriptor> {
     let mut descriptors = Vec::new();
-    for (field_info, field_ref) in object.fields_info().iter().zip(object.fields()) {
-        let path = if parent_path.is_empty() {
-            field_info.name.to_owned()
-        } else {
-            format!("{}.{}", parent_path, field_info.name)
-        };
 
-        if let Some(array) = field_ref.as_array() {
-            let mut descriptor = PropertyDescriptor {
-                path: path.clone(),
-                display_name: field_info.display_name.to_owned(),
-                type_name: field_info.type_name,
-                type_id: field_info.value.type_id(),
-                children_properties: Default::default(),
-                read_only: field_info.read_only,
+    object.fields_info(&mut |fields_info| {
+        for field_info in fields_info.iter() {
+            let field_ref = field_info.reflect_value;
+
+            let path = if parent_path.is_empty() {
+                field_info.name.to_owned()
+            } else {
+                format!("{}.{}", parent_path, field_info.name)
             };
 
-            for i in 0..array.reflect_len() {
-                let item = array.reflect_index(i).unwrap();
-                let item_path = format!("{}[{}]", path, i);
-                descriptor.children_properties.push(PropertyDescriptor {
-                    path: item_path.clone(),
-                    display_name: format!("[{}]", i),
-                    type_name: field_info.type_name,
-                    type_id: field_info.value.type_id(),
-                    read_only: field_info.read_only,
-                    children_properties: object_to_property_tree(&item_path, item),
-                })
-            }
-        } else {
-            descriptors.push(PropertyDescriptor {
-                display_name: field_info.display_name.to_owned(),
-                type_name: field_info.type_name,
-                type_id: field_info.value.type_id(),
-                read_only: field_info.read_only,
-                children_properties: object_to_property_tree(&path, field_ref),
-                path,
+            field_ref.as_array(&mut |array| {
+                if let Some(array) = array {
+                    let mut descriptor = PropertyDescriptor {
+                        path: path.clone(),
+                        display_name: field_info.display_name.to_owned(),
+                        type_name: field_info.type_name,
+                        type_id: field_info.value.type_id(),
+                        children_properties: Default::default(),
+                        read_only: field_info.read_only,
+                    };
+
+                    for i in 0..array.reflect_len() {
+                        let item = array.reflect_index(i).unwrap();
+                        let item_path = format!("{}[{}]", path, i);
+                        descriptor.children_properties.push(PropertyDescriptor {
+                            path: item_path.clone(),
+                            display_name: format!("[{}]", i),
+                            type_name: field_info.type_name,
+                            type_id: field_info.value.type_id(),
+                            read_only: field_info.read_only,
+                            children_properties: object_to_property_tree(&item_path, item),
+                        })
+                    }
+                } else {
+                    descriptors.push(PropertyDescriptor {
+                        display_name: field_info.display_name.to_owned(),
+                        type_name: field_info.type_name,
+                        type_id: field_info.value.type_id(),
+                        read_only: field_info.read_only,
+                        children_properties: object_to_property_tree(&path, field_ref),
+                        path: path.clone(),
+                    })
+                }
             })
         }
-    }
+    });
+
     descriptors
 }
 

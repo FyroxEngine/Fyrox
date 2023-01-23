@@ -80,12 +80,12 @@ impl TypeArgs {
         }
 
         quote! {
-            fn as_list(&self) -> Option<&dyn ReflectList> {
-                Some(self)
+            fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
+                func(Some(self))
             }
 
-            fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
-                Some(self)
+            fn as_list_mut(&mut self,  func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
+                func(Some(self))
             }
         }
     }
@@ -96,12 +96,12 @@ impl TypeArgs {
         }
 
         quote! {
-            fn as_array(&self) -> Option<&dyn ReflectArray> {
-                Some(self)
+            fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
+                func(Some(self))
             }
 
-            fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
-                Some(self)
+            fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
+                func(Some(self))
             }
         }
     }

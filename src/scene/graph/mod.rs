@@ -754,10 +754,14 @@ impl Graph {
                             node.original_handle_in_resource = original;
                             node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
 
-                            Log::verify(try_inherit_properties(
-                                node.as_reflect_mut(),
-                                resource_node.as_reflect(),
-                            ));
+                            node.as_reflect_mut(&mut |node_reflect| {
+                                resource_node.as_reflect(&mut |resource_node_reflect| {
+                                    Log::verify(try_inherit_properties(
+                                        node_reflect,
+                                        resource_node_reflect,
+                                    ));
+                                })
+                            })
                         } else {
                             Log::warn(format!(
                                 "Unable to find original handle for node {}",

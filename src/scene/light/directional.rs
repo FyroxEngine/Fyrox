@@ -210,8 +210,7 @@ impl DirectionalLightBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::core::reflect::Reflect;
-    use crate::core::variable::try_inherit_properties;
+    use crate::scene::base::test::inherit_node_properties;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         light::{
@@ -240,7 +239,7 @@ mod test {
         let mut child = DirectionalLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
             .build_directional_light();
 
-        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+        inherit_node_properties(&mut child, &parent);
 
         let parent = parent.cast::<DirectionalLight>().unwrap();
 

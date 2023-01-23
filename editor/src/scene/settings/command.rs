@@ -1,5 +1,5 @@
 use crate::{define_universal_commands, Command, SceneCommand, SceneContext};
-use fyrox::core::reflect::ResolvePath;
+use fyrox::core::reflect::prelude::*;
 
 define_universal_commands!(
     make_set_scene_property_command,
@@ -10,5 +10,5 @@ define_universal_commands!(
     ctx,
     handle,
     self,
-    { ctx.scene },
+    { ctx.scene as &mut dyn Reflect },
 );

@@ -5,7 +5,7 @@ use crate::{
     scene::commands::{SceneCommand, SceneContext},
 };
 use fyrox::{
-    core::{pool::Handle, reflect::ResolvePath},
+    core::{pool::Handle, reflect::prelude::*},
     scene::node::Node,
 };
 

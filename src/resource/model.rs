@@ -99,7 +99,7 @@ impl Model {
 
             // Reset inheritable properties, so property inheritance system will take properties
             // from parent objects on resolve stage.
-            reset_inheritable_properties(node.as_reflect_mut());
+            node.as_reflect_mut(&mut |node| reset_inheritable_properties(node));
 
             // Continue on children.
             stack.extend_from_slice(node.children());

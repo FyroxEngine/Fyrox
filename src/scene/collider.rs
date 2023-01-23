@@ -917,7 +917,8 @@ impl ColliderBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::core::{algebra::Vector2, reflect::Reflect};
+    use crate::core::algebra::Vector2;
+    use crate::scene::base::test::inherit_node_properties;
     use crate::scene::collider::BitMask;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
@@ -926,7 +927,6 @@ mod test {
         graph::Graph,
         rigidbody::{RigidBodyBuilder, RigidBodyType},
     };
-    use fyrox_core::variable::try_inherit_properties;
 
     #[test]
     fn test_collider_inheritance() {
@@ -944,7 +944,7 @@ mod test {
 
         let mut child = ColliderBuilder::new(BaseBuilder::new()).build_collider();
 
-        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+        inherit_node_properties(&mut child, &parent);
 
         let parent = parent.cast::<Collider>().unwrap();
 

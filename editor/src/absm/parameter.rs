@@ -130,15 +130,16 @@ impl ParameterPanel {
                 message.data::<InspectorMessage>()
             {
                 if is_in_preview_mode {
-                    Log::verify(
-                        PropertyAction::from_field_kind(&args.value).apply(
-                            &args.path(),
-                            absm_node
-                                .machine_mut()
-                                .get_value_mut_silent()
-                                .parameters_mut(),
-                        ),
-                    )
+                    PropertyAction::from_field_kind(&args.value).apply(
+                        &args.path(),
+                        absm_node
+                            .machine_mut()
+                            .get_value_mut_silent()
+                            .parameters_mut(),
+                        &mut |result| {
+                            Log::verify(result);
+                        },
+                    );
                 } else {
                     sender
                         .send(Message::DoSceneCommand(

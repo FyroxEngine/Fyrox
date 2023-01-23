@@ -1138,23 +1138,43 @@ impl BaseBuilder {
 
 #[cfg(test)]
 pub mod test {
+    use crate::scene::node::{Node, NodeTrait};
     use crate::{
         core::{reflect::prelude::*, variable::try_inherit_properties},
         scene::base::{BaseBuilder, LevelOfDetail, LodGroup, Mobility},
     };
 
     pub fn check_inheritable_properties_equality(entity_a: &dyn Reflect, entity_b: &dyn Reflect) {
-        for (a, b) in entity_a.fields().iter().zip(entity_b.fields()) {
-            if let (Some(ta), Some(tb)) =
-                ((*a).as_inheritable_variable(), b.as_inheritable_variable())
-            {
-                if !ta.value_equals(tb) {
-                    panic!("Value of property {:?} is not equal to {:?}", ta, tb)
-                }
-            }
+        entity_a.fields(&mut |entity_a_fields| {
+            entity_b.fields(&mut |entity_b_fields| {
+                for (a, b) in entity_a_fields.iter().zip(entity_b_fields) {
+                    (*a).as_inheritable_variable(&mut |result| {
+                        if let Some(ta) = result {
+                            (*b).as_inheritable_variable(&mut |result| {
+                                if let Some(tb) = result {
+                                    if !ta.value_equals(tb) {
+                                        panic!(
+                                            "Value of property {:?} is not equal to {:?}",
+                                            ta, tb
+                                        )
+                                    }
+                                }
+                            });
+                        }
+                    });
 
-            check_inheritable_properties_equality(*a, b);
-        }
+                    check_inheritable_properties_equality(*a, b);
+                }
+            });
+        });
+    }
+
+    pub fn inherit_node_properties<T: NodeTrait>(child: &mut T, parent: &Node) {
+        child.as_reflect_mut(&mut |child| {
+            parent.as_reflect(&mut |parent| {
+                try_inherit_properties(child, parent).unwrap();
+            })
+        });
     }
 
     #[test]

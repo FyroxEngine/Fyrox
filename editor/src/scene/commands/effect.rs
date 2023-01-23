@@ -17,13 +17,7 @@ define_universal_commands!(
     ctx,
     handle,
     self,
-    {
-        ctx.scene
-            .graph
-            .sound_context
-            .effect_mut(self.handle)
-            .as_reflect_mut()
-    },
+    { ctx.scene.graph.sound_context.effect_mut(self.handle) },
 );
 
 #[derive(Debug)]

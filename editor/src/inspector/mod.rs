@@ -224,17 +224,29 @@ impl Inspector {
 
         if self.needs_sync {
             if editor_scene.selection.is_single_selection() {
-                let obj: Option<&dyn Reflect> = match &editor_scene.selection {
-                    Selection::Graph(selection) => scene
-                        .graph
-                        .try_get(selection.nodes()[0])
-                        .map(|n| n.as_reflect()),
-                    Selection::SoundContext => Some(&scene.graph.sound_context as &dyn Reflect),
-                    Selection::Effect(selection) => scene
-                        .graph
-                        .sound_context
-                        .try_get_effect(selection.effects[0])
-                        .map(|e| e as &dyn Reflect),
+                match &editor_scene.selection {
+                    Selection::Graph(selection) => {
+                        if let Some(node) = scene.graph.try_get(selection.nodes()[0]) {
+                            node.as_reflect(&mut |node| {
+                                self.sync_to(node, &mut engine.user_interface)
+                            })
+                        }
+                    }
+                    Selection::SoundContext => {
+                        self.sync_to(
+                            &scene.graph.sound_context as &dyn Reflect,
+                            &mut engine.user_interface,
+                        );
+                    }
+                    Selection::Effect(selection) => {
+                        if let Some(effect) = scene
+                            .graph
+                            .sound_context
+                            .try_get_effect(selection.effects[0])
+                        {
+                            self.sync_to(effect as &dyn Reflect, &mut engine.user_interface);
+                        }
+                    }
                     Selection::Animation(selection) => {
                         if let Some(animation) = scene
                             .graph
@@ -247,15 +259,12 @@ impl Inspector {
                                 if let Some(signal) =
                                     animation.signals().iter().find(|s| s.id == *id)
                                 {
-                                    Some(signal as &dyn Reflect)
-                                } else {
-                                    None
+                                    self.sync_to(
+                                        signal as &dyn Reflect,
+                                        &mut engine.user_interface,
+                                    );
                                 }
-                            } else {
-                                None
                             }
-                        } else {
-                            None
                         }
                     }
                     Selection::Absm(selection) => {
@@ -270,35 +279,33 @@ impl Inspector {
                                 if let Some(layer_index) = selection.layer {
                                     if let Some(layer) = machine.layers().get(layer_index) {
                                         match first {
-                                            SelectedEntity::Transition(transition) => Some(
-                                                &layer.transitions()[*transition] as &dyn Reflect,
-                                            ),
+                                            SelectedEntity::Transition(transition) => {
+                                                self.sync_to(
+                                                    &layer.transitions()[*transition]
+                                                        as &dyn Reflect,
+                                                    &mut engine.user_interface,
+                                                );
+                                            }
                                             SelectedEntity::State(state) => {
-                                                Some(&layer.states()[*state] as &dyn Reflect)
+                                                self.sync_to(
+                                                    &layer.states()[*state] as &dyn Reflect,
+                                                    &mut engine.user_interface,
+                                                );
                                             }
                                             SelectedEntity::PoseNode(pose) => {
-                                                Some(&layer.nodes()[*pose] as &dyn Reflect)
+                                                self.sync_to(
+                                                    &layer.nodes()[*pose] as &dyn Reflect,
+                                                    &mut engine.user_interface,
+                                                );
                                             }
                                         }
-                                    } else {
-                                        None
                                     }
-                                } else {
-                                    None
                                 }
-                            } else {
-                                None
                             }
-                        } else {
-                            None
                         }
                     }
-                    _ => None,
+                    _ => (),
                 };
-
-                if let Some(obj) = obj {
-                    self.sync_to(obj, &mut engine.user_interface);
-                }
             }
         } else {
             self.needs_sync = true;
@@ -389,17 +396,48 @@ impl Inspector {
                 ));
 
             if !editor_scene.selection.is_empty() {
-                let obj: Option<&dyn Reflect> = match &editor_scene.selection {
-                    Selection::Graph(selection) => scene
-                        .graph
-                        .try_get(selection.nodes()[0])
-                        .map(|n| n.as_reflect()),
-                    Selection::SoundContext => Some(&scene.graph.sound_context as &dyn Reflect),
-                    Selection::Effect(selection) => scene
-                        .graph
-                        .sound_context
-                        .try_get_effect(selection.effects[0])
-                        .map(|e| e as &dyn Reflect),
+                match &editor_scene.selection {
+                    Selection::Graph(selection) => {
+                        if let Some(node) = scene.graph.try_get(selection.nodes()[0]) {
+                            node.as_reflect(&mut |node| {
+                                self.change_context(
+                                    node,
+                                    &mut engine.user_interface,
+                                    engine.resource_manager.clone(),
+                                    engine.serialization_context.clone(),
+                                    &scene.graph,
+                                    &editor_scene.selection,
+                                    sender,
+                                )
+                            })
+                        }
+                    }
+                    Selection::SoundContext => self.change_context(
+                        &scene.graph.sound_context as &dyn Reflect,
+                        &mut engine.user_interface,
+                        engine.resource_manager.clone(),
+                        engine.serialization_context.clone(),
+                        &scene.graph,
+                        &editor_scene.selection,
+                        sender,
+                    ),
+                    Selection::Effect(selection) => {
+                        if let Some(effect) = scene
+                            .graph
+                            .sound_context
+                            .try_get_effect(selection.effects[0])
+                        {
+                            self.change_context(
+                                effect as &dyn Reflect,
+                                &mut engine.user_interface,
+                                engine.resource_manager.clone(),
+                                engine.serialization_context.clone(),
+                                &scene.graph,
+                                &editor_scene.selection,
+                                sender,
+                            )
+                        }
+                    }
                     Selection::Animation(selection) => {
                         if let Some(animation) = scene
                             .graph
@@ -412,15 +450,17 @@ impl Inspector {
                                 if let Some(signal) =
                                     animation.signals().iter().find(|s| s.id == *id)
                                 {
-                                    Some(signal as &dyn Reflect)
-                                } else {
-                                    None
+                                    self.change_context(
+                                        signal as &dyn Reflect,
+                                        &mut engine.user_interface,
+                                        engine.resource_manager.clone(),
+                                        engine.serialization_context.clone(),
+                                        &scene.graph,
+                                        &editor_scene.selection,
+                                        sender,
+                                    )
                                 }
-                            } else {
-                                None
                             }
-                        } else {
-                            None
                         }
                     }
                     Selection::Absm(selection) => {
@@ -434,43 +474,43 @@ impl Inspector {
                                 if let Some(layer_index) = selection.layer {
                                     if let Some(layer) = machine.layers().get(layer_index) {
                                         match first {
-                                            SelectedEntity::Transition(transition) => Some(
-                                                &layer.transitions()[*transition] as &dyn Reflect,
+                                            SelectedEntity::Transition(transition) => self
+                                                .change_context(
+                                                    &layer.transitions()[*transition]
+                                                        as &dyn Reflect,
+                                                    &mut engine.user_interface,
+                                                    engine.resource_manager.clone(),
+                                                    engine.serialization_context.clone(),
+                                                    &scene.graph,
+                                                    &editor_scene.selection,
+                                                    sender,
+                                                ),
+                                            SelectedEntity::State(state) => self.change_context(
+                                                &layer.states()[*state] as &dyn Reflect,
+                                                &mut engine.user_interface,
+                                                engine.resource_manager.clone(),
+                                                engine.serialization_context.clone(),
+                                                &scene.graph,
+                                                &editor_scene.selection,
+                                                sender,
                                             ),
-                                            SelectedEntity::State(state) => {
-                                                Some(&layer.states()[*state] as &dyn Reflect)
-                                            }
-                                            SelectedEntity::PoseNode(pose) => {
-                                                Some(&layer.nodes()[*pose] as &dyn Reflect)
-                                            }
+                                            SelectedEntity::PoseNode(pose) => self.change_context(
+                                                &layer.nodes()[*pose] as &dyn Reflect,
+                                                &mut engine.user_interface,
+                                                engine.resource_manager.clone(),
+                                                engine.serialization_context.clone(),
+                                                &scene.graph,
+                                                &editor_scene.selection,
+                                                sender,
+                                            ),
                                         }
-                                    } else {
-                                        None
                                     }
-                                } else {
-                                    None
                                 }
-                            } else {
-                                None
                             }
-                        } else {
-                            None
                         }
                     }
-                    _ => None,
+                    _ => (),
                 };
-
-                if let Some(obj) = obj {
-                    self.change_context(
-                        obj,
-                        &mut engine.user_interface,
-                        engine.resource_manager.clone(),
-                        engine.serialization_context.clone(),
-                        &scene.graph,
-                        &editor_scene.selection,
-                        sender,
-                    )
-                }
             } else {
                 self.clear(&engine.user_interface);
             }

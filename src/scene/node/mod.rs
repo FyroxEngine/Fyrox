@@ -51,6 +51,12 @@ pub trait BaseNodeTrait: Any + Debug + Deref<Target = Base> + DerefMut + Send {
     /// because internally nodes may (and most likely will) contain handles to other nodes. To
     /// correctly clone a node you have to use [copy_node](struct.Graph.html#method.copy_node).
     fn clone_box(&self) -> Node;
+
+    /// Casts self as `Any`
+    fn as_any_ref(&self) -> &dyn Any;
+
+    /// Casts self as `Any`
+    fn as_any_ref_mut(&mut self) -> &mut dyn Any;
 }
 
 impl<T> BaseNodeTrait for T
@@ -59,6 +65,14 @@ where
 {
     fn clone_box(&self) -> Node {
         Node(Box::new(self.clone()))
+    }
+
+    fn as_any_ref(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_ref_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -336,7 +350,7 @@ impl Node {
     /// }
     /// ```
     pub fn cast<T: NodeTrait>(&self) -> Option<&T> {
-        self.0.as_any().downcast_ref::<T>()
+        self.0.as_any_ref().downcast_ref::<T>()
     }
 
     /// Performs downcasting to a particular type.
@@ -352,7 +366,7 @@ impl Node {
     /// }
     /// ```
     pub fn cast_mut<T: NodeTrait>(&mut self) -> Option<&mut T> {
-        self.0.as_any_mut().downcast_mut::<T>()
+        self.0.as_any_ref_mut().downcast_mut::<T>()
     }
 
     /// Allows a node to provide access to a component of specified type.
@@ -432,5 +446,64 @@ impl Node {
 impl Visit for Node {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.0.visit(name, visitor)
+    }
+}
+
+impl Reflect for Node {
+    fn type_name(&self) -> &'static str {
+        self.0.deref().type_name()
+    }
+
+    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+        self.0.deref().fields_info(func)
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self.0.into_any()
+    }
+
+    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+        self.0.deref().as_any(func)
+    }
+
+    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+        self.0.deref_mut().as_any_mut(func)
+    }
+
+    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        self.0.deref().as_reflect(func)
+    }
+
+    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        self.0.deref_mut().as_reflect_mut(func)
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        self.0.deref_mut().set(value)
+    }
+
+    fn set_field(
+        &mut self,
+        field: &str,
+        value: Box<dyn Reflect>,
+        func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),
+    ) {
+        self.0.deref_mut().set_field(field, value, func)
+    }
+
+    fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
+        self.0.deref().fields(func)
+    }
+
+    fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
+        self.0.deref_mut().fields_mut(func)
+    }
+
+    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        self.0.deref().field(name, func)
+    }
+
+    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+        self.0.deref_mut().field_mut(name, func)
     }
 }

@@ -126,8 +126,7 @@ impl ListenerBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::core::reflect::Reflect;
-    use crate::core::variable::try_inherit_properties;
+    use crate::scene::base::test::inherit_node_properties;
     use crate::scene::{
         base::{test::check_inheritable_properties_equality, BaseBuilder},
         sound::listener::{Listener, ListenerBuilder},
@@ -139,7 +138,7 @@ mod test {
 
         let mut child = ListenerBuilder::new(BaseBuilder::new()).build_listener();
 
-        try_inherit_properties(child.as_reflect_mut(), parent.as_reflect()).unwrap();
+        inherit_node_properties(&mut child, &parent);
 
         let parent = parent.cast::<Listener>().unwrap();
 
