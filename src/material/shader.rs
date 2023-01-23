@@ -88,7 +88,7 @@ impl Visit for ShaderState {
 ///
 /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
 /// missing by very specific value in the fallback texture.
-#[derive(Deserialize, Debug, PartialEq, Clone, Copy, Visit, Eq)]
+#[derive(Deserialize, Debug, PartialEq, Clone, Copy, Visit, Eq, Reflect)]
 pub enum SamplerFallback {
     /// A 1x1px white texture.
     White,

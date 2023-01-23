@@ -6,23 +6,24 @@
 
 use crate::{
     asset::ResourceState,
-    core::reflect::prelude::*,
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
+        parking_lot::{Mutex, MutexGuard},
+        reflect::prelude::*,
         sstorage::ImmutableString,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
     material::shader::{PropertyKind, SamplerFallback, Shader},
-    renderer::framework::framebuffer::DrawParameters,
     resource::texture::Texture,
 };
 use fxhash::FxHashMap;
-use fyrox_core::parking_lot::{Mutex, MutexGuard};
-use std::fmt::{Display, Formatter};
-use std::ops::Deref;
-use std::sync::Arc;
+use std::{
+    fmt::{Display, Formatter},
+    ops::Deref,
+    sync::Arc,
+};
 
 pub mod shader;
 
@@ -32,7 +33,7 @@ pub mod shader;
 ///
 /// There is a limited set of possible types that can be passed to a shader, most of them are
 /// just simple data types.
-#[derive(Debug, Visit, Clone)]
+#[derive(Debug, Visit, Clone, Reflect)]
 pub enum PropertyValue {
     /// Real number.
     Float(f32),
@@ -343,10 +344,9 @@ impl Default for PropertyValue {
 /// As you can see it is only a bit more hard that with the standard shader. The main difference here is
 /// that we using resource manager to get shader instance and the we just use the instance to create
 /// material instance. Then we populate properties as usual.
-#[derive(Default, Debug, Visit, Clone)]
+#[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct Material {
     shader: Shader,
-    draw_parameters: DrawParameters,
     properties: FxHashMap<ImmutableString, PropertyValue>,
 }
 
@@ -506,7 +506,6 @@ impl Material {
 
         Self {
             shader,
-            draw_parameters: Default::default(),
             properties: property_values,
         }
     }
@@ -691,7 +690,7 @@ impl Material {
 /// the renderer will be able to optimize rendering when it knows that multiple objects share the
 /// same material.
 #[derive(Reflect, Clone, Debug)]
-pub struct SharedMaterial(#[reflect(hidden)] Arc<Mutex<Material>>);
+pub struct SharedMaterial(Arc<Mutex<Material>>);
 
 impl Default for SharedMaterial {
     fn default() -> Self {
