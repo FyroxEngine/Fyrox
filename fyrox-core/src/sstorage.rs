@@ -9,7 +9,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHasher};
 use std::{
-    fmt::{Display, Formatter},
+    fmt::{Debug, Display, Formatter},
     hash::{Hash, Hasher},
     ops::Deref,
     sync::Arc,
@@ -32,12 +32,18 @@ struct State {
 /// # Use cases
 ///
 /// Most common use case for immutable strings is hash map keys in performance-critical places.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ImmutableString(Arc<State>);
 
 impl Display for ImmutableString {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.0.string.as_ref())
+    }
+}
+
+impl Debug for ImmutableString {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&self.0.string, f)
     }
 }
 
