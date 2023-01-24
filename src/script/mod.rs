@@ -322,15 +322,6 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// 60 times per second (this may change in future releases).
     fn on_update(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) {}
 
-    /// Allows you to restore resources after deserialization.
-    ///
-    /// # Motivation
-    ///
-    /// Some scripts may store resources "handles" (for example a texture or a 3d model), when the
-    /// handle is saved, only path to resource is saved. When you loading a save, you must ask resource
-    /// manager to restore handles.
-    fn restore_resources(&mut self, #[allow(unused_variables)] resource_manager: ResourceManager) {}
-
     /// Allows you to react to certain script messages. It could be used for communication between scripts; to
     /// bypass borrowing issues. If you need to receive messages of a particular type, you must subscribe to a type
     /// explicitly. Usually it is done in [`ScriptTrait::on_start`] method:

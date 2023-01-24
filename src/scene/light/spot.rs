@@ -31,7 +31,6 @@ use crate::{
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
-    engine::resource_manager::ResourceManager,
     resource::texture::Texture,
     scene::{
         base::Base,
@@ -198,14 +197,6 @@ impl NodeTrait for SpotLight {
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.local_bounding_box()
             .transform(&self.global_transform())
-    }
-
-    fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base_light.restore_resources(resource_manager.clone());
-
-        let mut state = resource_manager.state();
-        let texture_container = &mut state.containers_mut().textures;
-        texture_container.try_restore_inheritable_resource(&mut self.cookie_texture);
     }
 
     fn id(&self) -> Uuid {

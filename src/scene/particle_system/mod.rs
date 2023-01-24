@@ -82,7 +82,6 @@ use crate::{
         variable::InheritableVariable,
         visitor::prelude::*,
     },
-    engine::resource_manager::ResourceManager,
     rand::{prelude::StdRng, SeedableRng},
     resource::texture::Texture,
     scene::{
@@ -495,14 +494,6 @@ impl NodeTrait for ParticleSystem {
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.local_bounding_box()
             .transform(&self.global_transform())
-    }
-
-    fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base.restore_resources(resource_manager.clone());
-
-        let mut state = resource_manager.state();
-        let texture_container = &mut state.containers_mut().textures;
-        texture_container.try_restore_inheritable_resource(&mut self.texture);
     }
 
     fn id(&self) -> Uuid {

@@ -11,7 +11,6 @@ use crate::{
         visitor::prelude::*,
     },
     define_with,
-    engine::resource_manager::ResourceManager,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -339,15 +338,6 @@ impl NodeTrait for Sound {
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.local_bounding_box()
             .transform(&self.global_transform())
-    }
-
-    fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base.restore_resources(resource_manager.clone());
-
-        if let Some(buffer) = self.buffer() {
-            let state = buffer.state();
-            self.set_buffer(Some(resource_manager.request_sound_buffer(state.path())));
-        }
     }
 
     fn id(&self) -> Uuid {

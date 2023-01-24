@@ -13,7 +13,6 @@ use crate::{
         variable::InheritableVariable,
         visitor::{prelude::*, PodVecView},
     },
-    engine::resource_manager::ResourceManager,
     material::SharedMaterial,
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
@@ -652,14 +651,6 @@ impl NodeTrait for Terrain {
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.local_bounding_box()
             .transform(&self.global_transform())
-    }
-
-    fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base.restore_resources(resource_manager.clone());
-
-        for layer in self.layers() {
-            layer.material.lock().resolve(resource_manager.clone());
-        }
     }
 
     fn id(&self) -> Uuid {

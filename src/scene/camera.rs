@@ -24,7 +24,6 @@ use crate::{
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
-    engine::resource_manager::ResourceManager,
     resource::texture::{Texture, TextureError, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
@@ -602,23 +601,6 @@ impl NodeTrait for Camera {
     /// Returns current **world-space** bounding box.
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.world_bounding_box()
-    }
-
-    fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base.restore_resources(resource_manager.clone());
-
-        let mut state = resource_manager.state();
-        let texture_container = &mut state.containers_mut().textures;
-        texture_container.try_restore_inheritable_resource(&mut self.environment);
-
-        if let Some(skybox) = self.skybox_mut() {
-            texture_container.try_restore_optional_resource(&mut skybox.bottom);
-            texture_container.try_restore_optional_resource(&mut skybox.top);
-            texture_container.try_restore_optional_resource(&mut skybox.left);
-            texture_container.try_restore_optional_resource(&mut skybox.right);
-            texture_container.try_restore_optional_resource(&mut skybox.front);
-            texture_container.try_restore_optional_resource(&mut skybox.back);
-        }
     }
 
     fn id(&self) -> Uuid {

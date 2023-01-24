@@ -10,7 +10,6 @@ use crate::{
         variable::InheritableVariable,
         visitor::prelude::*,
     },
-    engine::resource_manager::ResourceManager,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -290,10 +289,6 @@ impl NodeTrait for Joint {
 
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.world_bounding_box()
-    }
-
-    fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base.restore_resources(resource_manager);
     }
 
     fn id(&self) -> Uuid {

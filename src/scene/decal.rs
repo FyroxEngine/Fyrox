@@ -12,7 +12,6 @@ use crate::{
         variable::InheritableVariable,
         visitor::prelude::*,
     },
-    engine::resource_manager::ResourceManager,
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
@@ -195,15 +194,6 @@ impl NodeTrait for Decal {
     /// Returns current **world-space** bounding box.
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.world_bounding_box()
-    }
-
-    fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base.restore_resources(resource_manager.clone());
-
-        let mut state = resource_manager.state();
-        let texture_container = &mut state.containers_mut().textures;
-        texture_container.try_restore_inheritable_resource(&mut self.diffuse_texture);
-        texture_container.try_restore_inheritable_resource(&mut self.normal_texture);
     }
 
     fn id(&self) -> Uuid {

@@ -12,7 +12,7 @@ use crate::{
         variable::InheritableVariable,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::{resource_manager::ResourceManager, SerializationContext},
+    engine::SerializationContext,
     resource::model::Model,
     scene::{node::Node, transform::Transform},
     script::{Script, ScriptTrait},
@@ -382,7 +382,6 @@ pub struct Base {
     // A resource from which this node was instantiated from, can work in pair
     // with `original` handle to get corresponding node from resource.
     #[reflect(read_only)]
-    #[reflect(hidden)]
     pub(crate) resource: Option<Model>,
 
     // Handle to node in scene of model resource from which this node
@@ -846,12 +845,6 @@ impl Base {
     #[inline]
     pub fn is_globally_enabled(&self) -> bool {
         self.global_enabled.get()
-    }
-
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        if let Some(script) = self.script.as_mut() {
-            script.restore_resources(resource_manager);
-        }
     }
 }
 

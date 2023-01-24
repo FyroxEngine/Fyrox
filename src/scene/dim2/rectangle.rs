@@ -13,7 +13,6 @@ use crate::{
         variable::InheritableVariable,
         visitor::prelude::*,
     },
-    engine::resource_manager::ResourceManager,
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
@@ -202,16 +201,6 @@ impl NodeTrait for Rectangle {
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.local_bounding_box()
             .transform(&self.global_transform())
-    }
-
-    fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base.restore_resources(resource_manager.clone());
-
-        resource_manager
-            .state()
-            .containers_mut()
-            .textures
-            .try_restore_inheritable_resource(&mut self.texture);
     }
 
     fn id(&self) -> Uuid {

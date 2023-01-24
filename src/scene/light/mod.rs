@@ -24,7 +24,6 @@ use crate::{
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
-    engine::resource_manager::ResourceManager,
     scene::base::{Base, BaseBuilder},
 };
 use std::ops::{Deref, DerefMut};
@@ -175,10 +174,6 @@ impl BaseLight {
     #[inline]
     pub fn is_scatter_enabled(&self) -> bool {
         *self.scatter_enabled
-    }
-
-    pub(crate) fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base.restore_resources(resource_manager);
     }
 }
 

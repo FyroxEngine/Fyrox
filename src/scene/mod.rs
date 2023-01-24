@@ -27,7 +27,7 @@ pub mod terrain;
 pub mod transform;
 pub mod visibility;
 
-use crate::scene::graph::GraphUpdateSwitches;
+use crate::engine::resource_manager::ResourceWaitContext;
 use crate::{
     core::{
         algebra::Vector2,
@@ -39,12 +39,12 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::{resource_manager::ResourceManager, SerializationContext},
-    material::{shader::SamplerFallback, PropertyValue},
-    resource::texture::Texture,
+    material::{shader::SamplerFallback, shader::Shader, PropertyValue},
+    resource::{curve::CurveResource, model::Model, texture::Texture},
     scene::{
         camera::Camera,
         debug::SceneDrawingContext,
-        graph::{map::NodeHandleMap, Graph, GraphPerformanceStatistics},
+        graph::{map::NodeHandleMap, Graph, GraphPerformanceStatistics, GraphUpdateSwitches},
         mesh::buffer::{
             VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
             VertexWriteTrait,
@@ -56,6 +56,8 @@ use crate::{
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::FxHashMap;
+use fyrox_resource::ResourceState;
+use fyrox_sound::buffer::SoundBufferResource;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
@@ -242,6 +244,93 @@ pub struct SceneLoader {
     scene: Scene,
 }
 
+fn restore_resources(
+    obj: &mut dyn Reflect,
+    resource_manager: &ResourceManager,
+    used_resources: &mut ResourceWaitContext,
+) {
+    obj.fields_mut(&mut |fields| {
+        for field in fields {
+            // Textures are special - there could be procedural textures which must not be resolved.
+            field.downcast_mut::<Texture>(&mut |result| {
+                if let Some(texture) = result {
+                    let data = texture.state();
+                    let path = data.path().to_path_buf();
+                    match &*data {
+                        // Try to reload texture even if it failed to load or loading.
+                        ResourceState::LoadError { .. } | ResourceState::Pending { .. } => {
+                            drop(data);
+                            *texture = resource_manager.request_texture(path);
+                        }
+                        ResourceState::Ok(texture_state) => {
+                            // Do not resolve procedural textures.
+                            if !texture_state.is_procedural() {
+                                drop(data);
+                                *texture = resource_manager.request_texture(path);
+                            }
+                        }
+                    }
+
+                    used_resources.textures.push(texture.clone());
+                }
+            });
+
+            field.downcast_mut::<Model>(&mut |result| {
+                // Multiple calls to `resource_manager.state().containers_mut()` here and in the
+                // following code are required to reduce chances of deadlocks.
+                if let Some(model) = result {
+                    resource_manager
+                        .state()
+                        .containers_mut()
+                        .models
+                        .try_restore_resource(model);
+
+                    used_resources.models.push(model.clone());
+                }
+            });
+
+            field.downcast_mut::<SoundBufferResource>(&mut |result| {
+                if let Some(sound_buffer) = result {
+                    resource_manager
+                        .state()
+                        .containers_mut()
+                        .sound_buffers
+                        .try_restore_resource(sound_buffer);
+
+                    used_resources.sound_buffers.push(sound_buffer.clone());
+                }
+            });
+
+            field.downcast_mut::<Shader>(&mut |result| {
+                if let Some(shader) = result {
+                    resource_manager
+                        .state()
+                        .containers_mut()
+                        .shaders
+                        .try_restore_resource(shader);
+
+                    used_resources.shaders.push(shader.clone());
+                }
+            });
+
+            field.downcast_mut::<CurveResource>(&mut |result| {
+                if let Some(curve) = result {
+                    resource_manager
+                        .state()
+                        .containers_mut()
+                        .curves
+                        .try_restore_resource(curve);
+
+                    used_resources.curves.push(curve.clone());
+                }
+            });
+
+            // Continue resolving.
+            restore_resources(field, resource_manager, used_resources);
+        }
+    })
+}
+
 impl SceneLoader {
     /// Tries to load scene from given file. File can contain any scene in native engine format.
     /// Such scenes can be made in rusty editor.
@@ -280,24 +369,17 @@ impl SceneLoader {
         // Collect all model resources and wait for them. This step is crucial, because
         // later on resolve stage we'll extensively access parent resources to inherit
         // data from them and we can't read data of a resource being loading.
-        let mut resources = Vec::new();
+        let mut used_resources = ResourceWaitContext::default();
         for node in scene.graph.linear_iter_mut() {
-            if let Some(shallow_resource) = node.resource.clone() {
-                let resource = resource_manager
-                    .clone()
-                    .request_model(shallow_resource.state().path());
-                node.resource = Some(resource.clone());
-                resources.push(resource);
-            }
+            restore_resources(
+                node as &mut dyn Reflect,
+                &resource_manager,
+                &mut used_resources,
+            );
         }
 
-        let _ = join_all(resources).await;
-
-        // Restore pointers to resources. Scene saves only paths to resources, here we must
-        // find real resources instead.
-        for node in scene.graph.linear_iter_mut() {
-            node.restore_resources(resource_manager.clone());
-        }
+        // Wait everything.
+        used_resources.wait_async().await;
 
         if let Some(lightmap) = scene.lightmap.as_mut() {
             for entries in lightmap.map.values_mut() {

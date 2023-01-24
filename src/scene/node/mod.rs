@@ -14,7 +14,6 @@ use crate::{
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
-    engine::resource_manager::ResourceManager,
     scene::{
         self,
         base::Base,
@@ -162,12 +161,6 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
     /// can be calculated with a knowledge of parent world transform, so node on its own cannot know
     /// its world bounding box without additional information.
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox;
-
-    /// Restores resource handles, it is used to re-map "shallow" resource handles to fully loaded
-    /// ones after the scene is loaded in the engine. This is needed because when the engine
-    /// serializes resource handle, it just writes a path to the resource, not its content. So we
-    /// must get real resource after the node is loaded from a scene.
-    fn restore_resources(&mut self, resource_manager: ResourceManager);
 
     /// Returns actual type id. It will be used for serialization, the type will be saved together
     /// with node's data allowing you to create correct node instance on deserialization.

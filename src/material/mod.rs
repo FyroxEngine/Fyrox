@@ -5,7 +5,6 @@
 #![warn(missing_docs)]
 
 use crate::{
-    asset::ResourceState,
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
@@ -507,34 +506,6 @@ impl Material {
         Self {
             shader,
             properties: property_values,
-        }
-    }
-
-    pub(crate) fn resolve(&mut self, resource_manager: ResourceManager) {
-        for value in self.properties.values_mut() {
-            if let PropertyValue::Sampler {
-                value: Some(texture),
-                ..
-            } = value
-            {
-                let data = texture.state();
-                let path = data.path().to_path_buf();
-                match &*data {
-                    // Try to reload texture even if it failed to load.
-                    ResourceState::LoadError { .. } => {
-                        drop(data);
-                        *texture = resource_manager.request_texture(path);
-                    }
-                    ResourceState::Ok(texture_state) => {
-                        // Do not resolve procedural textures.
-                        if !texture_state.is_procedural() {
-                            drop(data);
-                            *texture = resource_manager.request_texture(path);
-                        }
-                    }
-                    ResourceState::Pending { .. } => {}
-                }
-            }
         }
     }
 

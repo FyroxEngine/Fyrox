@@ -19,7 +19,6 @@ use crate::{
         variable::InheritableVariable,
         visitor::prelude::*,
     },
-    engine::resource_manager::ResourceManager,
     scene::{
         base::{Base, BaseBuilder},
         collider::Collider,
@@ -505,10 +504,6 @@ impl NodeTrait for RigidBody {
 
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.world_bounding_box()
-    }
-
-    fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base.restore_resources(resource_manager);
     }
 
     fn id(&self) -> Uuid {

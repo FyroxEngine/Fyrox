@@ -16,7 +16,6 @@ use crate::{
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
-    engine::resource_manager::ResourceManager,
     scene::{
         base::Base,
         graph::Graph,
@@ -157,10 +156,6 @@ impl NodeTrait for DirectionalLight {
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.local_bounding_box()
             .transform(&self.global_transform())
-    }
-
-    fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base_light.restore_resources(resource_manager);
     }
 
     fn id(&self) -> Uuid {

@@ -18,7 +18,6 @@ use crate::{
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
-    engine::resource_manager::ResourceManager,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -287,14 +286,6 @@ impl NodeTrait for Mesh {
     /// Returns current **world-space** bounding box.
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.world_bounding_box.get()
-    }
-
-    fn restore_resources(&mut self, resource_manager: ResourceManager) {
-        self.base.restore_resources(resource_manager.clone());
-
-        for surface in self.surfaces_mut() {
-            surface.material().lock().resolve(resource_manager.clone());
-        }
     }
 
     fn id(&self) -> Uuid {
