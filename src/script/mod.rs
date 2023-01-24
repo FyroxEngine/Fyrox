@@ -644,7 +644,7 @@ mod test {
 
         child.as_reflect_mut(&mut |child| {
             parent.as_reflect(&mut |parent| {
-                try_inherit_properties(child, parent).unwrap();
+                try_inherit_properties(child, parent, &[]).unwrap();
             })
         });
 
@@ -666,7 +666,7 @@ mod test {
 
         child.as_reflect_mut(&mut |child| {
             parent.as_reflect(&mut |parent| {
-                try_inherit_properties(child, parent).unwrap();
+                try_inherit_properties(child, parent, &[]).unwrap();
             })
         });
 
@@ -685,7 +685,7 @@ mod test {
 
         child.as_reflect_mut(&mut |child| {
             parent.as_reflect(&mut |parent| {
-                try_inherit_properties(child, parent).unwrap();
+                try_inherit_properties(child, parent, &[]).unwrap();
             })
         });
 

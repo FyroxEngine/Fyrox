@@ -1138,6 +1138,7 @@ impl BaseBuilder {
 
 #[cfg(test)]
 pub mod test {
+    use crate::material::SharedMaterial;
     use crate::scene::node::{Node, NodeTrait};
     use crate::{
         core::{reflect::prelude::*, variable::try_inherit_properties},
@@ -1172,7 +1173,8 @@ pub mod test {
     pub fn inherit_node_properties<T: NodeTrait>(child: &mut T, parent: &Node) {
         child.as_reflect_mut(&mut |child| {
             parent.as_reflect(&mut |parent| {
-                try_inherit_properties(child, parent).unwrap();
+                try_inherit_properties(child, parent, &[std::any::TypeId::of::<SharedMaterial>()])
+                    .unwrap();
             })
         });
     }
@@ -1198,7 +1200,12 @@ pub mod test {
 
         let mut child = BaseBuilder::new().build_base();
 
-        try_inherit_properties(&mut child, &parent).unwrap();
+        try_inherit_properties(
+            &mut child,
+            &parent,
+            &[std::any::TypeId::of::<SharedMaterial>()],
+        )
+        .unwrap();
 
         check_inheritable_properties_equality(&child.local_transform, &parent.local_transform);
         check_inheritable_properties_equality(&child, &parent)

@@ -421,8 +421,16 @@ where
 pub fn try_inherit_properties(
     child: &mut dyn Reflect,
     parent: &dyn Reflect,
+    ignored_types: &[TypeId],
 ) -> Result<(), InheritError> {
-    if (*child).type_id() != (*parent).type_id() {
+    let child_type_id = (*child).type_id();
+    let parent_type_id = (*parent).type_id();
+
+    if ignored_types.contains(&child_type_id) || ignored_types.contains(&parent_type_id) {
+        return Ok(());
+    }
+
+    if child_type_id != parent_type_id {
         return Err(InheritError::TypesMismatch {
             left_type: (*child).type_id(),
             right_type: (*parent).type_id(),
@@ -438,6 +446,7 @@ pub fn try_inherit_properties(
                     result = Some(try_inherit_properties(
                         inheritable_child.inner_value_mut(),
                         inheritable_parent.inner_value_ref(),
+                        ignored_types,
                     ));
                 }
             })
@@ -456,8 +465,11 @@ pub fn try_inherit_properties(
                                     child_collection.reflect_index_mut(i),
                                     parent_collection.reflect_index(i),
                                 ) {
-                                    if let Err(e) = try_inherit_properties(child_item, parent_item)
-                                    {
+                                    if let Err(e) = try_inherit_properties(
+                                        child_item,
+                                        parent_item,
+                                        ignored_types,
+                                    ) {
                                         result = Some(Err(e));
 
                                         break;
@@ -498,7 +510,9 @@ pub fn try_inherit_properties(
                     // fields may also be InheritableVariable<T>.
                     child_field.as_reflect_mut(&mut |child_field| {
                         parent_field.as_reflect(&mut |parent_field| {
-                            if let Err(e) = try_inherit_properties(child_field, parent_field) {
+                            if let Err(e) =
+                                try_inherit_properties(child_field, parent_field, ignored_types)
+                            {
                                 result = Some(Err(e));
                             }
                         })
@@ -560,7 +574,7 @@ mod test {
         let mut child = parent.clone();
 
         // Try inherit non-modified, the result objects must be equal.
-        try_inherit_properties(&mut child, &parent).unwrap();
+        try_inherit_properties(&mut child, &parent, &[]).unwrap();
         assert_eq!(parent, child);
 
         // Then modify parent's and child's values.
@@ -572,7 +586,7 @@ mod test {
         child.foo.value.set_value_and_mark_modified(3.21);
         assert!(ReflectInheritableVariable::is_modified(&child.foo.value));
 
-        try_inherit_properties(&mut child, &parent).unwrap();
+        try_inherit_properties(&mut child, &parent, &[]).unwrap();
 
         // This property reflects parent's changes, because it is non-modified.
         assert_eq!(child.other_value.value, "Baz".to_string());
@@ -602,7 +616,7 @@ mod test {
         let mut child = SomeEnum::Bar(InheritableVariable::new(1.23));
         let parent = SomeEnum::Bar(InheritableVariable::new(3.21));
 
-        try_inherit_properties(&mut child, &parent).unwrap();
+        try_inherit_properties(&mut child, &parent, &[]).unwrap();
 
         if let SomeEnum::Bar(value) = child {
             assert_eq!(*value, 3.21);
@@ -622,7 +636,7 @@ mod test {
             foobar: InheritableVariable::new(321),
         };
 
-        try_inherit_properties(&mut child, &parent).unwrap();
+        try_inherit_properties(&mut child, &parent, &[]).unwrap();
 
         if let SomeEnum::Baz { foo, foobar } = child {
             assert_eq!(*foo, 3.21);
@@ -673,7 +687,7 @@ mod test {
             },
         };
 
-        assert!(try_inherit_properties(&mut child, &parent).is_ok());
+        assert!(try_inherit_properties(&mut child, &parent, &[]).is_ok());
 
         assert_eq!(child.some_field.value, 3.21);
         // These fields are equal, despite the fact that they're marked as modified.

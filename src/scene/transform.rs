@@ -665,7 +665,7 @@ mod test {
 
         let mut child = TransformBuilder::new().build();
 
-        try_inherit_properties(&mut child, &parent).unwrap();
+        try_inherit_properties(&mut child, &parent, &[]).unwrap();
 
         check_inheritable_properties_equality(&child, &parent);
     }

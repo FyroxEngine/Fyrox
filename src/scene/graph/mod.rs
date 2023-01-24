@@ -22,6 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::material::SharedMaterial;
 use crate::{
     asset::ResourceState,
     core::{
@@ -759,6 +760,8 @@ impl Graph {
                                     Log::verify(try_inherit_properties(
                                         node_reflect,
                                         resource_node_reflect,
+                                        // Do not try to inspect materials, because it most likely cause a deadlock.
+                                        &[std::any::TypeId::of::<SharedMaterial>()],
                                     ));
                                 })
                             })
