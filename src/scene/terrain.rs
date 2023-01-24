@@ -23,7 +23,7 @@ use crate::{
             surface::{SurfaceData, SurfaceSharedData},
             vertex::StaticVertex,
         },
-        node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
+        node::{Node, NodeTrait, TypeUuidProvider},
     },
 };
 use std::{
@@ -39,7 +39,6 @@ use std::{
 #[derive(Default, Debug, Clone, Visit, Reflect)]
 pub struct Layer {
     /// Material of the layer.
-    #[reflect(hidden)]
     pub material: SharedMaterial,
 
     /// Name of the mask sampler in the material.
@@ -82,7 +81,6 @@ pub struct Chunk {
     width_point_count: u32,
     length_point_count: u32,
     surface_data: SurfaceSharedData,
-    dirty: Cell<bool>,
 }
 
 // Manual implementation of the trait because we need to serialize heightmap differently.
@@ -100,7 +98,7 @@ impl Visit for Chunk {
             .visit("WidthPointCount", &mut region)?;
         self.length_point_count
             .visit("LengthPointCount", &mut region)?;
-        // self.surface_data, self.dirty is are not serialized.
+        // self.surface_data is are not serialized.
 
         Ok(())
     }
@@ -116,7 +114,6 @@ impl Default for Chunk {
             width_point_count: 0,
             length_point_count: 0,
             surface_data: make_surface_data(),
-            dirty: Cell::new(true),
         }
     }
 }
@@ -124,65 +121,61 @@ impl Default for Chunk {
 impl Chunk {
     /// Updates vertex and index buffers needed for rendering. In most cases there is no need
     /// to call this method manually, engine will automatically call it when needed.
-    pub fn update(&mut self) {
-        if self.dirty.get() {
-            let mut surface_data = self.surface_data.lock();
-            surface_data.clear();
+    pub fn rebuild_geometry(&mut self) {
+        let mut surface_data = self.surface_data.lock();
+        surface_data.clear();
 
-            assert_eq!(self.width_point_count & 1, 0);
-            assert_eq!(self.length_point_count & 1, 0);
+        assert_eq!(self.width_point_count & 1, 0);
+        assert_eq!(self.length_point_count & 1, 0);
 
-            let mut vertex_buffer_mut = surface_data.vertex_buffer.modify();
-            // Form vertex buffer.
-            for z in 0..self.length_point_count {
-                let kz = z as f32 / ((self.length_point_count - 1) as f32);
-                let pz = self.position.z + kz * self.length;
+        let mut vertex_buffer_mut = surface_data.vertex_buffer.modify();
+        // Form vertex buffer.
+        for z in 0..self.length_point_count {
+            let kz = z as f32 / ((self.length_point_count - 1) as f32);
+            let pz = self.position.z + kz * self.length;
 
-                for x in 0..self.width_point_count {
-                    let index = z * self.width_point_count + x;
-                    let height = self.heightmap[index as usize];
-                    let kx = x as f32 / ((self.width_point_count - 1) as f32);
+            for x in 0..self.width_point_count {
+                let index = z * self.width_point_count + x;
+                let height = self.heightmap[index as usize];
+                let kx = x as f32 / ((self.width_point_count - 1) as f32);
 
-                    let px = self.position.x + kx * self.width;
-                    let py = self.position.y + height;
+                let px = self.position.x + kx * self.width;
+                let py = self.position.y + height;
 
-                    vertex_buffer_mut
-                        .push_vertex(&StaticVertex {
-                            position: Vector3::new(px, py, pz),
-                            tex_coord: Vector2::new(kx, kz),
-                            // Normals and tangents will be calculated later.
-                            normal: Default::default(),
-                            tangent: Default::default(),
-                        })
-                        .unwrap();
-                }
+                vertex_buffer_mut
+                    .push_vertex(&StaticVertex {
+                        position: Vector3::new(px, py, pz),
+                        tex_coord: Vector2::new(kx, kz),
+                        // Normals and tangents will be calculated later.
+                        normal: Default::default(),
+                        tangent: Default::default(),
+                    })
+                    .unwrap();
             }
-            drop(vertex_buffer_mut);
-
-            let mut geometry_buffer_mut = surface_data.geometry_buffer.modify();
-            // Form index buffer.
-            // TODO: Generate LODs.
-            for z in 0..self.length_point_count - 1 {
-                let z_next = z + 1;
-                for x in 0..self.width_point_count - 1 {
-                    let x_next = x + 1;
-
-                    let i0 = z * self.width_point_count + x;
-                    let i1 = z_next * self.width_point_count + x;
-                    let i2 = z_next * self.width_point_count + x_next;
-                    let i3 = z * self.width_point_count + x_next;
-
-                    geometry_buffer_mut.push(TriangleDefinition([i0, i1, i2]));
-                    geometry_buffer_mut.push(TriangleDefinition([i2, i3, i0]));
-                }
-            }
-            drop(geometry_buffer_mut);
-
-            surface_data.calculate_normals().unwrap();
-            surface_data.calculate_tangents().unwrap();
-
-            self.dirty.set(false);
         }
+        drop(vertex_buffer_mut);
+
+        let mut geometry_buffer_mut = surface_data.geometry_buffer.modify();
+        // Form index buffer.
+        // TODO: Generate LODs.
+        for z in 0..self.length_point_count - 1 {
+            let z_next = z + 1;
+            for x in 0..self.width_point_count - 1 {
+                let x_next = x + 1;
+
+                let i0 = z * self.width_point_count + x;
+                let i1 = z_next * self.width_point_count + x;
+                let i2 = z_next * self.width_point_count + x_next;
+                let i3 = z * self.width_point_count + x_next;
+
+                geometry_buffer_mut.push(TriangleDefinition([i0, i1, i2]));
+                geometry_buffer_mut.push(TriangleDefinition([i2, i3, i0]));
+            }
+        }
+        drop(geometry_buffer_mut);
+
+        surface_data.calculate_normals().unwrap();
+        surface_data.calculate_tangents().unwrap();
     }
 
     /// Returns position of the chunk in local 2D coordinates relative to origin of the
@@ -200,7 +193,7 @@ impl Chunk {
     pub fn set_heightmap(&mut self, heightmap: Vec<f32>) {
         assert_eq!(self.heightmap.len(), heightmap.len());
         self.heightmap = heightmap;
-        self.dirty.set(true);
+        self.rebuild_geometry();
     }
 
     /// Returns data for rendering (vertex and index buffers).
@@ -380,6 +373,8 @@ impl Terrain {
         match brush.mode {
             BrushMode::ModifyHeightMap { amount } => {
                 for chunk in self.chunks.iter_mut() {
+                    let mut modified = false;
+
                     for z in 0..chunk.length_point_count {
                         let kz = z as f32 / (chunk.length_point_count - 1) as f32;
                         for x in 0..chunk.width_point_count {
@@ -399,9 +394,13 @@ impl Terrain {
                                 chunk.heightmap[(z * chunk.width_point_count + x) as usize] +=
                                     k * amount;
 
-                                chunk.dirty.set(true);
+                                modified = true;
                             }
                         }
+                    }
+
+                    if modified {
+                        chunk.rebuild_geometry();
                     }
                 }
             }
@@ -656,12 +655,6 @@ impl NodeTrait for Terrain {
     fn id(&self) -> Uuid {
         Self::type_uuid()
     }
-
-    fn update(&mut self, _context: &mut UpdateContext) {
-        for chunk in self.chunks.iter_mut() {
-            chunk.update();
-        }
-    }
 }
 
 /// Shape of a brush.
@@ -868,16 +861,20 @@ impl TerrainBuilder {
             make_divisible_by_2((chunk_width * self.height_map_resolution) as u32);
         for z in 0..self.length_chunks {
             for x in 0..self.width_chunks {
-                chunks.push(Chunk {
+                let mut chunk = Chunk {
                     width_point_count: chunk_width_points,
                     length_point_count: chunk_length_points,
                     heightmap: vec![0.0; (chunk_length_points * chunk_width_points) as usize],
                     position: Vector3::new(x as f32 * chunk_width, 0.0, z as f32 * chunk_length),
                     width: chunk_width,
                     surface_data: make_surface_data(),
-                    dirty: Cell::new(true),
+
                     length: chunk_length,
-                });
+                };
+
+                chunk.rebuild_geometry();
+
+                chunks.push(chunk);
             }
         }
 
