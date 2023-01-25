@@ -100,6 +100,10 @@ impl Visit for Chunk {
             .visit("LengthPointCount", &mut region)?;
         // self.surface_data is are not serialized.
 
+        if region.is_reading() {
+            self.rebuild_geometry();
+        }
+
         Ok(())
     }
 }
