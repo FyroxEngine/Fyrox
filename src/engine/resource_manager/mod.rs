@@ -119,11 +119,11 @@ impl ContainersStorage {
 #[must_use]
 #[derive(Default)]
 pub struct ResourceWaitContext {
-    pub(crate) models: Vec<Model>,
-    pub(crate) curves: Vec<CurveResource>,
-    pub(crate) shaders: Vec<Shader>,
-    pub(crate) textures: Vec<Texture>,
-    pub(crate) sound_buffers: Vec<SoundBufferResource>,
+    models: Vec<Model>,
+    curves: Vec<CurveResource>,
+    shaders: Vec<Shader>,
+    textures: Vec<Texture>,
+    sound_buffers: Vec<SoundBufferResource>,
 }
 
 impl ResourceWaitContext {
@@ -156,16 +156,8 @@ impl ResourceWaitContext {
             && check_container(&self.textures)
             && check_container(&self.sound_buffers)
     }
-
-    /// Waits asynchronously.
-    pub async fn wait_async(self) {
-        join_all(self.curves).await;
-        join_all(self.shaders).await;
-        join_all(self.textures).await;
-        join_all(self.sound_buffers).await;
-        join_all(self.models).await;
-    }
 }
+
 /// See module docs.
 pub struct ResourceManagerState {
     containers_storage: Option<ContainersStorage>,
