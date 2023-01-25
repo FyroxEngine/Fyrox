@@ -276,7 +276,8 @@ where
     /// resource instance. This method is used to restore "shallow" resources after scene
     /// deserialization.    
     pub fn try_restore_resource(&mut self, resource: &mut T) {
-        let new_resource = self.request(resource.state().path());
+        let path = resource.state().path().to_path_buf();
+        let new_resource = self.request(path);
         *resource = new_resource;
     }
 
@@ -285,7 +286,8 @@ where
     /// deserialization.
     pub fn try_restore_optional_resource(&mut self, resource: &mut Option<T>) {
         if let Some(shallow_resource) = resource.as_mut() {
-            let new_resource = self.request(shallow_resource.state().path());
+            let path = shallow_resource.state().path().to_path_buf();
+            let new_resource = self.request(path);
             *shallow_resource = new_resource;
         }
     }
