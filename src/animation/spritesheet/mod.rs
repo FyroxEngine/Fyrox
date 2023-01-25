@@ -6,7 +6,6 @@
 use crate::{
     animation::spritesheet::signal::Signal,
     core::{algebra::Vector2, math::Rect, reflect::prelude::*, visitor::prelude::*},
-    engine::resource_manager::ResourceManager,
     resource::texture::Texture,
 };
 use std::collections::vec_deque::VecDeque;
@@ -314,17 +313,6 @@ impl SpriteSheetAnimation {
     /// Returns current texture of the animation.
     pub fn texture(&self) -> Option<Texture> {
         self.texture.clone()
-    }
-
-    /// Tries to restore handles of internal resources, this method must be called after deserialization!
-    pub fn restore_resources(&mut self, resource_manager: &ResourceManager) {
-        resource_manager
-            .state()
-            .containers_mut()
-            .textures
-            .try_restore_optional_resource(&mut self.texture);
-
-        self.frames_container.texture = self.texture.clone();
     }
 
     /// Returns a shared reference to inner frames container.
