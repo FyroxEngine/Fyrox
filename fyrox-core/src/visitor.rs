@@ -25,6 +25,7 @@ use crate::{
     replace_slashes,
 };
 
+use base64::Engine;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fxhash::FxHashMap;
 use std::{
@@ -352,7 +353,7 @@ impl FieldKind {
             Self::Data(data) => {
                 let out = match String::from_utf8(data.clone()) {
                     Ok(s) => s,
-                    Err(_) => base64::encode(data),
+                    Err(_) => base64::engine::general_purpose::STANDARD.encode(data),
                 };
                 format!("<data = {}>, ", out)
             }
@@ -373,7 +374,7 @@ impl FieldKind {
                 element_size,
                 bytes,
             } => {
-                let base64_encoded = base64::encode(bytes);
+                let base64_encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                 format!(
                     "<podarray = {}; {}; [{}]>",
                     type_id, element_size, base64_encoded

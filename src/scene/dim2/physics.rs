@@ -457,6 +457,9 @@ impl PhysicsWorld {
                 &mut self.joints.set,
                 &mut self.multibody_joints.set,
                 &mut self.ccd_solver,
+                // In Rapier 0.17 passing query pipeline here sometimes causing panic in numeric overflow,
+                // so we keep updating it manually.
+                None,
                 &(),
                 &*self.event_handler,
             );
@@ -559,7 +562,7 @@ impl PhysicsWorld {
         // likely end up in panic because of invalid handle stored in internal acceleration
         // structure. This could be fixed by delaying deleting of bodies/collider to the end
         // of the frame.
-        query.update(&self.islands, &self.bodies.set, &self.colliders.set);
+        query.update(&self.bodies.set, &self.colliders.set);
 
         query_buffer.clear();
         let ray = Ray::new(
@@ -682,7 +685,7 @@ impl PhysicsWorld {
                     // were changed by user.
                     rigid_body_node
                         .body_type
-                        .try_sync_model(|v| native.set_body_type(v.into()));
+                        .try_sync_model(|v| native.set_body_type(v.into(), false));
                     rigid_body_node
                         .lin_vel
                         .try_sync_model(|v| native.set_linvel(v, false));
@@ -690,9 +693,7 @@ impl PhysicsWorld {
                         .ang_vel
                         .try_sync_model(|v| native.set_angvel(v, false));
                     rigid_body_node.mass.try_sync_model(|v| {
-                        let mut props = *native.mass_properties();
-                        props.set_mass(v, true);
-                        native.set_additional_mass_properties(props, true)
+                        native.set_additional_mass(v, true);
                     });
                     rigid_body_node
                         .lin_damping

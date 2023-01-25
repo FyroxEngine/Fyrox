@@ -18,12 +18,12 @@ rust-version = "1.56"
 [dependencies]
 fyrox-core-derive = { path = "../fyrox-core-derive", version = "0.18.0" }
 
-base64 = "0.20.0"
+base64 = "0.21.0"
 byteorder = "1.4.3"
 rand = "0.8.4"
 memoffset = "0.8.0"
 lazy_static = "1.4.0"
-nalgebra = "0.31.0"
+nalgebra = "0.32.0"
 arrayvec = "0.7.2"
 futures = {version = "0.3.17", features = ["thread-pool"] }
 uuid = { version = "1", features = ["v4", "js"] }
