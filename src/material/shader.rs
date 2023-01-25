@@ -26,14 +26,30 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// A name of the standard shader.
+pub const STANDARD_SHADER_NAME: &str = "Standard";
+
 /// A source code of the standard shader.
 pub const STANDARD_SHADER_SRC: &str = include_str!("standard/standard.shader");
+
+/// A name of the standard two-sides shader.
+pub const STANDARD_TWOSIDES_SHADER_NAME: &str = "StandardTwoSides";
 
 /// A source code of the standard two-sides shader.
 pub const STANDARD_TWOSIDES_SHADER_SRC: &str = include_str!("standard/standard-two-sides.shader");
 
+/// A name of the standard terrain shader.
+pub const STANDARD_TERRAIN_SHADER_NAME: &str = "StandardTerrain";
+
 /// A source code of the standard terrain shader.
 pub const STANDARD_TERRAIN_SHADER_SRC: &str = include_str!("standard/terrain.shader");
+
+/// A list of names of standard shaders.
+pub const STANDARD_SHADER_NAMES: [&str; 3] = [
+    STANDARD_SHADER_NAME,
+    STANDARD_TWOSIDES_SHADER_NAME,
+    STANDARD_TERRAIN_SHADER_NAME,
+];
 
 /// Internal state of the shader.
 ///
@@ -580,19 +596,19 @@ impl ImportOptions for ShaderImportOptions {}
 
 lazy_static! {
     static ref STANDARD: Shader = Shader(Resource::new(ResourceState::Ok(
-        ShaderState::from_str(STANDARD_SHADER_SRC, "Standard").unwrap(),
+        ShaderState::from_str(STANDARD_SHADER_SRC, STANDARD_SHADER_NAME).unwrap(),
     )));
 }
 
 lazy_static! {
     static ref STANDARD_TERRAIN: Shader = Shader(Resource::new(ResourceState::Ok(
-        ShaderState::from_str(STANDARD_TERRAIN_SHADER_SRC, "StandardTerrain").unwrap(),
+        ShaderState::from_str(STANDARD_TERRAIN_SHADER_SRC, STANDARD_TERRAIN_SHADER_NAME).unwrap(),
     )));
 }
 
 lazy_static! {
     static ref STANDARD_TWOSIDES: Shader = Shader(Resource::new(ResourceState::Ok(
-        ShaderState::from_str(STANDARD_TWOSIDES_SHADER_SRC, "StandardTwoSides").unwrap(),
+        ShaderState::from_str(STANDARD_TWOSIDES_SHADER_SRC, STANDARD_TWOSIDES_SHADER_NAME).unwrap(),
     )));
 }
 
