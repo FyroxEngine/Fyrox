@@ -385,6 +385,16 @@ macro_rules! impl_mutex_reflect {
             let mut guard = $acquire_lock_guard;
             guard.as_inheritable_variable_mut(func)
         }
+
+        fn as_hash_map(&$self, func: &mut dyn FnMut(Option<&dyn ReflectHashMap>)) {
+            let guard = $acquire_lock_guard;
+            guard.as_hash_map(func)
+        }
+
+        fn as_hash_map_mut(&mut $self, func: &mut dyn FnMut(Option<&mut dyn ReflectHashMap>)) {
+            let mut guard = $acquire_lock_guard;
+            guard.as_hash_map_mut(func)
+        }
     };
 }
 
