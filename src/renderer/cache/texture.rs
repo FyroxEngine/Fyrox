@@ -66,15 +66,15 @@ impl TextureCache {
     pub fn get(
         &mut self,
         state: &mut PipelineState,
-        texture: &Texture,
+        texture_resource: &Texture,
     ) -> Option<Rc<RefCell<GpuTexture>>> {
         scope_profile!();
 
-        let key = texture.key();
+        let key = texture_resource.key();
 
-        let texture = texture.state();
+        let texture_data_guard = texture_resource.state();
 
-        if let TextureState::Ok(texture) = texture.deref() {
+        if let TextureState::Ok(texture) = texture_data_guard.deref() {
             let entry = match self.map.entry(key) {
                 Entry::Occupied(e) => {
                     let entry = e.into_mut();
@@ -155,9 +155,11 @@ impl TextureCache {
                     ) {
                         Ok(texture) => texture,
                         Err(e) => {
+                            drop(texture_data_guard);
+
                             Log::writeln(
                                 MessageKind::Error,
-                                format!("Failed to create GPU texture. Reason: {:?}", e),
+                                format!("Failed to create GPU texture from {:?} engine texture. Reason: {:?}", texture_resource.state().path(), e),
                             );
                             return None;
                         }
