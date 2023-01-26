@@ -961,56 +961,75 @@ impl Graph {
         Log::writeln(MessageKind::Information, "Graph resolved successfully!");
     }
 
+    pub(crate) fn update_hierarchical_data_recursively(
+        nodes: &NodePool,
+        sound_context: &mut SoundContext,
+        physics: &mut PhysicsWorld,
+        physics2d: &mut dim2::physics::PhysicsWorld,
+        node_handle: Handle<Node>,
+    ) {
+        let node = &nodes[node_handle];
+
+        let (parent_global_transform, parent_visibility, parent_enabled) =
+            if let Some(parent) = nodes.try_borrow(node.parent()) {
+                (
+                    parent.global_transform(),
+                    parent.global_visibility(),
+                    parent.is_globally_enabled(),
+                )
+            } else {
+                (Matrix4::identity(), true, true)
+            };
+
+        let new_global_transform = parent_global_transform * node.local_transform().matrix();
+
+        // TODO: Detect changes from user code here.
+        node.sync_transform(
+            &new_global_transform,
+            &mut SyncContext {
+                nodes,
+                physics,
+                physics2d,
+                sound_context,
+            },
+        );
+
+        node.global_transform.set(new_global_transform);
+        node.global_visibility
+            .set(parent_visibility && node.visibility());
+        node.global_enabled.set(parent_enabled && node.is_enabled());
+
+        for &child in node.children() {
+            Self::update_hierarchical_data_recursively(
+                nodes,
+                sound_context,
+                physics,
+                physics2d,
+                child,
+            );
+        }
+    }
+
+    /// Calculates local and global transform, global visibility for each node in graph starting from the
+    /// specified node and down the tree. The main use case of the method is to update global position (etc.)
+    /// of an hierarchy of the nodes of some new prefab instance.
+    pub fn update_hierarchical_data_for_descendants(&mut self, node_handle: Handle<Node>) {
+        Self::update_hierarchical_data_recursively(
+            &self.pool,
+            &mut self.sound_context,
+            &mut self.physics,
+            &mut self.physics2d,
+            node_handle,
+        );
+    }
+
     /// Calculates local and global transform, global visibility for each node in graph.
     /// Normally you not need to call this method directly, it will be called automatically
     /// on each frame. However there is one use case - when you setup complex hierarchy and
     /// need to know global transform of nodes before entering update loop, then you can call
     /// this method.
     pub fn update_hierarchical_data(&mut self) {
-        fn update_recursively(
-            nodes: &NodePool,
-            sound_context: &mut SoundContext,
-            physics: &mut PhysicsWorld,
-            physics2d: &mut dim2::physics::PhysicsWorld,
-            node_handle: Handle<Node>,
-        ) {
-            let node = &nodes[node_handle];
-
-            let (parent_global_transform, parent_visibility, parent_enabled) =
-                if let Some(parent) = nodes.try_borrow(node.parent()) {
-                    (
-                        parent.global_transform(),
-                        parent.global_visibility(),
-                        parent.is_globally_enabled(),
-                    )
-                } else {
-                    (Matrix4::identity(), true, true)
-                };
-
-            let new_global_transform = parent_global_transform * node.local_transform().matrix();
-
-            // TODO: Detect changes from user code here.
-            node.sync_transform(
-                &new_global_transform,
-                &mut SyncContext {
-                    nodes,
-                    physics,
-                    physics2d,
-                    sound_context,
-                },
-            );
-
-            node.global_transform.set(new_global_transform);
-            node.global_visibility
-                .set(parent_visibility && node.visibility());
-            node.global_enabled.set(parent_enabled && node.is_enabled());
-
-            for &child in node.children() {
-                update_recursively(nodes, sound_context, physics, physics2d, child);
-            }
-        }
-
-        update_recursively(
+        Self::update_hierarchical_data_recursively(
             &self.pool,
             &mut self.sound_context,
             &mut self.physics,
