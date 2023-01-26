@@ -321,8 +321,9 @@ impl PreviewPanel {
     }
 
     pub fn clear(&mut self, engine: &mut GameEngine) {
-        if self.model.is_some() {
-            engine.scenes[self.scene].graph.remove_node(self.model);
+        let graph = &mut engine.scenes[self.scene].graph;
+        if graph.is_valid_handle(self.model) {
+            graph.remove_node(self.model);
             self.model = Handle::NONE;
         }
     }
