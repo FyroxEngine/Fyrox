@@ -221,15 +221,23 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                         }
 
                         descriptors.push(descriptor);
+
+                        processed = true;
                     }
-                    None => descriptors.push(PropertyDescriptor {
-                        display_name: field_info.display_name.to_owned(),
-                        type_name: field_info.type_name,
-                        type_id: field_info.value.type_id(),
-                        read_only: field_info.read_only,
-                        children_properties: object_to_property_tree(&path, field_ref),
-                        path: path.clone(),
-                    }),
+                    None => {
+                        processed = false;
+                    }
+                })
+            }
+
+            if !processed {
+                descriptors.push(PropertyDescriptor {
+                    display_name: field_info.display_name.to_owned(),
+                    type_name: field_info.type_name,
+                    type_id: field_info.value.type_id(),
+                    read_only: field_info.read_only,
+                    children_properties: object_to_property_tree(&path, field_ref),
+                    path: path.clone(),
                 })
             }
         }
