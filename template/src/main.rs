@@ -475,8 +475,7 @@ fn init_script(raw_name: &str) {
         format!(
             r#"
 use fyrox::{{
-    core::{{uuid::{{Uuid, uuid}}, visitor::prelude::*, reflect::{{FieldInfo, Reflect}}}},
-    engine::resource_manager::ResourceManager,
+    core::{{uuid::{{Uuid, uuid}}, visitor::prelude::*, reflect::prelude::*}},
     event::Event, impl_component_provider,
     scene::{{node::TypeUuidProvider}},
     script::{{ScriptContext, ScriptDeinitContext, ScriptTrait}},
@@ -515,10 +514,6 @@ impl ScriptTrait for {name} {{
 
     fn on_update(&mut self, context: &mut ScriptContext) {{
         // Put object logic here.
-    }}
-
-    fn restore_resources(&mut self, resource_manager: ResourceManager) {{
-        // Restore resource handles here.
     }}
 
     fn id(&self) -> Uuid {{
