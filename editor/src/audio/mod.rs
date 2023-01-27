@@ -1,9 +1,8 @@
-use crate::utils::window_content;
 use crate::{
-    scene::commands::effect::AddEffectCommand, ChangeSelectionCommand, EditorScene, GridBuilder,
-    Message, MessageDirection, Mode, SceneCommand, Selection, UserInterface,
+    scene::commands::effect::AddEffectCommand, utils::window_content, ChangeSelectionCommand,
+    EditorScene, GridBuilder, Message, MessageDirection, Mode, SceneCommand, Selection,
+    UserInterface,
 };
-use fyrox::gui::widget::WidgetMessage;
 use fyrox::{
     core::pool::Handle,
     engine::Engine,
@@ -16,13 +15,15 @@ use fyrox::{
         message::UiMessage,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
-        widget::WidgetBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
         Orientation, Thickness, UiNode,
     },
     scene::sound::effect::{BaseEffectBuilder, Effect, ReverbEffectBuilder},
 };
 use std::{cmp::Ordering, rc::Rc, sync::mpsc::Sender};
+
+pub mod preview;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EffectSelection {

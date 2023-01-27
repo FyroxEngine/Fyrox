@@ -39,7 +39,7 @@ use crate::{
     absm::AbsmEditor,
     animation::AnimationEditor,
     asset::{item::AssetItem, item::AssetKind, AssetBrowser},
-    audio::AudioPanel,
+    audio::{preview::AudioPreviewPanel, AudioPanel},
     build::BuildWindow,
     command::{panel::CommandStackViewer, Command, CommandStack},
     configurator::Configurator,
@@ -491,6 +491,7 @@ pub struct Editor {
     animation_editor: AnimationEditor,
     particle_system_control_panel: ParticleSystemPreviewControlPanel,
     overlay_pass: Rc<RefCell<OverlayRenderPass>>,
+    audio_preview_panel: AudioPreviewPanel,
 }
 
 impl Editor {
@@ -596,6 +597,7 @@ impl Editor {
         let animation_editor = AnimationEditor::new(ctx);
         let absm_editor = AbsmEditor::new(ctx, message_sender.clone());
         let particle_system_control_panel = ParticleSystemPreviewControlPanel::new(ctx);
+        let audio_preview_panel = AudioPreviewPanel::new(ctx);
 
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()
@@ -712,6 +714,7 @@ impl Editor {
                         animation_editor.window,
                         absm_editor.window,
                         particle_system_control_panel.window,
+                        audio_preview_panel.window,
                     ])
                     .build(ctx),
                 ),
@@ -797,6 +800,7 @@ impl Editor {
             scene_settings,
             particle_system_control_panel,
             overlay_pass,
+            audio_preview_panel,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move));
@@ -1151,6 +1155,8 @@ impl Editor {
         if let Some(editor_scene) = self.scene.as_mut() {
             self.particle_system_control_panel
                 .handle_ui_message(message, editor_scene, engine);
+            self.audio_preview_panel
+                .handle_ui_message(message, editor_scene, engine);
             self.absm_editor
                 .handle_ui_message(message, engine, &self.message_sender, editor_scene);
             self.audio_panel
@@ -1499,6 +1505,8 @@ impl Editor {
         if let Some(editor_scene) = self.scene.as_mut() {
             self.particle_system_control_panel
                 .leave_preview_mode(editor_scene, engine);
+            self.audio_preview_panel
+                .leave_preview_mode(editor_scene, engine);
             self.animation_editor
                 .try_leave_preview_mode(editor_scene, engine);
             self.absm_editor
@@ -1745,6 +1753,7 @@ impl Editor {
 
         if let Some(scene) = self.scene.as_ref() {
             self.animation_editor.update(scene, &self.engine);
+            self.audio_preview_panel.update(scene, &self.engine);
         }
 
         self.overlay_pass.borrow_mut().pictogram_size = self.settings.debugging.pictogram_size;
@@ -1777,6 +1786,11 @@ impl Editor {
 
                 if let Some(editor_scene) = self.scene.as_mut() {
                     self.particle_system_control_panel.handle_message(
+                        &message,
+                        editor_scene,
+                        &mut self.engine,
+                    );
+                    self.audio_preview_panel.handle_message(
                         &message,
                         editor_scene,
                         &mut self.engine,
