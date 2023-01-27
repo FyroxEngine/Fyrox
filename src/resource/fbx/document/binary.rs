@@ -151,7 +151,7 @@ where
         }
     }
 
-    if file.seek(SeekFrom::Current(0))? < end_offset {
+    if file.stream_position()? < end_offset {
         let nullrec_size = if version < VERSION_7500 {
             NORMAL_NULLREC_SIZE
         } else {
@@ -159,7 +159,7 @@ where
         };
 
         let null_record_position = end_offset - nullrec_size as u64;
-        while file.seek(SeekFrom::Current(0))? < null_record_position {
+        while file.stream_position()? < null_record_position {
             let child_handle = read_binary_node(file, pool, version)?;
             if child_handle.is_none() {
                 return Ok(child_handle);
@@ -192,7 +192,7 @@ where
     R: Read + Seek,
 {
     let total_length = file.seek(SeekFrom::End(0))?;
-    file.seek(SeekFrom::Start(0))?;
+    file.rewind()?;
 
     // Ignore all stuff until version.
     let mut temp = [0; 23];
@@ -215,7 +215,7 @@ where
 
     // FBX document can have multiple root nodes, so we must read the file
     // until the end.
-    while file.seek(SeekFrom::Current(0))? < total_length {
+    while file.stream_position()? < total_length {
         let root_child = read_binary_node(file, &mut nodes, version)?;
         if root_child.is_none() {
             break;

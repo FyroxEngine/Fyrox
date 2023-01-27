@@ -44,7 +44,7 @@ impl Iterator for OggDecoder {
 }
 
 fn is_vorbis_ogg(source: &mut DataSource) -> bool {
-    let pos = source.seek(SeekFrom::Current(0)).unwrap();
+    let pos = source.stream_position().unwrap();
 
     let is_vorbis = OggStreamReader::new(source.by_ref()).is_ok();
 
@@ -81,7 +81,7 @@ impl OggDecoder {
         // We have to create completely new instance of decoder because of bug in seek_absgp_pg
         // For more info see - https://github.com/RustAudio/lewton/issues/73
         let mut source = self.reader.take().unwrap().into_inner().into_inner();
-        source.seek(SeekFrom::Start(0))?;
+        source.rewind()?;
         *self = match Self::new(source) {
             Ok(ogg_decoder) => ogg_decoder,
             // Drop source here, this will invalidate decoder and it can't produce any

@@ -46,7 +46,7 @@ impl Seek for WrappedDataSource {
 
 impl WavDecoder {
     pub fn new(mut source: DataSource) -> Result<Self, DataSource> {
-        let pos = source.seek(SeekFrom::Current(0)).unwrap();
+        let pos = source.stream_position().unwrap();
         let mut wrapped_source = WrappedDataSource {
             data_source: Arc::new(Mutex::new(source)),
         };

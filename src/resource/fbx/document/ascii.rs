@@ -26,15 +26,15 @@ where
     let mut value: Vec<u8> = Vec::new();
 
     let buf_len = reader.seek(SeekFrom::End(0))?;
-    reader.seek(SeekFrom::Start(0))?;
+    reader.rewind()?;
 
     // Read line by line
-    while reader.seek(SeekFrom::Current(0))? < buf_len {
+    while reader.stream_position()? < buf_len {
         // Read line, trim spaces (but leave spaces in quotes)
         buffer.clear();
 
         let mut read_all = false;
-        while reader.seek(SeekFrom::Current(0))? < buf_len {
+        while reader.stream_position()? < buf_len {
             let symbol = reader.read_u8()?;
             if symbol == b'\n' {
                 break;
