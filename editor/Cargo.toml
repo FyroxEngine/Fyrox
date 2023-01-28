@@ -17,7 +17,7 @@ fyrox = { version = "0.29.0", path = ".." }
 lazy_static = "1.4.0"
 ron = "0.8.0"
 serde = "^1.0.0"
-toml = "0.6.0"
+toml = "0.7.0"
 strum = "0.24.0"
 strum_macros = "0.24.0"
 
