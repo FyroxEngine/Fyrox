@@ -356,7 +356,7 @@ impl Graph {
             .and_then(|n| n.query_component_mut::<T>())
     }
 
-    /// Begins multi-borrow that allows you to as many (`N`) **unique** references to the graph
+    /// Begins multi-borrow that allows you borrow to as many (`N`) **unique** references to the graph
     /// nodes as you need. See [`MultiBorrowContext::try_get`] for more info.
     pub fn begin_multi_borrow<const N: usize>(
         &mut self,

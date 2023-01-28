@@ -1287,7 +1287,7 @@ where
         }
     }
 
-    /// Begins multi-borrow that allows you to as many (`N`) **unique** references to the pool
+    /// Begins multi-borrow that allows you to borrow as many (`N`) **unique** references to the pool
     /// elements as you need. See [`MultiBorrowContext::try_get`] for more info.
     pub fn begin_multi_borrow<const N: usize>(&mut self) -> MultiBorrowContext<N, T, P> {
         MultiBorrowContext::new(self)
