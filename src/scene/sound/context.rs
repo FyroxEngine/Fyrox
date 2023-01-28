@@ -271,7 +271,7 @@ impl SoundContext {
         if !sound.is_globally_enabled()
             || !node_overrides.map_or(true, |f| f.contains(&sound_handle))
         {
-            self.remove_sound(sound.native.get(), &**sound.name);
+            self.remove_sound(sound.native.get(), &sound.name);
             sound.native.set(Default::default());
             return;
         }

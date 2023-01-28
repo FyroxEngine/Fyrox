@@ -348,7 +348,7 @@ impl NodeTrait for Sound {
     fn on_removed_from_graph(&mut self, graph: &mut Graph) {
         graph
             .sound_context
-            .remove_sound(self.native.get(), &**self.name);
+            .remove_sound(self.native.get(), &self.name);
         self.native.set(Default::default());
     }
 
@@ -384,18 +384,19 @@ impl NodeTrait for Sound {
                 let state = buffer.state();
                 match &*state {
                     ResourceState::Pending { .. } | ResourceState::Ok(_) => Ok(()),
-                    ResourceState::LoadError { error, .. } => match error {
-                        None => Err(format!(
-                            "Sound buffer is failed to load, the reason is unknown!"
-                        )),
-                        Some(err) => Err(format!(
-                            "Sound buffer is failed to load. Reason: {:?}",
-                            **err
-                        )),
-                    },
+                    ResourceState::LoadError { error, .. } => {
+                        match error {
+                            None => Err("Sound buffer is failed to load, the reason is unknown!"
+                                .to_string()),
+                            Some(err) => Err(format!(
+                                "Sound buffer is failed to load. Reason: {:?}",
+                                **err
+                            )),
+                        }
+                    }
                 }
             }
-            None => Err(format!("Sound buffer is not set, the sound won't play!")),
+            None => Err("Sound buffer is not set, the sound won't play!".to_string()),
         }
     }
 }
