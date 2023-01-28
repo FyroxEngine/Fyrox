@@ -997,7 +997,7 @@ impl SurfaceSharedData {
 }
 
 /// See module docs.
-#[derive(Debug, Clone, Reflect, PartialEq)]
+#[derive(Debug, Reflect, PartialEq)]
 pub struct Surface {
     data: InheritableVariable<SurfaceSharedData>,
 
@@ -1005,6 +1005,13 @@ pub struct Surface {
 
     /// Array of handles to scene nodes which are used as bones.
     pub bones: InheritableVariable<Vec<Handle<Node>>>,
+
+    #[reflect(
+        description = "If true, then the current material will become a unique instance when cloning the surface.\
+        Could be useful if you need to have unique materials per on every instance. Keep in mind that this option \
+        might affect performance!"
+    )]
+    unique_material: InheritableVariable<bool>,
 
     // Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     // and will be used to fill actual bone indices and weight in vertices that will be
@@ -1014,6 +1021,24 @@ pub struct Surface {
     // associated with vertex in `bones` array and store it as bone index in vertex.
     #[reflect(hidden)]
     pub(crate) vertex_weights: Vec<VertexWeightSet>,
+}
+
+impl Clone for Surface {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            material: if *self.unique_material {
+                // Create unique instance.
+                self.material.deep_copy().into()
+            } else {
+                // Share the material.
+                self.material.clone()
+            },
+            bones: self.bones.clone(),
+            unique_material: self.unique_material.clone(),
+            vertex_weights: self.vertex_weights.clone(),
+        }
+    }
 }
 
 impl Visit for Surface {
@@ -1045,6 +1070,8 @@ impl Visit for Surface {
             self.bones.visit("Bones", &mut region)?;
         }
 
+        let _ = self.unique_material.visit("UniqueMaterial", &mut region); // Backward compatibility.
+
         Ok(())
     }
 }
@@ -1056,6 +1083,7 @@ impl Default for Surface {
             material: SharedMaterial::new(Material::standard()).into(),
             vertex_weights: Default::default(),
             bones: Default::default(),
+            unique_material: Default::default(),
         }
     }
 }
@@ -1104,6 +1132,16 @@ impl Surface {
     pub fn bones(&self) -> &[Handle<Node>] {
         &self.bones
     }
+
+    /// Returns true if the material will be a unique instance when cloning the surface.
+    pub fn is_unique_material(&self) -> bool {
+        *self.unique_material
+    }
+
+    /// Defines whether the material will be a unique instance when cloning the surface.
+    pub fn set_unique_material(&mut self, unique: bool) {
+        self.unique_material.set_value_and_mark_modified(unique);
+    }
 }
 
 /// Surface builder allows you to create surfaces in declarative manner.
@@ -1111,6 +1149,7 @@ pub struct SurfaceBuilder {
     data: SurfaceSharedData,
     material: Option<SharedMaterial>,
     bones: Vec<Handle<Node>>,
+    unique_material: bool,
 }
 
 impl SurfaceBuilder {
@@ -1120,6 +1159,7 @@ impl SurfaceBuilder {
             data,
             material: None,
             bones: Default::default(),
+            unique_material: false,
         }
     }
 
@@ -1135,6 +1175,12 @@ impl SurfaceBuilder {
         self
     }
 
+    /// Sets whether the material will be a unique instance when cloning the surface.
+    pub fn with_unique_material(mut self, unique: bool) -> Self {
+        self.unique_material = unique;
+        self
+    }
+
     /// Creates new instance of surface.
     pub fn build(self) -> Surface {
         Surface {
@@ -1145,6 +1191,7 @@ impl SurfaceBuilder {
                 .into(),
             vertex_weights: Default::default(),
             bones: self.bones.into(),
+            unique_material: self.unique_material.into(),
         }
     }
 }
