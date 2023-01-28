@@ -1073,6 +1073,7 @@ mod test {
     };
 
     #[derive(Clone, Copy, PartialEq, Debug)]
+    #[repr(C)]
     struct Vertex {
         position: Vector3<f32>,
         tex_coord: Vector2<f32>,
@@ -1280,6 +1281,7 @@ mod test {
             .unwrap();
 
         #[derive(Clone, Copy, PartialEq, Debug)]
+        #[repr(C)]
         struct ExtendedVertex {
             position: Vector3<f32>,
             tex_coord: Vector2<f32>,
