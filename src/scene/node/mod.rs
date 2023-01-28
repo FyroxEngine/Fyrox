@@ -4,6 +4,7 @@
 
 #![warn(missing_docs)]
 
+use crate::scene::graph::GraphUpdateSwitches;
 use crate::scene::Scene;
 use crate::{
     core::{
@@ -76,7 +77,7 @@ where
 }
 
 /// A data for synchronization. See [`NodeTrait::sync_native`] for more info.
-pub struct SyncContext<'a> {
+pub struct SyncContext<'a, 'b> {
     /// A reference to a pool with nodes from a scene graph.
     pub nodes: &'a NodePool,
     /// A mutable reference to 3D physics world.
@@ -85,6 +86,8 @@ pub struct SyncContext<'a> {
     pub physics2d: &'a mut dim2::physics::PhysicsWorld,
     /// A mutable reference to sound context.
     pub sound_context: &'a mut SoundContext,
+    /// A reference to graph update switches. See [`GraphUpdateSwitches`] for more info.
+    pub switches: Option<&'b GraphUpdateSwitches>,
 }
 
 /// A data for update tick. See [`NodeTrait::update`] for more info.

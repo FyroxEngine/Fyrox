@@ -1,5 +1,6 @@
 //! Sound context.
 
+use crate::scene::node::Node;
 use crate::{
     core::{
         pool::{Handle, Pool, Ticket},
@@ -13,6 +14,7 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
+use fxhash::FxHashSet;
 use fyrox_sound::{
     context::DistanceModel,
     effects::{reverb::Reverb, BaseEffect, EffectInput, InputFilter},
@@ -234,10 +236,15 @@ impl SoundContext {
         }
     }
 
-    pub(crate) fn remove_sound(&mut self, sound: Handle<SoundSource>) {
+    pub(crate) fn remove_sound(&mut self, sound: Handle<SoundSource>, name: &str) {
         let mut state = self.native.state();
         if state.is_valid_handle(sound) {
             state.remove_source(sound);
+
+            Log::info(format!(
+                "Native sound source was removed for node: {}",
+                name
+            ));
         }
     }
 
@@ -255,9 +262,16 @@ impl SoundContext {
         }
     }
 
-    pub(crate) fn sync_to_sound(&mut self, sound: &Sound) {
-        if !sound.is_globally_enabled() {
-            self.remove_sound(sound.native.get());
+    pub(crate) fn sync_to_sound(
+        &mut self,
+        sound_handle: Handle<Node>,
+        sound: &Sound,
+        node_overrides: Option<&FxHashSet<Handle<Node>>>,
+    ) {
+        if !sound.is_globally_enabled()
+            || !node_overrides.map_or(true, |f| f.contains(&sound_handle))
+        {
+            self.remove_sound(sound.native.get(), &**sound.name);
             sound.native.set(Default::default());
             return;
         }

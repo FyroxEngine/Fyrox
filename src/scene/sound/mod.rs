@@ -16,7 +16,6 @@ use crate::{
         graph::Graph,
         node::{Node, NodeTrait, SyncContext, TypeUuidProvider, UpdateContext},
     },
-    utils::log::Log,
 };
 
 // Re-export some the fyrox_sound entities.
@@ -345,17 +344,18 @@ impl NodeTrait for Sound {
     }
 
     fn on_removed_from_graph(&mut self, graph: &mut Graph) {
-        graph.sound_context.remove_sound(self.native.get());
+        graph
+            .sound_context
+            .remove_sound(self.native.get(), &**self.name);
         self.native.set(Default::default());
-
-        Log::info(format!(
-            "Native sound source was removed for node: {}",
-            self.name()
-        ));
     }
 
     fn sync_native(&self, _self_handle: Handle<Node>, context: &mut SyncContext) {
-        context.sound_context.sync_to_sound(self)
+        context.sound_context.sync_to_sound(
+            _self_handle,
+            self,
+            context.switches.and_then(|s| s.node_overrides.as_ref()),
+        )
     }
 
     fn sync_transform(&self, new_global_transform: &Matrix4<f32>, context: &mut SyncContext) {

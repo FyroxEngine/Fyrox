@@ -991,6 +991,7 @@ impl Graph {
                 physics,
                 physics2d,
                 sound_context,
+                switches: None,
             },
         );
 
@@ -1043,12 +1044,13 @@ impl Graph {
         self.pool.is_valid_handle(node_handle)
     }
 
-    fn sync_native(&mut self) {
+    fn sync_native(&mut self, switches: &GraphUpdateSwitches) {
         let mut sync_context = SyncContext {
             nodes: &self.pool,
             physics: &mut self.physics,
             physics2d: &mut self.physics2d,
             sound_context: &mut self.sound_context,
+            switches: Some(switches),
         };
 
         for (handle, node) in self.pool.pair_iter() {
@@ -1109,7 +1111,7 @@ impl Graph {
             instant::Instant::now() - last_time;
 
         let last_time = instant::Instant::now();
-        self.sync_native();
+        self.sync_native(&switches);
         self.performance_statistics.sync_time = instant::Instant::now() - last_time;
 
         if switches.physics {

@@ -121,7 +121,7 @@ impl EditorScene {
             graph_switches: GraphUpdateSwitches {
                 physics2d: true,
                 physics: true,
-                sound: false,
+                sound: true,
                 // Prevent engine to update lifetime of the nodes and to delete "dead" nodes. Otherwise
                 // the editor will crash if some node is "dead".
                 delete_dead_nodes: false,
