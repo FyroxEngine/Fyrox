@@ -18,10 +18,11 @@
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native Fyroxed format) formats are supported.
 
-use crate::animation::Animation;
 use crate::{
+    animation::Animation,
     asset::{define_new_resource, Resource, ResourceData},
     core::{
+        algebra::{UnitQuaternion, Vector3},
         pool::Handle,
         reflect::prelude::*,
         variable::reset_inheritable_properties,
@@ -137,6 +138,25 @@ impl Model {
         std::mem::drop(data);
 
         instance_root
+    }
+
+    /// Instantiates a prefab and places it at specified position and orientation in global coordinates.
+    pub fn instantiate_at(
+        &self,
+        scene: &mut Scene,
+        position: Vector3<f32>,
+        orientation: UnitQuaternion<f32>,
+    ) -> Handle<Node> {
+        let root = self.instantiate(scene);
+
+        scene.graph[root]
+            .local_transform_mut()
+            .set_position(position)
+            .set_rotation(orientation);
+
+        scene.graph.update_hierarchical_data_for_descendants(root);
+
+        root
     }
 
     /// Tries to retarget animations from given model resource to a node hierarchy starting
