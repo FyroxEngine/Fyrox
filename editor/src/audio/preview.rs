@@ -60,9 +60,15 @@ impl AudioPreviewPanel {
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
                                         .with_content(
-                                            TextBuilder::new(WidgetBuilder::new().on_column(0))
-                                                .with_text("Preview")
-                                                .build(ctx),
+                                            TextBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .on_column(0)
+                                                    .with_vertical_alignment(
+                                                        VerticalAlignment::Center,
+                                                    ),
+                                            )
+                                            .with_text("Preview")
+                                            .build(ctx),
                                         )
                                         .build(ctx);
                                         preview
@@ -310,6 +316,18 @@ impl AudioPreviewPanel {
                         self.enter_preview_mode(editor_scene, engine);
                     } else {
                         self.leave_preview_mode(editor_scene, engine);
+                    }
+                }
+            } else if let Some(ScrollBarMessage::Value(playback_position)) = message.data() {
+                if message.destination() == self.time
+                    && message.direction() == MessageDirection::FromWidget
+                {
+                    let scene = &mut engine.scenes[editor_scene.scene];
+
+                    for &node in &selection.nodes {
+                        if let Some(sound) = scene.graph.try_get_mut_of_type::<Sound>(node) {
+                            sound.set_playback_time(Duration::from_secs_f32(*playback_position));
+                        }
                     }
                 }
             }
