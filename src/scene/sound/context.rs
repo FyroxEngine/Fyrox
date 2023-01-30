@@ -169,6 +169,11 @@ impl SoundContext {
         self.master_gain
     }
 
+    /// Destroys all backing sound entities.
+    pub fn destroy_sound_sources(&mut self) {
+        self.native.state().sources_mut().clear();
+    }
+
     pub(crate) fn update(&mut self, nodes: &NodePool) {
         let mut state = self.native.state();
 

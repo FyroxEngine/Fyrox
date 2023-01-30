@@ -5,7 +5,7 @@
 
 use crate::{
     core::{
-        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},

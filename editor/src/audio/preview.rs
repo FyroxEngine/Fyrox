@@ -263,6 +263,8 @@ impl AudioPreviewPanel {
             &engine.user_interface,
             CheckBoxMessage::checked(self.preview, MessageDirection::ToWidget, Some(false)),
         );
+
+        scene.graph.sound_context.destroy_sound_sources();
     }
 
     pub fn update(&self, editor_scene: &EditorScene, engine: &Engine) {
