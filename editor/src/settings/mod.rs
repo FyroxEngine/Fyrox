@@ -106,8 +106,9 @@ impl Settings {
         Ok(ron::de::from_reader(file)?)
     }
 
-    pub fn save(&self) -> Result<(), SettingsError> {
+    pub fn save(&mut self) -> Result<(), SettingsError> {
         let file = File::create(Self::full_path())?;
+        self.recent.deduplicate_and_refresh();
         ron::ser::to_writer_pretty(file, self, PrettyConfig::default())?;
         Ok(())
     }
