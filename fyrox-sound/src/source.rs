@@ -416,7 +416,7 @@ impl SoundSource {
     }
 
     pub(crate) fn calculate_panning(&self, listener: &Listener) -> f32 {
-        (self.position - listener.position())
+        (listener.position() - self.position)
             .try_normalize(f32::EPSILON)
             // Fallback to look axis will give zero panning which will result in even
             // gain in each channels (as if there was no panning at all).
@@ -425,7 +425,7 @@ impl SoundSource {
     }
 
     pub(crate) fn calculate_sampling_vector(&self, listener: &Listener) -> Vector3<f32> {
-        let to_self = self.position - listener.position();
+        let to_self = listener.position() - self.position;
 
         (listener.basis() * to_self)
             .try_normalize(f32::EPSILON)

@@ -86,7 +86,7 @@ impl NodeTrait for Listener {
         let mut state = context.sound_context.native.state();
         let native = state.listener_mut();
         native.set_position(self.global_position());
-        native.set_basis(self.global_transform().basis());
+        native.set_orientation_lh(self.look_vector(), self.up_vector());
     }
 }
 
