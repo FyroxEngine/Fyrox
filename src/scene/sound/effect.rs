@@ -29,7 +29,11 @@ pub struct EffectInput {
 /// Base effect contains common properties for every effect (gain, inputs, etc.)
 #[derive(Visit, Reflect, Debug, Clone)]
 pub struct BaseEffect {
-    #[reflect(setter = "set_name_internal")]
+    #[reflect(
+        setter = "set_name_internal",
+        description = "Name of the effect. Sound sources will automatically bind to the effect using its name.\
+    Default value is `Primary`. If there's more than one effect with the same name, then the last will be used."
+    )]
     pub(crate) name: InheritableVariable<String>,
 
     #[reflect(setter = "set_gain")]
@@ -92,7 +96,7 @@ impl BaseEffect {
 impl Default for BaseEffect {
     fn default() -> Self {
         Self {
-            name: InheritableVariable::new("".to_string()),
+            name: InheritableVariable::new("Primary".to_string()),
             gain: InheritableVariable::new(1.0),
             inputs: Default::default(),
             native: Default::default(),

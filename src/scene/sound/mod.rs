@@ -131,7 +131,7 @@ impl Default for Sound {
             rolloff_factor: InheritableVariable::new(1.0),
             playback_time: Default::default(),
             spatial_blend: InheritableVariable::new(1.0),
-            effect_name: Default::default(),
+            effect_name: InheritableVariable::new("Primary".to_string()),
             native: Default::default(),
         }
     }
