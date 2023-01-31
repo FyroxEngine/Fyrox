@@ -180,6 +180,21 @@ impl BaseEffect {
         self.inputs.push(input)
     }
 
+    /// Returns a reference to all effect inputs.
+    pub fn inputs_ref(&self) -> &[EffectInput] {
+        &self.inputs
+    }
+
+    /// Returns a reference to all effect inputs.
+    pub fn inputs_mut(&mut self) -> &mut [EffectInput] {
+        &mut self.inputs
+    }
+
+    /// Remove an effect input at the given index.
+    pub fn remove_input(&mut self, index: usize) -> EffectInput {
+        self.inputs.remove(index)
+    }
+
     /// Removes all inputs.
     pub fn clear_inputs(&mut self) {
         self.inputs.clear()
@@ -250,6 +265,21 @@ impl EffectInput {
             filter: Some(filter),
             last_distance_gain: None,
         }
+    }
+
+    /// Returns a handle of the sound source, that is attached to the input.
+    pub fn source(&self) -> Handle<SoundSource> {
+        self.source
+    }
+
+    /// Returns immutable reference to the optional input filter.
+    pub fn filter_ref(&mut self) -> Option<&InputFilter> {
+        self.filter.as_ref()
+    }
+
+    /// Returns mutable reference to the optional input filter.
+    pub fn filter_mut(&mut self) -> Option<&mut InputFilter> {
+        self.filter.as_mut()
     }
 }
 
