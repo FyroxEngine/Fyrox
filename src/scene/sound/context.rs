@@ -325,6 +325,24 @@ impl SoundContext {
                     source.pause();
                 }
             });
+
+            // Make sure to not deadlock.
+            drop(state);
+
+            sound.effect_name.try_sync_model(|effect_name| {
+                if let Some(effect) = self.effects.iter().find(|e| e.name() == effect_name) {
+                    let mut state = self.native.state();
+                    let native_effect = state.effect_mut(effect.native.get());
+                    if let Some(prev) = native_effect
+                        .inputs_ref()
+                        .iter()
+                        .position(|input| input.source() == sound.native.get())
+                    {
+                        native_effect.remove_input(prev);
+                    }
+                    native_effect.add_input(EffectInput::direct(sound.native.get()));
+                }
+            });
         } else {
             match SoundSourceBuilder::new()
                 .with_gain(sound.gain())
@@ -342,6 +360,16 @@ impl SoundContext {
             {
                 Ok(source) => {
                     sound.native.set(self.native.state().add_source(source));
+
+                    if let Some(effect) = self
+                        .effects
+                        .iter()
+                        .find(|e| e.name() == sound.effect_name())
+                    {
+                        let mut state = self.native.state();
+                        let native_effect = state.effect_mut(effect.native.get());
+                        native_effect.add_input(EffectInput::direct(sound.native.get()));
+                    }
 
                     Log::writeln(
                         MessageKind::Information,
