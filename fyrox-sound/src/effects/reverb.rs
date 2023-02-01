@@ -26,30 +26,20 @@
 //! is acceptable. To remove this effect, more complex reverberator should be implemented.
 
 use crate::{
-    context::DistanceModel,
     dsp::filters::{AllPass, LpfComb},
-    effects::{BaseEffect, EffectRenderTrait},
-    listener::Listener,
-    source::SoundSource,
+    effects::EffectRenderTrait,
 };
-use fyrox_core::{
-    pool::Pool,
-    visitor::{Visit, VisitResult, Visitor},
-};
-use std::{
-    ops::{Deref, DerefMut},
-    time::Duration,
-};
+use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
+use std::time::Duration;
 
-#[derive(Default, Debug, Clone, Visit)]
+#[derive(Default, Debug, Clone, Visit, Reflect)]
 struct ChannelReverb {
-    #[visit(rename = "FC")]
     fc: f32,
     sample_rate: u32,
     stereo_spread: u32,
-    #[visit(rename = "LPCFilters")]
+    #[reflect(hidden)]
     lp_fb_comb_filters: Vec<LpfComb>,
-    #[visit(rename = "APFilters")]
+    #[reflect(hidden)]
     all_pass_filters: Vec<AllPass>,
 }
 
@@ -140,9 +130,8 @@ impl ChannelReverb {
 }
 
 /// See module docs.
-#[derive(Debug, Clone, Visit)]
+#[derive(Debug, Clone, Visit, Reflect)]
 pub struct Reverb {
-    base: BaseEffect,
     dry: f32,
     wet: f32,
     left: ChannelReverb,
@@ -151,7 +140,7 @@ pub struct Reverb {
 
 impl Default for Reverb {
     fn default() -> Self {
-        Self::new(Default::default())
+        Self::new()
     }
 }
 
@@ -168,12 +157,11 @@ impl Reverb {
 
     /// Creates new instance of reverb effect with cutoff frequency of ~11.2 kHz and
     /// 5 seconds decay time.
-    pub fn new(base: BaseEffect) -> Self {
+    pub fn new() -> Self {
         let fc = 0.25615; // 11296 Hz at 44100 Hz sample rate
         let feedback = 0.84;
 
         Self {
-            base,
             dry: 1.0,
             wet: 1.0,
             left: ChannelReverb::new(0, fc, feedback),
@@ -238,46 +226,19 @@ impl Reverb {
 }
 
 impl EffectRenderTrait for Reverb {
-    fn render(
-        &mut self,
-        sources: &Pool<SoundSource>,
-        listener: &Listener,
-        distance_model: DistanceModel,
-        mix_buf: &mut [(f32, f32)],
-    ) {
-        self.base
-            .render(sources, listener, distance_model, mix_buf.len());
+    fn render(&mut self, input: &[(f32, f32)], mix_buf: &mut [(f32, f32)]) {
+        let wet = self.wet;
+        let dry = 1.0 - self.wet;
 
-        let wet1 = self.wet;
-        let wet2 = 1.0 - self.wet;
-
-        for ((out_left, out_right), &(left, right)) in
-            mix_buf.iter_mut().zip(self.base.frame_samples.iter())
-        {
+        for ((out_left, out_right), &(left, right)) in mix_buf.iter_mut().zip(input.iter()) {
             let mid = (left + right) * 0.5;
             let input = mid * Self::GAIN;
 
             let processed_left = self.left.feed(input);
             let processed_right = self.right.feed(input);
 
-            *out_left +=
-                self.gain * (processed_left * wet1 + processed_right * wet2 + self.dry * left);
-            *out_right +=
-                self.gain * (processed_right * wet1 + processed_left * wet2 + self.dry * right);
+            *out_left += processed_left * wet + processed_right * dry + self.dry * left;
+            *out_right += processed_right * wet + processed_left * dry + self.dry * right;
         }
-    }
-}
-
-impl Deref for Reverb {
-    type Target = BaseEffect;
-
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
-}
-
-impl DerefMut for Reverb {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base
     }
 }
