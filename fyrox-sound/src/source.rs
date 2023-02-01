@@ -828,8 +828,8 @@ impl SoundSourceBuilder {
     }
 
     /// Sets desired output bus for the sound source.
-    pub fn with_bus(mut self, bus: String) -> Self {
-        self.bus = bus;
+    pub fn with_bus<S: AsRef<str>>(mut self, bus: S) -> Self {
+        self.bus = bus.as_ref().to_string();
         self
     }
 

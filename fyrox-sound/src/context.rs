@@ -229,6 +229,16 @@ impl State {
         &mut self.listener
     }
 
+    /// Returns a reference to the audio bus graph.
+    pub fn bus_graph_ref(&self) -> &BusGraph {
+        &self.bus_graph
+    }
+
+    /// Returns a reference to the audio bus graph.
+    pub fn bus_graph_mut(&mut self) -> &mut BusGraph {
+        &mut self.bus_graph
+    }
+
     pub(crate) fn render(&mut self, output_device_buffer: &mut [(f32, f32)]) {
         let last_time = fyrox_core::instant::Instant::now();
 
