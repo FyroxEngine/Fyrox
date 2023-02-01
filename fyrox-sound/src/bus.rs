@@ -224,6 +224,34 @@ impl BusGraph {
         })
     }
 
+    pub fn remove_bus(&mut self, handle: Handle<Bus>) -> Bus {
+        assert_ne!(handle, self.root);
+
+        let bus = self.buses.free(handle);
+        let parent_bus = &mut self.buses[bus.parent_bus];
+
+        let position = parent_bus
+            .child_buses
+            .iter()
+            .position(|h| *h == handle)
+            .expect("Malformed bus graph!");
+        parent_bus.child_buses.remove(position);
+
+        bus
+    }
+
+    pub fn primary_bus_handle(&self) -> Handle<Bus> {
+        self.root
+    }
+
+    pub fn primary_bus_ref(&self) -> &Bus {
+        &self.buses[self.root]
+    }
+
+    pub fn primary_bus_mut(&mut self) -> &mut Bus {
+        &mut self.buses[self.root]
+    }
+
     pub fn begin_render(&mut self, output_device_buffer_size: usize) {
         for bus in self.buses.iter_mut() {
             bus.begin_render(output_device_buffer_size);
