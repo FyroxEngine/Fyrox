@@ -21,13 +21,21 @@ impl Default for Attenuate {
     }
 }
 
+impl Attenuate {
+    pub fn new(gain: f32) -> Self {
+        Self {
+            gain: gain.max(0.0),
+        }
+    }
+}
+
 impl EffectRenderTrait for Attenuate {
     fn render(&mut self, input: &[(f32, f32)], output: &mut [(f32, f32)]) {
         for ((input_left, input_right), (output_left, output_right)) in
             input.iter().zip(output.iter_mut())
         {
-            *output_left += *input_left * self.gain;
-            *output_right += *input_right * self.gain;
+            *output_left = *input_left * self.gain;
+            *output_right = *input_right * self.gain;
         }
     }
 }

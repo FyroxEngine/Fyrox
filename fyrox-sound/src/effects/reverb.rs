@@ -237,8 +237,8 @@ impl EffectRenderTrait for Reverb {
             let processed_left = self.left.feed(input);
             let processed_right = self.right.feed(input);
 
-            *out_left += processed_left * wet + processed_right * dry + self.dry * left;
-            *out_right += processed_right * wet + processed_left * dry + self.dry * right;
+            *out_left = processed_left * wet + processed_right * dry + self.dry * left;
+            *out_right = processed_right * wet + processed_left * dry + self.dry * right;
         }
     }
 }
