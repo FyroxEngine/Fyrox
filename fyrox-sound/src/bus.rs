@@ -274,6 +274,7 @@ impl BusGraph {
 #[cfg(test)]
 mod test {
     use crate::bus::{Bus, BusGraph};
+    use crate::effects::{Attenuate, Effect};
 
     #[test]
     fn test_multi_bus_data_flow() {
@@ -319,5 +320,39 @@ mod test {
         graph.end_render(&mut output_buffer);
 
         assert_eq!(output_buffer[0], (1.0, 1.0));
+    }
+
+    #[test]
+    fn test_multi_bus_data_flow_with_effects() {
+        let mut output_buffer = [(0.0f32, 0.0f32)];
+
+        let mut graph = BusGraph::new();
+
+        let mut bus1 = Bus::new("Bus1".to_string());
+        bus1.effects.push(Effect::Attenuate(Attenuate::new(0.5)));
+        bus1.effects.push(Effect::Attenuate(Attenuate::new(0.5)));
+
+        let bus1 = graph.add_bus(bus1, graph.root);
+
+        let mut bus2 = Bus::new("Bus2".to_string());
+        bus2.effects.push(Effect::Attenuate(Attenuate::new(0.5)));
+        let bus2 = graph.add_bus(bus2, bus1);
+
+        graph.begin_render(output_buffer.len());
+
+        // Simulate output of sound sources to each bus.
+        for (left, right) in graph.buses[bus1].input_buffer() {
+            *left = 1.0;
+            *right = 1.0;
+        }
+
+        for (left, right) in graph.buses[bus2].input_buffer() {
+            *left = 1.0;
+            *right = 1.0;
+        }
+
+        graph.end_render(&mut output_buffer);
+
+        assert_eq!(output_buffer[0], (0.75, 0.75));
     }
 }
