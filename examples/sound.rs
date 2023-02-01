@@ -9,12 +9,12 @@
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
-use fyrox::scene::animation::absm::AnimationBlendingStateMachine;
-use fyrox::scene::animation::AnimationPlayer;
-use fyrox::scene::sound::effect::EffectInput;
 use fyrox::{
     animation::AnimationSignal,
-    core::algebra::Vector2,
+    core::{
+        algebra::Vector2,
+        uuid::{uuid, Uuid},
+    },
     event::{Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -24,6 +24,7 @@ use fyrox::{
     rand::Rng,
     renderer::QualitySettings,
     scene::{
+        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
         base::BaseBuilder,
         sound::{SoundBuilder, Status},
         transform::TransformBuilder,
@@ -33,7 +34,6 @@ use fyrox::{
         translate_event,
     },
 };
-use fyrox_core::uuid::{uuid, Uuid};
 use std::time::Instant;
 
 const FOOTSTEP_SIGNAL: Uuid = uuid!("3e536261-9edf-4436-bba0-11173e61c8e9");
@@ -213,13 +213,15 @@ fn main() {
                             .clone();
 
                             // Create new temporary foot step sound source.
-                            let source = SoundBuilder::new(
+                            SoundBuilder::new(
                                 BaseBuilder::new().with_local_transform(
                                     TransformBuilder::new()
                                         .with_local_position(position)
                                         .build(),
                                 ),
                             )
+                            // Specify the name of the effect to which the sound will attach to.
+                            .with_effect_name("Reverb".to_string())
                             // Fyrox provides built-in way to create temporary sounds that will die immediately
                             // after first play. This is very useful for foot step sounds.
                             .with_play_once(true)
@@ -227,18 +229,6 @@ fn main() {
                             // Every sound source must be explicitly set to Playing status, otherwise it will be stopped.
                             .with_status(Status::Playing)
                             .build(&mut scene.graph);
-
-                            // Once foot step sound source was created, it must be attached to reverb effect, otherwise no reverb
-                            // will be added to the source.
-                            scene
-                                .graph
-                                .sound_context
-                                .effect_mut(game_scene.reverb_effect)
-                                .inputs_mut()
-                                .push(EffectInput {
-                                    sound: source,
-                                    filter: None,
-                                });
                         }
                     }
 

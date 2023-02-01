@@ -39,9 +39,6 @@ pub struct BaseEffect {
     #[reflect(setter = "set_gain")]
     pub(crate) gain: InheritableVariable<f32>,
 
-    #[reflect(setter = "set_inputs")]
-    pub(crate) inputs: InheritableVariable<Vec<EffectInput>>,
-
     #[visit(skip)]
     #[reflect(hidden)]
     pub(crate) native: Cell<Handle<fyrox_sound::effects::Effect>>,
@@ -56,21 +53,6 @@ impl BaseEffect {
     /// Sets master gain of the effect.
     pub fn set_gain(&mut self, gain: f32) -> f32 {
         self.gain.set_value_and_mark_modified(gain)
-    }
-
-    /// Sets new inputs for the effect.
-    pub fn set_inputs(&mut self, inputs: Vec<EffectInput>) -> Vec<EffectInput> {
-        self.inputs.set_value_and_mark_modified(inputs)
-    }
-
-    /// Returns shared reference to the inputs array.
-    pub fn inputs(&self) -> &Vec<EffectInput> {
-        &self.inputs
-    }
-
-    /// Returns mutable reference to the inputs array.
-    pub fn inputs_mut(&mut self) -> &mut Vec<EffectInput> {
-        self.inputs.get_value_mut_and_mark_modified()
     }
 
     /// Returns shared reference to the current name of the effect.
@@ -98,7 +80,6 @@ impl Default for BaseEffect {
         Self {
             name: InheritableVariable::new("Primary".to_string()),
             gain: InheritableVariable::new(1.0),
-            inputs: Default::default(),
             native: Default::default(),
         }
     }
@@ -182,7 +163,6 @@ impl BaseEffectBuilder {
         BaseEffect {
             name: self.name.into(),
             gain: self.gain.into(),
-            inputs: self.inputs.into(),
             native: Default::default(),
         }
     }

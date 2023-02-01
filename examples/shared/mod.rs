@@ -807,7 +807,8 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
                 BaseEffectBuilder::new()
                     // Make sure it won't be too loud - fyrox-sound doesn't care about energy conservation law, it
                     // just makes requested calculation.
-                    .with_gain(0.7),
+                    .with_gain(0.7)
+                    .with_name("Reverb".to_string()),
             )
             // Set reverb time to ~3 seconds - the more time the deeper the echo.
             .with_decay_time(3.0)

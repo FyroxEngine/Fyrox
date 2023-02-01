@@ -1,6 +1,5 @@
 //! Sound context.
 
-use crate::scene::node::Node;
 use crate::{
     core::{
         pool::{Handle, Pool, Ticket},
@@ -9,15 +8,15 @@ use crate::{
     },
     resource::model::Model,
     scene::{
-        graph::{map::NodeHandleMap, NodePool},
-        sound::{self, effect::Effect, Sound},
+        node::Node,
+        sound::{effect::Effect, Sound},
     },
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashSet;
 use fyrox_sound::{
     context::DistanceModel,
-    effects::{reverb::Reverb, BaseEffect, EffectInput, InputFilter},
+    effects::{reverb::Reverb, BaseEffect, EffectInput},
     renderer::Renderer,
     source::{SoundSource, SoundSourceBuilder, Status},
 };
@@ -174,33 +173,8 @@ impl SoundContext {
         self.native.state().sources_mut().clear();
     }
 
-    pub(crate) fn update(&mut self, nodes: &NodePool) {
+    pub(crate) fn update(&mut self) {
         let mut state = self.native.state();
-
-        fn sync_effect_inputs(
-            native_effect: &mut fyrox_sound::effects::BaseEffect,
-            inputs: &[sound::effect::EffectInput],
-            nodes: &NodePool,
-        ) {
-            for input in inputs.iter() {
-                if let Some(sound) = nodes
-                    .try_borrow(input.sound)
-                    .and_then(|n| n.cast::<Sound>())
-                {
-                    match input.filter.as_ref() {
-                        None => {
-                            native_effect.add_input(EffectInput::direct(sound.native.get()));
-                        }
-                        Some(filter) => {
-                            native_effect.add_input(EffectInput::filtered(
-                                sound.native.get(),
-                                InputFilter::new(filter.clone()),
-                            ));
-                        }
-                    }
-                }
-            }
-        }
 
         for effect in self.effects.iter() {
             if effect.native.get().is_some() {
@@ -217,10 +191,6 @@ impl SoundContext {
                     reverb.wet.try_sync_model(|v| native_reverb.set_wet(v));
                     reverb.dry.try_sync_model(|v| native_reverb.set_dry(v));
                     reverb.fc.try_sync_model(|v| native_reverb.set_fc(v));
-                    reverb.inputs.try_sync_model(|v| {
-                        native_reverb.clear_inputs();
-                        sync_effect_inputs(native_reverb, &v, nodes)
-                    });
                 }
             } else {
                 match effect {
@@ -231,7 +201,6 @@ impl SoundContext {
                         native_reverb.set_decay_time(Duration::from_secs_f32(reverb.decay_time()));
                         native_reverb.set_dry(reverb.dry());
                         native_reverb.set_wet(reverb.wet());
-                        sync_effect_inputs(&mut native_reverb, &reverb.inputs, nodes);
                         let native =
                             state.add_effect(fyrox_sound::effects::Effect::Reverb(native_reverb));
                         reverb.native.set(native);
@@ -386,14 +355,6 @@ impl SoundContext {
                         ),
                     );
                 }
-            }
-        }
-    }
-
-    pub(crate) fn remap_handles(&mut self, old_new_mapping: &NodeHandleMap) {
-        for effect in self.effects.iter_mut() {
-            for input in effect.inputs.get_value_mut_silent().iter_mut() {
-                old_new_mapping.try_map(&mut input.sound);
             }
         }
     }

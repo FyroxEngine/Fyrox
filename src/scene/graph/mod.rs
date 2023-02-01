@@ -22,7 +22,6 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::material::SharedMaterial;
 use crate::{
     asset::ResourceState,
     core::{
@@ -34,6 +33,7 @@ use crate::{
         variable::try_inherit_properties,
         visitor::{Visit, VisitResult, Visitor},
     },
+    material::SharedMaterial,
     resource::model::{Model, NodeMapping},
     scene::{
         self,
@@ -178,8 +178,6 @@ fn remap_handles(old_new_mapping: &NodeHandleMap, dest_graph: &mut Graph) {
     for (_, &new_node_handle) in old_new_mapping.inner().iter() {
         old_new_mapping.remap_handles(&mut dest_graph.pool[new_node_handle]);
     }
-
-    dest_graph.sound_context.remap_handles(old_new_mapping);
 }
 
 fn isometric_local_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f32> {
@@ -1127,7 +1125,7 @@ impl Graph {
         }
 
         if switches.sound {
-            self.sound_context.update(&self.pool);
+            self.sound_context.update();
             self.performance_statistics.sound_update_time =
                 self.sound_context.full_render_duration();
         }
