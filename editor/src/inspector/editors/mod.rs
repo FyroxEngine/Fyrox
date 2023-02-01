@@ -81,7 +81,7 @@ use fyrox::{
         rigidbody::RigidBodyType,
         sound::{
             self,
-            effect::{BaseEffect, Effect, EffectInput, ReverbEffect},
+            effect::{BaseEffect, Effect, ReverbEffect},
             Biquad, DistanceModel, SoundBufferResource, SoundBufferResourceLoadError,
             SoundBufferState, Status,
         },
@@ -146,7 +146,6 @@ pub fn make_property_editors_container(
     container.register_inheritable_vec_collection::<Property>();
     container.register_inheritable_vec_collection::<LodControlledObject>();
     container.register_inheritable_vec_collection::<GeometrySource>();
-    container.register_inheritable_vec_collection::<EffectInput>();
 
     container.insert(make_status_enum_editor_definition());
 

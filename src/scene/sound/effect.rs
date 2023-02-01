@@ -6,9 +6,8 @@ use crate::{
         visitor::prelude::*,
     },
     define_with,
-    scene::{node::Node, sound::context::SoundContext},
+    scene::sound::context::SoundContext,
 };
-use fyrox_sound::dsp::filters::Biquad;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -16,15 +15,6 @@ use std::{
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 const DEFAULT_FC: f32 = 0.25615; // 11296 Hz at 44100 Hz sample rate
-
-/// Effect input allows you to setup a source of samples for an effect with an optional filtering.
-#[derive(Visit, Reflect, Debug, Default, Clone, PartialEq)]
-pub struct EffectInput {
-    /// A sound node that will be the source of samples for the effect.
-    pub sound: Handle<Node>,
-    /// An optional filter that will be applied to all samples coming from sound.
-    pub filter: Option<Biquad>,
-}
 
 /// Base effect contains common properties for every effect (gain, inputs, etc.)
 #[derive(Visit, Reflect, Debug, Clone)]
@@ -123,7 +113,6 @@ impl Effect {
 /// Base effect builder allows you to build an effect.
 pub struct BaseEffectBuilder {
     gain: f32,
-    inputs: Vec<EffectInput>,
     name: String,
 }
 
@@ -138,7 +127,6 @@ impl BaseEffectBuilder {
     pub fn new() -> Self {
         Self {
             gain: 1.0,
-            inputs: vec![],
             name: "".to_owned(),
         }
     }
@@ -151,11 +139,6 @@ impl BaseEffectBuilder {
     define_with!(
         /// Sets desired gain of the effect.
         fn with_gain(gain: f32)
-    );
-
-    define_with!(
-        /// Sets desired inputs of the effect.
-        fn with_inputs(inputs: Vec<EffectInput>)
     );
 
     /// Creates new base effect.
