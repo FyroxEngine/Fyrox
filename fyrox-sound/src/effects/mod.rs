@@ -22,6 +22,7 @@ impl Default for Attenuate {
 }
 
 impl Attenuate {
+    /// Creates new attenuation effect.
     pub fn new(gain: f32) -> Self {
         Self {
             gain: gain.max(0.0),

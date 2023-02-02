@@ -1,7 +1,7 @@
 use crate::{
     absm::selection::AbsmSelection,
     animation::selection::AnimationSelection,
-    audio::EffectSelection,
+    audio::AudioBusSelection,
     camera::CameraController,
     interaction::navmesh::{
         data_model::{Navmesh, NavmeshContainer, NavmeshTriangle, NavmeshVertex},
@@ -121,7 +121,6 @@ impl EditorScene {
             graph_switches: GraphUpdateSwitches {
                 physics2d: true,
                 physics: true,
-                sound: true,
                 // Prevent engine to update lifetime of the nodes and to delete "dead" nodes. Otherwise
                 // the editor will crash if some node is "dead".
                 delete_dead_nodes: false,
@@ -374,7 +373,7 @@ pub enum Selection {
     SoundContext,
     Graph(GraphSelection),
     Navmesh(NavmeshSelection),
-    Effect(EffectSelection),
+    Effect(AudioBusSelection),
     Absm(AbsmSelection),
     Animation(AnimationSelection),
 }

@@ -221,7 +221,7 @@ fn main() {
                                 ),
                             )
                             // Specify the name of the effect to which the sound will attach to.
-                            .with_effect_name("Reverb".to_string())
+                            .with_audio_bus("Reverb".to_string())
                             // Fyrox provides built-in way to create temporary sounds that will die immediately
                             // after first play. This is very useful for foot step sounds.
                             .with_play_once(true)

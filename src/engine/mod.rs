@@ -17,9 +17,7 @@ use crate::{
     event::Event,
     event_loop::{ControlFlow, EventLoop},
     gui::UserInterface,
-    plugin::{
-        Plugin, PluginConstructor, PluginContext, PluginRegistrationContext, SoundEngineHelper,
-    },
+    plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{model::Model, texture::TextureKind},
     scene::{
@@ -121,9 +119,7 @@ pub struct Engine {
 
     model_events_receiver: Receiver<ResourceEvent<Model>>,
 
-    // Sound context control all sound sources in the engine. It is wrapped into Arc<Mutex<>>
-    // because internally sound engine spawns separate thread to mix and send data to sound
-    // device. For more info see docs for Context.
+    #[allow(dead_code)] // Keep engine instance alive.
     sound_engine: Arc<Mutex<SoundEngine>>,
 
     // A set of plugin constructors.
@@ -996,9 +992,6 @@ impl Engine {
                 user_interface: &mut self.user_interface,
                 serialization_context: &self.serialization_context,
                 window: get_window!(self),
-                sound_engine: SoundEngineHelper {
-                    engine: &self.sound_engine,
-                },
                 performance_statistics: &self.performance_statistics,
             };
 
@@ -1016,9 +1009,6 @@ impl Engine {
                     user_interface: &mut self.user_interface,
                     serialization_context: &self.serialization_context,
                     window: get_window!(self),
-                    sound_engine: SoundEngineHelper {
-                        engine: &self.sound_engine,
-                    },
                     performance_statistics: &self.performance_statistics,
                 };
 
@@ -1052,9 +1042,6 @@ impl Engine {
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
                         window: get_window!(self),
-                        sound_engine: SoundEngineHelper {
-                            engine: &self.sound_engine,
-                        },
                         performance_statistics: &self.performance_statistics,
                     },
                     control_flow,
@@ -1150,17 +1137,6 @@ impl Engine {
         }
     }
 
-    /// Sets master gain of the sound engine. Can be used to control overall gain of all sound
-    /// scenes at once.
-    pub fn set_sound_gain(&mut self, gain: f32) {
-        self.sound_engine.lock().unwrap().set_master_gain(gain);
-    }
-
-    /// Returns master gain of the sound engine.
-    pub fn sound_gain(&self) -> f32 {
-        self.sound_engine.lock().unwrap().master_gain()
-    }
-
     /// Enables or disables registered plugins.
     pub(crate) fn enable_plugins(&mut self, override_scene: Handle<Scene>, enabled: bool) {
         if self.plugins_enabled != enabled {
@@ -1180,9 +1156,6 @@ impl Engine {
                             user_interface: &mut self.user_interface,
                             serialization_context: &self.serialization_context,
                             window: get_window!(self),
-                            sound_engine: SoundEngineHelper {
-                                engine: &self.sound_engine,
-                            },
                             performance_statistics: &self.performance_statistics,
                         },
                     ));
@@ -1201,9 +1174,6 @@ impl Engine {
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
                         window: get_window!(self),
-                        sound_engine: SoundEngineHelper {
-                            engine: &self.sound_engine,
-                        },
                         performance_statistics: &self.performance_statistics,
                     });
                 }

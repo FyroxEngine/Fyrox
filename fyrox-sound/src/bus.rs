@@ -41,7 +41,10 @@
 //!                               │                           │
 //!                               └───────────────────────────┘
 
+#![allow(missing_docs)] // TODO
+
 use crate::effects::{Effect, EffectRenderTrait};
+use fyrox_core::pool::Ticket;
 use fyrox_core::{
     pool::{Handle, Pool},
     reflect::prelude::*,
@@ -116,10 +119,10 @@ impl PingPongBuffer {
 }
 
 #[derive(Debug, Reflect, Visit, Clone)]
-pub struct Bus {
+pub struct AudioBus {
     pub(crate) name: String,
-    child_buses: Vec<Handle<Bus>>,
-    parent_bus: Handle<Bus>,
+    child_buses: Vec<Handle<AudioBus>>,
+    parent_bus: Handle<AudioBus>,
     effects: Vec<Effect>,
     gain: f32,
 
@@ -128,7 +131,7 @@ pub struct Bus {
     ping_pong_buffer: PingPongBuffer,
 }
 
-impl Default for Bus {
+impl Default for AudioBus {
     fn default() -> Self {
         Self {
             name: "Bus".to_string(),
@@ -141,7 +144,7 @@ impl Default for Bus {
     }
 }
 
-impl Bus {
+impl AudioBus {
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -192,22 +195,22 @@ impl Bus {
 }
 
 #[derive(Default, Debug, Clone, Visit, Reflect)]
-pub struct BusGraph {
-    buses: Pool<Bus>,
-    root: Handle<Bus>,
+pub struct AudioBusGraph {
+    buses: Pool<AudioBus>,
+    root: Handle<AudioBus>,
 }
 
-impl BusGraph {
+impl AudioBusGraph {
     pub const PRIMARY_BUS: &'static str = "Primary";
 
     pub fn new() -> Self {
-        let root = Bus::new(Self::PRIMARY_BUS.to_string());
+        let root = AudioBus::new(Self::PRIMARY_BUS.to_string());
         let mut buses = Pool::new();
         let root = buses.spawn(root);
         Self { buses, root }
     }
 
-    pub fn add_bus(&mut self, mut bus: Bus, parent: Handle<Bus>) -> Handle<Bus> {
+    pub fn add_bus(&mut self, mut bus: AudioBus, parent: Handle<AudioBus>) -> Handle<AudioBus> {
         bus.parent_bus = parent;
         let bus = self.buses.spawn(bus);
         self.buses[parent].child_buses.push(bus);
@@ -224,7 +227,7 @@ impl BusGraph {
         })
     }
 
-    pub fn remove_bus(&mut self, handle: Handle<Bus>) -> Bus {
+    pub fn remove_bus(&mut self, handle: Handle<AudioBus>) -> AudioBus {
         assert_ne!(handle, self.root);
 
         let bus = self.buses.free(handle);
@@ -240,25 +243,52 @@ impl BusGraph {
         bus
     }
 
-    pub fn primary_bus_handle(&self) -> Handle<Bus> {
+    pub fn primary_bus_handle(&self) -> Handle<AudioBus> {
         self.root
     }
 
-    pub fn primary_bus_ref(&self) -> &Bus {
+    pub fn primary_bus_ref(&self) -> &AudioBus {
         &self.buses[self.root]
     }
 
-    pub fn primary_bus_mut(&mut self) -> &mut Bus {
+    pub fn primary_bus_mut(&mut self) -> &mut AudioBus {
         &mut self.buses[self.root]
     }
 
-    pub fn begin_render(&mut self, output_device_buffer_size: usize) {
+    pub fn try_get_bus_ref(&self, handle: Handle<AudioBus>) -> Option<&AudioBus> {
+        self.buses.try_borrow(handle)
+    }
+
+    pub fn try_get_bus_mut(&mut self, handle: Handle<AudioBus>) -> Option<&mut AudioBus> {
+        self.buses.try_borrow_mut(handle)
+    }
+
+    pub fn len(&self) -> usize {
+        self.buses.alive_count() as usize
+    }
+
+    pub fn try_take_reserve_bus(
+        &mut self,
+        handle: Handle<AudioBus>,
+    ) -> Option<(Ticket<AudioBus>, AudioBus)> {
+        self.buses.try_take_reserve(handle)
+    }
+
+    pub fn put_bus_back(&mut self, ticket: Ticket<AudioBus>, bus: AudioBus) -> Handle<AudioBus> {
+        self.buses.put_back(ticket, bus)
+    }
+
+    pub fn forget_bus_ticket(&mut self, ticket: Ticket<AudioBus>) {
+        self.buses.forget_ticket(ticket)
+    }
+
+    pub(crate) fn begin_render(&mut self, output_device_buffer_size: usize) {
         for bus in self.buses.iter_mut() {
             bus.begin_render(output_device_buffer_size);
         }
     }
 
-    pub fn end_render(&mut self, output_device_buffer: &mut [(f32, f32)]) {
+    pub(crate) fn end_render(&mut self, output_device_buffer: &mut [(f32, f32)]) {
         let mut leafs = Vec::new();
         for (handle, bus) in self.buses.pair_iter_mut() {
             bus.apply_effects();
@@ -301,17 +331,17 @@ impl BusGraph {
 
 #[cfg(test)]
 mod test {
-    use crate::bus::{Bus, BusGraph};
+    use crate::bus::{AudioBus, AudioBusGraph};
     use crate::effects::{Attenuate, Effect};
 
     #[test]
     fn test_multi_bus_data_flow() {
         let mut output_buffer = [(0.0f32, 0.0f32)];
 
-        let mut graph = BusGraph::new();
+        let mut graph = AudioBusGraph::new();
 
-        let bus1 = graph.add_bus(Bus::new("Bus1".to_string()), graph.root);
-        let bus2 = graph.add_bus(Bus::new("Bus2".to_string()), bus1);
+        let bus1 = graph.add_bus(AudioBus::new("Bus1".to_string()), graph.root);
+        let bus2 = graph.add_bus(AudioBus::new("Bus2".to_string()), bus1);
 
         graph.begin_render(output_buffer.len());
 
@@ -335,7 +365,7 @@ mod test {
     fn test_primary_bus_data_flow() {
         let mut output_buffer = [(0.0f32, 0.0f32)];
 
-        let mut graph = BusGraph::new();
+        let mut graph = AudioBusGraph::new();
 
         graph.begin_render(output_buffer.len());
 
@@ -354,15 +384,15 @@ mod test {
     fn test_multi_bus_data_flow_with_effects() {
         let mut output_buffer = [(0.0f32, 0.0f32)];
 
-        let mut graph = BusGraph::new();
+        let mut graph = AudioBusGraph::new();
 
-        let mut bus1 = Bus::new("Bus1".to_string());
+        let mut bus1 = AudioBus::new("Bus1".to_string());
         bus1.effects.push(Effect::Attenuate(Attenuate::new(0.5)));
         bus1.effects.push(Effect::Attenuate(Attenuate::new(0.5)));
 
         let bus1 = graph.add_bus(bus1, graph.root);
 
-        let mut bus2 = Bus::new("Bus2".to_string());
+        let mut bus2 = AudioBus::new("Bus2".to_string());
         bus2.effects.push(Effect::Attenuate(Attenuate::new(0.5)));
         let bus2 = graph.add_bus(bus2, bus1);
 

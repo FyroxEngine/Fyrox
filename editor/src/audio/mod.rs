@@ -3,6 +3,7 @@ use crate::{
     EditorScene, GridBuilder, Message, MessageDirection, Mode, SceneCommand, Selection,
     UserInterface,
 };
+use fyrox::scene::sound::AudioBus;
 use fyrox::{
     core::pool::Handle,
     engine::Engine,
@@ -26,11 +27,11 @@ use std::{cmp::Ordering, rc::Rc, sync::mpsc::Sender};
 pub mod preview;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EffectSelection {
-    pub effects: Vec<Handle<Effect>>,
+pub struct AudioBusSelection {
+    pub effects: Vec<Handle<AudioBus>>,
 }
 
-impl EffectSelection {
+impl AudioBusSelection {
     pub fn is_empty(&self) -> bool {
         self.effects.is_empty()
     }
@@ -159,7 +160,7 @@ impl AudioPanel {
                 sender
                     .send(Message::DoSceneCommand(SceneCommand::new(
                         ChangeSelectionCommand::new(
-                            Selection::Effect(EffectSelection {
+                            Selection::Effect(AudioBusSelection {
                                 effects: vec![effect],
                             }),
                             editor_scene.selection.clone(),

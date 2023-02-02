@@ -29,7 +29,7 @@
 
 #![allow(clippy::float_cmp)]
 
-use crate::bus::BusGraph;
+use crate::bus::AudioBusGraph;
 use crate::{
     buffer::{streaming::StreamingBuffer, SoundBufferResource, SoundBufferState},
     context::DistanceModel,
@@ -395,6 +395,17 @@ impl SoundSource {
         self.max_distance
     }
 
+    /// Sets new name of the target audio bus. The name must be valid, otherwise the sound won't play!
+    /// Default is [`AudioBusGraph::PRIMARY_BUS`].
+    pub fn set_bus<S: AsRef<str>>(&mut self, bus: S) {
+        self.bus = bus.as_ref().to_owned();
+    }
+
+    /// Return the name of the target audio bus.
+    pub fn bus(&self) -> &str {
+        &self.bus
+    }
+
     // Distance models were taken from OpenAL Specification because it looks like they're
     // standard in industry and there is no need to reinvent it.
     // https://www.openal.org/documentation/openal-1.1-specification.pdf
@@ -733,7 +744,7 @@ impl SoundSourceBuilder {
             max_distance: f32::MAX,
             rolloff_factor: 1.0,
             spatial_blend: 1.0,
-            bus: BusGraph::PRIMARY_BUS.to_string(),
+            bus: AudioBusGraph::PRIMARY_BUS.to_string(),
         }
     }
 

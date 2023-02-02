@@ -10,7 +10,7 @@
 //! once the level is loaded you just set master gain of main menu context and it will no longer produce any
 //! sounds, only your level will do.
 
-use crate::bus::BusGraph;
+use crate::bus::AudioBusGraph;
 use crate::{
     listener::Listener,
     pool::Ticket,
@@ -86,7 +86,7 @@ impl Default for DistanceModel {
 }
 
 /// See module docs.
-#[derive(Clone, Default, Debug, Visit)]
+#[derive(Clone, Default, Debug, Visit, Reflect)]
 pub struct SoundContext {
     pub(crate) state: Option<Arc<Mutex<State>>>,
 }
@@ -104,7 +104,7 @@ pub struct State {
     listener: Listener,
     render_duration: Duration,
     renderer: Renderer,
-    bus_graph: BusGraph,
+    bus_graph: AudioBusGraph,
     distance_model: DistanceModel,
     paused: bool,
 }
@@ -230,12 +230,12 @@ impl State {
     }
 
     /// Returns a reference to the audio bus graph.
-    pub fn bus_graph_ref(&self) -> &BusGraph {
+    pub fn bus_graph_ref(&self) -> &AudioBusGraph {
         &self.bus_graph
     }
 
     /// Returns a reference to the audio bus graph.
-    pub fn bus_graph_mut(&mut self) -> &mut BusGraph {
+    pub fn bus_graph_mut(&mut self) -> &mut AudioBusGraph {
         &mut self.bus_graph
     }
 
@@ -309,7 +309,7 @@ impl SoundContext {
                 listener: Listener::new(),
                 render_duration: Default::default(),
                 renderer: Renderer::Default,
-                bus_graph: BusGraph::new(),
+                bus_graph: AudioBusGraph::new(),
                 distance_model: DistanceModel::InverseDistance,
                 paused: false,
             }))),

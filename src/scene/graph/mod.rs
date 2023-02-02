@@ -216,8 +216,6 @@ pub struct GraphUpdateSwitches {
     pub physics2d: bool,
     /// Enables or disables update of the 3D physics.
     pub physics: bool,
-    /// Enables or disables update of the sound system.
-    pub sound: bool,
     /// A set of nodes that will be updated, everything else won't be updated.
     pub node_overrides: Option<FxHashSet<Handle<Node>>>,
     /// Enables or disables deletion of the nodes with ended lifetime (lifetime <= 0.0). If set to `false` the lifetime
@@ -230,7 +228,6 @@ impl Default for GraphUpdateSwitches {
         Self {
             physics2d: true,
             physics: true,
-            sound: true,
             node_overrides: Default::default(),
             delete_dead_nodes: true,
         }
@@ -1124,11 +1121,8 @@ impl Graph {
             self.performance_statistics.physics2d = self.physics2d.performance_statistics.clone();
         }
 
-        if switches.sound {
-            self.sound_context.update();
-            self.performance_statistics.sound_update_time =
-                self.sound_context.full_render_duration();
-        }
+        self.performance_statistics.sound_update_time =
+            self.sound_context.state().full_render_duration();
 
         if let Some(overrides) = switches.node_overrides.as_ref() {
             for handle in overrides {

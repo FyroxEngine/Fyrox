@@ -17,7 +17,7 @@ define_universal_commands!(
     ctx,
     handle,
     self,
-    { ctx.scene.graph.sound_context.effect_mut(self.handle) },
+    { ctx.scene.graph.sound_context.audio_bus_mut(self.handle) },
 );
 
 #[derive(Debug)]
@@ -47,7 +47,7 @@ impl Command for AddEffectCommand {
             .scene
             .graph
             .sound_context
-            .add_effect(self.effect.take().unwrap());
+            .add_audio_bus(self.effect.take().unwrap());
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
@@ -55,7 +55,7 @@ impl Command for AddEffectCommand {
             .scene
             .graph
             .sound_context
-            .take_reserve_effect(self.handle);
+            .take_reserve_audio_bus(self.handle);
         self.effect = Some(effect);
         self.ticket = Some(ticket);
     }
@@ -88,7 +88,7 @@ impl Command for RemoveEffectCommand {
             .scene
             .graph
             .sound_context
-            .take_reserve_effect(self.handle);
+            .take_reserve_audio_bus(self.handle);
         self.effect = Some(effect);
         self.ticket = Some(ticket);
     }
@@ -98,7 +98,7 @@ impl Command for RemoveEffectCommand {
             .scene
             .graph
             .sound_context
-            .add_effect(self.effect.take().unwrap());
+            .add_audio_bus(self.effect.take().unwrap());
     }
 
     fn finalize(&mut self, context: &mut SceneContext) {

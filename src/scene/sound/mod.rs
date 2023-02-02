@@ -21,8 +21,10 @@ use crate::{
 // Re-export some the fyrox_sound entities.
 pub use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
+    bus::*,
     context::{DistanceModel, SAMPLE_RATE},
     dsp::{filters::*, DelayLine},
+    effects::*,
     engine::SoundEngine,
     error::SoundError,
     hrtf::HrirSphere,
@@ -40,7 +42,6 @@ use std::{
 };
 
 pub mod context;
-pub mod effect;
 pub mod listener;
 
 /// Sound source.
@@ -94,7 +95,7 @@ pub struct Sound {
     #[reflect(
         description = "A name of a sound effect to which the sound will attach to when instantiated."
     )]
-    effect_name: InheritableVariable<String>,
+    audio_bus: InheritableVariable<String>,
 
     #[reflect(hidden)]
     #[visit(skip)]
@@ -131,7 +132,7 @@ impl Default for Sound {
             rolloff_factor: InheritableVariable::new(1.0),
             playback_time: Default::default(),
             spatial_blend: InheritableVariable::new(1.0),
-            effect_name: InheritableVariable::new("Primary".to_string()),
+            audio_bus: InheritableVariable::new(AudioBusGraph::PRIMARY_BUS.to_string()),
             native: Default::default(),
         }
     }
@@ -153,7 +154,7 @@ impl Clone for Sound {
             rolloff_factor: self.rolloff_factor.clone(),
             playback_time: self.playback_time.clone(),
             spatial_blend: self.spatial_blend.clone(),
-            effect_name: self.effect_name.clone(),
+            audio_bus: self.audio_bus.clone(),
             // Do not copy. The copy will have its own native representation.
             native: Default::default(),
         }
@@ -336,14 +337,14 @@ impl Sound {
         *self.max_distance
     }
 
-    /// Sets new effect to which the sound will be attached.
-    pub fn set_effect_name(&mut self, name: String) {
-        self.effect_name.set_value_and_mark_modified(name);
+    /// Sets new audio bus name to which the sound will be attached.
+    pub fn set_audio_bus(&mut self, name: String) {
+        self.audio_bus.set_value_and_mark_modified(name);
     }
 
-    /// Returns the name of an effect to which the sound is attached.
-    pub fn effect_name(&self) -> &str {
-        &self.effect_name
+    /// Returns the name of an audio bus to which the sound is attached.
+    pub fn audio_bus(&self) -> &str {
+        &self.audio_bus
     }
 }
 
@@ -434,7 +435,7 @@ pub struct SoundBuilder {
     rolloff_factor: f32,
     playback_time: Duration,
     spatial_blend: f32,
-    effect_name: String,
+    audio_bus: String,
 }
 
 impl SoundBuilder {
@@ -454,7 +455,7 @@ impl SoundBuilder {
             rolloff_factor: 1.0,
             spatial_blend: 1.0,
             playback_time: Default::default(),
-            effect_name: "".to_string(),
+            audio_bus: AudioBusGraph::PRIMARY_BUS.to_string(),
         }
     }
 
@@ -519,8 +520,8 @@ impl SoundBuilder {
     );
 
     define_with!(
-        /// Sets desired playback time. See [`Sound::set_effect_name`] for more info.
-        fn with_effect_name(effect_name: String)
+        /// Sets desired playback time. See [`Sound::set_audio_bus`] for more info.
+        fn with_audio_bus(audio_bus: String)
     );
 
     /// Creates a new [`Sound`] node.
@@ -540,7 +541,7 @@ impl SoundBuilder {
             rolloff_factor: self.rolloff_factor.into(),
             playback_time: self.playback_time.into(),
             spatial_blend: self.spatial_blend.into(),
-            effect_name: self.effect_name.into(),
+            audio_bus: self.audio_bus.into(),
             native: Default::default(),
         }
     }
