@@ -1,7 +1,7 @@
 //! Sound context.
 
 use crate::{
-    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
+    core::{pool::Handle, visitor::prelude::*},
     scene::{node::Node, sound::Sound},
     utils::log::{Log, MessageKind},
 };
@@ -16,7 +16,7 @@ use std::sync::MutexGuard;
 use std::time::Duration;
 
 /// Sound context.
-#[derive(Debug, Visit, Reflect)]
+#[derive(Debug, Visit)]
 pub struct SoundContext {
     pub(crate) native: fyrox_sound::context::SoundContext,
 }

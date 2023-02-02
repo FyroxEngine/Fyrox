@@ -179,7 +179,6 @@ impl ChangeSelectionCommand {
                 Selection::None => "Change Selection: None",
                 Selection::Graph(_) => "Change Selection: Graph",
                 Selection::Navmesh(_) => "Change Selection: Navmesh",
-                Selection::SoundContext => "Change Selection: Sound Context",
                 Selection::Effect(_) => "Change Selection: Effect",
                 Selection::Absm(_) => "Change Selection: Absm",
                 Selection::Animation(_) => "Change Selection: Animation",

@@ -15,8 +15,8 @@ macro_rules! define_sound_context_command {
                 }
 
                 fn swap(&mut self, sound_context: &mut SoundContext) {
-                    let old = sound_context.$get();
-                    sound_context.$set(self.value.clone());
+                    let old = sound_context.state().$get();
+                    sound_context.state().$set(self.value.clone());
                     self.value = old;
                 }
             }
@@ -40,7 +40,6 @@ macro_rules! define_sound_context_command {
 
 define_sound_context_command! {
     SetPausedCommand("Set Paused", bool, is_paused, pause);
-    SetMasterGainCommand("Set Master Gain", f32, master_gain, set_master_gain);
     SetDistanceModelCommand("Set Distance Model", DistanceModel, distance_model, set_distance_model);
     SetRendererCommand("Set Renderer", Renderer, renderer, set_renderer);
 }

@@ -1,11 +1,10 @@
 use crate::{define_universal_commands, scene::commands::SceneCommand, Command, SceneContext};
 use fyrox::{
-    core::reflect::prelude::*,
     core::{
         pool::{Handle, Ticket},
-        reflect::ResolvePath,
+        reflect::{prelude::*, ResolvePath},
     },
-    scene::sound::effect::Effect,
+    scene::sound::AudioBus,
 };
 
 define_universal_commands!(
@@ -13,41 +12,49 @@ define_universal_commands!(
     Command,
     SceneCommand,
     SceneContext,
-    Handle<Effect>,
+    Handle<AudioBus>,
     ctx,
     handle,
     self,
-    { ctx.scene.graph.sound_context.audio_bus_mut(self.handle) },
+    {
+        ctx.scene
+            .graph
+            .sound_context
+            .state()
+            .bus_graph_mut()
+            .try_get_bus_mut(self.handle)
+            .unwrap()
+    },
 );
 
 #[derive(Debug)]
-pub struct AddEffectCommand {
-    effect: Option<Effect>,
-    handle: Handle<Effect>,
-    ticket: Option<Ticket<Effect>>,
+pub struct AddAudioBusCommand {
+    bus: Option<AudioBus>,
+    handle: Handle<AudioBus>,
+    ticket: Option<Ticket<AudioBus>>,
 }
 
-impl AddEffectCommand {
-    pub fn new(effect: Effect) -> Self {
+impl AddAudioBusCommand {
+    pub fn new(bus: AudioBus) -> Self {
         Self {
-            effect: Some(effect),
+            bus: Some(bus),
             handle: Default::default(),
             ticket: None,
         }
     }
 }
 
-impl Command for AddEffectCommand {
+impl Command for AddAudioBusCommand {
     fn name(&mut self, _: &SceneContext) -> String {
         "Add Effect".to_owned()
     }
 
     fn execute(&mut self, context: &mut SceneContext) {
-        self.handle = context
-            .scene
-            .graph
-            .sound_context
-            .add_audio_bus(self.effect.take().unwrap());
+        let mut state = context.scene.graph.sound_context.state();
+        let parent = state.bus_graph_ref().primary_bus_handle();
+        self.handle = state
+            .bus_graph_mut()
+            .add_bus(self.bus.take().unwrap(), parent);
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
@@ -55,8 +62,11 @@ impl Command for AddEffectCommand {
             .scene
             .graph
             .sound_context
-            .take_reserve_audio_bus(self.handle);
-        self.effect = Some(effect);
+            .state()
+            .bus_graph_mut()
+            .try_take_reserve_bus(self.handle)
+            .unwrap();
+        self.bus = Some(effect);
         self.ticket = Some(ticket);
     }
 
@@ -66,19 +76,21 @@ impl Command for AddEffectCommand {
                 .scene
                 .graph
                 .sound_context
-                .forget_effect_ticket(ticket);
+                .state()
+                .bus_graph_mut()
+                .forget_bus_ticket(ticket);
         }
     }
 }
 
 #[derive(Debug)]
-pub struct RemoveEffectCommand {
-    effect: Option<Effect>,
-    handle: Handle<Effect>,
-    ticket: Option<Ticket<Effect>>,
+pub struct RemoveAudioBusCommand {
+    bus: Option<AudioBus>,
+    handle: Handle<AudioBus>,
+    ticket: Option<Ticket<AudioBus>>,
 }
 
-impl Command for RemoveEffectCommand {
+impl Command for RemoveAudioBusCommand {
     fn name(&mut self, _: &SceneContext) -> String {
         "Remove Effect".to_owned()
     }
@@ -88,17 +100,20 @@ impl Command for RemoveEffectCommand {
             .scene
             .graph
             .sound_context
-            .take_reserve_audio_bus(self.handle);
-        self.effect = Some(effect);
+            .state()
+            .bus_graph_mut()
+            .try_take_reserve_bus(self.handle)
+            .unwrap();
+        self.bus = Some(effect);
         self.ticket = Some(ticket);
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
-        self.handle = context
-            .scene
-            .graph
-            .sound_context
-            .add_audio_bus(self.effect.take().unwrap());
+        let mut state = context.scene.graph.sound_context.state();
+        let parent = state.bus_graph_ref().primary_bus_handle();
+        self.handle = state
+            .bus_graph_mut()
+            .add_bus(self.bus.take().unwrap(), parent);
     }
 
     fn finalize(&mut self, context: &mut SceneContext) {
@@ -107,7 +122,9 @@ impl Command for RemoveEffectCommand {
                 .scene
                 .graph
                 .sound_context
-                .forget_effect_ticket(ticket);
+                .state()
+                .bus_graph_mut()
+                .forget_bus_ticket(ticket);
         }
     }
 }

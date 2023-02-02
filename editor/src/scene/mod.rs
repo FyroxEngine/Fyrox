@@ -370,7 +370,6 @@ impl EditorScene {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Selection {
     None,
-    SoundContext,
     Graph(GraphSelection),
     Navmesh(NavmeshSelection),
     Effect(AudioBusSelection),
@@ -390,7 +389,6 @@ impl Selection {
             Selection::None => true,
             Selection::Graph(graph) => graph.is_empty(),
             Selection::Navmesh(navmesh) => navmesh.is_empty(),
-            Selection::SoundContext => false,
             Selection::Effect(effect) => effect.is_empty(),
             Selection::Absm(absm) => absm.is_empty(),
             Selection::Animation(animation) => animation.is_empty(),
@@ -402,7 +400,6 @@ impl Selection {
             Selection::None => 0,
             Selection::Graph(graph) => graph.len(),
             Selection::Navmesh(navmesh) => navmesh.len(),
-            Selection::SoundContext => 1,
             Selection::Effect(effect) => effect.len(),
             Selection::Absm(absm) => absm.len(),
             Selection::Animation(animation) => animation.len(),

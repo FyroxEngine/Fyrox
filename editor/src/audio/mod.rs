@@ -1,5 +1,5 @@
 use crate::{
-    scene::commands::effect::AddEffectCommand, utils::window_content, ChangeSelectionCommand,
+    scene::commands::effect::AddAudioBusCommand, utils::window_content, ChangeSelectionCommand,
     EditorScene, GridBuilder, Message, MessageDirection, Mode, SceneCommand, Selection,
     UserInterface,
 };
@@ -20,7 +20,6 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         Orientation, Thickness, UiNode,
     },
-    scene::sound::effect::{BaseEffectBuilder, Effect, ReverbEffectBuilder},
 };
 use std::{cmp::Ordering, rc::Rc, sync::mpsc::Sender};
 
@@ -28,72 +27,54 @@ pub mod preview;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AudioBusSelection {
-    pub effects: Vec<Handle<AudioBus>>,
+    pub buses: Vec<Handle<AudioBus>>,
 }
 
 impl AudioBusSelection {
     pub fn is_empty(&self) -> bool {
-        self.effects.is_empty()
+        self.buses.is_empty()
     }
 
     pub fn len(&self) -> usize {
-        self.effects.len()
+        self.buses.len()
     }
 }
 
 pub struct AudioPanel {
     pub window: Handle<UiNode>,
-    edit_context: Handle<UiNode>,
-    add_effect: Handle<UiNode>,
+    add_bus: Handle<UiNode>,
     effects: Handle<UiNode>,
 }
 
-fn item_effect(item: Handle<UiNode>, ui: &UserInterface) -> Handle<Effect> {
+fn item_bus(item: Handle<UiNode>, ui: &UserInterface) -> Handle<AudioBus> {
     *ui.node(item)
-        .user_data_ref::<Handle<Effect>>()
-        .expect("Must be Handle<Effect>")
+        .user_data_ref::<Handle<AudioBus>>()
+        .expect("Must be Handle<AudioBus>")
 }
 
 impl AudioPanel {
     pub fn new(engine: &mut Engine) -> Self {
         let ctx = &mut engine.user_interface.build_ctx();
 
-        let edit_context;
-        let add_effect;
-        let effects;
+        let add_bus;
+        let buses;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
-                            effects =
-                                ListViewBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
-                            effects
+                            buses = ListViewBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
+                            buses
                         })
                         .with_child(
-                            StackPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(1)
-                                    .with_child({
-                                        add_effect = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        // TODO: Add selector when there's more effects.
-                                        .with_text("Add Reverb")
-                                        .build(ctx);
-                                        add_effect
-                                    })
-                                    .with_child({
-                                        edit_context = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_text("Edit Context")
-                                        .build(ctx);
-                                        edit_context
-                                    }),
-                            )
+                            StackPanelBuilder::new(WidgetBuilder::new().on_row(1).with_child({
+                                add_bus = ButtonBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("Add Bus")
+                                .build(ctx);
+                                add_bus
+                            }))
                             .with_orientation(Orientation::Horizontal)
                             .build(ctx),
                         ),
@@ -108,9 +89,8 @@ impl AudioPanel {
 
         Self {
             window,
-            effects,
-            add_effect,
-            edit_context,
+            effects: buses,
+            add_bus,
         }
     }
 
@@ -122,24 +102,10 @@ impl AudioPanel {
         engine: &Engine,
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.edit_context {
+            if message.destination() == self.add_bus {
                 sender
                     .send(Message::DoSceneCommand(SceneCommand::new(
-                        ChangeSelectionCommand::new(
-                            Selection::SoundContext,
-                            editor_scene.selection.clone(),
-                        ),
-                    )))
-                    .unwrap();
-            } else if message.destination() == self.add_effect {
-                sender
-                    .send(Message::DoSceneCommand(SceneCommand::new(
-                        AddEffectCommand::new(
-                            ReverbEffectBuilder::new(
-                                BaseEffectBuilder::new().with_name("Reverb".to_owned()),
-                            )
-                            .build_effect(),
-                        ),
+                        AddAudioBusCommand::new(AudioBus::new("AudioBus".to_string())),
                     )))
                     .unwrap()
             }
@@ -149,7 +115,7 @@ impl AudioPanel {
             {
                 let ui = &engine.user_interface;
 
-                let effect = item_effect(
+                let effect = item_bus(
                     ui.node(self.effects)
                         .cast::<ListView>()
                         .expect("Must be ListView")
@@ -161,7 +127,7 @@ impl AudioPanel {
                     .send(Message::DoSceneCommand(SceneCommand::new(
                         ChangeSelectionCommand::new(
                             Selection::Effect(AudioBusSelection {
-                                effects: vec![effect],
+                                buses: vec![effect],
                             }),
                             editor_scene.selection.clone(),
                         ),
@@ -172,7 +138,10 @@ impl AudioPanel {
     }
 
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
-        let context = &engine.scenes[editor_scene.scene].graph.sound_context;
+        let context_state = engine.scenes[editor_scene.scene]
+            .graph
+            .sound_context
+            .state();
         let ui = &mut engine.user_interface;
 
         let items = ui
@@ -182,11 +151,15 @@ impl AudioPanel {
             .items()
             .to_vec();
 
-        match (context.effects_count() as usize).cmp(&items.len()) {
+        match (context_state.bus_graph_ref().len() as usize).cmp(&items.len()) {
             Ordering::Less => {
                 for item in items {
-                    let effect_handle = item_effect(item, ui);
-                    if context.effects().all(|(e, _)| e != effect_handle) {
+                    let bus_handle = item_bus(item, ui);
+                    if context_state
+                        .bus_graph_ref()
+                        .buses_pair_iter()
+                        .all(|(other_bus_handle, _)| other_bus_handle != bus_handle)
+                    {
                         ui.send_message(ListViewMessage::remove_item(
                             self.effects,
                             MessageDirection::ToWidget,
@@ -196,8 +169,8 @@ impl AudioPanel {
                 }
             }
             Ordering::Greater => {
-                for (effect_handle, effect) in context.effects() {
-                    if items.iter().all(|i| item_effect(*i, ui) != effect_handle) {
+                for (effect_handle, effect) in context_state.bus_graph_ref().buses_pair_iter() {
+                    if items.iter().all(|i| item_bus(*i, ui) != effect_handle) {
                         let item = DecoratorBuilder::new(BorderBuilder::new(
                             WidgetBuilder::new()
                                 .with_user_data(Rc::new(effect_handle))

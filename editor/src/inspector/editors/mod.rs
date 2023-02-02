@@ -80,10 +80,8 @@ use fyrox::{
         },
         rigidbody::RigidBodyType,
         sound::{
-            self,
-            effect::{BaseEffect, Effect, ReverbEffect},
-            Biquad, DistanceModel, SoundBufferResource, SoundBufferResourceLoadError,
-            SoundBufferState, Status,
+            self, reverb::Reverb, AudioBus, Biquad, DistanceModel, Effect, SoundBufferResource,
+            SoundBufferResourceLoadError, SoundBufferState, Status,
         },
         terrain::Layer,
         transform::Transform,
@@ -220,14 +218,14 @@ pub fn make_property_editors_container(
     container.register_inheritable_inspectable::<dim2::joint::PrismaticJoint>();
 
     container.register_inheritable_inspectable::<Base>();
-    container.register_inheritable_inspectable::<BaseEffect>();
     container.register_inheritable_inspectable::<BaseLight>();
 
     container.register_inheritable_enum::<Effect, _>();
     container.register_inheritable_enum::<Emitter, _>();
 
-    container.register_inheritable_inspectable::<ReverbEffect>();
+    container.register_inheritable_inspectable::<Reverb>();
     container.register_inheritable_inspectable::<Biquad>();
+    container.register_inheritable_inspectable::<AudioBus>();
     container.register_inheritable_inspectable::<BaseEmitter>();
     container.register_inheritable_inspectable::<SphereEmitter>();
     container.register_inheritable_inspectable::<CylinderEmitter>();

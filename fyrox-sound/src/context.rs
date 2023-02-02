@@ -86,7 +86,7 @@ impl Default for DistanceModel {
 }
 
 /// See module docs.
-#[derive(Clone, Default, Debug, Visit, Reflect)]
+#[derive(Clone, Default, Debug, Visit)]
 pub struct SoundContext {
     pub(crate) state: Option<Arc<Mutex<State>>>,
 }
