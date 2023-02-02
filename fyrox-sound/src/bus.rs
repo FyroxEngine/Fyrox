@@ -44,9 +44,8 @@
 #![allow(missing_docs)] // TODO
 
 use crate::effects::{Effect, EffectRenderTrait};
-use fyrox_core::pool::Ticket;
 use fyrox_core::{
-    pool::{Handle, Pool},
+    pool::{Handle, Pool, Ticket},
     reflect::prelude::*,
     visitor::prelude::*,
 };
@@ -121,7 +120,9 @@ impl PingPongBuffer {
 #[derive(Debug, Reflect, Visit, Clone)]
 pub struct AudioBus {
     pub(crate) name: String,
+    #[reflect(read_only)]
     child_buses: Vec<Handle<AudioBus>>,
+    #[reflect(read_only)]
     parent_bus: Handle<AudioBus>,
     effects: Vec<Effect>,
     gain: f32,
@@ -150,6 +151,14 @@ impl AudioBus {
             name,
             ..Default::default()
         }
+    }
+
+    pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
+        self.name = name.as_ref().to_owned();
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub(crate) fn input_buffer(&mut self) -> &mut [(f32, f32)] {
@@ -282,6 +291,24 @@ impl AudioBusGraph {
         self.buses.forget_ticket(ticket)
     }
 
+    pub fn buses_iter(&self) -> impl Iterator<Item = &AudioBus> {
+        self.buses.iter()
+    }
+
+    pub fn buses_iter_mut(&mut self) -> impl Iterator<Item = &mut AudioBus> {
+        self.buses.iter_mut()
+    }
+
+    pub fn buses_pair_iter(&self) -> impl Iterator<Item = (Handle<AudioBus>, &AudioBus)> {
+        self.buses.pair_iter()
+    }
+
+    pub fn buses_pair_iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (Handle<AudioBus>, &mut AudioBus)> {
+        self.buses.pair_iter_mut()
+    }
+
     pub(crate) fn begin_render(&mut self, output_device_buffer_size: usize) {
         for bus in self.buses.iter_mut() {
             bus.begin_render(output_device_buffer_size);
@@ -331,8 +358,10 @@ impl AudioBusGraph {
 
 #[cfg(test)]
 mod test {
-    use crate::bus::{AudioBus, AudioBusGraph};
-    use crate::effects::{Attenuate, Effect};
+    use crate::{
+        bus::{AudioBus, AudioBusGraph},
+        effects::{Attenuate, Effect},
+    };
 
     #[test]
     fn test_multi_bus_data_flow() {

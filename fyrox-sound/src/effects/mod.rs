@@ -6,6 +6,7 @@
 
 use crate::effects::reverb::Reverb;
 use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 pub mod reverb;
 
@@ -42,7 +43,7 @@ impl EffectRenderTrait for Attenuate {
 }
 
 /// See module docs.
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone, Visit, Reflect, AsRefStr, EnumString, EnumVariantNames)]
 pub enum Effect {
     /// Attenuation effect.
     Attenuate(Attenuate),
