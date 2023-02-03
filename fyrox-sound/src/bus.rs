@@ -43,7 +43,7 @@
 
 #![allow(missing_docs)] // TODO
 
-use crate::effects::{Effect, EffectRenderTrait};
+use crate::effects::{Effect, EffectRenderTrait, EffectWrapper};
 use fyrox_core::{
     pool::{Handle, Pool, Ticket},
     reflect::prelude::*,
@@ -120,12 +120,14 @@ impl PingPongBuffer {
 #[derive(Debug, Reflect, Visit, Clone)]
 pub struct AudioBus {
     pub(crate) name: String,
-    #[reflect(read_only)]
-    child_buses: Vec<Handle<AudioBus>>,
-    #[reflect(read_only)]
-    parent_bus: Handle<AudioBus>,
-    effects: Vec<Effect>,
+    effects: Vec<EffectWrapper>,
     gain: f32,
+
+    #[reflect(hidden)]
+    child_buses: Vec<Handle<AudioBus>>,
+
+    #[reflect(hidden)]
+    parent_bus: Handle<AudioBus>,
 
     #[reflect(hidden)]
     #[visit(skip)]
@@ -184,7 +186,7 @@ impl AudioBus {
 
     /// Adds new effect to effects chain.
     pub fn add_effect(&mut self, effect: Effect) {
-        self.effects.push(effect)
+        self.effects.push(EffectWrapper(effect))
     }
 
     /// Removes effect by given handle.
@@ -194,12 +196,12 @@ impl AudioBus {
 
     /// Returns shared reference to effect at given handle.
     pub fn effect(&self, index: usize) -> Option<&Effect> {
-        self.effects.get(index)
+        self.effects.get(index).map(|w| &w.0)
     }
 
     /// Returns mutable reference to effect at given handle.
     pub fn effect_mut(&mut self, index: usize) -> Option<&mut Effect> {
-        self.effects.get_mut(index)
+        self.effects.get_mut(index).map(|w| &mut w.0)
     }
 }
 

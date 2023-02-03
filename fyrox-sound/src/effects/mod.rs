@@ -6,12 +6,13 @@
 
 use crate::effects::reverb::Reverb;
 use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
+use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 pub mod reverb;
 
 /// Attenuation effect.
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone, PartialEq, Visit, Reflect)]
 pub struct Attenuate {
     gain: f32,
 }
@@ -42,8 +43,32 @@ impl EffectRenderTrait for Attenuate {
     }
 }
 
+#[doc(hidden)]
+#[derive(PartialEq, Debug, Clone, Default, Reflect)]
+pub struct EffectWrapper(#[reflect(display_name = "Effect Type")] pub Effect);
+
+impl Deref for EffectWrapper {
+    type Target = Effect;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for EffectWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Visit for EffectWrapper {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
 /// See module docs.
-#[derive(Debug, Clone, Visit, Reflect, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Debug, Clone, PartialEq, Visit, Reflect, AsRefStr, EnumString, EnumVariantNames)]
 pub enum Effect {
     /// Attenuation effect.
     Attenuate(Attenuate),
