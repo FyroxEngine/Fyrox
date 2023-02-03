@@ -18,6 +18,7 @@ use std::time::Duration;
 /// Sound context.
 #[derive(Debug, Visit)]
 pub struct SoundContext {
+    #[visit(optional)]
     pub(crate) native: fyrox_sound::context::SoundContext,
 }
 
@@ -95,6 +96,12 @@ impl Default for SoundContext {
 impl SoundContext {
     pub(crate) fn new() -> Self {
         Default::default()
+    }
+
+    pub fn deep_clone(&self) -> Self {
+        Self {
+            native: self.native.deep_clone(),
+        }
     }
 
     /// Returns locked inner state of the sound context.
