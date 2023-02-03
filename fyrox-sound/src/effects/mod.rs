@@ -4,11 +4,16 @@
 //!
 //! Provides unified way of creating and using effects.
 
+use crate::effects::filter::{
+    AllPassFilterEffect, BandPassFilterEffect, HighPassFilterEffect, HighShelfFilterEffect,
+    LowPassFilterEffect, LowShelfFilterEffect,
+};
 use crate::effects::reverb::Reverb;
 use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
+pub mod filter;
 pub mod reverb;
 
 /// Attenuation effect.
@@ -74,6 +79,12 @@ pub enum Effect {
     Attenuate(Attenuate),
     /// Reverberation effect. See corresponding module for more info.
     Reverb(Reverb),
+    LowPassFilter(LowPassFilterEffect),
+    HighPassFilter(HighPassFilterEffect),
+    BandPassFilter(BandPassFilterEffect),
+    AllPassFilter(AllPassFilterEffect),
+    LowShelfFilter(LowShelfFilterEffect),
+    HighShelfFilter(HighShelfFilterEffect),
 }
 
 impl Default for Effect {
@@ -91,6 +102,12 @@ macro_rules! static_dispatch {
         match $self {
             Effect::Attenuate(v) => v.$func($($args),*),
             Effect::Reverb(v) => v.$func($($args),*),
+            Effect::LowPassFilter(v) => v.$func($($args),*),
+            Effect::HighPassFilter(v) => v.$func($($args),*),
+            Effect::BandPassFilter(v) => v.$func($($args),*),
+            Effect::AllPassFilter(v) => v.$func($($args),*),
+            Effect::LowShelfFilter(v) => v.$func($($args),*),
+            Effect::HighShelfFilter(v) => v.$func($($args),*),
         }
     };
 }

@@ -80,9 +80,14 @@ use fyrox::{
         },
         rigidbody::RigidBodyType,
         sound::{
-            self, reverb::Reverb, Attenuate, AudioBus, Biquad, DistanceModel, Effect,
-            EffectWrapper, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState,
-            Status,
+            self,
+            filter::{
+                AllPassFilterEffect, BandPassFilterEffect, HighPassFilterEffect,
+                HighShelfFilterEffect, LowPassFilterEffect, LowShelfFilterEffect,
+            },
+            reverb::Reverb,
+            Attenuate, AudioBus, Biquad, DistanceModel, Effect, EffectWrapper, SoundBufferResource,
+            SoundBufferResourceLoadError, SoundBufferState, Status,
         },
         terrain::Layer,
         transform::Transform,
@@ -225,6 +230,12 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<EffectWrapper>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<EffectWrapper>::new());
     container.insert(InspectablePropertyEditorDefinition::<Attenuate>::new());
+    container.insert(InspectablePropertyEditorDefinition::<LowPassFilterEffect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<HighPassFilterEffect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<AllPassFilterEffect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BandPassFilterEffect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<LowShelfFilterEffect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<HighShelfFilterEffect>::new());
     container.insert(InspectablePropertyEditorDefinition::<Reverb>::new());
 
     container.register_inheritable_enum::<Emitter, _>();
