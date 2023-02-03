@@ -8,7 +8,7 @@ use fyrox::{
 };
 
 define_universal_commands!(
-    make_set_effect_property_command,
+    make_set_audio_bus_property_command,
     Command,
     SceneCommand,
     SceneContext,

@@ -126,7 +126,7 @@ impl AudioPanel {
                 sender
                     .send(Message::DoSceneCommand(SceneCommand::new(
                         ChangeSelectionCommand::new(
-                            Selection::Effect(AudioBusSelection {
+                            Selection::AudioBus(AudioBusSelection {
                                 buses: vec![effect],
                             }),
                             editor_scene.selection.clone(),

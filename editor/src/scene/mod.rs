@@ -372,7 +372,7 @@ pub enum Selection {
     None,
     Graph(GraphSelection),
     Navmesh(NavmeshSelection),
-    Effect(AudioBusSelection),
+    AudioBus(AudioBusSelection),
     Absm(AbsmSelection),
     Animation(AnimationSelection),
 }
@@ -389,7 +389,7 @@ impl Selection {
             Selection::None => true,
             Selection::Graph(graph) => graph.is_empty(),
             Selection::Navmesh(navmesh) => navmesh.is_empty(),
-            Selection::Effect(effect) => effect.is_empty(),
+            Selection::AudioBus(effect) => effect.is_empty(),
             Selection::Absm(absm) => absm.is_empty(),
             Selection::Animation(animation) => animation.is_empty(),
         }
@@ -400,7 +400,7 @@ impl Selection {
             Selection::None => 0,
             Selection::Graph(graph) => graph.len(),
             Selection::Navmesh(navmesh) => navmesh.len(),
-            Selection::Effect(effect) => effect.len(),
+            Selection::AudioBus(effect) => effect.len(),
             Selection::Absm(absm) => absm.len(),
             Selection::Animation(animation) => animation.len(),
         }

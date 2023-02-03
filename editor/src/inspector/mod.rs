@@ -10,7 +10,7 @@ use crate::{
     inspector::{
         editors::make_property_editors_container, handlers::node::SceneNodePropertyChangedHandler,
     },
-    scene::{commands::effect::make_set_effect_property_command, EditorScene, Selection},
+    scene::{commands::effect::make_set_audio_bus_property_command, EditorScene, Selection},
     send_sync_message,
     utils::window_content,
     Brush, CommandGroup, GameEngine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
@@ -229,7 +229,7 @@ impl Inspector {
                         }
                     }
 
-                    Selection::Effect(selection) => {
+                    Selection::AudioBus(selection) => {
                         let state = scene.graph.sound_context.state();
                         if let Some(effect) =
                             state.bus_graph_ref().try_get_bus_ref(selection.buses[0])
@@ -402,7 +402,7 @@ impl Inspector {
                             })
                         }
                     }
-                    Selection::Effect(selection) => {
+                    Selection::AudioBus(selection) => {
                         let state = scene.graph.sound_context.state();
                         if let Some(effect) =
                             state.bus_graph_ref().try_get_bus_ref(selection.buses[0])
@@ -544,10 +544,10 @@ impl Inspector {
                             }
                         })
                         .collect::<Vec<_>>(),
-                    Selection::Effect(selection) => selection
+                    Selection::AudioBus(selection) => selection
                         .buses
                         .iter()
-                        .filter_map(|&handle| make_set_effect_property_command(handle, args))
+                        .filter_map(|&handle| make_set_audio_bus_property_command(handle, args))
                         .collect::<Vec<_>>(),
                     Selection::Animation(selection) => {
                         if scene
