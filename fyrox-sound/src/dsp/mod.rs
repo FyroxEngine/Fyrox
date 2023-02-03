@@ -13,7 +13,7 @@ use fyrox_core::visitor::{Visit, VisitResult, Visitor};
 pub mod filters;
 
 /// See more info here <https://ccrma.stanford.edu/~jos/pasp/Delay_Lines.html>
-#[derive(Debug, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 pub struct DelayLine {
     samples: Vec<f32>,
     last: f32,
