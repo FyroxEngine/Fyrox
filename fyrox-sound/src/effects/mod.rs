@@ -4,6 +4,8 @@
 //!
 //! Provides unified way of creating and using effects.
 
+#![allow(missing_docs)] // TODO
+
 use crate::effects::filter::{
     AllPassFilterEffect, BandPassFilterEffect, HighPassFilterEffect, HighShelfFilterEffect,
     LowPassFilterEffect, LowShelfFilterEffect,
