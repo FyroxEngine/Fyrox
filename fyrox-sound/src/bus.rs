@@ -163,6 +163,14 @@ impl AudioBus {
         &self.name
     }
 
+    pub fn parent(&self) -> Handle<AudioBus> {
+        self.parent_bus
+    }
+
+    pub fn children(&self) -> &[Handle<AudioBus>] {
+        &self.child_buses
+    }
+
     pub(crate) fn input_buffer(&mut self) -> &mut [(f32, f32)] {
         self.ping_pong_buffer.input_mut()
     }
@@ -234,6 +242,26 @@ impl AudioBusGraph {
         let bus = self.buses.spawn(bus);
         self.buses[parent].child_buses.push(bus);
         bus
+    }
+
+    fn unlink_internal(&mut self, node_handle: Handle<AudioBus>) {
+        // Replace parent handle of child
+        let parent_handle =
+            std::mem::replace(&mut self.buses[node_handle].parent_bus, Handle::NONE);
+
+        // Remove child from parent's children list
+        if let Some(parent) = self.buses.try_borrow_mut(parent_handle) {
+            if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
+                parent.child_buses.remove(i);
+            }
+        }
+    }
+
+    #[inline]
+    pub fn link_buses(&mut self, child: Handle<AudioBus>, parent: Handle<AudioBus>) {
+        self.unlink_internal(child);
+        self.buses[child].parent_bus = parent;
+        self.buses[parent].child_buses.push(child);
     }
 
     pub(crate) fn try_get_bus_input_buffer(&mut self, name: &str) -> Option<&mut [(f32, f32)]> {
