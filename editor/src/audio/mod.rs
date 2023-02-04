@@ -1,5 +1,6 @@
+use crate::scene::commands::effect::LinkAudioBuses;
 use crate::{
-    audio::bus::{AudioBusView, AudioBusViewBuilder},
+    audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
     scene::commands::{effect::AddAudioBusCommand, effect::RemoveAudioBusCommand, CommandGroup},
     send_sync_message,
     utils::window_content,
@@ -19,7 +20,7 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         Orientation, Thickness, UiNode,
     },
-    scene::sound::AudioBus,
+    scene::sound::{AudioBus, AudioBusGraph},
 };
 use std::{cmp::Ordering, sync::mpsc::Sender};
 
@@ -50,6 +51,22 @@ pub struct AudioPanel {
 
 fn item_bus(item: Handle<UiNode>, ui: &UserInterface) -> Handle<AudioBus> {
     ui.node(item).query_component::<AudioBusView>().unwrap().bus
+}
+
+fn fetch_possible_parent_buses(
+    bus: Handle<AudioBus>,
+    graph: &AudioBusGraph,
+) -> Vec<(Handle<AudioBus>, String)> {
+    let mut stack = vec![graph.primary_bus_handle()];
+    let mut result = Vec::new();
+    while let Some(other_bus) = stack.pop() {
+        let other_bus_ref = graph.try_get_bus_ref(other_bus).expect("Malformed graph!");
+        if other_bus != bus {
+            result.push((other_bus, other_bus_ref.name().to_owned()));
+            stack.extend_from_slice(other_bus_ref.children());
+        }
+    }
+    result
 }
 
 impl AudioPanel {
@@ -172,6 +189,23 @@ impl AudioPanel {
                     )))
                     .unwrap()
             }
+        } else if let Some(AudioBusViewMessage::ChangeParent(new_parent)) = message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                let audio_bus_view_ref = engine
+                    .user_interface
+                    .node(message.destination())
+                    .query_component::<AudioBusView>()
+                    .unwrap();
+
+                let child = audio_bus_view_ref.bus;
+
+                sender
+                    .send(Message::do_scene_command(LinkAudioBuses {
+                        child,
+                        parent: *new_parent,
+                    }))
+                    .unwrap();
+            }
         }
     }
 
@@ -225,6 +259,11 @@ impl AudioPanel {
                                 .map(|e| AsRef::<str>::as_ref(&**e).to_owned())
                                 .collect::<Vec<_>>(),
                         )
+                        .with_parent_bus(audio_bus.parent())
+                        .with_possible_parent_buses(fetch_possible_parent_buses(
+                            audio_bus_handle,
+                            context_state.bus_graph_ref(),
+                        ))
                         .with_audio_bus(audio_bus_handle)
                         .build(&mut ui.build_ctx());
 
@@ -278,6 +317,29 @@ impl AudioPanel {
                 selection_index.is_some() && !is_primary_bus_selected,
             ),
         );
+
+        for audio_bus_view in ui
+            .node(self.audio_buses)
+            .cast::<ListView>()
+            .expect("Must be ListView!")
+            .items()
+        {
+            let audio_bus_view_ref = ui
+                .node(*audio_bus_view)
+                .query_component::<AudioBusView>()
+                .unwrap();
+            send_sync_message(
+                ui,
+                AudioBusViewMessage::possible_parent_buses(
+                    *audio_bus_view,
+                    MessageDirection::ToWidget,
+                    fetch_possible_parent_buses(
+                        audio_bus_view_ref.bus,
+                        context_state.bus_graph_ref(),
+                    ),
+                ),
+            );
+        }
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {

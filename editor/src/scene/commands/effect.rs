@@ -138,3 +138,33 @@ impl Command for RemoveAudioBusCommand {
         }
     }
 }
+
+#[derive(Debug)]
+pub struct LinkAudioBuses {
+    pub child: Handle<AudioBus>,
+    pub parent: Handle<AudioBus>,
+}
+
+impl LinkAudioBuses {
+    fn swap(&mut self, context: &mut SceneContext) {
+        let mut state = context.scene.graph.sound_context.state();
+        let graph = state.bus_graph_mut();
+        let old_parent = graph.try_get_bus_ref(self.child).unwrap().parent();
+        graph.link_buses(self.child, self.parent);
+        self.parent = old_parent;
+    }
+}
+
+impl Command for LinkAudioBuses {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Link Audio Buses".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+}
