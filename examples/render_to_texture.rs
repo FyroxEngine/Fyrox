@@ -7,7 +7,6 @@ use fyrox::{
         grid::{Column, GridBuilder, Row},
         image::{ImageBuilder, ImageMessage},
         message::{MessageDirection, UiMessage},
-        text::TextBuilder,
         widget::{WidgetBuilder, WidgetMessage},
         UiNode, VerticalAlignment,
     },
