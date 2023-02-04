@@ -203,6 +203,14 @@ impl AudioBus {
     pub fn effect_mut(&mut self, index: usize) -> Option<&mut Effect> {
         self.effects.get_mut(index).map(|w| &mut w.0)
     }
+
+    pub fn effects(&self) -> impl Iterator<Item = &EffectWrapper> {
+        self.effects.iter()
+    }
+
+    pub fn effects_mut(&mut self) -> impl Iterator<Item = &mut EffectWrapper> {
+        self.effects.iter_mut()
+    }
 }
 
 #[derive(Default, Debug, Clone, Visit, Reflect)]
