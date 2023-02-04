@@ -90,6 +90,16 @@ pub struct RemoveAudioBusCommand {
     ticket: Option<Ticket<AudioBus>>,
 }
 
+impl RemoveAudioBusCommand {
+    pub fn new(handle: Handle<AudioBus>) -> Self {
+        Self {
+            bus: None,
+            handle,
+            ticket: None,
+        }
+    }
+}
+
 impl Command for RemoveAudioBusCommand {
     fn name(&mut self, _: &SceneContext) -> String {
         "Remove Effect".to_owned()

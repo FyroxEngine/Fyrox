@@ -1,6 +1,6 @@
 use crate::{
     audio::bus::{AudioBusView, AudioBusViewBuilder},
-    scene::commands::effect::AddAudioBusCommand,
+    scene::commands::{effect::AddAudioBusCommand, effect::RemoveAudioBusCommand, CommandGroup},
     send_sync_message,
     utils::window_content,
     ChangeSelectionCommand, EditorScene, GridBuilder, Message, MessageDirection, Mode,
@@ -44,6 +44,7 @@ impl AudioBusSelection {
 pub struct AudioPanel {
     pub window: Handle<UiNode>,
     add_bus: Handle<UiNode>,
+    remove_bus: Handle<UiNode>,
     audio_buses: Handle<UiNode>,
 }
 
@@ -56,6 +57,7 @@ impl AudioPanel {
         let ctx = &mut engine.user_interface.build_ctx();
 
         let add_bus;
+        let remove_bus;
         let buses;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_content(
@@ -72,14 +74,29 @@ impl AudioPanel {
                             buses
                         })
                         .with_child(
-                            StackPanelBuilder::new(WidgetBuilder::new().on_row(1).with_child({
-                                add_bus = ButtonBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Add Bus")
-                                .build(ctx);
-                                add_bus
-                            }))
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(1)
+                                    .with_child({
+                                        add_bus = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_text("Add Bus")
+                                        .build(ctx);
+                                        add_bus
+                                    })
+                                    .with_child({
+                                        remove_bus = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_enabled(false)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_text("Remove Bus")
+                                        .build(ctx);
+                                        remove_bus
+                                    }),
+                            )
                             .with_orientation(Orientation::Horizontal)
                             .build(ctx),
                         ),
@@ -96,6 +113,7 @@ impl AudioPanel {
             window,
             audio_buses: buses,
             add_bus,
+            remove_bus,
         }
     }
 
@@ -113,6 +131,21 @@ impl AudioPanel {
                         AddAudioBusCommand::new(AudioBus::new("AudioBus".to_string())),
                     )))
                     .unwrap()
+            } else if message.destination() == self.remove_bus {
+                if let Selection::AudioBus(ref selection) = editor_scene.selection {
+                    let mut commands = vec![SceneCommand::new(ChangeSelectionCommand::new(
+                        Selection::None,
+                        editor_scene.selection.clone(),
+                    ))];
+
+                    for &bus in &selection.buses {
+                        commands.push(SceneCommand::new(RemoveAudioBusCommand::new(bus)));
+                    }
+
+                    sender
+                        .send(Message::do_scene_command(CommandGroup::from(commands)))
+                        .unwrap();
+                }
             }
         } else if let Some(ListViewMessage::SelectionChanged(Some(effect_index))) = message.data() {
             if message.destination() == self.audio_buses
@@ -210,6 +243,7 @@ impl AudioPanel {
         }
 
         let mut selection_index = None;
+        let mut is_primary_bus_selected = false;
 
         if let Selection::AudioBus(ref selection) = editor_scene.selection {
             for (index, item) in items.into_iter().enumerate() {
@@ -217,6 +251,11 @@ impl AudioPanel {
 
                 if selection.buses.contains(&bus_handle) {
                     selection_index = Some(index);
+
+                    if context_state.bus_graph_ref().primary_bus_handle() == bus_handle {
+                        is_primary_bus_selected = true;
+                    }
+
                     break;
                 }
             }
@@ -228,6 +267,15 @@ impl AudioPanel {
                 self.audio_buses,
                 MessageDirection::ToWidget,
                 selection_index,
+            ),
+        );
+
+        send_sync_message(
+            ui,
+            WidgetMessage::enabled(
+                self.remove_bus,
+                MessageDirection::ToWidget,
+                selection_index.is_some() && !is_primary_bus_selected,
             ),
         );
     }
