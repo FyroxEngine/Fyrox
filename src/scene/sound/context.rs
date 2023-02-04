@@ -98,6 +98,7 @@ impl SoundContext {
         Default::default()
     }
 
+    /// Creates a full copy of the context, instead of shallow that could be done via [`Clone::clone`]
     pub fn deep_clone(&self) -> Self {
         Self {
             native: self.native.deep_clone(),
