@@ -1,28 +1,29 @@
 use crate::{
-    scene::commands::effect::AddAudioBusCommand, utils::window_content, ChangeSelectionCommand,
-    EditorScene, GridBuilder, Message, MessageDirection, Mode, SceneCommand, Selection,
-    UserInterface,
+    audio::bus::{AudioBusView, AudioBusViewBuilder},
+    scene::commands::effect::AddAudioBusCommand,
+    send_sync_message,
+    utils::window_content,
+    ChangeSelectionCommand, EditorScene, GridBuilder, Message, MessageDirection, Mode,
+    SceneCommand, Selection, UserInterface,
 };
-use fyrox::scene::sound::AudioBus;
 use fyrox::{
     core::pool::Handle,
     engine::Engine,
     gui::{
-        border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
-        decorator::DecoratorBuilder,
         grid::{Column, Row},
         list_view::{ListView, ListViewBuilder, ListViewMessage},
         message::UiMessage,
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
         Orientation, Thickness, UiNode,
     },
+    scene::sound::AudioBus,
 };
-use std::{cmp::Ordering, rc::Rc, sync::mpsc::Sender};
+use std::{cmp::Ordering, sync::mpsc::Sender};
 
+mod bus;
 pub mod preview;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,13 +44,11 @@ impl AudioBusSelection {
 pub struct AudioPanel {
     pub window: Handle<UiNode>,
     add_bus: Handle<UiNode>,
-    effects: Handle<UiNode>,
+    audio_buses: Handle<UiNode>,
 }
 
 fn item_bus(item: Handle<UiNode>, ui: &UserInterface) -> Handle<AudioBus> {
-    *ui.node(item)
-        .user_data_ref::<Handle<AudioBus>>()
-        .expect("Must be Handle<AudioBus>")
+    ui.node(item).query_component::<AudioBusView>().unwrap().bus
 }
 
 impl AudioPanel {
@@ -63,7 +62,13 @@ impl AudioPanel {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
-                            buses = ListViewBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
+                            buses = ListViewBuilder::new(WidgetBuilder::new().on_row(0))
+                                .with_items_panel(
+                                    StackPanelBuilder::new(WidgetBuilder::new())
+                                        .with_orientation(Orientation::Horizontal)
+                                        .build(ctx),
+                                )
+                                .build(ctx);
                             buses
                         })
                         .with_child(
@@ -89,7 +94,7 @@ impl AudioPanel {
 
         Self {
             window,
-            effects: buses,
+            audio_buses: buses,
             add_bus,
         }
     }
@@ -110,13 +115,13 @@ impl AudioPanel {
                     .unwrap()
             }
         } else if let Some(ListViewMessage::SelectionChanged(Some(effect_index))) = message.data() {
-            if message.destination() == self.effects
+            if message.destination() == self.audio_buses
                 && message.direction() == MessageDirection::FromWidget
             {
                 let ui = &engine.user_interface;
 
                 let effect = item_bus(
-                    ui.node(self.effects)
+                    ui.node(self.audio_buses)
                         .cast::<ListView>()
                         .expect("Must be ListView")
                         .items()[*effect_index],
@@ -145,7 +150,7 @@ impl AudioPanel {
         let ui = &mut engine.user_interface;
 
         let items = ui
-            .node(self.effects)
+            .node(self.audio_buses)
             .cast::<ListView>()
             .expect("Must be ListView!")
             .items()
@@ -153,45 +158,78 @@ impl AudioPanel {
 
         match (context_state.bus_graph_ref().len() as usize).cmp(&items.len()) {
             Ordering::Less => {
-                for item in items {
+                for &item in &items {
                     let bus_handle = item_bus(item, ui);
                     if context_state
                         .bus_graph_ref()
                         .buses_pair_iter()
                         .all(|(other_bus_handle, _)| other_bus_handle != bus_handle)
                     {
-                        ui.send_message(ListViewMessage::remove_item(
-                            self.effects,
-                            MessageDirection::ToWidget,
-                            item,
-                        ));
+                        send_sync_message(
+                            ui,
+                            ListViewMessage::remove_item(
+                                self.audio_buses,
+                                MessageDirection::ToWidget,
+                                item,
+                            ),
+                        );
                     }
                 }
             }
             Ordering::Greater => {
-                for (effect_handle, effect) in context_state.bus_graph_ref().buses_pair_iter() {
-                    if items.iter().all(|i| item_bus(*i, ui) != effect_handle) {
-                        let item = DecoratorBuilder::new(BorderBuilder::new(
+                for (audio_bus_handle, audio_bus) in context_state.bus_graph_ref().buses_pair_iter()
+                {
+                    if items.iter().all(|i| item_bus(*i, ui) != audio_bus_handle) {
+                        let item = AudioBusViewBuilder::new(
                             WidgetBuilder::new()
-                                .with_user_data(Rc::new(effect_handle))
-                                .with_child(
-                                    TextBuilder::new(WidgetBuilder::new())
-                                        .with_text(effect.name())
-                                        .build(&mut ui.build_ctx()),
-                                ),
-                        ))
+                                .with_width(80.0)
+                                .with_margin(Thickness::uniform(1.0)),
+                        )
+                        .with_name(audio_bus.name())
+                        .with_effect_names(
+                            audio_bus
+                                .effects()
+                                .map(|e| AsRef::<str>::as_ref(&**e).to_owned())
+                                .collect::<Vec<_>>(),
+                        )
+                        .with_audio_bus(audio_bus_handle)
                         .build(&mut ui.build_ctx());
 
-                        ui.send_message(ListViewMessage::add_item(
-                            self.effects,
-                            MessageDirection::ToWidget,
-                            item,
-                        ));
+                        send_sync_message(
+                            ui,
+                            ListViewMessage::add_item(
+                                self.audio_buses,
+                                MessageDirection::ToWidget,
+                                item,
+                            ),
+                        );
                     }
                 }
             }
             _ => (),
         }
+
+        let mut selection_index = None;
+
+        if let Selection::AudioBus(ref selection) = editor_scene.selection {
+            for (index, item) in items.into_iter().enumerate() {
+                let bus_handle = item_bus(item, ui);
+
+                if selection.buses.contains(&bus_handle) {
+                    selection_index = Some(index);
+                    break;
+                }
+            }
+        }
+
+        send_sync_message(
+            ui,
+            ListViewMessage::selection(
+                self.audio_buses,
+                MessageDirection::ToWidget,
+                selection_index,
+            ),
+        );
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
