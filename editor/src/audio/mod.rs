@@ -1,7 +1,9 @@
-use crate::scene::commands::effect::LinkAudioBuses;
 use crate::{
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
-    scene::commands::{effect::AddAudioBusCommand, effect::RemoveAudioBusCommand, CommandGroup},
+    scene::commands::{
+        effect::{AddAudioBusCommand, LinkAudioBuses, RemoveAudioBusCommand},
+        CommandGroup,
+    },
     send_sync_message,
     utils::window_content,
     ChangeSelectionCommand, EditorScene, GridBuilder, Message, MessageDirection, Mode,
@@ -67,6 +69,13 @@ fn fetch_possible_parent_buses(
         }
     }
     result
+}
+
+fn audio_bus_effect_names(audio_bus: &AudioBus) -> Vec<String> {
+    audio_bus
+        .effects()
+        .map(|e| AsRef::<str>::as_ref(&**e).to_owned())
+        .collect::<Vec<_>>()
 }
 
 impl AudioPanel {
@@ -249,16 +258,11 @@ impl AudioPanel {
                     if items.iter().all(|i| item_bus(*i, ui) != audio_bus_handle) {
                         let item = AudioBusViewBuilder::new(
                             WidgetBuilder::new()
-                                .with_width(80.0)
+                                .with_width(100.0)
                                 .with_margin(Thickness::uniform(1.0)),
                         )
                         .with_name(audio_bus.name())
-                        .with_effect_names(
-                            audio_bus
-                                .effects()
-                                .map(|e| AsRef::<str>::as_ref(&**e).to_owned())
-                                .collect::<Vec<_>>(),
-                        )
+                        .with_effect_names(audio_bus_effect_names(audio_bus))
                         .with_parent_bus(audio_bus.parent())
                         .with_possible_parent_buses(fetch_possible_parent_buses(
                             audio_bus_handle,
@@ -337,6 +341,26 @@ impl AudioPanel {
                         audio_bus_view_ref.bus,
                         context_state.bus_graph_ref(),
                     ),
+                ),
+            );
+            let audio_bus_ref = context_state
+                .bus_graph_ref()
+                .try_get_bus_ref(audio_bus_view_ref.bus)
+                .unwrap();
+            send_sync_message(
+                ui,
+                AudioBusViewMessage::effect_names(
+                    *audio_bus_view,
+                    MessageDirection::ToWidget,
+                    audio_bus_effect_names(audio_bus_ref),
+                ),
+            );
+            send_sync_message(
+                ui,
+                AudioBusViewMessage::name(
+                    *audio_bus_view,
+                    MessageDirection::ToWidget,
+                    audio_bus_ref.name().to_owned(),
                 ),
             );
         }

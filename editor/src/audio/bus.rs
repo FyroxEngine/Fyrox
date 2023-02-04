@@ -7,11 +7,12 @@ use fyrox::{
         define_constructor, define_widget_deref,
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
         grid::{Column, GridBuilder, Row},
-        list_view::ListViewBuilder,
+        list_view::{ListViewBuilder, ListViewMessage},
         message::{MessageDirection, UiMessage},
-        text::TextBuilder,
+        text::{TextBuilder, TextMessage},
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
     scene::sound::{AudioBus, AudioBusGraph},
 };
@@ -24,11 +25,15 @@ use std::{
 pub enum AudioBusViewMessage {
     ChangeParent(Handle<AudioBus>),
     PossibleParentBuses(Vec<(Handle<AudioBus>, String)>),
+    EffectNames(Vec<String>),
+    Name(String),
 }
 
 impl AudioBusViewMessage {
     define_constructor!(AudioBusViewMessage:ChangeParent => fn change_parent(Handle<AudioBus>), layout: false);
     define_constructor!(AudioBusViewMessage:PossibleParentBuses => fn possible_parent_buses(Vec<(Handle<AudioBus>, String)>), layout: false);
+    define_constructor!(AudioBusViewMessage:EffectNames => fn effect_names(Vec<String>), layout: false);
+    define_constructor!(AudioBusViewMessage:Name => fn name(String), layout: false);
 }
 
 #[derive(Clone)]
@@ -36,8 +41,9 @@ pub struct AudioBusView {
     widget: Widget,
     pub bus: Handle<AudioBus>,
     parent_bus_selector: Handle<UiNode>,
-    parent_bus: Handle<AudioBus>,
     possible_parent_buses: Vec<Handle<AudioBus>>,
+    effect_names_list: Handle<UiNode>,
+    name: Handle<UiNode>,
 }
 
 define_widget_deref!(AudioBusView);
@@ -56,17 +62,39 @@ impl Control for AudioBusView {
 
         if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
         {
-            if let Some(AudioBusViewMessage::PossibleParentBuses(buses)) = message.data() {
-                self.possible_parent_buses =
-                    buses.iter().map(|(handle, _)| *handle).collect::<Vec<_>>();
+            if let Some(msg) = message.data::<AudioBusViewMessage>() {
+                match msg {
+                    AudioBusViewMessage::ChangeParent(_) => {
+                        // Do nothing.
+                    }
+                    AudioBusViewMessage::PossibleParentBuses(buses) => {
+                        self.possible_parent_buses =
+                            buses.iter().map(|(handle, _)| *handle).collect::<Vec<_>>();
 
-                let items = make_items(&buses, &mut ui.build_ctx());
+                        let items = make_items(&buses, &mut ui.build_ctx());
 
-                ui.send_message(DropdownListMessage::items(
-                    self.parent_bus_selector,
-                    MessageDirection::ToWidget,
-                    items,
-                ))
+                        ui.send_message(DropdownListMessage::items(
+                            self.parent_bus_selector,
+                            MessageDirection::ToWidget,
+                            items,
+                        ))
+                    }
+                    AudioBusViewMessage::EffectNames(names) => {
+                        let items = make_effect_names(names, &mut ui.build_ctx());
+                        ui.send_message(ListViewMessage::items(
+                            self.effect_names_list,
+                            MessageDirection::ToWidget,
+                            items,
+                        ));
+                    }
+                    AudioBusViewMessage::Name(new_name) => {
+                        ui.send_message(TextMessage::text(
+                            self.name,
+                            MessageDirection::ToWidget,
+                            new_name.clone(),
+                        ));
+                    }
+                }
             }
         }
 
@@ -88,6 +116,17 @@ fn make_items(buses: &[(Handle<AudioBus>, String)], ctx: &mut BuildContext) -> V
     buses
         .iter()
         .map(|(_, name)| make_dropdown_list_option(ctx, &name))
+        .collect::<Vec<_>>()
+}
+
+fn make_effect_names(names: &[String], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
+    names
+        .iter()
+        .map(|n| {
+            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                .with_text(n)
+                .build(ctx)
+        })
         .collect::<Vec<_>>()
 }
 
@@ -141,22 +180,24 @@ impl AudioBusViewBuilder {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let effects;
+        let effect_names_list;
         let name;
         let parent_bus_selector;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
-                .with_child({
-                    name = TextBuilder::new(
-                        WidgetBuilder::new()
-                            .on_row(0)
-                            .on_column(0)
-                            .with_horizontal_alignment(HorizontalAlignment::Center),
-                    )
-                    .with_text(self.name)
-                    .build(ctx);
-                    name
-                })
+                .with_child(
+                    BorderBuilder::new(WidgetBuilder::new().on_row(0).on_column(0).with_child({
+                        name = TextBuilder::new(
+                            WidgetBuilder::new()
+                                .with_horizontal_alignment(HorizontalAlignment::Center)
+                                .with_vertical_alignment(VerticalAlignment::Center),
+                        )
+                        .with_text(self.name)
+                        .build(ctx);
+                        name
+                    }))
+                    .build(ctx),
+                )
                 .with_child(
                     BorderBuilder::new(
                         WidgetBuilder::new()
@@ -164,38 +205,30 @@ impl AudioBusViewBuilder {
                             .on_column(0)
                             .with_margin(Thickness::uniform(1.0))
                             .with_child({
-                                effects = ListViewBuilder::new(
+                                effect_names_list = ListViewBuilder::new(
                                     WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_items(
-                                    self.effect_names
-                                        .into_iter()
-                                        .map(|n| {
-                                            TextBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_margin(Thickness::uniform(1.0)),
-                                            )
-                                            .with_text(n)
-                                            .build(ctx)
-                                        })
-                                        .collect::<Vec<_>>(),
-                                )
+                                .with_items(make_effect_names(&self.effect_names, ctx))
                                 .build(ctx);
-                                effects
+                                effect_names_list
                             }),
                     )
                     .build(ctx),
                 )
                 .with_child({
-                    parent_bus_selector =
-                        DropdownListBuilder::new(WidgetBuilder::new().on_row(2).on_column(0))
-                            .with_opt_selected(
-                                self.possible_parent_buses
-                                    .iter()
-                                    .position(|(h, _)| *h == self.parent_bus),
-                            )
-                            .with_items(make_items(&self.possible_parent_buses, ctx))
-                            .build(ctx);
+                    parent_bus_selector = DropdownListBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(2)
+                            .on_column(0)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_opt_selected(
+                        self.possible_parent_buses
+                            .iter()
+                            .position(|(h, _)| *h == self.parent_bus),
+                    )
+                    .with_items(make_items(&self.possible_parent_buses, ctx))
+                    .build(ctx);
                     parent_bus_selector
                 }),
         )
@@ -217,12 +250,13 @@ impl AudioBusViewBuilder {
                 .build(),
             bus: self.bus,
             parent_bus_selector,
-            parent_bus: self.parent_bus,
             possible_parent_buses: self
                 .possible_parent_buses
                 .into_iter()
                 .map(|(handle, _)| handle)
                 .collect::<Vec<_>>(),
+            effect_names_list,
+            name,
         };
         ctx.add_node(UiNode::new(view))
     }
