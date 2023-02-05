@@ -1319,9 +1319,10 @@ impl Graph {
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
-        let mut copy = Self::default();
-
-        copy.sound_context = self.sound_context.deep_clone();
+        let mut copy = Self {
+            sound_context: self.sound_context.deep_clone(),
+            ..Default::default()
+        };
 
         let (root, old_new_map) = self.copy_node(self.root, &mut copy, filter);
         copy.root = root;

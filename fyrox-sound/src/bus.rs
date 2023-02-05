@@ -92,6 +92,7 @@ impl PingPongBuffer {
         self.first_is_input = !self.first_is_input;
     }
 
+    #[allow(clippy::type_complexity)]
     fn input_output_buffers(&mut self) -> (&[(f32, f32)], &mut [(f32, f32)]) {
         if self.first_is_input {
             (&self.buffer1, &mut self.buffer2)
@@ -312,6 +313,10 @@ impl AudioBusGraph {
 
     pub fn len(&self) -> usize {
         self.buses.alive_count() as usize
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn try_take_reserve_bus(

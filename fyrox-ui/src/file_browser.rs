@@ -1253,14 +1253,13 @@ impl Control for FileSelectorField {
         if let Some(TextMessage::Text(text)) = message.data() {
             if message.destination() == self.path_field
                 && message.direction() == MessageDirection::FromWidget
+                && Path::new(text.as_str()) != self.path
             {
-                if Path::new(text.as_str()) != self.path {
-                    ui.send_message(FileSelectorFieldMessage::path(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        text.into(),
-                    ));
-                }
+                ui.send_message(FileSelectorFieldMessage::path(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    text.into(),
+                ));
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.select {
@@ -1285,17 +1284,16 @@ impl Control for FileSelectorField {
         } else if let Some(FileSelectorFieldMessage::Path(new_path)) = message.data() {
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
+                && &self.path != new_path
             {
-                if &self.path != new_path {
-                    self.path = new_path.clone();
-                    ui.send_message(TextMessage::text(
-                        self.path_field,
-                        MessageDirection::ToWidget,
-                        self.path.to_string_lossy().to_string(),
-                    ));
+                self.path = new_path.clone();
+                ui.send_message(TextMessage::text(
+                    self.path_field,
+                    MessageDirection::ToWidget,
+                    self.path.to_string_lossy().to_string(),
+                ));
 
-                    ui.send_message(message.reverse());
-                }
+                ui.send_message(message.reverse());
             }
         }
     }

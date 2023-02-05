@@ -5,31 +5,11 @@
 #![allow(dead_code)]
 
 use fyrox::{
-    core::uuid::{uuid, Uuid},
-    scene::{
-        sound::Effect,
-        animation::{
-            absm::{AnimationBlendingStateMachine, AnimationBlendingStateMachineBuilder},
-            AnimationPlayer,
-        },
-        base::BaseBuilder,
-        camera::{CameraBuilder, SkyBoxBuilder},
-        collider::{Collider, ColliderBuilder, ColliderShape},
-        graph::Graph,
-        node::Node,
-        pivot::PivotBuilder,
-        rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
-        sound::{
-            listener::ListenerBuilder,
-        },
-        transform::TransformBuilder,
-        Scene,
-        sound::reverb::Reverb
-    },
     animation::{
         machine::{Machine, MachineLayer, Parameter, PoseNode, State, Transition},
         Animation, AnimationSignal,
     },
+    core::uuid::{uuid, Uuid},
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
@@ -49,7 +29,25 @@ use fyrox::{
     },
     gui::{BuildContext, UiNode},
     renderer::QualitySettings,
-    resource::texture::TextureWrapMode
+    resource::texture::TextureWrapMode,
+    scene::{
+        animation::{
+            absm::{AnimationBlendingStateMachine, AnimationBlendingStateMachineBuilder},
+            AnimationPlayer,
+        },
+        base::BaseBuilder,
+        camera::{CameraBuilder, SkyBoxBuilder},
+        collider::{Collider, ColliderBuilder, ColliderShape},
+        graph::Graph,
+        node::Node,
+        pivot::PivotBuilder,
+        rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
+        sound::listener::ListenerBuilder,
+        sound::reverb::Reverb,
+        sound::Effect,
+        transform::TransformBuilder,
+        Scene,
+    },
 };
 use std::{
     path::Path,
@@ -805,7 +803,13 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
             let mut reverb = Reverb::new();
             reverb.set_decay_time(3.0);
             reverb.set_dry(0.5); // Half of the initial sound will be passed through reverb.
-            scene.graph.sound_context.state().bus_graph_mut().primary_bus_mut().add_effect(Effect::Reverb(reverb));
+            scene
+                .graph
+                .sound_context
+                .state()
+                .bus_graph_mut()
+                .primary_bus_mut()
+                .add_effect(Effect::Reverb(reverb));
 
             context
                 .lock()
@@ -826,10 +830,7 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
 
             context.lock().unwrap().report_progress(1.0, "Done");
 
-            context.lock().unwrap().scene_data = Some(SceneLoadResult {
-                scene,
-                player,
-            });
+            context.lock().unwrap().scene_data = Some(SceneLoadResult { scene, player });
         })
     });
 

@@ -355,7 +355,7 @@ impl AudioPanel {
             .items()
             .to_vec();
 
-        match (context_state.bus_graph_ref().len() as usize).cmp(&items.len()) {
+        match (context_state.bus_graph_ref().len()).cmp(&items.len()) {
             Ordering::Less => {
                 for &item in &items {
                     let bus_handle = item_bus(item, ui);

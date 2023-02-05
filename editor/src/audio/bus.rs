@@ -72,7 +72,7 @@ impl Control for AudioBusView {
                         self.possible_parent_buses =
                             buses.iter().map(|(handle, _)| *handle).collect::<Vec<_>>();
 
-                        let items = make_items(&buses, &mut ui.build_ctx());
+                        let items = make_items(buses, &mut ui.build_ctx());
 
                         ui.send_message(DropdownListMessage::items(
                             self.parent_bus_selector,
@@ -116,7 +116,7 @@ impl Control for AudioBusView {
 fn make_items(buses: &[(Handle<AudioBus>, String)], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
     buses
         .iter()
-        .map(|(_, name)| make_dropdown_list_option(ctx, &name))
+        .map(|(_, name)| make_dropdown_list_option(ctx, name))
         .collect::<Vec<_>>()
 }
 
