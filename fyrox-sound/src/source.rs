@@ -24,7 +24,6 @@
 //!        .unwrap();
 //!     context.state().add_source(source)
 //! }
-//!
 //! ```
 
 #![allow(clippy::float_cmp)]

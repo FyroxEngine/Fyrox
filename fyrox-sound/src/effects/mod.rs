@@ -1,16 +1,12 @@
-//! Effects module
-//!
-//! # Overview
-//!
-//! Provides unified way of creating and using effects.
+//! Contins everything related to audio effects that can be applied to an audio bus.
 
-#![allow(missing_docs)] // TODO
-
-use crate::effects::filter::{
-    AllPassFilterEffect, BandPassFilterEffect, HighPassFilterEffect, HighShelfFilterEffect,
-    LowPassFilterEffect, LowShelfFilterEffect,
+use crate::{
+    effects::filter::{
+        AllPassFilterEffect, BandPassFilterEffect, HighPassFilterEffect, HighShelfFilterEffect,
+        LowPassFilterEffect, LowShelfFilterEffect,
+    },
+    effects::reverb::Reverb,
 };
-use crate::effects::reverb::Reverb;
 use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
@@ -74,18 +70,26 @@ impl Visit for EffectWrapper {
     }
 }
 
-/// See module docs.
+/// Effects is a digital signal processing (DSP) unit that transforms input signal in a specific way.
+/// For example, [`LowPassFilterEffect`] could be used to muffle audio sources; to create "underwater"
+/// effect.
 #[derive(Debug, Clone, PartialEq, Visit, Reflect, AsRefStr, EnumString, EnumVariantNames)]
 pub enum Effect {
-    /// Attenuation effect.
+    /// See [`Attenuate`] docs for more info.
     Attenuate(Attenuate),
-    /// Reverberation effect. See corresponding module for more info.
+    /// See [`Reverb`] docs for more info.
     Reverb(Reverb),
+    /// See [`LowPassFilterEffect`] docs for more info.
     LowPassFilter(LowPassFilterEffect),
+    /// See [`HighPassFilterEffect`] docs for more info.
     HighPassFilter(HighPassFilterEffect),
+    /// See [`BandPassFilterEffect`] docs for more info.
     BandPassFilter(BandPassFilterEffect),
+    /// See [`AllPassFilterEffect`] docs for more info.
     AllPassFilter(AllPassFilterEffect),
+    /// See [`LowShelfFilterEffect`] docs for more info.
     LowShelfFilter(LowShelfFilterEffect),
+    /// See [`HighShelfFilterEffect`] docs for more info.
     HighShelfFilter(HighShelfFilterEffect),
 }
 
