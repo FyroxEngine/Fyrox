@@ -79,6 +79,11 @@ impl<'a> SoundContextGuard<'a> {
         self.guard.renderer()
     }
 
+    /// Returns current renderer.
+    pub fn renderer_ref_mut(&mut self) -> &mut Renderer {
+        self.guard.renderer_mut()
+    }
+
     /// Sets new renderer.
     pub fn set_renderer(&mut self, renderer: Renderer) -> Renderer {
         self.guard.set_renderer(renderer)
