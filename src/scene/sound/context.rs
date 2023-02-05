@@ -74,6 +74,11 @@ impl<'a> SoundContextGuard<'a> {
         self.guard.renderer().clone()
     }
 
+    /// Returns current renderer.
+    pub fn renderer_ref(&self) -> &Renderer {
+        self.guard.renderer()
+    }
+
     /// Sets new renderer.
     pub fn set_renderer(&mut self, renderer: Renderer) -> Renderer {
         self.guard.set_renderer(renderer)
