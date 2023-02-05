@@ -1,47 +1,5 @@
-//! # Data flow diagram
-//!
-//! ┌────────────┐                                                        ┌────────────┐
-//! │            │                                                        │            │
-//! │   Source1  ├────────────┐                                ┌──────────┤   Source2  │
-//! │            │            │                                │          │            │
-//! └────────────┘            │                                │          └────────────┘
-//!                           ▼                                ▼
-//! ┌────────────┐      ┌────────────┐                  ┌────────────┐    ┌────────────┐
-//! │            │      │            │                  │            │    │            │
-//! │   Source3  ├─────►│    Bus1    │                  │    BusN    │◄───┤   Source4  │
-//! │            │      ├────────────┤                  ├────────────┤    │            │
-//! └────────────┘      │            │                  │            │    └────────────┘
-//!                     │  Effect1 │ │   ┌───────────┐  │  Effect1 │ │
-//!                     │          │ │   │           │  │          │ │
-//!                     │  Effect2 │ │   │  SourceN  │  │  Effect2 │ │
-//!                     │          │ │   │           │  │          │ │
-//!                     │  EffectN ▼ │   └─────┬─────┘  │  EffectN ▼ │
-//!                     │            │         │        │            │
-//!                     └─────┬──────┘         │        └─────┬──────┘
-//!                           │                │              │
-//!                           │                ▼              │
-//!                           │          ┌────────────┐       │
-//!                           │          │            │       │
-//!                           └─────────►│   Master   │◄──────┘
-//!                                      ├────────────┤
-//!                                      │            │
-//!                                      │  Effect1 │ │
-//!                                      │          │ │
-//!                                      │  Effect2 │ │
-//!                                      │          │ │
-//!                                      │  EffectN ▼ │
-//!                                      │            │
-//!                                      └─────┬──────┘
-//!                                            │
-//!                                            │
-//!                                            ▼
-//!                               ┌───────────────────────────┐
-//!                               │                           │
-//!                               │       Output Device       │
-//!                               │                           │
-//!                               └───────────────────────────┘
-
-#![allow(missing_docs)] // TODO
+//! Everything related to audio buses and audio bus graphs. See docs of [`AudioBus`] and [`AudioBusGraph`]
+//! for more info and examples
 
 use crate::effects::{Effect, EffectRenderTrait, EffectWrapper};
 use fyrox_core::{
@@ -118,6 +76,10 @@ impl PingPongBuffer {
     }
 }
 
+/// Audio bus is a top-level audio processing unit. It takes data from multiple audio sources and passes their
+/// samples through a chain of effects. Output signal is then can be either sent to an audio playback device or
+/// to some other audio bus and be processed again, but with different sound effects (this can be done via
+/// [`AudioBusGraph`].  
 #[derive(Debug, Reflect, Visit, Clone)]
 pub struct AudioBus {
     pub(crate) name: String,
@@ -149,6 +111,8 @@ impl Default for AudioBus {
 }
 
 impl AudioBus {
+    /// Creates a new audio bus with the given name with no audio effects and unit gain. Produced audio bus must
+    /// be added to an [`AudioBusGraph`] to take effect.
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -156,18 +120,24 @@ impl AudioBus {
         }
     }
 
+    /// Sets a new name of the audio bus. Be careful when changing the name at runtime, each sound source is linked
+    /// to a bus by its name (implicit binding), so when changing the name you should also change the output bus name
+    /// of a sound source, that uses the bus.
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
         self.name = name.as_ref().to_owned();
     }
 
+    /// Returns current name of the audio bus. Could be useful if you need to find all sound sources that uses the bus.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Returns a handle of the parent audio bus. Primary audio bus has no parent and will return ([`Handle::NONE`]).
     pub fn parent(&self) -> Handle<AudioBus> {
         self.parent_bus
     }
 
+    /// Returns a list of handle to children audio buses.
     pub fn children(&self) -> &[Handle<AudioBus>] {
         &self.child_buses
     }
@@ -193,17 +163,17 @@ impl AudioBus {
         }
     }
 
-    /// Adds new effect to effects chain.
+    /// Adds new effect to the effects chain.
     pub fn add_effect(&mut self, effect: Effect) {
         self.effects.push(EffectWrapper(effect))
     }
 
-    /// Removes effect by given handle.
+    /// Removes an effect by the given handle.
     pub fn remove_effect(&mut self, index: usize) {
         self.effects.remove(index);
     }
 
-    /// Returns shared reference to effect at given handle.
+    /// Returns a shared reference to an effect at the given handle.
     pub fn effect(&self, index: usize) -> Option<&Effect> {
         self.effects.get(index).map(|w| &w.0)
     }
@@ -213,15 +183,96 @@ impl AudioBus {
         self.effects.get_mut(index).map(|w| &mut w.0)
     }
 
+    /// Returns an iterator over effects used by this audio bus.
     pub fn effects(&self) -> impl Iterator<Item = &EffectWrapper> {
         self.effects.iter()
     }
 
+    /// Returns an iterator over effects used by this audio bus.
     pub fn effects_mut(&mut self) -> impl Iterator<Item = &mut EffectWrapper> {
         self.effects.iter_mut()
     }
 }
 
+/// Audio bus graph is a complex audio data processing entity; it allows you to route samples from
+/// audio sources through a chain of audio buses or directly to an audio playback device. To get a
+/// better understanding of how the audio graph works take a look the data flow diagram below:
+///
+/// ┌────────────┐                                                        ┌────────────┐
+/// │            │                                                        │            │
+/// │   Source1  ├────────────┐                                ┌──────────┤   Source2  │
+/// │            │            │                                │          │            │
+/// └────────────┘            │                                │          └────────────┘
+///                           ▼                                ▼
+/// ┌────────────┐      ┌────────────┐                  ┌────────────┐    ┌────────────┐
+/// │            │      │            │                  │            │    │            │
+/// │   Source3  ├─────►│    Bus1    │                  │    BusN    │◄───┤   Source4  │
+/// │            │      ├────────────┤                  ├────────────┤    │            │
+/// └────────────┘      │            │                  │            │    └────────────┘
+///                     │  Effect1 │ │   ┌───────────┐  │  Effect1 │ │
+///                     │          │ │   │           │  │          │ │
+///                     │  Effect2 │ │   │  SourceN  │  │  Effect2 │ │
+///                     │          │ │   │           │  │          │ │
+///                     │  EffectN ▼ │   └─────┬─────┘  │  EffectN ▼ │
+///                     │            │         │        │            │
+///                     └─────┬──────┘         │        └─────┬──────┘
+///                           │                │              │
+///                           │                ▼              │
+///                           │          ┌────────────┐       │
+///                           │          │            │       │
+///                           └─────────►│   Primary  │◄──────┘
+///                                      ├────────────┤
+///                                      │            │
+///                                      │  Effect1 │ │
+///                                      │          │ │
+///                                      │  Effect2 │ │
+///                                      │          │ │
+///                                      │  EffectN ▼ │
+///                                      │            │
+///                                      └─────┬──────┘
+///                                            │
+///                                            │
+///                                            ▼
+///                               ┌───────────────────────────┐
+///                               │                           │
+///                               │       Output Device       │
+///                               │                           │
+///                               └───────────────────────────┘
+///
+/// Each audio bus is backed with data (samples) by a set of sound sources (`Source1`, `Source2`, ..) of
+/// current audio context. This data is then passed through a set of effects, which could include various
+/// filters (lowpass, highpass, bandpass, shelf filters, etc.) and complex effects such as reverberation.
+///
+/// By default, each audio bus graph has a single audio bus called Primary. It is mandatory to at least one
+/// audio bus. Primary bus is responsible for outputting the data to an audio playback device.  
+///
+/// # Sound source binding
+///
+/// Each sound source binds to an audio bus using its name; this is so called implicit binding. While it may
+/// look weird, it is actually very useful. Explicit binding requires you to know the exact handle of an
+/// audio bus to which a sound is "attached". This makes it less convenient to re-route data from one bus to
+/// another. Implicit binding is as much more effective: all you need to do is to set a new name of a bus
+/// to which output the samples from a sound source and the engine will do the rest for you. A simple example
+/// of a such binding is something like this:
+///
+/// ```rust
+/// # use fyrox_sound::bus::AudioBus;
+/// # use fyrox_sound::context::SoundContext;
+/// # use fyrox_sound::source::SoundSourceBuilder;
+/// let context = SoundContext::new();
+/// let mut state = context.state();
+///
+/// let sfx_bus = AudioBus::new("SFX".to_string());
+/// let bus_graph = state.bus_graph_mut();
+/// let primary_bus = bus_graph.primary_bus_handle();
+/// bus_graph.add_bus(sfx_bus, primary_bus);
+///
+/// // Create a source and implicitly bind to the SFX audio bus. By default each source
+/// // is bound to the primary audio bus.
+/// state.add_source(SoundSourceBuilder::new().with_bus("SFX").build().unwrap());
+/// ```
+///
+/// If you delete an audio bus to which a bunch of sound sources is bound, then they will simply stop playing.
 #[derive(Default, Debug, Clone, Visit, Reflect)]
 pub struct AudioBusGraph {
     buses: Pool<AudioBus>,
@@ -229,8 +280,11 @@ pub struct AudioBusGraph {
 }
 
 impl AudioBusGraph {
+    /// The name of the audio bus that output samples directly to an audio playback device.  
     pub const PRIMARY_BUS: &'static str = "Primary";
 
+    /// Creates a new audio bus graph. Sound context already has an audio graph instance, so calling
+    /// this method is needed only for very specific cases (mostly tests).
     pub fn new() -> Self {
         let root = AudioBus::new(Self::PRIMARY_BUS.to_string());
         let mut buses = Pool::new();
@@ -238,6 +292,22 @@ impl AudioBusGraph {
         Self { buses, root }
     }
 
+    /// Adds a new audio bus to the graph and attaches it to the given parent. `parent` handle must be
+    /// valid, otherwise the method will panic. In most cases you can use primary bus as a parent.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fyrox_sound::bus::{AudioBus, AudioBusGraph};
+    ///
+    /// // By default it has one primary audio bus.
+    /// let mut graph = AudioBusGraph::new();
+    ///
+    /// // Add another bus to the graph and attach it to the primary bus.
+    /// let primary_bus_handle = graph.primary_bus_handle();
+    /// graph.add_bus(AudioBus::new("SFX".to_owned()), primary_bus_handle);
+    ///
+    /// ```
     pub fn add_bus(&mut self, mut bus: AudioBus, parent: Handle<AudioBus>) -> Handle<AudioBus> {
         bus.parent_bus = parent;
         let bus = self.buses.spawn(bus);
@@ -258,6 +328,8 @@ impl AudioBusGraph {
         }
     }
 
+    /// Attaches the `child` audio bus to the `parent` audio bus. **Important:** this method does not
+    /// checks for any loops, adding any loops to the graph will cause infinite loop in the mixer thread.
     #[inline]
     pub fn link_buses(&mut self, child: Handle<AudioBus>, parent: Handle<AudioBus>) {
         self.unlink_internal(child);
@@ -275,6 +347,7 @@ impl AudioBusGraph {
         })
     }
 
+    /// Removes an audio bus at the given handle.
     pub fn remove_bus(&mut self, handle: Handle<AudioBus>) -> AudioBus {
         assert_ne!(handle, self.root);
 
@@ -291,34 +364,44 @@ impl AudioBusGraph {
         bus
     }
 
+    /// Returns a handle of the primary audio bus. Primary bus outputs its samples directly to an audio playback
+    /// device.
     pub fn primary_bus_handle(&self) -> Handle<AudioBus> {
         self.root
     }
 
+    /// Returns a reference to the primary audio bus.
     pub fn primary_bus_ref(&self) -> &AudioBus {
         &self.buses[self.root]
     }
 
+    /// Returns a reference to the primary audio bus.
     pub fn primary_bus_mut(&mut self) -> &mut AudioBus {
         &mut self.buses[self.root]
     }
 
+    /// Tries to borrow an audio bus by its handle.
     pub fn try_get_bus_ref(&self, handle: Handle<AudioBus>) -> Option<&AudioBus> {
         self.buses.try_borrow(handle)
     }
 
+    /// Tries to borrow an audio bus by its handle.
     pub fn try_get_bus_mut(&mut self, handle: Handle<AudioBus>) -> Option<&mut AudioBus> {
         self.buses.try_borrow_mut(handle)
     }
 
+    /// Returns total amount of audio buses in the graph.
     pub fn len(&self) -> usize {
         self.buses.alive_count() as usize
     }
 
+    /// Checks if the graph is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    /// Tries to move out an audio bus with a promise that it will be returned back. See [`Pool::try_take_reserve`] method
+    /// docs for more info.
     pub fn try_take_reserve_bus(
         &mut self,
         handle: Handle<AudioBus>,
@@ -326,26 +409,34 @@ impl AudioBusGraph {
         self.buses.try_take_reserve(handle)
     }
 
+    /// Puts the audio bus back to graph on its previous place by the given ticket. See [`Pool::put_back`] method docs
+    /// for more info.
     pub fn put_bus_back(&mut self, ticket: Ticket<AudioBus>, bus: AudioBus) -> Handle<AudioBus> {
         self.buses.put_back(ticket, bus)
     }
 
+    /// Forget an audio bus ticket making the respective handle free again. See [`Pool::forget_ticket`] method docs for
+    /// more info.
     pub fn forget_bus_ticket(&mut self, ticket: Ticket<AudioBus>) {
         self.buses.forget_ticket(ticket)
     }
 
+    /// Returns an iterator over each audio bus in the graph.
     pub fn buses_iter(&self) -> impl Iterator<Item = &AudioBus> {
         self.buses.iter()
     }
 
+    /// Returns an iterator over each audio bus in the graph.
     pub fn buses_iter_mut(&mut self) -> impl Iterator<Item = &mut AudioBus> {
         self.buses.iter_mut()
     }
 
+    /// Returns an iterator yielding a pair of handle and a reference to each audio bus in the graph.
     pub fn buses_pair_iter(&self) -> impl Iterator<Item = (Handle<AudioBus>, &AudioBus)> {
         self.buses.pair_iter()
     }
 
+    /// Returns an iterator yielding a pair of handle and a reference to each audio bus in the graph.
     pub fn buses_pair_iter_mut(
         &mut self,
     ) -> impl Iterator<Item = (Handle<AudioBus>, &mut AudioBus)> {
