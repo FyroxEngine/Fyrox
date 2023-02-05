@@ -1,7 +1,7 @@
 use crate::{
     absm::selection::AbsmSelection,
     animation::selection::AnimationSelection,
-    audio::EffectSelection,
+    audio::AudioBusSelection,
     camera::CameraController,
     interaction::navmesh::{
         data_model::{Navmesh, NavmeshContainer, NavmeshTriangle, NavmeshVertex},
@@ -121,7 +121,6 @@ impl EditorScene {
             graph_switches: GraphUpdateSwitches {
                 physics2d: true,
                 physics: true,
-                sound: true,
                 // Prevent engine to update lifetime of the nodes and to delete "dead" nodes. Otherwise
                 // the editor will crash if some node is "dead".
                 delete_dead_nodes: false,
@@ -371,10 +370,9 @@ impl EditorScene {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Selection {
     None,
-    SoundContext,
     Graph(GraphSelection),
     Navmesh(NavmeshSelection),
-    Effect(EffectSelection),
+    AudioBus(AudioBusSelection),
     Absm(AbsmSelection),
     Animation(AnimationSelection),
 }
@@ -391,8 +389,7 @@ impl Selection {
             Selection::None => true,
             Selection::Graph(graph) => graph.is_empty(),
             Selection::Navmesh(navmesh) => navmesh.is_empty(),
-            Selection::SoundContext => false,
-            Selection::Effect(effect) => effect.is_empty(),
+            Selection::AudioBus(effect) => effect.is_empty(),
             Selection::Absm(absm) => absm.is_empty(),
             Selection::Animation(animation) => animation.is_empty(),
         }
@@ -403,8 +400,7 @@ impl Selection {
             Selection::None => 0,
             Selection::Graph(graph) => graph.len(),
             Selection::Navmesh(navmesh) => navmesh.len(),
-            Selection::SoundContext => 1,
-            Selection::Effect(effect) => effect.len(),
+            Selection::AudioBus(effect) => effect.len(),
             Selection::Absm(absm) => absm.len(),
             Selection::Animation(animation) => animation.len(),
         }

@@ -14,7 +14,7 @@ use fyrox_core::{
 
 /// One-pole Filter.
 /// For details see - <https://www.earlevel.com/main/2012/12/15/a-one-pole-filter/>
-#[derive(Debug, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 pub struct OnePole {
     a0: f32,
     b1: f32,
@@ -68,7 +68,7 @@ impl OnePole {
 
 /// Lowpass-Feedback Comb Filter
 /// For details see - <https://ccrma.stanford.edu/~jos/pasp/Lowpass_Feedback_Comb_Filter.html>
-#[derive(Debug, Clone, Visit)]
+#[derive(Debug, PartialEq, Clone, Visit)]
 pub struct LpfComb {
     low_pass: OnePole,
     delay_line: DelayLine,
@@ -125,7 +125,7 @@ impl LpfComb {
 
 /// Allpass Filter - <https://ccrma.stanford.edu/~jos/pasp/Allpass_Filters.html>
 /// For details see - <https://ccrma.stanford.edu/~jos/pasp/Allpass_Two_Combs.html>
-#[derive(Debug, Clone, Visit)]
+#[derive(Debug, Clone, PartialEq, Visit)]
 pub struct AllPass {
     delay_line: DelayLine,
     gain: f32,

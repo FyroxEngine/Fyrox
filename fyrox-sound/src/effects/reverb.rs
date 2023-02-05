@@ -11,12 +11,12 @@
 //! use std::time::Duration;
 //! use fyrox_sound::context::SoundContext;
 //! use fyrox_sound::effects::reverb::Reverb;
-//! use fyrox_sound::effects::{Effect, BaseEffect};
+//! use fyrox_sound::effects::Effect;
 //!
 //! fn set_reverberator(context: &mut SoundContext) {
-//!     let mut reverb = Reverb::new(BaseEffect::default());
-//!     reverb.set_decay_time(Duration::from_secs_f32(10.0));
-//!     context.state().add_effect(Effect::Reverb(reverb));
+//!     let mut reverb = Reverb::new();
+//!     reverb.set_decay_time(10.0);
+//!     context.state().bus_graph_mut().primary_bus_mut().add_effect(Effect::Reverb(reverb));
 //! }
 //! ```
 //!
@@ -26,30 +26,17 @@
 //! is acceptable. To remove this effect, more complex reverberator should be implemented.
 
 use crate::{
-    context::DistanceModel,
     dsp::filters::{AllPass, LpfComb},
-    effects::{BaseEffect, EffectRenderTrait},
-    listener::Listener,
-    source::SoundSource,
+    effects::EffectRenderTrait,
 };
-use fyrox_core::{
-    pool::Pool,
-    visitor::{Visit, VisitResult, Visitor},
-};
-use std::{
-    ops::{Deref, DerefMut},
-    time::Duration,
-};
+use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
 
-#[derive(Default, Debug, Clone, Visit)]
+#[derive(Default, Debug, Clone, PartialEq, Visit)]
 struct ChannelReverb {
-    #[visit(rename = "FC")]
     fc: f32,
     sample_rate: u32,
     stereo_spread: u32,
-    #[visit(rename = "LPCFilters")]
     lp_fb_comb_filters: Vec<LpfComb>,
-    #[visit(rename = "APFilters")]
     all_pass_filters: Vec<AllPass>,
 }
 
@@ -59,10 +46,10 @@ const DB60: f32 = 0.001;
 /// Sample rate for which this reverb was designed.
 const DESIGN_SAMPLE_RATE: u32 = 44100;
 
-fn calculate_decay(len: usize, sample_rate: u32, decay_time: Duration) -> f32 {
+fn calculate_decay(len: usize, sample_rate: u32, decay_time: f32) -> f32 {
     let time_len = len as f32 / sample_rate as f32;
     // Asymptotically goes to 1.0 by exponential law
-    DB60.powf(time_len / decay_time.as_secs_f32())
+    DB60.powf(time_len / decay_time)
 }
 
 impl ChannelReverb {
@@ -70,8 +57,8 @@ impl ChannelReverb {
     const COMB_LENGTHS: [usize; 8] = [1557, 1617, 1491, 1422, 1277, 1356, 1188, 1116];
     const ALLPASS_LENGTHS: [usize; 4] = [225, 556, 441, 341];
 
-    fn new(stereo_spread: u32, fc: f32, feedback: f32) -> Self {
-        Self {
+    fn new(stereo_spread: u32, fc: f32, feedback: f32, decay_time: f32) -> Self {
+        let mut reverb = Self {
             fc,
             stereo_spread,
             sample_rate: DESIGN_SAMPLE_RATE,
@@ -83,7 +70,11 @@ impl ChannelReverb {
                 .iter()
                 .map(|len| AllPass::new(*len + stereo_spread as usize, 0.5))
                 .collect(),
-        }
+        };
+
+        reverb.set_decay_time(decay_time);
+
+        reverb
     }
 
     fn set_sample_rate(&mut self, sample_rate: usize) {
@@ -114,7 +105,7 @@ impl ChannelReverb {
             .collect();
     }
 
-    fn set_decay_time(&mut self, decay_time: Duration) {
+    fn set_decay_time(&mut self, decay_time: f32) {
         for comb in self.lp_fb_comb_filters.iter_mut() {
             comb.set_feedback(calculate_decay(comb.len(), self.sample_rate, decay_time));
         }
@@ -140,18 +131,23 @@ impl ChannelReverb {
 }
 
 /// See module docs.
-#[derive(Debug, Clone, Visit)]
+#[derive(Debug, Clone, Visit, Reflect, PartialEq)]
 pub struct Reverb {
-    base: BaseEffect,
     dry: f32,
     wet: f32,
+    #[reflect(setter = "set_decay_time", min_value = 0.0)]
+    decay_time: f32,
+    #[reflect(setter = "set_fc", min_value = 0.0, max_value = 1.0)]
+    fc: f32,
+    #[reflect(hidden)]
     left: ChannelReverb,
+    #[reflect(hidden)]
     right: ChannelReverb,
 }
 
 impl Default for Reverb {
     fn default() -> Self {
-        Self::new(Default::default())
+        Self::new()
     }
 }
 
@@ -168,16 +164,18 @@ impl Reverb {
 
     /// Creates new instance of reverb effect with cutoff frequency of ~11.2 kHz and
     /// 5 seconds decay time.
-    pub fn new(base: BaseEffect) -> Self {
+    pub fn new() -> Self {
         let fc = 0.25615; // 11296 Hz at 44100 Hz sample rate
         let feedback = 0.84;
+        let decay_time = 2.0;
 
         Self {
-            base,
             dry: 1.0,
             wet: 1.0,
-            left: ChannelReverb::new(0, fc, feedback),
-            right: ChannelReverb::new(23, fc, feedback),
+            decay_time: 2.0,
+            fc,
+            left: ChannelReverb::new(0, fc, feedback, decay_time),
+            right: ChannelReverb::new(23, fc, feedback, decay_time),
         }
     }
 
@@ -215,9 +213,15 @@ impl Reverb {
 
     /// Sets desired duration of reverberation, the more size your environment has,
     /// the larger duration of reverberation should be.
-    pub fn set_decay_time(&mut self, decay_time: Duration) {
+    pub fn set_decay_time(&mut self, decay_time: f32) {
+        self.decay_time = decay_time;
         self.left.set_decay_time(decay_time);
         self.right.set_decay_time(decay_time)
+    }
+
+    /// Returns current decay time.
+    pub fn decay_time(&self) -> f32 {
+        self.decay_time
     }
 
     /// Sets cutoff frequency for lowpass filter in comb filters. Basically this parameter defines
@@ -232,52 +236,31 @@ impl Reverb {
     /// frequency in hertz by sample rate of sound context. Context has `normalize_frequency` method
     /// exactly for this purpose.
     pub fn set_fc(&mut self, fc: f32) {
+        self.fc = fc;
         self.left.set_fc(fc);
         self.right.set_fc(fc);
+    }
+
+    /// Returns current cutoff frequency.
+    pub fn fc(&self) -> f32 {
+        self.fc
     }
 }
 
 impl EffectRenderTrait for Reverb {
-    fn render(
-        &mut self,
-        sources: &Pool<SoundSource>,
-        listener: &Listener,
-        distance_model: DistanceModel,
-        mix_buf: &mut [(f32, f32)],
-    ) {
-        self.base
-            .render(sources, listener, distance_model, mix_buf.len());
+    fn render(&mut self, input: &[(f32, f32)], mix_buf: &mut [(f32, f32)]) {
+        let wet = self.wet;
+        let dry = 1.0 - self.wet;
 
-        let wet1 = self.wet;
-        let wet2 = 1.0 - self.wet;
-
-        for ((out_left, out_right), &(left, right)) in
-            mix_buf.iter_mut().zip(self.base.frame_samples.iter())
-        {
+        for ((out_left, out_right), &(left, right)) in mix_buf.iter_mut().zip(input.iter()) {
             let mid = (left + right) * 0.5;
             let input = mid * Self::GAIN;
 
             let processed_left = self.left.feed(input);
             let processed_right = self.right.feed(input);
 
-            *out_left +=
-                self.gain * (processed_left * wet1 + processed_right * wet2 + self.dry * left);
-            *out_right +=
-                self.gain * (processed_right * wet1 + processed_left * wet2 + self.dry * right);
+            *out_left = processed_left * wet + processed_right * dry + self.dry * left;
+            *out_right = processed_right * wet + processed_left * dry + self.dry * right;
         }
-    }
-}
-
-impl Deref for Reverb {
-    type Target = BaseEffect;
-
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
-}
-
-impl DerefMut for Reverb {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base
     }
 }

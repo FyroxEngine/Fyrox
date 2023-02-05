@@ -8,13 +8,9 @@ use crate::{
     },
     animation::{self, command::signal::make_animation_signal_property_command},
     inspector::{
-        editors::make_property_editors_container,
-        handlers::{
-            node::SceneNodePropertyChangedHandler,
-            sound_context::handle_sound_context_property_changed,
-        },
+        editors::make_property_editors_container, handlers::node::SceneNodePropertyChangedHandler,
     },
-    scene::{commands::effect::make_set_effect_property_command, EditorScene, Selection},
+    scene::{commands::effect::make_set_audio_bus_property_command, EditorScene, Selection},
     send_sync_message,
     utils::window_content,
     Brush, CommandGroup, GameEngine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
@@ -232,17 +228,11 @@ impl Inspector {
                             })
                         }
                     }
-                    Selection::SoundContext => {
-                        self.sync_to(
-                            &scene.graph.sound_context as &dyn Reflect,
-                            &mut engine.user_interface,
-                        );
-                    }
-                    Selection::Effect(selection) => {
-                        if let Some(effect) = scene
-                            .graph
-                            .sound_context
-                            .try_get_effect(selection.effects[0])
+
+                    Selection::AudioBus(selection) => {
+                        let state = scene.graph.sound_context.state();
+                        if let Some(effect) =
+                            state.bus_graph_ref().try_get_bus_ref(selection.buses[0])
                         {
                             self.sync_to(effect as &dyn Reflect, &mut engine.user_interface);
                         }
@@ -412,20 +402,10 @@ impl Inspector {
                             })
                         }
                     }
-                    Selection::SoundContext => self.change_context(
-                        &scene.graph.sound_context as &dyn Reflect,
-                        &mut engine.user_interface,
-                        engine.resource_manager.clone(),
-                        engine.serialization_context.clone(),
-                        &scene.graph,
-                        &editor_scene.selection,
-                        sender,
-                    ),
-                    Selection::Effect(selection) => {
-                        if let Some(effect) = scene
-                            .graph
-                            .sound_context
-                            .try_get_effect(selection.effects[0])
+                    Selection::AudioBus(selection) => {
+                        let state = scene.graph.sound_context.state();
+                        if let Some(effect) =
+                            state.bus_graph_ref().try_get_bus_ref(selection.buses[0])
                         {
                             self.change_context(
                                 effect as &dyn Reflect,
@@ -564,13 +544,10 @@ impl Inspector {
                             }
                         })
                         .collect::<Vec<_>>(),
-                    Selection::SoundContext => handle_sound_context_property_changed(args)
-                        .map(|c| vec![c])
-                        .unwrap_or_default(),
-                    Selection::Effect(selection) => selection
-                        .effects
+                    Selection::AudioBus(selection) => selection
+                        .buses
                         .iter()
-                        .filter_map(|&handle| make_set_effect_property_command(handle, args))
+                        .filter_map(|&handle| make_set_audio_bus_property_command(handle, args))
                         .collect::<Vec<_>>(),
                     Selection::Animation(selection) => {
                         if scene

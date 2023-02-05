@@ -12,8 +12,7 @@ use crate::{
     scene::{Scene, SceneContainer},
     window::Window,
 };
-use fyrox_sound::engine::SoundEngine;
-use std::{any::Any, sync::Arc, sync::Mutex};
+use std::{any::Any, sync::Arc};
 
 /// Plugin constructor is a first step of 2-stage plugin initialization. It is responsible for plugin script
 /// registration and for creating actual plugin instance.
@@ -47,24 +46,6 @@ pub struct PluginRegistrationContext<'a> {
     /// A reference to serialization context of the engine. See [`SerializationContext`] for more
     /// info.
     pub serialization_context: &'a Arc<SerializationContext>,
-}
-
-/// A small wrapper that provides limited access to inner sound engine.
-pub struct SoundEngineHelper<'a> {
-    pub(crate) engine: &'a Arc<Mutex<SoundEngine>>,
-}
-
-impl<'a> SoundEngineHelper<'a> {
-    /// Sets master gain of the sound engine. Can be used to control overall gain of all sound
-    /// scenes at once.
-    pub fn set_sound_gain(&mut self, gain: f32) {
-        self.engine.lock().unwrap().set_master_gain(gain);
-    }
-
-    /// Returns master gain of the sound engine.
-    pub fn sound_gain(&self) -> f32 {
-        self.engine.lock().unwrap().master_gain()
-    }
 }
 
 /// Contains plugin environment.
@@ -101,9 +82,6 @@ pub struct PluginContext<'a, 'b> {
 
     /// A reference to the main application window.
     pub window: &'a Window,
-
-    /// Sound engine allows you to change global sound parameters, such as master gain, etc.
-    pub sound_engine: SoundEngineHelper<'a>,
 
     /// Performance statistics from the last frame.
     pub performance_statistics: &'a PerformanceStatistics,

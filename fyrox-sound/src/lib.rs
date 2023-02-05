@@ -69,6 +69,7 @@ extern crate winapi;
 pub mod buffer;
 pub mod context;
 
+pub mod bus;
 pub mod dsp;
 pub mod effects;
 pub mod engine;

@@ -631,7 +631,10 @@ impl InspectorContext {
                         TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                             .with_wrap(WrapMode::Word)
                             .with_vertical_text_alignment(VerticalAlignment::Center)
-                            .with_text("Property Editor Is Missing!")
+                            .with_text(format!(
+                                "Property Editor Is Missing For Type {}!",
+                                info.type_name
+                            ))
                             .build(ctx),
                         &description,
                         ctx,

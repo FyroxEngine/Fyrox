@@ -5,12 +5,15 @@
 //! Engine has only one listener which can be positioned and oriented in space. Listener defined as coordinate
 //! system which is used to compute spatial properties of sound sources.
 
-use fyrox_core::algebra::{Matrix3, Vector3};
-use fyrox_core::math::Matrix3Ext;
-use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::{
+    algebra::{Matrix3, Vector3},
+    math::Matrix3Ext,
+    reflect::prelude::*,
+    visitor::prelude::*,
+};
 
 /// See module docs.
-#[derive(Debug, Clone, Visit)]
+#[derive(Debug, Clone, Visit, Reflect)]
 pub struct Listener {
     basis: Matrix3<f32>,
     position: Vector3<f32>,

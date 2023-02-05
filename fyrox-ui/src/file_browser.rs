@@ -6,7 +6,7 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{algebra::Vector2, pool::Handle},
-    define_constructor,
+    define_constructor, define_widget_deref,
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, OsEvent, UiMessage},
@@ -31,12 +31,15 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Component, Path, PathBuf, Prefix},
     rc::Rc,
-    sync::mpsc::{Receiver, Sender},
-    sync::{mpsc, Arc, Mutex},
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc, Mutex,
+    },
     thread,
 };
 
 use crate::text::TextMessage;
+use crate::widget::WidgetMessage;
 use notify::Watcher;
 #[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{DiskExt, RefreshKind, SystemExt};
@@ -1212,6 +1215,166 @@ impl FileSelectorBuilder {
         };
 
         ctx.add_node(UiNode::new(file_selector))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FileSelectorFieldMessage {
+    Path(PathBuf),
+}
+
+impl FileSelectorFieldMessage {
+    define_constructor!(FileSelectorFieldMessage:Path => fn path(PathBuf), layout: false);
+}
+
+#[derive(Clone)]
+pub struct FileSelectorField {
+    widget: Widget,
+    path: PathBuf,
+    path_field: Handle<UiNode>,
+    select: Handle<UiNode>,
+    file_selector: Handle<UiNode>,
+}
+
+define_widget_deref!(FileSelectorField);
+
+impl Control for FileSelectorField {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.widget.handle_routed_message(ui, message);
+
+        if let Some(TextMessage::Text(text)) = message.data() {
+            if message.destination() == self.path_field
+                && message.direction() == MessageDirection::FromWidget
+                && Path::new(text.as_str()) != self.path
+            {
+                ui.send_message(FileSelectorFieldMessage::path(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    text.into(),
+                ));
+            }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.select {
+                let file_selector = FileSelectorBuilder::new(
+                    WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                        .open(false)
+                        .can_minimize(false),
+                )
+                .with_path(self.path.clone())
+                .with_root(std::env::current_dir().unwrap_or_default())
+                .with_mode(FileBrowserMode::Open)
+                .build(&mut ui.build_ctx());
+
+                self.file_selector = file_selector;
+
+                ui.send_message(WindowMessage::open_modal(
+                    file_selector,
+                    MessageDirection::ToWidget,
+                    true,
+                ));
+            }
+        } else if let Some(FileSelectorFieldMessage::Path(new_path)) = message.data() {
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::ToWidget
+                && &self.path != new_path
+            {
+                self.path = new_path.clone();
+                ui.send_message(TextMessage::text(
+                    self.path_field,
+                    MessageDirection::ToWidget,
+                    self.path.to_string_lossy().to_string(),
+                ));
+
+                ui.send_message(message.reverse());
+            }
+        }
+    }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        if let Some(FileSelectorMessage::Commit(new_path)) = message.data() {
+            if message.destination() == self.file_selector {
+                ui.send_message(FileSelectorFieldMessage::path(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    new_path.clone(),
+                ));
+            }
+        } else if let Some(WindowMessage::Close) = message.data() {
+            if message.destination() == self.file_selector {
+                ui.send_message(WidgetMessage::remove(
+                    self.file_selector,
+                    MessageDirection::ToWidget,
+                ));
+            }
+        }
+    }
+}
+
+pub struct FileSelectorFieldBuilder {
+    widget_builder: WidgetBuilder,
+    path: PathBuf,
+}
+
+impl FileSelectorFieldBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
+        Self {
+            widget_builder,
+            path: Default::default(),
+        }
+    }
+
+    pub fn with_path(mut self, path: PathBuf) -> Self {
+        self.path = path;
+        self
+    }
+
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let select;
+        let path_field;
+        let field = FileSelectorField {
+            widget: self
+                .widget_builder
+                .with_preview_messages(true)
+                .with_child(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                path_field = TextBoxBuilder::new(WidgetBuilder::new().on_column(0))
+                                    .with_text(self.path.to_string_lossy())
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .build(ctx);
+                                path_field
+                            })
+                            .with_child({
+                                select = ButtonBuilder::new(
+                                    WidgetBuilder::new().on_column(1).with_width(25.0),
+                                )
+                                .with_text("...")
+                                .build(ctx);
+                                select
+                            }),
+                    )
+                    .add_row(Row::stretch())
+                    .add_column(Column::stretch())
+                    .add_column(Column::auto())
+                    .build(ctx),
+                )
+                .build(),
+            path: self.path,
+            path_field,
+            select,
+            file_selector: Default::default(),
+        };
+
+        ctx.add_node(UiNode::new(field))
     }
 }
 

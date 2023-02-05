@@ -62,7 +62,10 @@ use fyrox_core::{
     visitor::{Visit, VisitResult, Visitor},
 };
 use hrtf::HrirSphere;
-use std::{fmt::Debug, path::PathBuf};
+use std::{
+    fmt::Debug,
+    path::{Path, PathBuf},
+};
 
 /// See module docs.
 #[derive(Clone, Debug, Default, Reflect)]
@@ -81,11 +84,7 @@ impl Visit for HrtfRenderer {
         drop(region);
 
         if visitor.is_reading() {
-            self.processor = Some(hrtf::HrtfProcessor::new(
-                HrirSphere::from_file(&self.hrir_path, context::SAMPLE_RATE).unwrap(),
-                SoundContext::HRTF_INTERPOLATION_STEPS,
-                SoundContext::HRTF_BLOCK_LEN,
-            ));
+            self.try_reload();
         }
 
         Ok(())
@@ -105,6 +104,29 @@ impl HrtfRenderer {
         }
     }
 
+    /// Tries to load a new HRIR sphere from a given path and re-initialize the renderer to use it.
+    pub fn set_hrir_sphere_from_path<P: AsRef<Path>>(&mut self, path: P) {
+        self.hrir_path = path.as_ref().to_path_buf();
+        self.try_reload();
+    }
+
+    /// Returns currently used HRIR path.
+    pub fn hrir_sphere_path(&self) -> &Path {
+        &self.hrir_path
+    }
+
+    fn try_reload(&mut self) {
+        self.processor = HrirSphere::from_file(&self.hrir_path, context::SAMPLE_RATE)
+            .ok()
+            .map(|sphere| {
+                hrtf::HrtfProcessor::new(
+                    sphere,
+                    SoundContext::HRTF_INTERPOLATION_STEPS,
+                    SoundContext::HRTF_BLOCK_LEN,
+                )
+            });
+    }
+
     pub(crate) fn render_source(
         &mut self,
         source: &mut SoundSource,
@@ -120,10 +142,8 @@ impl HrtfRenderer {
             source.spatial_blend() * source.calculate_distance_gain(listener, distance_model);
         let new_sampling_vector = source.calculate_sampling_vector(listener);
 
-        self.processor
-            .as_mut()
-            .unwrap()
-            .process_samples(hrtf::HrtfContext {
+        if let Some(processor) = self.processor.as_mut() {
+            processor.process_samples(hrtf::HrtfContext {
                 source: &source.frame_samples,
                 output: out_buf,
                 new_sample_vector: hrtf::Vec3::new(
@@ -141,6 +161,7 @@ impl HrtfRenderer {
                 prev_distance_gain: source.prev_distance_gain.unwrap_or(new_distance_gain),
                 new_distance_gain,
             });
+        }
 
         source.prev_sampling_vector = new_sampling_vector;
         source.prev_distance_gain = Some(new_distance_gain);

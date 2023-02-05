@@ -10,8 +10,8 @@
 //! once the level is loaded you just set master gain of main menu context and it will no longer produce any
 //! sounds, only your level will do.
 
+use crate::bus::AudioBusGraph;
 use crate::{
-    effects::{Effect, EffectRenderTrait},
     listener::Listener,
     pool::Ticket,
     renderer::{render_source_default, Renderer},
@@ -98,14 +98,13 @@ impl PartialEq for SoundContext {
 }
 
 /// Internal state of context.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Reflect)]
 pub struct State {
     sources: Pool<SoundSource>,
     listener: Listener,
-    master_gain: f32,
     render_duration: Duration,
     renderer: Renderer,
-    effects: Pool<Effect>,
+    bus_graph: AudioBusGraph,
     distance_model: DistanceModel,
     paused: bool,
 }
@@ -154,16 +153,6 @@ impl State {
         self.distance_model
     }
 
-    /// Adds new effect to effects chain. Each sample from
-    pub fn add_effect(&mut self, effect: Effect) -> Handle<Effect> {
-        self.effects.spawn(effect)
-    }
-
-    /// Removes effect by given handle.
-    pub fn remove_effect(&mut self, effect: Handle<Effect>) {
-        self.effects.free(effect);
-    }
-
     /// Normalizes given frequency using context's sampling rate. Normalized frequency then can be used
     /// to create filters.
     pub fn normalize_frequency(&self, f: f32) -> f32 {
@@ -188,17 +177,6 @@ impl State {
     /// Returns mutable reference to current renderer.
     pub fn renderer_mut(&mut self) -> &mut Renderer {
         &mut self.renderer
-    }
-
-    /// Sets new master gain. Master gain is used to control total sound volume that will be passed to output
-    /// device.
-    pub fn set_master_gain(&mut self, gain: f32) {
-        self.master_gain = gain;
-    }
-
-    /// Returns master gain.
-    pub fn master_gain(&self) -> f32 {
-        self.master_gain
     }
 
     /// Adds new sound source and returns handle of it by which it can be accessed later on.
@@ -251,17 +229,17 @@ impl State {
         &mut self.listener
     }
 
-    /// Returns shared reference to effect at given handle. If handle is invalid, this method will panic.
-    pub fn effect(&self, handle: Handle<Effect>) -> &Effect {
-        self.effects.borrow(handle)
+    /// Returns a reference to the audio bus graph.
+    pub fn bus_graph_ref(&self) -> &AudioBusGraph {
+        &self.bus_graph
     }
 
-    /// Returns mutable reference to effect at given handle. If handle is invalid, this method will panic.
-    pub fn effect_mut(&mut self, handle: Handle<Effect>) -> &mut Effect {
-        self.effects.borrow_mut(handle)
+    /// Returns a reference to the audio bus graph.
+    pub fn bus_graph_mut(&mut self) -> &mut AudioBusGraph {
+        &mut self.bus_graph
     }
 
-    pub(crate) fn render(&mut self, master_gain: f32, buf: &mut [(f32, f32)]) {
+    pub(crate) fn render(&mut self, output_device_buffer: &mut [(f32, f32)]) {
         let last_time = fyrox_core::instant::Instant::now();
 
         if !self.paused {
@@ -270,40 +248,41 @@ impl State {
                 !done
             });
 
+            self.bus_graph.begin_render(output_device_buffer.len());
+
+            // Render sounds to respective audio buses.
             for source in self
                 .sources
                 .iter_mut()
                 .filter(|s| s.status() == Status::Playing)
             {
-                source.render(buf.len());
+                if let Some(bus_input_buffer) = self.bus_graph.try_get_bus_input_buffer(&source.bus)
+                {
+                    source.render(output_device_buffer.len());
 
-                match self.renderer {
-                    Renderer::Default => {
-                        // Simple rendering path. Much faster (4-5 times) than HRTF path.
-                        render_source_default(source, &self.listener, self.distance_model, buf);
-                    }
-                    Renderer::HrtfRenderer(ref mut hrtf_renderer) => {
-                        hrtf_renderer.render_source(
-                            source,
-                            &self.listener,
-                            self.distance_model,
-                            buf,
-                        );
+                    match self.renderer {
+                        Renderer::Default => {
+                            // Simple rendering path. Much faster (4-5 times) than HRTF path.
+                            render_source_default(
+                                source,
+                                &self.listener,
+                                self.distance_model,
+                                bus_input_buffer,
+                            );
+                        }
+                        Renderer::HrtfRenderer(ref mut hrtf_renderer) => {
+                            hrtf_renderer.render_source(
+                                source,
+                                &self.listener,
+                                self.distance_model,
+                                bus_input_buffer,
+                            );
+                        }
                     }
                 }
             }
 
-            for effect in self.effects.iter_mut() {
-                effect.render(&self.sources, &self.listener, self.distance_model, buf);
-            }
-
-            let global_gain = self.master_gain * master_gain;
-
-            // Apply master gain to be able to control total sound volume.
-            for (left, right) in buf {
-                *left *= global_gain;
-                *right *= global_gain;
-            }
+            self.bus_graph.end_render(output_device_buffer);
         }
 
         self.render_duration = fyrox_core::instant::Instant::now() - last_time;
@@ -328,10 +307,9 @@ impl SoundContext {
             state: Some(Arc::new(Mutex::new(State {
                 sources: Pool::new(),
                 listener: Listener::new(),
-                master_gain: 1.0,
                 render_duration: Default::default(),
                 renderer: Renderer::Default,
-                effects: Pool::new(),
+                bus_graph: AudioBusGraph::new(),
                 distance_model: DistanceModel::InverseDistance,
                 paused: false,
             }))),
@@ -376,16 +354,14 @@ impl Visit for State {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         if visitor.is_reading() {
             self.sources.clear();
-            self.effects.clear();
             self.renderer = Renderer::Default;
         }
 
         let mut region = visitor.enter_region(name)?;
 
-        self.master_gain.visit("MasterGain", &mut region)?;
         self.listener.visit("Listener", &mut region)?;
         self.sources.visit("Sources", &mut region)?;
-        self.effects.visit("Effects", &mut region)?;
+        self.bus_graph.visit("BusGraph", &mut region)?;
         self.renderer.visit("Renderer", &mut region)?;
         self.paused.visit("Paused", &mut region)?;
         self.distance_model.visit("DistanceModel", &mut region)?;

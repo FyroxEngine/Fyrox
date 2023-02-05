@@ -24,11 +24,11 @@
 //!        .unwrap();
 //!     context.state().add_source(source)
 //! }
-//!
 //! ```
 
 #![allow(clippy::float_cmp)]
 
+use crate::bus::AudioBusGraph;
 use crate::{
     buffer::{streaming::StreamingBuffer, SoundBufferResource, SoundBufferState},
     context::DistanceModel,
@@ -94,6 +94,8 @@ pub struct SoundSource {
     #[reflect(read_only)]
     resampling_multiplier: f64,
     status: Status,
+    #[visit(optional)]
+    pub(crate) bus: String,
     play_once: bool,
     // Here we use Option because when source is just created it has no info about it
     // previous left and right channel gains. We can't set it to 1.0 for example
@@ -150,6 +152,7 @@ impl Default for SoundSource {
             looping: false,
             resampling_multiplier: 1.0,
             status: Status::Stopped,
+            bus: "Master".to_string(),
             play_once: false,
             last_left_gain: None,
             last_right_gain: None,
@@ -389,6 +392,17 @@ impl SoundSource {
     /// Returns max distance.
     pub fn max_distance(&self) -> f32 {
         self.max_distance
+    }
+
+    /// Sets new name of the target audio bus. The name must be valid, otherwise the sound won't play!
+    /// Default is [`AudioBusGraph::PRIMARY_BUS`].
+    pub fn set_bus<S: AsRef<str>>(&mut self, bus: S) {
+        self.bus = bus.as_ref().to_owned();
+    }
+
+    /// Return the name of the target audio bus.
+    pub fn bus(&self) -> &str {
+        &self.bus
     }
 
     // Distance models were taken from OpenAL Specification because it looks like they're
@@ -702,6 +716,7 @@ pub struct SoundSourceBuilder {
     max_distance: f32,
     rolloff_factor: f32,
     spatial_blend: f32,
+    bus: String,
 }
 
 impl Default for SoundSourceBuilder {
@@ -728,6 +743,7 @@ impl SoundSourceBuilder {
             max_distance: f32::MAX,
             rolloff_factor: 1.0,
             spatial_blend: 1.0,
+            bus: AudioBusGraph::PRIMARY_BUS.to_string(),
         }
     }
 
@@ -821,6 +837,12 @@ impl SoundSourceBuilder {
         self
     }
 
+    /// Sets desired output bus for the sound source.
+    pub fn with_bus<S: AsRef<str>>(mut self, bus: S) -> Self {
+        self.bus = bus.as_ref().to_string();
+        self
+    }
+
     /// Creates new instance of generic sound source. May fail if buffer is invalid.
     pub fn build(self) -> Result<SoundSource, SoundError> {
         let mut source = SoundSource {
@@ -840,6 +862,7 @@ impl SoundSourceBuilder {
             spatial_blend: self.spatial_blend,
             prev_left_samples: Default::default(),
             prev_right_samples: Default::default(),
+            bus: self.bus,
             ..Default::default()
         };
 

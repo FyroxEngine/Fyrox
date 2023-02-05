@@ -56,9 +56,8 @@ macro_rules! define_universal_commands {
             }
 
             fn swap(&mut $self, $ctx_ident: &mut $ctx) {
-                let entity = {$entity_getter} as &mut dyn Reflect;
 
-                entity.set_field_by_path(&$self.path, $self.value.take().unwrap(), &mut |result| match result {
+                (($entity_getter) as &mut dyn Reflect).set_field_by_path(&$self.path, $self.value.take().unwrap(), &mut |result| match result {
                     Ok(old_value) => {
                         $self.value = Some(old_value);
                     }

@@ -12,7 +12,6 @@ use std::sync::{Arc, Mutex};
 #[derive(Default)]
 pub struct SoundEngine {
     contexts: Vec<SoundContext>,
-    master_gain: f32,
 }
 
 impl SoundEngine {
@@ -32,7 +31,6 @@ impl SoundEngine {
     fn new_inner(headless: bool) -> Arc<Mutex<Self>> {
         let engine = Arc::new(Mutex::new(Self {
             contexts: Default::default(),
-            master_gain: 1.0,
         }));
 
         // Run the default output device. Internally it creates separate thread, so we have
@@ -55,7 +53,6 @@ impl SoundEngine {
     pub fn without_device() -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self {
             contexts: Default::default(),
-            master_gain: 1.0,
         }))
     }
 
@@ -89,16 +86,6 @@ impl SoundEngine {
         &self.contexts
     }
 
-    /// Set global sound volume in [0; 1] range.
-    pub fn set_master_gain(&mut self, master_gain: f32) {
-        self.master_gain = master_gain;
-    }
-
-    /// Returns global sound volume in [0; 1] range.
-    pub fn master_gain(&self) -> f32 {
-        self.master_gain
-    }
-
     /// Returns the length of buf to be passed to [`Self::render()`].
     pub fn render_buffer_len() -> usize {
         SoundContext::SAMPLES_PER_CHANNEL
@@ -118,9 +105,8 @@ impl SoundEngine {
     }
 
     fn render_inner(&mut self, buf: &mut [(f32, f32)]) {
-        let master_gain = self.master_gain;
         for context in self.contexts.iter_mut() {
-            context.state().render(master_gain, buf);
+            context.state().render(buf);
         }
     }
 }
@@ -133,7 +119,6 @@ impl Visit for SoundEngine {
 
         let mut region = visitor.enter_region(name)?;
 
-        self.master_gain.visit("MasterGain", &mut region)?;
         self.contexts.visit("Contexts", &mut region)?;
 
         Ok(())

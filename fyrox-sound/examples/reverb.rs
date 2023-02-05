@@ -2,7 +2,7 @@ use fyrox_sound::{
     algebra::{Point3, UnitQuaternion, Vector3},
     buffer::{DataSource, SoundBufferResource},
     context::{self, SoundContext},
-    effects::{reverb::Reverb, BaseEffect, Effect, EffectInput},
+    effects::{reverb::Reverb, Effect},
     engine::SoundEngine,
     futures::executor::block_on,
     hrtf::HrirSphere,
@@ -31,12 +31,18 @@ fn main() {
         .state()
         .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrir_sphere)));
 
-    let base_effect = BaseEffect::default();
+    {
+        // Create reverb effect and set its decay time.
+        let mut reverb = Reverb::new();
+        reverb.set_decay_time(10.0);
 
-    // Create reverb effect and set its decay time.
-    let mut reverb = Reverb::new(base_effect);
-    reverb.set_decay_time(Duration::from_secs_f32(10.0));
-    let reverb_handle = context.state().add_effect(Effect::Reverb(reverb));
+        // Add the reverb to the primary bus.
+        let mut state = context.state();
+        state
+            .bus_graph_mut()
+            .primary_bus_mut()
+            .add_effect(Effect::Reverb(reverb));
+    }
 
     // Create some sounds.
     let sound_buffer = SoundBufferResource::new_generic(
@@ -44,18 +50,13 @@ fn main() {
     )
     .unwrap();
     let source = SoundSourceBuilder::new()
+        // Each sound must specify the bus to which it will output the samples. By default it is "Primary" bus.
+        .with_bus("Primary")
         .with_buffer(sound_buffer)
         .with_status(Status::Playing)
         .build()
         .unwrap();
-    let door_sound = context.state().add_source(source);
-
-    // Each sound source must be attached to effect, otherwise sound won't be passed to effect
-    // and you'll hear sound without any difference.
-    context
-        .state()
-        .effect_mut(reverb_handle)
-        .add_input(EffectInput::direct(door_sound));
+    context.state().add_source(source);
 
     let sound_buffer = SoundBufferResource::new_generic(
         block_on(DataSource::from_file("examples/data/drop.wav")).unwrap(),
@@ -68,11 +69,6 @@ fn main() {
         .build()
         .unwrap();
     let drop_sound_handle = context.state().add_source(source);
-
-    context
-        .state()
-        .effect_mut(reverb_handle)
-        .add_input(EffectInput::direct(drop_sound_handle));
 
     // Move sound around listener for some time.
     let start_time = time::Instant::now();

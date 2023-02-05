@@ -81,9 +81,13 @@ use fyrox::{
         rigidbody::RigidBodyType,
         sound::{
             self,
-            effect::{BaseEffect, Effect, ReverbEffect},
-            Biquad, DistanceModel, SoundBufferResource, SoundBufferResourceLoadError,
-            SoundBufferState, Status,
+            filter::{
+                AllPassFilterEffect, BandPassFilterEffect, HighPassFilterEffect,
+                HighShelfFilterEffect, LowPassFilterEffect, LowShelfFilterEffect,
+            },
+            reverb::Reverb,
+            Attenuate, AudioBus, Biquad, DistanceModel, Effect, EffectWrapper, SoundBufferResource,
+            SoundBufferResourceLoadError, SoundBufferState, Status,
         },
         terrain::Layer,
         transform::Transform,
@@ -220,14 +224,24 @@ pub fn make_property_editors_container(
     container.register_inheritable_inspectable::<dim2::joint::PrismaticJoint>();
 
     container.register_inheritable_inspectable::<Base>();
-    container.register_inheritable_inspectable::<BaseEffect>();
     container.register_inheritable_inspectable::<BaseLight>();
 
-    container.register_inheritable_enum::<Effect, _>();
+    container.insert(EnumPropertyEditorDefinition::<Effect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<EffectWrapper>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<EffectWrapper>::new());
+    container.insert(InspectablePropertyEditorDefinition::<Attenuate>::new());
+    container.insert(InspectablePropertyEditorDefinition::<LowPassFilterEffect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<HighPassFilterEffect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<AllPassFilterEffect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BandPassFilterEffect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<LowShelfFilterEffect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<HighShelfFilterEffect>::new());
+    container.insert(InspectablePropertyEditorDefinition::<Reverb>::new());
+
     container.register_inheritable_enum::<Emitter, _>();
 
-    container.register_inheritable_inspectable::<ReverbEffect>();
     container.register_inheritable_inspectable::<Biquad>();
+    container.register_inheritable_inspectable::<AudioBus>();
     container.register_inheritable_inspectable::<BaseEmitter>();
     container.register_inheritable_inspectable::<SphereEmitter>();
     container.register_inheritable_inspectable::<CylinderEmitter>();
