@@ -34,7 +34,7 @@ fn main() {
     {
         // Create reverb effect and set its decay time.
         let mut reverb = Reverb::new();
-        reverb.set_decay_time(Duration::from_secs_f32(10.0));
+        reverb.set_decay_time(10.0);
 
         // Add the reverb to the primary bus.
         let mut state = context.state();

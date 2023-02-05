@@ -5,6 +5,27 @@
 #![allow(dead_code)]
 
 use fyrox::{
+    core::uuid::{uuid, Uuid},
+    scene::{
+        sound::Effect,
+        animation::{
+            absm::{AnimationBlendingStateMachine, AnimationBlendingStateMachineBuilder},
+            AnimationPlayer,
+        },
+        base::BaseBuilder,
+        camera::{CameraBuilder, SkyBoxBuilder},
+        collider::{Collider, ColliderBuilder, ColliderShape},
+        graph::Graph,
+        node::Node,
+        pivot::PivotBuilder,
+        rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
+        sound::{
+            listener::ListenerBuilder,
+        },
+        transform::TransformBuilder,
+        Scene,
+        sound::reverb::Reverb
+    },
     animation::{
         machine::{Machine, MachineLayer, Parameter, PoseNode, State, Transition},
         Animation, AnimationSignal,
@@ -28,28 +49,8 @@ use fyrox::{
     },
     gui::{BuildContext, UiNode},
     renderer::QualitySettings,
-    resource::texture::TextureWrapMode,
-    scene::{
-        animation::{
-            absm::{AnimationBlendingStateMachine, AnimationBlendingStateMachineBuilder},
-            AnimationPlayer,
-        },
-        base::BaseBuilder,
-        camera::{CameraBuilder, SkyBoxBuilder},
-        collider::{Collider, ColliderBuilder, ColliderShape},
-        graph::Graph,
-        node::Node,
-        pivot::PivotBuilder,
-        rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
-        sound::{
-            effect::{BaseEffectBuilder, Effect, ReverbEffectBuilder},
-            listener::ListenerBuilder,
-        },
-        transform::TransformBuilder,
-        Scene,
-    },
+    resource::texture::TextureWrapMode
 };
-use fyrox_core::uuid::{uuid, Uuid};
 use std::{
     path::Path,
     sync::{Arc, Mutex},
@@ -213,14 +214,12 @@ pub fn create_ui(ui: &mut BuildContext, screen_size: Vector2<f32>) -> Interface 
 pub struct SceneLoadResult {
     pub scene: Scene,
     pub player: Player,
-    pub reverb_effect: Handle<Effect>,
 }
 
 #[derive(Default)]
 pub struct GameScene {
     pub scene: Handle<Scene>,
     pub player: Player,
-    pub reverb_effect: Handle<Effect>,
 }
 
 pub struct SceneLoadContext {
@@ -803,16 +802,10 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
 
             // Create reverb effect for more natural sound - our player walks in some sort of cathedral,
             // so there will be pretty decent echo.
-            let reverb_effect = ReverbEffectBuilder::new(
-                BaseEffectBuilder::new()
-                    // Make sure it won't be too loud - fyrox-sound doesn't care about energy conservation law, it
-                    // just makes requested calculation.
-                    .with_gain(0.7)
-                    .with_name("Reverb".to_string()),
-            )
-            // Set reverb time to ~3 seconds - the more time the deeper the echo.
-            .with_decay_time(3.0)
-            .build(&mut scene.graph.sound_context);
+            let mut reverb = Reverb::new();
+            reverb.set_decay_time(3.0);
+            reverb.set_dry(0.5); // Half of the initial sound will be passed through reverb.
+            scene.graph.sound_context.state().bus_graph_mut().primary_bus_mut().add_effect(Effect::Reverb(reverb));
 
             context
                 .lock()
@@ -836,7 +829,6 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
             context.lock().unwrap().scene_data = Some(SceneLoadResult {
                 scene,
                 player,
-                reverb_effect,
             });
         })
     });

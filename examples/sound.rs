@@ -34,6 +34,7 @@ use fyrox::{
         translate_event,
     },
 };
+use fyrox_sound::bus::AudioBusGraph;
 use std::time::Instant;
 
 const FOOTSTEP_SIGNAL: Uuid = uuid!("3e536261-9edf-4436-bba0-11173e61c8e9");
@@ -129,7 +130,6 @@ fn main() {
                             game.game_scene = Some(GameScene {
                                 scene: game.engine.scenes.add(load_result.scene),
                                 player: load_result.player,
-                                reverb_effect: load_result.reverb_effect,
                             });
 
                             // Once scene is loaded, we should hide progress bar and text.
@@ -221,7 +221,7 @@ fn main() {
                                 ),
                             )
                             // Specify the name of the effect to which the sound will attach to.
-                            .with_audio_bus("Reverb".to_string())
+                            .with_audio_bus(AudioBusGraph::PRIMARY_BUS.to_string())
                             // Fyrox provides built-in way to create temporary sounds that will die immediately
                             // after first play. This is very useful for foot step sounds.
                             .with_play_once(true)

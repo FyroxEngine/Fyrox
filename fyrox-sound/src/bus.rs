@@ -454,13 +454,13 @@ mod test {
         let mut graph = AudioBusGraph::new();
 
         let mut bus1 = AudioBus::new("Bus1".to_string());
-        bus1.effects.push(Effect::Attenuate(Attenuate::new(0.5)));
-        bus1.effects.push(Effect::Attenuate(Attenuate::new(0.5)));
+        bus1.add_effect(Effect::Attenuate(Attenuate::new(0.5)));
+        bus1.add_effect(Effect::Attenuate(Attenuate::new(0.5)));
 
         let bus1 = graph.add_bus(bus1, graph.root);
 
         let mut bus2 = AudioBus::new("Bus2".to_string());
-        bus2.effects.push(Effect::Attenuate(Attenuate::new(0.5)));
+        bus2.add_effect(Effect::Attenuate(Attenuate::new(0.5)));
         let bus2 = graph.add_bus(bus2, bus1);
 
         graph.begin_render(output_buffer.len());

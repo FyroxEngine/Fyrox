@@ -11,12 +11,12 @@
 //! use std::time::Duration;
 //! use fyrox_sound::context::SoundContext;
 //! use fyrox_sound::effects::reverb::Reverb;
-//! use fyrox_sound::effects::{Effect, BaseEffect};
+//! use fyrox_sound::effects::Effect;
 //!
 //! fn set_reverberator(context: &mut SoundContext) {
-//!     let mut reverb = Reverb::new(BaseEffect::default());
-//!     reverb.set_decay_time(Duration::from_secs_f32(10.0));
-//!     context.state().add_effect(Effect::Reverb(reverb));
+//!     let mut reverb = Reverb::new();
+//!     reverb.set_decay_time(10.0);
+//!     context.state().bus_graph_mut().primary_bus_mut().add_effect(Effect::Reverb(reverb));
 //! }
 //! ```
 //!
