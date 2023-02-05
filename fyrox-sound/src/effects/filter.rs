@@ -51,7 +51,7 @@ macro_rules! define_filter_effect {
             fn render(&mut self, input: &[(f32, f32)], output: &mut [(f32, f32)]) {
                 for ((input_left, input_right), (output_left, output_right)) in input.iter().zip(output) {
                     *output_left = self.left.feed(*input_left);
-                    *output_right = self.left.feed(*input_right);
+                    *output_right = self.right.feed(*input_right);
                 }
             }
         }
