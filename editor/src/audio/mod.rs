@@ -1,7 +1,9 @@
 use crate::{
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
+    gui::make_dropdown_list_option,
     scene::commands::{
         effect::{AddAudioBusCommand, LinkAudioBuses, RemoveAudioBusCommand},
+        sound_context::{SetDistanceModelCommand, SetRendererCommand},
         CommandGroup,
     },
     send_sync_message,
@@ -14,17 +16,20 @@ use fyrox::{
     engine::Engine,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
+        dropdown_list::{DropdownListBuilder, DropdownListMessage},
         grid::{Column, Row},
         list_view::{ListView, ListViewBuilder, ListViewMessage},
         message::UiMessage,
         stack_panel::StackPanelBuilder,
+        utils::make_simple_tooltip,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
         Orientation, Thickness, UiNode,
     },
-    scene::sound::{AudioBus, AudioBusGraph},
+    scene::sound::{AudioBus, AudioBusGraph, DistanceModel, Renderer},
 };
 use std::{cmp::Ordering, sync::mpsc::Sender};
+use strum::VariantNames;
 
 mod bus;
 pub mod preview;
@@ -49,6 +54,8 @@ pub struct AudioPanel {
     add_bus: Handle<UiNode>,
     remove_bus: Handle<UiNode>,
     audio_buses: Handle<UiNode>,
+    distance_model: Handle<UiNode>,
+    renderer: Handle<UiNode>,
 }
 
 fn item_bus(item: Handle<UiNode>, ui: &UserInterface) -> Handle<AudioBus> {
@@ -85,12 +92,57 @@ impl AudioPanel {
         let add_bus;
         let remove_bus;
         let buses;
+        let distance_model;
+        let renderer;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
+                        .with_child(
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(0)
+                                    .with_child({
+                                        distance_model = DropdownListBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_width(130.0)
+                                                .with_tooltip(make_simple_tooltip(
+                                                    ctx,
+                                                    "Distance Model",
+                                                )),
+                                        )
+                                        .with_items(
+                                            DistanceModel::VARIANTS
+                                                .iter()
+                                                .map(|v| make_dropdown_list_option(ctx, v))
+                                                .collect::<Vec<_>>(),
+                                        )
+                                        .build(ctx);
+                                        distance_model
+                                    })
+                                    .with_child({
+                                        renderer = DropdownListBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_width(100.0)
+                                                .with_tooltip(make_simple_tooltip(ctx, "Renderer")),
+                                        )
+                                        .with_items(
+                                            Renderer::VARIANTS
+                                                .iter()
+                                                .map(|v| make_dropdown_list_option(ctx, v))
+                                                .collect::<Vec<_>>(),
+                                        )
+                                        .build(ctx);
+                                        renderer
+                                    }),
+                            )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx),
+                        )
                         .with_child({
-                            buses = ListViewBuilder::new(WidgetBuilder::new().on_row(0))
+                            buses = ListViewBuilder::new(WidgetBuilder::new().on_row(1))
                                 .with_items_panel(
                                     StackPanelBuilder::new(WidgetBuilder::new())
                                         .with_orientation(Orientation::Horizontal)
@@ -102,7 +154,7 @@ impl AudioPanel {
                         .with_child(
                             StackPanelBuilder::new(
                                 WidgetBuilder::new()
-                                    .on_row(1)
+                                    .on_row(2)
                                     .with_child({
                                         add_bus = ButtonBuilder::new(
                                             WidgetBuilder::new()
@@ -128,6 +180,7 @@ impl AudioPanel {
                         ),
                 )
                 .add_column(Column::stretch())
+                .add_row(Row::strict(25.0))
                 .add_row(Row::stretch())
                 .add_row(Row::strict(25.0))
                 .build(ctx),
@@ -138,8 +191,10 @@ impl AudioPanel {
         Self {
             window,
             audio_buses: buses,
+            distance_model,
             add_bus,
             remove_bus,
+            renderer,
         }
     }
 
@@ -214,6 +269,34 @@ impl AudioPanel {
                         parent: *new_parent,
                     }))
                     .unwrap();
+            }
+        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.renderer {
+                    let renderer = match index {
+                        0 => Renderer::Default,
+                        1 => Renderer::HrtfRenderer(Default::default()),
+                        _ => unreachable!(),
+                    };
+
+                    sender
+                        .send(Message::do_scene_command(SetRendererCommand::new(renderer)))
+                        .unwrap();
+                } else if message.destination() == self.distance_model {
+                    let distance_model = match index {
+                        0 => DistanceModel::None,
+                        1 => DistanceModel::InverseDistance,
+                        2 => DistanceModel::LinearDistance,
+                        3 => DistanceModel::ExponentDistance,
+                        _ => unreachable!(),
+                    };
+
+                    sender
+                        .send(Message::do_scene_command(SetDistanceModelCommand::new(
+                            distance_model,
+                        )))
+                        .unwrap();
+                }
             }
         }
     }
@@ -364,6 +447,27 @@ impl AudioPanel {
                 ),
             );
         }
+
+        send_sync_message(
+            ui,
+            DropdownListMessage::selection(
+                self.distance_model,
+                MessageDirection::ToWidget,
+                Some(context_state.distance_model() as usize),
+            ),
+        );
+
+        send_sync_message(
+            ui,
+            DropdownListMessage::selection(
+                self.renderer,
+                MessageDirection::ToWidget,
+                Some(match context_state.renderer_ref() {
+                    Renderer::Default => 0,
+                    Renderer::HrtfRenderer(_) => 1,
+                }),
+            ),
+        );
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {

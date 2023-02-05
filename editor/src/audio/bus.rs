@@ -10,6 +10,7 @@ use fyrox::{
         list_view::{ListViewBuilder, ListViewMessage},
         message::{MessageDirection, UiMessage},
         text::{TextBuilder, TextMessage},
+        utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
         VerticalAlignment,
@@ -204,6 +205,10 @@ impl AudioBusViewBuilder {
                             .on_row(1)
                             .on_column(0)
                             .with_margin(Thickness::uniform(1.0))
+                            .with_tooltip(make_simple_tooltip(
+                                ctx,
+                                "A list of effects applied to the audio bus.",
+                            ))
                             .with_child({
                                 effect_names_list = ListViewBuilder::new(
                                     WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
@@ -220,7 +225,11 @@ impl AudioBusViewBuilder {
                         WidgetBuilder::new()
                             .on_row(2)
                             .on_column(0)
-                            .with_margin(Thickness::uniform(1.0)),
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_tooltip(make_simple_tooltip(
+                                ctx,
+                                "A parent audio bus to which this audio bus will send its data.",
+                            )),
                     )
                     .with_opt_selected(
                         self.possible_parent_buses

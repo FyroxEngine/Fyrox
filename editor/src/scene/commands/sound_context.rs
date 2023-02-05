@@ -39,7 +39,6 @@ macro_rules! define_sound_context_command {
 }
 
 define_sound_context_command! {
-    SetPausedCommand("Set Paused", bool, is_paused, pause);
     SetDistanceModelCommand("Set Distance Model", DistanceModel, distance_model, set_distance_model);
     SetRendererCommand("Set Renderer", Renderer, renderer, set_renderer);
 }
