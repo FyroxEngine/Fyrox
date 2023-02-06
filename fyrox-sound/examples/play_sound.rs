@@ -30,6 +30,8 @@ fn main() {
     let source = SoundSourceBuilder::new()
         .with_buffer(door_open_buffer)
         .with_status(Status::Playing)
+        // Ensure that no spatial effects will be applied.
+        .with_spatial_blend_factor(0.0)
         .build()
         .unwrap();
 
