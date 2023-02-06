@@ -13,7 +13,7 @@ use fyrox::{
         utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
+        VerticalAlignment, BRUSH_LIGHTER,
     },
     scene::sound::{AudioBus, AudioBusGraph},
 };
@@ -121,14 +121,24 @@ fn make_items(buses: &[(Handle<AudioBus>, String)], ctx: &mut BuildContext) -> V
 }
 
 fn make_effect_names(names: &[String], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
-    names
-        .iter()
-        .map(|n| {
-            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                .with_text(n)
-                .build(ctx)
-        })
-        .collect::<Vec<_>>()
+    if names.is_empty() {
+        vec![
+            TextBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_LIGHTER))
+                .with_text("No Effects")
+                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                .build(ctx),
+        ]
+    } else {
+        names
+            .iter()
+            .map(|n| {
+                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                    .with_text(n)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                    .build(ctx)
+            })
+            .collect::<Vec<_>>()
+    }
 }
 
 pub struct AudioBusViewBuilder {
@@ -223,6 +233,7 @@ impl AudioBusViewBuilder {
                 .with_child({
                     parent_bus_selector = DropdownListBuilder::new(
                         WidgetBuilder::new()
+                            .with_visibility(self.parent_bus.is_some())
                             .on_row(2)
                             .on_column(0)
                             .with_margin(Thickness::uniform(1.0))

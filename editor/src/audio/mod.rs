@@ -22,10 +22,11 @@ use fyrox::{
         list_view::{ListView, ListViewBuilder, ListViewMessage},
         message::UiMessage,
         stack_panel::StackPanelBuilder,
+        text::TextBuilder,
         utils::make_simple_tooltip,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
-        Orientation, Thickness, UiNode,
+        Orientation, Thickness, UiNode, VerticalAlignment,
     },
     scene::sound::{
         AudioBus, AudioBusGraph, DistanceModel, HrirSphere, HrtfRenderer, Renderer, SAMPLE_RATE,
@@ -108,6 +109,15 @@ impl AudioPanel {
                             StackPanelBuilder::new(
                                 WidgetBuilder::new()
                                     .on_row(0)
+                                    .with_child(
+                                        TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .with_text("DM")
+                                        .build(ctx),
+                                    )
                                     .with_child({
                                         distance_model = DropdownListBuilder::new(
                                             WidgetBuilder::new()
@@ -115,7 +125,9 @@ impl AudioPanel {
                                                 .with_width(130.0)
                                                 .with_tooltip(make_simple_tooltip(
                                                     ctx,
-                                                    "Distance Model",
+                                                    "Distance Model. Defines the method of \
+                                                    calculating distance attenuation for sound \
+                                                    sources.",
                                                 )),
                                         )
                                         .with_items(
@@ -127,6 +139,15 @@ impl AudioPanel {
                                         .build(ctx);
                                         distance_model
                                     })
+                                    .with_child(
+                                        TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .with_text("Renderer")
+                                        .build(ctx),
+                                    )
                                     .with_child({
                                         renderer = DropdownListBuilder::new(
                                             WidgetBuilder::new()
@@ -148,7 +169,8 @@ impl AudioPanel {
                                             WidgetBuilder::new()
                                                 .with_tooltip(make_simple_tooltip(
                                                     ctx,
-                                                    "A path to a HRIR sphere used by the HRTF renderer.",
+                                                    "A path to a HRIR sphere used \
+                                                    by the HRTF renderer.",
                                                 ))
                                                 .with_width(120.0)
                                                 .with_margin(Thickness::uniform(1.0)),
@@ -177,6 +199,7 @@ impl AudioPanel {
                                     .with_child({
                                         add_bus = ButtonBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_width(100.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
                                         .with_text("Add Bus")
@@ -186,6 +209,7 @@ impl AudioPanel {
                                     .with_child({
                                         remove_bus = ButtonBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_width(100.0)
                                                 .with_enabled(false)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
