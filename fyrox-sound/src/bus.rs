@@ -142,6 +142,16 @@ impl AudioBus {
         &self.child_buses
     }
 
+    /// Sets new gain of the audio bus.
+    pub fn set_gain(&mut self, gain: f32) {
+        self.gain = gain;
+    }
+
+    /// Returns current gain of the audio bus.
+    pub fn gain(&self) -> f32 {
+        self.gain
+    }
+
     pub(crate) fn input_buffer(&mut self) -> &mut [(f32, f32)] {
         self.ping_pong_buffer.input_mut()
     }
