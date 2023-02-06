@@ -178,11 +178,12 @@ impl Control for ScrollBar {
                                 ));
                             }
 
-                            let response = ScrollBarMessage::value(
+                            let mut response = ScrollBarMessage::value(
                                 self.handle,
                                 MessageDirection::FromWidget,
                                 self.value,
                             );
+                            response.flags = message.flags;
                             response.set_handled(message.handled());
                             ui.send_message(response);
                         }
