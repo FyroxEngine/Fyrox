@@ -1,5 +1,6 @@
 //! Pose is a set of property values of a node ([`NodePose`]) or a set of nodes ([`AnimationPose`]).
 
+use crate::animation::RootMotion;
 use crate::{
     animation::{value::BoundValue, value::BoundValueCollection},
     core::pool::Handle,
@@ -49,6 +50,7 @@ impl NodePose {
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct AnimationPose {
     poses: FxHashMap<Handle<Node>, NodePose>,
+    root_motion: Option<RootMotion>,
 }
 
 impl AnimationPose {
@@ -58,6 +60,7 @@ impl AnimationPose {
         for (handle, local_pose) in self.poses.iter() {
             dest.poses.insert(*handle, local_pose.clone());
         }
+        dest.root_motion = self.root_motion.clone();
     }
 
     /// Blends current animation pose with another using a weight coefficient. Missing node poses (from either animation poses)
@@ -71,6 +74,12 @@ impl AnimationPose {
                 // pose and other.
                 self.add_node_pose(other_pose.weighted_clone(weight));
             }
+        }
+
+        if let Some(other_root_motion) = other.root_motion.as_ref() {
+            self.root_motion
+                .get_or_insert_with(Default::default)
+                .blend_with(other_root_motion, weight);
         }
     }
 

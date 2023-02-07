@@ -6,6 +6,7 @@
 use crate::{
     animation::track::Track,
     core::{
+        algebra::{UnitQuaternion, Vector3},
         math::wrapf,
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
@@ -24,6 +25,7 @@ use std::{
     ops::{Index, IndexMut, Range},
 };
 
+use crate::animation::value::{TrackValue, ValueBinding};
 pub use pose::{AnimationPose, NodePose};
 pub use signal::{AnimationEvent, AnimationSignal};
 
@@ -186,6 +188,12 @@ pub struct Animation {
     enabled: bool,
     signals: Vec<AnimationSignal>,
 
+    root_motion_settings: Option<RootMotionSettings>,
+
+    #[reflect(hidden)]
+    #[visit(skip)]
+    root_motion: Option<RootMotion>,
+
     // Non-serialized
     #[reflect(hidden)]
     #[visit(skip)]
@@ -194,6 +202,27 @@ pub struct Animation {
     #[reflect(hidden)]
     #[visit(skip)]
     events: VecDeque<AnimationEvent>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Reflect, Visit)]
+pub struct RootMotionSettings {
+    node: Handle<Node>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct RootMotion {
+    pub delta_position: Vector3<f32>,
+    pub delta_rotation: UnitQuaternion<f32>,
+
+    prev_position: Vector3<f32>,
+    prev_rotation: UnitQuaternion<f32>,
+}
+
+impl RootMotion {
+    pub fn blend_with(&mut self, other: &RootMotion, weight: f32) {
+        self.delta_position = self.delta_position.lerp(&other.delta_position, weight);
+        self.delta_rotation = self.delta_rotation.nlerp(&other.delta_rotation, weight);
+    }
 }
 
 impl NameProvider for Animation {
@@ -213,8 +242,10 @@ impl Clone for Animation {
             enabled: self.enabled,
             pose: Default::default(),
             signals: self.signals.clone(),
+            root_motion_settings: self.root_motion_settings.clone(),
             events: Default::default(),
             time_slice: self.time_slice.clone(),
+            root_motion: self.root_motion.clone(),
         }
     }
 }
@@ -340,6 +371,43 @@ impl Animation {
         }
 
         self.set_time_position(new_time_position);
+
+        // If we have root motion enabled, try to extract the actual motion values. We'll take only relative motion
+        // here, relative to the previous values.
+        //
+        // TODO: Also, we must take care for looping animations here.
+        if let Some(root_motion_settings) = self.root_motion_settings.as_ref() {
+            let prev_root_motion = self.root_motion.clone().unwrap_or_default();
+            let mut root_motion = RootMotion::default();
+            if let Some(root_pose) = self.pose.poses_mut().get_mut(&root_motion_settings.node) {
+                for bound_value in root_pose.values.values.iter_mut() {
+                    match bound_value.binding {
+                        ValueBinding::Position => {
+                            if let TrackValue::Vector3(position) = bound_value.value {
+                                // Compute offset, that can be used to move a node later on.
+                                root_motion.delta_position =
+                                    position - prev_root_motion.prev_position;
+                                root_motion.prev_position = position;
+                                // Reset position so the root won't move.
+                                bound_value.value = TrackValue::Vector3(Default::default());
+                            }
+                        }
+                        ValueBinding::Rotation => {
+                            if let TrackValue::UnitQuaternion(rotation) = bound_value.value {
+                                // Compute relative rotation that can be used to "turn" a node later on.
+                                root_motion.delta_rotation =
+                                    prev_root_motion.prev_rotation.inverse() * rotation;
+                                root_motion.prev_rotation = rotation;
+                                // Reset rotation so the root won't rotate.
+                                bound_value.value = TrackValue::UnitQuaternion(Default::default());
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+            }
+            self.root_motion = Some(root_motion);
+        }
     }
 
     /// Extracts a first event from the events queue of the animation.
@@ -568,8 +636,10 @@ impl Default for Animation {
             looped: true,
             pose: Default::default(),
             signals: Default::default(),
+            root_motion_settings: None,
             events: Default::default(),
             time_slice: Default::default(),
+            root_motion: None,
         }
     }
 }
