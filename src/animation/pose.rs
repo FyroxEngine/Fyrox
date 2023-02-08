@@ -63,6 +63,10 @@ impl AnimationPose {
         dest.root_motion = self.root_motion.clone();
     }
 
+    pub fn set_root_motion(&mut self, root_motion: Option<RootMotion>) {
+        self.root_motion = root_motion;
+    }
+
     /// Blends current animation pose with another using a weight coefficient. Missing node poses (from either animation poses)
     /// will become a weighted copies of a respective node pose.
     pub fn blend_with(&mut self, other: &AnimationPose, weight: f32) {

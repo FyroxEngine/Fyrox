@@ -71,9 +71,10 @@ impl EvaluatePose for PlayAnimation {
         _dt: f32,
     ) -> Ref<AnimationPose> {
         if let Some(animation) = animations.try_get(self.animation) {
-            animation
-                .pose()
-                .clone_into(&mut self.output_pose.borrow_mut());
+            let mut output_pose = self.output_pose.borrow_mut();
+            animation.pose().clone_into(&mut output_pose);
+            // Pass the root motion (if any) so it will be blended correctly.
+            output_pose.set_root_motion(animation.root_motion().cloned());
         }
         self.output_pose.borrow()
     }
