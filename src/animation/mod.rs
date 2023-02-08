@@ -205,18 +205,32 @@ pub struct Animation {
     events: VecDeque<AnimationEvent>,
 }
 
+/// Root motion settings. It allows you to set a node (root) from which the motion will be taken
+/// as well as filter out some unnecessary parts of the motion (i.e. do not extract motion on
+/// Y axis).
 #[derive(Default, Debug, Clone, PartialEq, Reflect, Visit)]
 pub struct RootMotionSettings {
+    /// A handle to a node which movement will be extracted and put in root motion field of an animation
+    /// to which these settings were set to.
     pub node: Handle<Node>,
+    /// Keeps X part of the translational part of the motion.
     pub ignore_x_movement: bool,
+    /// Keeps Y part of the translational part of the motion.
     pub ignore_y_movement: bool,
+    /// Keeps Z part of the translational part of the motion.
     pub ignore_z_movement: bool,
+    /// Keeps rotational part of the motion.
     pub ignore_rotations: bool,
 }
 
+/// Motion of a root node of an hierarchy of nodes. It contains relative rotation and translation in local
+/// space of the node. To transform this data into velocity and orientation you need to multiply these
+/// parts with some global transform, usually with the global transform of the mesh that is being animated.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct RootMotion {
+    /// Relative offset between current and a previous frame of an animation.
     pub delta_position: Vector3<f32>,
+    /// Relative rotation between current and a previous frame of an animation.
     pub delta_rotation: UnitQuaternion<f32>,
 
     prev_position: Vector3<f32>,
@@ -224,6 +238,7 @@ pub struct RootMotion {
 }
 
 impl RootMotion {
+    /// Blend this motion with some other using `weight` as a proportion.
     pub fn blend_with(&mut self, other: &RootMotion, weight: f32) {
         self.delta_position = self.delta_position.lerp(&other.delta_position, weight);
         self.delta_rotation = self.delta_rotation.nlerp(&other.delta_rotation, weight);
@@ -471,18 +486,22 @@ impl Animation {
         }
     }
 
+    /// Sets new root motion settings.
     pub fn set_root_motion_settings(&mut self, settings: RootMotionSettings) {
         self.root_motion_settings = Some(settings);
     }
 
+    /// Returns a reference to the root motion settings (if any).
     pub fn root_motion_settings_ref(&self) -> Option<&RootMotionSettings> {
         self.root_motion_settings.as_ref()
     }
 
+    /// Returns a reference to the root motion settings (if any).
     pub fn root_motion_settings_mut(&mut self) -> Option<&mut RootMotionSettings> {
         self.root_motion_settings.as_mut()
     }
 
+    /// Returns a reference to the root motion (if any).
     pub fn root_motion(&self) -> Option<&RootMotion> {
         self.root_motion.as_ref()
     }

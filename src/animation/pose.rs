@@ -62,10 +62,13 @@ impl AnimationPose {
         dest.root_motion = self.root_motion.clone();
     }
 
+    /// Sets root motion for the animation pose; the root motion will be blended with other motions
+    /// and the result can be obtained on a final pose.
     pub fn set_root_motion(&mut self, root_motion: Option<RootMotion>) {
         self.root_motion = root_motion;
     }
 
+    /// Returns current root motion (if any).
     pub fn root_motion(&self) -> Option<&RootMotion> {
         self.root_motion.as_ref()
     }
