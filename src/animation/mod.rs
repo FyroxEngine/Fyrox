@@ -188,6 +188,7 @@ pub struct Animation {
     enabled: bool,
     signals: Vec<AnimationSignal>,
 
+    #[visit(optional)]
     root_motion_settings: Option<RootMotionSettings>,
 
     #[reflect(hidden)]
