@@ -370,14 +370,24 @@ impl Animation {
             }
         }
 
+        let prev_time_position = current_time_position;
+
         self.set_time_position(new_time_position);
 
         // If we have root motion enabled, try to extract the actual motion values. We'll take only relative motion
         // here, relative to the previous values.
-        //
-        // TODO: Also, we must take care for looping animations here.
         if let Some(root_motion_settings) = self.root_motion_settings.as_ref() {
-            let prev_root_motion = self.root_motion.clone().unwrap_or_default();
+            let mut prev_root_motion = self.root_motion.clone().unwrap_or_default();
+
+            // Check if we've started another loop cycle.
+            if self.looped
+                && (self.speed > 0.0 && self.time_position < prev_time_position
+                    || self.speed < 0.0 && self.time_position > prev_time_position)
+            {
+                // And if so - reset prev root motion so relative transform will be correct.
+                prev_root_motion = Default::default();
+            }
+
             let mut root_motion = RootMotion::default();
             if let Some(root_pose) = self.pose.poses_mut().get_mut(&root_motion_settings.node) {
                 for bound_value in root_pose.values.values.iter_mut() {
@@ -408,6 +418,22 @@ impl Animation {
             }
             self.root_motion = Some(root_motion);
         }
+    }
+
+    pub fn set_root_motion_settings(&mut self, settings: RootMotionSettings) {
+        self.root_motion_settings = Some(settings);
+    }
+
+    pub fn root_motion_settings_ref(&self) -> Option<&RootMotionSettings> {
+        self.root_motion_settings.as_ref()
+    }
+
+    pub fn root_motion_settings_mut(&mut self) -> Option<&mut RootMotionSettings> {
+        self.root_motion_settings.as_mut()
+    }
+
+    pub fn root_motion(&self) -> Option<&RootMotion> {
+        self.root_motion.as_ref()
     }
 
     /// Extracts a first event from the events queue of the animation.
