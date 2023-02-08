@@ -206,7 +206,11 @@ pub struct Animation {
 
 #[derive(Default, Debug, Clone, PartialEq, Reflect, Visit)]
 pub struct RootMotionSettings {
-    node: Handle<Node>,
+    pub node: Handle<Node>,
+    pub ignore_x_movement: bool,
+    pub ignore_y_movement: bool,
+    pub ignore_z_movement: bool,
+    pub ignore_rotations: bool,
 }
 
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -377,16 +381,12 @@ impl Animation {
         // If we have root motion enabled, try to extract the actual motion values. We'll take only relative motion
         // here, relative to the previous values.
         if let Some(root_motion_settings) = self.root_motion_settings.as_ref() {
-            let mut prev_root_motion = self.root_motion.clone().unwrap_or_default();
+            let prev_root_motion = self.root_motion.clone().unwrap_or_default();
 
             // Check if we've started another loop cycle.
-            if self.looped
+            let reset_motion = self.looped
                 && (self.speed > 0.0 && self.time_position < prev_time_position
-                    || self.speed < 0.0 && self.time_position > prev_time_position)
-            {
-                // And if so - reset prev root motion so relative transform will be correct.
-                prev_root_motion = Default::default();
-            }
+                    || self.speed < 0.0 && self.time_position > prev_time_position);
 
             let mut root_motion = RootMotion::default();
             if let Some(root_pose) = self.pose.poses_mut().get_mut(&root_motion_settings.node) {
@@ -394,22 +394,72 @@ impl Animation {
                     match bound_value.binding {
                         ValueBinding::Position => {
                             if let TrackValue::Vector3(position) = bound_value.value {
-                                // Compute offset, that can be used to move a node later on.
-                                root_motion.delta_position =
-                                    position - prev_root_motion.prev_position;
-                                root_motion.prev_position = position;
+                                if reset_motion {
+                                    root_motion.delta_position = Default::default();
+                                    root_motion.prev_position = Default::default();
+                                } else {
+                                    let delta = position - prev_root_motion.prev_position;
+
+                                    // Compute offset, that can be used to move a node later on.
+                                    root_motion.delta_position.x =
+                                        if root_motion_settings.ignore_x_movement {
+                                            0.0
+                                        } else {
+                                            delta.x
+                                        };
+                                    root_motion.delta_position.y =
+                                        if root_motion_settings.ignore_y_movement {
+                                            0.0
+                                        } else {
+                                            delta.y
+                                        };
+                                    root_motion.delta_position.z =
+                                        if root_motion_settings.ignore_z_movement {
+                                            0.0
+                                        } else {
+                                            delta.z
+                                        };
+
+                                    root_motion.prev_position = position;
+                                }
+
                                 // Reset position so the root won't move.
-                                bound_value.value = TrackValue::Vector3(Default::default());
+                                bound_value.value = TrackValue::Vector3(Vector3::new(
+                                    if root_motion_settings.ignore_x_movement {
+                                        position.x
+                                    } else {
+                                        0.0
+                                    },
+                                    if root_motion_settings.ignore_y_movement {
+                                        position.y
+                                    } else {
+                                        0.0
+                                    },
+                                    if root_motion_settings.ignore_z_movement {
+                                        position.z
+                                    } else {
+                                        0.0
+                                    },
+                                ));
                             }
                         }
                         ValueBinding::Rotation => {
                             if let TrackValue::UnitQuaternion(rotation) = bound_value.value {
-                                // Compute relative rotation that can be used to "turn" a node later on.
-                                root_motion.delta_rotation =
-                                    prev_root_motion.prev_rotation.inverse() * rotation;
-                                root_motion.prev_rotation = rotation;
-                                // Reset rotation so the root won't rotate.
-                                bound_value.value = TrackValue::UnitQuaternion(Default::default());
+                                if !root_motion_settings.ignore_rotations {
+                                    if reset_motion {
+                                        root_motion.delta_rotation = Default::default();
+                                        root_motion.prev_rotation = Default::default();
+                                    } else {
+                                        // Compute relative rotation that can be used to "turn" a node later on.
+                                        root_motion.delta_rotation =
+                                            prev_root_motion.prev_rotation.inverse() * rotation;
+                                        root_motion.prev_rotation = rotation;
+                                    }
+
+                                    // Reset rotation so the root won't rotate.
+                                    bound_value.value =
+                                        TrackValue::UnitQuaternion(Default::default());
+                                }
                             }
                         }
                         _ => (),

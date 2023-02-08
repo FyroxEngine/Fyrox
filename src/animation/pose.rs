@@ -1,8 +1,7 @@
 //! Pose is a set of property values of a node ([`NodePose`]) or a set of nodes ([`AnimationPose`]).
 
-use crate::animation::RootMotion;
 use crate::{
-    animation::{value::BoundValue, value::BoundValueCollection},
+    animation::{value::BoundValue, value::BoundValueCollection, RootMotion},
     core::pool::Handle,
     scene::{graph::Graph, graph::NodePool, node::Node},
     utils::log::{Log, MessageKind},
@@ -67,6 +66,10 @@ impl AnimationPose {
         self.root_motion = root_motion;
     }
 
+    pub fn root_motion(&self) -> Option<&RootMotion> {
+        self.root_motion.as_ref()
+    }
+
     /// Blends current animation pose with another using a weight coefficient. Missing node poses (from either animation poses)
     /// will become a weighted copies of a respective node pose.
     pub fn blend_with(&mut self, other: &AnimationPose, weight: f32) {
@@ -80,11 +83,9 @@ impl AnimationPose {
             }
         }
 
-        if let Some(other_root_motion) = other.root_motion.as_ref() {
-            self.root_motion
-                .get_or_insert_with(Default::default)
-                .blend_with(other_root_motion, weight);
-        }
+        self.root_motion
+            .get_or_insert_with(Default::default)
+            .blend_with(&other.root_motion.clone().unwrap_or_default(), weight);
     }
 
     fn add_node_pose(&mut self, local_pose: NodePose) {

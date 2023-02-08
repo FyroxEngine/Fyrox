@@ -387,6 +387,12 @@ impl MachineLayer {
         &self.mask
     }
 
+    /// Returns final pose of the layer.
+    #[inline]
+    pub fn pose(&self) -> &AnimationPose {
+        &self.final_pose
+    }
+
     #[inline]
     pub(super) fn evaluate_pose(
         &mut self,

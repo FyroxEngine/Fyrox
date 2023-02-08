@@ -278,6 +278,12 @@ impl Machine {
         utils::find_by_name_mut(self.layers.iter_mut().enumerate(), name)
     }
 
+    /// Returns final pose of the machine.
+    #[inline]
+    pub fn pose(&self) -> &AnimationPose {
+        &self.final_pose
+    }
+
     /// Computes final animation pose that could be then applied to a scene graph.
     #[inline]
     pub fn evaluate_pose(&mut self, animations: &AnimationContainer, dt: f32) -> &AnimationPose {
