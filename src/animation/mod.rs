@@ -487,8 +487,8 @@ impl Animation {
     }
 
     /// Sets new root motion settings.
-    pub fn set_root_motion_settings(&mut self, settings: RootMotionSettings) {
-        self.root_motion_settings = Some(settings);
+    pub fn set_root_motion_settings(&mut self, settings: Option<RootMotionSettings>) {
+        self.root_motion_settings = settings;
     }
 
     /// Returns a reference to the root motion settings (if any).

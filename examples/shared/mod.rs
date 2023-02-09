@@ -372,7 +372,7 @@ impl LocomotionMachine {
             .set_loop(false);
         animations_container
             .get_mut(walk_animation)
-            .set_root_motion_settings(settings);
+            .set_root_motion_settings(Some(settings));
 
         // Add transitions between states. This is the "heart" of animation blending state machine
         // it defines how it will respond to input parameters.
