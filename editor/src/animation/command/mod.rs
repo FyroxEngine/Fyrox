@@ -4,7 +4,7 @@ use crate::{
     scene::{commands::SceneContext, Selection},
 };
 use fyrox::{
-    animation::{track::Track, Animation, AnimationSignal},
+    animation::{track::Track, Animation, AnimationSignal, RootMotionSettings},
     core::{
         curve::Curve,
         pool::{Handle, Ticket},
@@ -424,6 +424,13 @@ define_animation_swap_command!(SetAnimationEnabledCommand<bool>(self, context) {
     let animation = fetch_animation(self.node_handle, self.animation_handle, context);
     let old = animation.is_enabled();
     animation.set_enabled(self.value);
+    self.value = old;
+});
+
+define_animation_swap_command!(SetAnimationRootMotionSettingsCommand<Option<RootMotionSettings>>(self, context) {
+    let animation = fetch_animation(self.node_handle, self.animation_handle, context);
+    let old = animation.root_motion_settings_ref().cloned();
+    animation.set_root_motion_settings(self.value.clone());
     self.value = old;
 });
 

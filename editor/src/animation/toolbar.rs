@@ -2,7 +2,8 @@ use crate::{
     animation::{
         command::{
             AddAnimationCommand, RemoveAnimationCommand, SetAnimationEnabledCommand,
-            SetAnimationLoopingCommand, SetAnimationNameCommand, SetAnimationSpeedCommand,
+            SetAnimationLoopingCommand, SetAnimationNameCommand,
+            SetAnimationRootMotionSettingsCommand, SetAnimationSpeedCommand,
             SetAnimationTimeSliceCommand,
         },
         selection::AnimationSelection,
@@ -17,18 +18,20 @@ use crate::{
     send_sync_message, Message,
 };
 use fyrox::{
-    animation::Animation,
+    animation::{Animation, RootMotionSettings},
     core::{algebra::Vector2, futures::executor::block_on, math::Rect, pool::Handle},
     engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
-        button::{ButtonBuilder, ButtonMessage},
+        button::{Button, ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
         file_browser::{FileSelectorBuilder, FileSelectorMessage, Filter},
+        grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{MessageDirection, UiMessage},
         numeric::{NumericUpDownBuilder, NumericUpDownMessage},
+        popup::{Placement, PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
         text_box::{TextBox, TextBoxBuilder},
@@ -36,8 +39,8 @@ use fyrox::{
         vector_image::{Primitive, VectorImageBuilder},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
-        BRUSH_BRIGHT, BRUSH_LIGHT,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT,
     },
     scene::{animation::AnimationPlayer, node::Node, Scene},
     utils::log::Log,
@@ -64,8 +67,299 @@ pub struct Toolbar {
     pub selected_import_root: Handle<Node>,
     pub looping: Handle<UiNode>,
     pub enabled: Handle<UiNode>,
+    root_motion_dropdown_area: RootMotionDropdownArea,
+    pub root_motion: Handle<UiNode>,
 }
 
+struct RootMotionDropdownArea {
+    popup: Handle<UiNode>,
+    select_node: Handle<UiNode>,
+    enabled: Handle<UiNode>,
+    ignore_x: Handle<UiNode>,
+    ignore_y: Handle<UiNode>,
+    ignore_z: Handle<UiNode>,
+    ignore_rotation: Handle<UiNode>,
+    node_selector: Handle<UiNode>,
+}
+
+impl RootMotionDropdownArea {
+    fn new(ctx: &mut BuildContext) -> Self {
+        fn text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<UiNode> {
+            TextBuilder::new(
+                WidgetBuilder::new()
+                    .with_vertical_alignment(VerticalAlignment::Center)
+                    .on_row(row)
+                    .on_column(0),
+            )
+            .with_text(text)
+            .build(ctx)
+        }
+
+        fn check_box(row: usize, ctx: &mut BuildContext) -> Handle<UiNode> {
+            CheckBoxBuilder::new(
+                WidgetBuilder::new()
+                    .with_width(18.0)
+                    .with_height(18.0)
+                    .with_margin(Thickness::uniform(1.0))
+                    .with_vertical_alignment(VerticalAlignment::Center)
+                    .with_horizontal_alignment(HorizontalAlignment::Left)
+                    .on_row(row)
+                    .on_column(1),
+            )
+            .build(ctx)
+        }
+
+        let enabled = check_box(0, ctx);
+        let select_node;
+        let ignore_x = check_box(2, ctx);
+        let ignore_y = check_box(3, ctx);
+        let ignore_z = check_box(4, ctx);
+        let ignore_rotation = check_box(5, ctx);
+        let popup = PopupBuilder::new(
+            WidgetBuilder::new()
+                .with_width(220.0)
+                .with_height(135.0)
+                .with_visibility(false),
+        )
+        .stays_open(false)
+        .with_content(
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_margin(Thickness::uniform(2.0))
+                    .with_child(text("Enabled", 0, ctx))
+                    .with_child(enabled)
+                    .with_child(text("Root", 1, ctx))
+                    .with_child({
+                        select_node = ButtonBuilder::new(
+                            WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(1.0))
+                                .on_row(1)
+                                .on_column(1),
+                        )
+                        .with_text("<Unassigned>")
+                        .build(ctx);
+                        select_node
+                    })
+                    .with_child(text("Ignore X", 2, ctx))
+                    .with_child(ignore_x)
+                    .with_child(text("Ignore Y", 3, ctx))
+                    .with_child(ignore_y)
+                    .with_child(text("Ignore Z", 4, ctx))
+                    .with_child(ignore_z)
+                    .with_child(text("Ignore Rotation", 5, ctx))
+                    .with_child(ignore_rotation),
+            )
+            .add_column(Column::strict(90.0))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(22.0))
+            .add_row(Row::strict(22.0))
+            .add_row(Row::strict(22.0))
+            .add_row(Row::strict(22.0))
+            .add_row(Row::strict(22.0))
+            .add_row(Row::strict(22.0))
+            .add_row(Row::stretch())
+            .build(ctx),
+        )
+        .build(ctx);
+
+        Self {
+            popup,
+            select_node,
+            enabled,
+            ignore_x,
+            ignore_y,
+            ignore_z,
+            ignore_rotation,
+            node_selector: Default::default(),
+        }
+    }
+}
+
+impl RootMotionDropdownArea {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        scene: &Scene,
+        sender: &Sender<Message>,
+        ui: &mut UserInterface,
+        animation_player: &AnimationPlayer,
+        editor_scene: &EditorScene,
+        selection: &AnimationSelection,
+    ) {
+        let send_command = |settings: Option<RootMotionSettings>| {
+            sender
+                .send(Message::do_scene_command(
+                    SetAnimationRootMotionSettingsCommand {
+                        node_handle: selection.animation_player,
+                        animation_handle: selection.animation,
+                        value: settings,
+                    },
+                ))
+                .unwrap();
+        };
+
+        if let Some(animation) = animation_player.animations().try_get(selection.animation) {
+            if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
+                if message.direction() == MessageDirection::FromWidget {
+                    if message.destination() == self.enabled {
+                        send_command(value.then(Default::default));
+                    } else if message.destination() == self.ignore_x {
+                        if let Some(settings) = animation.root_motion_settings_ref() {
+                            send_command(Some(RootMotionSettings {
+                                ignore_x_movement: *value,
+                                ..*settings
+                            }));
+                        }
+                    } else if message.destination() == self.ignore_y {
+                        if let Some(settings) = animation.root_motion_settings_ref() {
+                            send_command(Some(RootMotionSettings {
+                                ignore_y_movement: *value,
+                                ..*settings
+                            }));
+                        }
+                    } else if message.destination() == self.ignore_z {
+                        if let Some(settings) = animation.root_motion_settings_ref() {
+                            send_command(Some(RootMotionSettings {
+                                ignore_z_movement: *value,
+                                ..*settings
+                            }));
+                        }
+                    } else if message.destination() == self.ignore_rotation {
+                        if let Some(settings) = animation.root_motion_settings_ref() {
+                            send_command(Some(RootMotionSettings {
+                                ignore_rotations: *value,
+                                ..*settings
+                            }));
+                        }
+                    }
+                }
+            } else if let Some(ButtonMessage::Click) = message.data() {
+                if let Some(settings) = animation.root_motion_settings_ref() {
+                    if message.destination() == self.select_node {
+                        self.node_selector = NodeSelectorWindowBuilder::new(
+                            WindowBuilder::new(
+                                WidgetBuilder::new().with_width(300.0).with_height(400.0),
+                            )
+                            .with_title(WindowTitle::text("Select a Root Node"))
+                            .open(false),
+                        )
+                        .build(&mut ui.build_ctx());
+
+                        ui.send_message(NodeSelectorMessage::hierarchy(
+                            self.node_selector,
+                            MessageDirection::ToWidget,
+                            HierarchyNode::from_scene_node(
+                                scene.graph.get_root(),
+                                editor_scene.editor_objects_root,
+                                &scene.graph,
+                            ),
+                        ));
+
+                        ui.send_message(NodeSelectorMessage::selection(
+                            self.node_selector,
+                            MessageDirection::ToWidget,
+                            if settings.node.is_some() {
+                                vec![settings.node]
+                            } else {
+                                vec![]
+                            },
+                        ));
+
+                        ui.send_message(WindowMessage::open_modal(
+                            self.node_selector,
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
+                    }
+                }
+            } else if let Some(NodeSelectorMessage::Selection(node_selection)) = message.data() {
+                if message.destination() == self.node_selector
+                    && message.direction() == MessageDirection::FromWidget
+                {
+                    if let Some(settings) = animation.root_motion_settings_ref() {
+                        sender
+                            .send(Message::do_scene_command(
+                                SetAnimationRootMotionSettingsCommand {
+                                    node_handle: selection.animation_player,
+                                    animation_handle: selection.animation,
+                                    value: Some(RootMotionSettings {
+                                        node: node_selection.first().cloned().unwrap_or_default(),
+                                        ..*settings
+                                    }),
+                                },
+                            ))
+                            .unwrap();
+                    }
+                }
+            } else if let Some(WindowMessage::Close) = message.data() {
+                if message.destination() == self.node_selector {
+                    ui.send_message(WidgetMessage::remove(
+                        self.node_selector,
+                        MessageDirection::ToWidget,
+                    ));
+                    self.node_selector = Handle::NONE;
+                }
+            }
+        }
+    }
+
+    pub fn sync_to_model(
+        &self,
+        animation_player: &AnimationPlayer,
+        selection: &AnimationSelection,
+        scene: &Scene,
+        ui: &mut UserInterface,
+    ) {
+        fn sync_checked(ui: &UserInterface, check_box: Handle<UiNode>, checked: bool) {
+            send_sync_message(
+                ui,
+                CheckBoxMessage::checked(check_box, MessageDirection::ToWidget, Some(checked)),
+            );
+        }
+
+        if let Some(animation) = animation_player.animations().try_get(selection.animation) {
+            let root_motion_enabled = animation.root_motion_settings_ref().is_some();
+
+            sync_checked(ui, self.enabled, root_motion_enabled);
+
+            for widget in [
+                self.select_node,
+                self.ignore_x,
+                self.ignore_y,
+                self.ignore_z,
+                self.ignore_rotation,
+            ] {
+                send_sync_message(
+                    ui,
+                    WidgetMessage::enabled(widget, MessageDirection::ToWidget, root_motion_enabled),
+                );
+            }
+
+            if let Some(settings) = animation.root_motion_settings_ref() {
+                send_sync_message(
+                    ui,
+                    TextMessage::text(
+                        ui.node(self.select_node)
+                            .query_component::<Button>()
+                            .unwrap()
+                            .content,
+                        MessageDirection::ToWidget,
+                        scene
+                            .graph
+                            .try_get(settings.node)
+                            .map(|n| n.name().to_owned())
+                            .unwrap_or_else(|| String::from("<Unassigned>")),
+                    ),
+                );
+
+                sync_checked(ui, self.ignore_x, settings.ignore_x_movement);
+                sync_checked(ui, self.ignore_y, settings.ignore_y_movement);
+                sync_checked(ui, self.ignore_z, settings.ignore_z_movement);
+                sync_checked(ui, self.ignore_rotation, settings.ignore_rotations);
+            }
+        }
+    }
+}
 #[must_use]
 pub enum ToolbarAction {
     None,
@@ -93,6 +387,7 @@ impl Toolbar {
         let import;
         let looping;
         let enabled;
+        let root_motion;
         let panel = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
@@ -353,6 +648,15 @@ impl Toolbar {
                                 time_slice_end
                             })
                             .with_child({
+                                root_motion =
+                                    ButtonBuilder::new(WidgetBuilder::new().with_tooltip(
+                                        make_simple_tooltip(ctx, "Root Motion Settings"),
+                                    ))
+                                    .with_text("RM")
+                                    .build(ctx);
+                                root_motion
+                            })
+                            .with_child({
                                 preview = CheckBoxBuilder::new(
                                     WidgetBuilder::new().with_enabled(false).with_margin(
                                         Thickness {
@@ -463,6 +767,8 @@ impl Toolbar {
         }))
         .build(ctx);
 
+        let root_motion_dropdown_area = RootMotionDropdownArea::new(ctx);
+
         Self {
             panel,
             play_pause,
@@ -483,19 +789,32 @@ impl Toolbar {
             selected_import_root: Default::default(),
             looping,
             enabled,
+            root_motion,
+            root_motion_dropdown_area,
         }
     }
 
     pub fn handle_ui_message(
-        &self,
+        &mut self,
         message: &UiMessage,
         sender: &Sender<Message>,
-        ui: &UserInterface,
+        scene: &Scene,
+        ui: &mut UserInterface,
         animation_player_handle: Handle<Node>,
-        animation_player: &mut AnimationPlayer,
+        animation_player: &AnimationPlayer,
         editor_scene: &EditorScene,
         selection: &AnimationSelection,
     ) -> ToolbarAction {
+        self.root_motion_dropdown_area.handle_ui_message(
+            message,
+            scene,
+            sender,
+            ui,
+            animation_player,
+            editor_scene,
+            selection,
+        );
+
         if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.destination() == self.animations
                 && message.direction() == MessageDirection::FromWidget
@@ -523,6 +842,16 @@ impl Toolbar {
                 return ToolbarAction::PlayPause;
             } else if message.destination() == self.stop {
                 return ToolbarAction::Stop;
+            } else if message.destination() == self.root_motion {
+                ui.send_message(PopupMessage::placement(
+                    self.root_motion_dropdown_area.popup,
+                    MessageDirection::ToWidget,
+                    Placement::LeftBottom(self.root_motion),
+                ));
+                ui.send_message(PopupMessage::open(
+                    self.root_motion_dropdown_area.popup,
+                    MessageDirection::ToWidget,
+                ));
             } else if message.destination() == self.remove_current_animation {
                 if animation_player
                     .animations()
@@ -768,9 +1097,13 @@ impl Toolbar {
         &self,
         animation_player: &AnimationPlayer,
         selection: &AnimationSelection,
+        scene: &Scene,
         ui: &mut UserInterface,
         in_preview_mode: bool,
     ) {
+        self.root_motion_dropdown_area
+            .sync_to_model(animation_player, selection, scene, ui);
+
         let new_items = animation_player
             .animations()
             .pair_iter()
@@ -880,6 +1213,7 @@ impl Toolbar {
             self.clone_current_animation,
             self.looping,
             self.enabled,
+            self.root_motion,
         ] {
             send_sync_message(
                 ui,

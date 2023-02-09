@@ -1,7 +1,7 @@
 //! Pose is a set of property values of a node ([`NodePose`]) or a set of nodes ([`AnimationPose`]).
 
 use crate::{
-    animation::{value::BoundValue, value::BoundValueCollection},
+    animation::{value::BoundValue, value::BoundValueCollection, RootMotion},
     core::pool::Handle,
     scene::{graph::Graph, graph::NodePool, node::Node},
     utils::log::{Log, MessageKind},
@@ -49,6 +49,7 @@ impl NodePose {
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct AnimationPose {
     poses: FxHashMap<Handle<Node>, NodePose>,
+    root_motion: Option<RootMotion>,
 }
 
 impl AnimationPose {
@@ -58,6 +59,18 @@ impl AnimationPose {
         for (handle, local_pose) in self.poses.iter() {
             dest.poses.insert(*handle, local_pose.clone());
         }
+        dest.root_motion = self.root_motion.clone();
+    }
+
+    /// Sets root motion for the animation pose; the root motion will be blended with other motions
+    /// and the result can be obtained on a final pose.
+    pub fn set_root_motion(&mut self, root_motion: Option<RootMotion>) {
+        self.root_motion = root_motion;
+    }
+
+    /// Returns current root motion (if any).
+    pub fn root_motion(&self) -> Option<&RootMotion> {
+        self.root_motion.as_ref()
     }
 
     /// Blends current animation pose with another using a weight coefficient. Missing node poses (from either animation poses)
@@ -72,6 +85,10 @@ impl AnimationPose {
                 self.add_node_pose(other_pose.weighted_clone(weight));
             }
         }
+
+        self.root_motion
+            .get_or_insert_with(Default::default)
+            .blend_with(&other.root_motion.clone().unwrap_or_default(), weight);
     }
 
     fn add_node_pose(&mut self, local_pose: NodePose) {

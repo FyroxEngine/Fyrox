@@ -187,18 +187,23 @@ impl AnimationEditor {
 
             if let Some(animation_player) = scene
                 .graph
-                .try_get_mut(selection.animation_player)
-                .and_then(|n| n.query_component_mut::<AnimationPlayer>())
+                .try_get_of_type::<AnimationPlayer>(selection.animation_player)
             {
                 let toolbar_action = self.toolbar.handle_ui_message(
                     message,
                     sender,
-                    &engine.user_interface,
+                    scene,
+                    &mut engine.user_interface,
                     selection.animation_player,
                     animation_player,
                     editor_scene,
                     &selection,
                 );
+
+                let animation_player = scene
+                    .graph
+                    .try_get_mut_of_type::<AnimationPlayer>(selection.animation_player)
+                    .unwrap();
 
                 if let Some(msg) = message.data::<CurveEditorMessage>() {
                     if message.destination() == self.curve_editor
@@ -561,6 +566,7 @@ impl AnimationEditor {
             self.toolbar.sync_to_model(
                 animation_player,
                 &selection,
+                scene,
                 &mut engine.user_interface,
                 self.preview_mode_data.is_some(),
             );

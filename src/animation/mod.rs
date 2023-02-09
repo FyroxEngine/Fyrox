@@ -6,6 +6,7 @@
 use crate::{
     animation::track::Track,
     core::{
+        algebra::{UnitQuaternion, Vector3},
         math::wrapf,
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
@@ -24,6 +25,7 @@ use std::{
     ops::{Index, IndexMut, Range},
 };
 
+use crate::animation::value::{TrackValue, ValueBinding};
 pub use pose::{AnimationPose, NodePose};
 pub use signal::{AnimationEvent, AnimationSignal};
 
@@ -186,6 +188,13 @@ pub struct Animation {
     enabled: bool,
     signals: Vec<AnimationSignal>,
 
+    #[visit(optional)]
+    root_motion_settings: Option<RootMotionSettings>,
+
+    #[reflect(hidden)]
+    #[visit(skip)]
+    root_motion: Option<RootMotion>,
+
     // Non-serialized
     #[reflect(hidden)]
     #[visit(skip)]
@@ -194,6 +203,46 @@ pub struct Animation {
     #[reflect(hidden)]
     #[visit(skip)]
     events: VecDeque<AnimationEvent>,
+}
+
+/// Root motion settings. It allows you to set a node (root) from which the motion will be taken
+/// as well as filter out some unnecessary parts of the motion (i.e. do not extract motion on
+/// Y axis).
+#[derive(Default, Debug, Clone, PartialEq, Reflect, Visit)]
+pub struct RootMotionSettings {
+    /// A handle to a node which movement will be extracted and put in root motion field of an animation
+    /// to which these settings were set to.
+    pub node: Handle<Node>,
+    /// Keeps X part of the translational part of the motion.
+    pub ignore_x_movement: bool,
+    /// Keeps Y part of the translational part of the motion.
+    pub ignore_y_movement: bool,
+    /// Keeps Z part of the translational part of the motion.
+    pub ignore_z_movement: bool,
+    /// Keeps rotational part of the motion.
+    pub ignore_rotations: bool,
+}
+
+/// Motion of a root node of an hierarchy of nodes. It contains relative rotation and translation in local
+/// space of the node. To transform this data into velocity and orientation you need to multiply these
+/// parts with some global transform, usually with the global transform of the mesh that is being animated.
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct RootMotion {
+    /// Relative offset between current and a previous frame of an animation.
+    pub delta_position: Vector3<f32>,
+    /// Relative rotation between current and a previous frame of an animation.
+    pub delta_rotation: UnitQuaternion<f32>,
+
+    prev_position: Vector3<f32>,
+    prev_rotation: UnitQuaternion<f32>,
+}
+
+impl RootMotion {
+    /// Blend this motion with some other using `weight` as a proportion.
+    pub fn blend_with(&mut self, other: &RootMotion, weight: f32) {
+        self.delta_position = self.delta_position.lerp(&other.delta_position, weight);
+        self.delta_rotation = self.delta_rotation.nlerp(&other.delta_rotation, weight);
+    }
 }
 
 impl NameProvider for Animation {
@@ -213,8 +262,10 @@ impl Clone for Animation {
             enabled: self.enabled,
             pose: Default::default(),
             signals: self.signals.clone(),
+            root_motion_settings: self.root_motion_settings.clone(),
             events: Default::default(),
             time_slice: self.time_slice.clone(),
+            root_motion: self.root_motion.clone(),
         }
     }
 }
@@ -339,7 +390,120 @@ impl Animation {
             }
         }
 
+        let prev_time_position = current_time_position;
+
         self.set_time_position(new_time_position);
+
+        // If we have root motion enabled, try to extract the actual motion values. We'll take only relative motion
+        // here, relative to the previous values.
+        if let Some(root_motion_settings) = self.root_motion_settings.as_ref() {
+            let prev_root_motion = self.root_motion.clone().unwrap_or_default();
+
+            // Check if we've started another loop cycle.
+            let reset_motion = self.looped
+                && (self.speed > 0.0 && self.time_position < prev_time_position
+                    || self.speed < 0.0 && self.time_position > prev_time_position);
+
+            let mut root_motion = RootMotion::default();
+            if let Some(root_pose) = self.pose.poses_mut().get_mut(&root_motion_settings.node) {
+                for bound_value in root_pose.values.values.iter_mut() {
+                    match bound_value.binding {
+                        ValueBinding::Position => {
+                            if let TrackValue::Vector3(position) = bound_value.value {
+                                if reset_motion {
+                                    root_motion.delta_position = Default::default();
+                                    root_motion.prev_position = Default::default();
+                                } else {
+                                    let delta = position - prev_root_motion.prev_position;
+
+                                    // Compute offset, that can be used to move a node later on.
+                                    root_motion.delta_position.x =
+                                        if root_motion_settings.ignore_x_movement {
+                                            0.0
+                                        } else {
+                                            delta.x
+                                        };
+                                    root_motion.delta_position.y =
+                                        if root_motion_settings.ignore_y_movement {
+                                            0.0
+                                        } else {
+                                            delta.y
+                                        };
+                                    root_motion.delta_position.z =
+                                        if root_motion_settings.ignore_z_movement {
+                                            0.0
+                                        } else {
+                                            delta.z
+                                        };
+
+                                    root_motion.prev_position = position;
+                                }
+
+                                // Reset position so the root won't move.
+                                bound_value.value = TrackValue::Vector3(Vector3::new(
+                                    if root_motion_settings.ignore_x_movement {
+                                        position.x
+                                    } else {
+                                        0.0
+                                    },
+                                    if root_motion_settings.ignore_y_movement {
+                                        position.y
+                                    } else {
+                                        0.0
+                                    },
+                                    if root_motion_settings.ignore_z_movement {
+                                        position.z
+                                    } else {
+                                        0.0
+                                    },
+                                ));
+                            }
+                        }
+                        ValueBinding::Rotation => {
+                            if let TrackValue::UnitQuaternion(rotation) = bound_value.value {
+                                if !root_motion_settings.ignore_rotations {
+                                    if reset_motion {
+                                        root_motion.delta_rotation = Default::default();
+                                        root_motion.prev_rotation = Default::default();
+                                    } else {
+                                        // Compute relative rotation that can be used to "turn" a node later on.
+                                        root_motion.delta_rotation =
+                                            prev_root_motion.prev_rotation.inverse() * rotation;
+                                        root_motion.prev_rotation = rotation;
+                                    }
+
+                                    // Reset rotation so the root won't rotate.
+                                    bound_value.value =
+                                        TrackValue::UnitQuaternion(Default::default());
+                                }
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+            }
+            self.root_motion = Some(root_motion);
+        }
+    }
+
+    /// Sets new root motion settings.
+    pub fn set_root_motion_settings(&mut self, settings: Option<RootMotionSettings>) {
+        self.root_motion_settings = settings;
+    }
+
+    /// Returns a reference to the root motion settings (if any).
+    pub fn root_motion_settings_ref(&self) -> Option<&RootMotionSettings> {
+        self.root_motion_settings.as_ref()
+    }
+
+    /// Returns a reference to the root motion settings (if any).
+    pub fn root_motion_settings_mut(&mut self) -> Option<&mut RootMotionSettings> {
+        self.root_motion_settings.as_mut()
+    }
+
+    /// Returns a reference to the root motion (if any).
+    pub fn root_motion(&self) -> Option<&RootMotion> {
+        self.root_motion.as_ref()
     }
 
     /// Extracts a first event from the events queue of the animation.
@@ -568,8 +732,10 @@ impl Default for Animation {
             looped: true,
             pose: Default::default(),
             signals: Default::default(),
+            root_motion_settings: None,
             events: Default::default(),
             time_slice: Default::default(),
+            root_motion: None,
         }
     }
 }

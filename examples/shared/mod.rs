@@ -7,14 +7,14 @@
 use fyrox::{
     animation::{
         machine::{Machine, MachineLayer, Parameter, PoseNode, State, Transition},
-        Animation, AnimationSignal,
+        Animation, AnimationSignal, RootMotionSettings,
     },
-    core::uuid::{uuid, Uuid},
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
         math::SmoothAngle,
         pool::Handle,
+        uuid::{uuid, Uuid},
     },
     engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
     event::{DeviceEvent, ElementState, VirtualKeyCode},
@@ -341,22 +341,38 @@ impl LocomotionMachine {
         )
         .await;
 
-        (**scene.graph[animation_player]
+        let settings = RootMotionSettings {
+            node: scene.graph.find_by_name(model, "mixamorig:Hips").unwrap().0,
+            // Allow motion only in oXZ plane.
+            ignore_x_movement: false,
+            ignore_y_movement: true,
+            ignore_z_movement: false,
+            // Rotations are ignored, because this example does not use any turn animations and rotates
+            // the model explicitly (via keys, not via root motion). This can be improved, but will
+            // significantly increase complexity of the example.
+            ignore_rotations: true,
+        };
+
+        let animations_container = scene.graph[animation_player]
             .query_component_mut::<AnimationPlayer>()
             .unwrap()
-            .animations_mut())
-        .get_mut(jump_animation)
-        // Actual jump (applying force to physical body) must be synced with animation
-        // so we have to be notified about this. This is where signals come into play
-        // you can assign any signal in animation timeline and then in update loop you
-        // can iterate over them and react appropriately.
-        .add_signal(AnimationSignal {
-            id: Self::JUMP_SIGNAL,
-            name: "Jump".to_string(),
-            time: 0.32,
-            enabled: true,
-        })
-        .set_loop(false);
+            .animations_mut();
+        animations_container
+            .get_mut(jump_animation)
+            // Actual jump (applying force to physical body) must be synced with animation
+            // so we have to be notified about this. This is where signals come into play
+            // you can assign any signal in animation timeline and then in update loop you
+            // can iterate over them and react appropriately.
+            .add_signal(AnimationSignal {
+                id: Self::JUMP_SIGNAL,
+                name: "Jump".to_string(),
+                time: 0.32,
+                enabled: true,
+            })
+            .set_loop(false);
+        animations_container
+            .get_mut(walk_animation)
+            .set_root_motion_settings(Some(settings));
 
         // Add transitions between states. This is the "heart" of animation blending state machine
         // it defines how it will respond to input parameters.
@@ -586,38 +602,24 @@ impl Player {
     }
 
     pub fn update(&mut self, scene: &mut Scene, dt: f32) {
-        let pivot = &scene.graph[self.pivot];
+        let pivot = &scene.graph[self.model];
 
-        let look_vector = pivot
-            .look_vector()
-            .try_normalize(f32::EPSILON)
-            .unwrap_or_else(Vector3::z);
-
-        let side_vector = pivot
-            .side_vector()
-            .try_normalize(f32::EPSILON)
-            .unwrap_or_else(Vector3::x);
+        let transform = pivot.global_transform();
 
         let mut velocity = Vector3::default();
 
-        if self.controller.walk_right {
-            velocity -= side_vector;
-        }
-        if self.controller.walk_left {
-            velocity += side_vector;
-        }
-        if self.controller.walk_forward {
-            velocity += look_vector;
-        }
-        if self.controller.walk_backward {
-            velocity -= look_vector;
+        if let Some(root_motion) = scene.graph[self.locomotion_machine.machine]
+            .query_component_ref::<AnimationBlendingStateMachine>()
+            .unwrap()
+            .machine()
+            .pose()
+            .root_motion()
+        {
+            velocity = transform
+                .transform_vector(&root_motion.delta_position)
+                .scale(1.0 / dt);
         }
 
-        let speed = 2.0 * dt;
-        let velocity = velocity
-            .try_normalize(f32::EPSILON)
-            .map(|v| v.scale(speed))
-            .unwrap_or_default();
         let is_moving = velocity.norm_squared() > 0.0;
 
         let animation_player = scene.graph[self.animation_player]
@@ -642,17 +644,9 @@ impl Player {
 
         body.set_ang_vel(Default::default());
         if let Some(new_y_vel) = new_y_vel {
-            body.set_lin_vel(Vector3::new(
-                velocity.x / dt,
-                new_y_vel / dt,
-                velocity.z / dt,
-            ));
+            body.set_lin_vel(Vector3::new(velocity.x, new_y_vel, velocity.z));
         } else {
-            body.set_lin_vel(Vector3::new(
-                velocity.x / dt,
-                body.lin_vel().y,
-                velocity.z / dt,
-            ));
+            body.set_lin_vel(Vector3::new(velocity.x, body.lin_vel().y, velocity.z));
         }
 
         if is_moving {
@@ -695,7 +689,7 @@ impl Player {
         scene.graph[self.camera_pivot]
             .local_transform_mut()
             .set_rotation(quat_yaw)
-            .set_position(position + velocity);
+            .set_position(position);
 
         // Rotate camera hinge - this will make camera move up and down while look at character
         // (well not exactly on character - on characters head)
