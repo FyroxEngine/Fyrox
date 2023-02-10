@@ -350,6 +350,38 @@ impl Command for RemoveAnimationCommand {
     }
 }
 
+#[derive(Debug)]
+pub struct ReplaceAnimationCommand {
+    pub animation_player: Handle<Node>,
+    pub animation_handle: Handle<Animation>,
+    pub animation: Animation,
+}
+
+impl ReplaceAnimationCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        std::mem::swap(
+            fetch_animation_player(self.animation_player, context)
+                .animations_mut()
+                .get_mut(self.animation_handle),
+            &mut self.animation,
+        );
+    }
+}
+
+impl Command for ReplaceAnimationCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Replace Animation".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context);
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context);
+    }
+}
+
 #[macro_export]
 macro_rules! define_animation_swap_command {
     ($name:ident<$value_type:ty>($self:ident, $context:ident) $swap:block) => {

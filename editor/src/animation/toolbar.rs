@@ -1,8 +1,8 @@
 use crate::{
     animation::{
         command::{
-            AddAnimationCommand, RemoveAnimationCommand, SetAnimationEnabledCommand,
-            SetAnimationLoopingCommand, SetAnimationNameCommand,
+            AddAnimationCommand, RemoveAnimationCommand, ReplaceAnimationCommand,
+            SetAnimationEnabledCommand, SetAnimationLoopingCommand, SetAnimationNameCommand,
             SetAnimationRootMotionSettingsCommand, SetAnimationSpeedCommand,
             SetAnimationTimeSliceCommand,
         },
@@ -47,6 +47,11 @@ use fyrox::{
 };
 use std::{path::Path, sync::mpsc::Sender};
 
+enum ImportMode {
+    Import,
+    Reimport,
+}
+
 pub struct Toolbar {
     pub panel: Handle<UiNode>,
     pub play_pause: Handle<UiNode>,
@@ -62,13 +67,15 @@ pub struct Toolbar {
     pub time_slice_start: Handle<UiNode>,
     pub time_slice_end: Handle<UiNode>,
     pub import: Handle<UiNode>,
+    pub reimport: Handle<UiNode>,
     pub node_selector: Handle<UiNode>,
-    pub file_selector: Handle<UiNode>,
+    pub import_file_selector: Handle<UiNode>,
     pub selected_import_root: Handle<Node>,
     pub looping: Handle<UiNode>,
     pub enabled: Handle<UiNode>,
     root_motion_dropdown_area: RootMotionDropdownArea,
     pub root_motion: Handle<UiNode>,
+    import_mode: ImportMode,
 }
 
 struct RootMotionDropdownArea {
@@ -385,6 +392,7 @@ impl Toolbar {
         let time_slice_start;
         let time_slice_end;
         let import;
+        let reimport;
         let looping;
         let enabled;
         let root_motion;
@@ -416,7 +424,9 @@ impl Toolbar {
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_tooltip(make_simple_tooltip(
                                             ctx,
-                                            "Add New Animation",
+                                            "Add New Animation.\n\
+                                            Adds new empty animation with the name at \
+                                            the right text box.",
                                         )),
                                 )
                                 .with_text("+")
@@ -430,7 +440,8 @@ impl Toolbar {
                                         .with_tooltip(make_simple_tooltip(
                                             ctx,
                                             "Import Animation.\n\
-                                            Imports an animation from external file (FBX).",
+                                            Imports an animation from external file (FBX) \
+                                            and adds it to the animation player.",
                                         )),
                                 )
                                 .with_content(
@@ -448,6 +459,36 @@ impl Toolbar {
                                 )
                                 .build(ctx);
                                 import
+                            })
+                            .with_child({
+                                reimport = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tooltip(make_simple_tooltip(
+                                            ctx,
+                                            "Reimport Animation.\n\
+                                            Imports an animation from external file (FBX) and \
+                                            replaces content of the current animation. Use it \
+                                            if you need to keep references to the animation valid \
+                                            in some animation blending state machine, but just \
+                                            replace animation with some other.",
+                                        )),
+                                )
+                                .with_content(
+                                    ImageBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_width(18.0)
+                                            .with_height(18.0)
+                                            .with_margin(Thickness::uniform(1.0))
+                                            .with_background(BRUSH_BRIGHT),
+                                    )
+                                    .with_opt_texture(load_image(include_bytes!(
+                                        "../../resources/embed/reimport.png"
+                                    )))
+                                    .build(ctx),
+                                )
+                                .build(ctx);
+                                reimport
                             })
                             .with_child({
                                 rename_current_animation = ButtonBuilder::new(
@@ -784,13 +825,15 @@ impl Toolbar {
             time_slice_end,
             clone_current_animation,
             import,
+            reimport,
             node_selector,
-            file_selector,
+            import_file_selector: file_selector,
             selected_import_root: Default::default(),
             looping,
             enabled,
             root_motion,
             root_motion_dropdown_area,
+            import_mode: ImportMode::Import,
         }
     }
 
@@ -993,7 +1036,7 @@ impl Toolbar {
         resource_manager: &ResourceManager,
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.import {
+            if message.destination() == self.import || message.destination() == self.reimport {
                 ui.send_message(NodeSelectorMessage::hierarchy(
                     self.node_selector,
                     MessageDirection::ToWidget,
@@ -1009,6 +1052,12 @@ impl Toolbar {
                     MessageDirection::ToWidget,
                     true,
                 ));
+
+                if message.destination() == self.reimport {
+                    self.import_mode = ImportMode::Reimport;
+                } else {
+                    self.import_mode = ImportMode::Import;
+                }
             }
         } else if let Some(NodeSelectorMessage::Selection(selected_nodes)) = message.data() {
             if message.destination() == self.node_selector
@@ -1018,19 +1067,19 @@ impl Toolbar {
                     self.selected_import_root = *first;
 
                     ui.send_message(WindowMessage::open_modal(
-                        self.file_selector,
+                        self.import_file_selector,
                         MessageDirection::ToWidget,
                         true,
                     ));
                     ui.send_message(FileSelectorMessage::root(
-                        self.file_selector,
+                        self.import_file_selector,
                         MessageDirection::ToWidget,
                         Some(std::env::current_dir().unwrap()),
                     ));
                 }
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
-            if message.destination() == self.file_selector {
+            if message.destination() == self.import_file_selector {
                 match block_on(resource_manager.request_model(path)) {
                     Ok(model) => {
                         let mut animations = model
@@ -1051,19 +1100,46 @@ impl Toolbar {
                             animation.set_enabled(false);
                         }
 
-                        let group = CommandGroup::from(
-                            animations
-                                .into_iter()
-                                .map(|a| {
-                                    SceneCommand::new(AddAnimationCommand::new(
-                                        animation_player_handle,
-                                        a,
-                                    ))
-                                })
-                                .collect::<Vec<_>>(),
-                        );
+                        match self.import_mode {
+                            ImportMode::Import => {
+                                let group = CommandGroup::from(
+                                    animations
+                                        .into_iter()
+                                        .map(|a| {
+                                            SceneCommand::new(AddAnimationCommand::new(
+                                                animation_player_handle,
+                                                a,
+                                            ))
+                                        })
+                                        .collect::<Vec<_>>(),
+                                );
 
-                        sender.send(Message::do_scene_command(group)).unwrap();
+                                sender.send(Message::do_scene_command(group)).unwrap();
+                            }
+                            ImportMode::Reimport => {
+                                if let Selection::Animation(ref selection) = editor_scene.selection
+                                {
+                                    if animations.len() > 1 {
+                                        Log::warn("More than one animation found! Only first will be used");
+                                    }
+
+                                    if animations.len() >= 1 {
+                                        sender
+                                            .send(Message::do_scene_command(
+                                                ReplaceAnimationCommand {
+                                                    animation_player: selection.animation_player,
+                                                    animation_handle: selection.animation,
+                                                    animation: animations
+                                                        .into_iter()
+                                                        .next()
+                                                        .unwrap(),
+                                                },
+                                            ))
+                                            .unwrap();
+                                    }
+                                }
+                            }
+                        }
                     }
                     Err(err) => Log::err(format!(
                         "Failed to load {} animation file! Reason: {:?}",
