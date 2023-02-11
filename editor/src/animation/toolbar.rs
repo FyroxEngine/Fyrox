@@ -1123,7 +1123,7 @@ impl Toolbar {
                                         Log::warn("More than one animation found! Only first will be used");
                                     }
 
-                                    if animations.len() >= 1 {
+                                    if !animations.is_empty() {
                                         sender
                                             .send(Message::do_scene_command(
                                                 ReplaceAnimationCommand {
