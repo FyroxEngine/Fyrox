@@ -394,87 +394,147 @@ impl Animation {
 
         self.set_time_position(new_time_position);
 
+        self.update_root_motion(prev_time_position);
+    }
+
+    fn update_root_motion(&mut self, prev_time_position: f32) {
+        fn fetch_position_at_time(tracks: &[Track], time: f32) -> Vector3<f32> {
+            tracks
+                .iter()
+                .find(|track| track.binding() == &ValueBinding::Position)
+                .and_then(|track| track.fetch(time))
+                .and_then(|value| {
+                    if let TrackValue::Vector3(position) = value.value {
+                        Some(position)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default()
+        }
+
+        fn fetch_rotation_at_time(tracks: &[Track], time: f32) -> UnitQuaternion<f32> {
+            tracks
+                .iter()
+                .find(|track| track.binding() == &ValueBinding::Rotation)
+                .and_then(|track| track.fetch(time))
+                .and_then(|value| {
+                    if let TrackValue::UnitQuaternion(rotation) = value.value {
+                        Some(rotation)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default()
+        }
+
         // If we have root motion enabled, try to extract the actual motion values. We'll take only relative motion
         // here, relative to the previous values.
         if let Some(root_motion_settings) = self.root_motion_settings.as_ref() {
             let prev_root_motion = self.root_motion.clone().unwrap_or_default();
 
             // Check if we've started another loop cycle.
-            let reset_motion = self.looped
+            let new_loop_cycle_started = self.looped
                 && (self.speed > 0.0 && self.time_position < prev_time_position
                     || self.speed < 0.0 && self.time_position > prev_time_position);
+
+            let cycle_start_time = if self.speed > 0.0 {
+                self.time_slice.start
+            } else {
+                self.time_slice.end
+            };
+
+            let cycle_end_time = if self.speed > 0.0 {
+                self.time_slice.end
+            } else {
+                self.time_slice.start
+            };
 
             let mut root_motion = RootMotion::default();
             if let Some(root_pose) = self.pose.poses_mut().get_mut(&root_motion_settings.node) {
                 for bound_value in root_pose.values.values.iter_mut() {
                     match bound_value.binding {
                         ValueBinding::Position => {
-                            if let TrackValue::Vector3(position) = bound_value.value {
-                                if reset_motion {
-                                    root_motion.delta_position = Default::default();
-                                    root_motion.prev_position = Default::default();
+                            if let TrackValue::Vector3(pose_position) = bound_value.value {
+                                let delta = if new_loop_cycle_started {
+                                    root_motion.prev_position =
+                                        fetch_position_at_time(&self.tracks, cycle_start_time);
+
+                                    let end_value =
+                                        fetch_position_at_time(&self.tracks, cycle_end_time);
+
+                                    end_value - prev_root_motion.prev_position
                                 } else {
-                                    let delta = position - prev_root_motion.prev_position;
+                                    root_motion.prev_position = pose_position;
+                                    pose_position - prev_root_motion.prev_position
+                                };
 
-                                    // Compute offset, that can be used to move a node later on.
-                                    root_motion.delta_position.x =
-                                        if root_motion_settings.ignore_x_movement {
-                                            0.0
-                                        } else {
-                                            delta.x
-                                        };
-                                    root_motion.delta_position.y =
-                                        if root_motion_settings.ignore_y_movement {
-                                            0.0
-                                        } else {
-                                            delta.y
-                                        };
-                                    root_motion.delta_position.z =
-                                        if root_motion_settings.ignore_z_movement {
-                                            0.0
-                                        } else {
-                                            delta.z
-                                        };
-
-                                    root_motion.prev_position = position;
-                                }
+                                root_motion.delta_position.x =
+                                    if root_motion_settings.ignore_x_movement {
+                                        0.0
+                                    } else {
+                                        delta.x
+                                    };
+                                root_motion.delta_position.y =
+                                    if root_motion_settings.ignore_y_movement {
+                                        0.0
+                                    } else {
+                                        delta.y
+                                    };
+                                root_motion.delta_position.z =
+                                    if root_motion_settings.ignore_z_movement {
+                                        0.0
+                                    } else {
+                                        delta.z
+                                    };
 
                                 // Reset position so the root won't move.
+                                let start_position =
+                                    fetch_position_at_time(&self.tracks, self.time_slice.start);
+
                                 bound_value.value = TrackValue::Vector3(Vector3::new(
                                     if root_motion_settings.ignore_x_movement {
-                                        position.x
+                                        pose_position.x
                                     } else {
-                                        0.0
+                                        start_position.x
                                     },
                                     if root_motion_settings.ignore_y_movement {
-                                        position.y
+                                        pose_position.y
                                     } else {
-                                        0.0
+                                        start_position.y
                                     },
                                     if root_motion_settings.ignore_z_movement {
-                                        position.z
+                                        pose_position.z
                                     } else {
-                                        0.0
+                                        start_position.z
                                     },
                                 ));
                             }
                         }
                         ValueBinding::Rotation => {
-                            if let TrackValue::UnitQuaternion(rotation) = bound_value.value {
+                            if let TrackValue::UnitQuaternion(pose_rotation) = bound_value.value {
                                 if !root_motion_settings.ignore_rotations {
-                                    if reset_motion {
-                                        root_motion.delta_rotation = Default::default();
-                                        root_motion.prev_rotation = Default::default();
+                                    if new_loop_cycle_started {
+                                        root_motion.prev_rotation =
+                                            fetch_rotation_at_time(&self.tracks, cycle_start_time);
+
+                                        let end_value =
+                                            fetch_rotation_at_time(&self.tracks, cycle_end_time);
+
+                                        root_motion.delta_rotation =
+                                            prev_root_motion.prev_rotation.inverse() * end_value;
                                     } else {
                                         // Compute relative rotation that can be used to "turn" a node later on.
                                         root_motion.delta_rotation =
-                                            prev_root_motion.prev_rotation.inverse() * rotation;
-                                        root_motion.prev_rotation = rotation;
+                                            prev_root_motion.prev_rotation.inverse()
+                                                * pose_rotation;
+                                        root_motion.prev_rotation = pose_rotation;
                                     }
 
                                     // Reset rotation so the root won't rotate.
-                                    bound_value.value =
-                                        TrackValue::UnitQuaternion(Default::default());
+                                    bound_value.value = TrackValue::UnitQuaternion(
+                                        fetch_rotation_at_time(&self.tracks, self.time_slice.start),
+                                    );
                                 }
                             }
                         }
