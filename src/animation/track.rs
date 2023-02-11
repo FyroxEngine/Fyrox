@@ -87,6 +87,12 @@ impl Track {
         }
     }
 
+    /// Sets target of the track.
+    pub fn with_target(mut self, target: Handle<Node>) -> Self {
+        self.target = target;
+        self
+    }
+
     /// Sets new track binding. See [`ValueBinding`] docs for more info.
     pub fn set_binding(&mut self, binding: ValueBinding) {
         self.binding = binding;

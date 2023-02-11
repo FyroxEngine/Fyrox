@@ -5,6 +5,7 @@ use crate::{
         command::{AddTrackCommand, RemoveTrackCommand, SetTrackEnabledCommand},
         selection::{AnimationSelection, SelectedEntity},
     },
+    gui::make_image_button_with_tooltip,
     load_image,
     menu::create_menu_item,
     scene::{
@@ -17,7 +18,6 @@ use crate::{
     },
     send_sync_message, utils, Message,
 };
-use fyrox::core::reflect::ResolvePath;
 use fyrox::{
     animation::{
         container::{TrackDataContainer, TrackValueKind},
@@ -28,6 +28,7 @@ use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         pool::Handle,
+        reflect::ResolvePath,
         uuid::Uuid,
         variable::InheritableVariable,
     },
@@ -64,6 +65,14 @@ use std::{
     rc::Rc,
     sync::mpsc::Sender,
 };
+
+#[derive(PartialEq, Eq)]
+enum PropertyBindingMode {
+    Generic,
+    Position,
+    Rotation,
+    Scale,
+}
 
 struct TrackContextMenu {
     menu: Handle<UiNode>,
@@ -369,6 +378,9 @@ pub struct TrackList {
     pub panel: Handle<UiNode>,
     tree_root: Handle<UiNode>,
     add_track: Handle<UiNode>,
+    add_position_track: Handle<UiNode>,
+    add_rotation_track: Handle<UiNode>,
+    add_scale_track: Handle<UiNode>,
     node_selector: Handle<UiNode>,
     property_selector: Handle<UiNode>,
     selected_node: Handle<Node>,
@@ -376,6 +388,7 @@ pub struct TrackList {
     track_views: FxHashMap<Uuid, Handle<UiNode>>,
     curve_views: FxHashMap<Uuid, Handle<UiNode>>,
     context_menu: TrackContextMenu,
+    property_binding_mode: PropertyBindingMode,
 }
 
 struct CurveViewData {
@@ -399,6 +412,9 @@ impl TrackList {
 
         let tree_root;
         let add_track;
+        let add_position_track;
+        let add_rotation_track;
+        let add_scale_track;
 
         let panel = GridBuilder::new(
             WidgetBuilder::new()
@@ -426,10 +442,62 @@ impl TrackList {
                             .on_column(0)
                             .with_margin(Thickness::uniform(1.0))
                             .with_child({
-                                add_track = ButtonBuilder::new(WidgetBuilder::new())
-                                    .with_text("Add Track..")
-                                    .build(ctx);
+                                add_track = make_image_button_with_tooltip(
+                                    ctx,
+                                    22.0,
+                                    22.0,
+                                    load_image(include_bytes!(
+                                        "../../resources/embed/property_track.png"
+                                    )),
+                                    "Add Property Track.\n\
+                                    Create generic property binding to a numeric property.",
+                                );
                                 add_track
+                            })
+                            .with_child({
+                                add_position_track = make_image_button_with_tooltip(
+                                    ctx,
+                                    22.0,
+                                    22.0,
+                                    load_image(include_bytes!(
+                                        "../../resources/embed/position_track.png"
+                                    )),
+                                    "Add Position Track.\n\
+                                    Creates a binding to a local position of a node. \
+                                    Such binding is much more performant than generic \
+                                    property binding",
+                                );
+                                add_position_track
+                            })
+                            .with_child({
+                                add_scale_track = make_image_button_with_tooltip(
+                                    ctx,
+                                    22.0,
+                                    22.0,
+                                    load_image(include_bytes!(
+                                        "../../resources/embed/scaling_track.png"
+                                    )),
+                                    "Add Scale Track.\n\
+                                    Creates a binding to a local scale of a node. \
+                                    Such binding is much more performant than generic \
+                                    property binding",
+                                );
+                                add_scale_track
+                            })
+                            .with_child({
+                                add_rotation_track = make_image_button_with_tooltip(
+                                    ctx,
+                                    22.0,
+                                    22.0,
+                                    load_image(include_bytes!(
+                                        "../../resources/embed/rotation_track.png"
+                                    )),
+                                    "Add Rotation Track.\n\
+                                    Creates a binding to a local rotation of a node. \
+                                    Such binding is much more performant than generic \
+                                    property binding",
+                                );
+                                add_rotation_track
                             }),
                     )
                     .with_orientation(Orientation::Horizontal)
@@ -438,7 +506,7 @@ impl TrackList {
         )
         .add_row(Row::auto())
         .add_row(Row::stretch())
-        .add_row(Row::strict(22.0))
+        .add_row(Row::strict(28.0))
         .add_column(Column::stretch())
         .build(ctx);
 
@@ -448,12 +516,16 @@ impl TrackList {
             panel,
             tree_root,
             add_track,
+            add_position_track,
+            add_rotation_track,
+            add_scale_track,
             node_selector: Default::default(),
             property_selector: Default::default(),
             selected_node: Default::default(),
             group_views: Default::default(),
             track_views: Default::default(),
             curve_views: Default::default(),
+            property_binding_mode: PropertyBindingMode::Generic,
         }
     }
 
@@ -468,7 +540,11 @@ impl TrackList {
         scene: &Scene,
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.add_track {
+            if message.destination() == self.add_track
+                || message.destination() == self.add_position_track
+                || message.destination() == self.add_scale_track
+                || message.destination() == self.add_rotation_track
+            {
                 self.node_selector = NodeSelectorWindowBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                         .with_title(WindowTitle::text("Select a Node To Animate")),
@@ -485,6 +561,16 @@ impl TrackList {
                     MessageDirection::ToWidget,
                     true,
                 ));
+
+                if message.destination() == self.add_track {
+                    self.property_binding_mode = PropertyBindingMode::Generic;
+                } else if message.destination() == self.add_position_track {
+                    self.property_binding_mode = PropertyBindingMode::Position;
+                } else if message.destination() == self.add_scale_track {
+                    self.property_binding_mode = PropertyBindingMode::Scale;
+                } else if message.destination() == self.add_rotation_track {
+                    self.property_binding_mode = PropertyBindingMode::Rotation;
+                }
             } else if message.destination() == self.toolbar.expand_all {
                 ui.send_message(TreeRootMessage::expand_all(
                     self.tree_root,
@@ -531,40 +617,76 @@ impl TrackList {
                 if let Some(first) = selection.first() {
                     self.selected_node = *first;
 
-                    let mut descriptors = Vec::new();
-                    scene.graph[*first].as_reflect(&mut |node| {
-                        descriptors = object_to_property_tree("", node);
-                    });
+                    match self.property_binding_mode {
+                        PropertyBindingMode::Generic => {
+                            let mut descriptors = Vec::new();
+                            scene.graph[*first].as_reflect(&mut |node| {
+                                descriptors = object_to_property_tree("", node);
+                            });
 
-                    self.property_selector = PropertySelectorWindowBuilder::new(
+                            self.property_selector = PropertySelectorWindowBuilder::new(
                                 WindowBuilder::new(
                                     WidgetBuilder::new().with_width(300.0).with_height(400.0),
                                 )
-                                    .with_title(WindowTitle::text("Select a Numeric Property To Animate"))
-                                    .open(false),
+                                .with_title(WindowTitle::text(
+                                    "Select a Numeric Property To Animate",
+                                ))
+                                .open(false),
                             )
-                                .with_allowed_types(Some(FxHashSet::from_iter(define_allowed_types! {
-                            f32, f64, u64, i64, u32, i32, u16, i16, u8, i8, bool,
+                            .with_allowed_types(Some(FxHashSet::from_iter(define_allowed_types! {
+                                f32, f64, u64, i64, u32, i32, u16, i16, u8, i8, bool,
 
-                            Vector2<f32>, Vector2<f64>, Vector2<u64>, Vector2<i64>, Vector2<u32>, Vector2<i32>,
-                            Vector2<i16>, Vector2<u16>, Vector2<i8>, Vector2<u8>,
+                                Vector2<f32>, Vector2<f64>, Vector2<u64>, Vector2<i64>,
+                                Vector2<u32>, Vector2<i32>,
+                                Vector2<i16>, Vector2<u16>, Vector2<i8>, Vector2<u8>,
 
-                            Vector3<f32>, Vector3<f64>, Vector3<u64>, Vector3<i64>, Vector3<u32>, Vector3<i32>,
-                            Vector3<i16>, Vector3<u16>, Vector3<i8>, Vector3<u8>,
+                                Vector3<f32>, Vector3<f64>, Vector3<u64>, Vector3<i64>,
+                                Vector3<u32>, Vector3<i32>,
+                                Vector3<i16>, Vector3<u16>, Vector3<i8>, Vector3<u8>,
 
-                            Vector4<f32>, Vector4<f64>, Vector4<u64>, Vector4<i64>, Vector4<u32>, Vector4<i32>,
-                            Vector4<i16>, Vector4<u16>, Vector4<i8>, Vector4<u8>,
+                                Vector4<f32>, Vector4<f64>, Vector4<u64>, Vector4<i64>,
+                                Vector4<u32>, Vector4<i32>,
+                                Vector4<i16>, Vector4<u16>, Vector4<i8>, Vector4<u8>,
 
-                            UnitQuaternion<f32>
-                        })))
-                                .with_property_descriptors(descriptors)
-                                .build(&mut ui.build_ctx());
+                                UnitQuaternion<f32>
+                            })))
+                            .with_property_descriptors(descriptors)
+                            .build(&mut ui.build_ctx());
 
-                    ui.send_message(WindowMessage::open_modal(
-                        self.property_selector,
-                        MessageDirection::ToWidget,
-                        true,
-                    ));
+                            ui.send_message(WindowMessage::open_modal(
+                                self.property_selector,
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
+                        }
+                        PropertyBindingMode::Position => {
+                            sender
+                                .send(Message::do_scene_command(AddTrackCommand::new(
+                                    animation_player,
+                                    animation,
+                                    Track::new_position().with_target(self.selected_node),
+                                )))
+                                .unwrap();
+                        }
+                        PropertyBindingMode::Rotation => {
+                            sender
+                                .send(Message::do_scene_command(AddTrackCommand::new(
+                                    animation_player,
+                                    animation,
+                                    Track::new_rotation().with_target(self.selected_node),
+                                )))
+                                .unwrap();
+                        }
+                        PropertyBindingMode::Scale => {
+                            sender
+                                .send(Message::do_scene_command(AddTrackCommand::new(
+                                    animation_player,
+                                    animation,
+                                    Track::new_scale().with_target(self.selected_node),
+                                )))
+                                .unwrap();
+                        }
+                    }
                 }
             }
         } else if let Some(PropertySelectorMessage::Selection(selected_properties)) = message.data()
