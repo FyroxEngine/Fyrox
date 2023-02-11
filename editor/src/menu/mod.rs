@@ -1,8 +1,8 @@
 use crate::{
     animation::AnimationEditor,
     menu::{
-        create::CreateEntityRootMenu, edit::EditMenu, file::FileMenu, utils::UtilsMenu,
-        view::ViewMenu,
+        create::CreateEntityRootMenu, edit::EditMenu, file::FileMenu, help::HelpMenu,
+        utils::UtilsMenu, view::ViewMenu,
     },
     scene::EditorScene,
     send_sync_message,
@@ -25,6 +25,7 @@ pub mod create;
 pub mod dim2;
 pub mod edit;
 pub mod file;
+pub mod help;
 pub mod physics;
 pub mod physics2d;
 pub mod utils;
@@ -38,6 +39,7 @@ pub struct Menu {
     view_menu: ViewMenu,
     message_sender: Sender<Message>,
     utils_menu: UtilsMenu,
+    help_menu: HelpMenu,
 }
 
 pub struct Panels<'b> {
@@ -110,6 +112,7 @@ impl Menu {
         let edit_menu = EditMenu::new(ctx);
         let view_menu = ViewMenu::new(ctx);
         let utils_menu = UtilsMenu::new(ctx);
+        let help_menu = HelpMenu::new(ctx);
 
         let menu = MenuBuilder::new(WidgetBuilder::new().on_row(0))
             .with_items(vec![
@@ -118,6 +121,7 @@ impl Menu {
                 create_entity_menu.menu,
                 view_menu.menu,
                 utils_menu.menu,
+                help_menu.menu,
             ])
             .build(ctx);
 
@@ -129,6 +133,7 @@ impl Menu {
             file_menu,
             view_menu,
             utils_menu,
+            help_menu,
         }
     }
 
@@ -186,6 +191,7 @@ impl Menu {
         );
         self.view_menu
             .handle_ui_message(message, &ctx.engine.user_interface, &ctx.panels);
+        self.help_menu.handle_ui_message(message);
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
