@@ -462,7 +462,7 @@ fn init_script(raw_name: &str) {
 
     let script_file_stem = raw_name.to_case(Case::Snake);
     let script_name = raw_name.to_case(Case::UpperCamel);
-    let file_name = base_path.join(script_file_stem + ".rs");
+    let file_name = base_path.join(script_file_stem.clone() + ".rs");
 
     if file_name.exists() {
         panic!("Script {} already exists!", script_name);
