@@ -527,8 +527,8 @@ impl ScriptTrait for {name} {{
     );
 
     println!(
-        "Script {} was added successfully! Do not forget to add it to your module tree!",
-        script_name
+        "Script {script_name} was added successfully! Do not forget to add it to your module tree by \
+        adding:\n\tpub mod {script_file_stem};\nat either lib.rs or some other module.",
     );
 }
 
