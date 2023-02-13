@@ -300,7 +300,7 @@ impl ConnectionContextMenu {
 
                 let model_handle = dest_node_ref.model_handle;
                 match machine_layer.node(model_handle) {
-                    PoseNode::PlayAnimation(_) => {
+                    PoseNode::PlayAnimation(_) | PoseNode::BlendSpace(_) => {
                         // No connections
                     }
                     PoseNode::BlendAnimations(_) => sender

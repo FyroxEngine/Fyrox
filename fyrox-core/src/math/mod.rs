@@ -697,7 +697,7 @@ impl PartialEq for TriangleEdge {
 
 impl Eq for TriangleEdge {}
 
-#[derive(Clone, PartialEq, Eq, Debug, Default, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Default, Hash, Reflect)]
 #[repr(C)]
 pub struct TriangleDefinition(pub [u32; 3]);
 

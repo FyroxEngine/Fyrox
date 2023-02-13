@@ -126,6 +126,9 @@ fn make_pose_node_name(
             "Blend {} Animations By Index",
             blend_animations_by_index.inputs.len()
         ),
+        PoseNode::BlendSpace(blend_space) => {
+            format!("Blend Space: {:?} animations", blend_space.points().len())
+        }
     }
 }
 
@@ -338,6 +341,10 @@ impl StateViewer {
                                         ))
                                         .unwrap();
                                 }
+                                PoseNode::BlendSpace(_) => {
+                                    // TODO
+                                    unimplemented!()
+                                }
                             }
                         }
                         _ => (),
@@ -462,6 +469,9 @@ impl StateViewer {
                                     "Blend Animations By Index",
                                     true,
                                 ),
+                                PoseNode::BlendSpace(blend_space) => {
+                                    (blend_space.points().len(), "Blend Space", true)
+                                }
                             };
 
                             let node_view = AbsmNodeBuilder::new(

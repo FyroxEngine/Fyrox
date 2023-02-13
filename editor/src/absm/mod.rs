@@ -510,6 +510,10 @@ impl AbsmEditor {
                                             )))
                                             .unwrap();
                                     }
+                                    PoseNode::BlendSpace(_) => {
+                                        // TODO
+                                        unimplemented!();
+                                    }
                                 }
                             }
                         }
