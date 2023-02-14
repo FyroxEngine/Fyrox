@@ -12,7 +12,6 @@ use crate::{
         reflect::prelude::*,
         visitor::prelude::*,
     },
-    utils::log::Log,
 };
 use spade::{DelaunayTriangulation, InsertionError, Point2, Triangulation};
 use std::{
@@ -69,9 +68,9 @@ impl EvaluatePose for BlendSpace {
 }
 
 impl BlendSpace {
-    pub fn set_points(&mut self, points: Vec<BlendSpacePoint>) {
+    pub fn set_points(&mut self, points: Vec<BlendSpacePoint>) -> bool {
         self.points = points;
-        Log::verify(self.triangulate());
+        self.triangulate().is_ok()
     }
 
     pub fn points(&self) -> &[BlendSpacePoint] {
@@ -104,5 +103,44 @@ impl BlendSpace {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        animation::machine::node::blendspace::{BlendSpace, BlendSpacePoint},
+        core::{algebra::Vector2, math::TriangleDefinition},
+    };
+
+    #[test]
+    fn test_blend_space_triangulation() {
+        let mut blend_space = BlendSpace::default();
+
+        let result = blend_space.set_points(vec![
+            BlendSpacePoint {
+                position: Vector2::new(0, 0),
+                pose_source: Default::default(),
+            },
+            BlendSpacePoint {
+                position: Vector2::new(1, 0),
+                pose_source: Default::default(),
+            },
+            BlendSpacePoint {
+                position: Vector2::new(1, 1),
+                pose_source: Default::default(),
+            },
+            BlendSpacePoint {
+                position: Vector2::new(0, 1),
+                pose_source: Default::default(),
+            },
+        ]);
+
+        assert!(result);
+
+        assert_eq!(
+            blend_space.triangles,
+            vec![TriangleDefinition([2, 0, 1]), TriangleDefinition([3, 0, 2])]
+        )
     }
 }
