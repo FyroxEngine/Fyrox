@@ -2,12 +2,12 @@
 
 use crate::{
     animation::{
-        machine::{node::BasePoseNode, EvaluatePose, ParameterContainer, PoseNode},
+        machine::{node::BasePoseNode, EvaluatePose, Parameter, ParameterContainer, PoseNode},
         AnimationContainer, AnimationPose,
     },
     core::{
         algebra::Vector2,
-        math::TriangleDefinition,
+        math::{self, TriangleDefinition},
         pool::{Handle, Pool},
         reflect::prelude::*,
         visitor::prelude::*,
@@ -21,7 +21,7 @@ use std::{
 
 #[derive(Debug, Visit, Clone, Reflect, PartialEq, Default)]
 pub struct BlendSpacePoint {
-    position: Vector2<u32>,
+    position: Vector2<f32>,
     pose_source: Handle<PoseNode>,
 }
 
@@ -31,6 +31,11 @@ pub struct BlendSpace {
 
     points: Vec<BlendSpacePoint>,
     triangles: Vec<TriangleDefinition>,
+
+    min_values: Vector2<f32>,
+    max_values: Vector2<f32>,
+    snap_step: Vector2<f32>,
+    parameter: String,
 
     #[reflect(hidden)]
     #[visit(skip)]
@@ -56,10 +61,32 @@ impl EvaluatePose for BlendSpace {
         &self,
         nodes: &Pool<PoseNode>,
         params: &ParameterContainer,
-        animations: &AnimationContainer,
-        dt: f32,
+        _animations: &AnimationContainer,
+        _dt: f32,
     ) -> Ref<AnimationPose> {
-        todo!()
+        let mut pose = self.pose.borrow_mut();
+
+        pose.reset();
+
+        if let Some(Parameter::SamplingPoint(sampling_point)) = params.get(&self.parameter) {
+            if let Some(weights) = self.fetch_weights(*sampling_point) {
+                let (ia, wa) = weights[0];
+                let (ib, wb) = weights[1];
+                let (ic, wc) = weights[2];
+
+                if let (Some(pose_a), Some(pose_b), Some(pose_c)) = (
+                    nodes.try_borrow(self.points[ia].pose_source),
+                    nodes.try_borrow(self.points[ib].pose_source),
+                    nodes.try_borrow(self.points[ic].pose_source),
+                ) {
+                    pose.blend_with(&pose_a.pose(), wa);
+                    pose.blend_with(&pose_b.pose(), wb);
+                    pose.blend_with(&pose_c.pose(), wc);
+                }
+            }
+        }
+
+        self.pose.borrow()
     }
 
     fn pose(&self) -> Ref<AnimationPose> {
@@ -81,16 +108,39 @@ impl BlendSpace {
         self.points.iter().map(|p| p.pose_source).collect()
     }
 
+    fn fetch_weights(&self, point: Vector2<f32>) -> Option<[(usize, f32); 3]> {
+        for triangle in self.triangles.iter() {
+            let ia = triangle[0] as usize;
+            let ib = triangle[1] as usize;
+            let ic = triangle[2] as usize;
+
+            let a = &self.points[ia];
+            let b = &self.points[ib];
+            let c = &self.points[ic];
+
+            let barycentric_coordinates =
+                math::get_barycentric_coords_2d(point, a.position, b.position, c.position);
+
+            if math::barycentric_is_inside(barycentric_coordinates) {
+                let (u, v, w) = barycentric_coordinates;
+
+                return Some([(ia, u), (ib, v), (ic, w)]);
+            }
+        }
+
+        // TODO: If none of the triangles contains sampling point, then try to find closes edge and
+        // calculate weights.
+
+        None
+    }
+
     fn triangulate(&mut self) -> Result<(), InsertionError> {
         self.triangles.clear();
 
         let mut triangulation: DelaunayTriangulation<_> = DelaunayTriangulation::new();
 
         for point in self.points.iter() {
-            triangulation.insert(Point2::new(
-                point.position.x as f32,
-                point.position.y as f32,
-            ))?;
+            triangulation.insert(Point2::new(point.position.x, point.position.y))?;
         }
 
         for face in triangulation.inner_faces() {
@@ -119,19 +169,19 @@ mod test {
 
         let result = blend_space.set_points(vec![
             BlendSpacePoint {
-                position: Vector2::new(0, 0),
+                position: Vector2::new(0.0, 0.0),
                 pose_source: Default::default(),
             },
             BlendSpacePoint {
-                position: Vector2::new(1, 0),
+                position: Vector2::new(1.0, 0.0),
                 pose_source: Default::default(),
             },
             BlendSpacePoint {
-                position: Vector2::new(1, 1),
+                position: Vector2::new(1.0, 1.0),
                 pose_source: Default::default(),
             },
             BlendSpacePoint {
-                position: Vector2::new(0, 1),
+                position: Vector2::new(0.0, 1.0),
                 pose_source: Default::default(),
             },
         ]);
