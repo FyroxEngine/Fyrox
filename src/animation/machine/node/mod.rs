@@ -48,6 +48,7 @@ pub enum PoseNode {
     /// See docs for [`BlendAnimationsByIndex`].
     BlendAnimationsByIndex(BlendAnimationsByIndex),
 
+    /// See doc for [`BlendSpace`]
     BlendSpace(BlendSpace),
 }
 

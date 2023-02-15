@@ -21,25 +21,47 @@ use std::{
 
 #[derive(Debug, Visit, Clone, Reflect, PartialEq, Default)]
 pub struct BlendSpacePoint {
-    position: Vector2<f32>,
-    pose_source: Handle<PoseNode>,
+    pub position: Vector2<f32>,
+    pub pose_source: Handle<PoseNode>,
 }
 
-#[derive(Debug, Visit, Clone, Reflect, PartialEq, Default)]
+#[derive(Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct BlendSpace {
     base: BasePoseNode,
 
     points: Vec<BlendSpacePoint>,
     triangles: Vec<TriangleDefinition>,
 
+    #[reflect(setter = "set_min_values")]
     min_values: Vector2<f32>,
+
+    #[reflect(setter = "set_max_values")]
     max_values: Vector2<f32>,
+
+    #[reflect(setter = "set_snap_step")]
     snap_step: Vector2<f32>,
-    parameter: String,
+
+    #[reflect(setter = "set_sampling_parameter")]
+    sampling_parameter: String,
 
     #[reflect(hidden)]
     #[visit(skip)]
     pose: RefCell<AnimationPose>,
+}
+
+impl Default for BlendSpace {
+    fn default() -> Self {
+        Self {
+            base: Default::default(),
+            points: vec![],
+            triangles: vec![],
+            min_values: Default::default(),
+            max_values: Vector2::new(1.0, 1.0),
+            snap_step: Vector2::new(0.1, 0.1),
+            sampling_parameter: Default::default(),
+            pose: Default::default(),
+        }
+    }
 }
 
 impl Deref for BlendSpace {
@@ -68,7 +90,8 @@ impl EvaluatePose for BlendSpace {
 
         pose.reset();
 
-        if let Some(Parameter::SamplingPoint(sampling_point)) = params.get(&self.parameter) {
+        if let Some(Parameter::SamplingPoint(sampling_point)) = params.get(&self.sampling_parameter)
+        {
             if let Some(weights) = self.fetch_weights(*sampling_point) {
                 let (ia, wa) = weights[0];
                 let (ib, wb) = weights[1];
@@ -112,7 +135,41 @@ impl BlendSpace {
         self.points.iter().map(|p| p.pose_source).collect()
     }
 
-    fn fetch_weights(&self, sampling_point: Vector2<f32>) -> Option<[(usize, f32); 3]> {
+    pub fn set_min_values(&mut self, min_values: Vector2<f32>) {
+        self.min_values = min_values;
+        self.max_values = self.max_values.sup(&self.min_values);
+    }
+
+    pub fn min_values(&self) -> Vector2<f32> {
+        self.min_values
+    }
+
+    pub fn set_max_values(&mut self, max_values: Vector2<f32>) {
+        self.max_values = max_values;
+        self.min_values = self.min_values.inf(&self.max_values);
+    }
+
+    pub fn max_values(&self) -> Vector2<f32> {
+        self.max_values
+    }
+
+    pub fn set_snap_step(&mut self, step: Vector2<f32>) {
+        self.snap_step = step;
+    }
+
+    pub fn snap_step(&self) -> Vector2<f32> {
+        self.snap_step
+    }
+
+    pub fn set_sampling_parameter(&mut self, parameter: String) {
+        self.sampling_parameter = parameter;
+    }
+
+    pub fn sampling_parameter(&self) -> &str {
+        &self.sampling_parameter
+    }
+
+    pub fn fetch_weights(&self, sampling_point: Vector2<f32>) -> Option<[(usize, f32); 3]> {
         if self.points.is_empty() {
             return None;
         }
@@ -127,7 +184,7 @@ impl BlendSpace {
             let edge = self.points[1].position - self.points[0].position;
             let to_point = sampling_point - self.points[0].position;
             let t = to_point.dot(&edge) / edge.dot(&edge);
-            if t >= 0.0 && t <= 1.0 {
+            if (0.0..=1.0).contains(&t) {
                 return Some([(0, (1.0 - t)), (1, t), (0, 0.0)]);
             }
         }
@@ -171,7 +228,7 @@ impl BlendSpace {
 
                 let t = to_point.dot(&edge) / edge.dot(&edge);
 
-                if t >= 0.0 && t <= 1.0 {
+                if (0.0..=1.0).contains(&t) {
                     let projection = pt_a + edge.scale(t);
 
                     let distance = sampling_point.metric_distance(&projection);
