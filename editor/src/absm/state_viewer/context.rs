@@ -1,3 +1,4 @@
+use crate::absm::command::blend::SetBlendSpacePoseSourceCommand;
 use crate::{
     absm::{
         command::{
@@ -17,6 +18,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::animation::machine::node::blendspace::BlendSpace;
 use fyrox::{
     animation::machine::{
         node::BasePoseNode, BlendAnimations, BlendAnimationsByIndex, MachineLayer, PlayAnimation,
@@ -39,6 +41,7 @@ pub struct CanvasContextMenu {
     create_play_animation: Handle<UiNode>,
     create_blend_animations: Handle<UiNode>,
     create_blend_by_index: Handle<UiNode>,
+    create_blend_space: Handle<UiNode>,
     pub menu: Handle<UiNode>,
     pub canvas: Handle<UiNode>,
     pub node_context_menu: Handle<UiNode>,
@@ -49,6 +52,7 @@ impl CanvasContextMenu {
         let create_play_animation;
         let create_blend_animations;
         let create_blend_by_index;
+        let create_blend_space;
         let menu = PopupBuilder::new(
             WidgetBuilder::new()
                 .with_enabled(false) // Disabled by default.
@@ -68,6 +72,10 @@ impl CanvasContextMenu {
                     .with_child({
                         create_blend_by_index = create_menu_item("Blend By Index", vec![], ctx);
                         create_blend_by_index
+                    })
+                    .with_child({
+                        create_blend_space = create_menu_item("Blend Space", vec![], ctx);
+                        create_blend_space
                     }),
             )
             .build(ctx),
@@ -78,6 +86,7 @@ impl CanvasContextMenu {
             create_play_animation,
             create_blend_animations,
             create_blend_by_index,
+            create_blend_space,
             menu,
             canvas: Default::default(),
             node_context_menu: Default::default(),
@@ -128,6 +137,13 @@ impl CanvasContextMenu {
                     blend_time: Default::default(),
                     output_pose: Default::default(),
                 }))
+            } else if message.destination() == self.create_blend_space {
+                let mut blend_space = BlendSpace::default();
+
+                blend_space.position = position;
+                blend_space.parent_state = current_state;
+
+                Some(PoseNode::BlendSpace(blend_space))
             } else {
                 None
             };
@@ -300,7 +316,7 @@ impl ConnectionContextMenu {
 
                 let model_handle = dest_node_ref.model_handle;
                 match machine_layer.node(model_handle) {
-                    PoseNode::PlayAnimation(_) | PoseNode::BlendSpace(_) => {
+                    PoseNode::PlayAnimation(_) => {
                         // No connections
                     }
                     PoseNode::BlendAnimations(_) => sender
@@ -324,6 +340,15 @@ impl ConnectionContextMenu {
                                 value: Default::default(),
                             },
                         ))
+                        .unwrap(),
+                    PoseNode::BlendSpace(_) => sender
+                        .send(Message::do_scene_command(SetBlendSpacePoseSourceCommand {
+                            node_handle: absm_node_handle,
+                            layer_index,
+                            handle: model_handle,
+                            index,
+                            value: Default::default(),
+                        }))
                         .unwrap(),
                 }
             }

@@ -1,3 +1,4 @@
+use crate::absm::command::blend::AddBlendSpacePointCommand;
 use crate::{
     absm::{
         command::blend::{AddInputCommand, AddPoseSourceCommand},
@@ -11,6 +12,7 @@ use crate::{
     scene::{EditorScene, Selection},
     Message,
 };
+use fyrox::animation::machine::node::blendspace::BlendSpacePoint;
 use fyrox::fxhash::FxHashSet;
 use fyrox::{
     animation::machine::{BlendPose, Event, IndexedBlendInput, Machine, PoseNode, State},
@@ -511,8 +513,16 @@ impl AbsmEditor {
                                             .unwrap();
                                     }
                                     PoseNode::BlendSpace(_) => {
-                                        // TODO
-                                        unimplemented!();
+                                        sender
+                                            .send(Message::do_scene_command(
+                                                AddBlendSpacePointCommand::new(
+                                                    selection.absm_node_handle,
+                                                    node.model_handle,
+                                                    layer_index,
+                                                    BlendSpacePoint::default(),
+                                                ),
+                                            ))
+                                            .unwrap();
                                     }
                                 }
                             }

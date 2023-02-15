@@ -14,6 +14,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::animation::machine::node::blendspace::{BlendSpace, BlendSpacePoint};
 use fyrox::{
     animation::{
         machine::{
@@ -304,11 +305,14 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<BasePoseNode>::new());
     container.insert(InspectablePropertyEditorDefinition::<IndexedBlendInput>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<IndexedBlendInput>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BlendSpacePoint>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<BlendSpacePoint>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendPose>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<BlendPose>::new());
     container.insert(EnumPropertyEditorDefinition::<PoseWeight>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimationsByIndex>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimations>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BlendSpace>::new());
     container.insert(InspectablePropertyEditorDefinition::<PlayAnimation>::new());
 
     container.insert(InspectablePropertyEditorDefinition::<Handle<PoseNode>>::new());
