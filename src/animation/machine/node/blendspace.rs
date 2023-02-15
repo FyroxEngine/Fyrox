@@ -14,6 +14,7 @@ use crate::{
     },
 };
 use spade::{DelaunayTriangulation, Point2, Triangulation};
+use std::cell::Cell;
 use std::{
     cell::{Ref, RefCell},
     ops::{Deref, DerefMut},
@@ -30,7 +31,12 @@ pub struct BlendSpace {
     base: BasePoseNode,
 
     points: Vec<BlendSpacePoint>,
-    triangles: Vec<TriangleDefinition>,
+
+    triangles: RefCell<Vec<TriangleDefinition>>,
+
+    #[reflect(hidden)]
+    #[visit(skip)]
+    triangles_dirty: Cell<bool>,
 
     #[reflect(setter = "set_min_values")]
     min_values: Vector2<f32>,
@@ -54,7 +60,8 @@ impl Default for BlendSpace {
         Self {
             base: Default::default(),
             points: vec![],
-            triangles: vec![],
+            triangles: Default::default(),
+            triangles_dirty: Cell::new(true),
             min_values: Default::default(),
             max_values: Vector2::new(1.0, 1.0),
             snap_step: Vector2::new(0.1, 0.1),
@@ -118,17 +125,29 @@ impl EvaluatePose for BlendSpace {
 }
 
 impl BlendSpace {
-    /// Sets new points to the blend space and tries to triangulate them. Returns `true` if the triangulation
-    /// was successful, `false` - otherwise. Keep in mind, that failed triangulation does not indicate an error -
-    /// a blend space could contain any number of points, so for zero, one or two points triangulation is not
-    /// defined. In other words, blend space will function ok even with failed triangulation.
-    pub fn set_points(&mut self, points: Vec<BlendSpacePoint>) -> bool {
+    pub fn add_point(&mut self, point: BlendSpacePoint) {
+        self.points.push(point);
+        self.triangles_dirty.set(true);
+    }
+
+    /// Sets new points to the blend space.
+    pub fn set_points(&mut self, points: Vec<BlendSpacePoint>) {
         self.points = points;
-        self.triangulate()
+        self.triangles_dirty.set(true);
+    }
+
+    pub fn clear_points(&mut self) {
+        self.points.clear();
+        self.triangles_dirty.set(true);
     }
 
     pub fn points(&self) -> &[BlendSpacePoint] {
         &self.points
+    }
+
+    pub fn points_mut(&mut self) -> &mut Vec<BlendSpacePoint> {
+        self.triangles_dirty.set(true);
+        &mut self.points
     }
 
     pub fn children(&self) -> Vec<Handle<PoseNode>> {
@@ -170,6 +189,11 @@ impl BlendSpace {
     }
 
     pub fn fetch_weights(&self, sampling_point: Vector2<f32>) -> Option<[(usize, f32); 3]> {
+        if self.triangles_dirty.get() {
+            self.triangulate();
+            self.triangles_dirty.set(false);
+        }
+
         if self.points.is_empty() {
             return None;
         }
@@ -189,8 +213,10 @@ impl BlendSpace {
             }
         }
 
+        let triangles = self.triangles.borrow();
+
         // Try to find a triangle that contains the sampling point.
-        for triangle in self.triangles.iter() {
+        for triangle in triangles.iter() {
             let ia = triangle[0] as usize;
             let ib = triangle[1] as usize;
             let ic = triangle[2] as usize;
@@ -214,7 +240,7 @@ impl BlendSpace {
         let mut min_distance = f32::MAX;
         let mut weights = None;
 
-        for triangle in self.triangles.iter() {
+        for triangle in triangles.iter() {
             for (a, b) in [
                 (triangle[0] as usize, triangle[1] as usize),
                 (triangle[1] as usize, triangle[2] as usize),
@@ -245,8 +271,10 @@ impl BlendSpace {
         weights
     }
 
-    fn triangulate(&mut self) -> bool {
-        self.triangles.clear();
+    fn triangulate(&self) -> bool {
+        let mut triangles = self.triangles.borrow_mut();
+
+        triangles.clear();
 
         if self.points.len() < 3 {
             return false;
@@ -265,7 +293,7 @@ impl BlendSpace {
 
         for face in triangulation.inner_faces() {
             let edges = face.adjacent_edges();
-            self.triangles.push(TriangleDefinition([
+            triangles.push(TriangleDefinition([
                 edges[0].from().index() as u32,
                 edges[1].from().index() as u32,
                 edges[2].from().index() as u32,
@@ -282,12 +310,13 @@ mod test {
         animation::machine::node::blendspace::{BlendSpace, BlendSpacePoint},
         core::{algebra::Vector2, math::TriangleDefinition},
     };
+    use std::cell::RefCell;
 
     #[test]
     fn test_blend_space_triangulation() {
         let mut blend_space = BlendSpace::default();
 
-        let result = blend_space.set_points(vec![
+        blend_space.set_points(vec![
             BlendSpacePoint {
                 position: Vector2::new(0.0, 0.0),
                 pose_source: Default::default(),
@@ -306,12 +335,14 @@ mod test {
             },
         ]);
 
-        // Triangulation must exist.
-        assert!(result);
+        blend_space.fetch_weights(Default::default());
 
         assert_eq!(
             blend_space.triangles,
-            vec![TriangleDefinition([2, 0, 1]), TriangleDefinition([3, 0, 2])]
+            RefCell::new(vec![
+                TriangleDefinition([2, 0, 1]),
+                TriangleDefinition([3, 0, 2])
+            ])
         )
     }
 
@@ -326,12 +357,10 @@ mod test {
     fn test_single_point_blend_space_sampling() {
         let mut blend_space = BlendSpace::default();
 
-        let triangulated = blend_space.set_points(vec![BlendSpacePoint {
+        blend_space.set_points(vec![BlendSpacePoint {
             position: Vector2::new(0.0, 0.0),
             pose_source: Default::default(),
         }]);
-
-        assert!(!triangulated);
 
         assert_eq!(
             blend_space.fetch_weights(Default::default()),
@@ -343,7 +372,7 @@ mod test {
     fn test_two_points_blend_space_sampling() {
         let mut blend_space = BlendSpace::default();
 
-        let triangulated = blend_space.set_points(vec![
+        blend_space.set_points(vec![
             BlendSpacePoint {
                 position: Vector2::new(0.0, 0.0),
                 pose_source: Default::default(),
@@ -353,8 +382,6 @@ mod test {
                 pose_source: Default::default(),
             },
         ]);
-
-        assert!(!triangulated);
 
         assert_eq!(
             blend_space.fetch_weights(Vector2::new(0.0, 0.0)),
