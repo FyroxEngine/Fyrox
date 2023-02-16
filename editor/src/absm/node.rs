@@ -44,6 +44,7 @@ where
     normal_color: Color,
     selected_color: Color,
     name: Handle<UiNode>,
+    edit: Handle<UiNode>,
 }
 
 impl<T> Clone for AbsmNode<T>
@@ -63,6 +64,7 @@ where
             normal_color: self.normal_color,
             selected_color: self.selected_color,
             name: self.name,
+            edit: self.edit,
         }
     }
 }
@@ -113,6 +115,7 @@ pub enum AbsmNodeMessage {
     NormalColor(Color),
     SelectedColor(Color),
     SetActive(bool),
+    Edit,
 }
 
 impl AbsmNodeMessage {
@@ -123,6 +126,7 @@ impl AbsmNodeMessage {
     define_constructor!(AbsmNodeMessage:NormalColor => fn normal_color(Color), layout: false);
     define_constructor!(AbsmNodeMessage:SelectedColor => fn selected_color(Color), layout: false);
     define_constructor!(AbsmNodeMessage:SetActive => fn set_active(bool), layout: false);
+    define_constructor!(AbsmNodeMessage:Edit => fn edit(), layout: false);
 }
 
 impl<T> Control for AbsmNode<T>
@@ -168,6 +172,11 @@ where
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_input {
                 ui.send_message(AbsmNodeMessage::add_input(
+                    self.handle(),
+                    MessageDirection::FromWidget,
+                ));
+            } else if message.destination() == self.edit {
+                ui.send_message(AbsmNodeMessage::edit(
                     self.handle(),
                     MessageDirection::FromWidget,
                 ));
@@ -258,6 +267,7 @@ where
     title: Option<String>,
     normal_color: Color,
     selected_color: Color,
+    editable: bool,
 }
 
 impl<T> AbsmNodeBuilder<T>
@@ -275,6 +285,7 @@ where
             title: None,
             normal_color: NORMAL_BACKGROUND,
             selected_color: SELECTED_BACKGROUND,
+            editable: false,
         }
     }
 
@@ -318,10 +329,16 @@ where
         self
     }
 
+    pub fn with_editable(mut self, editable: bool) -> Self {
+        self.editable = editable;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let input_sockets_panel;
         let add_input;
         let name;
+        let mut edit = Handle::NONE;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .on_row(1)
@@ -361,19 +378,33 @@ where
                     .add_column(Column::auto())
                     .build(ctx),
                 )
-                .with_child({
-                    name = TextBuilder::new(
+                .with_child(
+                    StackPanelBuilder::new(
                         WidgetBuilder::new()
-                            .with_width(150.0)
-                            .with_height(75.0)
-                            .on_column(1),
+                            .on_column(1)
+                            .with_child({
+                                name = TextBuilder::new(
+                                    WidgetBuilder::new().with_width(150.0).with_height(75.0),
+                                )
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                                .with_text(format!("{} ({})", self.name, self.model_handle))
+                                .build(ctx);
+                                name
+                            })
+                            .with_child(if self.editable {
+                                edit = ButtonBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("Edit")
+                                .build(ctx);
+                                edit
+                            } else {
+                                Handle::NONE
+                            }),
                     )
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                    .with_text(format!("{} ({})", self.name, self.model_handle))
-                    .build(ctx);
-                    name
-                })
+                    .build(ctx),
+                )
                 .with_child(
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
@@ -445,6 +476,7 @@ where
             normal_color: self.normal_color,
             selected_color: self.selected_color,
             name,
+            edit,
         };
 
         ctx.add_node(UiNode::new(node))
