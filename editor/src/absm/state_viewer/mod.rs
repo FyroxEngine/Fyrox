@@ -3,7 +3,8 @@ use crate::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
         command::{
             blend::{
-                SetBlendAnimationByIndexInputPoseSourceCommand, SetBlendAnimationsPoseSourceCommand,
+                SetBlendAnimationByIndexInputPoseSourceCommand,
+                SetBlendAnimationsPoseSourceCommand, SetBlendSpacePoseSourceCommand,
             },
             MovePoseNodeCommand,
         },
@@ -342,8 +343,17 @@ impl StateViewer {
                                         .unwrap();
                                 }
                                 PoseNode::BlendSpace(_) => {
-                                    // TODO
-                                    unimplemented!()
+                                    sender
+                                        .send(Message::do_scene_command(
+                                            SetBlendSpacePoseSourceCommand {
+                                                node_handle: absm_node_handle,
+                                                layer_index,
+                                                handle: dest_node,
+                                                index: dest_socket_ref.index,
+                                                value: source_node,
+                                            },
+                                        ))
+                                        .unwrap();
                                 }
                             }
                         }
