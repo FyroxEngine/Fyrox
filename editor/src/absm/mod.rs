@@ -1,7 +1,7 @@
-use crate::absm::command::blend::AddBlendSpacePointCommand;
 use crate::{
     absm::{
-        command::blend::{AddInputCommand, AddPoseSourceCommand},
+        blendspace::BlendSpaceEditor,
+        command::blend::{AddBlendSpacePointCommand, AddInputCommand, AddPoseSourceCommand},
         node::{AbsmNode, AbsmNodeMessage},
         parameter::ParameterPanel,
         selection::AbsmSelection,
@@ -12,12 +12,14 @@ use crate::{
     scene::{EditorScene, Selection},
     Message,
 };
-use fyrox::animation::machine::node::blendspace::BlendSpacePoint;
-use fyrox::fxhash::FxHashSet;
 use fyrox::{
-    animation::machine::{BlendPose, Event, IndexedBlendInput, Machine, PoseNode, State},
+    animation::machine::{
+        node::blendspace::BlendSpacePoint, BlendPose, Event, IndexedBlendInput, Machine, PoseNode,
+        State,
+    },
     core::{color::Color, pool::Handle},
     engine::Engine,
+    fxhash::FxHashSet,
     gui::{
         check_box::CheckBoxMessage,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
@@ -35,6 +37,7 @@ use fyrox::{
 };
 use std::sync::mpsc::Sender;
 
+mod blendspace;
 mod canvas;
 pub mod command;
 mod connection;
@@ -93,6 +96,7 @@ pub struct AbsmEditor {
     prev_absm: Handle<Node>,
     toolbar: Toolbar,
     preview_mode_data: Option<PreviewModeData>,
+    blend_space_editor: BlendSpaceEditor,
 }
 
 impl AbsmEditor {
@@ -100,6 +104,7 @@ impl AbsmEditor {
         let state_graph_viewer = StateGraphViewer::new(ctx);
         let state_viewer = StateViewer::new(ctx);
         let parameter_panel = ParameterPanel::new(ctx, sender);
+        let blend_space_editor = BlendSpaceEditor::new(ctx);
 
         let docking_manager = DockingManagerBuilder::new(
             WidgetBuilder::new().on_row(1).with_child(
@@ -130,6 +135,7 @@ impl AbsmEditor {
                     .build(ctx),
             ),
         )
+        .with_floating_windows(vec![blend_space_editor.window])
         .build(ctx);
 
         let toolbar = Toolbar::new(ctx);
@@ -158,6 +164,7 @@ impl AbsmEditor {
             prev_absm: Default::default(),
             toolbar,
             preview_mode_data: None,
+            blend_space_editor,
         }
     }
 
@@ -474,6 +481,21 @@ impl AbsmEditor {
                                     ui,
                                 );
                                 sender.send(Message::ForceSync).unwrap();
+                            }
+                        }
+                    }
+                    AbsmNodeMessage::Edit => {
+                        if let Some(node) = ui
+                            .node(message.destination())
+                            .query_component::<AbsmNode<PoseNode>>()
+                        {
+                            if let Some(layer_index) = selection.layer {
+                                let model_ref = &absm_node.machine().layers()[layer_index].nodes()
+                                    [node.model_handle];
+
+                                if let PoseNode::BlendSpace(_) = model_ref {
+                                    self.blend_space_editor.open(ui);
+                                }
                             }
                         }
                     }
