@@ -14,9 +14,8 @@ use crate::{
     },
 };
 use spade::{DelaunayTriangulation, Point2, Triangulation};
-use std::cell::Cell;
 use std::{
-    cell::{Ref, RefCell},
+    cell::{Cell, Ref, RefCell},
     ops::{Deref, DerefMut},
 };
 
@@ -32,11 +31,18 @@ pub struct BlendSpace {
 
     points: Vec<BlendSpacePoint>,
 
+    #[reflect(hidden)]
     triangles: RefCell<Vec<TriangleDefinition>>,
 
     #[reflect(hidden)]
     #[visit(skip)]
     triangles_dirty: Cell<bool>,
+
+    #[reflect(setter = "set_x_axis_name")]
+    x_axis_name: String,
+
+    #[reflect(setter = "set_y_axis_name")]
+    y_axis_name: String,
 
     #[reflect(setter = "set_min_values")]
     min_values: Vector2<f32>,
@@ -62,6 +68,8 @@ impl Default for BlendSpace {
             points: vec![],
             triangles: Default::default(),
             triangles_dirty: Cell::new(true),
+            x_axis_name: "X".to_string(),
+            y_axis_name: "Y".to_string(),
             min_values: Default::default(),
             max_values: Vector2::new(1.0, 1.0),
             snap_step: Vector2::new(0.1, 0.1),
@@ -186,6 +194,22 @@ impl BlendSpace {
 
     pub fn sampling_parameter(&self) -> &str {
         &self.sampling_parameter
+    }
+
+    pub fn set_x_axis_name(&mut self, name: String) -> String {
+        std::mem::replace(&mut self.x_axis_name, name)
+    }
+
+    pub fn x_axis_name(&self) -> &str {
+        &self.x_axis_name
+    }
+
+    pub fn set_y_axis_name(&mut self, name: String) -> String {
+        std::mem::replace(&mut self.y_axis_name, name)
+    }
+
+    pub fn y_axis_name(&self) -> &str {
+        &self.y_axis_name
     }
 
     pub fn fetch_weights(&self, sampling_point: Vector2<f32>) -> Option<[(usize, f32); 3]> {
